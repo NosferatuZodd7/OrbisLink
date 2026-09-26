@@ -54,6 +54,10 @@ std::string Settings::toJson() const
 	root.set("stream_rumble", Json::fromBool(streamRumble));
 	root.set("stream_touchpad_from_mouse", Json::fromBool(streamTouchpadFromMouse));
 	root.set("stream_account_id", Json::fromString(streamAccountId));
+	Json teclas = Json::makeObject();
+	for(const auto &par : keyboardBindings)
+		teclas.set(par.first, Json::fromInt(par.second));
+	root.set("keyboard_bindings", teclas);
 	root.set("theme", Json::fromString(theme));
 	root.set("language", Json::fromString(language));
 	root.set("debug_logging", Json::fromBool(debugLogging));
@@ -107,6 +111,14 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.streamTouchpadFromMouse =
 		root["stream_touchpad_from_mouse"].toLooseBool(settings.streamTouchpadFromMouse);
 	settings.streamAccountId = root["stream_account_id"].toString(settings.streamAccountId);
+	if(root["keyboard_bindings"].isObject())
+	{
+		for(const auto &par : root["keyboard_bindings"].members())
+		{
+			if(par.second.isNumber())
+				settings.keyboardBindings[par.first] = static_cast<int>(par.second.toInt());
+		}
+	}
 	settings.theme = root["theme"].toString(settings.theme);
 	settings.language = root["language"].toString(settings.language);
 	settings.debugLogging = root["debug_logging"].toLooseBool(settings.debugLogging);

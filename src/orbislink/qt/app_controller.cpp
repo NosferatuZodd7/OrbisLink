@@ -1320,6 +1320,13 @@ void AppController::setTheme(const QString &theme)
 	emit settingsChanged();
 }
 
+void AppController::saveKeyBindings(const std::map<std::string, int> &bindings)
+{
+	settings_.keyboardBindings = bindings;
+	store_.save(settings_);
+	emit settingsChanged();
+}
+
 void AppController::saveUpdateSettings(bool checkForUpdates, const QString &repository,
 	const QString &channel)
 {
