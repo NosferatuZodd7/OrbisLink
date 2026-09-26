@@ -32,6 +32,8 @@ class StreamController : public QObject
 	// botão poder dizer que está a fazer alguma coisa.
 	Q_PROPERTY(bool searching READ searching NOTIFY consoleChanged)
 	Q_PROPERTY(QString consoleName READ consoleName NOTIFY consoleChanged)
+	// PS5 ou PS4, pelo que a consola disse na descoberta.
+	Q_PROPERTY(bool consolePs5 READ consolePs5 NOTIFY consoleChanged)
 	Q_PROPERTY(QString runningApp READ runningApp NOTIFY consoleChanged)
 	Q_PROPERTY(bool registered READ registered NOTIFY registrationChanged)
 	Q_PROPERTY(bool registering READ registering NOTIFY registrationChanged)
@@ -58,6 +60,7 @@ class StreamController : public QObject
 	Q_PROPERTY(bool hardwareDecoder READ hardwareDecoder NOTIFY sessionChanged)
 	Q_PROPERTY(bool fullscreenOnConnect READ fullscreenOnConnect NOTIFY settingsApplied)
 	Q_PROPERTY(QString savedAccountId READ accountId NOTIFY settingsApplied)
+	Q_PROPERTY(QVariantMap keyBindings READ keyBindings NOTIFY keyBindingsChanged)
 
 public:
 	explicit StreamController(QObject *parent = nullptr);
@@ -67,6 +70,7 @@ public:
 	QString consoleState() const { return consoleState_; }
 	bool searching() const { return searching_; }
 	QString consoleName() const { return consoleName_; }
+	bool consolePs5() const { return host_.ps5; }
 	QString runningApp() const { return runningApp_; }
 	bool registered() const { return credentials_.valid; }
 	bool registering() const { return registering_; }
@@ -129,6 +133,16 @@ public:
 	Q_INVOKABLE bool keyReleased(int key);
 	Q_INVOKABLE void releaseAllKeys();
 
+	// As teclas do teclado como comando, para a janela do mapa: acção →
+	// código da tecla (Qt::Key).
+	QVariantMap keyBindings() const;
+	// Muda a tecla de uma acção (se estiver ocupada, as duas trocam).
+	// Devolve false para uma tecla que não se pode usar (Esc, F11).
+	Q_INVOKABLE bool setKeyBinding(const QString &action, int key);
+	Q_INVOKABLE void resetKeyBindings();
+	// O nome da tecla como o sistema o escreve ("Enter", "Espaço", "Q").
+	Q_INVOKABLE QString keyName(int key) const;
+
 	// Touchpad a partir do rato. As coordenadas vêm normalizadas (0 a 1)
 	// para o QML não ter de saber o tamanho do touchpad do comando.
 	Q_INVOKABLE void touchBegin(double x, double y);
@@ -149,6 +163,10 @@ signals:
 	void accountIdAccepted(const QString &accountIdBase64);
 	void gamepadChanged();
 	void settingsApplied();
+	void keyBindingsChanged();
+	// Pedido para gravar as teclas nas definições; quem as guarda liga-se
+	// aqui, e o mapa novo volta por applySettings().
+	void keyBindingsEdited(const std::map<std::string, int> &bindings);
 	void notify(const QString &title, const QString &message, bool error);
 	void loginPinRequested(bool incorrect);
 

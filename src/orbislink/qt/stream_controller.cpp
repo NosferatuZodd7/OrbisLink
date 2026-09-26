@@ -3,6 +3,7 @@
 
 #include "orbislink/stream/account_id.h"
 
+#include <QKeySequence>
 #include <QTimer>
 
 #include "orbislink/common/log.h"
@@ -218,7 +219,45 @@ void StreamController::applySettings(const Settings &settings)
 	touchpadFromMouse_ = settings.streamTouchpadFromMouse;
 	gamepad_.setRumbleEnabled(rumbleEnabled_);
 	accountId_ = QString::fromStdString(settings.streamAccountId);
+	keyboard_.setBindings(settings.keyboardBindings);
 	emit settingsApplied();
+	emit keyBindingsChanged();
+}
+
+QVariantMap StreamController::keyBindings() const
+{
+	QVariantMap mapa;
+	for(const auto &par : keyboard_.bindings())
+		mapa.insert(QString::fromStdString(par.first), par.second);
+	return mapa;
+}
+
+bool StreamController::setKeyBinding(const QString &action, int key)
+{
+	KeyboardMap::Bindings novas = keyboard_.bindings();
+	if(!KeyboardMap::rebind(novas, action.toStdString(), key))
+		return false;
+	emit keyBindingsEdited(novas);
+	return true;
+}
+
+void StreamController::resetKeyBindings() { emit keyBindingsEdited({}); }
+
+QString StreamController::keyName(int key) const
+{
+	switch(key)
+	{
+		// O QKeySequence escreve estas em inglês e por extenso; no desenho
+		// do teclado cabem melhor assim.
+		case Qt::Key_Return: return QStringLiteral("Enter");
+		case Qt::Key_Backspace: return QStringLiteral("⌫");
+		case Qt::Key_Up: return QStringLiteral("↑");
+		case Qt::Key_Down: return QStringLiteral("↓");
+		case Qt::Key_Left: return QStringLiteral("←");
+		case Qt::Key_Right: return QStringLiteral("→");
+		case Qt::Key_Space: return tr("Espaço");
+		default: return QKeySequence(key).toString(QKeySequence::NativeText);
+	}
 }
 
 void StreamController::loadCredentials()

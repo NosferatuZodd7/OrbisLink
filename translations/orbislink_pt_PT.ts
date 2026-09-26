@@ -55,6 +55,69 @@
     </message>
 </context>
 <context>
+    <name>ConsoleCard</name>
+    <message>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="55"/>
+        <source>Remote Play não incluído nesta versão</source>
+        <translation>Remote Play não incluído nesta versão</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="56"/>
+        <source>A ligar… — clica para cancelar</source>
+        <translation>A ligar… — clica para cancelar</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="57"/>
+        <source>A procurar…</source>
+        <translation>A procurar…</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="59"/>
+        <source>Não responde — clica para procurar</source>
+        <translation>Não responde — clica para procurar</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="60"/>
+        <source>Clica para procurar a consola</source>
+        <translation>Clica para procurar a consola</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="61"/>
+        <source>Por registar — clica para registar este PC</source>
+        <translation>Por registar — clica para registar este PC</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="62"/>
+        <source>Em repouso — clica para acordar</source>
+        <translation>Em repouso — clica para acordar</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="63"/>
+        <source>Pronta — clica para ligar</source>
+        <translation>Pronta — clica para ligar</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="150"/>
+        <source>Procurar a consola outra vez</source>
+        <translation>Procurar a consola outra vez</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="162"/>
+        <source>Registar este PC outra vez</source>
+        <translation>Registar este PC outra vez</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="163"/>
+        <source>Registar este PC na consola</source>
+        <translation>Registar este PC na consola</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="240"/>
+        <source>Consola</source>
+        <translation>Consola</translation>
+    </message>
+</context>
+<context>
     <name>DiagnosticsDialog</name>
     <message>
         <location filename="../qml/orbislink/DiagnosticsDialog.qml" line="90"/>
@@ -400,144 +463,164 @@
 <context>
     <name>KeyboardMap</name>
     <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="28"/>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="42"/>
+        <source>A mudar %1: carrega na tecla nova, ou clica numa tecla do desenho. Esc cancela.</source>
+        <translation>A mudar %1: carrega na tecla nova, ou clica numa tecla do desenho. Esc cancela.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="57"/>
+        <source>Cruz</source>
+        <translation>Cruz</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="58"/>
+        <source>Círculo</source>
+        <translation>Círculo</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="59"/>
+        <source>Quadrado</source>
+        <translation>Quadrado</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="60"/>
+        <source>Triângulo</source>
+        <translation>Triângulo</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="61"/>
+        <source>cruzeta para cima</source>
+        <translation>cruzeta para cima</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="62"/>
+        <source>cruzeta para baixo</source>
+        <translation>cruzeta para baixo</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="63"/>
+        <source>cruzeta para a esquerda</source>
+        <translation>cruzeta para a esquerda</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="64"/>
+        <source>cruzeta para a direita</source>
+        <translation>cruzeta para a direita</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="65"/>
+        <source>L1</source>
+        <translation>L1</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="66"/>
+        <source>L2 (gatilho)</source>
+        <translation>L2 (gatilho)</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="67"/>
+        <source>R1</source>
+        <translation>R1</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="68"/>
+        <source>R2 (gatilho)</source>
+        <translation>R2 (gatilho)</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="69"/>
+        <source>L3 (carregar no analógico esquerdo)</source>
+        <translation>L3 (carregar no analógico esquerdo)</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="70"/>
+        <source>R3 (carregar no analógico direito)</source>
+        <translation>R3 (carregar no analógico direito)</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="71"/>
+        <source>analógico esquerdo para cima</source>
+        <translation>analógico esquerdo para cima</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="72"/>
+        <source>analógico esquerdo para a esquerda</source>
+        <translation>analógico esquerdo para a esquerda</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="73"/>
+        <source>analógico esquerdo para baixo</source>
+        <translation>analógico esquerdo para baixo</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="74"/>
+        <source>analógico esquerdo para a direita</source>
+        <translation>analógico esquerdo para a direita</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="75"/>
+        <source>analógico direito para cima</source>
+        <translation>analógico direito para cima</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="76"/>
+        <source>analógico direito para a esquerda</source>
+        <translation>analógico direito para a esquerda</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="77"/>
+        <source>analógico direito para baixo</source>
+        <translation>analógico direito para baixo</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="78"/>
+        <source>analógico direito para a direita</source>
+        <translation>analógico direito para a direita</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="79"/>
+        <source>Options</source>
+        <translation>Options</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="80"/>
+        <source>Share</source>
+        <translation>Share</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="81"/>
+        <source>carregar no touchpad</source>
+        <translation>carregar no touchpad</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="82"/>
+        <source>botão PS</source>
+        <translation>botão PS</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="108"/>
+        <source>Espaço</source>
+        <translation>Espaço</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="147"/>
+        <source>Essa tecla não se pode usar: o Esc sai do stream e o F11 muda o ecrã inteiro.</source>
+        <translation>Essa tecla não se pode usar: o Esc sai do stream e o F11 muda o ecrã inteiro.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="180"/>
         <source>sair</source>
         <translation>sair</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="28"/>
-        <source>Esc — sai do stream</source>
-        <translation>Esc — sai do stream</translation>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="180"/>
+        <source>sai do stream</source>
+        <translation>sai do stream</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="29"/>
-        <source>1 — L1</source>
-        <translation>1 — L1</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="30"/>
-        <source>2 — L2 (gatilho)</source>
-        <translation>2 — L2 (gatilho)</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="31"/>
-        <source>3 — R1</source>
-        <translation>3 — R1</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="32"/>
-        <source>4 — L3 (carregar no analógico esquerdo)</source>
-        <translation>4 — L3 (carregar no analógico esquerdo)</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="33"/>
-        <source>5 — R2 (gatilho)</source>
-        <translation>5 — R2 (gatilho)</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="34"/>
-        <source>6 — R3 (carregar no analógico direito)</source>
-        <translation>6 — R3 (carregar no analógico direito)</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="35"/>
-        <source>Backspace — Círculo</source>
-        <translation>Backspace — Círculo</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="36"/>
-        <source>Enter — Cruz</source>
-        <translation>Enter — Cruz</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="37"/>
-        <source>C — Quadrado</source>
-        <translation>C — Quadrado</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="38"/>
-        <source>V — Triângulo</source>
-        <translation>V — Triângulo</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="39"/>
-        <source>W — analógico esquerdo para cima</source>
-        <translation>W — analógico esquerdo para cima</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="40"/>
-        <source>A — analógico esquerdo para a esquerda</source>
-        <translation>A — analógico esquerdo para a esquerda</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="41"/>
-        <source>S — analógico esquerdo para baixo</source>
-        <translation>S — analógico esquerdo para baixo</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="42"/>
-        <source>D — analógico esquerdo para a direita</source>
-        <translation>D — analógico esquerdo para a direita</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="43"/>
-        <source>I — analógico direito para cima</source>
-        <translation>I — analógico direito para cima</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="44"/>
-        <source>J — analógico direito para a esquerda</source>
-        <translation>J — analógico direito para a esquerda</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="45"/>
-        <source>K — analógico direito para baixo</source>
-        <translation>K — analógico direito para baixo</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="46"/>
-        <source>L — analógico direito para a direita</source>
-        <translation>L — analógico direito para a direita</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="47"/>
-        <source>O — Options</source>
-        <translation>O — Options</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="48"/>
-        <source>F — Share</source>
-        <translation>F — Share</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="49"/>
-        <source>T — carregar no touchpad</source>
-        <translation>T — carregar no touchpad</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="50"/>
-        <source>P — botão PS</source>
-        <translation>P — botão PS</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="51"/>
-        <source>Seta para cima — cruzeta para cima</source>
-        <translation>Seta para cima — cruzeta para cima</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="52"/>
-        <source>Seta para baixo — cruzeta para baixo</source>
-        <translation>Seta para baixo — cruzeta para baixo</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="53"/>
-        <source>Seta para a esquerda — cruzeta para a esquerda</source>
-        <translation>Seta para a esquerda — cruzeta para a esquerda</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/KeyboardMap.qml" line="54"/>
-        <source>Seta para a direita — cruzeta para a direita</source>
-        <translation>Seta para a direita — cruzeta para a direita</translation>
+        <location filename="../qml/orbislink/KeyboardMap.qml" line="303"/>
+        <source>Fora do desenho: %1</source>
+        <translation>Fora do desenho: %1</translation>
     </message>
 </context>
 <context>
@@ -922,253 +1005,202 @@
 <context>
     <name>StreamArea</name>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="139"/>
-        <source>Remote Play não incluído nesta versão</source>
-        <translation>Remote Play não incluído nesta versão</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="141"/>
-        <source>A ligar ao Remote Play…</source>
-        <translation>A ligar ao Remote Play…</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="143"/>
-        <source>A consola está em repouso</source>
-        <translation>A consola está em repouso</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="145"/>
-        <source>A consola não respondeu</source>
-        <translation>A consola não respondeu</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="147"/>
-        <source>Falta registar este PC na consola</source>
-        <translation>Falta registar este PC na consola</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="148"/>
-        <source>Pronto para ligar</source>
-        <translation>Pronto para ligar</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="160"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="153"/>
         <source>Este pacote foi compilado sem o chiaki-ng. Tudo o resto — instalar pkg e FTP — funciona na mesma.</source>
         <translation>Este pacote foi compilado sem o chiaki-ng. Tudo o resto — instalar pkg e FTP — funciona na mesma.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="165"/>
-        <source>Carrega em &quot;Acordar consola&quot; e espera uns segundos.</source>
-        <translation>Carrega em &quot;Acordar consola&quot; e espera uns segundos.</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="167"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="158"/>
         <source>Confirma o IP nas definições e que a consola está ligada na mesma rede.</source>
         <translation>Confirma o IP nas definições e que a consola está ligada na mesma rede.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="170"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="161"/>
         <source>Na consola: Definições → Definições de Ligação do Remote Play → Adicionar Dispositivo. Aparece um PIN de 8 dígitos.</source>
         <translation>Na consola: Definições → Definições de Ligação do Remote Play → Adicionar Dispositivo. Aparece um PIN de 8 dígitos.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="173"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="164"/>
         <source>A correr: %1</source>
         <translation>A correr: %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="174"/>
-        <source>A consola está pronta.</source>
-        <translation>A consola está pronta.</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="184"/>
-        <source>Ligar</source>
-        <translation>Ligar</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="195"/>
-        <source>Acordar consola</source>
-        <translation>Acordar consola</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="202"/>
-        <source>Registar outra vez</source>
-        <translation>Registar outra vez</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="202"/>
-        <source>Registar consola</source>
-        <translation>Registar consola</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="209"/>
-        <source>Procurar</source>
-        <translation>Procurar</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="216"/>
-        <location filename="../qml/orbislink/StreamArea.qml" line="602"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="556"/>
         <source>Cancelar</source>
         <translation>Cancelar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="234"/>
-        <source>Servidor HTTP local: %1</source>
-        <translation>Servidor HTTP local: %1</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="287"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="215"/>
         <source>%1×%2</source>
         <translation>%1×%2</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="289"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="217"/>
         <source> · %1 fps</source>
         <translation> · %1 fps</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="307"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="235"/>
         <source>Som: desligado</source>
         <translation>Som: desligado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="308"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="236"/>
         <source>Som: ligado</source>
         <translation>Som: ligado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="324"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="252"/>
         <source>placa gráfica</source>
         <translation>placa gráfica</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="324"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="252"/>
         <source>processador</source>
         <translation>processador</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="358"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="286"/>
         <source>Sair do ecrã inteiro</source>
         <translation>Sair do ecrã inteiro</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="359"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="287"/>
         <source>Ecrã inteiro</source>
         <translation>Ecrã inteiro</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="365"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="293"/>
         <source>Teclas</source>
         <translation>Teclas</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="371"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="299"/>
         <source>Terminar sessão</source>
         <translation>Terminar sessão</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="411"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="344"/>
         <source>O teclado como comando</source>
         <translation>O teclado como comando</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="435"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="369"/>
+        <source>Concluir</source>
+        <translation>Concluir</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/StreamArea.qml" line="369"/>
+        <source>Mudar teclas</source>
+        <translation>Mudar teclas</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/StreamArea.qml" line="375"/>
+        <source>Repor</source>
+        <translation>Repor</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/StreamArea.qml" line="378"/>
+        <source>Voltar às teclas por omissão</source>
+        <translation>Voltar às teclas por omissão</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/StreamArea.qml" line="386"/>
         <source>Fechar</source>
         <translation>Fechar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="466"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="417"/>
         <source>Comando ligado: %1. O teclado também funciona:</source>
         <translation>Comando ligado: %1. O teclado também funciona:</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="468"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="419"/>
         <source>Nenhum comando ligado — liga um por USB e é reconhecido sozinho. Entretanto, o teclado:</source>
         <translation>Nenhum comando ligado — liga um por USB e é reconhecido sozinho. Entretanto, o teclado:</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="517"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="469"/>
+        <source>Clica na tecla que queres mudar e depois carrega na tecla nova. Se ela já tiver uma função, as duas trocam.</source>
+        <translation>Clica na tecla que queres mudar e depois carrega na tecla nova. Se ela já tiver uma função, as duas trocam.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/StreamArea.qml" line="471"/>
         <source>Passa o rato por cima de uma tecla para ver no comando o botão que ela faz. As teclas apagadas não fazem nada.</source>
         <translation>Passa o rato por cima de uma tecla para ver no comando o botão que ela faz. As teclas apagadas não fazem nada.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="577"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="531"/>
         <source>PIN da consola</source>
         <translation>PIN da consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="607"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="561"/>
         <source>Enviar</source>
         <translation>Enviar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="628"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="582"/>
         <source>O PIN não estava certo. Tenta outra vez.</source>
         <translation>O PIN não estava certo. Tenta outra vez.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="629"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="583"/>
         <source>A consola pede o PIN de início de sessão da conta.</source>
         <translation>A consola pede o PIN de início de sessão da conta.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="333"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="261"/>
         <source>🎤 A falar</source>
         <translation>🎤 A falar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="334"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="262"/>
         <source>🎤 Em silêncio</source>
         <translation>🎤 Em silêncio</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="335"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="263"/>
         <source>Microfone</source>
         <translation>Microfone</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="341"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="269"/>
         <source>Enviar o teu microfone para a consola</source>
         <translation>Enviar o teu microfone para a consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="342"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="270"/>
         <source>A captar de %1. Clica para calar, ou usa o botão direito para desligar.</source>
         <translation>A captar de %1. Clica para calar, ou usa o botão direito para desligar.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="209"/>
-        <source>A procurar…</source>
-        <translation>A procurar…</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="305"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="233"/>
         <source>Som</source>
         <translation>Som</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="306"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="234"/>
         <source>Sem som</source>
         <translation>Sem som</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="314"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="242"/>
         <source>Este PC não tem saída de som activa.</source>
         <translation>Este PC não tem saída de som activa.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="316"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="244"/>
         <source>A placa de som recusou o stream — vê o Ctrl+L.</source>
         <translation>A placa de som recusou o stream — vê o Ctrl+L.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="318"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="246"/>
         <source>A sair por %1</source>
         <translation>A sair por %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="319"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="247"/>
         <source>Ainda não chegou som da consola.</source>
         <translation>Ainda não chegou som da consola.</translation>
     </message>
@@ -1324,7 +1356,7 @@
 <context>
     <name>main</name>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="306"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="312"/>
         <source>Arrastar e largar</source>
         <translation>Arrastar e largar</translation>
     </message>
@@ -1655,158 +1687,163 @@
 <context>
     <name>orbislink::StreamController</name>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="109"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="166"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="174"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="290"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="481"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="488"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="493"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="499"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="523"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="110"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="167"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="175"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="329"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="520"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="527"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="532"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="538"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="562"/>
         <source>Remote Play</source>
         <translation>Remote Play</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="163"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="164"/>
         <source>%1×%2</source>
         <translation>%1×%2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="167"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="168"/>
         <source>Pediste 1080p e a consola está a enviar %1. O Remote Play de uma PS4 que não seja Pro não passa de 720p, e o pedido é baixado automaticamente.</source>
         <translation>Pediste 1080p e a consola está a enviar %1. O Remote Play de uma PS4 que não seja Pro não passa de 720p, e o pedido é baixado automaticamente.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="175"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="176"/>
         <source>Pediste %1p e a consola está a enviar %2.</source>
         <translation>Pediste %1p e a consola está a enviar %2.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="291"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="258"/>
+        <source>Espaço</source>
+        <translation>Espaço</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="330"/>
         <source>Regista primeiro a consola: sem a chave de registo ela ignora o pedido.</source>
         <translation>Regista primeiro a consola: sem a chave de registo ela ignora o pedido.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="301"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="340"/>
         <source>Pedido enviado. A consola demora alguns segundos a acordar.</source>
         <translation>Pedido enviado. A consola demora alguns segundos a acordar.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="306"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="345"/>
         <source>Acordar consola</source>
         <translation>Acordar consola</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="357"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="380"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="399"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="412"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="444"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="450"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="460"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="396"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="419"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="438"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="451"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="483"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="489"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="499"/>
         <source>Registo</source>
         <translation>Registo</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="357"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="396"/>
         <source>Define primeiro o endereço IP da consola.</source>
         <translation>Define primeiro o endereço IP da consola.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="381"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="420"/>
         <source>A consola não respondeu. Confirma o IP e que está ligada (não em repouso).</source>
         <translation>A consola não respondeu. Confirma o IP e que está ligada (não em repouso).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="413"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="452"/>
         <source>A consola respondeu mas não disse a versão de sistema. Tenta &quot;Procurar&quot; outra vez.</source>
         <translation>A consola respondeu mas não disse a versão de sistema. Tenta &quot;Procurar&quot; outra vez.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="481"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="520"/>
         <source>Registo apagado deste PC.</source>
         <translation>Registo apagado deste PC.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="568"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="577"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="586"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="590"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="607"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="616"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="625"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="629"/>
         <source>Microfone</source>
         <translation>Microfone</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="568"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="607"/>
         <source>Liga primeiro o Remote Play.</source>
         <translation>Liga primeiro o Remote Play.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="578"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="617"/>
         <source>A consola não aceitou o microfone: %1</source>
         <translation>A consola não aceitou o microfone: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="591"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="630"/>
         <source>A falar para a consola (%1).</source>
         <translation>A falar para a consola (%1).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="246"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="265"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="273"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="278"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="285"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="304"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="312"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="317"/>
         <source>Procurar</source>
         <translation>Procurar</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="247"/>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="494"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="286"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="533"/>
         <source>Falta o endereço IP da consola. Define-o nas definições.</source>
         <translation>Falta o endereço IP da consola. Define-o nas definições.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="266"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="305"/>
         <source>A consola em %1 não respondeu. Está ligada, na mesma rede, e com o Remote Play activado?</source>
         <translation>A consola em %1 não respondeu. Está ligada, na mesma rede, e com o Remote Play activado?</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="274"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="313"/>
         <source>%1 encontrada, em repouso. Usa &quot;Acordar consola&quot;.</source>
         <translation>%1 encontrada, em repouso. Usa &quot;Acordar consola&quot;.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="279"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="318"/>
         <source>%1 encontrada e pronta.</source>
         <translation>%1 encontrada e pronta.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="445"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="484"/>
         <source>Consola registada. O Account ID fica guardado — da próxima só precisas do PIN.</source>
         <translation>Consola registada. O Account ID fica guardado — da próxima só precisas do PIN.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="488"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="527"/>
         <source>A sessão já está a decorrer.</source>
         <translation>A sessão já está a decorrer.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="500"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="539"/>
         <source>Regista primeiro a consola: carrega em &quot;Registar consola&quot;.</source>
         <translation>Regista primeiro a consola: carrega em &quot;Registar consola&quot;.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="506"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="545"/>
         <source>A ligar a %1…</source>
         <translation>A ligar a %1…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="125"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="126"/>
         <source>Som</source>
         <translation>Som</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/stream_controller.cpp" line="126"/>
+        <location filename="../src/orbislink/qt/stream_controller.cpp" line="127"/>
         <source>%1 O vídeo continua; o som do jogo não vai ouvir-se.</source>
         <translation>%1 O vídeo continua; o som do jogo não vai ouvir-se.</translation>
     </message>

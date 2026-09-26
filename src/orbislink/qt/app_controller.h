@@ -196,6 +196,9 @@ public:
 	Q_INVOKABLE void setTheme(const QString &theme);
 	// Grava só o que a verificação de actualizações precisa, pela mesma
 	// razão: carregar em "Verificar agora" não pode mexer em mais nada.
+	// Grava as teclas do teclado como comando (acção → tecla), sem
+	// reconstruir os serviços.
+	void saveKeyBindings(const std::map<std::string, int> &bindings);
 	Q_INVOKABLE void saveUpdateSettings(bool checkForUpdates, const QString &repository,
 		const QString &channel);
 
