@@ -47,23 +47,24 @@ def letra_s(e):
 
 
 def letra_4(e):
-    """4: diagonal longa, barra fina, pé direito — aberto em cima."""
-    w = 80 * e
-    haste = w - 20
-    # A diagonal e a barra são um traço só, dobrado num canto vivo: duas
-    # peças separadas deixavam a ponta da diagonal a sair por baixo da barra.
+    """4: haste e diagonal num traço só, fechadas numa ponta aguda em cima;
+    a barra atravessa a haste e sai cortada."""
+    w = 82 * e
+    haste = w - 22
     return [
-        (FINO + 3, f"M {haste - 4} {MEIO} L {MEIO} {70} H {w + 4}"),
-        (TRACO, f"M {haste} {40} V {ALTURA}"),
-    ], w + 4
+        # Em ponta de mitra a ponta subia acima das outras letras; cortada
+        # (bevel) fica à altura delas, com o topo em bisel.
+        (TRACO, f"M {haste} {ALTURA} V {MEIO} L {MEIO} {68} H {w + 6}",
+         'stroke-linejoin="bevel"'),
+    ], w + 6
 
 
 def letra_5(e):
-    """5: barra de cima longa, curva de baixo ampla, base estendida."""
+    """5: como o P e o S, mas com a curva de baixo trocada por chanfros a
+    45° — a mesma largura de traço, com os cantos partidos."""
     m, w, b = MEIO, 76 * e, ALTURA - MEIO
-    return [(TRACO, f"M {w + 2} {m} H {14} L {12} {46} H {w - 26} "
-                    f"C {w - 2} {46} {w} {58} {w} {71} C {w} {86} {w - 6} {b} {w - 28} {b} "
-                    f"H {-2}")], w + 2
+    return [(TRACO, f"M {w + 2} {m} H {14} L {10} {46} H {w - 12} "
+                    f"L {w} {58} V {b - 18} L {w - 18} {b} H {-4}")], w + 2
 
 
 def wordmark(numero, estreita=False, cor="#000000"):
@@ -79,7 +80,8 @@ def wordmark(numero, estreita=False, cor="#000000"):
     grupos, x = [], 0.0
     for tracos, largura in letras:
         caminhos = "".join(
-            f'<path d="{d}" stroke-width="{w}"/>' for w, d in tracos)
+            f'<path d="{t[1]}" stroke-width="{t[0]}" {t[2] if len(t) > 2 else ""}/>'
+            for t in tracos)
         grupos.append(f'<g transform="translate({x:.2f} 0)">{caminhos}</g>')
         x += largura + espaco
     largura_total = x - espaco
