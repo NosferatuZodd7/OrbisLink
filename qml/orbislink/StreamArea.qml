@@ -148,8 +148,18 @@ Item {
                     estado: modelData.active ? root.consoleState
                           : (outra ? outra.state : "unknown")
                     registada: modelData.active ? root.registered : (outra ? outra.registered : false)
-                    ps5: modelData.active ? (root.built && stream.consolePs5)
-                                          : (outra ? outra.ps5 : false)
+                    // O que a consola disse agora, se respondeu; senão, o que
+                    // ficou guardado da última vez que respondeu.
+                    tipo: {
+                        var respondeu = modelData.active
+                            ? (root.consoleState === "ready" || root.consoleState === "standby")
+                            : (outra !== undefined && outra.state !== "offline"
+                               && outra.state !== "unknown")
+                        if (!respondeu)
+                            return modelData.type
+                        var ps5 = modelData.active ? stream.consolePs5 : outra.ps5
+                        return ps5 ? "ps5" : "ps4"
+                    }
                     aLigar: modelData.active && root.sessionState === "connecting"
                     aProcurar: modelData.active && root.built && stream.searching
                     onLigar: stream.startStream()
@@ -539,6 +549,24 @@ Item {
     }
 
     AddConsoleDialog { id: addConsoleDialog }
+
+    // Cada consola que responde fica com o tipo guardado (PS4 ou PS5), para
+    // a caixa o mostrar mesmo quando ela estiver desligada.
+    Connections {
+        target: root.built ? stream : null
+        function onConsoleChanged() {
+            if (root.consoleState === "ready" || root.consoleState === "standby")
+                app.rememberConsoleType(app.consoleAddress, stream.consolePs5)
+        }
+        function onConsoleStatesChanged() {
+            var estados = stream.consoleStates
+            for (var endereco in estados) {
+                var e = estados[endereco]
+                if (e.state === "ready" || e.state === "standby")
+                    app.rememberConsoleType(endereco, e.ps5)
+            }
+        }
+    }
 
     // ───────────────────────────── registo
     StreamRegisterDialog { id: registerDialog }

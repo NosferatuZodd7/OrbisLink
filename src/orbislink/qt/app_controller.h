@@ -197,7 +197,12 @@ public:
 	Q_INVOKABLE void selectConsole(const QString &address);
 	// Junta uma consola à lista e passa a usá-la. Se o endereço já lá
 	// estiver, só a escolhe.
-	Q_INVOKABLE void addConsole(const QString &name, const QString &address);
+	// `type` é "ps4", "ps5" ou vazio (desconhecido).
+	Q_INVOKABLE void addConsole(const QString &name, const QString &address,
+		const QString &type = QString());
+	// Lembra o tipo de uma consola que respondeu, para o mostrar mesmo quando
+	// ela estiver desligada. Só grava se mudou.
+	Q_INVOKABLE void rememberConsoleType(const QString &address, bool ps5);
 	// Tira da lista uma consola que não esteja em uso.
 	Q_INVOKABLE void removeConsole(const QString &address);
 	// Grava só o tema. O applySettings reconstrói os serviços todos (fila,

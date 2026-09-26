@@ -23,7 +23,9 @@ Item {
     property bool aLigar: false
     property bool aProcurar: false
     property bool disponivel: true   // falso numa compilação sem Remote Play
-    property bool ps5: false
+    // "ps4", "ps5", ou vazio quando a consola nunca respondeu — e aí não se
+    // inventa um número: aparece só "PS".
+    property string tipo: ""
     property string nome: ""
     property string endereco: ""
     // Falso para as outras consolas da lista: aí o clique escolhe-a (passa a
@@ -302,16 +304,17 @@ Item {
                 width: 200
                 height: 58
                 readonly property color cor: Theme.cardText
-                readonly property bool ps5: caixa.ps5
+                readonly property string tipo: caixa.tipo
                 onCorChanged: requestPaint()
-                onPs5Changed: requestPaint()
+                onTipoChanged: requestPaint()
                 onPaint: {
                     var ctx = getContext("2d")
                     ctx.reset()
                     var t = 4           // traço fino: o "Light" do logótipo
                     var a = 44, l = 46, e = 16
                     var y0 = 7, y1 = y0 + a, ym = y0 + a / 2
-                    var x = (width - (3 * l + 2 * e)) / 2
+                    var letrasN = tipo.length > 0 ? 3 : 2
+                    var x = (width - (letrasN * l + (letrasN - 1) * e)) / 2
                     ctx.strokeStyle = cor
                     ctx.lineWidth = t
                     ctx.lineJoin = "round"
@@ -330,10 +333,10 @@ Item {
                     x += l + e
                     linha([[x + l, y0], [x, y0], [x, ym], [x + l, ym], [x + l, y1], [x, y1]], 12)
                     x += l + e
-                    if (!ps5) {
+                    if (tipo === "ps4") {
                         linha([[x + l - 8, y0], [x, ym + 8], [x + l, ym + 8]])
                         linha([[x + l - 8, y0], [x + l - 8, y1]])
-                    } else {
+                    } else if (tipo === "ps5") {
                         linha([[x + l, y0], [x, y0], [x, ym], [x + l - 12, ym]])
                         ctx.beginPath()
                         ctx.moveTo(x + l - 12, ym)
