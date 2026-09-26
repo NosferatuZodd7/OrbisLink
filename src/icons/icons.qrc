@@ -11,7 +11,7 @@
         <file alias="wordmark-ps4-branco.png">wordmark-ps4-branco.png</file>
         <file alias="wordmark-ps5-preto.png">wordmark-ps5-preto.png</file>
         <file alias="wordmark-ps5-branco.png">wordmark-ps5-branco.png</file>
-        <file alias="wordmark-ps-claro.png">wordmark-ps-claro.png</file>
-        <file alias="wordmark-ps-escuro.png">wordmark-ps-escuro.png</file>
+        <file alias="wordmark-desconhecida-preto.png">wordmark-desconhecida-preto.png</file>
+        <file alias="wordmark-desconhecida-branco.png">wordmark-desconhecida-branco.png</file>
     </qresource>
 </RCC>
