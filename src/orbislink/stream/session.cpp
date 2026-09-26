@@ -162,8 +162,8 @@ void frameAvailable(ChiakiFfmpegDecoder *decoder, void *user)
 	if(!pulled.frame)
 		return;
 
-	const uint64_t anteriores = impl->frames.fetch_add(1);
-	if(anteriores == 0)
+	const uint64_t previous = impl->frames.fetch_add(1);
+	if(previous == 0)
 	{
 		StreamTrace::instance().ok(std::to_string(pulled.frame->width) + "x"
 			+ std::to_string(pulled.frame->height) + ", formato "
@@ -253,16 +253,16 @@ void eventCallback(ChiakiEvent *event, void *user)
 		case CHIAKI_EVENT_QUIT:
 		{
 			impl->active.store(false);
-			const bool limpo = event->quit.reason == CHIAKI_QUIT_REASON_STOPPED;
-			std::string detalhe = quitReasonText(event->quit.reason);
+			const bool cleaned = event->quit.reason == CHIAKI_QUIT_REASON_STOPPED;
+			std::string detail = quitReasonText(event->quit.reason);
 			if(event->quit.reason_str && *event->quit.reason_str)
-				detalhe += std::string(" (") + event->quit.reason_str + ")";
-			if(limpo)
+				detail += std::string(" (") + event->quit.reason_str + ")";
+			if(cleaned)
 				StreamTrace::instance().note("session ended on request");
 			else
-				StreamTrace::instance().fail(detalhe);
+				StreamTrace::instance().fail(detail);
 			StreamTrace::instance().end();
-			impl->publish(limpo ? SessionState::Stopped : SessionState::Failed, detalhe);
+			impl->publish(cleaned ? SessionState::Stopped : SessionState::Failed, detail);
 			break;
 		}
 		default:
@@ -389,7 +389,7 @@ bool StreamSession::start(const Config &config, std::string *error)
 	impl_->height.store(0);
 
 	StreamTrace::instance().begin(config.address);
-	StreamStep passoPreparar("prepare session",
+	StreamStep prepareStep("prepare session",
 		std::to_string(config.settings.resolution) + "p"
 			+ std::to_string(config.settings.fps) + ", console "
 			+ (config.credentials.ps5 ? "PS5" : "PS4"));
@@ -437,7 +437,7 @@ bool StreamSession::start(const Config &config, std::string *error)
 	}
 	if(decoderResult != CHIAKI_ERR_SUCCESS)
 	{
-		passoPreparar.fail(std::string("video decoder: ")
+		prepareStep.fail(std::string("video decoder: ")
 			+ chiaki_error_string(decoderResult));
 		if(error)
 			*error = std::string(QT_TRANSLATE_NOOP("Messages", "Could not set up the video decoder")) + ": "
@@ -459,7 +459,7 @@ bool StreamSession::start(const Config &config, std::string *error)
 	{
 		chiaki_ffmpeg_decoder_fini(&impl_->decoder);
 		impl_->decoderReady = false;
-		passoPreparar.fail("a rp_key guardada tem "
+		prepareStep.fail("a rp_key guardada tem "
 			+ std::to_string(config.credentials.rpKeyHex.size())
 			+ " caracteres, deviam ser 32");
 		if(error)
@@ -478,7 +478,7 @@ bool StreamSession::start(const Config &config, std::string *error)
 	const ChiakiErrorCode result = chiaki_session_init(&impl_->session, &info, chiakiLog());
 	if(result != CHIAKI_ERR_SUCCESS)
 	{
-		passoPreparar.fail(std::string("chiaki_session_init: ") + chiaki_error_string(result));
+		prepareStep.fail(std::string("chiaki_session_init: ") + chiaki_error_string(result));
 		chiaki_ffmpeg_decoder_fini(&impl_->decoder);
 		impl_->decoderReady = false;
 		if(error)
@@ -509,7 +509,7 @@ bool StreamSession::start(const Config &config, std::string *error)
 	chiaki_session_set_video_sample_cb(&impl_->session, chiaki_ffmpeg_decoder_video_sample_cb,
 		&impl_->decoder);
 
-	passoPreparar.ok();
+	prepareStep.ok();
 	StreamTrace::instance().step("connect",
 		std::string(config.credentials.ps5 ? "9302" : "987")
 			+ "/UDP discovery, 9295/TCP control, 9296-9297/UDP stream");
@@ -578,9 +578,9 @@ namespace {
 // microphone *is in*, not the one wanted: true means "unmute" and false
 // means "mute" (that is how chiaki-ng itself uses it). Passing the wanted
 // state muted the console precisely when the microphone was turned on.
-void pedirSilencio(ChiakiSession *session, bool silenciar)
+void requestMute(ChiakiSession *session, bool mute)
 {
-	chiaki_session_toggle_microphone(session, !silenciar);
+	chiaki_session_toggle_microphone(session, !mute);
 }
 
 } // namespace
@@ -612,7 +612,7 @@ bool StreamSession::startMicrophone(std::string *error)
 		logWarning(std::string("The microphone did not start: ") + chiaki_error_string(result));
 		return false;
 	}
-	pedirSilencio(&impl_->session, false);
+	requestMute(&impl_->session, false);
 	impl_->micMuted.store(false);
 	impl_->micActive.store(true);
 	logInfo("Microphone on: sending to the console.");
@@ -626,7 +626,7 @@ void StreamSession::stopMicrophone()
 		return;
 	impl_->micActive.store(false);
 	if(impl_->sessionStarted)
-		pedirSilencio(&impl_->session, true);
+		requestMute(&impl_->session, true);
 	logInfo("Microphone off.");
 }
 
@@ -637,7 +637,7 @@ void StreamSession::setMicrophoneMuted(bool muted)
 		return;
 	impl_->micMuted.store(muted);
 	if(impl_->sessionStarted)
-		pedirSilencio(&impl_->session, muted);
+		requestMute(&impl_->session, muted);
 }
 
 bool StreamSession::microphoneActive() const { return impl_->micActive.load(); }
@@ -674,23 +674,23 @@ void StreamSession::sendController(const ControllerState &state)
 	std::lock_guard<std::mutex> lock(impl_->mutex);
 	// Start from the current state so the touchpad touches, which live in
 	// the same packet as the buttons, are not wiped.
-	ChiakiControllerState novo = impl_->controller;
+	ChiakiControllerState fresh = impl_->controller;
 	if(!impl_->controllerInitialised)
-		chiaki_controller_state_set_idle(&novo);
-	novo.buttons = state.buttons;
-	novo.l2_state = state.l2;
-	novo.r2_state = state.r2;
-	novo.left_x = state.leftX;
-	novo.left_y = state.leftY;
-	novo.right_x = state.rightX;
-	novo.right_y = state.rightY;
+		chiaki_controller_state_set_idle(&fresh);
+	fresh.buttons = state.buttons;
+	fresh.l2_state = state.l2;
+	fresh.r2_state = state.r2;
+	fresh.left_x = state.leftX;
+	fresh.left_y = state.leftY;
+	fresh.right_x = state.rightX;
+	fresh.right_y = state.rightY;
 
 	// Repeating the same state is extra traffic for nothing.
-	if(impl_->controllerInitialised && chiaki_controller_state_equals(&impl_->controller, &novo))
+	if(impl_->controllerInitialised && chiaki_controller_state_equals(&impl_->controller, &fresh))
 		return;
-	impl_->controller = novo;
+	impl_->controller = fresh;
 	impl_->controllerInitialised = true;
-	chiaki_session_set_controller_state(&impl_->session, &novo);
+	chiaki_session_set_controller_state(&impl_->session, &fresh);
 }
 
 void StreamSession::setLoginPin(const std::string &pin)

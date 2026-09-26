@@ -12,13 +12,13 @@ namespace orbislink {
 
 namespace {
 
-std::atomic<uint32_t> motivo { 0 };
+std::atomic<uint32_t> reason { 0 };
 
 void forward(ChiakiLogLevel level, const char *message, void *)
 {
-	static const char prefixo[] = "Reported Application Reason: ";
-	if(std::strncmp(message, prefixo, sizeof(prefixo) - 1) == 0)
-		motivo.store(static_cast<uint32_t>(std::strtoul(message + sizeof(prefixo) - 1, nullptr, 16)));
+	static const char prefix[] = "Reported Application Reason: ";
+	if(std::strncmp(message, prefix, sizeof(prefix) - 1) == 0)
+		reason.store(static_cast<uint32_t>(std::strtoul(message + sizeof(prefix) - 1, nullptr, 16)));
 	switch(level)
 	{
 		case CHIAKI_LOG_DEBUG:
@@ -59,6 +59,6 @@ void setChiakiVerbose(bool verbose)
 		: (CHIAKI_LOG_INFO | CHIAKI_LOG_WARNING | CHIAKI_LOG_ERROR);
 }
 
-uint32_t takeApplicationReason() { return motivo.exchange(0); }
+uint32_t takeApplicationReason() { return reason.exchange(0); }
 
 } // namespace orbislink

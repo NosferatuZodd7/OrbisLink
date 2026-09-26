@@ -41,10 +41,10 @@ int main(int argc, char **argv)
 	// the tag, not the version. Without stripping it here, the status bar —
 	// which writes "v" + version — would show "vv1.2.3". It is stripped once,
 	// at the place everyone reads from.
-	QString versao = QStringLiteral(ORBISLINK_VERSION_STRING);
-	if(versao.startsWith(QLatin1Char('v')) || versao.startsWith(QLatin1Char('V')))
-		versao.remove(0, 1);
-	QCoreApplication::setApplicationVersion(versao);
+	QString version = QStringLiteral(ORBISLINK_VERSION_STRING);
+	if(version.startsWith(QLatin1Char('v')) || version.startsWith(QLatin1Char('V')))
+		version.remove(0, 1);
+	QCoreApplication::setApplicationVersion(version);
 
 	startup::installFileLogger();
 
@@ -150,21 +150,21 @@ int main(int argc, char **argv)
 
 	// Translations. The source language is English; Portuguese is chosen in
 	// the settings.
-	QTranslator tradutor;
+	QTranslator translator;
 	{
-		Settings definicoes;
-		SettingsStore(SettingsStore::defaultSettingsPath()).load(&definicoes);
-		const QString ficheiro = definicoes.language == "pt_PT"
+		Settings settings;
+		SettingsStore(SettingsStore::defaultSettingsPath()).load(&settings);
+		const QString file = settings.language == "pt_PT"
 			? QStringLiteral(":/i18n/orbislink_pt_PT.qm")
 			: QStringLiteral(":/i18n/orbislink_en.qm");
-		if(tradutor.load(ficheiro))
+		if(translator.load(file))
 		{
-			app.installTranslator(&tradutor);
-			qInfo("Language: %s", qPrintable(ficheiro));
+			app.installTranslator(&translator);
+			qInfo("Language: %s", qPrintable(file));
 		}
 		else
 		{
-			qWarning("Could not load %s; the app stays in English.", qPrintable(ficheiro));
+			qWarning("Could not load %s; the app stays in English.", qPrintable(file));
 		}
 	}
 
@@ -288,7 +288,7 @@ int main(int argc, char **argv)
 		// when the theme changes.
 		auto *chrome = new WindowChrome(window, window);
 		engine.rootContext()->setContextProperty(QStringLiteral("chrome"), chrome);
-		QMetaObject::invokeMethod(window, "aplicarTema", Qt::QueuedConnection);
+		QMetaObject::invokeMethod(window, "applyTheme", Qt::QueuedConnection);
 		// When the first frame appears, startup went well.
 		QObject::connect(window, &QQuickWindow::frameSwapped, &app, [drawn]() {
 			drawn->storeRelaxed(1);
@@ -298,14 +298,14 @@ int main(int argc, char **argv)
 		// Running elevated kills drag and drop, and Windows tells nobody.
 		// Better for the application to say so than for the person to think
 		// the feature disappeared.
-		const QString avisoElevacao = WindowChrome::elevationWarning();
-		if(!avisoElevacao.isEmpty())
+		const QString elevationNotice = WindowChrome::elevationWarning();
+		if(!elevationNotice.isEmpty())
 		{
 			logWarning("Running with administrator privileges: drag and drop will not "
 					   "work.");
-			QTimer::singleShot(1200, controller.get(), [ptr = controller.get(), avisoElevacao]() {
+			QTimer::singleShot(1200, controller.get(), [ptr = controller.get(), elevationNotice]() {
 				emit ptr->notify(QCoreApplication::translate("main", "Drag and drop"),
-					avisoElevacao, true);
+					elevationNotice, true);
 			});
 		}
 
@@ -357,8 +357,8 @@ int main(int argc, char **argv)
 	if(printDiagnostics)
 	{
 		QTimer::singleShot(2500, &app, [&controller]() {
-			const QString relatorio = Diagnostics::report(controller.get());
-			fputs(relatorio.toUtf8().constData(), stdout);
+			const QString report = Diagnostics::report(controller.get());
+			fputs(report.toUtf8().constData(), stdout);
 			QCoreApplication::quit();
 		});
 	}
@@ -368,16 +368,16 @@ int main(int argc, char **argv)
 	if(selfTestDrag && window)
 	{
 		QTimer::singleShot(1500, &app, [window]() {
-			dragselftest::run(window, [](int fechouAMeio, const QString &relato) {
-				if(fechouAMeio == 0)
+			dragselftest::run(window, [](int closedMidway, const QString &report) {
+				if(closedMidway == 0)
 				{
-					qInfo("selftest-drag: PASSED — %s", qPrintable(relato));
+					qInfo("selftest-drag: PASSED — %s", qPrintable(report));
 					QCoreApplication::exit(0);
 				}
 				else
 				{
 					qWarning("selftest-drag: FAILED — the overlay closed %d time(s) during the "
-							 "drag: %s", fechouAMeio, qPrintable(relato));
+							 "drag: %s", closedMidway, qPrintable(report));
 					QCoreApplication::exit(1);
 				}
 			});

@@ -11,7 +11,7 @@
 
 using namespace orbislink;
 
-ORBISLINK_TEST(hexadecimal_da_o_base64_com_os_bytes_ao_contrario)
+ORBISLINK_TEST(hexadecimal_gives_base64_with_bytes_reversed)
 {
 	// 0x0123456789ABCDEF in little-endian is EF CD AB 89 67 45 23 01, and those
 	// eight bytes in base64 are "782riWdFIwE=". Checked by hand:
@@ -24,7 +24,7 @@ ORBISLINK_TEST(hexadecimal_da_o_base64_com_os_bytes_ao_contrario)
 	CHECK_EQ(id.decimal, std::string("81985529216486895"));
 }
 
-ORBISLINK_TEST(base64_volta_a_dar_o_mesmo_hexadecimal)
+ORBISLINK_TEST(base64_gives_back_the_same_hexadecimal)
 {
 	const AccountId id = parseAccountId("782riWdFIwE=");
 	CHECK(id.valid);
@@ -33,88 +33,88 @@ ORBISLINK_TEST(base64_volta_a_dar_o_mesmo_hexadecimal)
 	CHECK_EQ(id.decimal, std::string("81985529216486895"));
 }
 
-ORBISLINK_TEST(decimal_e_hexadecimal_dao_o_mesmo)
+ORBISLINK_TEST(decimal_and_hexadecimal_give_the_same)
 {
-	const AccountId porDecimal = parseAccountId("81985529216486895");
-	const AccountId porHex = parseAccountId("0x0123456789ABCDEF");
-	CHECK(porDecimal.valid);
-	CHECK(porHex.valid);
-	CHECK_EQ(porDecimal.base64, porHex.base64);
-	CHECK_EQ(porDecimal.format, std::string("decimal"));
-	CHECK_EQ(porHex.format, std::string("hex"));
+	const AccountId byDecimal = parseAccountId("81985529216486895");
+	const AccountId byHex = parseAccountId("0x0123456789ABCDEF");
+	CHECK(byDecimal.valid);
+	CHECK(byHex.valid);
+	CHECK_EQ(byDecimal.base64, byHex.base64);
+	CHECK_EQ(byDecimal.format, std::string("decimal"));
+	CHECK_EQ(byHex.format, std::string("hex"));
 }
 
-ORBISLINK_TEST(o_prefixo_0x_forca_hexadecimal_num_id_so_de_algarismos)
+ORBISLINK_TEST(prefix_0x_forces_hexadecimal_on_an_all_digit_id)
 {
 	// A 16-digit ID is ambiguous. Without a prefix it is read as decimal,
 	// because that is the form PSN gives; with "0x" it is read as hexadecimal.
 	// That is why the interface shows all three forms at once.
-	const AccountId comoDecimal = parseAccountId("1234567890123456");
-	const AccountId comoHex = parseAccountId("0x1234567890123456");
-	CHECK(comoDecimal.valid);
-	CHECK(comoHex.valid);
-	CHECK_EQ(comoDecimal.format, std::string("decimal"));
-	CHECK_EQ(comoHex.format, std::string("hex"));
-	CHECK(comoDecimal.base64 != comoHex.base64);
-	CHECK_EQ(comoHex.decimal, std::string("1311768467284833366"));
+	const AccountId asDecimal = parseAccountId("1234567890123456");
+	const AccountId asHex = parseAccountId("0x1234567890123456");
+	CHECK(asDecimal.valid);
+	CHECK(asHex.valid);
+	CHECK_EQ(asDecimal.format, std::string("decimal"));
+	CHECK_EQ(asHex.format, std::string("hex"));
+	CHECK(asDecimal.base64 != asHex.base64);
+	CHECK_EQ(asHex.decimal, std::string("1311768467284833366"));
 }
 
-ORBISLINK_TEST(espacos_e_separadores_nao_estragam_nada)
+ORBISLINK_TEST(spaces_and_separators_break_nothing)
 {
 	// Whoever copies this off a console screen brings spaces and colons.
-	const AccountId comEspacos = parseAccountId("  01 23 45 67 89 AB CD EF  ");
-	const AccountId comDoisPontos = parseAccountId("01:23:45:67:89:AB:CD:EF");
-	CHECK(comEspacos.valid);
-	CHECK(comDoisPontos.valid);
-	CHECK_EQ(comEspacos.base64, std::string("782riWdFIwE="));
-	CHECK_EQ(comDoisPontos.base64, std::string("782riWdFIwE="));
+	const AccountId withSpaces = parseAccountId("  01 23 45 67 89 AB CD EF  ");
+	const AccountId withColons = parseAccountId("01:23:45:67:89:AB:CD:EF");
+	CHECK(withSpaces.valid);
+	CHECK(withColons.valid);
+	CHECK_EQ(withSpaces.base64, std::string("782riWdFIwE="));
+	CHECK_EQ(withColons.base64, std::string("782riWdFIwE="));
 }
 
-ORBISLINK_TEST(inverter_os_bytes_e_reversivel)
+ORBISLINK_TEST(reversing_the_bytes_is_reversible)
 {
 	const AccountId id = parseAccountId("0123456789ABCDEF");
-	const AccountId trocado = reverseAccountIdBytes(id);
-	CHECK(trocado.valid);
-	CHECK_EQ(trocado.hex, std::string("EFCDAB8967452301"));
-	CHECK_EQ(reverseAccountIdBytes(trocado).hex, id.hex);
+	const AccountId swapped = reverseAccountIdBytes(id);
+	CHECK(swapped.valid);
+	CHECK_EQ(swapped.hex, std::string("EFCDAB8967452301"));
+	CHECK_EQ(reverseAccountIdBytes(swapped).hex, id.hex);
 }
 
-ORBISLINK_TEST(minusculas_servem_na_mesma)
+ORBISLINK_TEST(lowercase_works_too)
 {
 	const AccountId id = parseAccountId("0123456789abcdef");
 	CHECK(id.valid);
 	CHECK_EQ(id.hex, std::string("0123456789ABCDEF"));
 }
 
-ORBISLINK_TEST(o_que_nao_e_account_id_e_recusado_com_uma_razao)
+ORBISLINK_TEST(what_is_not_an_account_id_is_refused_with_a_reason)
 {
-	const AccountId vazio = parseAccountId("   ");
-	CHECK(!vazio.valid);
-	CHECK(!vazio.error.empty());
+	const AccountId empty = parseAccountId("   ");
+	CHECK(!empty.valid);
+	CHECK(!empty.error.empty());
 
-	const AccountId curto = parseAccountId("0123ABCD");
-	CHECK(!curto.valid);
-	CHECK(!curto.error.empty());
+	const AccountId tooShort = parseAccountId("0123ABCD");
+	CHECK(!tooShort.valid);
+	CHECK(!tooShort.error.empty());
 
-	const AccountId enorme = parseAccountId("99999999999999999999999");
-	CHECK(!enorme.valid);
-	CHECK(!enorme.error.empty());
+	const AccountId huge = parseAccountId("99999999999999999999999");
+	CHECK(!huge.valid);
+	CHECK(!huge.error.empty());
 
-	const AccountId disparate = parseAccountId("o-meu-account-id");
-	CHECK(!disparate.valid);
-	CHECK(!disparate.error.empty());
+	const AccountId nonsense = parseAccountId("o-meu-account-id");
+	CHECK(!nonsense.valid);
+	CHECK(!nonsense.error.empty());
 }
 
-ORBISLINK_TEST(zero_e_o_maior_valor_nao_rebentam)
+ORBISLINK_TEST(zero_and_the_largest_value_do_not_crash)
 {
 	const AccountId zero = parseAccountId("0000000000000000");
 	CHECK(zero.valid);
 	CHECK_EQ(zero.decimal, std::string("0"));
 	CHECK_EQ(zero.base64, std::string("AAAAAAAAAAA="));
 
-	const AccountId maximo = parseAccountId("FFFFFFFFFFFFFFFF");
-	CHECK(maximo.valid);
-	CHECK_EQ(maximo.decimal, std::string("18446744073709551615"));
+	const AccountId maximum = parseAccountId("FFFFFFFFFFFFFFFF");
+	CHECK(maximum.valid);
+	CHECK_EQ(maximum.decimal, std::string("18446744073709551615"));
 }
 
 TEST_MAIN()

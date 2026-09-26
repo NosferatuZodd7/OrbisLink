@@ -13,12 +13,12 @@ pragma Singleton
 import QtQuick
 
 QtObject {
-    id: tema
+    id: theme
 
     // "dark", "glass" or "light". "glass" is the dark one with more
     // transparency.
-    property string nome: "escuro"
-    readonly property bool claro: nome === "claro"
+    property string name: "dark"
+    readonly property bool light: name === "light"
 
     // ── Background
     // A deep black, not neutral: it carries a touch of blue so the glass
@@ -111,26 +111,26 @@ QtObject {
     // cyan one). Only when the picture arrives does it go back to black and onStage.
     // The white is pure white on purpose: the light image has a white
     // background, and on a tinted stage the strip where it ends would show.
-    readonly property url stageBackdrop: claro ? "qrc:/icons/backdrop-light.png"
+    readonly property url stageBackdrop: light ? "qrc:/icons/backdrop-light.png"
                                                : "qrc:/icons/backdrop.png"
     // Light cyan on white is barely visible at the opacity that works for
     // green on black; so each theme has its own.
-    readonly property real stageBackdropOpacity: claro ? 0.45 : 0.15
-    readonly property color stageIdle: claro ? "#FFFFFF" : "#000000"
-    readonly property color stageGrid: claro ? "#C9D3E3" : "#1B2130"
-    readonly property color onIdleStage: claro ? text : onStage
-    readonly property color onIdleStageMuted: claro ? textSecondary : onStageMuted
+    readonly property real stageBackdropOpacity: light ? 0.45 : 0.15
+    readonly property color stageIdle: light ? "#FFFFFF" : "#000000"
+    readonly property color stageGrid: light ? "#C9D3E3" : "#1B2130"
+    readonly property color onIdleStage: light ? text : onStage
+    readonly property color onIdleStageMuted: light ? textSecondary : onStageMuted
 
     // ── Console card
     // Near-black navy on the dark themes, icy white on the light one. Colour
     // only appears in the state indicators.
-    readonly property color cardTop: claro ? "#FFFFFF" : "#071426"
-    readonly property color cardBottom: claro ? "#EEF4FC" : "#0A1E3A"
-    readonly property color cardText: claro ? "#0F172A" : "#FFFFFF"
-    readonly property color cardTextMuted: claro ? "#5B6B82" : "#A8B3C7"
-    readonly property color cardEdge: claro ? Qt.rgba(15 / 255, 23 / 255, 42 / 255, 0.08)
+    readonly property color cardTop: light ? "#FFFFFF" : "#071426"
+    readonly property color cardBottom: light ? "#EEF4FC" : "#0A1E3A"
+    readonly property color cardText: light ? "#0F172A" : "#FFFFFF"
+    readonly property color cardTextMuted: light ? "#5B6B82" : "#A8B3C7"
+    readonly property color cardEdge: light ? Qt.rgba(15 / 255, 23 / 255, 42 / 255, 0.08)
                                             : Qt.rgba(45 / 255, 140 / 255, 1, 0.28)
-    readonly property color cardWave: claro ? Qt.rgba(0, 112 / 255, 243 / 255, 0.07)
+    readonly property color cardWave: light ? Qt.rgba(0, 112 / 255, 243 / 255, 0.07)
                                             : Qt.rgba(45 / 255, 140 / 255, 1, 0.07)
     readonly property color cardBlue: "#0070F3"
     readonly property color cardGlow: "#2D8CFF"
@@ -145,15 +145,15 @@ QtObject {
     readonly property color glassEdge: Qt.rgba(1, 1, 1, glassBorder)
     readonly property color glassSheen: Qt.rgba(1, 1, 1, glassHighlight)
     readonly property color accentFill: Qt.rgba(accent.r, accent.g, accent.b, accentSoftOpacity)
-    readonly property color shadow: Qt.rgba(0, 0, 0, claro ? 0.10 : 0.45)
+    readonly property color shadow: Qt.rgba(0, 0, 0, light ? 0.10 : 0.45)
     readonly property color dialogFill: Qt.rgba(panel.r, panel.g, panel.b, dialogOpacity)
     // The dimming behind a modal: it is what says the rest of the
     // application is waiting.
-    readonly property color scrim: Qt.rgba(0, 0, 0, claro ? 0.32 : 0.58)
+    readonly property color scrim: Qt.rgba(0, 0, 0, light ? 0.32 : 0.58)
 
-    function aplicar(qual) {
-        nome = qual === "vidro" || qual === "claro" ? qual : "escuro"
-        if (nome === "claro") {
+    function apply(which) {
+        name = which === "glass" || which === "light" ? which : "dark"
+        if (name === "light") {
             // Icy white, white glass surfaces, near-black text.
             background = "#F6F7FB"
             backgroundDeep = "#EDEFF5"
@@ -174,7 +174,7 @@ QtObject {
             error = "#D7362B"
             radius = 28
             radiusControl = 20
-        } else if (nome === "vidro") {
+        } else if (name === "glass") {
             // The same dark, but with more of what is behind showing through.
             background = "#050507"
             backgroundDeep = "#030304"

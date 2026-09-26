@@ -51,28 +51,28 @@ VideoOutput {
         cursorShape: enabled ? Qt.BlankCursor : Qt.ArrowCursor
         hoverEnabled: false
 
-        function normalizado(ponto) {
+        function normalised(dot) {
             // The video keeps its aspect ratio, so the drawn area may be
             // smaller than the item. The real area is used, otherwise the touch
             // would land offset in the black bars.
             var r = video.contentRect
             if (r.width <= 0 || r.height <= 0)
                 return null
-            var x = (ponto.x - r.x) / r.width
-            var y = (ponto.y - r.y) / r.height
+            var x = (dot.x - r.x) / r.width
+            var y = (dot.y - r.y) / r.height
             if (x < 0 || x > 1 || y < 0 || y > 1)
                 return null
             return { "x": x, "y": y }
         }
 
         onPressed: function(mouse) {
-            var p = normalizado(mouse)
+            var p = normalised(mouse)
             if (p)
                 stream.touchBegin(p.x, p.y)
             video.forceActiveFocus()
         }
         onPositionChanged: function(mouse) {
-            var p = normalizado(mouse)
+            var p = normalised(mouse)
             if (p)
                 stream.touchMove(p.x, p.y)
         }

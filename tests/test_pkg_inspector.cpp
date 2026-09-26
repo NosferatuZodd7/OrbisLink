@@ -9,7 +9,7 @@
 using namespace orbislink;
 using namespace orbislink_test;
 
-ORBISLINK_TEST(le_metadados_de_um_pkg_valido)
+ORBISLINK_TEST(reads_metadata_of_a_valid_pkg)
 {
 	PkgOptions options;
 	const std::string path = writeTempFile("jogo.pkg", buildPkg(options));
@@ -31,7 +31,7 @@ ORBISLINK_TEST(le_metadados_de_um_pkg_valido)
 	removeTempFile(path);
 }
 
-ORBISLINK_TEST(distingue_patch_pelos_flags_do_cabecalho)
+ORBISLINK_TEST(tells_patch_apart_by_header_flags)
 {
 	PkgOptions options;
 	options.contentFlags = 0x00100000; // FIRST_PATCH
@@ -48,7 +48,7 @@ ORBISLINK_TEST(distingue_patch_pelos_flags_do_cabecalho)
 	removeTempFile(path);
 }
 
-ORBISLINK_TEST(reconhece_dlc_pelo_content_type)
+ORBISLINK_TEST(recognises_dlc_by_content_type)
 {
 	PkgOptions options;
 	options.contentType = 0x1B; // AC
@@ -64,7 +64,7 @@ ORBISLINK_TEST(reconhece_dlc_pelo_content_type)
 	removeTempFile(path);
 }
 
-ORBISLINK_TEST(rejeita_magic_invalido)
+ORBISLINK_TEST(rejects_invalid_magic)
 {
 	PkgOptions options;
 	options.validMagic = false;
@@ -78,7 +78,7 @@ ORBISLINK_TEST(rejeita_magic_invalido)
 	removeTempFile(path);
 }
 
-ORBISLINK_TEST(rejeita_ficheiro_pequeno_demais)
+ORBISLINK_TEST(rejects_too_small_file)
 {
 	std::vector<uint8_t> tiny(100, 0);
 	tiny[0] = 0x7F;
@@ -94,14 +94,14 @@ ORBISLINK_TEST(rejeita_ficheiro_pequeno_demais)
 	removeTempFile(path);
 }
 
-ORBISLINK_TEST(ficheiro_inexistente)
+ORBISLINK_TEST(missing_file)
 {
 	const PkgInfo info = PkgInspector().inspect("nao-existe-mesmo.pkg");
 	CHECK(!info.valid);
 	CHECK(!info.error.empty());
 }
 
-ORBISLINK_TEST(pkg_sem_param_sfo_continua_valido)
+ORBISLINK_TEST(pkg_without_param_sfo_is_still_valid)
 {
 	PkgOptions options;
 	options.includeSfo = false;
@@ -117,7 +117,7 @@ ORBISLINK_TEST(pkg_sem_param_sfo_continua_valido)
 	removeTempFile(path);
 }
 
-ORBISLINK_TEST(tabela_de_entradas_fora_dos_limites)
+ORBISLINK_TEST(out_of_bounds_entry_table)
 {
 	PkgOptions options;
 	auto data = buildPkg(options);
@@ -131,7 +131,7 @@ ORBISLINK_TEST(tabela_de_entradas_fora_dos_limites)
 	removeTempFile(path);
 }
 
-ORBISLINK_TEST(ficheiro_acima_de_4gb_e_lido_por_offsets)
+ORBISLINK_TEST(file_over_4gb_is_read_by_offsets)
 {
 	// Sparse ~5 GB file: checks that sizes use 64 bits and that only the
 	// needed offsets are read (the test runs in seconds).

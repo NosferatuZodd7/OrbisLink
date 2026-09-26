@@ -95,12 +95,12 @@ std::vector<StreamCredentials> CredentialStore::all() const
 	std::ostringstream buffer;
 	buffer << file.rdbuf();
 
-	std::string erro;
-	const Json root = Json::parse(buffer.str(), &erro);
+	std::string err;
+	const Json root = Json::parse(buffer.str(), &err);
 	if(!root.isArray())
 	{
-		if(!erro.empty())
-			logWarning("Unreadable Remote Play credentials: " + erro);
+		if(!err.empty())
+			logWarning("Unreadable Remote Play credentials: " + err);
 		return out;
 	}
 
@@ -126,16 +126,16 @@ std::vector<StreamCredentials> CredentialStore::all() const
 
 StreamCredentials CredentialStore::load(const std::string &hostId) const
 {
-	const std::vector<StreamCredentials> todas = all();
-	for(const StreamCredentials &credentials : todas)
+	const std::vector<StreamCredentials> stored = all();
+	for(const StreamCredentials &credentials : stored)
 	{
 		if(iequals(credentials.hostId, hostId))
 			return credentials;
 	}
 	// Without a host-id (the console may not have answered discovery) the
 	// only registered one is used, if there is exactly one.
-	if(hostId.empty() && todas.size() == 1)
-		return todas.front();
+	if(hostId.empty() && stored.size() == 1)
+		return stored.front();
 	return {};
 }
 
@@ -144,22 +144,22 @@ bool CredentialStore::save(const StreamCredentials &credentials)
 	if(credentials.registKey.empty() || credentials.rpKeyHex.empty())
 		return false;
 
-	std::vector<StreamCredentials> todas = all();
+	std::vector<StreamCredentials> stored = all();
 	bool substituída = false;
-	for(StreamCredentials &existente : todas)
+	for(StreamCredentials &existing : stored)
 	{
-		if(iequals(existente.hostId, credentials.hostId))
+		if(iequals(existing.hostId, credentials.hostId))
 		{
-			existente = credentials;
+			existing = credentials;
 			substituída = true;
 			break;
 		}
 	}
 	if(!substituída)
-		todas.push_back(credentials);
+		stored.push_back(credentials);
 
 	Json root = Json::makeArray();
-	for(const StreamCredentials &c : todas)
+	for(const StreamCredentials &c : stored)
 	{
 		Json entry = Json::makeObject();
 		entry.set("nickname", Json::fromString(c.nickname));
@@ -185,21 +185,21 @@ bool CredentialStore::save(const StreamCredentials &credentials)
 
 bool CredentialStore::forget(const std::string &hostId)
 {
-	std::vector<StreamCredentials> todas = all();
-	const size_t antes = todas.size();
-	for(size_t i = 0; i < todas.size();)
+	std::vector<StreamCredentials> stored = all();
+	const size_t before = stored.size();
+	for(size_t i = 0; i < stored.size();)
 	{
-		if(iequals(todas[i].hostId, hostId))
-			todas.erase(todas.begin() + static_cast<long>(i));
+		if(iequals(stored[i].hostId, hostId))
+			stored.erase(stored.begin() + static_cast<long>(i));
 		else
 			++i;
 	}
-	if(todas.size() == antes)
+	if(stored.size() == before)
 		return false;
 
 	// Rewrites the file without the forgotten console.
 	std::remove(path_.c_str());
-	for(const StreamCredentials &c : todas)
+	for(const StreamCredentials &c : stored)
 		save(c);
 	return true;
 }

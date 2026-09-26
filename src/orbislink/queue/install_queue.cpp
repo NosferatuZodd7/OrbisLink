@@ -894,16 +894,16 @@ void InstallQueue::runFtpUpload(QueueTask task)
 	// was just placed on the console. Instead, a direct install of the same
 	// file is queued, served by the local HTTP server — the pkg stays
 	// stored on the console and gets installed, which is what the option promises.
-	const bool instalarDepois = cfg.installAfterUpload;
+	const bool installAfter = cfg.installAfterUpload;
 	finishTask(task);
 
-	if(instalarDepois)
+	if(installAfter)
 	{
-		std::string erro;
-		const std::string id = enqueueOne(task.localPath, TransferMode::DirectInstall, &erro);
+		std::string err;
+		const std::string id = enqueueOne(task.localPath, TransferMode::DirectInstall, &err);
 		if(id.empty())
 			logWarning("Could not install " + baseName(task.localPath)
-				+ " after the upload: " + erro);
+				+ " after the upload: " + err);
 		else
 		{
 			if(cfg.deleteFromConsoleAfterInstall)

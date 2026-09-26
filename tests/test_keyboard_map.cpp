@@ -11,62 +11,62 @@
 
 using namespace orbislink;
 
-ORBISLINK_TEST(teclas_por_omissao_sao_as_do_chiaki)
+ORBISLINK_TEST(default_keys_are_chiakis)
 {
-	KeyboardMap mapa;
-	CHECK(mapa.press(Qt::Key_Return));
-	CHECK(mapa.state().buttons & CHIAKI_CONTROLLER_BUTTON_CROSS);
+	KeyboardMap keyMap;
+	CHECK(keyMap.press(Qt::Key_Return));
+	CHECK(keyMap.state().buttons & CHIAKI_CONTROLLER_BUTTON_CROSS);
 	// The keypad Enter is the same Enter.
-	CHECK(mapa.release(Qt::Key_Enter));
-	CHECK(mapa.empty());
-	CHECK(mapa.press(Qt::Key_W));
-	CHECK(mapa.state().leftY < 0);
-	CHECK(!mapa.press(Qt::Key_Escape));
+	CHECK(keyMap.release(Qt::Key_Enter));
+	CHECK(keyMap.empty());
+	CHECK(keyMap.press(Qt::Key_W));
+	CHECK(keyMap.state().leftY < 0);
+	CHECK(!keyMap.press(Qt::Key_Escape));
 }
 
-ORBISLINK_TEST(tecla_ocupada_troca_com_a_outra_accao)
+ORBISLINK_TEST(taken_key_swaps_with_the_other_action)
 {
-	KeyboardMap::Bindings teclas = KeyboardMap::defaults();
+	KeyboardMap::Bindings keys = KeyboardMap::defaults();
 	// Space becomes cross; Enter is freed.
-	CHECK(KeyboardMap::rebind(teclas, "cross", Qt::Key_Space));
-	CHECK_EQ(teclas["cross"], static_cast<int>(Qt::Key_Space));
+	CHECK(KeyboardMap::rebind(keys, "cross", Qt::Key_Space));
+	CHECK_EQ(keys["cross"], static_cast<int>(Qt::Key_Space));
 	// P belongs to the PS button: giving it to cross swaps them.
-	CHECK(KeyboardMap::rebind(teclas, "cross", Qt::Key_P));
-	CHECK_EQ(teclas["cross"], static_cast<int>(Qt::Key_P));
-	CHECK_EQ(teclas["ps"], static_cast<int>(Qt::Key_Space));
+	CHECK(KeyboardMap::rebind(keys, "cross", Qt::Key_P));
+	CHECK_EQ(keys["cross"], static_cast<int>(Qt::Key_P));
+	CHECK_EQ(keys["ps"], static_cast<int>(Qt::Key_Space));
 
-	KeyboardMap mapa;
-	mapa.setBindings(teclas);
-	CHECK(mapa.press(Qt::Key_P));
-	CHECK(mapa.state().buttons & CHIAKI_CONTROLLER_BUTTON_CROSS);
-	CHECK(!(mapa.state().buttons & CHIAKI_CONTROLLER_BUTTON_PS));
+	KeyboardMap keyMap;
+	keyMap.setBindings(keys);
+	CHECK(keyMap.press(Qt::Key_P));
+	CHECK(keyMap.state().buttons & CHIAKI_CONTROLLER_BUTTON_CROSS);
+	CHECK(!(keyMap.state().buttons & CHIAKI_CONTROLLER_BUTTON_PS));
 	// Enter no longer does anything.
-	CHECK(!mapa.press(Qt::Key_Return));
+	CHECK(!keyMap.press(Qt::Key_Return));
 }
 
-ORBISLINK_TEST(esc_e_f11_nao_se_dao_a_ninguem)
+ORBISLINK_TEST(esc_and_f11_are_given_to_nobody)
 {
-	KeyboardMap::Bindings teclas = KeyboardMap::defaults();
-	CHECK(!KeyboardMap::rebind(teclas, "cross", Qt::Key_Escape));
-	CHECK(!KeyboardMap::rebind(teclas, "cross", Qt::Key_F11));
-	CHECK(!KeyboardMap::rebind(teclas, "nao-existe", Qt::Key_Q));
-	CHECK(teclas == KeyboardMap::defaults());
+	KeyboardMap::Bindings keys = KeyboardMap::defaults();
+	CHECK(!KeyboardMap::rebind(keys, "cross", Qt::Key_Escape));
+	CHECK(!KeyboardMap::rebind(keys, "cross", Qt::Key_F11));
+	CHECK(!KeyboardMap::rebind(keys, "nao-existe", Qt::Key_Q));
+	CHECK(keys == KeyboardMap::defaults());
 }
 
-ORBISLINK_TEST(definicoes_editadas_a_mao_nao_deixam_teclas_repetidas)
+ORBISLINK_TEST(hand_edited_settings_leave_no_repeated_keys)
 {
 	// Two actions on the same key, an unknown action and Esc: the result is a
 	// valid map, with each key on a single action.
-	KeyboardMap mapa;
-	mapa.setBindings({ { "cross", Qt::Key_Q }, { "circle", Qt::Key_Q },
+	KeyboardMap keyMap;
+	keyMap.setBindings({ { "cross", Qt::Key_Q }, { "circle", Qt::Key_Q },
 		{ "inventada", Qt::Key_Z }, { "square", Qt::Key_Escape } });
-	std::map<int, int> usos;
-	for(const auto &par : mapa.bindings())
-		++usos[par.second];
-	for(const auto &uso : usos)
-		CHECK_EQ(uso.second, 1);
-	CHECK_EQ(mapa.bindings().size(), KeyboardMap::actions().size());
-	CHECK_EQ(mapa.bindings().at("square"), static_cast<int>(Qt::Key_C));
+	std::map<int, int> uses;
+	for(const auto &pair : keyMap.bindings())
+		++uses[pair.second];
+	for(const auto &inUse : uses)
+		CHECK_EQ(inUse.second, 1);
+	CHECK_EQ(keyMap.bindings().size(), KeyboardMap::actions().size());
+	CHECK_EQ(keyMap.bindings().at("square"), static_cast<int>(Qt::Key_C));
 }
 
 TEST_MAIN()

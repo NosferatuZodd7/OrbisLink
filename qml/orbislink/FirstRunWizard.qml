@@ -18,8 +18,8 @@ Dialog {
     closePolicy: Popup.NoAutoClose
     padding: 0
 
-    property int passo: 0
-    readonly property int passos: 3
+    property int step: 0
+    readonly property int steps: 3
 
     // The same automatic check as in the settings: type the IP and the
     // wizard says whether the console answered, without pressing anything.
@@ -35,7 +35,7 @@ Dialog {
 
     readonly property string probeText: {
         if (probeState === "checking")
-            return qsTr("Checking %1…").arg(enderecoField.text.trim())
+            return qsTr("Checking %1…").arg(addressInput.text.trim())
         if (probeState === "ok")
             return qsTr("Console found — the installer and FTP both answer.")
         if (probeState === "partial") {
@@ -45,29 +45,29 @@ Dialog {
         }
         if (probeState === "fail")
             return qsTr("No answer from %1. Check the IP and that the console is on.")
-                .arg(enderecoField.text.trim())
+                .arg(addressInput.text.trim())
         return qsTr("Type the address — it is checked on its own.")
     }
 
-    function enderecoCompleto(texto) {
-        var valor = (texto || "").trim()
-        if (valor.length === 0)
+    function addressComplete(message) {
+        var value = (message || "").trim()
+        if (value.length === 0)
             return false
-        if (/^[0-9.]+$/.test(valor)) {
-            var partes = valor.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
-            if (!partes)
+        if (/^[0-9.]+$/.test(value)) {
+            var parts = value.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+            if (!parts)
                 return false
             for (var i = 1; i <= 4; ++i) {
-                if (parseInt(partes[i], 10) > 255)
+                if (parseInt(parts[i], 10) > 255)
                     return false
             }
             return true
         }
-        return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(valor)
+        return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value)
     }
 
-    function agendarVerificacao() {
-        if (!enderecoCompleto(enderecoField.text)) {
+    function scheduleCheck() {
+        if (!addressComplete(addressInput.text)) {
             probeState = "idle"
             probeTimer.stop()
             return
@@ -80,13 +80,13 @@ Dialog {
         id: probeTimer
         interval: 600
         repeat: false
-        onTriggered: app.probeConsole(enderecoField.text.trim(), 2121, 12800)
+        onTriggered: app.probeConsole(addressInput.text.trim(), 2121, 12800)
     }
 
     Connections {
         target: app
         function onConsoleProbed(address, ftpOk, installerOk, detail) {
-            if (address !== enderecoField.text.trim())
+            if (address !== addressInput.text.trim())
                 return
             wizard.probeFtpOk = ftpOk
             wizard.probeInstallerOk = installerOk
@@ -95,32 +95,32 @@ Dialog {
         }
     }
 
-    function comecar() {
-        passo = 0
-        var valores = app.settingsMap()
-        enderecoField.text = valores.consoleAddress
-        nomeField.text = valores.consoleName
-        accountWizardField.text = valores.streamAccountId
+    function begin() {
+        step = 0
+        var values = app.settingsMap()
+        addressInput.text = values.consoleAddress
+        consoleNameField.text = values.consoleName
+        accountWizardField.text = values.streamAccountId
         probeState = "idle"
         open()
-        agendarVerificacao()
+        scheduleCheck()
     }
 
-    function seguinte() {
-        if (passo < passos - 1) {
-            passo++
+    function next() {
+        if (step < steps - 1) {
+            step++
             return
         }
-        guardar()
+        save()
         close()
     }
 
     // Saving closes the wizard for good: from then on it opens from the
     // button in the settings.
-    function guardar() {
+    function save() {
         app.applySettings({
-            "consoleAddress": enderecoField.text.trim(),
-            "consoleName": nomeField.text.trim().length > 0 ? nomeField.text.trim() : "PS4",
+            "consoleAddress": addressInput.text.trim(),
+            "consoleName": consoleNameField.text.trim().length > 0 ? consoleNameField.text.trim() : "PS4",
             // Stored converted: the console only accepts base64, and this way
             // what is saved is directly usable.
             "streamAccountId": accountWizardField.ok ? accountWizardField.base64
@@ -164,12 +164,12 @@ Dialog {
             Row {
                 spacing: 6
                 Repeater {
-                    model: wizard.passos
+                    model: wizard.steps
                     delegate: Rectangle {
                         width: 7
                         height: 7
                         radius: 4
-                        color: index === wizard.passo ? Theme.accent : Theme.border
+                        color: index === wizard.step ? Theme.accent : Theme.border
                     }
                 }
             }
@@ -190,27 +190,27 @@ Dialog {
             StyledButton {
                 text: qsTr("Skip")
                 implicitHeight: 32
-                onClicked: { wizard.guardar(); wizard.close() }
+                onClicked: { wizard.save(); wizard.close() }
             }
             Item { Layout.fillWidth: true }
             StyledButton {
                 text: qsTr("Back")
                 implicitHeight: 32
-                enabled: wizard.passo > 0
-                onClicked: wizard.passo--
+                enabled: wizard.step > 0
+                onClicked: wizard.step--
             }
             StyledButton {
-                text: wizard.passo === wizard.passos - 1 ? qsTr("Start") : qsTr("Next")
+                text: wizard.step === wizard.steps - 1 ? qsTr("Start") : qsTr("Next")
                 implicitHeight: 32
-                larguraMinima: 120
+                minimumWidth: 120
                 primary: true
-                onClicked: wizard.seguinte()
+                onClicked: wizard.next()
             }
         }
     }
 
     contentItem: StackLayout {
-        currentIndex: wizard.passo
+        currentIndex: wizard.step
 
         // ── 1. the console
         ColumnLayout {
@@ -244,14 +244,14 @@ Dialog {
                 rowSpacing: 8
                 Text { text: qsTr("IP address"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField {
-                    id: enderecoField
+                    id: addressInput
                     Layout.fillWidth: true
                     placeholderText: "192.168.1.42"
-                    onTextChanged: wizard.agendarVerificacao()
+                    onTextChanged: wizard.scheduleCheck()
                 }
                 Text { text: qsTr("Name"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField {
-                    id: nomeField
+                    id: consoleNameField
                     Layout.fillWidth: true
                     placeholderText: qsTr("Living room PS4")
                 }

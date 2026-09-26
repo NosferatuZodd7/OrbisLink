@@ -126,7 +126,7 @@ public:
 	// Without counters there is no telling Windows not delivering the event
 	// (an elevated application, for example) apart from us refusing it. With
 	// them, zero drags seen is an answer, not a guess.
-	Q_INVOKABLE void noteDrag(const QString &evento, bool comFicheiros);
+	Q_INVOKABLE void noteDrag(const QString &eventName, bool withFiles);
 	QString dragSummary() const;
 	// Diagnostics need to ask Remote Play how the audio path is doing, but
 	// AppController does not know StreamController (there is not always
@@ -250,7 +250,7 @@ private:
 	void rebuildBackends();
 	// Says why a click did nothing, instead of swallowing it silently.
 	// Returns false when the operation cannot go ahead.
-	bool ftpReady(const QString &operacao);
+	bool ftpReady(const QString &operation);
 	void refreshQueueModel();
 	void setStatusMessage(const QString &message);
 	void setFtpBusy(bool busy);
@@ -276,9 +276,9 @@ private:
 	// they arrive, so the result never contradicts what is on screen.
 	std::atomic<uint64_t> probeGeneration_ { 0 };
 	bool streamVerbose_ = false;
-	int dragsVistos_ = 0;
-	int dragsLargados_ = 0;
-	int dragsRecusados_ = 0;
+	int dragsSeen_ = 0;
+	int dragsDropped_ = 0;
+	int dragsRefused_ = 0;
 	std::function<QString()> audioProbe_;
 	std::function<QString()> videoProbe_;
 	// The last Remote Play state StreamController reported, to restore it

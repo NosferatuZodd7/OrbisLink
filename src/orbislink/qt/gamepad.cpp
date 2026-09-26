@@ -121,11 +121,11 @@ void Gamepad::rumble(quint8 left, quint8 right)
 	if(!rumbleEnabled_ || !controller_)
 		return;
 	// SDL uses 0-65535; the console sends 0-255.
-	const Uint16 baixa = static_cast<Uint16>(left) * 257;
-	const Uint16 alta = static_cast<Uint16>(right) * 257;
+	const Uint16 low = static_cast<Uint16>(left) * 257;
+	const Uint16 high = static_cast<Uint16>(right) * 257;
 	// 200 ms renewed on every request: if the console stops asking, the
 	// controller stops by itself instead of rumbling forever.
-	SDL_GameControllerRumble(static_cast<SDL_GameController *>(controller_), baixa, alta, 200);
+	SDL_GameControllerRumble(static_cast<SDL_GameController *>(controller_), low, high, 200);
 }
 
 void Gamepad::poll()
@@ -160,8 +160,8 @@ void Gamepad::poll()
 			if(!opened)
 				continue;
 			controller_ = opened;
-			const char *nome = SDL_GameControllerName(opened);
-			name_ = QString::fromUtf8(nome ? nome : "comando");
+			const char *name = SDL_GameControllerName(opened);
+			name_ = QString::fromUtf8(name ? name : "controller");
 			logInfo("Remote Play: controller connected — " + name_.toStdString());
 			emit connectedChanged(name_);
 			break;

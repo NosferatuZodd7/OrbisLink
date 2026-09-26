@@ -79,11 +79,11 @@ void StreamTrace::step(const std::string &name, const std::string &detail)
 		s.steps.back().result = Result::Ok;
 		s.steps.back().endedMs = monotonicMillis();
 	}
-	Step passo;
-	passo.name = name;
-	passo.detail = detail;
-	passo.startedMs = monotonicMillis();
-	s.steps.push_back(passo);
+	Step step;
+	step.name = name;
+	step.detail = detail;
+	step.startedMs = monotonicMillis();
+	s.steps.push_back(step);
 	logInfo("Remote Play [" + name + "]" + (detail.empty() ? "" : ": " + detail));
 }
 
@@ -93,12 +93,12 @@ void StreamTrace::ok(const std::string &detail)
 	std::lock_guard<std::mutex> lock(s.mutex);
 	if(s.steps.empty() || s.steps.back().result != Result::Running)
 		return;
-	Step &passo = s.steps.back();
-	passo.result = Result::Ok;
-	passo.endedMs = monotonicMillis();
+	Step &step = s.steps.back();
+	step.result = Result::Ok;
+	step.endedMs = monotonicMillis();
 	if(!detail.empty())
-		passo.detail = detail;
-	logInfo("Remote Play [" + passo.name + "] ok in " + std::to_string(passo.durationMs()) + " ms"
+		step.detail = detail;
+	logInfo("Remote Play [" + step.name + "] ok in " + std::to_string(step.durationMs()) + " ms"
 		+ (detail.empty() ? "" : " — " + detail));
 }
 
@@ -112,24 +112,24 @@ void StreamTrace::fail(const std::string &detail)
 		logError("Remote Play: " + detail);
 		return;
 	}
-	Step &passo = s.steps.back();
-	passo.result = Result::Failed;
-	passo.endedMs = monotonicMillis();
-	passo.detail = detail;
-	logError("Remote Play [" + passo.name + "] FAILED after "
-		+ std::to_string(passo.durationMs()) + " ms — " + detail);
+	Step &step = s.steps.back();
+	step.result = Result::Failed;
+	step.endedMs = monotonicMillis();
+	step.detail = detail;
+	logError("Remote Play [" + step.name + "] FAILED after "
+		+ std::to_string(step.durationMs()) + " ms — " + detail);
 }
 
 void StreamTrace::skip(const std::string &name, const std::string &reason)
 {
 	State &s = state();
 	std::lock_guard<std::mutex> lock(s.mutex);
-	Step passo;
-	passo.name = name;
-	passo.detail = reason;
-	passo.result = Result::Skipped;
-	passo.startedMs = passo.endedMs = monotonicMillis();
-	s.steps.push_back(passo);
+	Step step;
+	step.name = name;
+	step.detail = reason;
+	step.result = Result::Skipped;
+	step.startedMs = step.endedMs = monotonicMillis();
+	s.steps.push_back(step);
 	logInfo("Remote Play [" + name + "] saltado — " + reason);
 }
 
@@ -185,23 +185,23 @@ std::string StreamTrace::summary() const
 	std::ostringstream out;
 	out << "Remote Play attempt for " << (s.address.empty() ? "(no address)" : s.address)
 		<< "\n";
-	for(const Step &passo : s.steps)
+	for(const Step &step : s.steps)
 	{
-		out << "  " << passo.name;
-		for(size_t i = passo.name.size(); i < 28; ++i)
+		out << "  " << step.name;
+		for(size_t i = step.name.size(); i < 28; ++i)
 			out << ' ';
-		out << resultName(passo.result);
-		if(passo.result != Result::Skipped)
-			out << "  (" << passo.durationMs() << " ms)";
-		if(!passo.detail.empty())
-			out << "  — " << passo.detail;
+		out << resultName(step.result);
+		if(step.result != Result::Skipped)
+			out << "  (" << step.durationMs() << " ms)";
+		if(!step.detail.empty())
+			out << "  — " << step.detail;
 		out << "\n";
 	}
 	if(!s.notes.empty())
 	{
 		out << "  notes:\n";
-		for(const std::string &nota : s.notes)
-			out << "    " << nota << "\n";
+		for(const std::string &note : s.notes)
+			out << "    " << note << "\n";
 	}
 	return out.str();
 }

@@ -154,7 +154,7 @@ RpiClient makeClient(uint16_t port)
 
 } // namespace
 
-ORBISLINK_TEST(install_envia_o_corpo_esperado)
+ORBISLINK_TEST(install_sends_the_expected_body)
 {
 	FakeInstallerServer server;
 	CHECK(server.start());
@@ -178,7 +178,7 @@ ORBISLINK_TEST(install_envia_o_corpo_esperado)
 	server.stop();
 }
 
-ORBISLINK_TEST(erro_da_consola_e_traduzido)
+ORBISLINK_TEST(console_error_is_translated)
 {
 	FakeInstallerServer server;
 	CHECK(server.start());
@@ -196,7 +196,7 @@ ORBISLINK_TEST(erro_da_consola_e_traduzido)
 	server.stop();
 }
 
-ORBISLINK_TEST(codigo_desconhecido_aparece_em_hexadecimal)
+ORBISLINK_TEST(unknown_code_shows_in_hexadecimal)
 {
 	FakeInstallerServer server;
 	CHECK(server.start());
@@ -210,7 +210,7 @@ ORBISLINK_TEST(codigo_desconhecido_aparece_em_hexadecimal)
 	server.stop();
 }
 
-ORBISLINK_TEST(is_exists_le_booleano_em_texto)
+ORBISLINK_TEST(is_exists_reads_boolean_text)
 {
 	FakeInstallerServer server;
 	CHECK(server.start());
@@ -227,7 +227,7 @@ ORBISLINK_TEST(is_exists_le_booleano_em_texto)
 	server.stop();
 }
 
-ORBISLINK_TEST(progresso_le_campos_hexadecimais)
+ORBISLINK_TEST(progress_reads_hexadecimal_fields)
 {
 	FakeInstallerServer server;
 	CHECK(server.start());
@@ -251,7 +251,7 @@ ORBISLINK_TEST(progresso_le_campos_hexadecimais)
 	server.stop();
 }
 
-ORBISLINK_TEST(find_task_usa_sub_type)
+ORBISLINK_TEST(find_task_uses_sub_type)
 {
 	FakeInstallerServer server;
 	CHECK(server.start());
@@ -268,7 +268,7 @@ ORBISLINK_TEST(find_task_usa_sub_type)
 	server.stop();
 }
 
-ORBISLINK_TEST(comandos_de_tarefa_usam_os_endpoints_certos)
+ORBISLINK_TEST(task_commands_use_the_right_endpoints)
 {
 	FakeInstallerServer server;
 	CHECK(server.start());
@@ -289,7 +289,7 @@ ORBISLINK_TEST(comandos_de_tarefa_usam_os_endpoints_certos)
 	server.stop();
 }
 
-ORBISLINK_TEST(sem_servidor_a_mensagem_e_a_do_requisito)
+ORBISLINK_TEST(without_server_the_message_is_the_requirement)
 {
 	// Closed port: must give the §7 message for port 12800.
 	RpiClient::Config config;

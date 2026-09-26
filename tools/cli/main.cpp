@@ -264,11 +264,11 @@ int commandInstall(const Options &options)
 	RpiClient installer(rpiConfig);
 
 	FtpClient ftp(ftpConfigFrom(settings));
-	const bool porFtp = options.has("ftp");
+	const bool byFtp = options.has("ftp");
 
 	// An FTP-only upload does not need the installer; with
 	// --install-after-upload it does, because it installs afterwards.
-	if(!porFtp || settings.installAfterUpload)
+	if(!byFtp || settings.installAfterUpload)
 	{
 		std::string detail;
 		if(!installer.probe(&detail))
@@ -283,13 +283,13 @@ int commandInstall(const Options &options)
 	InstallQueue::Dependencies deps;
 	deps.httpServer = &server;
 	deps.installer = &installer;
-	if(porFtp)
+	if(byFtp)
 		deps.ftp = &ftp;
 	InstallQueue queue(deps, settings);
 
 	std::vector<std::string> rejected;
 	const auto ids = queue.enqueue(options.positional,
-		porFtp ? TransferMode::FtpUpload : TransferMode::DirectInstall, &rejected);
+		byFtp ? TransferMode::FtpUpload : TransferMode::DirectInstall, &rejected);
 	for(const std::string &reason : rejected)
 		std::cerr << "Rejected — " << reason << "\n";
 	if(ids.empty())

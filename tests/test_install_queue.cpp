@@ -168,7 +168,7 @@ InstallQueue::Tuning fastTuning()
 
 } // namespace
 
-ORBISLINK_TEST(ordena_jogo_patch_dlc_do_mesmo_title_id)
+ORBISLINK_TEST(orders_game_patch_dlc_of_the_same_title_id)
 {
 	PkgFile dlc("ordem-dlc.pkg", dlcOptions("CUSA00001", "Jogo A"));
 	PkgFile patch("ordem-patch.pkg", patchOptions("CUSA00001", "Jogo A"));
@@ -187,7 +187,7 @@ ORBISLINK_TEST(ordena_jogo_patch_dlc_do_mesmo_title_id)
 	CHECK(tasks[2].category == PkgCategory::Dlc);
 }
 
-ORBISLINK_TEST(mantem_ordem_entre_titulos_diferentes)
+ORBISLINK_TEST(keeps_order_across_different_titles)
 {
 	PkgFile patchB("ordem2-patchb.pkg", patchOptions("CUSA00002", "Jogo B"));
 	PkgFile gameA("ordem2-jogoa.pkg", gameOptions("CUSA00001", "Jogo A"));
@@ -204,7 +204,7 @@ ORBISLINK_TEST(mantem_ordem_entre_titulos_diferentes)
 	CHECK_EQ(tasks[2].titleId, std::string("CUSA00001"));
 }
 
-ORBISLINK_TEST(recusa_ficheiros_invalidos)
+ORBISLINK_TEST(refuses_invalid_files)
 {
 	PkgOptions broken;
 	broken.validMagic = false;
@@ -219,7 +219,7 @@ ORBISLINK_TEST(recusa_ficheiros_invalidos)
 	removeTempFile(path);
 }
 
-ORBISLINK_TEST(instalacao_direta_do_principio_ao_fim)
+ORBISLINK_TEST(direct_install_end_to_end)
 {
 	PkgFile game("fluxo-jogo.pkg", gameOptions("CUSA00010", "Jogo Fluxo"));
 
@@ -270,7 +270,7 @@ ORBISLINK_TEST(instalacao_direta_do_principio_ao_fim)
 	server.stop();
 }
 
-ORBISLINK_TEST(deteta_que_a_consola_nao_alcanca_o_pc)
+ORBISLINK_TEST(detects_that_the_console_cannot_reach_the_pc)
 {
 	PkgFile game("parado-jogo.pkg", gameOptions("CUSA00011", "Jogo Parado"));
 
@@ -308,7 +308,7 @@ ORBISLINK_TEST(deteta_que_a_consola_nao_alcanca_o_pc)
 	server.stop();
 }
 
-ORBISLINK_TEST(pausa_a_fila_quando_o_instalador_cai)
+ORBISLINK_TEST(pauses_the_queue_when_the_installer_goes_down)
 {
 	PkgFile game("queda-jogo.pkg", gameOptions("CUSA00012", "Jogo Queda"));
 
@@ -351,7 +351,7 @@ ORBISLINK_TEST(pausa_a_fila_quando_o_instalador_cai)
 	server.stop();
 }
 
-ORBISLINK_TEST(salta_titulo_ja_instalado_quando_a_politica_o_diz)
+ORBISLINK_TEST(skips_installed_title_when_the_policy_says_so)
 {
 	PkgFile game("existente-jogo.pkg", gameOptions("CUSA00013", "Jogo Existente"));
 
@@ -390,7 +390,7 @@ ORBISLINK_TEST(salta_titulo_ja_instalado_quando_a_politica_o_diz)
 	server.stop();
 }
 
-ORBISLINK_TEST(persistencia_repoe_tarefas_interrompidas_como_pendentes)
+ORBISLINK_TEST(persistence_restores_interrupted_tasks_as_pending)
 {
 	PkgFile game("persist-jogo.pkg", gameOptions("CUSA00014", "Jogo Persistido"));
 	PkgFile patch("persist-patch.pkg", patchOptions("CUSA00014", "Jogo Persistido"));
@@ -411,7 +411,7 @@ ORBISLINK_TEST(persistencia_repoe_tarefas_interrompidas_como_pendentes)
 	std::remove(path.c_str());
 }
 
-ORBISLINK_TEST(reordenar_cancelar_e_repetir)
+ORBISLINK_TEST(reorder_cancel_and_retry)
 {
 	PkgFile a("mover-a.pkg", gameOptions("CUSA00021", "Jogo A"));
 	PkgFile b("mover-b.pkg", gameOptions("CUSA00022", "Jogo B"));

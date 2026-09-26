@@ -17,11 +17,11 @@ ApplicationWindow {
     // and the window takes up the whole screen.
     property bool streamFullscreen: false
 
-    function setStreamFullscreen(activo) {
-        if (streamFullscreen === activo)
+    function setStreamFullscreen(isActive) {
+        if (streamFullscreen === isActive)
             return
-        streamFullscreen = activo
-        window.visibility = activo ? Window.FullScreen : Window.Windowed
+        streamFullscreen = isActive
+        window.visibility = isActive ? Window.FullScreen : Window.Windowed
     }
 
     // F9 abre/fecha o painel lateral (§5.7).
@@ -303,9 +303,9 @@ ApplicationWindow {
 
     SettingsDialog {
         id: settingsDialog
-        onAbrirAssistente: {
+        onOpenWizard: {
             settingsDialog.close()
-            firstRunWizard.comecar()
+            firstRunWizard.begin()
         }
     }
     DiagnosticsDialog { id: diagnosticsDialog }
@@ -344,53 +344,53 @@ ApplicationWindow {
     }
 
     // The theme comes from the settings and changes in real time.
-    function aplicarTema() {
+    function applyTheme() {
         if (typeof demoTheme !== "undefined" && demoTheme.length > 0) {
-            Theme.aplicar(demoTheme)
-            aplicarMolduraDoSistema()
+            Theme.apply(demoTheme)
+            applySystemFrame()
             return
         }
-        var valores = app.settingsMap()
-        Theme.aplicar(valores.theme)
-        aplicarMolduraDoSistema()
+        var values = app.settingsMap()
+        Theme.apply(values.theme)
+        applySystemFrame()
     }
 
     // The title bar and frame are drawn by the system, not by us, and on
     // Windows they are white by default. This asks it to follow the theme —
     // and, where the system knows how, to use its own translucent
     // material.
-    function aplicarMolduraDoSistema() {
+    function applySystemFrame() {
         if (typeof chrome === "undefined" || !chrome)
             return
         // The bar sits against the bottom of the window, not the floating
         // bar: the point is for it to look like the same surface.
-        var moldura = Theme.claro ? Qt.darker(Theme.background, 1.10)
+        var frame = Theme.light ? Qt.darker(Theme.background, 1.10)
                                   : Qt.lighter(Theme.background, 2.2)
-        chrome.applyTheme(Theme.background, Theme.text, moldura,
-                          !Theme.claro, Theme.nome === "vidro")
+        chrome.applyTheme(Theme.background, Theme.text, frame,
+                          !Theme.light, Theme.name === "glass")
     }
 
     Connections {
         target: app
-        function onSettingsChanged() { window.aplicarTema() }
+        function onSettingsChanged() { window.applyTheme() }
     }
 
     Component.onCompleted: {
-        aplicarTema()
+        applyTheme()
         if (typeof demoSettings !== "undefined" && demoSettings) {
             settingsDialog.loadValues()
             settingsDialog.open()
             return
         }
         if (typeof demoWizard !== "undefined" && demoWizard) {
-            firstRunWizard.comecar()
+            firstRunWizard.begin()
             return
         }
         // First launch: instead of an empty window with everything red,
         // three steps. The flag is stored in the wizard's `save()`.
-        var valores = app.settingsMap()
-        if (!valores.firstRunDone)
-            firstRunWizard.comecar()
+        var values = app.settingsMap()
+        if (!values.firstRunDone)
+            firstRunWizard.begin()
     }
 
     Connections {
@@ -446,7 +446,7 @@ ApplicationWindow {
             anchors.fill: parent
             radius: height / 2
             color: Qt.rgba(Theme.panel.r, Theme.panel.g, Theme.panel.b,
-                           Theme.claro ? 0.88 : 0.82)
+                           Theme.light ? 0.88 : 0.82)
             border.width: 1
             border.color: toast.isError
                 ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.5)

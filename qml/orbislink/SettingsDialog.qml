@@ -7,7 +7,7 @@ import QtQuick.Layouts
 Dialog {
     id: dialog
     // The console in use is a PS5: the FTP port being edited is its own.
-    property bool consolaPs5: false
+    property bool consoleIsPs5: false
     modal: true
     parent: Overlay.overlay
     anchors.centerIn: parent
@@ -30,16 +30,16 @@ Dialog {
 
     // The first-run wizard lives in Main.qml; from here we only ask for it
     // to appear again.
-    signal abrirAssistente()
+    signal openWizard()
 
-    function resolucaoParaIndice(resolucao) {
-        var ordem = [1080, 720, 540, 360]
-        var i = ordem.indexOf(resolucao)
+    function resolutionToIndex(resolution) {
+        var order = [1080, 720, 540, 360]
+        var i = order.indexOf(resolution)
         return i >= 0 ? i : 1
     }
 
-    function idiomaParaIndice(idioma) {
-        return idioma === "pt_PT" || idioma === "pt" ? 1 : 0
+    function languageToIndex(language) {
+        return language === "pt_PT" || language === "pt" ? 1 : 0
     }
 
     // Automatic address check: "idle", "checking", "ok",
@@ -111,7 +111,7 @@ Dialog {
         interval: 600
         repeat: false
         onTriggered: app.probeConsole(addressField.text.trim(),
-            parseInt(ftpPortField.text) || (dialog.consolaPs5 ? 1337 : 2121),
+            parseInt(ftpPortField.text) || (dialog.consoleIsPs5 ? 1337 : 2121),
             parseInt(installerPortField.text) || 12800)
     }
 
@@ -136,12 +136,12 @@ Dialog {
         nameField.text = values.consoleName
         addressField.text = values.consoleAddress
         ftpPortField.text = values.ftpPort
-        consolaPs5 = values.consoleIsPs5 === true
+        consoleIsPs5 = values.consoleIsPs5 === true
         installerPortField.text = values.installerPort
         httpPortField.text = values.httpPort
         restrictBox.checked = values.restrictToConsoleIp
         modeBox.currentIndex = values.defaultMode
-        resolucaoBox.currentIndex = resolucaoParaIndice(values.streamResolution)
+        resolutionBox.currentIndex = resolutionToIndex(values.streamResolution)
         fpsBox.currentIndex = values.streamFps === 30 ? 1 : 0
         bitrateField.text = values.streamBitrateKbps > 0 ? String(values.streamBitrateKbps) : ""
         hardwareBox.checked = values.streamHardwareDecode
@@ -149,7 +149,7 @@ Dialog {
         rumbleBox.checked = values.streamRumble
         touchpadBox.checked = values.streamTouchpadFromMouse
         accountField.text = values.streamAccountId
-        idiomaBox.currentIndex = idiomaParaIndice(values.language)
+        languageBox.currentIndex = languageToIndex(values.language)
         uploadDirField.text = values.ftpUploadDirectory
         existsBox.checked = values.checkAlreadyInstalled
         installAfterBox.checked = values.installAfterUpload
@@ -165,7 +165,7 @@ Dialog {
         app.applySettings({
             "consoleName": nameField.text,
             "consoleAddress": addressField.text,
-            "ftpPort": parseInt(ftpPortField.text) || (dialog.consolaPs5 ? 1337 : 2121),
+            "ftpPort": parseInt(ftpPortField.text) || (dialog.consoleIsPs5 ? 1337 : 2121),
             "installerPort": parseInt(installerPortField.text) || 12800,
             "httpPort": parseInt(httpPortField.text) || 8765,
             "restrictToConsoleIp": restrictBox.checked,
@@ -179,7 +179,7 @@ Dialog {
             "deleteFromConsoleAfterInstall": deleteAfterBox.checked,
             "ftpAdvancedMode": advancedBox.checked,
             "debugLogging": debugBox.checked,
-            "streamResolution": [1080, 720, 540, 360][resolucaoBox.currentIndex],
+            "streamResolution": [1080, 720, 540, 360][resolutionBox.currentIndex],
             "streamFps": fpsBox.currentIndex === 1 ? 30 : 60,
             "streamBitrateKbps": parseInt(bitrateField.text) || 0,
             "streamHardwareDecode": hardwareBox.checked,
@@ -187,7 +187,7 @@ Dialog {
             "streamRumble": rumbleBox.checked,
             "streamTouchpadFromMouse": touchpadBox.checked,
             "streamAccountId": accountField.ok ? accountField.base64 : accountField.text.trim(),
-            "language": ["en", "pt_PT"][idiomaBox.currentIndex]
+            "language": ["en", "pt_PT"][languageBox.currentIndex]
         })
         close()
     }
@@ -229,20 +229,20 @@ Dialog {
             spacing: 10
             StyledButton {
                 text: qsTr("Setup wizard…")
-                larguraMinima: 130
+                minimumWidth: 130
                 ToolTip.visible: hovered
                 ToolTip.text: qsTr("See the three first-run steps again")
-                onClicked: dialog.abrirAssistente()
+                onClicked: dialog.openWizard()
             }
             Item { Layout.fillWidth: true }
             StyledButton {
                 text: qsTr("Cancel")
-                larguraMinima: 110
+                minimumWidth: 110
                 onClicked: dialog.close()
             }
             StyledButton {
                 text: qsTr("Save")
-                larguraMinima: 110
+                minimumWidth: 110
                 primary: true
                 onClicked: dialog.save()
             }
@@ -280,7 +280,7 @@ Dialog {
 
                 Text {
                     // The port is the console in use's: a PS5 with etaHEN uses another.
-                    text: dialog.consolaPs5 ? qsTr("FTP port (PS5)") : qsTr("FTP port")
+                    text: dialog.consoleIsPs5 ? qsTr("FTP port (PS5)") : qsTr("FTP port")
                     color: Theme.textMuted
                     font.pixelSize: 12
                 }
@@ -483,7 +483,7 @@ Dialog {
                     Layout.fillWidth: true
                     spacing: 8
                     StyledCombo {
-                        id: resolucaoBox
+                        id: resolutionBox
                         Layout.fillWidth: true
                         // 1080p only exists on PS4 Pro and PS5. On a regular
                         // PS4 the request is lowered to 720p by the console
@@ -565,7 +565,7 @@ Dialog {
                 rowSpacing: 8
                 Text { text: qsTr("Language"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledCombo {
-                    id: idiomaBox
+                    id: languageBox
                     Layout.fillWidth: true
                     model: ["English", "Português"]
                 }

@@ -6,7 +6,7 @@
 
 using orbislink::Json;
 
-ORBISLINK_TEST(parse_objeto_simples)
+ORBISLINK_TEST(parse_simple_object)
 {
 	std::string error;
 	const Json json = Json::parse(R"({"status":"success","task_id":7,"title":"Jogo"})", &error);
@@ -17,7 +17,7 @@ ORBISLINK_TEST(parse_objeto_simples)
 	CHECK_EQ(json["title"].toString(), std::string("Jogo"));
 }
 
-ORBISLINK_TEST(aceita_hexadecimal_do_instalador)
+ORBISLINK_TEST(accepts_installer_hexadecimal)
 {
 	// Real /api/get_task_progress reply: hexadecimal numbers without quotes.
 	const std::string body =
@@ -34,14 +34,14 @@ ORBISLINK_TEST(aceita_hexadecimal_do_instalador)
 	CHECK_EQ(json["rest_sec"].toInt(), 12);
 }
 
-ORBISLINK_TEST(aceita_codigo_de_erro_hexadecimal)
+ORBISLINK_TEST(accepts_hexadecimal_error_code)
 {
 	const Json json = Json::parse(R"({ "status": "fail", "error_code": 0x8002001C })");
 	CHECK_EQ(json["status"].toString(), std::string("fail"));
 	CHECK_EQ(static_cast<uint32_t>(json["error_code"].toInt()), 0x8002001Cu);
 }
 
-ORBISLINK_TEST(exists_vem_como_string)
+ORBISLINK_TEST(exists_comes_as_a_string)
 {
 	const Json json = Json::parse(R"({ "status": "success", "exists": "true", "size": 0x1A2B })");
 	CHECK(json["exists"].toLooseBool(false));
@@ -50,7 +50,7 @@ ORBISLINK_TEST(exists_vem_como_string)
 	CHECK(!negative["exists"].toLooseBool(true));
 }
 
-ORBISLINK_TEST(escapes_e_unicode)
+ORBISLINK_TEST(escapes_and_unicode)
 {
 	const Json json = Json::parse(R"({"title":"Jogo \"raro\"ç\n"})");
 	CHECK_EQ(json["title"].toString(), std::string("Jogo \"raro\"\xc3\xa7\n"));
@@ -58,7 +58,7 @@ ORBISLINK_TEST(escapes_e_unicode)
 	CHECK_EQ(dumped, std::string("\"a\\\"b\\\\c\\n\""));
 }
 
-ORBISLINK_TEST(arrays_e_ida_e_volta)
+ORBISLINK_TEST(arrays_and_round_trip)
 {
 	Json root = Json::makeObject();
 	root.set("type", Json::fromString("direct"));
@@ -72,7 +72,7 @@ ORBISLINK_TEST(arrays_e_ida_e_volta)
 		std::string("http://192.168.1.10:8765/f/abc/x.pkg"));
 }
 
-ORBISLINK_TEST(entrada_invalida_nao_rebenta)
+ORBISLINK_TEST(invalid_input_does_not_crash)
 {
 	std::string error;
 	const Json json = Json::parse("{ isto nao e json", &error);
@@ -80,7 +80,7 @@ ORBISLINK_TEST(entrada_invalida_nao_rebenta)
 	CHECK(!error.empty());
 	// Accessing missing keys returns default values.
 	CHECK_EQ(json["seja_o_que_for"].toInt(-1), -1);
-	CHECK_EQ(json.at(3).toString("vazio"), std::string("vazio"));
+	CHECK_EQ(json.at(3).toString("empty"), std::string("empty"));
 }
 
 TEST_MAIN()

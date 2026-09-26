@@ -103,7 +103,7 @@ void handler(QtMsgType type, const QMessageLogContext &context, const QString &m
 	{
 		case QtDebugMsg: level = "debug"; break;
 		case QtInfoMsg: level = "info"; break;
-		case QtWarningMsg: level = "aviso"; break;
+		case QtWarningMsg: level = "warning"; break;
 		case QtCriticalMsg: level = "error"; break;
 		case QtFatalMsg: level = "fatal"; break;
 	}

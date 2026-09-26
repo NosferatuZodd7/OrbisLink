@@ -24,6 +24,6 @@ namespace orbislink::dragselftest {
 // → cross over to the right one → move → drop. Throughout that whole path
 // the overlay must stay open without interruption.
 // Calls `finished` with the number of times it closed midway: 0 passes.
-void run(QQuickWindow *window, std::function<void(int fechouAMeio, const QString &relato)> finished);
+void run(QQuickWindow *window, std::function<void(int closedMidway, const QString &report)> finished);
 
 } // namespace orbislink::dragselftest

@@ -125,10 +125,10 @@ public:
 	Q_INVOKABLE void registerConsole(const QString &pin, const QString &accountIdBase64);
 	// The same Account ID in the three forms, so the interface can show the
 	// other two while one of them is being typed.
-	Q_INVOKABLE QVariantMap accountIdForms(const QString &texto) const;
+	Q_INVOKABLE QVariantMap accountIdForms(const QString &message) const;
 	// For tools that show the raw bytes, and therefore the reverse of the
 	// number.
-	Q_INVOKABLE QVariantMap accountIdReversed(const QString &texto) const;
+	Q_INVOKABLE QVariantMap accountIdReversed(const QString &message) const;
 	Q_INVOKABLE void cancelRegistration();
 	Q_INVOKABLE void forgetConsole();
 	Q_INVOKABLE void startStream();
@@ -204,7 +204,7 @@ private:
 	void applyHost(const HostInfo &info);
 	void loadCredentials();
 	// The same as refreshConsole(), with or without a notification at the end.
-	void procurar(bool avisar);
+	void probe(bool reportResult);
 
 	QString address_;
 	QString consoleState_ = QStringLiteral("unknown");
@@ -238,7 +238,7 @@ private:
 	int touchId_ = -1;
 	QString accountId_;
 	bool searching_ = false;
-	bool avisarNoFim_ = false;
+	bool notifyWhenDone_ = false;
 
 	HostInfo host_;
 	StreamCredentials credentials_;

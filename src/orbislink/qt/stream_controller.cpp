@@ -20,14 +20,14 @@ namespace {
 // two while one of them is being typed.
 QVariantMap formsFromAccountId(const AccountId &id)
 {
-	QVariantMap mapa;
-	mapa[QStringLiteral("valid")] = id.valid;
-	mapa[QStringLiteral("base64")] = QString::fromStdString(id.base64);
-	mapa[QStringLiteral("hex")] = QString::fromStdString(id.hex);
-	mapa[QStringLiteral("decimal")] = QString::fromStdString(id.decimal);
-	mapa[QStringLiteral("format")] = QString::fromStdString(id.format);
-	mapa[QStringLiteral("error")] = translateMessage(id.error);
-	return mapa;
+	QVariantMap keyMap;
+	keyMap[QStringLiteral("valid")] = id.valid;
+	keyMap[QStringLiteral("base64")] = QString::fromStdString(id.base64);
+	keyMap[QStringLiteral("hex")] = QString::fromStdString(id.hex);
+	keyMap[QStringLiteral("decimal")] = QString::fromStdString(id.decimal);
+	keyMap[QStringLiteral("format")] = QString::fromStdString(id.format);
+	keyMap[QStringLiteral("error")] = translateMessage(id.error);
+	return keyMap;
 }
 
 } // namespace
@@ -74,12 +74,12 @@ StreamController::StreamController(QObject *parent)
 
 	session_->setStateCallback([this](SessionState state, const std::string &detail) {
 		const QString slug = sessionStateSlug(state);
-		const QString texto = translateMessage(detail);
+		const QString message = translateMessage(detail);
 		QMetaObject::invokeMethod(
 			this,
-			[this, slug, texto, state]() {
+			[this, slug, message, state]() {
 				sessionState_ = slug;
-				sessionDetail_ = texto;
+				sessionDetail_ = message;
 				streaming_ = state == SessionState::Connected;
 				if(streaming_)
 				{
@@ -108,7 +108,7 @@ StreamController::StreamController(QObject *parent)
 				}
 				emit sessionChanged();
 				if(state == SessionState::Failed)
-					emit notify(tr("Remote Play"), texto, true);
+					emit notify(tr("Remote Play"), message, true);
 			},
 			Qt::QueuedConnection);
 	});
@@ -122,14 +122,14 @@ StreamController::StreamController(QObject *parent)
 	});
 
 	// An audio failure must not stay as just a line in the log: notify.
-	connect(&audio_, &AudioOutput::failed, this, [this](const QString &razao) {
+	connect(&audio_, &AudioOutput::failed, this, [this](const QString &reason) {
 		emit audioChanged();
 		emit notify(tr("Sound"),
-			tr("%1 The video carries on; you will not hear the game.").arg(razao), true);
+			tr("%1 The video carries on; you will not hear the game.").arg(reason), true);
 	});
-	connect(&audio_, &AudioOutput::started, this, [this](const QString &dispositivo) {
+	connect(&audio_, &AudioOutput::started, this, [this](const QString &device) {
 		emit audioChanged();
-		logInfo("Remote Play sound through " + dispositivo.toStdString());
+		logInfo("Remote Play sound through " + device.toStdString());
 	});
 
 	session_->setAudioCallbacks(
@@ -162,19 +162,19 @@ StreamController::StreamController(QObject *parent)
 		// same picture as always thinking the setting is useless.
 		if(height > 0 && resolution_ > 0 && height < resolution_)
 		{
-			const QString recebido = tr("%1×%2").arg(width).arg(height);
+			const QString received = tr("%1×%2").arg(width).arg(height);
 			if(resolution_ == 1080 && height == 720)
 			{
 				emit notify(tr("Remote Play"),
 					tr("You asked for 1080p and the console is sending %1. Remote Play on a PS4 that is not a "
-						"Pro does not go above 720p, and the request is downgraded automatically.").arg(recebido),
+						"Pro does not go above 720p, and the request is downgraded automatically.").arg(received),
 					false);
 			}
 			else
 			{
 				emit notify(tr("Remote Play"),
 					tr("You asked for %1p and the console is sending %2.")
-						.arg(resolution_).arg(recebido),
+						.arg(resolution_).arg(received),
 					false);
 			}
 		}
@@ -185,9 +185,9 @@ StreamController::StreamController(QObject *parent)
 	fpsTimer_ = new QTimer(this);
 	fpsTimer_->setInterval(1000);
 	connect(fpsTimer_, &QTimer::timeout, this, [this]() {
-		const qint64 agora = video_.framesDelivered();
-		measuredFps_ = static_cast<int>(agora - lastFrameCount_);
-		lastFrameCount_ = agora;
+		const qint64 now = video_.framesDelivered();
+		measuredFps_ = static_cast<int>(now - lastFrameCount_);
+		lastFrameCount_ = now;
 		emit videoChanged();
 	});
 }
@@ -207,15 +207,15 @@ void StreamController::setAddress(const QString &address)
 	// What was known belonged to the previous console: the name, state, type
 	// and registration key. Keeping it until the new one answered made the
 	// new one's card show the old one's data (and store it as its own).
-	HostInfo nova;
-	nova.address = address.toStdString();
-	applyHost(nova);
+	HostInfo fresh;
+	fresh.address = address.toStdString();
+	applyHost(fresh);
 	consoleState_ = QStringLiteral("unknown");
 	emit consoleChanged();
 	// No notice: the card already shows what the console answered, and an
 	// error notification just for choosing a console that is off looked
 	// like something had gone wrong.
-	procurar(false);
+	probe(false);
 }
 
 void StreamController::applySettings(const Settings &settings)
@@ -231,9 +231,9 @@ void StreamController::applySettings(const Settings &settings)
 	// The Account ID the console in use already accepted; if it has not
 	// accepted any yet, the last one any console accepted.
 	accountId_ = QString::fromStdString(settings.streamAccountId);
-	for(const ConsoleEntry &consola : settings.consoles)
-		if(consola.address == settings.consoleAddress && !consola.accountId.empty())
-			accountId_ = QString::fromStdString(consola.accountId);
+	for(const ConsoleEntry &console : settings.consoles)
+		if(console.address == settings.consoleAddress && !console.accountId.empty())
+			accountId_ = QString::fromStdString(console.accountId);
 	keyboard_.setBindings(settings.keyboardBindings);
 	emit settingsApplied();
 	emit keyBindingsChanged();
@@ -241,18 +241,18 @@ void StreamController::applySettings(const Settings &settings)
 
 QVariantMap StreamController::keyBindings() const
 {
-	QVariantMap mapa;
-	for(const auto &par : keyboard_.bindings())
-		mapa.insert(QString::fromStdString(par.first), par.second);
-	return mapa;
+	QVariantMap keyMap;
+	for(const auto &pair : keyboard_.bindings())
+		keyMap.insert(QString::fromStdString(pair.first), pair.second);
+	return keyMap;
 }
 
 bool StreamController::setKeyBinding(const QString &action, int key)
 {
-	KeyboardMap::Bindings novas = keyboard_.bindings();
-	if(!KeyboardMap::rebind(novas, action.toStdString(), key))
+	KeyboardMap::Bindings fresh = keyboard_.bindings();
+	if(!KeyboardMap::rebind(fresh, action.toStdString(), key))
 		return false;
-	emit keyBindingsEdited(novas);
+	emit keyBindingsEdited(fresh);
 	return true;
 }
 
@@ -293,13 +293,13 @@ void StreamController::applyHost(const HostInfo &info)
 
 QVariantMap StreamController::describeHost(const HostInfo &info)
 {
-	QVariantMap estado;
-	estado[QStringLiteral("state")] = info.found ? stateName(info.state) : QStringLiteral("offline");
-	estado[QStringLiteral("name")] = QString::fromStdString(info.name);
-	estado[QStringLiteral("address")] = QString::fromStdString(info.address);
-	estado[QStringLiteral("ps5")] = info.ps5;
-	estado[QStringLiteral("registered")] = info.found && store_.load(info.id).valid;
-	return estado;
+	QVariantMap status;
+	status[QStringLiteral("state")] = info.found ? stateName(info.state) : QStringLiteral("offline");
+	status[QStringLiteral("name")] = QString::fromStdString(info.name);
+	status[QStringLiteral("address")] = QString::fromStdString(info.address);
+	status[QStringLiteral("ps5")] = info.ps5;
+	status[QStringLiteral("registered")] = info.found && store_.load(info.id).valid;
+	return status;
 }
 
 void StreamController::probeConsoles(const QStringList &addresses)
@@ -307,22 +307,22 @@ void StreamController::probeConsoles(const QStringList &addresses)
 	if(probing_ || addresses.isEmpty())
 		return;
 	probing_ = true;
-	std::vector<std::string> lista;
-	for(const QString &endereco : addresses)
-		lista.push_back(endereco.toStdString());
-	std::thread([this, lista]() {
-		std::vector<HostInfo> respostas;
-		for(const std::string &endereco : lista)
+	std::vector<std::string> items;
+	for(const QString &address : addresses)
+		items.push_back(address.toStdString());
+	std::thread([this, items]() {
+		std::vector<HostInfo> replies;
+		for(const std::string &address : items)
 		{
-			HostInfo info = StreamDiscovery::peek(endereco, 1200);
-			info.address = endereco;
-			respostas.push_back(info);
+			HostInfo info = StreamDiscovery::peek(address, 1200);
+			info.address = address;
+			replies.push_back(info);
 		}
 		QMetaObject::invokeMethod(
 			this,
-			[this, respostas]() {
+			[this, replies]() {
 				probing_ = false;
-				for(const HostInfo &info : respostas)
+				for(const HostInfo &info : replies)
 					consoleStates_[QString::fromStdString(info.address)] = describeHost(info);
 				emit consoleStatesChanged();
 			},
@@ -338,13 +338,13 @@ void StreamController::scanNetwork()
 	scanResults_.clear();
 	emit scanChanged();
 	std::thread([this]() {
-		const std::vector<HostInfo> encontradas = StreamDiscovery::scan(2500);
+		const std::vector<HostInfo> found = StreamDiscovery::scan(2500);
 		QMetaObject::invokeMethod(
 			this,
-			[this, encontradas]() {
+			[this, found]() {
 				scanning_ = false;
 				scanResults_.clear();
-				for(const HostInfo &info : encontradas)
+				for(const HostInfo &info : found)
 					scanResults_.append(describeHost(info));
 				emit scanChanged();
 			},
@@ -352,22 +352,22 @@ void StreamController::scanNetwork()
 	}).detach();
 }
 
-void StreamController::refreshConsole() { procurar(true); }
+void StreamController::refreshConsole() { probe(true); }
 
-void StreamController::procurar(bool avisar)
+void StreamController::probe(bool reportResult)
 {
 	// Always say something: when the address is missing and when it ends. A
 	// silent check looks like it does nothing.
 	if(address_.isEmpty())
 	{
-		if(avisar)
+		if(reportResult)
 			emit notify(tr("Search"),
 				tr("The console IP address is missing. Set it in the settings."), true);
 		return;
 	}
 	// A check requested while one is already running is not lost: the
 	// running one reports at the end instead.
-	avisarNoFim_ = avisarNoFim_ || avisar;
+	notifyWhenDone_ = notifyWhenDone_ || reportResult;
 	if(searching_)
 		return;
 	searching_ = true;
@@ -380,18 +380,18 @@ void StreamController::procurar(bool avisar)
 			this,
 			[this, info, address]() {
 				searching_ = false;
-				const bool avisar = avisarNoFim_;
-				avisarNoFim_ = false;
+				const bool announce = notifyWhenDone_;
+				notifyWhenDone_ = false;
 				// Meanwhile another console was selected: this reply no longer
 				// belongs to it. Ask the new one.
 				if(address != address_.toStdString())
 				{
 					emit consoleChanged();
-					procurar(avisar);
+					probe(announce);
 					return;
 				}
 				applyHost(info);
-				if(!avisar)
+				if(!announce)
 					return;
 				if(!info.found)
 				{
@@ -401,15 +401,15 @@ void StreamController::procurar(bool avisar)
 						true);
 					return;
 				}
-				const QString nome = QString::fromStdString(info.name);
+				const QString name = QString::fromStdString(info.name);
 				if(consoleState() == QLatin1String("standby"))
 					emit notify(tr("Search"),
 						tr("%1 found, in rest mode. Click its box to wake it.")
-							.arg(nome.isEmpty() ? address_ : nome),
+							.arg(name.isEmpty() ? address_ : name),
 						false);
 				else
 					emit notify(tr("Search"),
-						tr("%1 found and ready.").arg(nome.isEmpty() ? address_ : nome),
+						tr("%1 found and ready.").arg(name.isEmpty() ? address_ : name),
 						false);
 			},
 			Qt::QueuedConnection);
@@ -428,18 +428,18 @@ void StreamController::wakeUp()
 	const uint64_t credential = credentials_.wakeupCredential();
 	const bool ps5 = credentials_.ps5;
 	std::thread([this, address, credential, ps5]() {
-		std::string erro;
-		const bool ok = StreamDiscovery::wakeup(address, credential, ps5, &erro);
-		const QString mensagem = ok
+		std::string err;
+		const bool ok = StreamDiscovery::wakeup(address, credential, ps5, &err);
+		const QString message = ok
 			? tr("Request sent. The console takes a few seconds to wake up.")
-			: translateMessage(erro);
+			: translateMessage(err);
 		QMetaObject::invokeMethod(
 			this,
-			[this, ok, mensagem]() {
-				emit notify(tr("Wake the console"), mensagem, !ok);
+			[this, ok, message]() {
+				emit notify(tr("Wake the console"), message, !ok);
 				// No notice: just woken, it is normal not to answer yet.
 				if(ok)
-					procurar(false);
+					probe(false);
 			},
 			Qt::QueuedConnection);
 	}).detach();
@@ -447,39 +447,39 @@ void StreamController::wakeUp()
 
 QString StreamController::videoSummary() const
 {
-	QString texto;
-	texto += QStringLiteral("  requested    %1p, %2 fps%3\n")
+	QString message;
+	message += QStringLiteral("  requested    %1p, %2 fps%3\n")
 		.arg(resolution_)
 		.arg(fps_)
 		.arg(bitrateKbps_ > 0 ? QStringLiteral(", %1 kbps").arg(bitrateKbps_)
 							  : QStringLiteral(", automatic bitrate"));
 	if(frameWidth_ > 0)
 	{
-		texto += QStringLiteral("  arriving     %1×%2, %3 fps measured\n")
+		message += QStringLiteral("  arriving     %1×%2, %3 fps measured\n")
 			.arg(frameWidth_).arg(frameHeight_).arg(measuredFps_);
 		if(frameHeight_ < resolution_)
-			texto += QStringLiteral("  => the console lowered the resolution; a PS4 that is "
+			message += QStringLiteral("  => the console lowered the resolution; a PS4 that is "
 									"not a Pro does not go above 720p\n");
 	}
 	else
 	{
-		texto += QStringLiteral("  arriving     (no frame yet)\n");
+		message += QStringLiteral("  arriving     (no frame yet)\n");
 	}
-	texto += QStringLiteral("  decoding     %1\n")
+	message += QStringLiteral("  decoding     %1\n")
 		.arg(hardwareDecoder_ ? QStringLiteral("graphics card")
 							  : QStringLiteral("processor"));
-	return texto;
+	return message;
 }
 
-QVariantMap StreamController::accountIdForms(const QString &texto) const
+QVariantMap StreamController::accountIdForms(const QString &message) const
 {
-	return formsFromAccountId(parseAccountId(texto.toStdString()));
+	return formsFromAccountId(parseAccountId(message.toStdString()));
 }
 
-QVariantMap StreamController::accountIdReversed(const QString &texto) const
+QVariantMap StreamController::accountIdReversed(const QString &message) const
 {
-	const AccountId lido = parseAccountId(texto.toStdString());
-	return formsFromAccountId(lido.valid ? reverseAccountIdBytes(lido) : lido);
+	const AccountId parsed = parseAccountId(message.toStdString());
+	return formsFromAccountId(parsed.valid ? reverseAccountIdBytes(parsed) : parsed);
 }
 
 void StreamController::registerConsole(const QString &pin, const QString &accountIdBase64)
@@ -526,16 +526,16 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 	// What comes in here may be hexadecimal, decimal or already base64: it
 	// is converted here, so no path in the interface can send the console
 	// a form it does not understand.
-	const AccountId conta = parseAccountId(accountIdBase64.toStdString());
-	if(!conta.valid)
+	const AccountId account = parseAccountId(accountIdBase64.toStdString());
+	if(!account.valid)
 	{
-		emit notify(tr("Registration"), translateMessage(conta.error), true);
+		emit notify(tr("Registration"), translateMessage(account.error), true);
 		return;
 	}
 
 	StreamRegistration::Request request;
 	request.address = address_.toStdString();
-	request.accountIdBase64 = conta.base64;
+	request.accountIdBase64 = account.base64;
 	request.pin = pin.trimmed().toUInt();
 	request.target = host_.target;
 	request.ps5 = host_.ps5;
@@ -548,18 +548,18 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 		return;
 	}
 
-	std::string erro;
+	std::string err;
 	// Always stored in base64, whatever form it was typed in: it is the
 	// only one the console accepts, and this way there are not two things
 	// stored under the same name.
-	const QString accountParaGuardar = QString::fromStdString(conta.base64);
+	const QString accountToSave = QString::fromStdString(account.base64);
 	const bool started = registration_->start(
 		request,
-		[this, accountParaGuardar](bool ok, StreamCredentials credentials, std::string error) {
-			const QString mensagem = translateMessage(error);
+		[this, accountToSave](bool ok, StreamCredentials credentials, std::string error) {
+			const QString message = translateMessage(error);
 			QMetaObject::invokeMethod(
 				this,
-				[this, ok, credentials, mensagem, accountParaGuardar]() {
+				[this, ok, credentials, message, accountToSave]() {
 					registering_ = false;
 					if(ok)
 					{
@@ -567,10 +567,10 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 						store_.save(credentials);
 						// Stored only after the console accepts it: a wrong
 						// ID does not get in the way of the next attempt.
-						if(!accountParaGuardar.isEmpty())
+						if(!accountToSave.isEmpty())
 						{
-							accountId_ = accountParaGuardar;
-							emit accountIdAccepted(accountParaGuardar);
+							accountId_ = accountToSave;
+							emit accountIdAccepted(accountToSave);
 							emit settingsApplied();
 						}
 						emit notify(tr("Registration"),
@@ -578,17 +578,17 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 					}
 					else
 					{
-						emit notify(tr("Registration"), mensagem, true);
+						emit notify(tr("Registration"), message, true);
 					}
 					emit registrationChanged();
 				},
 				Qt::QueuedConnection);
 		},
-		&erro);
+		&err);
 
 	if(!started)
 	{
-		emit notify(tr("Registration"), translateMessage(erro), true);
+		emit notify(tr("Registration"), translateMessage(err), true);
 		return;
 	}
 	registering_ = true;
@@ -645,11 +645,11 @@ void StreamController::startStream()
 	config.settings.bitrateKbps = static_cast<unsigned int>(bitrateKbps_);
 	config.settings.hardwareDecoder = wantHardware_;
 
-	std::string erro;
-	if(!session_->start(config, &erro))
+	std::string err;
+	if(!session_->start(config, &err))
 	{
 		sessionState_ = QStringLiteral("failed");
-		sessionDetail_ = translateMessage(erro);
+		sessionDetail_ = translateMessage(err);
 		emit sessionChanged();
 		emit notify(tr("Remote Play"), sessionDetail_, true);
 	}
@@ -675,15 +675,15 @@ void StreamController::connectOneClick()
 	}
 	// Each click is its own run: a reply from a cancelled run, or from
 	// another console, no longer decides anything.
-	const quint64 corrida = ++oneClickRun_;
+	const quint64 run = ++oneClickRun_;
 	setConnectStage(QStringLiteral("checking"));
 	const std::string address = address_.toStdString();
-	std::thread([this, address, corrida]() {
+	std::thread([this, address, run]() {
 		const HostInfo info = StreamDiscovery::probe(address, 1500);
 		QMetaObject::invokeMethod(
 			this,
-			[this, info, address, corrida]() {
-				if(corrida != oneClickRun_ || address != address_.toStdString())
+			[this, info, address, run]() {
+				if(run != oneClickRun_ || address != address_.toStdString())
 					return;
 				applyHost(info);
 				oneClickDecide(info);
@@ -760,14 +760,14 @@ void StreamController::oneClickPoll()
 			true);
 		return;
 	}
-	const quint64 corrida = oneClickRun_;
+	const quint64 run = oneClickRun_;
 	const std::string address = address_.toStdString();
-	std::thread([this, address, corrida]() {
+	std::thread([this, address, run]() {
 		const HostInfo info = StreamDiscovery::peek(address, 1500);
 		QMetaObject::invokeMethod(
 			this,
-			[this, info, address, corrida]() {
-				if(corrida != oneClickRun_ || address != address_.toStdString()
+			[this, info, address, run]() {
+				if(run != oneClickRun_ || address != address_.toStdString()
 					|| connectStage_ != QLatin1String("waking"))
 					return;
 				if(!info.found)
@@ -838,19 +838,19 @@ void StreamController::setMicrophoneEnabled(bool enabled)
 
 	// The console first: if it refuses, there is no point opening the
 	// machine's microphone and leaving the light on without sending anything.
-	std::string erro;
-	if(!session_->startMicrophone(&erro))
+	std::string err;
+	if(!session_->startMicrophone(&err))
 	{
 		emit notify(tr("Microphone"),
-			tr("The console did not accept the microphone: %1").arg(translateMessage(erro)), true);
+			tr("The console did not accept the microphone: %1").arg(translateMessage(err)), true);
 		return;
 	}
 
-	QString erroCaptura;
-	if(!microphone_.start(&erroCaptura))
+	QString captureError;
+	if(!microphone_.start(&captureError))
 	{
 		session_->stopMicrophone();
-		emit notify(tr("Microphone"), erroCaptura, true);
+		emit notify(tr("Microphone"), captureError, true);
 		emit microphoneChanged();
 		return;
 	}
@@ -901,13 +901,13 @@ void StreamController::releaseAllKeys()
 
 namespace {
 
-uint16_t paraTouchpad(double normalizado, uint16_t maximo)
+uint16_t toTouchpad(double normalised, uint16_t maximum)
 {
-	if(normalizado < 0.0)
-		normalizado = 0.0;
-	if(normalizado > 1.0)
-		normalizado = 1.0;
-	return static_cast<uint16_t>(normalizado * maximo);
+	if(normalised < 0.0)
+		normalised = 0.0;
+	if(normalised > 1.0)
+		normalised = 1.0;
+	return static_cast<uint16_t>(normalised * maximum);
 }
 
 } // namespace
@@ -916,16 +916,16 @@ void StreamController::touchBegin(double x, double y)
 {
 	if(!streaming_ || !touchpadFromMouse_ || touchId_ >= 0)
 		return;
-	touchId_ = session_->startTouch(paraTouchpad(x, StreamSession::kTouchpadWidth),
-		paraTouchpad(y, StreamSession::kTouchpadHeight));
+	touchId_ = session_->startTouch(toTouchpad(x, StreamSession::kTouchpadWidth),
+		toTouchpad(y, StreamSession::kTouchpadHeight));
 }
 
 void StreamController::touchMove(double x, double y)
 {
 	if(!streaming_ || touchId_ < 0)
 		return;
-	session_->moveTouch(touchId_, paraTouchpad(x, StreamSession::kTouchpadWidth),
-		paraTouchpad(y, StreamSession::kTouchpadHeight));
+	session_->moveTouch(touchId_, toTouchpad(x, StreamSession::kTouchpadWidth),
+		toTouchpad(y, StreamSession::kTouchpadHeight));
 }
 
 void StreamController::touchEnd()

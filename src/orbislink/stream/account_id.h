@@ -39,7 +39,7 @@ struct AccountId
 // because that is the form PSN gives; to force hexadecimal, write it with
 // "0x" in front. That is why the interface shows all three forms at once —
 // whoever has it in front of them sees straight away whether it matches.
-AccountId parseAccountId(const std::string &texto);
+AccountId parseAccountId(const std::string &message);
 
 // Reverses the byte order. Some tools show the raw bytes instead of the
 // number, and then the hexadecimal comes out backwards.

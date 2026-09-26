@@ -20,7 +20,7 @@ Dialog {
     padding: 0
 
     property bool followTail: true
-    property string filtro: ""
+    property string filter: ""
 
     // A nearly opaque modal: with the panels' transparency, what is behind
     // would show through the box, and a box asking for a decision must not
@@ -33,37 +33,37 @@ Dialog {
         radius: Theme.radius
     }
 
-    function corDoNivel(nivel) {
-        if (nivel === "ERRO" || nivel === "ERROR") return Theme.error
-        if (nivel === "AVISO" || nivel === "WARNING") return Theme.warn
-        if (nivel === "DEBUG") return Theme.textMuted
+    function levelColor(level) {
+        if (level === "ERRO" || level === "ERROR") return Theme.error
+        if (level === "AVISO" || level === "WARNING") return Theme.warn
+        if (level === "DEBUG") return Theme.textMuted
         return Theme.text
     }
 
-    function carregar() {
-        linhas.clear()
-        var recentes = app.recentLog(1000)
-        for (var i = 0; i < recentes.length; ++i)
-            acrescentar(recentes[i])
+    function load() {
+        lines.clear()
+        var recent = app.recentLog(1000)
+        for (var i = 0; i < recent.length; ++i)
+            append(recent[i])
         if (followTail)
-            lista.positionViewAtEnd()
+            items.positionViewAtEnd()
     }
 
     // Lines coming from the log already carry "date [level] text".
-    function acrescentar(linha) {
-        var nivel = ""
-        var abre = linha.indexOf("[")
-        var fecha = linha.indexOf("]")
-        if (abre > 0 && fecha > abre)
-            nivel = linha.substring(abre + 1, fecha)
-        linhas.append({ "texto": linha, "nivel": nivel })
-        while (linhas.count > 2000)
-            linhas.remove(0)
+    function append(line) {
+        var level = ""
+        var openAt = line.indexOf("[")
+        var closeAt = line.indexOf("]")
+        if (openAt > 0 && closeAt > openAt)
+            level = line.substring(openAt + 1, closeAt)
+        lines.append({ "message": line, "level": level })
+        while (lines.count > 2000)
+            lines.remove(0)
     }
 
-    onOpened: carregar()
+    onOpened: load()
 
-    ListModel { id: linhas }
+    ListModel { id: lines }
 
     Connections {
         target: app
@@ -71,10 +71,10 @@ Dialog {
             if (!dialog.visible)
                 return
             // Rebuilds the line as it appears in the file.
-            dialog.acrescentar(Qt.formatDateTime(new Date(), "yyyy-MM-dd hh:mm:ss.zzz")
+            dialog.append(Qt.formatDateTime(new Date(), "yyyy-MM-dd hh:mm:ss.zzz")
                                + " [" + level + "] " + text)
             if (dialog.followTail)
-                lista.positionViewAtEnd()
+                items.positionViewAtEnd()
         }
     }
 
@@ -132,16 +132,16 @@ Dialog {
             StyledButton {
                 text: qsTr("Save to…")
                 implicitHeight: 30
-                onClicked: destinoDiagnostico.open()
+                onClicked: diagnosticsDestination.open()
             }
             StyledButton {
                 text: qsTr("Save to the desktop")
                 implicitHeight: 30
                 primary: true
                 onClicked: {
-                    var caminho = app.exportDiagnostics("")
-                    if (caminho.length > 0)
-                        app.openLocalFolder(caminho)
+                    var path = app.exportDiagnostics("")
+                    if (path.length > 0)
+                        app.openLocalFolder(path)
                 }
             }
             StyledButton {
@@ -164,17 +164,17 @@ Dialog {
             StyledField {
                 Layout.fillWidth: true
                 placeholderText: qsTr("filter (e.g. Remote Play, FAILED, FTP)")
-                onTextChanged: dialog.filtro = text
+                onTextChanged: dialog.filter = text
             }
             StyledButton {
                 text: qsTr("Errors only")
                 implicitHeight: 30
-                onClicked: dialog.filtro = "ERROR"
+                onClicked: dialog.filter = "ERROR"
             }
             StyledButton {
                 text: qsTr("Clear filter")
                 implicitHeight: 30
-                onClicked: dialog.filtro = ""
+                onClicked: dialog.filter = ""
             }
         }
 
@@ -189,21 +189,21 @@ Dialog {
             radius: 6
 
             ListView {
-                id: lista
+                id: items
                 anchors.fill: parent
                 anchors.margins: 6
                 clip: true
-                model: linhas
+                model: lines
                 spacing: 1
                 ScrollBar.vertical: ScrollBar { }
 
                 delegate: Text {
-                    width: lista.width
-                    visible: dialog.filtro.length === 0
-                             || model.texto.toLowerCase().indexOf(dialog.filtro.toLowerCase()) >= 0
+                    width: items.width
+                    visible: dialog.filter.length === 0
+                             || model.message.toLowerCase().indexOf(dialog.filter.toLowerCase()) >= 0
                     height: visible ? implicitHeight : 0
-                    text: model.texto
-                    color: dialog.corDoNivel(model.nivel)
+                    text: model.message
+                    color: dialog.levelColor(model.level)
                     font.family: "monospace"
                     font.pixelSize: 11
                     wrapMode: Text.WrapAnywhere
@@ -212,7 +212,7 @@ Dialog {
 
             Text {
                 anchors.centerIn: parent
-                visible: linhas.count === 0
+                visible: lines.count === 0
                 text: qsTr("Nothing logged yet.")
                 color: Theme.textMuted
                 font.pixelSize: 12
@@ -221,12 +221,12 @@ Dialog {
     }
 
     FolderDialog {
-        id: destinoDiagnostico
+        id: diagnosticsDestination
         title: qsTr("Where to save the diagnostics")
         onAccepted: {
-            var caminho = app.exportDiagnostics(selectedFolder)
-            if (caminho.length > 0)
-                app.openLocalFolder(caminho)
+            var path = app.exportDiagnostics(selectedFolder)
+            if (path.length > 0)
+                app.openLocalFolder(path)
         }
     }
 }

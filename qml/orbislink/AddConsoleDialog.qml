@@ -10,20 +10,20 @@ import QtQuick.Layouts
 Dialog {
     id: dialog
 
-    readonly property bool temStream: typeof stream !== "undefined" && stream !== null
-    readonly property bool aProcurar: temStream && stream.scanning
-    readonly property var encontradas: temStream ? stream.scanResults : []
+    readonly property bool hasStream: typeof stream !== "undefined" && stream !== null
+    readonly property bool searching: hasStream && stream.scanning
+    readonly property var found: hasStream ? stream.scanResults : []
 
-    function jaNaLista(endereco) {
-        var lista = app.consoles
-        for (var i = 0; i < lista.length; ++i)
-            if (lista[i].address === endereco)
+    function alreadyListed(address) {
+        var items = app.consoles
+        for (var i = 0; i < items.length; ++i)
+            if (items[i].address === address)
                 return true
         return false
     }
 
-    function adicionar(nome, endereco, tipo) {
-        app.addConsole(nome, endereco, tipo || "")
+    function add(name, address, kind) {
+        app.addConsole(name, address, kind || "")
         dialog.close()
     }
 
@@ -45,9 +45,9 @@ Dialog {
     }
 
     onOpened: {
-        nomeField.text = ""
-        enderecoField.text = ""
-        if (temStream)
+        consoleNameField.text = ""
+        addressInput.text = ""
+        if (hasStream)
             stream.scanNetwork()
     }
 
@@ -78,7 +78,7 @@ Dialog {
             Item { Layout.fillWidth: true }
             StyledButton {
                 text: qsTr("Close")
-                larguraMinima: 100
+                minimumWidth: 100
                 onClicked: dialog.close()
             }
         }
@@ -102,15 +102,15 @@ Dialog {
                 font.pixelSize: 12
             }
             BusyIndicator {
-                running: dialog.aProcurar
-                visible: dialog.aProcurar
+                running: dialog.searching
+                visible: dialog.searching
                 implicitWidth: 20
                 implicitHeight: 20
             }
             StyledButton {
-                visible: dialog.temStream
-                enabled: !dialog.aProcurar
-                text: dialog.aProcurar ? qsTr("Searching…") : qsTr("Search again")
+                visible: dialog.hasStream
+                enabled: !dialog.searching
+                text: dialog.searching ? qsTr("Searching…") : qsTr("Search again")
                 implicitHeight: 30
                 font.pixelSize: 11
                 onClicked: stream.scanNetwork()
@@ -121,11 +121,11 @@ Dialog {
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
             Layout.fillWidth: true
-            visible: !dialog.aProcurar && dialog.encontradas.length === 0
+            visible: !dialog.searching && dialog.found.length === 0
             wrapMode: Text.WordWrap
             color: Theme.textSecondary
             font.pixelSize: 12
-            text: !dialog.temStream
+            text: !dialog.hasStream
                   ? qsTr("This build has no Remote Play, so it can't search the network. Type "
                          + "the address below.")
                   : qsTr("No console answered. Check that it's on, on the same network, with "
@@ -133,19 +133,19 @@ Dialog {
         }
 
         Repeater {
-            model: dialog.encontradas
+            model: dialog.found
 
             Rectangle {
-                id: linha
-                readonly property bool naLista: dialog.jaNaLista(modelData.address)
+                id: line
+                readonly property bool listed: dialog.alreadyListed(modelData.address)
                 Layout.leftMargin: Theme.dialogMargin
                 Layout.rightMargin: Theme.dialogMargin
                 Layout.fillWidth: true
                 implicitHeight: 52
                 radius: Theme.radiusSmall
                 color: Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b,
-                               Theme.claro ? 1.0 : 0.6)
-                border.color: Theme.claro ? Qt.rgba(0, 0, 0, 0.12) : Theme.glassEdge
+                               Theme.light ? 1.0 : 0.6)
+                border.color: Theme.light ? Qt.rgba(0, 0, 0, 0.12) : Theme.glassEdge
 
                 RowLayout {
                     anchors.fill: parent
@@ -175,12 +175,12 @@ Dialog {
                         }
                     }
                     StyledButton {
-                        text: linha.naLista ? qsTr("Already added") : qsTr("Add")
-                        enabled: !linha.naLista
-                        primary: !linha.naLista
+                        text: line.listed ? qsTr("Already added") : qsTr("Add")
+                        enabled: !line.listed
+                        primary: !line.listed
                         implicitHeight: 32
-                        larguraMinima: 100
-                        onClicked: dialog.adicionar(modelData.name, modelData.address,
+                        minimumWidth: 100
+                        onClicked: dialog.add(modelData.name, modelData.address,
                                                     modelData.ps5 ? "ps5" : "ps4")
                     }
                 }
@@ -211,21 +211,21 @@ Dialog {
             Layout.bottomMargin: Theme.dialogInner
             spacing: 10
             StyledField {
-                id: nomeField
+                id: consoleNameField
                 Layout.preferredWidth: 150
                 placeholderText: qsTr("Name (optional)")
             }
             StyledField {
-                id: enderecoField
+                id: addressInput
                 Layout.fillWidth: true
                 placeholderText: qsTr("IP address, e.g. 192.168.1.50")
-                onAccepted: if (text.trim().length > 0) dialog.adicionar(nomeField.text, text)
+                onAccepted: if (text.trim().length > 0) dialog.add(consoleNameField.text, text)
             }
             StyledButton {
                 text: qsTr("Add")
-                enabled: enderecoField.text.trim().length > 0
-                larguraMinima: 100
-                onClicked: dialog.adicionar(nomeField.text, enderecoField.text)
+                enabled: addressInput.text.trim().length > 0
+                minimumWidth: 100
+                onClicked: dialog.add(consoleNameField.text, addressInput.text)
             }
         }
     }

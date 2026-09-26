@@ -7,15 +7,15 @@ import QtQuick
 import QtQuick.Controls.Basic
 
 Rectangle {
-    id: seletor
+    id: selector
 
-    readonly property var temas: [
-        { nome: "escuro", icone: "☾", dica: qsTr("Dark theme") },
-        { nome: "vidro",  icone: "◐", dica: qsTr("Glass theme (dark, more translucent)") },
-        { nome: "claro",  icone: "☀", dica: qsTr("Light theme") }
+    readonly property var themes: [
+        { name: "dark", symbol: "☾", tip: qsTr("Dark theme") },
+        { name: "glass",  symbol: "◐", tip: qsTr("Glass theme (dark, more translucent)") },
+        { name: "light",  symbol: "☀", tip: qsTr("Light theme") }
     ]
 
-    implicitWidth: linha.implicitWidth + 8
+    implicitWidth: line.implicitWidth + 8
     implicitHeight: 38
     radius: height / 2
     color: Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b, 0.35)
@@ -23,24 +23,24 @@ Rectangle {
     border.color: Theme.glassEdge
 
     Row {
-        id: linha
+        id: line
         anchors.centerIn: parent
         spacing: 2
 
         Repeater {
-            model: seletor.temas
+            model: selector.themes
 
             ToolButton {
-                id: botao
-                readonly property bool activo: Theme.nome === modelData.nome
+                id: button
+                readonly property bool isActive: Theme.name === modelData.name
 
                 width: 30
                 height: 30
                 font.pixelSize: 14
-                text: modelData.icone
+                text: modelData.symbol
                 ToolTip.visible: hovered
-                ToolTip.text: modelData.dica
-                Accessible.name: modelData.dica
+                ToolTip.text: modelData.tip
+                Accessible.name: modelData.tip
 
                 scale: down ? Theme.pressScale : (hovered ? Theme.hoverScale : 1.0)
                 Behavior on scale {
@@ -49,24 +49,24 @@ Rectangle {
 
                 // Main.qml applies the theme when the settings change; here
                 // it is only saved.
-                onClicked: app.setTheme(modelData.nome)
+                onClicked: app.setTheme(modelData.name)
 
                 background: Rectangle {
                     radius: width / 2
-                    color: botao.activo ? Theme.accentFill
-                         : botao.hovered ? Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g,
+                    color: button.isActive ? Theme.accentFill
+                         : button.hovered ? Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g,
                                                    Theme.panelAlt.b, 0.55)
                          : "transparent"
-                    border.width: botao.activo ? 1 : 0
+                    border.width: button.isActive ? 1 : 0
                     border.color: Theme.accent
                     Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
                 }
 
                 contentItem: Text {
-                    text: botao.text
-                    font: botao.font
-                    color: botao.activo ? Theme.accent
-                         : botao.hovered ? Theme.text : Theme.textSecondary
+                    text: button.text
+                    font: button.font
+                    color: button.isActive ? Theme.accent
+                         : button.hovered ? Theme.text : Theme.textSecondary
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     Behavior on color { ColorAnimation { duration: Theme.fast } }

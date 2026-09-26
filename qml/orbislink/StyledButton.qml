@@ -10,7 +10,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 
 Button {
-    id: botao
+    id: button
 
     property bool primary: false
     property bool danger: false
@@ -19,9 +19,9 @@ Button {
     // numbers were measured with one language's labels; in another the
     // same label may be longer. A button is never narrower than its
     // text.
-    property int larguraMinima: 0
+    property int minimumWidth: 0
 
-    implicitWidth: Math.max(larguraMinima, rotulo.implicitWidth + leftPadding + rightPadding)
+    implicitWidth: Math.max(minimumWidth, keyLabel.implicitWidth + leftPadding + rightPadding)
     implicitHeight: chip ? 30 : 38
     // Side padding only. Control's "padding" applies to all four, and
     // 20 above plus 20 below do not fit in a height of 38: the text
@@ -42,7 +42,7 @@ Button {
         NumberAnimation { duration: Theme.fast; easing.type: Theme.easeSpring; easing.overshoot: 1.1 }
     }
 
-    readonly property color corDeFundo: {
+    readonly property color backgroundColor: {
         if (!enabled)
             return Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b, 0.25)
         if (primary)
@@ -53,7 +53,7 @@ Button {
                        hovered ? Theme.panelOpacity + 0.18 : Theme.panelOpacity)
     }
 
-    readonly property color corDoTexto: {
+    readonly property color textColor: {
         if (!enabled)
             return Theme.textSecondary
         if (primary)
@@ -69,22 +69,22 @@ Button {
             anchors.fill: parent
             anchors.margins: -5
             radius: Theme.radiusControl + 5
-            visible: botao.primary && botao.enabled
+            visible: button.primary && button.enabled
             color: "transparent"
             border.width: 5
             border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b,
-                                  botao.hovered ? 0.30 : 0.18)
+                                  button.hovered ? 0.30 : 0.18)
             Behavior on border.color { ColorAnimation { duration: Theme.fast } }
         }
 
         Rectangle {
             anchors.fill: parent
             radius: Theme.radiusControl
-            color: botao.corDeFundo
+            color: button.backgroundColor
             border.width: 1
-            border.color: botao.primary
+            border.color: button.primary
                 ? Qt.rgba(1, 1, 1, 0.22)
-                : (botao.danger
+                : (button.danger
                     ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.35)
                     : Theme.glassEdge)
             Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
@@ -96,7 +96,7 @@ Button {
                 gradient: Gradient {
                     GradientStop {
                         position: 0.0
-                        color: Qt.rgba(1, 1, 1, botao.primary ? 0.20 : Theme.glassHighlight)
+                        color: Qt.rgba(1, 1, 1, button.primary ? 0.20 : Theme.glassHighlight)
                     }
                     GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.06) }
                 }
@@ -105,10 +105,10 @@ Button {
     }
 
     contentItem: Text {
-        id: rotulo
-        text: botao.text
-        font: botao.font
-        color: botao.corDoTexto
+        id: keyLabel
+        text: button.text
+        font: button.font
+        color: button.textColor
         elide: Text.ElideRight
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter

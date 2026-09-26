@@ -8,7 +8,7 @@
 using namespace orbislink;
 using namespace orbislink_test;
 
-ORBISLINK_TEST(le_entradas_de_texto)
+ORBISLINK_TEST(reads_text_entries)
 {
 	const auto data = buildSfo({ { "CATEGORY", "gp" }, { "TITLE", "Jogo Acentuado ção" },
 		{ "TITLE_ID", "CUSA00123" } });
@@ -22,7 +22,7 @@ ORBISLINK_TEST(le_entradas_de_texto)
 	CHECK_EQ(sfo.stringValue("NAO_EXISTE", "omissao"), std::string("omissao"));
 }
 
-ORBISLINK_TEST(rejeita_magic_invalido)
+ORBISLINK_TEST(rejects_invalid_magic)
 {
 	auto data = buildSfo({ { "TITLE", "x" } });
 	data[1] = 'X';
@@ -32,14 +32,14 @@ ORBISLINK_TEST(rejeita_magic_invalido)
 	CHECK(!error.empty());
 }
 
-ORBISLINK_TEST(rejeita_ficheiro_curto)
+ORBISLINK_TEST(rejects_short_file)
 {
 	std::vector<uint8_t> data = { 0x00, 'P', 'S', 'F' };
 	Sfo sfo;
 	CHECK(!sfo.parse(data, nullptr));
 }
 
-ORBISLINK_TEST(ignora_entrada_fora_dos_limites)
+ORBISLINK_TEST(ignores_out_of_bounds_entry)
 {
 	auto data = buildSfo({ { "TITLE", "Bom" }, { "TITLE_ID", "CUSA00001" } });
 	// Corrupts the second entry's value_offset to beyond the end of the file.
@@ -50,7 +50,7 @@ ORBISLINK_TEST(ignora_entrada_fora_dos_limites)
 	CHECK(sfo.find("TITLE_ID") == nullptr);
 }
 
-ORBISLINK_TEST(numero_de_entradas_implausivel)
+ORBISLINK_TEST(implausible_entry_count)
 {
 	auto data = buildSfo({ { "TITLE", "x" } });
 	putLE32(data, 0x10, 999999);
