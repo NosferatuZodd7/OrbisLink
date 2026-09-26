@@ -163,6 +163,44 @@ ORBISLINK_TEST(le_a_resposta_do_github)
 	CHECK(releases[1].assetSha256.empty());
 }
 
+ORBISLINK_TEST(hash_e_o_do_ficheiro_que_se_descarrega)
+{
+	// Um .sha256 por ficheiro, pela ordem em que a API os devolve: o do zip
+	// vem depois do do instalador. O que conta é o do instalador.
+	const char *resposta = R"([{
+	  "tag_name": "v1.0.0", "draft": false, "prerelease": false, "body": "",
+	  "assets": [
+	    { "name": "orbislink-1.0.0-linux-x86_64.tar.gz.sha256", "browser_download_url": "https://x/linux.sha256" },
+	    { "name": "OrbisLink-1.0.0-setup.exe", "browser_download_url": "https://x/setup.exe", "size": 10 },
+	    { "name": "OrbisLink-1.0.0-setup.exe.sha256", "browser_download_url": "https://x/setup.sha256" },
+	    { "name": "OrbisLink-1.0.0-windows-x64.zip.sha256", "browser_download_url": "https://x/zip.sha256" }
+	  ]}])";
+	const auto releases = UpdateChecker::parseReleases(resposta, "-setup.exe");
+	CHECK_EQ(releases.size(), static_cast<size_t>(1));
+	CHECK_EQ(releases[0].assetName, std::string("OrbisLink-1.0.0-setup.exe"));
+	CHECK_EQ(releases[0].assetSha256Url, std::string("https://x/setup.sha256"));
+
+	// As notas levam uma linha por ficheiro, no formato que o release.yml
+	// escreve. Conta a do instalador, e não a do zip nem a do Linux.
+	const char *comNotas = R"([{
+	  "tag_name": "v1.0.0", "draft": false, "prerelease": false,
+	  "body": "Notas.\n\n### SHA-256\n\n`096da89a3a9f3624311e907d24af4c9b907b9bfabcd0af7dec2f5fdc935f2777`  OrbisLink-1.0.0-setup.exe\n\n`d2f6e324971ce63f55db4e66ce5e15be2359de673111619213c9b81f42f512cc`  OrbisLink-1.0.0-windows-x64.zip\n\n`e85c6cf68dfaa7d1f48a0a02a5b7eb43747adc7c074819547b38276ed8abd337`  orbislink-1.0.0-linux-x86_64.tar.gz\n",
+	  "assets": [
+	    { "name": "OrbisLink-1.0.0-setup.exe", "browser_download_url": "https://x/setup.exe", "size": 10 }
+	  ]}])";
+	CHECK_EQ(UpdateChecker::parseReleases(comNotas, "-setup.exe")[0].assetSha256,
+		std::string("096da89a3a9f3624311e907d24af4c9b907b9bfabcd0af7dec2f5fdc935f2777"));
+
+	// Sem o .sha256 do próprio ficheiro, não se usa o de outro.
+	const char *semHash = R"([{
+	  "tag_name": "v1.0.0", "draft": false, "prerelease": false, "body": "",
+	  "assets": [
+	    { "name": "OrbisLink-1.0.0-setup.exe", "browser_download_url": "https://x/setup.exe", "size": 10 },
+	    { "name": "OrbisLink-1.0.0-windows-x64.zip.sha256", "browser_download_url": "https://x/zip.sha256" }
+	  ]}])";
+	CHECK(UpdateChecker::parseReleases(semHash, "-setup.exe")[0].assetSha256Url.empty());
+}
+
 ORBISLINK_TEST(canal_estavel_ignora_pre_lancamentos)
 {
 	const auto releases = UpdateChecker::parseReleases(kRespostaGitHub, "-setup.exe");
