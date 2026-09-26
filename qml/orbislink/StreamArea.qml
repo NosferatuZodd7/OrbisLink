@@ -121,23 +121,51 @@ Item {
         spacing: 18
         visible: !root.streaming
 
-        ConsoleCard {
+        // As consolas guardadas lado a lado, e a caixa para juntar mais uma.
+        // A que está em uso é a de sempre; as outras mostram o estado delas
+        // e um clique passa a usá-las.
+        Row {
+            id: filaConsolas
             anchors.horizontalCenter: parent.horizontalCenter
-            disponivel: root.built
-            estado: root.consoleState
-            registada: root.registered
-            aLigar: root.sessionState === "connecting"
-            aProcurar: root.built && stream.searching
-            ps5: root.built && stream.consolePs5
-            nome: root.built && stream.consoleName.length > 0 ? stream.consoleName
-                                                              : app.consoleName
-            endereco: app.consoleAddress
-            onLigar: stream.startStream()
-            onAcordar: stream.wakeUp()
-            onRegistar: registerDialog.open()
-            onProcurar: stream.refreshConsole()
-            onCancelar: stream.stopStream()
-            onEditar: registerDialog.open()
+            spacing: 18
+            readonly property var lista: app.consoles
+            // Encolhem juntas quando não cabem.
+            readonly property real largura: Math.max(230, Math.min(320,
+                (palco.width - 80 - 170 - spacing * lista.length) / Math.max(1, lista.length)))
+
+            Repeater {
+                model: filaConsolas.lista
+
+                ConsoleCard {
+                    readonly property var outra: root.built && !modelData.active
+                                                 ? stream.consoleStates[modelData.address] : undefined
+                    width: filaConsolas.largura
+                    ativa: modelData.active
+                    disponivel: root.built
+                    endereco: modelData.address
+                    nome: modelData.active && root.built && stream.consoleName.length > 0
+                          ? stream.consoleName : modelData.name
+                    estado: modelData.active ? root.consoleState
+                          : (outra ? outra.state : "unknown")
+                    registada: modelData.active ? root.registered : (outra ? outra.registered : false)
+                    ps5: modelData.active ? (root.built && stream.consolePs5)
+                                          : (outra ? outra.ps5 : false)
+                    aLigar: modelData.active && root.sessionState === "connecting"
+                    aProcurar: modelData.active && root.built && stream.searching
+                    onLigar: stream.startStream()
+                    onAcordar: stream.wakeUp()
+                    onRegistar: registerDialog.open()
+                    onProcurar: stream.refreshConsole()
+                    onCancelar: stream.stopStream()
+                    onEditar: registerDialog.open()
+                    onEscolher: app.selectConsole(modelData.address)
+                    onRemover: app.removeConsole(modelData.address)
+                }
+            }
+
+            AddConsoleCard {
+                onAdicionar: addConsoleDialog.open()
+            }
         }
 
         Text {
@@ -490,6 +518,25 @@ Item {
             keyboardMap.descricao = "P — " + keyboardMap.acoes["ps"].nome
         }
     }
+
+    // As outras consolas da lista: pergunta-se como estão de tempos a tempos,
+    // enquanto não há sessão (a que está em uso já é vigiada pelo stream).
+    Timer {
+        running: root.built && !root.streaming && app.consoles.length > 1
+        interval: 8000
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: {
+            var outras = []
+            var lista = app.consoles
+            for (var i = 0; i < lista.length; ++i)
+                if (!lista[i].active)
+                    outras.push(lista[i].address)
+            stream.probeConsoles(outras)
+        }
+    }
+
+    AddConsoleDialog { id: addConsoleDialog }
 
     // ───────────────────────────── registo
     StreamRegisterDialog { id: registerDialog }

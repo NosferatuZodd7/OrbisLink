@@ -29,6 +29,8 @@ class AppController : public QObject
 	Q_OBJECT
 	Q_PROPERTY(QString consoleName READ consoleName NOTIFY settingsChanged)
 	Q_PROPERTY(QString consoleAddress READ consoleAddress NOTIFY settingsChanged)
+	// As consolas guardadas: [{ name, address, active }].
+	Q_PROPERTY(QVariantList consoles READ consoles NOTIFY settingsChanged)
 	Q_PROPERTY(QString remotePlayState READ remotePlayState NOTIFY statusChanged)
 	Q_PROPERTY(QString remotePlayHint READ remotePlayHint NOTIFY statusChanged)
 	Q_PROPERTY(QString ftpState READ ftpState NOTIFY statusChanged)
@@ -69,6 +71,7 @@ public:
 
 	QString consoleName() const;
 	QString consoleAddress() const;
+	QVariantList consoles() const;
 	QString remotePlayState() const;
 	QString remotePlayHint() const;
 	QString ftpState() const;
@@ -190,6 +193,13 @@ public:
 
 	Q_INVOKABLE QVariantMap settingsMap() const;
 	Q_INVOKABLE void applySettings(const QVariantMap &values);
+	// Passa a usar a consola com este endereço (tem de estar na lista).
+	Q_INVOKABLE void selectConsole(const QString &address);
+	// Junta uma consola à lista e passa a usá-la. Se o endereço já lá
+	// estiver, só a escolhe.
+	Q_INVOKABLE void addConsole(const QString &name, const QString &address);
+	// Tira da lista uma consola que não esteja em uso.
+	Q_INVOKABLE void removeConsole(const QString &address);
 	// Grava só o tema. O applySettings reconstrói os serviços todos (fila,
 	// servidor HTTP, gestor da consola) — mudar de tema a meio de uma
 	// instalação pararia a transferência.

@@ -33,6 +33,15 @@ std::string Settings::toJson() const
 	Json root = Json::makeObject();
 	root.set("console_name", Json::fromString(consoleName));
 	root.set("console_address", Json::fromString(consoleAddress));
+	Json lista = Json::makeArray();
+	for(const ConsoleEntry &consola : consoles)
+	{
+		Json entrada = Json::makeObject();
+		entrada.set("name", Json::fromString(consola.name));
+		entrada.set("address", Json::fromString(consola.address));
+		lista.push(entrada);
+	}
+	root.set("consoles", lista);
 	root.set("ftp_port", Json::fromInt(ftpPort));
 	root.set("installer_port", Json::fromInt(installerPort));
 	root.set("default_mode", Json::fromString(transferModeName(defaultMode)));
@@ -83,6 +92,17 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 
 	settings.consoleName = root["console_name"].toString(settings.consoleName);
 	settings.consoleAddress = root["console_address"].toString(settings.consoleAddress);
+	if(root["consoles"].isArray())
+	{
+		for(const Json &entrada : root["consoles"].items())
+		{
+			if(!entrada.isObject())
+				continue;
+			settings.consoles.push_back(
+				{ entrada["name"].toString(), entrada["address"].toString() });
+		}
+	}
+	normaliseConsoles(settings);
 	settings.ftpPort = static_cast<uint16_t>(root["ftp_port"].toInt(settings.ftpPort));
 	settings.installerPort = static_cast<uint16_t>(root["installer_port"].toInt(settings.installerPort));
 	settings.defaultMode = transferModeFromName(root["default_mode"].toString(), settings.defaultMode);
@@ -153,6 +173,42 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	if(ok)
 		*ok = true;
 	return settings;
+}
+
+void normaliseConsoles(Settings &settings)
+{
+	std::vector<ConsoleEntry> limpa;
+	auto ja = [&limpa](const std::string &endereco) {
+		for(const ConsoleEntry &c : limpa)
+			if(c.address == endereco)
+				return true;
+		return false;
+	};
+	for(const ConsoleEntry &consola : settings.consoles)
+	{
+		const std::string endereco = trim(consola.address);
+		if(endereco.empty() || ja(endereco))
+			continue;
+		limpa.push_back({ consola.name, endereco });
+	}
+	const std::string ativa = trim(settings.consoleAddress);
+	if(!ativa.empty())
+	{
+		bool encontrada = false;
+		for(ConsoleEntry &c : limpa)
+		{
+			if(c.address == ativa)
+			{
+				// O nome da consola em uso é o das definições: é esse que se
+				// edita na janela das definições.
+				c.name = settings.consoleName;
+				encontrada = true;
+			}
+		}
+		if(!encontrada)
+			limpa.insert(limpa.begin(), { settings.consoleName, ativa });
+	}
+	settings.consoles = limpa;
 }
 
 std::string resolveUpdateRepository(const std::string &stored, const std::string *storedDefault,

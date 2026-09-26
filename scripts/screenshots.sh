@@ -66,6 +66,7 @@ cat > "$CONFIG/orbislink/settings.json" <<JSON
  "restrict_to_console_ip":true,"check_already_installed":false,
  "ftp_upload_directory":"/data/pkg/","default_mode":"direct","debug_logging":false,
  "first_run_done":true,
+ "consoles":[{"name":"PS4 da sala","address":"127.0.0.1"},{"name":"PS5 do quarto","address":"192.0.2.10"}],
  "stream_account_id":"782riWdFIwE="}
 JSON
 
