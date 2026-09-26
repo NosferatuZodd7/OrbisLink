@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <map>
+#include <vector>
 #include <string>
 
 namespace orbislink {
@@ -16,11 +17,21 @@ TransferMode transferModeFromName(const std::string &name, TransferMode fallback
 // Todas as definições do OrbisLink que não pertencem ao chiaki-ng.
 // As definições de stream (resolução, fps, bitrate) continuam a ser geridas
 // pelo chiaki-ng e não são duplicadas aqui.
+// Uma consola guardada na lista.
+struct ConsoleEntry
+{
+	std::string name;
+	std::string address;
+};
+
 struct Settings
 {
-	// Consola
+	// Consola: a que está em uso (é com ela que falam o FTP, o instalador e
+	// o Remote Play) e a lista das que foram adicionadas, onde ela também
+	// está.
 	std::string consoleName = "PS4";
 	std::string consoleAddress;
+	std::vector<ConsoleEntry> consoles;
 	uint16_t ftpPort = 2121;
 	uint16_t installerPort = 12800;
 
@@ -91,6 +102,11 @@ struct Settings
 // escolheu e segue o desta compilação; se for diferente, foi escrito à mão
 // e fica. Ficheiros sem storedDefault (nullptr) não permitem distinguir, e
 // vale o desta compilação.
+// Garante que a consola em uso está na lista (à cabeça, se não estiver) e
+// que a lista não tem endereços vazios nem repetidos. É o que traz as
+// definições de antes da lista, que só tinham uma consola.
+void normaliseConsoles(Settings &settings);
+
 std::string resolveUpdateRepository(const std::string &stored, const std::string *storedDefault,
 	const std::string &compiledDefault);
 

@@ -32,17 +32,32 @@ Rectangle {
     signal procurar()
     signal cancelar()
     signal editar()
+    // Só nas consolas que não estão em uso.
+    signal escolher()
+    signal remover()
+
+    // Falso para as outras consolas da lista: aí o clique escolhe-a (passa a
+    // ser a consola em uso), e no canto há um ✕ para a tirar da lista.
+    property bool ativa: true
+    // O ✕ pede um segundo clique antes de remover.
+    property bool confirmarRemocao: false
+    Timer {
+        running: caixa.confirmarRemocao
+        interval: 3500
+        onTriggered: caixa.confirmarRemocao = false
+    }
 
     // O que o clique faz agora.
     readonly property string accao: {
         if (!disponivel) return ""
+        if (!ativa) return "escolher"
         if (aLigar) return "cancelar"
         if (estado === "offline" || estado === "unknown") return "procurar"
         if (!registada) return "registar"
         if (estado === "standby") return "acordar"
         return "ligar"
     }
-    readonly property bool pronta: accao === "ligar"
+    readonly property bool pronta: ativa && accao === "ligar"
     readonly property bool apagada: !disponivel || estado === "offline"
 
     readonly property color corLuz: !disponivel ? Theme.textSecondary
@@ -53,6 +68,13 @@ Rectangle {
 
     readonly property string estadoTexto: {
         if (!disponivel) return qsTr("Remote Play não incluído nesta versão")
+        if (confirmarRemocao) return qsTr("Clica outra vez no ✕ para a tirar da lista")
+        if (!ativa) {
+            if (estado === "ready") return qsTr("Pronta — clica para usar esta")
+            if (estado === "standby") return qsTr("Em repouso — clica para usar esta")
+            if (estado === "offline") return qsTr("Não responde — clica para usar esta")
+            return qsTr("A verificar… — clica para usar esta")
+        }
         if (aLigar) return qsTr("A ligar… — clica para cancelar")
         if (aProcurar) return qsTr("A procurar…")
         switch (accao) {
@@ -131,6 +153,7 @@ Rectangle {
             case "registar": caixa.registar(); break
             case "procurar": caixa.procurar(); break
             case "cancelar": caixa.cancelar(); break
+            case "escolher": caixa.escolher(); break
             }
         }
     }
@@ -143,7 +166,7 @@ Rectangle {
         anchors.margins: 10
         implicitWidth: 32
         implicitHeight: 32
-        visible: caixa.disponivel
+        visible: caixa.disponivel && caixa.ativa
         enabled: !caixa.aProcurar
         text: "⟳"
         ToolTip.visible: hovered
@@ -156,12 +179,30 @@ Rectangle {
         anchors.margins: 10
         implicitWidth: 32
         implicitHeight: 32
-        visible: caixa.disponivel && caixa.estado !== "offline"
+        visible: caixa.disponivel && caixa.ativa && caixa.estado !== "offline"
         text: "✎"
         ToolTip.visible: hovered
         ToolTip.text: caixa.registada ? qsTr("Registar este PC outra vez")
                                       : qsTr("Registar este PC na consola")
         onClicked: caixa.editar()
+    }
+    StyledToolButton {
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.margins: 10
+        implicitWidth: 32
+        implicitHeight: 32
+        visible: !caixa.ativa
+        danger: caixa.confirmarRemocao
+        text: "✕"
+        ToolTip.visible: hovered
+        ToolTip.text: qsTr("Tirar esta consola da lista")
+        onClicked: {
+            if (caixa.confirmarRemocao)
+                caixa.remover()
+            else
+                caixa.confirmarRemocao = true
+        }
     }
 
     Column {
@@ -255,8 +296,8 @@ Rectangle {
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             implicitWidth: linhaEstado.implicitWidth + 24
-            implicitHeight: 28
-            radius: height / 2
+            implicitHeight: Math.max(28, linhaEstado.implicitHeight + 10)
+            radius: Math.min(height / 2, 14)
             color: Qt.rgba(caixa.corLuz.r, caixa.corLuz.g, caixa.corLuz.b, 0.14)
             Row {
                 id: linhaEstado
@@ -276,7 +317,13 @@ Rectangle {
                     }
                 }
                 Text {
+                    id: textoEstado
                     anchors.verticalCenter: parent.verticalCenter
+                    // Numa caixa estreita parte em duas linhas em vez de
+                    // sair para fora dela.
+                    width: Math.min(implicitWidth, caixa.width - 68)
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
                     text: caixa.estadoTexto
                     color: Theme.text
                     font.pixelSize: 12

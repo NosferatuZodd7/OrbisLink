@@ -181,4 +181,27 @@ ORBISLINK_TEST(teclas_do_teclado_ficam_gravadas)
 	CHECK(Settings::fromJson("{}").keyboardBindings.empty());
 }
 
+ORBISLINK_TEST(lista_de_consolas)
+{
+	// Definições de antes da lista: a consola em uso passa a ser a primeira.
+	const Settings antigas =
+		Settings::fromJson(R"({"console_name":"Sala","console_address":"10.0.0.5"})");
+	CHECK_EQ(antigas.consoles.size(), static_cast<size_t>(1));
+	CHECK_EQ(antigas.consoles[0].address, std::string("10.0.0.5"));
+	CHECK_EQ(antigas.consoles[0].name, std::string("Sala"));
+
+	// Duas consolas, ida e volta, sem repetidos nem endereços vazios.
+	Settings settings;
+	settings.consoleName = "Sala";
+	settings.consoleAddress = "10.0.0.5";
+	settings.consoles = { { "Sala", "10.0.0.5" }, { "Quarto", "10.0.0.9" },
+		{ "Repetida", "10.0.0.9" }, { "Vazia", " " } };
+	const Settings lidas = Settings::fromJson(settings.toJson());
+	CHECK_EQ(lidas.consoles.size(), static_cast<size_t>(2));
+	CHECK_EQ(lidas.consoles[1].name, std::string("Quarto"));
+
+	// Sem nenhuma consola definida, a lista fica vazia.
+	CHECK(Settings::fromJson("{}").consoles.empty());
+}
+
 TEST_MAIN()

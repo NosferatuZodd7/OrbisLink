@@ -276,6 +276,67 @@ void StreamController::applyHost(const HostInfo &info)
 	emit registrationChanged();
 }
 
+QVariantMap StreamController::describeHost(const HostInfo &info)
+{
+	QVariantMap estado;
+	estado[QStringLiteral("state")] = info.found ? stateName(info.state) : QStringLiteral("offline");
+	estado[QStringLiteral("name")] = QString::fromStdString(info.name);
+	estado[QStringLiteral("address")] = QString::fromStdString(info.address);
+	estado[QStringLiteral("ps5")] = info.ps5;
+	estado[QStringLiteral("registered")] = info.found && store_.load(info.id).valid;
+	return estado;
+}
+
+void StreamController::probeConsoles(const QStringList &addresses)
+{
+	if(probing_ || addresses.isEmpty())
+		return;
+	probing_ = true;
+	std::vector<std::string> lista;
+	for(const QString &endereco : addresses)
+		lista.push_back(endereco.toStdString());
+	std::thread([this, lista]() {
+		std::vector<HostInfo> respostas;
+		for(const std::string &endereco : lista)
+		{
+			HostInfo info = StreamDiscovery::probe(endereco, 1200);
+			info.address = endereco;
+			respostas.push_back(info);
+		}
+		QMetaObject::invokeMethod(
+			this,
+			[this, respostas]() {
+				probing_ = false;
+				for(const HostInfo &info : respostas)
+					consoleStates_[QString::fromStdString(info.address)] = describeHost(info);
+				emit consoleStatesChanged();
+			},
+			Qt::QueuedConnection);
+	}).detach();
+}
+
+void StreamController::scanNetwork()
+{
+	if(scanning_)
+		return;
+	scanning_ = true;
+	scanResults_.clear();
+	emit scanChanged();
+	std::thread([this]() {
+		const std::vector<HostInfo> encontradas = StreamDiscovery::scan(2500);
+		QMetaObject::invokeMethod(
+			this,
+			[this, encontradas]() {
+				scanning_ = false;
+				scanResults_.clear();
+				for(const HostInfo &info : encontradas)
+					scanResults_.append(describeHost(info));
+				emit scanChanged();
+			},
+			Qt::QueuedConnection);
+	}).detach();
+}
+
 void StreamController::refreshConsole()
 {
 	// Diz sempre alguma coisa: quando falta o endereço e quando acaba. Um
