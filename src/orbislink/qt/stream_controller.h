@@ -61,6 +61,12 @@ class StreamController : public QObject
 	Q_PROPERTY(bool fullscreenOnConnect READ fullscreenOnConnect NOTIFY settingsApplied)
 	Q_PROPERTY(QString savedAccountId READ accountId NOTIFY settingsApplied)
 	Q_PROPERTY(QVariantMap keyBindings READ keyBindings NOTIFY keyBindingsChanged)
+	// O estado das outras consolas guardadas, por endereço:
+	// { state, name, ps5, registered }.
+	Q_PROPERTY(QVariantMap consoleStates READ consoleStates NOTIFY consoleStatesChanged)
+	// A procura na rede da janela "Adicionar consola".
+	Q_PROPERTY(bool scanning READ scanning NOTIFY scanChanged)
+	Q_PROPERTY(QVariantList scanResults READ scanResults NOTIFY scanChanged)
 
 public:
 	explicit StreamController(QObject *parent = nullptr);
@@ -143,6 +149,16 @@ public:
 	// O nome da tecla como o sistema o escreve ("Enter", "Espaço", "Q").
 	Q_INVOKABLE QString keyName(int key) const;
 
+	// Pergunta a cada endereço como está a consola, em segundo plano. O
+	// resultado chega por consoleStates.
+	Q_INVOKABLE void probeConsoles(const QStringList &addresses);
+	QVariantMap consoleStates() const { return consoleStates_; }
+
+	// Varre a rede local à procura de consolas.
+	Q_INVOKABLE void scanNetwork();
+	bool scanning() const { return scanning_; }
+	QVariantList scanResults() const { return scanResults_; }
+
 	// Touchpad a partir do rato. As coordenadas vêm normalizadas (0 a 1)
 	// para o QML não ter de saber o tamanho do touchpad do comando.
 	Q_INVOKABLE void touchBegin(double x, double y);
@@ -164,6 +180,8 @@ signals:
 	void gamepadChanged();
 	void settingsApplied();
 	void keyBindingsChanged();
+	void consoleStatesChanged();
+	void scanChanged();
 	// Pedido para gravar as teclas nas definições; quem as guarda liga-se
 	// aqui, e o mapa novo volta por applySettings().
 	void keyBindingsEdited(const std::map<std::string, int> &bindings);
@@ -209,6 +227,11 @@ private:
 	std::unique_ptr<StreamRegistration> registration_;
 	std::unique_ptr<StreamSession> session_;
 	KeyboardMap keyboard_;
+	QVariantMap consoleStates_;
+	bool probing_ = false;
+	bool scanning_ = false;
+	QVariantList scanResults_;
+	QVariantMap describeHost(const HostInfo &info);
 };
 
 } // namespace orbislink

@@ -29,6 +29,8 @@
 #include <QUrl>
 #include <thread>
 
+#include <algorithm>
+
 namespace orbislink {
 
 namespace {
@@ -210,6 +212,78 @@ void AppController::rebuildBackends()
 }
 
 QString AppController::consoleName() const { return QString::fromStdString(settings_.consoleName); }
+
+QVariantList AppController::consoles() const
+{
+	QVariantList lista;
+	for(const ConsoleEntry &consola : settings_.consoles)
+	{
+		QVariantMap entrada;
+		entrada[QStringLiteral("name")] = QString::fromStdString(consola.name);
+		entrada[QStringLiteral("address")] = QString::fromStdString(consola.address);
+		entrada[QStringLiteral("active")] = consola.address == settings_.consoleAddress;
+		lista.append(entrada);
+	}
+	return lista;
+}
+
+void AppController::selectConsole(const QString &address)
+{
+	const std::string endereco = address.trimmed().toStdString();
+	if(endereco == settings_.consoleAddress)
+		return;
+	for(const ConsoleEntry &consola : settings_.consoles)
+	{
+		if(consola.address != endereco)
+			continue;
+		settings_.consoleName = consola.name;
+		settings_.consoleAddress = consola.address;
+		store_.save(settings_);
+		// O FTP, o instalador e o servidor HTTP passam a falar com ela.
+		rebuildBackends();
+		setStatusMessage(tr("A usar %1 (%2).").arg(QString::fromStdString(consola.name),
+			QString::fromStdString(consola.address)));
+		return;
+	}
+}
+
+void AppController::addConsole(const QString &name, const QString &address)
+{
+	const std::string endereco = address.trimmed().toStdString();
+	if(endereco.empty())
+		return;
+	bool existe = false;
+	for(const ConsoleEntry &consola : settings_.consoles)
+		existe = existe || consola.address == endereco;
+	if(!existe)
+	{
+		std::string nome = name.trimmed().toStdString();
+		if(nome.empty())
+			nome = endereco;
+		settings_.consoles.push_back({ nome, endereco });
+	}
+	selectConsole(address);
+	// selectConsole() não faz nada se ela já estava em uso; a lista mudou
+	// na mesma.
+	store_.save(settings_);
+	emit settingsChanged();
+}
+
+void AppController::removeConsole(const QString &address)
+{
+	const std::string endereco = address.trimmed().toStdString();
+	if(endereco == settings_.consoleAddress)
+		return;
+	auto &lista = settings_.consoles;
+	const auto antes = lista.size();
+	lista.erase(std::remove_if(lista.begin(), lista.end(),
+					[&endereco](const ConsoleEntry &c) { return c.address == endereco; }),
+		lista.end());
+	if(lista.size() == antes)
+		return;
+	store_.save(settings_);
+	emit settingsChanged();
+}
 
 QString AppController::consoleAddress() const
 {
@@ -1266,8 +1340,20 @@ void AppController::applySettings(const QVariantMap &values)
 			: fallback;
 	};
 
+	// Mudar o nome ou o IP nas definições é editar a consola em uso, e não
+	// juntar outra à lista: a entrada dela passa a ter os valores novos.
+	const std::string enderecoAntigo = settings_.consoleAddress;
 	settings_.consoleName = stringOr("consoleName", settings_.consoleName);
 	settings_.consoleAddress = stringOr("consoleAddress", settings_.consoleAddress);
+	for(ConsoleEntry &consola : settings_.consoles)
+	{
+		if(consola.address == enderecoAntigo)
+		{
+			consola.address = trim(settings_.consoleAddress);
+			consola.name = settings_.consoleName;
+		}
+	}
+	normaliseConsoles(settings_);
 	settings_.ftpPort = static_cast<uint16_t>(intOr("ftpPort", settings_.ftpPort));
 	settings_.installerPort = static_cast<uint16_t>(intOr("installerPort", settings_.installerPort));
 	settings_.httpPort = static_cast<uint16_t>(intOr("httpPort", settings_.httpPort));

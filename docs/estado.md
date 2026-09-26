@@ -58,14 +58,14 @@ memória de ninguém. Quando mudar alguma coisa, muda-se aqui também.
 |---|---|
 | ✅ | `chiaki-lib` a compilar sem alterar uma linha do submódulo |
 | ✅ | Descoberta da consola (987/UDP): estado, nome, versão, jogo a correr |
-| ✅ | Varrer a rede à procura de consolas (existe no núcleo, ainda não na interface) |
+| ✅ | Várias consolas: cada uma numa caixa no palco, com o estado de cada uma; "Adicionar consola" procura na rede ou aceita o IP à mão |
 | ✅ | Acordar consola em repouso |
 | ✅ | Registo do PC (PIN de 8 dígitos + Account ID da PSN) |
 | ✅ | O Account ID aceita-se em hexadecimal, em decimal ou em base64, e a app converte. As três formas aparecem por baixo do campo, para se confirmar de relance que é o mesmo número, com um botão para inverter a ordem dos bytes |
 | ✅ | Guardar e esquecer consolas registadas |
 | ✅ | Sessão com vídeo (placa gráfica quando dá, processador quando não dá) |
 | ✅ | Som (Opus → PCM → placa de som), com conversão de formato quando a placa não aceita os 48 kHz da consola. Escreve-se directamente na placa, porque o modo em que ela vem buscar as amostras não funciona em todas as máquinas. Confirmado a funcionar numa PS4 real |
-| ✅ | Teclado como comando, com o mapa por omissão do chiaki-ng |
+| ✅ | Teclado como comando, com o mapa por omissão do chiaki-ng; cada tecla pode ser mudada na janela do mapa, e fica gravada |
 | ✅ | Comando físico por SDL (DualShock, DualSense e outros) |
 | ✅ | PIN de início de sessão da conta, quando a consola o pede |
 | ✅ | Razões de fim de sessão em português, em vez de um código |

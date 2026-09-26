@@ -23,6 +23,8 @@
         <file alias="StyledToolButton.qml">StyledToolButton.qml</file>
         <file alias="ThemeSwitcher.qml">ThemeSwitcher.qml</file>
         <file alias="ConsoleCard.qml">ConsoleCard.qml</file>
+        <file alias="AddConsoleCard.qml">AddConsoleCard.qml</file>
+        <file alias="AddConsoleDialog.qml">AddConsoleDialog.qml</file>
         <file alias="KeyboardMap.qml">KeyboardMap.qml</file>
         <file alias="ControllerSketch.qml">ControllerSketch.qml</file>
         <file alias="StyledMenuItem.qml">StyledMenuItem.qml</file>
