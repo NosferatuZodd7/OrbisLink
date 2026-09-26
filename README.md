@@ -26,8 +26,17 @@ automaticamente.*
 
 ![Remote Play](docs/images/06-remote-play.png)
 
-*A área central passou a ser o Remote Play: diz em que estado está a
-consola e o que falta fazer a seguir — registar, acordar ou ligar.*
+*A área central é o Remote Play: cada consola (PS4 ou PS5) tem a sua caixa,
+com o estado dela e o que um clique faz a seguir — registar, acordar,
+procurar ou ligar. A caixa tracejada junta outra consola, procurando na
+rede ou pelo IP.*
+
+| Mapa do teclado | Tema claro |
+|---|---|
+| ![Mapa do teclado](docs/images/12-mapa-teclado.png) | ![Tema claro](docs/images/11-remote-play-claro.png) |
+
+*Sem comando ligado, o teclado faz de comando. Cada tecla pode ser mudada
+no mapa, e fica gravada.*
 
 ![Menu de ficheiro](docs/images/05-menu-ficheiro.png)
 
