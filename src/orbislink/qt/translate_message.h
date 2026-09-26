@@ -8,13 +8,13 @@
 
 namespace orbislink {
 
-// Os textos que nascem fora do Qt (fila, FTP, instalador, Remote Play,
-// actualizações) vêm em português, marcados com
-// QT_TRANSLATE_NOOP("Messages", ...) — ver orbislink/common/tr.h. Traduzem-se
-// aqui, ao chegar à interface.
+// Texts born outside Qt (queue, FTP, installer, Remote Play, updates) come
+// in English, marked with QT_TRANSLATE_NOOP("Messages", ...) — see
+// orbislink/common/tr.h. They are translated here, when they reach the
+// interface.
 //
-// Os que levam um valor no fim ("texto: valor" ou "texto (detalhe)")
-// traduzem-se até ao valor, que fica como veio.
+// Those carrying a value at the end ("text: value" or "text (detail)")
+// are translated up to the value, which stays as it came.
 inline QString translateMessage(const std::string &texto)
 {
 	const QString original = QString::fromStdString(texto);

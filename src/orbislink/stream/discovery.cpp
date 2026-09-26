@@ -81,7 +81,7 @@ void colher(ChiakiDiscoveryHost *host, void *user)
 	colheita->hosts.push_back(info);
 }
 
-// Resolve um endereço para sockaddr. Devolve false se não for possível.
+// Resolves an address to a sockaddr. Returns false if that is not possible.
 bool resolve(const std::string &address, struct sockaddr_storage *out, socklen_t *outLen)
 {
 	struct addrinfo hints {};
@@ -114,7 +114,7 @@ void setPort(struct sockaddr_storage *addr, uint16_t port)
 		reinterpret_cast<struct sockaddr_in6 *>(addr)->sin6_port = htons(port);
 }
 
-// A pergunta à consola, com ou sem registo no diário da tentativa.
+// The query to the console, with or without an entry in the attempt trace.
 HostInfo perguntar(const std::string &address, int timeoutMs, uint16_t ps4Port, bool diario)
 {
 	HostInfo vazio;
@@ -157,7 +157,7 @@ HostInfo perguntar(const std::string &address, int timeoutMs, uint16_t ps4Port, 
 		return vazio;
 	}
 
-	// Pergunta-se nos dois protocolos: a mesma função serve PS4 e PS5.
+	// Ask in both protocols: the same function serves PS4 and PS5.
 	ChiakiDiscoveryPacket packet {};
 	packet.cmd = CHIAKI_DISCOVERY_CMD_SRCH;
 	packet.protocol_version = const_cast<char *>(CHIAKI_DISCOVERY_PROTOCOL_VERSION_PS4);
@@ -172,8 +172,8 @@ HostInfo perguntar(const std::string &address, int timeoutMs, uint16_t ps4Port, 
 			addrLen);
 	}
 
-	// O thread do chiaki só termina sozinho quando recebe resposta; se
-	// passar o tempo, pára-se à força.
+	// chiaki's thread only ends by itself when it gets a reply; if the
+	// time runs out, it is stopped by force.
 	const ChiakiErrorCode joined = chiaki_thread_timedjoin(&thread.thread, nullptr,
 		static_cast<uint64_t>(timeoutMs > 0 ? timeoutMs : 2000));
 	if(joined != CHIAKI_ERR_SUCCESS)
@@ -239,8 +239,8 @@ std::vector<HostInfo> StreamDiscovery::scan(int timeoutMs)
 	chiaki_discovery_send(&discovery, &packet, reinterpret_cast<struct sockaddr *>(&broadcast),
 		sizeof(broadcast));
 
-	// Aqui não se espera pelo fim do thread: ele fica à escuta. Dá-se tempo
-	// às consolas para responderem e depois pára-se.
+	// Here the thread is not awaited: it stays listening. Give the consoles
+	// time to answer and then stop.
 	chiaki_thread_timedjoin(&thread.thread, nullptr,
 		static_cast<uint64_t>(timeoutMs > 0 ? timeoutMs : 3000));
 	chiaki_discovery_thread_stop(&thread);

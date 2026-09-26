@@ -10,19 +10,19 @@ QT_END_NAMESPACE
 
 namespace orbislink {
 
-// Avisos do sistema: a instalação acabou, a fila parou, o registo falhou —
-// coisas que interessam mesmo com a janela minimizada.
+// System notifications: the install finished, the queue stopped, registration
+// failed — things that matter even with the window minimised.
 //
-// Não se usa o QSystemTrayIcon de propósito. Ele vive no QtWidgets e exige
-// uma QApplication em vez da QGuiApplication que esta aplicação usa; trocar
-// isso traria um módulo inteiro do Qt e um arranque diferente sem ganho
-// que o justifique. Em vez disso:
+// QSystemTrayIcon is deliberately not used. It lives in QtWidgets and needs
+// a QApplication instead of the QGuiApplication this application uses;
+// switching would bring in a whole Qt module and a different startup with no
+// gain to justify it. Instead:
 //
-//   Windows — Shell_NotifyIconW, a API de sempre da área de notificação.
-//   Restantes — a janela pisca na barra de tarefas (QWindow::alert), que é
-//   o que o Qt oferece sem dependências novas.
+//   Windows — Shell_NotifyIconW, the long-standing notification area API.
+//   Others — the window flashes in the taskbar (QWindow::alert), which is
+//   what Qt offers without new dependencies.
 //
-// Dentro da janela continua a aparecer o aviso de sempre; isto é um extra.
+// Inside the window the usual notice still appears; this is an extra.
 class Notifier : public QObject
 {
 	Q_OBJECT
@@ -31,10 +31,10 @@ public:
 	explicit Notifier(QObject *parent = nullptr);
 	~Notifier() override;
 
-	// A janela a piscar quando não houver notificação do sistema.
+	// The window flashes when there is no system notification.
 	void setWindow(QWindow *window) { window_ = window; }
 
-	// Verdadeiro quando há notificações a sério (não só o piscar).
+	// True when there are real notifications (not just the flashing).
 	bool available() const;
 
 	void show(const QString &title, const QString &message, bool error);

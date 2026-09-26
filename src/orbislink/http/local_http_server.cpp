@@ -70,7 +70,7 @@ void sendSimpleStatus(socket_t sock, int code, const std::string &extraHeaders =
 	sendText(sock, os.str());
 }
 
-// Lê o pedido até \r\n\r\n. Devolve false se for inválido ou grande demais.
+// Reads the request up to \r\n\r\n. Returns false if it is invalid or too large.
 bool readRequest(socket_t sock, HttpRequest *request)
 {
 	std::string buffer;
@@ -116,8 +116,8 @@ bool readRequest(socket_t sock, HttpRequest *request)
 
 enum class RangeResult { None, Ok, Unsatisfiable, Malformed };
 
-// Suporta "bytes=a-b", "bytes=a-" e "bytes=-n" (sufixo). Intervalos múltiplos
-// não são suportados: serve-se o primeiro, que é o que a consola pede.
+// Supports "bytes=a-b", "bytes=a-" and "bytes=-n" (suffix). Multiple ranges
+// are not supported: the first is served, which is what the console asks for.
 RangeResult parseRange(const std::string &value, int64_t fileSize, int64_t *start, int64_t *end)
 {
 	if(value.empty())
@@ -235,7 +235,7 @@ bool LocalHttpServer::start(const Config &config, std::string *error)
 		return fail("listen failed: " + message);
 	}
 
-	// Confirma a porta efetiva (útil se alguma vez se usar porta 0).
+	// Confirms the effective port (useful if port 0 is ever used).
 	struct sockaddr_in actual {};
 #ifdef _WIN32
 	int actualLen = sizeof(actual);
@@ -410,8 +410,8 @@ void LocalHttpServer::acceptLoop()
 			clients_.insert(client);
 			++activeWorkers_;
 		}
-		// Uma thread por ligação (a consola abre várias em paralelo); são
-		// destacadas e stop() espera pelo contador chegar a zero.
+		// One thread per connection (the console opens several in parallel);
+		// they are detached and stop() waits for the counter to reach zero.
 		std::thread([this, client, peerAddress]() {
 			handleConnection(client, peerAddress);
 			std::lock_guard<std::mutex> lock(mutex_);
@@ -454,7 +454,7 @@ void LocalHttpServer::handleConnection(socket_t client, const std::string &peerA
 		return;
 	}
 
-	// Só /f/<token>/<nome> é servido; tudo o resto é 404 (§5.3: sem pastas expostas).
+	// Only /f/<token>/<name> is served; everything else is 404 (§5.3: no exposed folders).
 	std::string path = request.target;
 	const size_t query = path.find('?');
 	if(query != std::string::npos)

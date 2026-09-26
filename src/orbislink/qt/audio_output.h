@@ -18,12 +18,12 @@ QT_END_NAMESPACE
 
 namespace orbislink {
 
-// Fila de amostras entre a thread do chiaki e a placa de som.
+// Sample queue between chiaki's thread and the sound card.
 //
-// O QAudioSink puxa daqui quando precisa (modo "pull"), numa thread dele.
-// É por isso que existe esta classe em vez de se escrever directamente no
-// dispositivo: quem produz e quem consome estão em threads diferentes, e o
-// QIODevice do QAudioSink não é seguro de usar de fora.
+// QAudioSink pulls from here when it needs to ("pull" mode), on its own thread.
+// That is why this class exists instead of writing directly to the
+// device: producer and consumer are on different threads, and
+// QAudioSink's QIODevice is not safe to use from outside.
 class PcmQueue : public QIODevice
 {
 	Q_OBJECT
@@ -37,18 +37,18 @@ public:
 	void push(const char *data, qint64 size);
 	void setLimit(qint64 bytes);
 	void clear();
-	// Quantos bytes a placa de som já veio buscar. Zero com a sessão a
-	// correr quer dizer que ninguém está a puxar — e isso é outro problema
-	// que não "não chegou som".
+	// How many bytes the sound card has already fetched. Zero with the
+	// session running means nobody is pulling — and that is a different
+	// problem from "no sound arrived".
 	qint64 pulledBytes() const;
-	// Quantos bytes já lá foram postos. A diferença entre os dois diz de que
-	// lado do tubo é que o som se perdeu.
+	// How many bytes have been put in. The difference between the two tells
+	// which end of the pipe the sound got lost at.
 	qint64 pushedBytes() const;
 	qint64 queuedBytes() const;
 
-	// Tira até `max` bytes reais, sem encher o resto com silêncio. É o que o
-	// modo "push" precisa: aí somos nós a escrever, e escrever silêncio que
-	// não existe só serve para encher o buffer da placa.
+	// Takes up to `max` real bytes, without padding the rest with silence.
+	// This is what "push" mode needs: there we do the writing, and writing
+	// silence that does not exist only fills the card's buffer.
 	qint64 take(char *dest, qint64 max);
 
 protected:
@@ -63,7 +63,7 @@ private:
 	qint64 pushed_ = 0;
 };
 
-// Reprodução do áudio do Remote Play.
+// Remote Play audio playback.
 class AudioOutput : public QObject
 {
 	Q_OBJECT
@@ -86,21 +86,21 @@ public:
 	// "sem-dispositivo" ou "erro".
 	QString state() const;
 	QString deviceName() const;
-	// Quantas amostras já foram entregues à placa. Zero com a sessão a
-	// correr significa que o som não está a chegar.
+	// How many samples have been handed to the card. Zero with the session
+	// running means the sound is not arriving.
 	qint64 samplesPlayed() const;
-	// Uma linha com o estado de cada troço do caminho do som, para o
-	// diagnóstico responder à pergunta em vez de a deixar em aberto.
+	// One line with the state of each stretch of the audio path, so the
+	// diagnostics answer the question instead of leaving it open.
 	QString pipelineSummary() const;
 
 signals:
-	// Emitido quando o som não consegue arrancar, com a razão.
+	// Emitted when the sound cannot start, with the reason.
 	void failed(const QString &reason);
 	void started(const QString &device);
 
 private slots:
 	void handleSinkState(QAudio::State state);
-	// A bomba: acorda, vê quanto espaço a placa tem, e enche-o.
+	// The pump: wakes up, checks how much room the card has, and fills it.
 	void watchdogTick();
 
 private:
@@ -114,9 +114,9 @@ private:
 	QAudioFormat deviceFormat_; // o que a placa aceita (pode ser diferente)
 	PcmConverter converter_;
 	QTimer *watchdog_ = nullptr;
-	// Somos nós a escrever no QIODevice que o QAudioSink devolve, em vez de
-	// esperar que ele venha buscar. Ver a nota em ensureStarted(): o modo
-	// em que a placa puxa não funcionou num Windows 10 com Qt 6.8.1.
+	// We write into the QIODevice QAudioSink returns, instead of waiting
+	// for it to come and fetch. See the note in ensureStarted(): the mode
+	// where the card pulls did not work on Windows 10 with Qt 6.8.1.
 	QIODevice *pushTarget_ = nullptr;
 	QByteArray scratch_;
 	QString deviceName_;
@@ -127,7 +127,7 @@ private:
 	qint64 underruns_ = 0;
 	bool pushMode_ = false;
 	bool configured_ = false;
-	bool terminada_ = false;   // houve sessão e já acabou
+	bool terminada_ = false;   // there was a session and it has ended
 	bool muted_ = false;
 };
 

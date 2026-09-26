@@ -113,8 +113,8 @@ std::vector<StreamCredentials> CredentialStore::all() const
 		credentials.rpKeyHex = entry["rp_key"].toString();
 		credentials.rpKeyType = static_cast<uint32_t>(entry["rp_key_type"].toInt());
 		credentials.target = static_cast<int>(entry["target"].toInt());
-		// O alvo já diz se é PS5; o "ps5" guardado pode vir de uma versão
-		// que o gravava sempre a falso depois do registo.
+		// The target already says whether it is a PS5; the stored "ps5" may
+		// come from a version that always saved it as false after registration.
 		credentials.ps5 = entry["ps5"].toBool()
 			|| chiaki_target_is_ps5(static_cast<ChiakiTarget>(credentials.target));
 		credentials.valid = !credentials.registKey.empty() && !credentials.rpKeyHex.empty();
@@ -132,8 +132,8 @@ StreamCredentials CredentialStore::load(const std::string &hostId) const
 		if(iequals(credentials.hostId, hostId))
 			return credentials;
 	}
-	// Sem host-id (a consola pode não ter respondido à descoberta) usa-se a
-	// única registada, se houver só uma.
+	// Without a host-id (the console may not have answered discovery) the
+	// only registered one is used, if there is exactly one.
 	if(hostId.empty() && todas.size() == 1)
 		return todas.front();
 	return {};

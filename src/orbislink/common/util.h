@@ -15,10 +15,10 @@ std::string toLower(const std::string &s);
 std::vector<std::string> split(const std::string &s, char sep, bool keepEmpty = true);
 std::string join(const std::vector<std::string> &parts, const std::string &sep);
 
-// Token hexadecimal imprevisível para os URLs do servidor HTTP local (§5.3).
+// Unguessable hexadecimal token for the local HTTP server URLs (§5.3).
 std::string randomToken(size_t bytes = 16);
 
-// Mantém apenas caracteres seguros no nome exposto no URL/FTP.
+// Keeps only safe characters in the name exposed in the URL/FTP.
 std::string sanitizeFileName(const std::string &name);
 std::string urlEncodePath(const std::string &path);
 std::string urlDecode(const std::string &text);
@@ -26,10 +26,10 @@ std::string urlDecode(const std::string &text);
 std::string baseName(const std::string &path);
 std::string fileExtensionLower(const std::string &path);
 std::string joinPath(const std::string &a, const std::string &b);
-// Normaliza um caminho FTP absoluto (resolve "." e "..", remove barras duplicadas).
+// Normalises an absolute FTP path (resolves "." and "..", removes duplicate slashes).
 std::string normalizeRemotePath(const std::string &path);
 
-// Tamanho de um ficheiro local em bytes; -1 se não existir ou não for legível.
+// Size of a local file in bytes; -1 if it does not exist or cannot be read.
 int64_t fileSize(const std::string &path);
 bool fileExists(const std::string &path);
 bool directoryExists(const std::string &path);

@@ -112,7 +112,7 @@ std::string Sha256::hex()
 	uint8_t tail[8];
 	for(int i = 0; i < 8; ++i)
 		tail[i] = static_cast<uint8_t>((bits >> (56 - i * 8)) & 0xff);
-	// O comprimento não conta para si próprio: escreve-se à mão.
+	// The length does not count itself: it is written by hand.
 	std::memcpy(buffer_ + buffered_, tail, 8);
 	compress(buffer_);
 	buffered_ = 0;

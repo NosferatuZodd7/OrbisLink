@@ -37,9 +37,9 @@ bool AudioInput::start(QString *error)
 	formato.setChannelCount(kChannels);
 	formato.setSampleFormat(QAudioFormat::Int16);
 
-	// Nem todos os microfones fazem estéreo. Quando só há um canal,
-	// captura-se mono e duplica-se — enviar um canal vazio daria uma voz só
-	// de um lado na consola.
+	// Not every microphone does stereo. When there is only one channel,
+	// capture mono and duplicate it — sending an empty channel would put the
+	// voice on one side only on the console.
 	duplicateMono_ = false;
 	if(!entrada.isFormatSupported(formato))
 	{
@@ -127,8 +127,8 @@ void AudioInput::drain()
 		pending_.remove(0, bytesPorTrama);
 	}
 
-	// Se a captura andar mais depressa do que o consumo, a fila não pode
-	// crescer sem fim: o que interessa numa conversa é o som de agora.
+	// If capture runs faster than consumption, the queue must not grow
+	// forever: what matters in a conversation is the sound of right now.
 	const int limite = bytesPorTrama * 10;
 	if(pending_.size() > limite)
 	{

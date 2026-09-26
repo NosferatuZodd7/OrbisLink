@@ -9,11 +9,11 @@
 
 namespace orbislink {
 
-// Comando físico (DualShock 4, DualSense, ou qualquer outro que o SDL
-// reconheça) traduzido para o estado que a consola espera.
+// Physical controller (DualShock 4, DualSense, or any other SDL
+// recognises) translated into the state the console expects.
 //
-// O SDL é opcional: sem ele a aplicação compila e funciona, só que o
-// comando não entra e o teclado fica a ser a única forma de jogar.
+// SDL is optional: without it the application builds and works, only
+// the controller does not come in and the keyboard is the only way to play.
 class Gamepad : public QObject
 {
 	Q_OBJECT
@@ -22,23 +22,23 @@ public:
 	explicit Gamepad(QObject *parent = nullptr);
 	~Gamepad() override;
 
-	// Verdadeiro quando a aplicação foi compilada com suporte a comandos.
+	// True when the application was built with controller support.
 	static bool supported();
 
-	// Começa e pára de ler o comando. Só faz sentido durante a sessão.
+	// Starts and stops reading the controller. Only meaningful during a session.
 	void start();
 	void stop();
 
-	// Nome do comando ligado, vazio se não houver nenhum.
+	// Name of the connected controller, empty if there is none.
 	QString name() const { return name_; }
 
-	// Vibração pedida pela consola. 0-255 em cada motor; a duração é curta
-	// e renovada a cada pedido, para parar sozinha se a consola se calar.
+	// Rumble requested by the console. 0-255 per motor; the duration is short
+	// and renewed on every request, so it stops by itself if the console goes quiet.
 	void rumble(quint8 left, quint8 right);
 	void setRumbleEnabled(bool enabled) { rumbleEnabled_ = enabled; }
 
 signals:
-	// Emitido só quando alguma coisa muda.
+	// Emitted only when something changes.
 	void stateChanged(const StreamSession::ControllerState &state);
 	void connectedChanged(const QString &name);
 

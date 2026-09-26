@@ -104,7 +104,7 @@ int downloadProgress(void *userdata, curl_off_t total, curl_off_t done, curl_off
 	if(!(*state->progress)(static_cast<int64_t>(done), static_cast<int64_t>(total)))
 	{
 		state->cancelled = true;
-		return 1; // não-zero aborta a transferência
+		return 1; // non-zero aborts the transfer
 	}
 	return 0;
 }
@@ -139,8 +139,8 @@ HttpResponse HttpClient::fetch(const std::string &url, const FetchOptions &optio
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, "OrbisLink");
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, options.followRedirects ? 1L : 0L);
 	curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 5L);
-	// A verificação do certificado fica como está por omissão, ligada: isto
-	// vai à internet, ao contrário do resto do cliente.
+	// Certificate verification stays at its default, on: this goes to the
+	// internet, unlike the rest of the client.
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
 
@@ -197,8 +197,8 @@ HttpClient::DownloadResult HttpClient::download(const std::string &url,
 	curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, downloadProgress);
 	curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &state);
 	curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-	// Sem TIMEOUT total: um instalador de 80 MB numa ligação fraca demora o
-	// que demorar. O que se vigia é a ligação parar de todo.
+	// No total TIMEOUT: an 80 MB installer on a weak connection takes as long
+	// as it takes. What is watched is the connection stopping altogether.
 	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, static_cast<long>(timeoutMs_));
 	curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1L);
 	curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 60L);

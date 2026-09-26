@@ -28,7 +28,7 @@ std::string RpiClient::endpoint() const
 
 bool RpiClient::probe(std::string *detail)
 {
-	// Qualquer resposta HTTP significa que o instalador está aberto (§5.1).
+	// Any HTTP reply means the installer is open (§5.1).
 	HttpClient client(config_.timeoutMs < 4000 ? config_.timeoutMs : 4000);
 	const HttpResponse response = client.get(endpoint() + "/api/is_exists");
 	if(response.transportOk)

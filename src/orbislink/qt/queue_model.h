@@ -10,8 +10,8 @@
 
 namespace orbislink {
 
-// Modelo da fila para o TransferPanel. É alimentado a partir da thread da
-// fila, por isso todas as atualizações são marshalled para a thread da UI.
+// Queue model for the TransferPanel. It is fed from the queue's thread,
+// so every update is marshalled to the UI thread.
 class QueueModel : public QAbstractListModel
 {
 	Q_OBJECT

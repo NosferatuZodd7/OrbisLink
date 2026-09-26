@@ -7,12 +7,13 @@
 
 namespace orbislink {
 
-// Cliente da API HTTP do Remote Package Installer (flatz), porta 12800.
+// Client for Remote Package Installer's (flatz) HTTP API, port 12800. etaHEN's
+// DPI v2 on the PS5 speaks the same install API.
 //
-// Todos os endpoints, campos e formatos foram confirmados no código-fonte do
-// instalador (server.c) e no seu README — ver docs/validation.md. Atenção:
-// as respostas usam números hexadecimais sem aspas e o campo "exists" é uma
-// string ("true"/"false"), por isso o parser de JSON do OrbisLink é tolerante.
+// Every endpoint, field and format was confirmed in the installer's source
+// code (server.c) and its README — see docs/validation.md. Note: the replies
+// use hexadecimal numbers without quotes and the "exists" field is a string
+// ("true"/"false"), which is why OrbisLink's JSON parser is tolerant.
 class RpiClient : public IInstallerBackend
 {
 public:
@@ -54,7 +55,7 @@ public:
 	const Config &config() const { return config_; }
 
 private:
-	// Faz o POST com retentativas e devolve o corpo já validado.
+	// Sends the POST with retries and returns the already validated body.
 	InstallerResult call(const std::string &path, const std::string &jsonBody, std::string *body);
 	InstallerResult taskCommand(const std::string &path, int taskId);
 

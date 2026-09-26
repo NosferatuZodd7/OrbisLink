@@ -169,8 +169,8 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 		settings.ftpMaxConnections = 1;
 	if(settings.ftpMaxConnections > 2)
 		settings.ftpMaxConnections = 2;
-	// Um ficheiro editado à mão não pode pedir o que a consola não conhece:
-	// o chiaki só aceita estes quatro presets de resolução e dois de cadência.
+	// A hand-edited file cannot ask for what the console does not know:
+	// chiaki only accepts these four resolution presets and two frame rates.
 	if(settings.streamResolution != 360 && settings.streamResolution != 540
 		&& settings.streamResolution != 720 && settings.streamResolution != 1080)
 		settings.streamResolution = 720;
@@ -216,8 +216,8 @@ void normaliseConsoles(Settings &settings)
 		{
 			if(c.address == ativa)
 			{
-				// O nome da consola em uso é o das definições: é esse que se
-				// edita na janela das definições.
+				// The name of the console in use is the one in the settings:
+				// that is the one edited in the settings dialog.
 				c.name = settings.consoleName;
 				encontrada = true;
 			}
@@ -231,8 +231,8 @@ void normaliseConsoles(Settings &settings)
 std::string resolveUpdateRepository(const std::string &stored, const std::string *storedDefault,
 	const std::string &compiledDefault)
 {
-	// Uma compilação local não sabe de repositório nenhum: não tem com que
-	// substituir, fica o que estava.
+	// A local build knows of no repository: it has nothing to replace
+	// it with, so the stored value stays.
 	if(compiledDefault.empty())
 		return stored;
 	if(!storedDefault || stored == *storedDefault || stored.empty())

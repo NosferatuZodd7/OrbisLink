@@ -35,9 +35,9 @@ bool isBase64Char(char c)
 		|| c == '/' || c == '-' || c == '_';
 }
 
-// Tira espaços, tabulações e quebras de linha de qualquer sítio do texto.
-// Quem copia isto de um ecrã de consola traz espaços pelo meio a metade das
-// vezes, e recusar por causa disso seria só mau feitio.
+// Strips spaces, tabs and line breaks from anywhere in the text.
+// Anyone copying this from a console screen brings spaces along half the
+// time, and refusing because of that would just be petty.
 std::string semEspacos(const std::string &texto)
 {
 	std::string out;
@@ -55,7 +55,7 @@ AccountId fromValue(uint64_t valor, const std::string &formato)
 	AccountId id;
 	id.format = formato;
 
-	// Os 8 bytes em little-endian: é esta a ordem que o Remote Play espera.
+	// The 8 bytes in little-endian: this is the order Remote Play expects.
 	unsigned char bytes[8];
 	for(int i = 0; i < 8; ++i)
 		bytes[i] = static_cast<unsigned char>((valor >> (i * 8)) & 0xFF);
@@ -68,14 +68,14 @@ AccountId fromValue(uint64_t valor, const std::string &formato)
 	}
 	id.base64 = b64;
 
-	// Hexadecimal com o byte mais significativo à esquerda, que é como um
-	// número se escreve e como as ferramentas o mostram.
+	// Hexadecimal with the most significant byte on the left, which is how a
+	// number is written and how tools show it.
 	id.hex.reserve(16);
 	for(int i = 15; i >= 0; --i)
 		id.hex.push_back(kHexDigits[(valor >> (i * 4)) & 0xF]);
 
-	// Decimal à mão: o std::to_string chega, mas assim fica claro que não há
-	// sinal nenhum pelo meio.
+	// Decimal by hand: std::to_string would do, but this makes it clear
+	// there is no sign involved.
 	if(valor == 0)
 	{
 		id.decimal = "0";
@@ -107,8 +107,8 @@ AccountId parseAccountId(const std::string &texto)
 	if(limpo.empty())
 		return erro(QT_TRANSLATE_NOOP("Messages", "The PSN Account ID is missing."));
 
-	// 1. "0x…" é uma ordem explícita: lê-se em hexadecimal, e é assim que se
-	//    desfaz a ambiguidade de um ID só com algarismos.
+	// 1. "0x…" is an explicit request: read as hexadecimal, which is how the
+	//    ambiguity of an all-digit ID is resolved.
 	std::string hex;
 	if(limpo.size() > 2 && limpo[0] == '0' && (limpo[1] == 'x' || limpo[1] == 'X'))
 		hex = limpo.substr(2);
@@ -145,7 +145,7 @@ AccountId parseAccountId(const std::string &texto)
 		}
 	}
 
-	// 3. Só algarismos: é o user_id como a PSN o dá.
+	// 3. Digits only: the user_id as PSN gives it.
 	if(hex.empty())
 	{
 		bool soDigitos = true;
@@ -163,9 +163,9 @@ AccountId parseAccountId(const std::string &texto)
 			for(char c : limpo)
 			{
 				const uint64_t digito = static_cast<uint64_t>(c - '0');
-				// Um Account ID não passa dos 64 bits. Se passar, o texto
-				// não é um Account ID e dizer isso é melhor do que dar a
-				// volta ao contador em silêncio.
+				// An Account ID never exceeds 64 bits. If it does, the text
+				// is not an Account ID, and saying so is better than silently
+				// wrapping the counter around.
 				if(valor > (UINT64_MAX - digito) / 10)
 					return erro(QT_TRANSLATE_NOOP("Messages", "That number is too large to be an Account ID."));
 				valor = valor * 10 + digito;
@@ -177,7 +177,7 @@ AccountId parseAccountId(const std::string &texto)
 	// 4. Hexadecimal, com ou sem "0x".
 	if(hex.empty())
 		hex = limpo;
-	// Separadores que aparecem em ecrãs de consola.
+	// Separators that show up on console screens.
 	std::string apenasHex;
 	for(char c : hex)
 	{
@@ -211,8 +211,8 @@ AccountId reverseAccountIdBytes(const AccountId &id)
 {
 	if(!id.valid)
 		return id;
-	// Reler o hexadecimal ao contrário é a maneira mais directa de trocar a
-	// ordem dos bytes sem repetir a aritmética.
+	// Re-reading the hexadecimal backwards is the most direct way to swap
+	// the byte order without repeating the arithmetic.
 	uint64_t valor = 0;
 	for(char c : id.hex)
 		valor = (valor << 4) | static_cast<uint64_t>(hexValue(c));

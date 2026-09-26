@@ -162,8 +162,8 @@ std::string InstallQueue::pauseReason() const
 
 void InstallQueue::sortBatch(std::vector<QueueTask> &batch)
 {
-	// Jogo base (gd) → patch (gp) → DLC (ac) dentro do mesmo TITLE_ID,
-	// mantendo a ordem relativa dos títulos tal como foram largados.
+	// Base game (gd) → patch (gp) → DLC (ac) within the same TITLE_ID,
+	// keeping the relative order of the titles as they were dropped.
 	std::vector<std::string> titleOrder;
 	for(const QueueTask &task : batch)
 	{
@@ -601,7 +601,7 @@ void InstallQueue::runDirectInstall(QueueTask task)
 	}
 	task.totalBytes = info.fileSize;
 
-	// Já existe na consola? (§5.6, passo opcional)
+	// Already on the console? (§5.6, optional step)
 	if(cfg.checkAlreadyInstalled && !task.titleId.empty())
 	{
 		bool exists = false;
@@ -659,7 +659,7 @@ void InstallQueue::runDirectInstall(QueueTask task)
 			task.message = describeConsoleError(install.errorCode);
 		else
 			task.message = install.message;
-		// Serviço em baixo: pausa a fila em vez de queimar a tarefa (§6.3).
+		// Service down: pause the queue instead of burning the task (§6.3).
 		if(install.errorCode == 0 && startsWith(install.message, "Remote installer unavailable"))
 		{
 			requeueForServiceLoss(task, install.message);
@@ -675,7 +675,7 @@ void InstallQueue::runDirectInstall(QueueTask task)
 		task.title = handle.title;
 	updateTask(task);
 
-	// Polling de progresso a cada segundo, com deteção de bloqueio.
+	// Poll progress every second, with stall detection.
 	const int64_t startedMs = monotonicMillis();
 	int64_t lastBytes = 0;
 	int64_t lastSampleMs = startedMs;
@@ -708,7 +708,7 @@ void InstallQueue::runDirectInstall(QueueTask task)
 
 		if(!result.ok)
 		{
-			// A tarefa pode ter desaparecido por já estar concluída.
+			// The task may have disappeared because it already finished.
 			if(haveStats && stats.bytesSent >= task.totalBytes && task.totalBytes > 0)
 			{
 				task.doneBytes = task.totalBytes;
@@ -770,7 +770,7 @@ void InstallQueue::runDirectInstall(QueueTask task)
 					  : -1);
 		updateTask(task);
 
-		// §7: tarefa criada mas 0 bytes após 20 s = a consola não alcança o PC.
+		// §7: task created but 0 bytes after 20 s = the console cannot reach the PC.
 		const bool nothingServed = !haveStats || stats.bytesSent == 0;
 		if(nothingServed && task.doneBytes == 0 && nowMs - startedMs > tuning_.stallTimeoutMs)
 		{
@@ -793,8 +793,8 @@ void InstallQueue::runDirectInstall(QueueTask task)
 			task.message = QT_TRANSLATE_NOOP("Messages", "Installation complete.");
 			deps_.httpServer->unregisterFile(task.httpToken);
 			task.httpToken.clear();
-			// Instalado a partir do PC: a cópia que ficou na consola já não
-			// serve para nada e ocupa espaço.
+			// Installed from the PC: the copy left on the console is no
+			// longer useful and takes up space.
 			if(!task.cleanupRemotePath.empty() && deps_.ftp)
 			{
 				const FtpResult removed = deps_.ftp->removeFile(task.cleanupRemotePath);
@@ -889,11 +889,11 @@ void InstallQueue::runFtpUpload(QueueTask task)
 	task.state = TaskState::Completed;
 	task.message = std::string(QT_TRANSLATE_NOOP("Messages", "Sent to the console")) + ": " + task.remotePath;
 
-	// "Instalar após upload". O instalador remoto só aceita URLs HTTP (ver
-	// docs/validation.md), por isso não se lhe pode apontar o ficheiro que
-	// acabou de ficar na consola. O que se faz é pôr na fila uma instalação
-	// direta do mesmo ficheiro, que é servido pelo HTTP local — o pkg fica
-	// guardado na consola e instalado, que é o que a opção promete.
+	// "Install after upload". The remote installer only accepts HTTP URLs
+	// (see docs/validation.md), so it cannot be pointed at the file that
+	// was just placed on the console. Instead, a direct install of the same
+	// file is queued, served by the local HTTP server — the pkg stays
+	// stored on the console and gets installed, which is what the option promises.
 	const bool instalarDepois = cfg.installAfterUpload;
 	finishTask(task);
 

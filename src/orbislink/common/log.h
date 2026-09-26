@@ -15,8 +15,8 @@ enum class LogLevel { Debug = 0, Info = 1, Warning = 2, Error = 3, Off = 4 };
 
 const char *logLevelName(LogLevel level);
 
-// Log rotativo (§8 da especificação: 5 ficheiros x 5 MB, debug desligado por
-// omissão). Thread-safe; usado por todos os módulos do núcleo.
+// Rotating log (§8 of the specification: 5 files x 5 MB, debug off by
+// default). Thread-safe; used by every core module.
 class Logger
 {
 public:
@@ -25,18 +25,17 @@ public:
 	void setLevel(LogLevel level);
 	LogLevel level() const;
 
-	// Ativa escrita em ficheiro com rotação. Devolve false se não conseguir abrir.
+	// Turns on writing to a file with rotation. Returns false if it cannot open it.
 	bool setFile(const std::string &path, uint64_t maxBytes = 5ull * 1024 * 1024, int maxFiles = 5);
 	void setConsoleOutput(bool enabled);
-	// Recetor extra (a UI liga-se aqui para mostrar o log na janela de diagnóstico).
+	// Extra receiver (the UI hooks in here to show the log in the diagnostics window).
 	void setSink(std::function<void(LogLevel, const std::string &)> sink);
 
 	void log(LogLevel level, const std::string &message);
 
-	// As últimas linhas, guardadas em memória. Servem para a janela de
-	// diagnóstico e para o relatório de exportação sem ter de reler o
-	// ficheiro — que pode já ter rodado, ou estar numa pasta que a pessoa
-	// não sabe encontrar.
+	// The last lines, kept in memory. They feed the diagnostics window and
+	// the exported report without re-reading the file — which may already
+	// have rotated, or be in a folder the person cannot find.
 	std::vector<std::string> recent(size_t max = 0) const;
 	void setRecentCapacity(size_t lines);
 
@@ -62,8 +61,8 @@ void logInfo(const std::string &message);
 void logWarning(const std::string &message);
 void logError(const std::string &message);
 
-// Remove dados sensíveis (Account ID, chaves de registo, tokens) antes de
-// escrever no log ou de exportar diagnóstico (§8 e §9).
+// Removes sensitive data (Account ID, registration keys, tokens) before
+// writing to the log or exporting diagnostics (§8 and §9).
 std::string redactSensitive(const std::string &text);
 
 } // namespace orbislink

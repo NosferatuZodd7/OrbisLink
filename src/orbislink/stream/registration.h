@@ -9,15 +9,15 @@
 
 namespace orbislink {
 
-// Registo do PC na consola (§5.2 do chiaki: "Add Device").
+// Registering the PC on the console (chiaki §5.2: "Add Device").
 //
-// Na consola: Definições → Definições de Ligação do Remote Play →
-// Adicionar Dispositivo. Aparece um PIN de 8 dígitos. Aqui é preciso esse
-// PIN e o Account ID da PSN em base64 — a consola só aceita o registo se
-// os dois baterem certo.
+// On the console: Settings → Remote Play Connection Settings →
+// Add Device. An 8-digit PIN appears. Here that PIN is needed, plus the
+// PSN Account ID in base64 — the console only accepts the registration if
+// both match.
 //
-// O que sai é a chave de registo e a rp_key, que ficam guardadas: a partir
-// daí liga-se sem PIN nenhum.
+// What comes out is the registration key and the rp_key, which are stored:
+// from then on the connection needs no PIN.
 class StreamRegistration
 {
 public:
@@ -25,7 +25,7 @@ public:
 	{
 		std::string address;
 		std::string accountIdBase64; // Account ID da PSN, 8 bytes em base64
-		uint32_t pin = 0;            // os 8 dígitos que a consola mostra
+		uint32_t pin = 0;            // the 8 digits the console shows
 		int target = 0;              // ChiakiTarget, vindo da descoberta
 		bool ps5 = false;
 	};
@@ -35,10 +35,10 @@ public:
 	StreamRegistration();
 	~StreamRegistration();
 
-	// Visível porque o callback em C do chiaki precisa de lhe chegar.
+	// Public because chiaki's C callback needs to reach it.
 	struct Impl;
 
-	// Arranca o registo. `finished` é chamado numa thread do chiaki.
+	// Starts registration. `finished` is called on a chiaki thread.
 	bool start(const Request &request, Finished finished, std::string *error = nullptr);
 	void cancel();
 	bool running() const;

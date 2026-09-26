@@ -68,7 +68,7 @@ int progressCallback(void *userdata, curl_off_t dlTotal, curl_off_t dlNow, curl_
 	if(state->cancel && state->cancel->load())
 	{
 		state->cancelled = true;
-		return 1; // aborta a transferência
+		return 1; // aborts the transfer
 	}
 	const int64_t done = ulNow > 0 ? static_cast<int64_t>(ulNow) : static_cast<int64_t>(dlNow);
 	int64_t total = ulTotal > 0 ? static_cast<int64_t>(ulTotal) : static_cast<int64_t>(dlTotal);
@@ -82,8 +82,8 @@ int progressCallback(void *userdata, curl_off_t dlTotal, curl_off_t dlNow, curl_
 	return 0;
 }
 
-// Ordem dos campos do LIST estilo Unix:
-// drwxr-xr-x  2 user group  4096 Jan 01 00:00 nome com espaços
+// Field order of a Unix-style LIST:
+// drwxr-xr-x  2 user group  4096 Jan 01 00:00 name with spaces
 bool parseUnixLine(const std::string &line, FtpEntry *entry)
 {
 	if(line.size() < 10)
@@ -261,7 +261,7 @@ std::vector<FtpEntry> FtpClient::parseListing(const std::string &listing, const 
 		FtpEntry entry;
 		if(!parseUnixLine(line, &entry) && !parseDosLine(line, &entry))
 		{
-			// Servidor exótico: aceita a linha como nome simples em vez de a perder.
+			// Unusual server: takes the line as a plain name instead of losing it.
 			entry = FtpEntry();
 			entry.name = trim(line);
 			if(entry.name.empty())
@@ -306,7 +306,7 @@ FtpResult FtpClient::withRetries(const std::string &what, const std::function<Ft
 
 namespace {
 
-// Configuração comum a todas as operações.
+// Setup shared by every operation.
 void applyCommonOptions(CURL *curl, const FtpClient::Config &cfg, char *errorBuffer)
 {
 	curl_easy_setopt(curl, CURLOPT_USERNAME, cfg.user.c_str());
@@ -326,8 +326,8 @@ void applyCommonOptions(CURL *curl, const FtpClient::Config &cfg, char *errorBuf
 bool FtpClient::probe(std::string *detail)
 {
 	const Config cfg = config();
-	// O ConsoleManager confirma o "220" com um probe TCP; aqui confirma-se o
-	// login anónimo com um PWD.
+	// ConsoleManager confirms the "220" with a TCP probe; here the anonymous
+	// login is confirmed with a PWD.
 	ensureCurl();
 	CURL *curl = curl_easy_init();
 	if(!curl)
@@ -368,7 +368,7 @@ FtpResult FtpClient::list(const std::string &remoteDir, std::vector<FtpEntry> *e
 		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, appendToString);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &listing);
-		// Pede o LIST completo (não apenas nomes), para obter tipo e tamanho.
+		// Asks for the full LIST (not just names), to get type and size.
 		curl_easy_setopt(curl, CURLOPT_DIRLISTONLY, 0L);
 
 		const CURLcode code = curl_easy_perform(curl);
@@ -421,7 +421,7 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 	if(localSize < 0)
 		return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Messages", "Local file not accessible")) + ": " + localPath);
 
-	// Retoma: só faz sentido se o servidor já tiver parte do ficheiro.
+	// Resume: only makes sense if the server already has part of the file.
 	int64_t alreadyThere = 0;
 	if(resume)
 	{
@@ -462,7 +462,7 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 		curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &state);
 		if(alreadyThere > 0)
 		{
-			// APPE a partir do que já lá está (o servidor tem de o suportar).
+			// APPE from what is already there (the server has to support it).
 			curl_easy_setopt(curl, CURLOPT_APPEND, 1L);
 			curl_easy_setopt(curl, CURLOPT_RESUME_FROM_LARGE, static_cast<curl_off_t>(alreadyThere));
 		}

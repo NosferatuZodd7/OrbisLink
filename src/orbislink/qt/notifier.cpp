@@ -18,9 +18,9 @@ namespace {
 
 #ifdef _WIN32
 
-// Um só ícone na área de notificação, criado à primeira mensagem e
-// removido no fim. O GUID fixo evita que o Windows crie um ícone novo a
-// cada arranque.
+// A single icon in the notification area, created on the first message and
+// removed at the end. The fixed GUID stops Windows from creating a new icon
+// on every start.
 NOTIFYICONDATAW &iconData()
 {
 	static NOTIFYICONDATAW dados {};
@@ -31,8 +31,8 @@ bool criarIcone()
 {
 	NOTIFYICONDATAW &dados = iconData();
 	dados.cbSize = sizeof(NOTIFYICONDATAW);
-	// A janela dona: qualquer uma serve, desde que exista enquanto o ícone
-	// existir. Usa-se a janela da aplicação.
+	// The owner window: any will do, as long as it exists while the icon
+	// exists. The application's window is used.
 	const QWindowList janelas = QGuiApplication::allWindows();
 	if(janelas.isEmpty())
 		return false;
@@ -95,9 +95,9 @@ void Notifier::show(const QString &title, const QString &message, bool error)
 	}
 #endif
 
-	// Sem notificação do sistema: a janela pisca na barra de tarefas, que
-	// pelo menos chama a atenção. Só para erros — piscar a cada informação
-	// seria insuportável.
+	// No system notification: the window flashes in the taskbar, which at
+	// least draws attention. Only for errors — flashing on every piece of
+	// information would be unbearable.
 	if(error && window_ && !window_->isActive())
 		window_->alert(0);
 }

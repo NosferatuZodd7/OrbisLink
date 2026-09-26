@@ -10,11 +10,11 @@ namespace orbislink {
 
 namespace {
 
-// Valores confirmados em
+// Values confirmed in
 // OpenOrbis-PS4-Toolchain/include/orbis/_types/errors.h (ORBIS_KERNEL_ERROR_*).
-// TODO: os códigos específicos do BGFT/AppInstUtil (famílias 0x8099xxxx e
-// 0x8024xxxx) não estão publicados em nenhuma fonte que se possa citar; até
-// haver confirmação, esses códigos aparecem em hexadecimal na UI.
+// TODO: the specific BGFT/AppInstUtil codes (families 0x8099xxxx and
+// 0x8024xxxx) are not published in any citable source; until they are
+// confirmed, those codes are shown in hexadecimal in the UI.
 const std::map<uint32_t, const char *> &knownErrors()
 {
 	static const std::map<uint32_t, const char *> table = {

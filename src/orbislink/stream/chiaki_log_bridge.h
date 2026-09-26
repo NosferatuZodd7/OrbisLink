@@ -7,16 +7,16 @@
 
 namespace orbislink {
 
-// Encaminha o registo do chiaki-lib para o registo do OrbisLink, para haver
-// um único ficheiro a ler quando alguma coisa corre mal.
+// Forwards chiaki-lib's log to the OrbisLink log, so there is a single
+// file to read when something goes wrong.
 ChiakiLog *chiakiLog();
 
-// Liga ou desliga as mensagens de depuração do chiaki (são muitas).
+// Turns chiaki's debug messages on or off (there are many).
 void setChiakiVerbose(bool verbose);
 
-// O motivo que a consola deu da última vez que recusou um pedido
-// ("RP-Application-Reason", ex.: 0x80108b02), ou 0 se não deu nenhum. O
-// chiaki só o escreve no registo, por isso é daí que se tira. Ler apaga-o.
+// The reason the console gave the last time it refused a request
+// ("RP-Application-Reason", e.g. 0x80108b02), or 0 if it gave none.
+// chiaki only writes it to the log, so that is where it is taken from. Reading clears it.
 uint32_t takeApplicationReason();
 
 } // namespace orbislink

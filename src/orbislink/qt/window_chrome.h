@@ -11,20 +11,20 @@ QT_END_NAMESPACE
 
 namespace orbislink {
 
-// A barra de título é do sistema, não nossa — e no Windows vem branca por
-// cima de uma aplicação escura. Isto pede ao gestor de janelas que a
-// pinte como o resto.
+// The title bar belongs to the system, not to us — and on Windows it comes
+// white on top of a dark application. This asks the window manager to
+// paint it like the rest.
 //
-// Não há uma maneira só que funcione em todo o lado, por isso tenta-se a
-// melhor primeiro e desce-se até uma que o sistema aceite:
+// There is no single way that works everywhere, so the best is tried
+// first, stepping down until one the system accepts:
 //
-//   1. material translúcido do sistema (acrílico ou mica) — Windows 11 22H2
-//   2. cor sólida do tema na barra e na moldura — Windows 11
-//   3. barra escura, sem escolher a cor — Windows 10 1809
-//   4. nada, e a janela fica como o sistema a desenha
+//   1. the system's translucent material (acrylic or mica) — Windows 11 22H2
+//   2. the theme's solid colour on the bar and frame — Windows 11
+//   3. a dark bar, without choosing the colour — Windows 10 1809
+//   4. nothing, and the window stays as the system draws it
 //
-// O que ficou é dito no registo e no diagnóstico: uma interface que promete
-// vidro e entrega branco é pior do que uma que diz o que conseguiu.
+// What stuck is stated in the log and in the diagnostics: an interface that
+// promises glass and delivers white is worse than one that says what it managed.
 class WindowChrome : public QObject
 {
 	Q_OBJECT
@@ -32,23 +32,23 @@ class WindowChrome : public QObject
 public:
 	explicit WindowChrome(QWindow *window, QObject *parent = nullptr);
 
-	// Chamado sempre que o tema muda. `translucent` pede o material do
-	// sistema; quando ele não existe, cai para a cor sólida.
+	// Called whenever the theme changes. `translucent` asks for the system
+	// material; when it does not exist, it falls back to the solid colour.
 	Q_INVOKABLE void applyTheme(const QColor &caption, const QColor &text, const QColor &border,
 		bool dark, bool translucent);
 
-	// Uma frase sobre o que o sistema aceitou, para o diagnóstico.
+	// A sentence about what the system accepted, for the diagnostics.
 	static QString summary();
 
-	// Verdadeiro quando o processo corre com privilégios de administrador.
+	// True when the process runs with administrator privileges.
 	//
-	// Não é curiosidade: o Windows não deixa arrastar ficheiros de uma
-	// janela sem elevação (o Explorador) para uma janela elevada. Bloqueia
-	// as mensagens e não diz nada — o arrastar e largar simplesmente deixa
-	// de funcionar, sem erro nenhum a que se possa agarrar.
+	// This is not idle curiosity: Windows does not allow dragging files from a
+	// non-elevated window (Explorer) onto an elevated one. It blocks the
+	// messages and says nothing — drag and drop simply stops working,
+	// with no error to hold on to.
 	static bool runningElevated();
-	// Explicação em português do que isso implica, ou vazio quando não há
-	// nada a dizer.
+	// Explanation of what that implies, or empty when there is
+	// nothing to say.
 	static QString elevationWarning();
 
 private:

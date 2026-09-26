@@ -55,8 +55,8 @@ StreamCredentials fromChiaki(const ChiakiRegisteredHost *host)
 	return credentials;
 }
 
-// O que a consola disse ao recusar, em duas versões: curta para o
-// diagnóstico, completa para quem está a registar.
+// What the console said when refusing, in two versions: short for the
+// diagnostics, full for whoever is registering.
 struct Recusa
 {
 	std::string diagnostico;
@@ -159,7 +159,7 @@ bool StreamRegistration::start(const Request &request, Finished finished, std::s
 			*error = QT_TRANSLATE_NOOP("Messages", "The console's address is missing.");
 		return false;
 	}
-	// O PIN da consola tem 8 dígitos.
+	// The console PIN has 8 digits.
 	if(request.pin == 0)
 	{
 		if(error)
@@ -200,7 +200,7 @@ bool StreamRegistration::start(const Request &request, Finished finished, std::s
 			+ std::to_string(request.accountIdBase64.size()) + " characters");
 
 	impl_->running.store(true);
-	takeApplicationReason(); // um motivo antigo não serve para este registo
+	takeApplicationReason(); // an old reason does not apply to this registration
 	const ChiakiErrorCode result =
 		chiaki_regist_start(&impl_->regist, chiakiLog(), &info, registCallback, impl_.get());
 	if(result != CHIAKI_ERR_SUCCESS)

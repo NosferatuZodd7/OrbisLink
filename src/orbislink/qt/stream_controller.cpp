@@ -16,8 +16,8 @@ namespace orbislink {
 
 namespace {
 
-// O mesmo Account ID nas três formas, para o QML poder mostrar as outras
-// duas enquanto se escreve numa delas.
+// The same Account ID in the three forms, so QML can show the other
+// two while one of them is being typed.
 QVariantMap formsFromAccountId(const AccountId &id)
 {
 	QVariantMap mapa;
@@ -65,9 +65,9 @@ StreamController::StreamController(QObject *parent)
 	  registration_(std::make_unique<StreamRegistration>()),
 	  session_(std::make_unique<StreamSession>())
 {
-	// Cada trama captada segue para o codificador do chiaki. A captura
-	// corre na thread da interface (o QAudioSource avisa por sinal), e a
-	// sessão protege-se com o seu próprio mutex.
+	// Every captured frame goes to chiaki's encoder. Capture runs on the
+	// interface thread (QAudioSource signals), and the session protects
+	// itself with its own mutex.
 	microphone_.setFrameCallback([this](const int16_t *pcm, size_t samples) {
 		session_->sendMicrophoneFrame(pcm, samples);
 	});
@@ -121,7 +121,7 @@ StreamController::StreamController(QObject *parent)
 			Qt::QueuedConnection);
 	});
 
-	// Uma falha do som não pode ficar só numa linha do registo: avisa-se.
+	// An audio failure must not stay as just a line in the log: notify.
 	connect(&audio_, &AudioOutput::failed, this, [this](const QString &razao) {
 		emit audioChanged();
 		emit notify(tr("Sound"),
@@ -142,7 +142,7 @@ StreamController::StreamController(QObject *parent)
 			Qt::QueuedConnection);
 	});
 
-	// O comando físico só é lido durante a sessão.
+	// The physical controller is only read during the session.
 	connect(&gamepad_, &Gamepad::stateChanged, this,
 		[this](const StreamSession::ControllerState &state) {
 			if(streaming_)
@@ -155,11 +155,11 @@ StreamController::StreamController(QObject *parent)
 		frameHeight_ = height;
 		emit videoChanged();
 
-		// A consola pode mandar menos do que lhe foi pedido e não avisar
-		// ninguém. Uma PS4 que não seja Pro não faz 1080p: o chiaki baixa
-		// o pedido sozinho (video_profile_auto_downgrade) e o stream sai a
-		// 720p. Sem isto, quem escolheu 1080p fica a olhar para a mesma
-		// imagem de sempre a pensar que a definição não serve para nada.
+		// The console may send less than it was asked for without telling
+		// anyone. A non-Pro PS4 does not do 1080p: chiaki lowers the request
+		// by itself (video_profile_auto_downgrade) and the stream comes out
+		// at 720p. Without this, whoever chose 1080p is left looking at the
+		// same picture as always thinking the setting is useless.
 		if(height > 0 && resolution_ > 0 && height < resolution_)
 		{
 			const QString recebido = tr("%1×%2").arg(width).arg(height);
@@ -180,8 +180,8 @@ StreamController::StreamController(QObject *parent)
 		}
 	});
 
-	// Os fps medidos, uma vez por segundo. É a única forma honesta de
-	// responder a "isto está mesmo a 60?": contar o que chega ao ecrã.
+	// Measured fps, once per second. It is the only honest way to answer
+	// "is this really at 60?": count what reaches the screen.
 	fpsTimer_ = new QTimer(this);
 	fpsTimer_->setInterval(1000);
 	connect(fpsTimer_, &QTimer::timeout, this, [this]() {
@@ -204,17 +204,17 @@ void StreamController::setAddress(const QString &address)
 		return;
 	address_ = address;
 	cancelOneClick();
-	// O que se sabia era da consola anterior: o nome, o estado, o tipo e a
-	// chave de registo. Mantê-lo até a nova responder fazia a caixa da
-	// nova mostrar os dados da antiga (e guardá-los como se fossem dela).
+	// What was known belonged to the previous console: the name, state, type
+	// and registration key. Keeping it until the new one answered made the
+	// new one's card show the old one's data (and store it as its own).
 	HostInfo nova;
 	nova.address = address.toStdString();
 	applyHost(nova);
 	consoleState_ = QStringLiteral("unknown");
 	emit consoleChanged();
-	// Sem aviso: a caixa já mostra o que a consola respondeu, e uma
-	// notificação de erro só por se ter escolhido uma consola desligada
-	// parecia que alguma coisa tinha corrido mal.
+	// No notice: the card already shows what the console answered, and an
+	// error notification just for choosing a console that is off looked
+	// like something had gone wrong.
 	procurar(false);
 }
 
@@ -228,8 +228,8 @@ void StreamController::applySettings(const Settings &settings)
 	rumbleEnabled_ = settings.streamRumble;
 	touchpadFromMouse_ = settings.streamTouchpadFromMouse;
 	gamepad_.setRumbleEnabled(rumbleEnabled_);
-	// O Account ID que a consola em uso já aceitou; se ainda não aceitou
-	// nenhum, o último que alguma aceitou.
+	// The Account ID the console in use already accepted; if it has not
+	// accepted any yet, the last one any console accepted.
 	accountId_ = QString::fromStdString(settings.streamAccountId);
 	for(const ConsoleEntry &consola : settings.consoles)
 		if(consola.address == settings.consoleAddress && !consola.accountId.empty())
@@ -262,8 +262,8 @@ QString StreamController::keyName(int key) const
 {
 	switch(key)
 	{
-		// O QKeySequence escreve estas em inglês e por extenso; no desenho
-		// do teclado cabem melhor assim.
+	// QKeySequence spells these out in full; they fit better like this
+	// on the keyboard drawing.
 		case Qt::Key_Return: return QStringLiteral("Enter");
 		case Qt::Key_Backspace: return QStringLiteral("⌫");
 		case Qt::Key_Up: return QStringLiteral("↑");
@@ -356,8 +356,8 @@ void StreamController::refreshConsole() { procurar(true); }
 
 void StreamController::procurar(bool avisar)
 {
-	// Diz sempre alguma coisa: quando falta o endereço e quando acaba. Um
-	// "Procurar" calado parece não fazer nada.
+	// Always say something: when the address is missing and when it ends. A
+	// silent check looks like it does nothing.
 	if(address_.isEmpty())
 	{
 		if(avisar)
@@ -365,8 +365,8 @@ void StreamController::procurar(bool avisar)
 				tr("The console IP address is missing. Set it in the settings."), true);
 		return;
 	}
-	// Um "Procurar" carregado enquanto já se procura não se perde: a
-	// procura em curso passa a avisar no fim.
+	// A check requested while one is already running is not lost: the
+	// running one reports at the end instead.
 	avisarNoFim_ = avisarNoFim_ || avisar;
 	if(searching_)
 		return;
@@ -382,8 +382,8 @@ void StreamController::procurar(bool avisar)
 				searching_ = false;
 				const bool avisar = avisarNoFim_;
 				avisarNoFim_ = false;
-				// Entretanto passou-se a outra consola: esta resposta já não
-				// é dela. Pergunta-se à nova.
+				// Meanwhile another console was selected: this reply no longer
+				// belongs to it. Ask the new one.
 				if(address != address_.toStdString())
 				{
 					emit consoleChanged();
@@ -437,7 +437,7 @@ void StreamController::wakeUp()
 			this,
 			[this, ok, mensagem]() {
 				emit notify(tr("Wake the console"), mensagem, !ok);
-				// Sem aviso: acabada de acordar, é normal ainda não responder.
+				// No notice: just woken, it is normal not to answer yet.
 				if(ok)
 					procurar(false);
 			},
@@ -492,9 +492,9 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 		return;
 	}
 
-	// Sem descoberta não se sabe o alvo — e sem alvo o chiaki fala o
-	// protocolo errado. Se ainda não se perguntou, pergunta-se fora da
-	// thread da UI e volta-se aqui.
+	// Without discovery the target is unknown — and without a target chiaki
+	// speaks the wrong protocol. If nobody asked yet, ask off the UI
+	// thread and come back here.
 	if(!host_.found)
 	{
 		const std::string address = address_.toStdString();
@@ -523,9 +523,9 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 		return;
 	}
 
-	// O que vem daqui pode estar em hexadecimal, em decimal ou já em
-	// base64: converte-se aqui, para nenhum caminho da interface conseguir
-	// mandar para a consola uma forma que ela não entende.
+	// What comes in here may be hexadecimal, decimal or already base64: it
+	// is converted here, so no path in the interface can send the console
+	// a form it does not understand.
 	const AccountId conta = parseAccountId(accountIdBase64.toStdString());
 	if(!conta.valid)
 	{
@@ -549,9 +549,9 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 	}
 
 	std::string erro;
-	// Guarda-se sempre em base64, seja qual for a forma em que foi escrito:
-	// é a única que a consola aceita, e assim não há duas coisas guardadas
-	// com o mesmo nome.
+	// Always stored in base64, whatever form it was typed in: it is the
+	// only one the console accepts, and this way there are not two things
+	// stored under the same name.
 	const QString accountParaGuardar = QString::fromStdString(conta.base64);
 	const bool started = registration_->start(
 		request,
@@ -565,8 +565,8 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 					{
 						credentials_ = credentials;
 						store_.save(credentials);
-						// Guardado só depois de a consola o aceitar: um ID
-						// errado não fica a estorvar a próxima tentativa.
+						// Stored only after the console accepts it: a wrong
+						// ID does not get in the way of the next attempt.
 						if(!accountParaGuardar.isEmpty())
 						{
 							accountId_ = accountParaGuardar;
@@ -631,8 +631,8 @@ void StreamController::startStream()
 			tr("Register the console first: click its box and follow the steps."), true);
 		return;
 	}
-	// Dizer que se está a ligar antes de bloquear a pensar: o clique tem de
-	// ter resposta imediata.
+	// Say it is connecting before blocking to think: the click must get
+	// an immediate response.
 	sessionState_ = QStringLiteral("connecting");
 	sessionDetail_ = tr("Connecting to %1…").arg(address_);
 	emit sessionChanged();
@@ -673,8 +673,8 @@ void StreamController::connectOneClick()
 			tr("The console IP address is missing. Set it in the settings."), true);
 		return;
 	}
-	// Cada clique é uma corrida própria: uma resposta de uma corrida
-	// cancelada, ou de outra consola, já não decide nada.
+	// Each click is its own run: a reply from a cancelled run, or from
+	// another console, no longer decides anything.
 	const quint64 corrida = ++oneClickRun_;
 	setConnectStage(QStringLiteral("checking"));
 	const std::string address = address_.toStdString();
@@ -711,8 +711,8 @@ void StreamController::oneClickDecide(const HostInfo &info)
 	}
 	if(info.state == HostState::Standby)
 	{
-		// Acorda-se uma vez e depois pergunta-se de dois em dois segundos,
-		// até ela dizer que está pronta.
+		// Wake it once and then ask every two seconds, until it says it
+		// is ready.
 		if(connectStage_ != QLatin1String("waking"))
 		{
 			setConnectStage(QStringLiteral("waking"));
@@ -749,8 +749,8 @@ void StreamController::oneClickPoll()
 {
 	if(connectStage_ != QLatin1String("waking"))
 		return;
-	// Uma consola demora uns vinte segundos a acordar; ao fim de um minuto
-	// já não vai acordar sozinha.
+	// A console takes about twenty seconds to wake up; after a minute it
+	// is not going to wake up by itself.
 	if(++wakeAttempts_ > 30)
 	{
 		setConnectStage(QString());
@@ -793,14 +793,14 @@ void StreamController::cancelOneClick()
 
 void StreamController::stopStream()
 {
-	// O microfone não sobrevive à sessão: se ficasse aberto, a luz do
-	// microfone ficaria acesa sem nada do outro lado.
+	// The microphone does not outlive the session: if it stayed open, the
+	// microphone light would stay on with nothing on the other end.
 	microphone_.stop();
 	session_->stopMicrophone();
 	emit microphoneChanged();
 
-	// O stop do chiaki espera pelas threads dele; fora da thread da UI para
-	// a janela não congelar.
+	// chiaki's stop waits for its threads; off the UI thread so the
+	// window does not freeze.
 	std::thread([this]() { session_->stop(); }).detach();
 }
 
@@ -836,8 +836,8 @@ void StreamController::setMicrophoneEnabled(bool enabled)
 		return;
 	}
 
-	// A consola primeiro: se ela recusar, não vale a pena abrir o
-	// microfone da máquina e deixar a luz acesa sem se enviar nada.
+	// The console first: if it refuses, there is no point opening the
+	// machine's microphone and leaving the light on without sending anything.
 	std::string erro;
 	if(!session_->startMicrophone(&erro))
 	{
@@ -889,8 +889,8 @@ bool StreamController::keyReleased(int key)
 
 void StreamController::releaseAllKeys()
 {
-	// Ao perder o foco larga-se tudo: senão uma tecla fica presa e o
-	// personagem continua a andar sozinho do outro lado.
+	// On losing focus release everything: otherwise a key stays stuck and
+	// the character keeps walking by itself on the other side.
 	if(keyboard_.empty())
 		return;
 	keyboard_.clear();

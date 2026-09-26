@@ -17,8 +17,8 @@ namespace orbislink {
 
 namespace {
 
-// O temporizador que alimenta a placa. 20 ms dá margem de sobra sobre os
-// 40 ms de silêncio com que a fila arranca.
+// The timer that feeds the card. 20 ms leaves plenty of margin over the
+// 40 ms of silence the queue starts with.
 constexpr int kPushTickMs = 20;
 
 QString stateName(QAudio::State estado)
@@ -83,16 +83,16 @@ void PcmQueue::push(const char *data, qint64 size)
 		pushed_ += size;
 		if(limit_ > 0 && buffer_.size() > limit_)
 		{
-			// Atrasou-se: deita-se fora o mais antigo. Melhor um salto no
-			// som do que ele ficar segundos atrás da imagem, a crescer sem
-			// fim.
+			// Fell behind: drop the oldest. Better a skip in the sound
+			// than having it seconds behind the picture, growing without
+			// end.
 			buffer_.remove(0, buffer_.size() - limit_);
 		}
 	}
-	// Um QIODevice sequencial tem de avisar que chegou alguma coisa: há
-	// backends de áudio do Qt que só vão buscar amostras depois deste sinal,
-	// e sem ele ficariam à espera para sempre. Sai fora do lock: quem o
-	// recebe vem logo ler.
+	// A sequential QIODevice must announce that something arrived: some Qt
+	// audio backends only fetch samples after this signal, and without it
+	// they would wait forever. Emitted outside the lock: whoever receives it
+	// comes straight in to read.
 	emit readyRead();
 }
 
@@ -119,8 +119,8 @@ qint64 PcmQueue::readData(char *data, qint64 maxSize)
 		buffer_.remove(0, available);
 	}
 	pulled_ += available;
-	// O que faltar vai a zeros: devolver menos do que o pedido faz o
-	// QAudioSink entrar em suspensão e o som só voltar no arranque seguinte.
+	// Whatever is missing is zero-filled: returning less than asked makes
+	// QAudioSink go into suspend and the sound only comes back on the next start.
 	if(available < maxSize)
 		std::memset(data + available, 0, static_cast<size_t>(maxSize - available));
 	return maxSize;
@@ -161,12 +161,12 @@ void AudioOutput::configure(unsigned int channels, unsigned int rate)
 		framesReceived_ = 0;
 		underruns_ = 0;
 	}
-	// Meio segundo de folga: acima disso a latência é pior que o corte.
+	// Half a second of slack: beyond that the latency is worse than the gap.
 	queue_.setLimit(static_cast<qint64>(rate) * channels * 2 / 2);
 	queue_.clear();
 
-	// O QAudioSink tem de ser criado na thread a que pertence, não na do
-	// chiaki que trouxe este aviso.
+	// The QAudioSink must be created on the thread it belongs to, not on
+	// chiaki's, which brought this notice.
 	QMetaObject::invokeMethod(this, [this]() { ensureStarted(); }, Qt::QueuedConnection);
 }
 
@@ -193,9 +193,9 @@ void AudioOutput::ensureStarted()
 				"sends " + std::to_string(format_.sampleRate()) + " Hz, "
 				+ std::to_string(format_.channelCount()) + " channels.");
 
-			// Se a placa não aceitar exactamente 48 kHz estéreo — e a consola não
-			// manda outra coisa — converte-se para o que a placa aceita, em vez de
-			// ficar tudo mudo.
+			// If the card does not accept exactly 48 kHz stereo — and the console
+			// sends nothing else — convert to what the card accepts, instead of
+			// everything going silent.
 			deviceFormat_ = format_;
 			if(!device.isFormatSupported(format_))
 			{
@@ -203,8 +203,8 @@ void AudioOutput::ensureStarted()
 				preferido.setSampleFormat(QAudioFormat::Int16);
 				if(!device.isFormatSupported(preferido))
 				{
-					// Último recurso: o formato preferido tal e qual,
-					// mesmo que não seja Int16 — melhor tentar que desistir.
+					// Last resort: the preferred format as is, even if
+					// it is not Int16 — better to try than to give up.
 					preferido = device.preferredFormat();
 				}
 				logWarning("Remote Play: the sound card does not accept "
@@ -234,13 +234,13 @@ void AudioOutput::ensureStarted()
 	if(!queue_.isOpen())
 		queue_.open(QIODevice::ReadOnly);
 
-	// Escrita directa, e não o modo em que a placa vem buscar.
+	// Direct writing, not the mode where the card comes to fetch.
 	//
-	// O modo "pull" do QAudioSink, o que a documentação mostra primeiro, não
-	// funciona em todas as máquinas: em Windows 10 com Qt 6.8.1 a placa
-	// nunca vem buscar uma amostra — o sink diz-se activo, a fila enche, e o
-	// stream fica mudo sem erro nenhum. A escrita directa funciona em todas,
-	// e por isso é a única que se usa.
+	// QAudioSink's "pull" mode, the one the documentation shows first, does
+	// not work on every machine: on Windows 10 with Qt 6.8.1 the card never
+	// fetches a single sample — the sink says it is active, the queue fills,
+	// and the stream stays silent with no error. Direct writing works on all
+	// of them, and so it is the only one used.
 	auto novo = std::make_unique<QAudioSink>(device, formatoDaPlaca);
 	connect(novo.get(), &QAudioSink::stateChanged, this, &AudioOutput::handleSinkState,
 		Qt::QueuedConnection);
@@ -272,8 +272,8 @@ void AudioOutput::ensureStarted()
 			+ std::to_string(sink_->bufferSize()) + " bytes, direct write).");
 	}
 
-	// É este temporizador que faz de bomba: acorda, vê quanto espaço a
-	// placa tem, e enche-o com o que estiver na fila.
+	// This timer is the pump: it wakes up, checks how much room the card
+	// has, and fills it with whatever is in the queue.
 	if(!watchdog_)
 	{
 		watchdog_ = new QTimer(this);
@@ -294,8 +294,8 @@ void AudioOutput::handleSinkState(QAudio::State estado)
 		if(!sink_)
 			return;
 		sinkState_ = stateName(estado);
-		// Cada transição fica registada. Sem isto, um sink que vai a Idle e
-		// nunca mais volta é indistinguível de um que nunca arrancou.
+		// Every transition is logged. Without this, a sink that goes Idle and
+		// never comes back is indistinguishable from one that never started.
 		logInfo("Remote Play: QAudioSink -> " + sinkState_.toStdString() + " (queued "
 			+ std::to_string(queue_.queuedBytes()) + " bytes, delivered so far "
 			+ std::to_string(queue_.pulledBytes()) + ").");
@@ -327,8 +327,8 @@ void AudioOutput::feedPushMode()
 		if(!pushMode_ || !sink_ || !pushTarget_)
 			return;
 		alvo = pushTarget_;
-		// O buffer da placa é o único travão de que precisamos: escrever
-		// tudo o que ele aceita e nem mais um byte.
+		// The card's buffer is the only brake we need: write everything
+		// it accepts and not a byte more.
 		espaco = sink_->bytesFree();
 	}
 
@@ -345,8 +345,8 @@ void AudioOutput::feedPushMode()
 QString AudioOutput::pipelineSummary() const
 {
 	QMutexLocker lock(&mutex_);
-	// Uma linha por troço, pela ordem por que o som passa. Quem lê isto quer
-	// saber onde é que o caudal chega a zero.
+	// One line per stretch, in the order the sound flows through. Whoever
+	// reads this wants to know where the flow drops to zero.
 	QStringList linhas;
 	linhas << QStringLiteral("  1. console announced %1")
 			.arg(configured_ || terminada_ ? QStringLiteral("%1 Hz, %2 channels")
@@ -372,7 +372,7 @@ QString AudioOutput::pipelineSummary() const
 			.arg(state_)
 			.arg(muted_ ? QStringLiteral("  (muted on request)") : QString());
 
-	// A conclusão, escrita à mão, porque é a única parte que alguém lê.
+	// The conclusion, written by hand, because it is the only part anyone reads.
 	QString veredicto;
 	if(terminada_)
 		veredicto = framesReceived_ > 0
@@ -419,9 +419,9 @@ void AudioOutput::write(const int16_t *pcm, size_t samples)
 		return;
 	}
 
-	// A conversão acontece na thread do chiaki, que é a mesma que sempre
-	// escreveu aqui; o converter_ não é tocado por mais ninguém depois de
-	// configurado.
+	// Conversion happens on chiaki's thread, the same one that always
+	// wrote here; converter_ is not touched by anyone else once
+	// configured.
 	const std::vector<int16_t> &convertido = converter_.convert(pcm, samples);
 	if(!convertido.empty())
 		queue_.push(reinterpret_cast<const char *>(convertido.data()),
@@ -449,8 +449,8 @@ void AudioOutput::stop()
 		morto = std::move(sink_);
 		pushTarget_ = nullptr;
 		pushMode_ = false;
-		// Os números da sessão ficam para o diagnóstico; só se marca que
-		// acabou, para não parecer que o som nunca chegou.
+		// The session's numbers stay for the diagnostics; only mark that
+		// it ended, so it does not look like the sound never arrived.
 		terminada_ = configured_;
 		configured_ = false;
 	}

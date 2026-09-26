@@ -11,8 +11,8 @@ namespace orbislink {
 enum class PkgCategory { Unknown, Game, Patch, Dlc, Theme, DeltaPatch };
 
 const char *pkgCategoryCode(PkgCategory category);       // "gd", "gp", "ac", ...
-const char *pkgCategoryLabel(PkgCategory category);    // "Jogo", "Patch", "DLC", ...
-// Ordem de instalação: menor instala primeiro.
+const char *pkgCategoryLabel(PkgCategory category);    // "Game", "Patch", "DLC", ...
+// Install order: lower installs first.
 int pkgCategoryInstallOrder(PkgCategory category);
 
 struct PkgInfo
@@ -28,13 +28,13 @@ struct PkgInfo
 	PkgCategory kind = PkgCategory::Unknown;
 	uint32_t contentType = 0;  // 0x1A GD, 0x1B AC, 0x1C AL, 0x1E DP
 	uint32_t contentFlags = 0;
-	uint64_t declaredSize = 0; // package_size do cabeçalho (0x430)
+	uint64_t declaredSize = 0; // the header's package_size (0x430)
 	bool isPatch = false;
-	std::vector<uint8_t> iconPng; // ICON0.PNG, vazio se não existir/não pedido
+	std::vector<uint8_t> iconPng; // ICON0.PNG, empty if missing/not requested
 	bool valid = false;
 	std::string error;
 
-	// Título para a UI; nunca devolve string vazia.
+	// Title for the UI; never returns an empty string.
 	std::string displayTitle() const;
 };
 
@@ -44,7 +44,7 @@ public:
 	struct Options
 	{
 		bool extractIcon = true;
-		// Limites de segurança para não carregar lixo gigante para memória.
+		// Safety limits so huge garbage is not loaded into memory.
 		size_t maxSfoBytes = 4u * 1024 * 1024;
 		size_t maxIconBytes = 8u * 1024 * 1024;
 	};
@@ -52,10 +52,10 @@ public:
 	PkgInspector();
 	explicit PkgInspector(Options options);
 
-	// Lê apenas os offsets necessários (o ficheiro nunca é carregado inteiro).
+	// Reads only the offsets needed (the file is never loaded whole).
 	PkgInfo inspect(const std::string &path) const;
 
-	// Verificação barata do magic, para o drag and drop filtrar depressa.
+	// Cheap magic check, so drag and drop can filter quickly.
 	static bool hasPkgMagic(const std::string &path);
 
 	static constexpr uint32_t kEntryIdParamSfo = 0x1000;

@@ -75,14 +75,14 @@ void run(QQuickWindow *window, std::function<void(int, const QString &)> finishe
 			const Passo &passo = passos->at(qMax(0, *indice - 1));
 			const bool aberta = overlay->property("active").toBool();
 
-			// Qual é a zona por baixo do cursor, medida na geometria real, e
-			// qual é a que a interface está a acender.
+			// Which zone is under the cursor, measured on the real geometry,
+			// and which one the interface is lighting up.
 			const int esperada = contem(esquerda, passo.ponto) ? 0
 				: (contem(direita, passo.ponto) ? 1 : -1);
-			// "highlighted" é o que a zona sabe do cursor; "active" é isso
-			// mais o serviço estar disponível. O que se testa aqui é o
-			// primeiro: a interface tem de acompanhar o cursor mesmo quando
-			// o serviço está em baixo (aí a zona fica acesa mas recusada).
+			// "highlighted" is what the zone knows about the cursor; "active"
+			// is that plus the service being available. What is tested here is
+			// the first: the interface must follow the cursor even when the
+			// service is down (then the zone lights up but refuses).
 			const int acesa = esquerda->property("highlighted").toBool() ? 0
 				: (direita->property("highlighted").toBool() ? 1 : -1);
 

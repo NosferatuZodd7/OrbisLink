@@ -13,7 +13,7 @@
 
 namespace orbislink {
 
-// 🟢 disponível, 🟡 a verificar, 🔴 indisponível (§5.1).
+// 🟢 available, 🟡 checking, 🔴 unavailable (§5.1).
 enum class ServiceState { Unknown, Checking, Available, Unavailable };
 
 const char *serviceStateSymbol(ServiceState state);
@@ -21,8 +21,8 @@ const char *serviceStateSymbol(ServiceState state);
 struct ServiceStatus
 {
 	ServiceState state = ServiceState::Unknown;
-	std::string detail; // resposta do serviço (ex.: "220 GoldHEN FTP")
-	std::string hint;   // texto de ajuda para a UI quando está 🔴
+	std::string detail; // the service's reply (e.g. "220 GoldHEN FTP")
+	std::string hint;   // help text for the UI when it is 🔴
 	int64_t checkedAtMs = -1;
 };
 
@@ -36,9 +36,9 @@ struct ConsoleStatus
 	bool canUseFtp() const { return ftp.state == ServiceState::Available; }
 };
 
-// Resultado de uma verificação pontual, sem tocar no estado do gestor: serve
-// para confirmar um endereço que o utilizador ainda está a escrever nas
-// definições, antes de o guardar.
+// Result of a one-off check, without touching the manager's state: used to
+// confirm an address the user is still typing in the settings, before
+// saving it.
 struct ProbeResult
 {
 	bool ftpOk = false;
@@ -49,20 +49,21 @@ struct ProbeResult
 	bool allOk() const { return ftpOk && installerOk; }
 };
 
-// Liga-se à consola e devolve o que respondeu. `timeoutMs` é o limite do FTP;
-// o instalador leva mais um segundo por ser um pedido HTTP completo.
+// Connects to the console and returns what answered. `timeoutMs` is the FTP
+// limit; the installer gets one more second because it is a full HTTP request.
 ProbeResult probeConsoleServices(const std::string &address, uint16_t ftpPort,
 	uint16_t installerPort, int timeoutMs = 2000);
 
 // Estado do Remote Play tal como o chiaki-ng o reporta.
 enum class RemotePlayState { Unknown, Ready, Standby, Offline };
 
-// Perfil da consola e verificação periódica dos serviços.
+// Console profile and periodic service checks.
 //
-// O Remote Play em si é do chiaki-ng: o estado entra aqui por
-// setRemotePlayState(), chamado pelo wrapper da sessão. As portas
-// confirmadas do Remote Play (987/UDP descoberta PS4, 9295/TCP controlo e
-// registo, 9296/UDP stream, 9297/UDP senkusha) estão em docs/validation.md.
+// Remote Play itself is chiaki-ng's: its state comes in here through
+// setRemotePlayState(), called by the session wrapper. The confirmed Remote
+// Play ports (987/UDP PS4 discovery, 9302/UDP PS5 discovery, 9295/TCP control
+// and registration, 9296/UDP stream, 9297/UDP senkusha) are in
+// docs/validation.md.
 class ConsoleManager
 {
 public:
@@ -74,12 +75,12 @@ public:
 	void setAddress(const std::string &address);
 	std::string address() const;
 
-	// Verificação periódica (10 s enquanto a app está aberta).
+	// Periodic check (every 10 s while the app is open).
 	void start(int intervalSeconds = 10);
 	void stop();
 	bool running() const { return running_.load(); }
 
-	// Verificação síncrona, usada antes de cada tarefa da fila.
+	// Synchronous check, used before each queue task.
 	ConsoleStatus checkNow();
 	ConsoleStatus status() const;
 
