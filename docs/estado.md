@@ -3,12 +3,12 @@
 O que está feito e o que falta, verificado contra o código — não contra a
 memória de ninguém. Quando mudar alguma coisa, muda-se aqui também.
 
-Última revisão: v1.0.0.
+Última revisão: v1.1.0.
 
 ## Legenda
 
 - ✅ feito e testado (automaticamente, contra a consola falsa, ou ambos)
-- 🟡 feito mas por confirmar numa PS4 real
+- 🟡 feito mas por confirmar numa consola real
 - ⬜ por fazer
 - ➖ decidido não fazer, com a razão à frente
 
@@ -57,9 +57,9 @@ memória de ninguém. Quando mudar alguma coisa, muda-se aqui também.
 | | |
 |---|---|
 | ✅ | `chiaki-lib` a compilar sem alterar uma linha do submódulo |
-| ✅ | Descoberta da consola (987/UDP): estado, nome, versão, jogo a correr |
+| ✅ | Descoberta da consola (987/UDP na PS4, 9302/UDP na PS5): estado, nome, versão, jogo a correr |
 | ✅ | Várias consolas: cada uma numa caixa no palco, com o estado de cada uma; "Adicionar consola" procura na rede ou aceita o IP à mão |
-| ✅ | Acordar consola em repouso |
+| 🟡 | Acordar consola em repouso (falta confirmar numa consola real) |
 | ✅ | Registo do PC (PIN de 8 dígitos + Account ID da PSN) |
 | ✅ | O Account ID aceita-se em hexadecimal, em decimal ou em base64, e a app converte. As três formas aparecem por baixo do campo, para se confirmar de relance que é o mesmo número, com um botão para inverter a ordem dos bytes |
 | ✅ | Guardar e esquecer consolas registadas |
@@ -69,10 +69,10 @@ memória de ninguém. Quando mudar alguma coisa, muda-se aqui também.
 | ✅ | Comando físico por SDL (DualShock, DualSense e outros) |
 | ✅ | PIN de início de sessão da conta, quando a consola o pede |
 | ✅ | Razões de fim de sessão em português, em vez de um código |
-| ✅ | Descoberta, registo, vídeo e som confirmados numa PS4 real |
+| ✅ | Descoberta, registo, vídeo e som confirmados numa PS4 real e numa PS5 real (1080p a 60 fps) |
 | ✅ | Diário passo a passo de cada tentativa (descoberta → registo → preparar → ligar → primeiro fotograma), com tempos e o motivo exacto de cada falha |
 | ✅ | Descodificação por hardware (d3d11va no Windows, vaapi no Linux, videotoolbox no macOS) com recuo automático para software |
-| 🟡 | Microfone: captura a 48 kHz estéreo, o chiaki codifica em Opus e envia. Desligado por omissão e visível enquanto capta. Falta ouvir-se do outro lado numa consola real |
+| ✅ | Microfone: captura a 48 kHz estéreo, o chiaki codifica em Opus e envia. Desligado por omissão e visível enquanto capta. Confirmado numa party de voz numa PS5 real |
 | 🟡 | Vibração no comando (por SDL; os gatilhos adaptativos são do DualSense e ficam para depois) |
 | ✅ | Touchpad por rato |
 | ✅ | Ecrã inteiro (F11, Esc para sair) |
@@ -152,8 +152,8 @@ memória de ninguém. Quando mudar alguma coisa, muda-se aqui também.
 
 Por ordem de importância:
 
-1. **Uma sessão de Remote Play numa PS4 real.** Tudo o que está marcado 🟡
-   nesta lista depende disto. É o passo que nenhuma máquina de CI dá.
+1. **O que falta confirmar numa consola real** (marcado 🟡): a vibração
+   e acordar uma consola em repouso. É o passo que nenhuma máquina de CI dá.
 2. **Um teste de sessão com vídeo sintético.** Sem ele, cada mudança no
    descodificador só se percebe com uma consola à frente.
 3. **AppImage — só se o Linux interessar.** Hoje o pacote de Linux leva

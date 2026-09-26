@@ -376,6 +376,12 @@ bool StreamSession::start(const Config &config, std::string *error)
 		return false;
 	}
 
+	// Contadores desta sessão: o "primeiro fotograma" é o primeiro desta, não
+	// o primeiro desde que a aplicação abriu.
+	impl_->frames.store(0);
+	impl_->width.store(0);
+	impl_->height.store(0);
+
 	StreamTrace::instance().begin(config.address);
 	StreamStep passoPreparar("preparar sessão",
 		std::to_string(config.settings.resolution) + "p"
@@ -498,7 +504,8 @@ bool StreamSession::start(const Config &config, std::string *error)
 
 	passoPreparar.ok();
 	StreamTrace::instance().step("ligar",
-		"987/UDP descoberta, 9295/TCP controlo, 9296-9297/UDP stream");
+		std::string(config.credentials.ps5 ? "9302" : "987")
+			+ "/UDP descoberta, 9295/TCP controlo, 9296-9297/UDP stream");
 	impl_->publish(SessionState::Connecting, "A ligar a " + config.address + "…");
 	const ChiakiErrorCode started = chiaki_session_start(&impl_->session);
 	if(started != CHIAKI_ERR_SUCCESS)

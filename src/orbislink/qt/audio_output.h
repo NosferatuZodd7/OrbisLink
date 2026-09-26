@@ -127,6 +127,7 @@ private:
 	qint64 underruns_ = 0;
 	bool pushMode_ = false;
 	bool configured_ = false;
+	bool terminada_ = false;   // houve sessão e já acabou
 	bool muted_ = false;
 };
 
