@@ -24,7 +24,7 @@ Item {
     property bool aProcurar: false
     property bool disponivel: true   // falso numa compilação sem Remote Play
     // "ps4", "ps5", ou vazio quando a consola nunca respondeu — e aí não se
-    // inventa um número: aparece "PS?".
+    // inventa um número: aparece "Unknown PlayStation".
     property string tipo: ""
     property string nome: ""
     property string endereco: ""
@@ -300,7 +300,7 @@ Item {
 
             // A wordmark PS4/PS5, gerada por scripts/gerar-wordmarks.py:
             // branca nos temas escuros, preta no claro. Quando o tipo não se
-            // sabe é um "PS?" só em contorno e cinzento, noutro estilo.
+            // sabe é um "Unknown PlayStation" cinzento, noutro estilo.
             Image {
                 id: letras
                 anchors.horizontalCenter: parent.horizontalCenter
