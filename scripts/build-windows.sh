@@ -98,12 +98,12 @@ sed 's/$/\r/' "$REPO/LICENSE" > "$STAGE/LICENSE.txt"
 # código-fonte desaparece em vez de ficar meia escrita.
 if [ -n "${ORBISLINK_REPO_URL:-}" ]; then
 	sed "s/@VERSION@/$VERSION/g; s|@REPO_URL@|${ORBISLINK_REPO_URL}|g" \
-		"$REPO/packaging/windows/LEIA-ME.txt"
+		"$REPO/packaging/windows/README.txt"
 else
-	sed "s/@VERSION@/$VERSION/g; /@REPO_URL@/d" "$REPO/packaging/windows/LEIA-ME.txt"
-fi | sed 's/$/\r/' > "$STAGE/LEIA-ME.txt"
+	sed "s/@VERSION@/$VERSION/g; /@REPO_URL@/d" "$REPO/packaging/windows/README.txt"
+fi | sed 's/$/\r/' > "$STAGE/README.txt"
 # Os .bat precisam mesmo de CRLF.
-sed 's/$/\r/' "$REPO/packaging/windows/diagnostico.bat" > "$STAGE/diagnostico.bat"
+sed 's/$/\r/' "$REPO/packaging/windows/diagnostics.bat" > "$STAGE/diagnostics.bat"
 
 # Se houver uma interface gráfica já compilada (vem do job de Qt+MSVC, que
 # corre noutra máquina), entra no instalador e no zip.

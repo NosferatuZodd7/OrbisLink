@@ -1,73 +1,85 @@
-# Códigos de erro da consola
+# Console error codes
 
-O instalador remoto devolve falhas no formato
-`{ "status": "fail", "error_code": 0x8XXXXXXX }` (hexadecimal **sem aspas**,
-ver `docs/validacao.md`). O `RpiClient` lê esse código e passa-o por
-`describeConsoleError()` (`src/orbislink/installer/error_codes.cpp`).
+The remote installer reports failures as
+`{ "status": "fail", "error_code": 0x8XXXXXXX }` (hexadecimal **without
+quotes**, see `docs/validation.md`). `RpiClient` reads that code and passes it
+through `describeConsoleError()` (`src/orbislink/installer/error_codes.cpp`).
 
-**Regra:** só se traduz um código cujo valor esteja confirmado em fonte
-oficial. Códigos desconhecidos aparecem em hexadecimal, sem inventar
-significado.
+**Rule:** a code is only described when its value is confirmed by an official
+source. Unknown codes are shown in hexadecimal, without inventing a meaning.
 
-## Confirmados — libkernel (`0x8002xxxx`)
+## Confirmed — libkernel (`0x8002xxxx`)
 
-Fonte: `OpenOrbis-PS4-Toolchain/include/orbis/_types/errors.h`
-(`ORBIS_KERNEL_ERROR_*`, que são os `SCE_KERNEL_ERROR_*` usados no código do
-instalador).
+Source: `OpenOrbis-PS4-Toolchain/include/orbis/_types/errors.h`
+(`ORBIS_KERNEL_ERROR_*`, which are the `SCE_KERNEL_ERROR_*` used in the
+installer's code).
 
-| Código | Nome | Mensagem apresentada |
+| Code | Name | Message shown |
 |---|---|---|
-| `0x80020001` | EPERM | Operação não permitida na consola. |
-| `0x80020002` | ENOENT | A consola não encontrou o ficheiro ou o caminho. |
-| `0x80020005` | EIO | Erro de entrada/saída na consola. |
-| `0x8002000C` | ENOMEM | A consola ficou sem memória. |
-| `0x8002000D` | EACCES | Acesso negado na consola. |
-| `0x80020010` | EBUSY | O recurso está ocupado na consola. |
-| `0x80020011` | EEXIST | Já existe. |
-| `0x80020016` | EINVAL | Pedido inválido para a consola. |
-| `0x8002001B` | EFBIG | Ficheiro demasiado grande para a consola. |
-| **`0x8002001C`** | **ENOSPC** | **Espaço insuficiente na consola.** |
-| `0x8002001E` | EROFS | Sistema de ficheiros só de leitura. |
-| `0x80020023` | EAGAIN | A consola pediu para tentar de novo. |
-| `0x80020033` | ENETUNREACH | A consola não conseguiu alcançar a rede. |
-| `0x80020035` | ECONNABORTED | Ligação abortada. |
-| `0x80020036` | ECONNRESET | A ligação foi reposta pela outra ponta. |
-| `0x8002003C` | ETIMEDOUT | A consola excedeu o tempo de espera. |
-| `0x8002003D` | ECONNREFUSED | A consola não conseguiu ligar-se ao PC (verifica a firewall). |
-| `0x80020041` | EHOSTUNREACH | A consola não alcança o PC. |
-| `0x80020055` | ECANCELED | A operação foi cancelada. |
+| `0x80020001` | EPERM | Operation not permitted on the console. |
+| `0x80020002` | ENOENT | The console could not find the file or path. |
+| `0x80020005` | EIO | Input/output error on the console. |
+| `0x8002000C` | ENOMEM | The console ran out of memory. |
+| `0x8002000D` | EACCES | Access denied on the console. |
+| `0x80020010` | EBUSY | The resource is busy on the console. |
+| `0x80020011` | EEXIST | Already exists. |
+| `0x80020016` | EINVAL | Invalid request for the console. |
+| `0x8002001B` | EFBIG | File too large for the console. |
+| **`0x8002001C`** | **ENOSPC** | **Not enough space on the console.** |
+| `0x8002001E` | EROFS | Read-only file system. |
+| `0x80020023` | EAGAIN | The console asked to try again. |
+| `0x80020033` | ENETUNREACH | The console could not reach the network. |
+| `0x80020035` | ECONNABORTED | Connection aborted. |
+| `0x80020036` | ECONNRESET | The connection was reset by the other side. |
+| `0x8002003C` | ETIMEDOUT | The console timed out. |
+| `0x8002003D` | ECONNREFUSED | The console could not connect to the PC (check the firewall). |
+| `0x80020041` | EHOSTUNREACH | The console cannot reach the PC. |
+| `0x80020055` | ECANCELED | The operation was cancelled. |
 
-`isOutOfSpaceError()` devolve `true` para `0x8002001C` — é este o código que
-a UI usa para a mensagem de espaço insuficiente exigida em §7.
+`isOutOfSpaceError()` returns `true` for `0x8002001C` — it is the code the UI
+uses for the "not enough space" message required in §7.
 
-## TODO — famílias por confirmar
+## TODO — families still to confirm
 
-Os códigos das bibliotecas do instalador propriamente dito não estão
-publicados em nenhuma fonte citável:
+The codes of the installer's own libraries are not published in any citable
+source:
 
-* **BGFT** (`sceBgftService*`, gestão de tarefas de download) — família
-  `0x8099xxxx` segundo relatos da comunidade, **não confirmado**.
-* **AppInstUtil** (`sceAppInstUtil*`, `is_exists`, desinstalação) — família
-  `0x8024xxxx`, **não confirmado**.
-* **libhttp** (`SCE_HTTP_ERROR_*`, usado ao descarregar do PC) — nomes
-  visíveis em `http.c` do instalador, valores não publicados.
+* **BGFT** (`sceBgftService*`, download task management) — family
+  `0x8099xxxx` according to community reports, **not confirmed**.
+* **AppInstUtil** (`sceAppInstUtil*`, `is_exists`, uninstall) — family
+  `0x8024xxxx`, **not confirmed**.
+* **libhttp** (`SCE_HTTP_ERROR_*`, used when downloading from the PC) — names
+  visible in the installer's `http.c`, values not published.
 
-Enquanto não houver fonte, estes códigos aparecem como
-`A consola devolveu o erro 0x8XXXXXXX.` e ficam registados no log.
+Until there is a source, these codes are shown as
+`The console returned an error: 0x8XXXXXXX` and are written to the log.
 
-**Como contribuir:** ao apanhar um código novo em hardware real, registar
-aqui o código, o contexto exato (endpoint, ação) e a fonte da confirmação
-antes de o acrescentar à tabela em `error_codes.cpp`.
+**How to contribute:** when you catch a new code on real hardware, record the
+code, the exact context (endpoint, action) and the source of the confirmation
+here before adding it to the table in `error_codes.cpp`.
 
-## Erros do lado do OrbisLink
+## Remote Play registration
 
-Estes não vêm da consola; são produzidos localmente e já estão em português:
+When the console refuses a registration, it sends an `RP-Application-Reason`
+header. The app turns it into a sentence:
 
-| Situação | Mensagem |
+| Code | Meaning |
 |---|---|
-| Porta 2121 fechada | FTP indisponível. Confirma que o GoldHEN está carregado e o servidor FTP ativo. |
-| Porta 12800 fechada | Instalador remoto indisponível. Abre o Remote Package Installer na consola. |
-| Tarefa criada mas 0 bytes servidos após 20 s | A consola não conseguiu descarregar do PC. Verifica a firewall do Windows e se estão na mesma rede. |
-| Magic do pkg inválido | Não é um pkg PS4 válido. |
-| Já instalado | Já existe na consola. Reinstalar ou saltar? |
-| Escrita numa zona protegida | Zona protegida do sistema: ativa o Modo avançado nas definições. |
+| `0x80108b02` | The console did not recognise the Account ID (wrong account, or bytes in the wrong order). |
+| `0x80108b09` | The console rejected the PIN (expired or mistyped). |
+| `0x80108b10` | Remote Play is already in use by another device. |
+| `0x80108b11` | Incompatible Remote Play version. |
+| `0x80108b15` | The console's Remote Play crashed. |
+
+## Errors on OrbisLink's side
+
+These do not come from the console; they are produced locally:
+
+| Situation | Message |
+|---|---|
+| FTP port closed | FTP unavailable — check that GoldHEN is loaded and FTP is enabled. |
+| Port 12800 closed | Remote installer unavailable. Open Remote Package Installer on the console. |
+| Task created but 0 bytes served after 20 s | The console could not download from the PC. Check the Windows firewall and that both are on the same network. |
+| Invalid pkg magic | Not a valid PS4 pkg. |
+| Already installed | Already on the console — skipped. |
+| Writing to a protected area | Protected system area: turn on Advanced mode in the settings. |

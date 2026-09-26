@@ -890,7 +890,7 @@ void InstallQueue::runFtpUpload(QueueTask task)
 	task.message = std::string(QT_TRANSLATE_NOOP("Messages", "Sent to the console")) + ": " + task.remotePath;
 
 	// "Instalar após upload". O instalador remoto só aceita URLs HTTP (ver
-	// docs/validacao.md), por isso não se lhe pode apontar o ficheiro que
+	// docs/validation.md), por isso não se lhe pode apontar o ficheiro que
 	// acabou de ficar na consola. O que se faz é pôr na fila uma instalação
 	// direta do mesmo ficheiro, que é servido pelo HTTP local — o pkg fica
 	// guardado na consola e instalado, que é o que a opção promete.

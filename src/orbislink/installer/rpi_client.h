@@ -10,7 +10,7 @@ namespace orbislink {
 // Cliente da API HTTP do Remote Package Installer (flatz), porta 12800.
 //
 // Todos os endpoints, campos e formatos foram confirmados no código-fonte do
-// instalador (server.c) e no seu README — ver docs/validacao.md. Atenção:
+// instalador (server.c) e no seu README — ver docs/validation.md. Atenção:
 // as respostas usam números hexadecimais sem aspas e o campo "exists" é uma
 // string ("true"/"false"), por isso o parser de JSON do OrbisLink é tolerante.
 class RpiClient : public IInstallerBackend

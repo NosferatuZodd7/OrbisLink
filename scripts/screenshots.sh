@@ -88,18 +88,18 @@ shot() {
 }
 
 echo "==> capturas"
-shot 01-fila.png --screenshot-delay 8000 \
+shot 01-queue.png --screenshot-delay 8000 \
 	--enqueue "$WORK/jogo.pkg" --enqueue "$WORK/patch.pkg" --enqueue "$WORK/dlc.pkg"
 shot 02-drop-overlay.png --screenshot-delay 2500 --demo-overlay
 shot 03-ftp-browser.png --screenshot-delay 3500 --demo-tab 1
-shot 04-definicoes.png --screenshot-delay 2500 --demo-settings
-shot 05-menu-ficheiro.png --screenshot-delay 4000 --demo-tab 1 --demo-menu
+shot 04-settings.png --screenshot-delay 2500 --demo-settings
+shot 05-file-menu.png --screenshot-delay 4000 --demo-tab 1 --demo-menu
 shot 06-remote-play.png --screenshot-delay 3500
-shot 07-registar-consola.png --screenshot-delay 3500 --demo-register
-shot 12-mapa-teclado.png --screenshot-delay 3500 --demo-keys
-shot 08-diagnostico.png --screenshot-delay 4000 --demo-log
-shot 09-assistente.png --screenshot-delay 3000 --demo-wizard
-shot 10-actualizacao.png --screenshot-delay 3000 --demo-update
+shot 07-register-console.png --screenshot-delay 3500 --demo-register
+shot 12-keyboard-map.png --screenshot-delay 3500 --demo-keys
+shot 08-diagnostics.png --screenshot-delay 4000 --demo-log
+shot 09-wizard.png --screenshot-delay 3000 --demo-wizard
+shot 10-update.png --screenshot-delay 3000 --demo-update
 
 # O palco parado segue o tema (fundo, grelha e texto): sem uma captura no
 # claro, um texto branco sobre o fundo branco passaria sem se ver.
@@ -112,6 +112,6 @@ definicoes["theme"] = "claro"
 with open(sys.argv[1], "w") as f:
     json.dump(definicoes, f)
 PY
-shot 11-remote-play-claro.png --screenshot-delay 3500
+shot 11-remote-play-light.png --screenshot-delay 3500
 
 echo "Capturas prontas em $OUT"

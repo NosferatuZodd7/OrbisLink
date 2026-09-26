@@ -1,105 +1,132 @@
 # OrbisLink
 
-Criei esta repo com o objetivo de facilitar a utilização de uma PS4 desbloqueada, uma mistura do RemotePlay e do FileZilla, um agradecimento a todos que disponibilizaram o código na internet, graças a vocês é que esta repo existe, agradecimento especial ao CHIAKI e a todos os devs que ajudaram a criar o desbloqueio, a app foi construída INTEIRAMENTE pelo CLAUDE na versão PRO, usem, modifiquem e divirtam-se :p .
+I created this repo to make a jailbroken PS4 easier to use: a mix of Remote Play and FileZilla. Thanks to everyone who shared their code online — this repo exists because of you. Special thanks to CHIAKI and to all the devs who helped build the jailbreak. The app was built ENTIRELY by CLAUDE on the PRO plan. Use it, change it, have fun :p
 
-Aplicação de desktop que junta numa só janela o **Remote Play** de uma PS4
-com GoldHEN, a **instalação de ficheiros .pkg por arrastar e largar** e um
-**cliente FTP** para a consola.
+A desktop app that brings together, in one window, **Remote Play** for a PS4
+or PS5, **installing .pkg files by drag and drop**, and an **FTP client** for
+the console.
 
-> **Estado:** núcleo, fila, testes, **interface gráfica**, empacotamento
-> para Windows e Linux e **Remote Play** (descoberta, registo, acordar a
-> consola, vídeo, som e teclado como comando).
-> Falta o comando por USB/Bluetooth, a descodificação por hardware e as
-> traduções. Ver [O que falta](#o-que-falta-e-porquê).
+> **Status:** Remote Play works on real PS4 and PS5 consoles (discovery,
+> registration, waking from rest mode, 1080p/60 video, sound, microphone,
+> controller and keyboard). Installing pkg files and FTP need a PS4 with
+> GoldHEN, or a PS5 with a jailbreak that provides them (etaHEN). The app is
+> in English, with a Portuguese translation. See
+> [What is missing](#what-is-missing-and-why).
 
-## A interface
-
-![Fila de instalação](docs/images/01-fila.png)
-
-*Instalação direta a decorrer: o PC serve o pkg, a consola descarrega por
-pedidos `Range` e instala. Jogo → patch → DLC entram na ordem certa
-automaticamente.*
-
-| Arrastar e largar | Explorador de FTP | Definições |
-|---|---|---|
-| ![Arrastar e largar](docs/images/02-drop-overlay.png) | ![FTP](docs/images/03-ftp-browser.png) | ![Definições](docs/images/04-definicoes.png) |
+## The interface
 
 ![Remote Play](docs/images/06-remote-play.png)
 
-*A área central é o Remote Play: cada consola (PS4 ou PS5) tem a sua caixa,
-com o estado dela e o que um clique faz a seguir — registar, acordar,
-procurar ou ligar. A caixa tracejada junta outra consola, procurando na
-rede ou pelo IP.*
+*The middle of the window is Remote Play. Each console (PS4 or PS5) has its
+own box with its state. One click connects: the app checks the console,
+wakes it if it is in rest mode, waits until it is ready and connects — or
+opens the registration if this PC is not registered on it yet. The dashed box
+adds another console, by scanning the network or by IP.*
 
-| Mapa do teclado | Tema claro |
-|---|---|
-| ![Mapa do teclado](docs/images/12-mapa-teclado.png) | ![Tema claro](docs/images/11-remote-play-claro.png) |
+![Install queue](docs/images/01-queue.png)
 
-*Sem comando ligado, o teclado faz de comando. Cada tecla pode ser mudada
-no mapa, e fica gravada.*
+*Direct install in progress: the PC serves the pkg, the console downloads it
+with `Range` requests and installs it. Game → patch → DLC go in the right
+order automatically.*
 
-![Menu de ficheiro](docs/images/05-menu-ficheiro.png)
-
-*No explorador de FTP, cada ficheiro e cada pasta tem o seu menu: transferir
-para o PC, preparar para arrastar para fora da janela, copiar o caminho,
-mudar o nome, apagar na consola. Nas definições, o endereço IP é verificado
-sozinho à medida que se escreve.*
-
-Todas estas capturas são geradas automaticamente por
-`./scripts/screenshots.sh`, contra a consola falsa — o que lá está é o
-comportamento real, não maquetas.
-
-## Âmbito de uso
-
-Destina-se a consolas do próprio utilizador, para homebrew e cópias de
-jogos que o utilizador possui legalmente. **A aplicação não inclui, não
-descarrega, não indexa nem sugere fontes de conteúdo**, e não executa
-jailbreak nem carrega payloads: a consola tem de já ter o GoldHEN a correr.
-
-## Requisitos na consola
-
-| Serviço | Porta | Como ativar |
+| Drag and drop | FTP browser | Settings |
 |---|---|---|
-| Servidor FTP do GoldHEN | 2121 | vem com o GoldHEN, ativo por omissão |
-| Remote Package Installer (flatz) | 12800 | instalar e **deixar a app aberta e em primeiro plano** enquanto envia comandos |
-| Remote Play | 987/UDP, 9295/TCP, 9296–9297/UDP | ativar nas definições da consola e registar |
+| ![Drag and drop](docs/images/02-drop-overlay.png) | ![FTP](docs/images/03-ftp-browser.png) | ![Settings](docs/images/04-settings.png) |
 
-## Descarregar (já compilado)
+| Keyboard map | Light theme |
+|---|---|
+| ![Keyboard map](docs/images/12-keyboard-map.png) | ![Light theme](docs/images/11-remote-play-light.png) |
 
-Os binários são produzidos pelo GitHub Actions
-([workflow "Release"](.github/workflows/release.yml)):
+*With no controller connected, the keyboard acts as one. Every key can be
+changed on the map, and the change is saved.*
 
-* **Windows x64** — `OrbisLink-<versão>-setup.exe` (instalador) ou
-  `OrbisLink-<versão>-windows-x64.zip` (portátil). O executável é autónomo:
-  não precisa de DLLs, do Visual C++ Redistributable nem de nada instalado.
-* **Linux x86-64** — `orbislink-<versão>-linux-x86_64.tar.gz`.
+![File menu](docs/images/05-file-menu.png)
 
-Há dois tipos de lançamento:
+*In the FTP browser, every file and folder has its own menu: download to the
+PC, prepare for dragging out of the window, copy the path, rename, delete on
+the console. In the settings, the IP address is checked as you type.*
 
-* **Estável** — `vX.Y.Z`, publicado de propósito a partir do `main` (uma
-  tag `v*`, ou **Actions → Release → Run workflow** com o ramo `main`).
-  É o que a página do repositório mostra como a última versão.
-* **Testes** — `vX.Y.Z-dev.N`, publicado sozinho em **cada push** para o
-  ramo `beta`, como pré-lançamento (ou à mão, com **Run workflow** e o
-  campo da versão vazio). Ficam só os cinco mais recentes.
+All these screenshots are generated automatically by
+`./scripts/screenshots.sh`, against the mock console — what they show is the
+real behaviour, not mock-ups.
 
-Os ramos são dois: `main` é o oficial, e é dele que saem as versões
-estáveis; `beta` é onde as mudanças entram primeiro, e passam para `main`
-quando estiverem testadas.
+## Intended use
 
-A aplicação actualiza-se a partir daqui: em **Definições → Actualizações**,
-o canal **Estável** só vê as versões finais; o canal **Testes (builds da
-branch)** vê também cada compilação de testes, e instala-a num clique
-(com o SHA-256 confirmado antes de correr o instalador).
+For the user's own consoles, for homebrew and copies of games the user
+legally owns. **The app does not include, download, index or suggest sources
+of content**, and it does not run a jailbreak or load payloads: the console
+must already be running GoldHEN (PS4) or a jailbreak such as etaHEN (PS5).
 
-O instalador de Windows coloca o programa em `C:\Program Files\OrbisLink`,
-cria atalhos no Menu Iniciar, regista o desinstalador e — se deixares a
-opção ativa — **cria a regra de firewall** que permite à consola descarregar
-os pkg do PC (sem ela a instalação fica em 0 bytes).
+## What the console needs
 
-## Compilar
+| Service | Port | How to turn it on |
+|---|---|---|
+| Remote Play | 987/UDP (PS4), 9302/UDP (PS5), 9295/TCP, 9296–9297/UDP | enable it in the console settings and register the PC |
+| PS4 — GoldHEN FTP server | 2121 | comes with GoldHEN, on by default |
+| PS4 — Remote Package Installer (flatz) | 12800 | install it and **keep the app open and in the foreground** while commands are sent |
+| PS5 — etaHEN FTP server | 1337 | `FTP=1` in etaHEN's `config.ini` |
+| PS5 — etaHEN DPI v2 installer | 12800 | `DPI_v2=1` in etaHEN's `config.ini` |
 
-Dependências: CMake ≥ 3.16, um compilador C++17 (GCC, Clang ou MSVC) e
+The PS5 FTP port has its own setting, because it differs from the PS4's:
+with a PS5 in use, the settings show and edit the PS5 port. Installing on a
+PS5 through DPI v2 uses the same API as on the PS4; it has not been
+confirmed on a real PS5 yet.
+
+### Registering Remote Play
+
+On a **PS4**: Settings → Remote Play Connection Settings → Add Device.
+On a **PS5**: Settings → System → Remote Play → Link Device, signed in with
+the account you will use.
+
+The console shows an 8-digit PIN. Clicking the console's box in OrbisLink
+opens the registration, which asks for the PIN and the PSN **Account ID** —
+a 64-bit number, not the user name. The field accepts it in decimal,
+hexadecimal or base64 and shows the three forms side by side. If the console
+rejects it, the app says why (for example, "the console did not recognise
+the Account ID").
+
+> **The byte order matters.** Remote Play expects the 8 bytes of the Account
+> ID from the least to the most significant. Converting the decimal number
+> from PlayStation's site into hexadecimal and then base64 with a generic
+> converter produces the reverse order. Paste the decimal number straight
+> into the field and the app converts it correctly; or use the "The bytes
+> are in the opposite order" switch. Each console keeps its own Account ID.
+
+## Download (pre-built)
+
+The binaries are produced by GitHub Actions
+([the "Release" workflow](.github/workflows/release.yml)):
+
+* **Windows x64** — `OrbisLink-<version>-setup.exe` (installer) or
+  `OrbisLink-<version>-windows-x64.zip` (portable).
+* **Linux x86-64** — `orbislink-<version>-linux-x86_64.tar.gz` (command line).
+
+There are two kinds of release:
+
+* **Stable** — `vX.Y.Z`, published on purpose from `main`
+  (**Actions → Release → Run workflow** on `main`, with the version). It is
+  what the repository page shows as the latest release.
+* **Test builds** — `vX.Y.Z-dev.N`, published automatically on **every push**
+  to the `beta` branch, as pre-releases (or by hand, with **Run workflow** and
+  an empty version). Only the five most recent are kept.
+
+There are two branches: `main` is the official one, and stable releases come
+from it; `beta` is where changes land first, and they move to `main` once
+tested.
+
+The app updates itself from here: in **Settings → Updates**, the **Stable**
+channel only sees final releases; the **Testing (branch builds)** channel
+also sees every test build, and installs it in one click (with the SHA-256
+checked before the installer runs).
+
+The Windows installer puts the program in `C:\Program Files\OrbisLink`,
+creates Start Menu shortcuts, registers the uninstaller and — if you leave
+the option on — **creates the firewall rule** that lets the console download
+pkg files from the PC (without it, installs stay at 0 bytes).
+
+## Building
+
+Dependencies: CMake ≥ 3.16, a C++17 compiler (GCC, Clang or MSVC) and
 libcurl.
 
 ```bash
@@ -111,188 +138,186 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-No Windows, com o vcpkg:
+On Windows, with vcpkg:
 
 ```powershell
 cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=<vcpkg>/scripts/buildsystems/vcpkg.cmake
 cmake --build build --config RelWithDebInfo
 ```
 
-### Gerar os pacotes
+### Building the packages
 
 ```bash
-./scripts/build-linux.sh      # compila, corre os testes e faz o .tar.gz
+./scripts/build-linux.sh      # builds, runs the tests and makes the .tar.gz
 
 sudo apt install mingw-w64 nsis zip
-./scripts/build-windows.sh    # .exe autónomo + .zip portátil + instalador
+./scripts/build-windows.sh    # standalone .exe + portable .zip + installer
 ```
 
-`build-windows.sh` compila a partir de Linux, com mingw-w64: compila um
-libcurl estático (TLS pelo Schannel do Windows, sem OpenSSL) e liga tudo
-estaticamente. É o mesmo caminho que o CI usa, por isso o que sai aqui é
-igual ao que sai lá.
+`build-windows.sh` builds from Linux with mingw-w64: it builds a static
+libcurl (TLS through Windows' Schannel, no OpenSSL) and links everything
+statically.
 
-## Experimentar sem PS4
+## Trying it without a console
 
-A pasta `tools/mock-console/` traz uma consola falsa: servidor FTP anónimo
-e a API do instalador na 12800, que descarrega mesmo os pkg do servidor
-HTTP local com pedidos `Range`, tal como a consola faz.
+`tools/mock-console/` has a fake console: an anonymous FTP server and the
+installer API on 12800, which really downloads the pkg files from the local
+HTTP server with `Range` requests, just like the console does.
 
 ```bash
 # terminal 1
 python3 tools/mock-console/mock_console.py --ftp-port 2121 --api-port 12800
 
 # terminal 2
-python3 tools/mock-console/make_test_pkg.py /tmp/jogo.pkg --padding 4000000
-./build/orbislink-cli inspect /tmp/jogo.pkg
+python3 tools/mock-console/make_test_pkg.py /tmp/game.pkg --padding 4000000
+./build/orbislink-cli inspect /tmp/game.pkg
 ./build/orbislink-cli services --host 127.0.0.1
-./build/orbislink-cli install --host 127.0.0.1 --bind 127.0.0.1 /tmp/jogo.pkg
+./build/orbislink-cli install --host 127.0.0.1 --bind 127.0.0.1 /tmp/game.pkg
 ./build/orbislink-cli ftp-ls --host 127.0.0.1 /data/pkg
 ```
 
-O mesmo percurso corre automaticamente em
-`ctest -R integration_mock_console`.
+The same run happens automatically in `ctest -R integration_mock_console`.
 
-## Com uma PS4 a sério
+## With a real console
 
 ```bash
 ./build/orbislink-cli services --host 192.168.1.42
-./build/orbislink-cli install  --host 192.168.1.42 "/caminho/Jogo.pkg" "/caminho/Patch.pkg"
-./build/orbislink-cli ftp-put  --host 192.168.1.42 "/caminho/Jogo.pkg" /data/pkg/Jogo.pkg
+./build/orbislink-cli install  --host 192.168.1.42 "/path/Game.pkg" "/path/Patch.pkg"
+./build/orbislink-cli ftp-put  --host 192.168.1.42 "/path/Game.pkg" /data/pkg/Game.pkg
 ```
 
-O servidor HTTP local liga-se por omissão à interface cuja sub-rede contém
-o IP da consola e só aceita pedidos desse IP. Na primeira utilização em
-Windows, a Firewall vai pedir autorização — é preciso concedê-la, senão a
-consola não consegue descarregar do PC.
+The local HTTP server binds by default to the interface whose subnet contains
+the console's IP and only accepts requests from that IP. The first time on
+Windows, the firewall asks for permission — it must be granted, or the
+console cannot download from the PC.
 
-`orbislink-cli --help` lista todos os comandos.
+`orbislink-cli --help` lists every command.
 
-## Estrutura
+## Layout
 
 ```
 src/orbislink/
-  common/     JSON tolerante, log rotativo, utilidades
-  net/        sockets, cliente HTTP (libcurl), escolha de interface local
-  pkg/        PkgInspector, parser de PARAM.SFO
-  http/       LocalHttpServer (Range/206, tokens, restrição por IP)
-  installer/  IInstallerBackend, RpiClient, tradução de códigos de erro
+  common/     tolerant JSON, rotating log, utilities
+  net/        sockets, HTTP client (libcurl), local interface choice
+  pkg/        PkgInspector, PARAM.SFO parser
+  http/       LocalHttpServer (Range/206, tokens, IP restriction)
+  installer/  IInstallerBackend, RpiClient, error code descriptions
   ftp/        FtpClient (libcurl)
-  queue/      InstallQueue com persistência
+  queue/      InstallQueue with persistence
   settings/   SettingsStore
-  console/    ConsoleManager (verificação de serviços)
+  console/    ConsoleManager (service checks)
+  stream/     Remote Play on top of chiaki-ng: discovery, registration, session
+  qt/         the Qt Quick interface's controllers
+qml/                  the interface
 tools/cli/            orbislink-cli
-tools/mock-console/   consola falsa + gerador de pkg de teste
-tests/                testes unitários e de integração
-docs/                 especificação corrigida, validação, erros, arquitetura
-packaging/windows/    script do instalador (NSIS) e o LEIA-ME que vai dentro
-scripts/              build-linux.sh, build-windows.sh
-cmake/                toolchain de cross-compilação para mingw-w64
+tools/mock-console/   fake console + test pkg generator
+tests/                unit and integration tests
+docs/                 specification, validation, errors, architecture, status
+packaging/windows/    installer script (NSIS) and the README that goes inside
+scripts/              build, screenshot and check scripts
+cmake/                cross-compilation toolchain for mingw-w64
+translations/         Portuguese translation (the source language is English)
 ```
 
-## Documentação
+## Documentation
 
-* [`docs/especificacao.md`](docs/especificacao.md) — especificação com os
-  pontos **[VALIDAR]** já resolvidos.
-* [`docs/validacao.md`](docs/validacao.md) — o que foi confirmado, onde, e
-  em que difere da especificação original.
-* [`docs/error_codes.md`](docs/error_codes.md) — códigos de erro
-  traduzidos e os que ainda não têm fonte.
-* [`docs/arquitetura.md`](docs/arquitetura.md) — módulos, threads e fluxos.
+* [`docs/specification.md`](docs/specification.md) — the specification, with
+  the **[VALIDATE]** points resolved.
+* [`docs/validation.md`](docs/validation.md) — what was confirmed, where, and
+  how it differs from the original specification.
+* [`docs/error_codes.md`](docs/error_codes.md) — console error codes and the
+  ones still without a source.
+* [`docs/architecture.md`](docs/architecture.md) — modules, threads and flows.
+* [`docs/status.md`](docs/status.md) — what is done and what is missing,
+  item by item.
 
-## Se alguma coisa não funcionar
+## If something does not work
 
-**O arrastar e largar não faz nada e o cursor mostra o sinal de proibido.**
-A aplicação está a correr como administrador. O Windows não deixa arrastar
-ficheiros do Explorador — que corre sem privilégios elevados — para uma
-janela que os tem, e bloqueia as mensagens sem avisar ninguém. Fecha e abre
-pelo atalho normal; o OrbisLink não precisa de privilégios para nada. (Até
-à 0.2.1, carregar em "Abrir o OrbisLink" no fim da instalação deixava-o
-elevado, porque o instalador precisa de o ser para criar a regra de
-firewall.)
+**Drag and drop does nothing and the cursor shows the "forbidden" sign.**
+The app is running as administrator. Windows does not let you drag files
+from Explorer — which runs without elevated privileges — onto a window that
+has them, and it blocks the messages without telling anyone. Close it and
+open it from the normal shortcut; OrbisLink does not need privileges for
+anything.
 
-**O Remote Play liga mas não sai som.** Exporta o diagnóstico (Ctrl+L →
-"Guardar relatório"). A secção *Remote Play — caminho do som* mostra os
-nove troços entre o descodificador e a placa, com os contadores, e diz em
-qual deles o caudal chega a zero.
+**Remote Play connects but there is no sound.** Export the diagnostics
+(Ctrl+L → "Save report"). The *Remote Play — sound path* section shows the
+nine stages between the decoder and the sound card, with their counters, and
+says at which one the flow drops to zero.
 
-**Escolhi 1080p e a imagem não mudou.** Só a PS4 Pro e a PS5 fazem 1080p em
-Remote Play. Numa PS4 normal a própria consola baixa o pedido para 720p — a
-aplicação avisa quando isso acontece, e a barra do stream mostra o tamanho
-real da imagem e os fps contados.
+**I chose 1080p and the picture did not change.** Only the PS4 Pro and the
+PS5 do 1080p over Remote Play. On a regular PS4 the console itself lowers the
+request to 720p — the app says so when it happens, and the stream bar shows
+the real picture size and the measured fps.
 
-**A janela não abre de todo.** Ver `SE A JANELA NAO ABRIR` no `LEIA-ME.txt`
-que vem no instalador: em máquinas sem aceleração gráfica, o arranque
-seguinte passa sozinho a desenho por software.
+**The console rejects the registration.** The app says the console's reason.
+"Did not recognise the Account ID" usually means the wrong account, or the
+bytes in the wrong order (see [Registering Remote Play](#registering-remote-play)).
 
-Em qualquer caso, o diagnóstico (Ctrl+L) é o que diz o que se passou. Não
-leva o Account ID nem as chaves de registo — só os tamanhos delas.
+**The window does not open at all.** See `IF THE WINDOW DOES NOT OPEN` in the
+`README.txt` that comes with the installer: on machines without graphics
+acceleration, the next start switches to software rendering by itself.
 
-## O que falta, e porquê
+In every case, the diagnostics (Ctrl+L) say what happened. They do not
+include the Account ID or the registration keys — only their lengths.
 
-A lista completa e verificada contra o código está em
-[`docs/estado.md`](docs/estado.md) — é o sítio onde se vê, item a item, o
-que está feito, o que falta confirmar numa consola real e o que ainda não
-existe. O resumo:
+## What is missing, and why
 
-**Remote Play pela PSN.** Só rede local. Ligar de fora exige a
-infra-estrutura de *holepunch* da Sony, que o chiaki-ng suporta mas obriga
-a uma conta e a um caminho de autenticação que este projecto ainda não tem.
+The full list, checked against the code, is in
+[`docs/status.md`](docs/status.md). In short:
 
-**1080p só em PS4 Pro e PS5.** Não é uma limitação daqui: uma PS4 normal não
-faz 1080p em Remote Play, e é a própria consola que baixa o pedido para
-720p. A aplicação avisa quando isso acontece.
+**Remote Play over PSN.** Local network only. Connecting from outside needs
+Sony's *holepunch* infrastructure, which chiaki-ng supports but which needs
+an account and an authentication path this project does not have yet.
 
-**Desfoque verdadeiro por trás do vidro.** A linguagem visual é conseguida
-por camadas translúcidas sobrepostas. Um desfoque a sério do que está por
-trás precisa do `QtQuick.Effects` (Qt 6.5+), e isto compila com 6.4 na
-máquina onde as capturas são geradas. Sobre o fundo desta aplicação — um
-gradiente com halos — a diferença quase não se vê; fica registado como
-pendente e não como feito.
+**Installing on a PS5.** It uses etaHEN's DPI v2, which speaks the same API
+as the PS4 installer; it still has to be confirmed on a real PS5.
 
-**Janela inteira com o material do sistema.** No Windows 11 a barra de
-título já usa o acrílico ou o mica do sistema. Estender isso ao conteúdo
-obriga a pintar a janela transparente, o que numa máquina em desenho por
-software pode sair preto — e isso não foi possível verificar.
+**Real blur behind the glass.** The visual language is built from stacked
+translucent layers. Real blur needs `QtQuick.Effects` (Qt 6.5+), and the
+screenshots are built with 6.4.
 
-**AppImage para Linux.** Há o `.tar.gz` com a linha de comandos; a interface
-gráfica é distribuída só para Windows.
+**AppImage for Linux.** There is the `.tar.gz` with the command line; the
+graphical interface is only distributed for Windows.
 
-**Assinatura do executável.** O instalador não é assinado, portanto o
-Windows mostra o aviso do SmartScreen na primeira execução. Um certificado
-de assinatura de código custa algumas centenas de euros por ano, e para um
-projecto que não se vende não se justifica. É uma decisão, não uma dívida.
+**Code signing.** The installer is not signed, so Windows shows the
+SmartScreen warning on the first run. A code-signing certificate costs a few
+hundred euros a year, which is not justified for a project that is not sold.
 
-### Checklist de testes manuais numa PS4 real
+### Manual test checklist on real consoles
 
-- [ ] Descoberta e registo do Remote Play
-- [ ] Stream estável durante um upload FTP de 10 GB+
-- [ ] Instalação direta de homebrew pequeno
-- [ ] Instalação direta de pkg > 4 GB
-- [ ] Jogo + patch + DLC largados juntos (ordem gd → gp → ac)
-- [ ] Queda de rede a meio e retoma
-- [ ] Firewall do Windows a bloquear → mensagem correta
-- [ ] Retoma de upload FTP com `REST`/`APPE` (por confirmar, ver `docs/validacao.md` §9)
+- [x] Remote Play discovery and registration (PS4 and PS5)
+- [x] Microphone in a PS5 party
+- [ ] Waking a PS5 from rest mode with one click
+- [ ] Stable stream during a 10 GB+ FTP upload
+- [ ] Direct install of a small homebrew
+- [ ] Direct install of a pkg > 4 GB
+- [ ] Game + patch + DLC dropped together (order gd → gp → ac)
+- [ ] Network drop halfway and resume
+- [ ] Windows firewall blocking → correct message
+- [ ] FTP upload resume with `REST`/`APPE` (to be confirmed, see `docs/validation.md` §9)
+- [ ] FTP and install on a PS5 with etaHEN
 
-## Licença
+## Licence
 
-**AGPL-3.0-or-later** (ver [`LICENSE`](LICENSE)).
+**AGPL-3.0-or-later** (see [`LICENSE`](LICENSE)).
 
-    Copyright (C) 2026 os autores do OrbisLink
+    Copyright (C) 2026 the OrbisLink authors
 
-O Remote Play vem do chiaki-ng, que é AGPL-3.0, e essa licença é
-contagiosa: se a aplicação for distribuída, o código-fonte tem de o ser
-também. É por isso que este repositório existe.
+Remote Play comes from chiaki-ng, which is AGPL-3.0, and that licence is
+contagious: if the app is distributed, the source code has to be too. That
+is why this repository exists.
 
-Os avisos de copyright do chiaki-ng e das outras bibliotecas ficam onde
-estão — são de outras pessoas e a licença obriga a preservá-los.
+The copyright notices of chiaki-ng and the other libraries stay where they
+are — they belong to other people and the licence requires keeping them.
 
-As wordmarks PS4/PS5 da caixa da consola são escritas em
-[Fugaz One](https://fonts.google.com/specimen/Fugaz+One), de LatinoType,
-sob a SIL Open Font License 1.1 (ver [`third-party/fugaz-one`](third-party/fugaz-one)).
+The PS4/PS5 wordmarks on the console box are set in
+[Fugaz One](https://fonts.google.com/specimen/Fugaz+One), by LatinoType,
+under the SIL Open Font License 1.1 (see [`third-party/fugaz-one`](third-party/fugaz-one)).
 
-Créditos das fontes consultadas para a implementação do protocolo:
+Sources consulted to implement the protocols:
 [chiaki-ng](https://github.com/streetpea/chiaki-ng),
 [Remote Package Installer](https://github.com/flatz/ps4_remote_pkg_installer),
-[GoldHEN](https://github.com/GoldHEN/GoldHEN) e o
+[GoldHEN](https://github.com/GoldHEN/GoldHEN),
+[etaHEN](https://github.com/etaHEN/etaHEN) and the
 [OpenOrbis PS4 Toolchain](https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain).
