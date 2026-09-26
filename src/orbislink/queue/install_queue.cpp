@@ -3,6 +3,7 @@
 
 #include "orbislink/common/json.h"
 #include "orbislink/common/log.h"
+#include "orbislink/common/tr.h"
 #include "orbislink/common/util.h"
 #include "orbislink/installer/error_codes.h"
 
@@ -31,15 +32,15 @@ const char *taskStateLabelPt(TaskState state)
 {
 	switch(state)
 	{
-		case TaskState::Pending: return "Pendente";
-		case TaskState::Validating: return "A validar";
-		case TaskState::Sending: return "A enviar";
-		case TaskState::Installing: return "A instalar";
-		case TaskState::Completed: return "Concluído";
-		case TaskState::Error: return "Erro";
-		case TaskState::Cancelled: return "Cancelado";
+		case TaskState::Pending: return QT_TRANSLATE_NOOP("Mensagens", "Pendente");
+		case TaskState::Validating: return QT_TRANSLATE_NOOP("Mensagens", "A validar");
+		case TaskState::Sending: return QT_TRANSLATE_NOOP("Mensagens", "A enviar");
+		case TaskState::Installing: return QT_TRANSLATE_NOOP("Mensagens", "A instalar");
+		case TaskState::Completed: return QT_TRANSLATE_NOOP("Mensagens", "Concluído");
+		case TaskState::Error: return QT_TRANSLATE_NOOP("Mensagens", "Erro");
+		case TaskState::Cancelled: return QT_TRANSLATE_NOOP("Mensagens", "Cancelado");
 	}
-	return "Pendente";
+	return QT_TRANSLATE_NOOP("Mensagens", "Pendente");
 }
 
 namespace {
@@ -198,7 +199,7 @@ std::string InstallQueue::enqueueOne(const std::string &path, TransferMode mode,
 	if(ids.empty())
 	{
 		if(error)
-			*error = rejected.empty() ? "Ficheiro recusado." : rejected.front();
+			*error = rejected.empty() ? QT_TRANSLATE_NOOP("Mensagens", "Ficheiro recusado.") : rejected.front();
 		return std::string();
 	}
 	return ids.front();
@@ -216,7 +217,7 @@ std::vector<std::string> InstallQueue::enqueue(const std::vector<std::string> &p
 		const PkgInfo info = inspector.inspect(path);
 		if(!info.valid)
 		{
-			const std::string reason = info.error.empty() ? "Este ficheiro não é um pkg PS4 válido."
+			const std::string reason = info.error.empty() ? QT_TRANSLATE_NOOP("Mensagens", "Este ficheiro não é um pkg PS4 válido.")
 													  : info.error;
 			logWarning("Ficheiro recusado: " + path + " — " + reason);
 			if(rejected)
@@ -317,7 +318,7 @@ bool InstallQueue::cancel(const std::string &id)
 			if(it->id != id)
 				continue;
 			it->state = TaskState::Cancelled;
-			it->message = "Cancelado pelo utilizador.";
+			it->message = QT_TRANSLATE_NOOP("Mensagens", "Cancelado pelo utilizador.");
 			it->finishedAtUnix = nowUnixSeconds();
 			cancelled = *it;
 			tasks_.erase(it);
@@ -583,7 +584,7 @@ void InstallQueue::runDirectInstall(QueueTask task)
 	if(!deps_.installer || !deps_.httpServer)
 	{
 		task.state = TaskState::Error;
-		task.message = "Instalação direta indisponível (servidor HTTP ou instalador em falta).";
+		task.message = QT_TRANSLATE_NOOP("Mensagens", "Instalação direta indisponível (servidor HTTP ou instalador em falta).");
 		finishTask(task);
 		return;
 	}
@@ -593,7 +594,7 @@ void InstallQueue::runDirectInstall(QueueTask task)
 	if(!info.valid)
 	{
 		task.state = TaskState::Error;
-		task.message = info.error.empty() ? "Este ficheiro não é um pkg PS4 válido." : info.error;
+		task.message = info.error.empty() ? QT_TRANSLATE_NOOP("Mensagens", "Este ficheiro não é um pkg PS4 válido.") : info.error;
 		finishTask(task);
 		return;
 	}
@@ -616,7 +617,7 @@ void InstallQueue::runDirectInstall(QueueTask task)
 			if(policy == ExistingPolicy::Skip)
 			{
 				task.state = TaskState::Cancelled;
-				task.message = "Já existe na consola — saltado.";
+				task.message = QT_TRANSLATE_NOOP("Mensagens", "Já existe na consola — saltado.");
 				finishTask(task);
 				return;
 			}
@@ -627,7 +628,7 @@ void InstallQueue::runDirectInstall(QueueTask task)
 	if(cancelCurrent_.load())
 	{
 		task.state = TaskState::Cancelled;
-		task.message = "Cancelado pelo utilizador.";
+		task.message = QT_TRANSLATE_NOOP("Mensagens", "Cancelado pelo utilizador.");
 		finishTask(task);
 		return;
 	}
@@ -636,7 +637,7 @@ void InstallQueue::runDirectInstall(QueueTask task)
 	if(task.httpToken.empty())
 	{
 		task.state = TaskState::Error;
-		task.message = "Não foi possível expor o ficheiro ao servidor HTTP local.";
+		task.message = QT_TRANSLATE_NOOP("Mensagens", "Não foi possível expor o ficheiro ao servidor HTTP local.");
 		finishTask(task);
 		return;
 	}
@@ -690,7 +691,7 @@ void InstallQueue::runDirectInstall(QueueTask task)
 			deps_.httpServer->unregisterFile(task.httpToken);
 			task.httpToken.clear();
 			task.state = TaskState::Cancelled;
-			task.message = "Cancelado pelo utilizador.";
+			task.message = QT_TRANSLATE_NOOP("Mensagens", "Cancelado pelo utilizador.");
 			finishTask(task);
 			return;
 		}
@@ -710,7 +711,7 @@ void InstallQueue::runDirectInstall(QueueTask task)
 			{
 				task.doneBytes = task.totalBytes;
 				task.state = TaskState::Completed;
-				task.message = "Instalação concluída.";
+				task.message = QT_TRANSLATE_NOOP("Mensagens", "Instalação concluída.");
 				deps_.httpServer->unregisterFile(task.httpToken);
 				task.httpToken.clear();
 				finishTask(task);
@@ -776,8 +777,8 @@ void InstallQueue::runDirectInstall(QueueTask task)
 			deps_.httpServer->unregisterFile(task.httpToken);
 			task.httpToken.clear();
 			task.state = TaskState::Error;
-			task.message = "A consola não conseguiu descarregar do PC. Verifica a firewall do "
-						   "Windows e se estão na mesma rede.";
+			task.message = QT_TRANSLATE_NOOP("Mensagens", "A consola não conseguiu descarregar do PC. Verifica a firewall do "
+						   "Windows e se estão na mesma rede.");
 			finishTask(task);
 			return;
 		}
@@ -786,7 +787,7 @@ void InstallQueue::runDirectInstall(QueueTask task)
 		{
 			task.doneBytes = task.totalBytes;
 			task.state = TaskState::Completed;
-			task.message = "Instalação concluída.";
+			task.message = QT_TRANSLATE_NOOP("Mensagens", "Instalação concluída.");
 			deps_.httpServer->unregisterFile(task.httpToken);
 			task.httpToken.clear();
 			// Instalado a partir do PC: a cópia que ficou na consola já não
@@ -816,7 +817,7 @@ void InstallQueue::runFtpUpload(QueueTask task)
 	if(!deps_.ftp)
 	{
 		task.state = TaskState::Error;
-		task.message = "Cliente FTP indisponível.";
+		task.message = QT_TRANSLATE_NOOP("Mensagens", "Cliente FTP indisponível.");
 		finishTask(task);
 		return;
 	}
@@ -826,7 +827,7 @@ void InstallQueue::runFtpUpload(QueueTask task)
 	if(!info.valid && fileExtensionLower(task.localPath) == ".pkg")
 	{
 		task.state = TaskState::Error;
-		task.message = info.error.empty() ? "Este ficheiro não é um pkg PS4 válido." : info.error;
+		task.message = info.error.empty() ? QT_TRANSLATE_NOOP("Mensagens", "Este ficheiro não é um pkg PS4 válido.") : info.error;
 		finishTask(task);
 		return;
 	}
@@ -869,7 +870,7 @@ void InstallQueue::runFtpUpload(QueueTask task)
 	if(result.cancelled)
 	{
 		task.state = TaskState::Cancelled;
-		task.message = "Cancelado pelo utilizador.";
+		task.message = QT_TRANSLATE_NOOP("Mensagens", "Cancelado pelo utilizador.");
 		finishTask(task);
 		return;
 	}
@@ -883,7 +884,7 @@ void InstallQueue::runFtpUpload(QueueTask task)
 
 	task.doneBytes = task.totalBytes;
 	task.state = TaskState::Completed;
-	task.message = "Enviado para " + task.remotePath + ".";
+	task.message = std::string(QT_TRANSLATE_NOOP("Mensagens", "Enviado para a consola")) + ": " + task.remotePath;
 
 	// "Instalar após upload". O instalador remoto só aceita URLs HTTP (ver
 	// docs/validacao.md), por isso não se lhe pode apontar o ficheiro que
@@ -941,7 +942,7 @@ bool InstallQueue::fromJson(const std::string &text)
 		QueueTask task = taskFromJson(item);
 		if(task.id.empty() || task.localPath.empty())
 			continue;
-		// Tarefas interrompidas voltam como "Pendente" (§5.6).
+		// Tarefas interrompidas voltam como QT_TRANSLATE_NOOP("Mensagens", "Pendente") (§5.6).
 		if(!task.isTerminal())
 		{
 			task.state = TaskState::Pending;
