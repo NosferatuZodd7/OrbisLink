@@ -7,6 +7,7 @@
 
 #include "orbislink/net/socket_compat.h"
 #include "orbislink/stream/discovery.h"
+#include "orbislink/stream/stream_trace.h"
 #include "test_support.h"
 
 #include <atomic>
@@ -179,6 +180,25 @@ ORBISLINK_TEST(sem_ninguem_a_responder_nao_inventa_consola)
 
 	CHECK(!info.found);
 	CHECK(info.state == HostState::Unknown);
+}
+
+ORBISLINK_TEST(verificacao_periodica_nao_mexe_na_tentativa)
+{
+	FakeConsole console(kPronta);
+	CHECK(console.start());
+
+	// Uma tentativa a meio: a verificação periódica das outras consolas
+	// não pode fechar este passo nem acrescentar os seus.
+	StreamTrace::instance().begin("192.0.2.1");
+	StreamTrace::instance().step("primeiro fotograma");
+	const HostInfo info = StreamDiscovery::peek("127.0.0.1", 2000, console.port());
+
+	CHECK(info.found);
+	const auto passos = StreamTrace::instance().steps();
+	CHECK_EQ(passos.size(), std::size_t(1));
+	CHECK_EQ(passos.front().name, std::string("primeiro fotograma"));
+	CHECK(passos.front().result == StreamTrace::Result::Running);
+	StreamTrace::instance().end();
 }
 
 ORBISLINK_TEST(acordar_sem_credencial_recusa_em_vez_de_enviar_lixo)

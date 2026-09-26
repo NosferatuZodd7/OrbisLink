@@ -24,6 +24,11 @@ public:
 	// normal fica a 0, que significa a porta do protocolo.
 	static HostInfo probe(const std::string &address, int timeoutMs = 2000, uint16_t ps4Port = 0);
 
+	// O mesmo que probe(), mas sem ficar no diário da tentativa nem no
+	// registo: é o que a verificação periódica das consolas usa, que corre
+	// de poucos em poucos segundos, também a meio de uma sessão.
+	static HostInfo peek(const std::string &address, int timeoutMs = 2000, uint16_t ps4Port = 0);
+
 	// Varre a rede local. Devolve todas as consolas que responderem.
 	static std::vector<HostInfo> scan(int timeoutMs = 3000);
 

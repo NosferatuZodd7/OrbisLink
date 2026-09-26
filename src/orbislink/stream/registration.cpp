@@ -7,6 +7,7 @@
 #include "orbislink/stream/stream_trace.h"
 
 #include <chiaki/regist.h>
+#include <chiaki/session.h>
 
 #include <atomic>
 #include <cstring>
@@ -52,6 +53,46 @@ StreamCredentials fromChiaki(const ChiakiRegisteredHost *host)
 	return credentials;
 }
 
+// O que a consola disse ao recusar, em duas versões: curta para o
+// diagnóstico, completa para quem está a registar.
+struct Recusa
+{
+	std::string diagnostico;
+	std::string mensagem;
+};
+
+Recusa explicarRecusa(uint32_t motivo)
+{
+	switch(motivo)
+	{
+		case CHIAKI_RP_APPLICATION_REASON_INVALID_PSN_ID:
+			return { "a consola não reconheceu o Account ID (0x80108b02)",
+				"A consola não reconheceu o Account ID. Tem de ser o da conta PSN com "
+				"que pediste o PIN na consola (cada utilizador tem o seu), e não o nome "
+				"de utilizador da PSN." };
+		case CHIAKI_RP_APPLICATION_REASON_REGIST_FAILED:
+			return { "a consola recusou o PIN (0x80108b09)",
+				"A consola recusou o PIN. Pede um novo na consola — só é válido poucos "
+				"minutos — e escreve-o outra vez." };
+		case CHIAKI_RP_APPLICATION_REASON_IN_USE:
+			return { "o Remote Play da consola já está a ser usado (0x80108b10)",
+				"O Remote Play da consola já está a ser usado por outro dispositivo. "
+				"Fecha essa sessão e tenta outra vez." };
+		case CHIAKI_RP_APPLICATION_REASON_CRASH:
+			return { "o Remote Play da consola foi abaixo (0x80108b15)",
+				"O Remote Play da consola foi abaixo. Reinicia a consola e tenta outra vez." };
+		case CHIAKI_RP_APPLICATION_REASON_RP_VERSION:
+			return { "versão do Remote Play incompatível (0x80108b11)",
+				"A consola não aceitou a versão do Remote Play. Atualiza o sistema da "
+				"consola e tenta outra vez." };
+		default:
+			return { "a consola recusou o registo (PIN expirado ou errado, Account ID errado, "
+					 "ou Remote Play desligado na consola)",
+				"A consola recusou o registo. Confirma o PIN (é válido poucos minutos), "
+				"o Account ID da PSN e que a consola está ligada na mesma rede." };
+	}
+}
+
 void registCallback(ChiakiRegistEvent *event, void *user)
 {
 	auto *impl = static_cast<StreamRegistration::Impl *>(user);
@@ -81,14 +122,14 @@ void registCallback(ChiakiRegistEvent *event, void *user)
 			break;
 		case CHIAKI_REGIST_EVENT_TYPE_FINISHED_FAILED:
 		default:
+		{
 			impl->running.store(false);
-			StreamTrace::instance().fail("a consola recusou o registo (PIN expirado ou errado, "
-				"Account ID errado, ou Remote Play desligado na consola)");
+			const Recusa recusa = explicarRecusa(takeApplicationReason());
+			StreamTrace::instance().fail(recusa.diagnostico);
 			if(finished)
-				finished(false, {},
-					"A consola recusou o registo. Confirma o PIN (é válido poucos minutos), "
-					"o Account ID da PSN e que a consola está ligada na mesma rede.");
+				finished(false, {}, recusa.mensagem);
 			break;
+		}
 	}
 }
 
@@ -153,6 +194,7 @@ bool StreamRegistration::start(const Request &request, Finished finished, std::s
 			+ std::to_string(request.accountIdBase64.size()) + " caracteres");
 
 	impl_->running.store(true);
+	takeApplicationReason(); // um motivo antigo não serve para este registo
 	const ChiakiErrorCode result =
 		chiaki_regist_start(&impl_->regist, chiakiLog(), &info, registCallback, impl_.get());
 	if(result != CHIAKI_ERR_SUCCESS)

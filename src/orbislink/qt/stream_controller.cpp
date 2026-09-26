@@ -299,7 +299,7 @@ void StreamController::probeConsoles(const QStringList &addresses)
 		std::vector<HostInfo> respostas;
 		for(const std::string &endereco : lista)
 		{
-			HostInfo info = StreamDiscovery::probe(endereco, 1200);
+			HostInfo info = StreamDiscovery::peek(endereco, 1200);
 			info.address = endereco;
 			respostas.push_back(info);
 		}
