@@ -24,7 +24,7 @@ Item {
     property bool aProcurar: false
     property bool disponivel: true   // falso numa compilação sem Remote Play
     // "ps4", "ps5", ou vazio quando a consola nunca respondeu — e aí não se
-    // inventa um número: aparece só "PS".
+    // inventa um número: aparece "PS?".
     property string tipo: ""
     property string nome: ""
     property string endereco: ""
@@ -298,15 +298,16 @@ Item {
             width: parent.width
             spacing: 0
 
-            // A wordmark PS4/PS5 (ou só "PS", quando o tipo não se sabe),
-            // gerada por scripts/gerar-wordmarks.py: branca nos temas
-            // escuros, preta no claro.
+            // A wordmark PS4/PS5, gerada por scripts/gerar-wordmarks.py:
+            // branca nos temas escuros, preta no claro. Quando o tipo não se
+            // sabe é um "PS?" só em contorno e cinzento, noutro estilo.
             Image {
                 id: letras
                 anchors.horizontalCenter: parent.horizontalCenter
-                readonly property string nome: caixa.tipo === "ps4" ? "ps4"
-                                             : caixa.tipo === "ps5" ? "ps5" : "ps"
-                source: "qrc:/icons/wordmark-" + nome + (Theme.claro ? "-preto" : "-branco") + ".png"
+                readonly property bool conhecida: caixa.tipo === "ps4" || caixa.tipo === "ps5"
+                source: conhecida
+                        ? "qrc:/icons/wordmark-" + caixa.tipo + (Theme.claro ? "-preto" : "-branco") + ".png"
+                        : "qrc:/icons/wordmark-ps-" + (Theme.claro ? "claro" : "escuro") + ".png"
                 sourceSize.height: 186
                 height: 62
                 width: implicitWidth / 3

@@ -10,9 +10,10 @@
 #
 # Gera:
 #   src/icons/wordmark-ps4.svg, wordmark-ps5.svg      (preto, a referência)
-#   src/icons/wordmark-ps{4,5,}-{preto,branco}.png    (os que a app usa; "ps"
-#                                                     é só "PS", para o tipo
-#                                                     desconhecido)
+#   src/icons/wordmark-ps{4,5}-{preto,branco}.png     (os que a app usa)
+#   src/icons/wordmark-ps-{claro,escuro}.png          ("PS?" só em contorno e
+#                                                     cinzento, para quando não
+#                                                     se sabe o tipo da consola)
 #   e, com --folha <ficheiro.png>, a folha de apresentação 2×2 com as
 #   variantes normal e estreita.
 #
@@ -37,15 +38,22 @@ MAPA = FONTE.getBestCmap()
 NEGRITO = 16           # espessura do contorno extra, em unidades da fonte
 INCLINACAO = 6.0       # graus a mais do que o itálico da própria fonte
 TRACKING = 60          # espaço entre letras, já a contar com o negrito
+CONTORNO = 48          # a espessura da linha no "PS?"
 MARGEM = 40
+
+# As cores do "PS?": o cinzento do texto secundário da caixa da consola
+# (Theme.cardTextMuted), num tom para cada tema.
+DESCONHECIDA = {"escuro": "#A8B3C7", "claro": "#5B6B82"}
 
 
 def wordmark(numero, estreita=False, cor="#000000"):
     """Devolve (svg, largura, altura) de "PS4", "PS5" ou, com numero=None,
-    só "PS" (para quando não se sabe o tipo da consola)."""
-    texto = "PS" + (str(numero) if numero else "")
+    "PS?" (para quando não se sabe o tipo da consola). Esta última é outro
+    desenho de propósito: só o contorno, sem o itálico extra, para não
+    passar por uma consola conhecida."""
+    texto = "PS" + (str(numero) if numero else "?")
     sx = 0.84 if estreita else 1.0
-    inclina = math.tan(math.radians(INCLINACAO))
+    inclina = math.tan(math.radians(INCLINACAO if numero else 0))
     caminho = SVGPathPen(GLIFOS)
     limites = BoundsPen(GLIFOS)
     x = 0.0
@@ -58,14 +66,18 @@ def wordmark(numero, estreita=False, cor="#000000"):
         GLIFOS[nome].draw(TransformPen(limites, matriz))
         x += (GLIFOS[nome].width + TRACKING) * sx
     x0, y0, x1, y1 = limites.bounds
-    folga = MARGEM + NEGRITO / 2
+    if numero:
+        pintura = (f'fill="{cor}" stroke="{cor}" stroke-width="{NEGRITO}" '
+                   f'stroke-linejoin="miter" stroke-miterlimit="4"')
+    else:
+        pintura = (f'fill="none" stroke="{cor}" stroke-width="{CONTORNO}" '
+                   f'stroke-linejoin="miter" stroke-miterlimit="4"')
+    folga = MARGEM + max(NEGRITO, CONTORNO) / 2
     largura, altura = x1 - x0 + 2 * folga, y1 - y0 + 2 * folga
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" '
            f'viewBox="{x0 - folga:.1f} {y0 - folga:.1f} {largura:.1f} {altura:.1f}" '
            f'width="{largura:.0f}" height="{altura:.0f}">'
-           f'<path fill="{cor}" stroke="{cor}" stroke-width="{NEGRITO}" '
-           f'stroke-linejoin="miter" stroke-miterlimit="4" '
-           f'd="{caminho.getCommands()}"/></svg>')
+           f'<path {pintura} d="{caminho.getCommands()}"/></svg>')
     return svg, largura, altura
 
 
@@ -103,14 +115,17 @@ def main():
     for numero in (4, 5, None):
         nome = f"ps{numero}" if numero else "ps"
         svg, w, _ = wordmark(numero)
+        # Umas três vezes a largura a que aparece na app, para ecrãs com
+        # ampliação; o "PS?" na mesma escala que os outros.
+        largura = round(720 * w / largura_ps4)
         if numero:
             (ICONS / f"wordmark-{nome}.svg").write_text(svg + "\n")
-        # Umas três vezes a largura a que aparece na app, para ecrãs com
-        # ampliação; o "PS" sozinho na mesma escala que os outros.
-        largura = round(720 * w / largura_ps4)
-        png(wordmark(numero, cor="#000000")[0], ICONS / f"wordmark-{nome}-preto.png", largura)
-        png(wordmark(numero, cor="#FFFFFF")[0], ICONS / f"wordmark-{nome}-branco.png", largura)
-        print(ICONS / f"wordmark-{nome}-preto.png")
+            png(wordmark(numero, cor="#000000")[0], ICONS / f"wordmark-{nome}-preto.png", largura)
+            png(wordmark(numero, cor="#FFFFFF")[0], ICONS / f"wordmark-{nome}-branco.png", largura)
+        else:
+            for tema, cor in DESCONHECIDA.items():
+                png(wordmark(None, cor=cor)[0], ICONS / f"wordmark-ps-{tema}.png", largura)
+        print(ICONS / f"wordmark-{nome}")
     if len(sys.argv) > 2 and sys.argv[1] == "--folha":
         folha(sys.argv[2])
         print(sys.argv[2])
