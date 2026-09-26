@@ -2,6 +2,7 @@
 #include "orbislink/stream/registration.h"
 
 #include "orbislink/common/log.h"
+#include "orbislink/common/tr.h"
 #include "orbislink/stream/chiaki_log_bridge.h"
 #include "orbislink/stream/credentials.h"
 #include "orbislink/stream/stream_trace.h"
@@ -68,29 +69,29 @@ Recusa explicarRecusa(uint32_t motivo)
 	{
 		case CHIAKI_RP_APPLICATION_REASON_INVALID_PSN_ID:
 			return { "a consola não reconheceu o Account ID (0x80108b02)",
-				"A consola não reconheceu o Account ID. Tem de ser o da conta PSN com "
+				QT_TRANSLATE_NOOP("Mensagens", "A consola não reconheceu o Account ID. Tem de ser o da conta PSN com "
 				"que pediste o PIN na consola (cada utilizador tem o seu), e não o nome "
-				"de utilizador da PSN." };
+				"de utilizador da PSN.") };
 		case CHIAKI_RP_APPLICATION_REASON_REGIST_FAILED:
 			return { "a consola recusou o PIN (0x80108b09)",
-				"A consola recusou o PIN. Pede um novo na consola — só é válido poucos "
-				"minutos — e escreve-o outra vez." };
+				QT_TRANSLATE_NOOP("Mensagens", "A consola recusou o PIN. Pede um novo na consola — só é válido poucos "
+				"minutos — e escreve-o outra vez.") };
 		case CHIAKI_RP_APPLICATION_REASON_IN_USE:
 			return { "o Remote Play da consola já está a ser usado (0x80108b10)",
-				"O Remote Play da consola já está a ser usado por outro dispositivo. "
-				"Fecha essa sessão e tenta outra vez." };
+				QT_TRANSLATE_NOOP("Mensagens", "O Remote Play da consola já está a ser usado por outro dispositivo. "
+				"Fecha essa sessão e tenta outra vez.") };
 		case CHIAKI_RP_APPLICATION_REASON_CRASH:
 			return { "o Remote Play da consola foi abaixo (0x80108b15)",
-				"O Remote Play da consola foi abaixo. Reinicia a consola e tenta outra vez." };
+				QT_TRANSLATE_NOOP("Mensagens", "O Remote Play da consola foi abaixo. Reinicia a consola e tenta outra vez.") };
 		case CHIAKI_RP_APPLICATION_REASON_RP_VERSION:
 			return { "versão do Remote Play incompatível (0x80108b11)",
-				"A consola não aceitou a versão do Remote Play. Atualiza o sistema da "
-				"consola e tenta outra vez." };
+				QT_TRANSLATE_NOOP("Mensagens", "A consola não aceitou a versão do Remote Play. Atualiza o sistema da "
+				"consola e tenta outra vez.") };
 		default:
 			return { "a consola recusou o registo (PIN expirado ou errado, Account ID errado, "
 					 "ou Remote Play desligado na consola)",
-				"A consola recusou o registo. Confirma o PIN (é válido poucos minutos), "
-				"o Account ID da PSN e que a consola está ligada na mesma rede." };
+				QT_TRANSLATE_NOOP("Mensagens", "A consola recusou o registo. Confirma o PIN (é válido poucos minutos), "
+				"o Account ID da PSN e que a consola está ligada na mesma rede.") };
 	}
 }
 
@@ -119,7 +120,7 @@ void registCallback(ChiakiRegistEvent *event, void *user)
 			impl->running.store(false);
 			StreamTrace::instance().fail("registo cancelado");
 			if(finished)
-				finished(false, {}, "Registo cancelado.");
+				finished(false, {}, QT_TRANSLATE_NOOP("Mensagens", "Registo cancelado."));
 			break;
 		case CHIAKI_REGIST_EVENT_TYPE_FINISHED_FAILED:
 		default:
@@ -146,20 +147,20 @@ bool StreamRegistration::start(const Request &request, Finished finished, std::s
 	if(impl_->running.load())
 	{
 		if(error)
-			*error = "Já há um registo a decorrer.";
+			*error = QT_TRANSLATE_NOOP("Mensagens", "Já há um registo a decorrer.");
 		return false;
 	}
 	if(request.address.empty())
 	{
 		if(error)
-			*error = "Falta o endereço da consola.";
+			*error = QT_TRANSLATE_NOOP("Mensagens", "Falta o endereço da consola.");
 		return false;
 	}
 	// O PIN da consola tem 8 dígitos.
 	if(request.pin == 0)
 	{
 		if(error)
-			*error = "Falta o PIN que a consola mostra em Adicionar Dispositivo.";
+			*error = QT_TRANSLATE_NOOP("Mensagens", "Falta o PIN que a consola mostra em Adicionar Dispositivo.");
 		return false;
 	}
 

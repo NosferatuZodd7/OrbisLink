@@ -2,6 +2,7 @@
 #include "orbislink/stream/discovery.h"
 
 #include "orbislink/common/log.h"
+#include "orbislink/common/tr.h"
 #include "orbislink/stream/chiaki_log_bridge.h"
 #include "orbislink/stream/stream_trace.h"
 
@@ -255,7 +256,7 @@ bool StreamDiscovery::wakeup(const std::string &address, uint64_t credential, bo
 	if(address.empty() || credential == 0)
 	{
 		if(error)
-			*error = "Falta o endereço ou a consola ainda não foi registada.";
+			*error = QT_TRANSLATE_NOOP("Mensagens", "Falta o endereço ou a consola ainda não foi registada.");
 		return false;
 	}
 	const ChiakiErrorCode result =

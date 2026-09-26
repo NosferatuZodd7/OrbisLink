@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "orbislink/stream/account_id.h"
 
+#include "orbislink/common/tr.h"
 #include "orbislink/common/util.h"
 
 #include <chiaki/base64.h>
@@ -62,7 +63,7 @@ AccountId fromValue(uint64_t valor, const std::string &formato)
 	char b64[16] {};
 	if(chiaki_base64_encode(bytes, sizeof(bytes), b64, sizeof(b64)) != CHIAKI_ERR_SUCCESS)
 	{
-		id.error = "Não foi possível converter o Account ID para base64.";
+		id.error = QT_TRANSLATE_NOOP("Mensagens", "Não foi possível converter o Account ID para base64.");
 		return id;
 	}
 	id.base64 = b64;
@@ -104,7 +105,7 @@ AccountId parseAccountId(const std::string &texto)
 {
 	const std::string limpo = semEspacos(trim(texto));
 	if(limpo.empty())
-		return erro("Falta o Account ID da PSN.");
+		return erro(QT_TRANSLATE_NOOP("Mensagens", "Falta o Account ID da PSN."));
 
 	// 1. "0x…" é uma ordem explícita: lê-se em hexadecimal, e é assim que se
 	//    desfaz a ambiguidade de um ID só com algarismos.
@@ -133,8 +134,8 @@ AccountId parseAccountId(const std::string &texto)
 					!= CHIAKI_ERR_SUCCESS
 				|| tamanho != sizeof(bytes))
 			{
-				return erro("Isto parece base64 mas não dá 8 bytes. Confirma que copiaste o "
-							"Account ID todo.");
+				return erro(QT_TRANSLATE_NOOP("Mensagens", "Isto parece base64 mas não dá 8 bytes. Confirma que copiaste o "
+							"Account ID todo."));
 			}
 			uint64_t valor = 0;
 			for(int i = 7; i >= 0; --i)
@@ -165,7 +166,7 @@ AccountId parseAccountId(const std::string &texto)
 				// não é um Account ID e dizer isso é melhor do que dar a
 				// volta ao contador em silêncio.
 				if(valor > (UINT64_MAX - digito) / 10)
-					return erro("Esse número é grande demais para ser um Account ID.");
+					return erro(QT_TRANSLATE_NOOP("Mensagens", "Esse número é grande demais para ser um Account ID."));
 				valor = valor * 10 + digito;
 			}
 			return fromValue(valor, "decimal");
@@ -200,8 +201,8 @@ AccountId parseAccountId(const std::string &texto)
 			return fromValue(valor, "hex");
 	}
 
-	return erro("Não reconheço este Account ID. Aceito as três formas: os 16 dígitos "
-				"hexadecimais, o número decimal, ou os 12 caracteres em base64.");
+	return erro(QT_TRANSLATE_NOOP("Mensagens", "Não reconheço este Account ID. Aceito as três formas: os 16 dígitos "
+				"hexadecimais, o número decimal, ou os 12 caracteres em base64."));
 }
 
 AccountId reverseAccountIdBytes(const AccountId &id)
