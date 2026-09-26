@@ -38,6 +38,17 @@ if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET Qt6::Multimedia)
 	add_test(NAME test_pcm_queue COMMAND test_pcm_queue)
 endif()
 
+# O teclado como comando: as regras de troca de teclas vivem no lado do
+# Qt (os códigos são Qt::Key) e usam os botões do chiaki.
+if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET orbislink_stream)
+	add_executable(test_keyboard_map
+		test_keyboard_map.cpp
+		${CMAKE_SOURCE_DIR}/src/orbislink/qt/input_map.cpp)
+	target_link_libraries(test_keyboard_map PRIVATE orbislink_stream Qt6::Core)
+	target_include_directories(test_keyboard_map PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+	add_test(NAME test_keyboard_map COMMAND test_keyboard_map)
+endif()
+
 foreach(test_name ${ORBISLINK_TESTS})
 	add_executable(${test_name} ${test_name}.cpp)
 	target_link_libraries(${test_name} PRIVATE orbislink_core)

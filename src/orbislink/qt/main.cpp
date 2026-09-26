@@ -236,6 +236,12 @@ int main(int argc, char **argv)
 			stream->setAddress(controller->consoleAddress());
 			stream->applySettings(controller->settings());
 		});
+	// As teclas editadas na janela do mapa ficam nas definições; o mapa
+	// novo volta ao stream pelo settingsChanged acima.
+	QObject::connect(stream.get(), &StreamController::keyBindingsEdited, controller.get(),
+		[&controller](const std::map<std::string, int> &bindings) {
+			controller->saveKeyBindings(bindings);
+		});
 	// O indicador "Remote Play" na barra de cima passa a dizer o que a
 	// consola respondeu à descoberta, em vez de ficar sempre cinzento.
 	QObject::connect(stream.get(), &StreamController::consoleChanged, controller.get(),

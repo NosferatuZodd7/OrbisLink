@@ -169,4 +169,16 @@ ORBISLINK_TEST(repositorio_de_actualizacoes_segue_a_compilacao)
 	CHECK_EQ(resolveUpdateRepository(antigo, nullptr, ""), antigo);
 }
 
+ORBISLINK_TEST(teclas_do_teclado_ficam_gravadas)
+{
+	Settings settings;
+	settings.keyboardBindings["cross"] = 32;
+	settings.keyboardBindings["ps"] = 80;
+	const Settings lidas = Settings::fromJson(settings.toJson());
+	CHECK_EQ(lidas.keyboardBindings.size(), static_cast<size_t>(2));
+	CHECK_EQ(lidas.keyboardBindings.at("cross"), 32);
+	// Sem nada gravado, fica vazio: vale o mapa por omissão.
+	CHECK(Settings::fromJson("{}").keyboardBindings.empty());
+}
+
 TEST_MAIN()

@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <string>
 
 namespace orbislink {
@@ -51,6 +52,9 @@ struct Settings
 	bool streamRumble = true;
 	bool streamTouchpadFromMouse = true;
 	std::string streamAccountId;     // Account ID da PSN, em base64
+	// Teclado como comando: acção → tecla (Qt::Key). Só o que foi mudado;
+	// as restantes ficam com a tecla por omissão.
+	std::map<std::string, int> keyboardBindings;
 
 	// Aplicação
 	std::string theme = "escuro";    // "escuro", "vidro" ou "claro"

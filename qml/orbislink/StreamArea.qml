@@ -113,128 +113,56 @@ Item {
         }
     }
 
-    // ───────────────────────────── painel de ligação
-    ColumnLayout {
+    // A consola numa caixa ao centro: um clique liga, acorda, regista ou
+    // procura, conforme o estado. Por baixo, só a explicação que o estado
+    // pedir (o PIN do registo, o motivo de uma falha, o jogo a correr).
+    Column {
         anchors.centerIn: palco
-        width: Math.min(palco.width - 100, 560)
         spacing: 18
         visible: !root.streaming
 
-        Image {
-            Layout.alignment: Qt.AlignHCenter
-            source: "qrc:/icons/logo.png"
-            sourceSize.width: 88
-            sourceSize.height: 88
-            opacity: 0.9
+        ConsoleCard {
+            anchors.horizontalCenter: parent.horizontalCenter
+            disponivel: root.built
+            estado: root.consoleState
+            registada: root.registered
+            aLigar: root.sessionState === "connecting"
+            aProcurar: root.built && stream.searching
+            ps5: root.built && stream.consolePs5
+            nome: root.built && stream.consoleName.length > 0 ? stream.consoleName
+                                                              : app.consoleName
+            endereco: app.consoleAddress
+            onLigar: stream.startStream()
+            onAcordar: stream.wakeUp()
+            onRegistar: registerDialog.open()
+            onProcurar: stream.refreshConsole()
+            onCancelar: stream.stopStream()
+            onEditar: registerDialog.open()
         }
 
         Text {
-            Layout.fillWidth: true
-            horizontalAlignment: Text.AlignHCenter
-            color: Theme.onIdleStage
-            font.pixelSize: 20
-            font.bold: true
-            text: {
-                if (!root.built)
-                    return qsTr("Remote Play não incluído nesta versão")
-                if (root.sessionState === "connecting")
-                    return qsTr("A ligar ao Remote Play…")
-                if (root.consoleState === "standby")
-                    return qsTr("A consola está em repouso")
-                if (root.consoleState === "offline")
-                    return qsTr("A consola não respondeu")
-                if (!root.registered)
-                    return qsTr("Falta registar este PC na consola")
-                return qsTr("Pronto para ligar")
-            }
-        }
-
-        Text {
-            Layout.fillWidth: true
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: Math.min(palco.width - 80, 440)
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
+            visible: text.length > 0
             color: Theme.onIdleStageMuted
-            font.pixelSize: 13
+            font.pixelSize: 12
             text: {
                 if (!root.built)
                     return qsTr("Este pacote foi compilado sem o chiaki-ng. Tudo o resto — "
                                 + "instalar pkg e FTP — funciona na mesma.")
                 if (root.sessionState === "failed" && stream.sessionDetail.length > 0)
                     return stream.sessionDetail
-                if (root.consoleState === "standby")
-                    return qsTr("Carrega em \"Acordar consola\" e espera uns segundos.")
                 if (root.consoleState === "offline")
                     return qsTr("Confirma o IP nas definições e que a consola está ligada "
                                 + "na mesma rede.")
-                if (!root.registered)
+                if (!root.registered && root.consoleState !== "unknown")
                     return qsTr("Na consola: Definições → Definições de Ligação do Remote Play "
                                 + "→ Adicionar Dispositivo. Aparece um PIN de 8 dígitos.")
                 if (stream.runningApp.length > 0)
                     return qsTr("A correr: %1").arg(stream.runningApp)
-                return qsTr("A consola está pronta.")
-            }
-        }
-
-        RowLayout {
-            Layout.alignment: Qt.AlignHCenter
-            spacing: 10
-            visible: root.built
-
-            StyledButton {
-                text: qsTr("Ligar")
-                visible: root.registered && root.consoleState === "ready"
-                         && root.sessionState !== "connecting"
-                primary: true
-                implicitHeight: 34
-                larguraMinima: 130
-                font.pixelSize: 13
-                onClicked: stream.startStream()
-            }
-
-            StyledButton {
-                text: qsTr("Acordar consola")
-                visible: root.registered && root.consoleState === "standby"
-                implicitHeight: 34
-                onClicked: stream.wakeUp()
-            }
-
-            StyledButton {
-                text: root.registered ? qsTr("Registar outra vez") : qsTr("Registar consola")
-                visible: root.consoleState !== "offline" || root.registered
-                implicitHeight: 34
-                onClicked: registerDialog.open()
-            }
-
-            StyledButton {
-                text: root.built && stream.searching ? qsTr("A procurar…") : qsTr("Procurar")
-                enabled: !(root.built && stream.searching)
-                implicitHeight: 34
-                onClicked: stream.refreshConsole()
-            }
-
-            StyledButton {
-                text: qsTr("Cancelar")
-                visible: root.sessionState === "connecting"
-                implicitHeight: 34
-                onClicked: stream.stopStream()
-            }
-        }
-
-        Rectangle {
-            Layout.alignment: Qt.AlignHCenter
-            visible: !root.streaming
-            radius: 6
-            color: Theme.panelAltFill
-            border.color: Theme.border
-            implicitWidth: hintText.implicitWidth + 24
-            implicitHeight: hintText.implicitHeight + 16
-            Text {
-                id: hintText
-                anchors.centerIn: parent
-                text: qsTr("Servidor HTTP local: %1").arg(app.httpServerAddress)
-                color: Theme.onIdleStageMuted
-                font.pixelSize: 12
-                font.family: "monospace"
+                return ""
             }
         }
     }
@@ -389,9 +317,14 @@ Item {
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(parent ? parent.width - 60 : 780, 780)
-        height: Math.min(parent ? parent.height - 60 : 640, 640)
+        height: Math.min(parent ? parent.height - 60 : 680, 680)
         modal: true
         padding: 0
+        // À espera de uma tecla nova, o Esc cancela a escolha e não fecha a
+        // janela.
+        closePolicy: keyboardMap.escolhida.length > 0
+                     ? Popup.NoAutoClose : Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        onClosed: keyboardMap.editando = false
 
         Overlay.modal: Rectangle { color: Theme.scrim }
 
@@ -430,6 +363,24 @@ Item {
                 anchors.margins: Theme.dialogInner
                 anchors.leftMargin: Theme.dialogMargin
                 anchors.rightMargin: Theme.dialogMargin
+                spacing: 10
+                StyledButton {
+                    visible: root.built
+                    text: keyboardMap.editando ? qsTr("Concluir") : qsTr("Mudar teclas")
+                    larguraMinima: 130
+                    onClicked: keyboardMap.editando = !keyboardMap.editando
+                }
+                StyledButton {
+                    visible: root.built && keyboardMap.editando
+                    text: qsTr("Repor")
+                    larguraMinima: 100
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Voltar às teclas por omissão")
+                    onClicked: {
+                        keyboardMap.escolhida = ""
+                        stream.resetKeyBindings()
+                    }
+                }
                 Item { Layout.fillWidth: true }
                 StyledButton {
                     text: qsTr("Fechar")
@@ -494,11 +445,12 @@ Item {
                     // de tamanho cada vez que o rato passa de tecla em tecla.
                     Layout.preferredHeight: 56
                     radius: Theme.radiusSmall
-                    color: keyboardMap.descricao.length > 0 ? Theme.accentFill
+                    readonly property bool cheia: keyboardMap.texto.length > 0
+                    color: cheia ? Theme.accentFill
                          : Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b,
                                    Theme.claro ? 1.0 : 0.6)
                     border.width: 1
-                    border.color: keyboardMap.descricao.length > 0 ? Theme.accent
+                    border.color: cheia ? Theme.accent
                                 : Theme.claro ? Qt.rgba(0, 0, 0, 0.12) : Theme.glassEdge
                     Behavior on color { ColorAnimation { duration: Theme.fast } }
 
@@ -509,11 +461,13 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                         wrapMode: Text.WordWrap
-                        color: keyboardMap.descricao.length > 0 ? Theme.text : Theme.textSecondary
-                        font.pixelSize: keyboardMap.descricao.length > 0 ? 15 : 12
-                        font.bold: keyboardMap.descricao.length > 0
-                        text: keyboardMap.descricao.length > 0
-                              ? keyboardMap.descricao
+                        color: parent.cheia ? Theme.text : Theme.textSecondary
+                        font.pixelSize: parent.cheia ? 14 : 12
+                        font.bold: parent.cheia
+                        text: parent.cheia ? keyboardMap.texto
+                            : keyboardMap.editando
+                              ? qsTr("Clica na tecla que queres mudar e depois carrega na tecla "
+                                     + "nova. Se ela já tiver uma função, as duas trocam.")
                               : qsTr("Passa o rato por cima de uma tecla para ver no comando o "
                                      + "botão que ela faz. As teclas apagadas não fazem nada.")
                     }
@@ -532,8 +486,8 @@ Item {
         // entre a tecla e o botão aceso no comando.
         onTriggered: {
             keysDialog.open()
-            keyboardMap.destaque = "ps"
-            keyboardMap.descricao = keyboardMap.funcoes["P"].texto
+            keyboardMap.destaqueRato = "ps"
+            keyboardMap.descricao = "P — " + keyboardMap.acoes["ps"].nome
         }
     }
 
