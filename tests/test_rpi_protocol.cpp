@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Verifica o formato dos pedidos e das respostas da API do Remote Package
-// Installer sem precisar da consola: o servidor falso responde exatamente
-// como o server.c do instalador (incluindo os números em hexadecimal).
+// Checks the format of the Remote Package Installer API requests and replies
+// without needing the console: the fake server answers exactly like the
+// installer's server.c (including the hexadecimal numbers).
 
 #include "orbislink/common/json.h"
 #include "orbislink/installer/error_codes.h"
@@ -22,8 +22,8 @@ using namespace orbislink;
 
 namespace {
 
-// Servidor HTTP mínimo que responde a POSTs com uma resposta fixa e guarda o
-// último pedido recebido.
+// Minimal HTTP server that answers POSTs with a fixed reply and keeps the
+// last request received.
 class FakeInstallerServer
 {
 public:
@@ -58,7 +58,7 @@ public:
 	{
 		if(!running_.exchange(false))
 			return;
-		// Acorda o accept() com uma ligação a si próprio antes de fechar.
+		// Wakes accept() with a connection to itself before closing.
 		socket_t waker = socket(AF_INET, SOCK_STREAM, 0);
 		if(waker != ORBISLINK_INVALID_SOCKET)
 		{
@@ -182,7 +182,7 @@ ORBISLINK_TEST(erro_da_consola_e_traduzido)
 {
 	FakeInstallerServer server;
 	CHECK(server.start());
-	// Formato real: hexadecimal sem aspas, campo "error_code".
+	// Real format: hexadecimal without quotes, "error_code" field.
 	server.setResponse(R"({ "status": "fail", "error_code": 0x8002001C })");
 
 	RpiClient client = makeClient(server.port());
@@ -291,10 +291,10 @@ ORBISLINK_TEST(comandos_de_tarefa_usam_os_endpoints_certos)
 
 ORBISLINK_TEST(sem_servidor_a_mensagem_e_a_do_requisito)
 {
-	// Porta fechada: deve dar a mensagem de §7 para a porta 12800.
+	// Closed port: must give the §7 message for port 12800.
 	RpiClient::Config config;
 	config.host = "127.0.0.1";
-	config.port = 1; // nada à escuta
+	config.port = 1; // nothing listening
 	config.timeoutMs = 500;
 	config.maxAttempts = 1;
 	RpiClient client(config);

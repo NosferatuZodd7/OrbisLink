@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Sobreposição de arrastar e largar (§5.7): duas zonas, uma por modo.
-// O stream continua a correr por baixo — nada é pausado.
+// Drag-and-drop overlay (§5.7): two zones, one per mode.
+// The stream keeps running underneath — nothing is paused.
 //
-// Não há aqui nenhum DropArea. Um DropArea por zona não serve: o da janela
-// fica com o arrasto agarrado e nunca larga, e as zonas nem chegam a saber
-// que o cursor está em cima delas. Há um único DropArea, na janela, que diz
-// onde está o cursor; a zona apontada calcula-se daqui.
+// There is no DropArea here. One DropArea per zone does not work: the
+// window's one keeps hold of the drag and never lets go, and the zones never
+// learn the cursor is over them. There is a single DropArea, on the window,
+// which says where the cursor is; the zone pointed at is worked out here.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -16,11 +16,11 @@ Item {
     id: root
     property bool active: false
 
-    // Posição do cursor dentro da janela, em coordenadas da janela.
+    // Cursor position inside the window, in window coordinates.
     property real pointerX: -1
     property real pointerY: -1
 
-    // 0 = instalação direta, 1 = envio por FTP, -1 = fora das duas.
+    // 0 = direct install, 1 = FTP upload, -1 = outside both.
     readonly property int zoneUnderPointer: {
         if (!active || pointerX < 0)
             return -1
@@ -53,7 +53,7 @@ Item {
         pointerY = -1
     }
 
-    // Chamado pelo DropArea da janela: devolve true se o ficheiro foi aceite.
+    // Called by the window's DropArea: returns true if the file was accepted.
     function dropAt(x, y, urls) {
         movePointer(x, y)
         var zona = zoneUnderPointer

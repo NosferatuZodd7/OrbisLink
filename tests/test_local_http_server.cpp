@@ -38,7 +38,7 @@ struct RawResponse
 	}
 };
 
-// Cliente HTTP cru: é preciso controlar cabeçalhos Range à mão.
+// Raw HTTP client: Range headers need to be controlled by hand.
 RawResponse rawRequest(uint16_t port, const std::string &request)
 {
 	initSocketsOnce();
@@ -101,11 +101,11 @@ struct ServerFixture
 		path = writePayload(".orbislink-test-http.bin", payload);
 		LocalHttpServer::Config config;
 		config.bindAddress = "127.0.0.1";
-		config.port = 0; // porta atribuída pelo sistema
+		config.port = 0; // port assigned by the system
 		config.autoSelectPort = false;
 		config.allowLoopback = allowLoopback;
 		config.allowedClient = allowedClient;
-		config.chunkSize = 16; // força vários blocos
+		config.chunkSize = 16; // forces several chunks
 		std::string error;
 		if(!server.start(config, &error))
 			throw std::runtime_error("servidor não arrancou: " + error);
@@ -218,7 +218,7 @@ ORBISLINK_TEST(token_invalido_devolve_404)
 {
 	ServerFixture fixture(kPayload);
 	CHECK_EQ(rawRequest(fixture.server.port(), fixture.get("/f/token-errado/x.pkg")).status, 404);
-	// Nenhuma pasta é exposta: qualquer outro caminho é 404.
+	// No folder is exposed: any other path is 404.
 	CHECK_EQ(rawRequest(fixture.server.port(), fixture.get("/")).status, 404);
 	CHECK_EQ(rawRequest(fixture.server.port(), fixture.get("/../etc/passwd")).status, 404);
 }

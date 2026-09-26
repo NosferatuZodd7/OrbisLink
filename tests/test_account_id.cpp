@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// O Account ID é um número de 64 bits escrito de três maneiras. O que estes
-// testes prendem é a ordem dos bytes: o base64 é dos 8 bytes em
-// little-endian, e não o contrário. Não é escolha nossa — está no
-// scripts/psn-account-id.py do chiaki-ng, que faz
-// base64.b64encode(user_id.to_bytes(8, "little")). Trocá-la dá um ID que a
-// consola recusa sem dizer porquê, e ninguém descobriria isso a olhar.
+// The Account ID is a 64-bit number written three ways. What these tests
+// pin down is the byte order: the base64 is of the 8 bytes in
+// little-endian, not the other way round. It is not our choice — it is in
+// chiaki-ng's scripts/psn-account-id.py, which does
+// base64.b64encode(user_id.to_bytes(8, "little")). Swapping it gives an ID
+// the console refuses without saying why, and nobody would spot it by looking.
 #include "orbislink/stream/account_id.h"
 #include "test_support.h"
 
@@ -13,8 +13,8 @@ using namespace orbislink;
 
 ORBISLINK_TEST(hexadecimal_da_o_base64_com_os_bytes_ao_contrario)
 {
-	// 0x0123456789ABCDEF em little-endian é EF CD AB 89 67 45 23 01, e esses
-	// oito bytes em base64 são "782riWdFIwE=". Conferido à mão:
+	// 0x0123456789ABCDEF in little-endian is EF CD AB 89 67 45 23 01, and those
+	// eight bytes in base64 are "782riWdFIwE=". Checked by hand:
 	//   >>> base64.b64encode((0x0123456789ABCDEF).to_bytes(8, "little"))
 	const AccountId id = parseAccountId("0123456789ABCDEF");
 	CHECK(id.valid);
@@ -46,9 +46,9 @@ ORBISLINK_TEST(decimal_e_hexadecimal_dao_o_mesmo)
 
 ORBISLINK_TEST(o_prefixo_0x_forca_hexadecimal_num_id_so_de_algarismos)
 {
-	// Um ID com 16 algarismos é ambíguo. Sem prefixo lê-se como decimal,
-	// porque é a forma em que a PSN o dá; com "0x" lê-se em hexadecimal.
-	// É por isso que a interface mostra as três formas ao mesmo tempo.
+	// A 16-digit ID is ambiguous. Without a prefix it is read as decimal,
+	// because that is the form PSN gives; with "0x" it is read as hexadecimal.
+	// That is why the interface shows all three forms at once.
 	const AccountId comoDecimal = parseAccountId("1234567890123456");
 	const AccountId comoHex = parseAccountId("0x1234567890123456");
 	CHECK(comoDecimal.valid);
@@ -61,7 +61,7 @@ ORBISLINK_TEST(o_prefixo_0x_forca_hexadecimal_num_id_so_de_algarismos)
 
 ORBISLINK_TEST(espacos_e_separadores_nao_estragam_nada)
 {
-	// Quem copia isto de um ecrã de consola traz espaços e dois-pontos.
+	// Whoever copies this off a console screen brings spaces and colons.
 	const AccountId comEspacos = parseAccountId("  01 23 45 67 89 AB CD EF  ");
 	const AccountId comDoisPontos = parseAccountId("01:23:45:67:89:AB:CD:EF");
 	CHECK(comEspacos.valid);

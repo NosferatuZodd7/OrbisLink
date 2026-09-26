@@ -26,7 +26,7 @@ struct AccountId
 	std::string base64;
 	std::string hex;     // 16 digits, without the "0x"
 	std::string decimal;
-	// Como o texto foi lido: "base64", "hex" ou "decimal".
+	// How the text was read: "base64", "hex" or "decimal".
 	std::string format;
 	// Why it failed, when valid is false.
 	std::string error;

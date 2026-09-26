@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// A caixa ao lado das consolas para juntar mais uma à lista: sem fundo, com
-// uma borda tracejada — é um lugar vazio à espera de uma consola.
+// The card next to the consoles for adding one more to the list: no fill,
+// with a dashed border — an empty spot waiting for a console.
 import QtQuick
 
 Item {
@@ -9,13 +9,13 @@ Item {
 
     signal adicionar()
 
-    // Acompanha a escala das caixas das consolas (desenhadas a 330 de altura).
+    // Follows the scale of the console cards (drawn 330 tall).
     readonly property real escala: height / 330
     implicitWidth: 250
     implicitHeight: 330
 
-    // O mesmo movimento das caixas das consolas: cresce e sobe com o rato
-    // por cima, afunda ao carregar.
+    // The same motion as the console cards: grows and lifts with the mouse
+    // over it, sinks when pressed.
     scale: area.pressed ? Theme.pressScale : (area.containsMouse ? 1.03 : 1.0)
     Behavior on scale { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
     transform: Translate {
@@ -32,8 +32,8 @@ Item {
         Behavior on color { ColorAnimation { duration: Theme.cardEase } }
     }
 
-    // A borda tracejada, desenhada traço a traço ao longo do contorno
-    // arredondado (o Canvas não tem tracejado em todas as versões do Qt).
+    // The dashed border, drawn dash by dash along the rounded outline
+    // (Canvas does not support dashes in every Qt version).
     Canvas {
         id: borda
         anchors.fill: parent
@@ -48,7 +48,7 @@ Item {
             ctx.reset()
             var m = 1.5, w = width - 2 * m, h = height - 2 * m
             var r = Math.min(30 * caixa.escala, w / 2, h / 2)
-            // O contorno como uma sequência de pontos, a cada 1 px.
+            // The outline as a sequence of points, every 1 px.
             var pontos = []
             function reta(x0, y0, x1, y1) {
                 var n = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0)))
@@ -90,7 +90,7 @@ Item {
         anchors.centerIn: parent
         spacing: 20 * caixa.escala
 
-        // O "+" dentro de um círculo fino.
+        // The "+" inside a thin circle.
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             width: 84 * caixa.escala

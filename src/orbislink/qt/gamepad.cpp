@@ -120,7 +120,7 @@ void Gamepad::rumble(quint8 left, quint8 right)
 {
 	if(!rumbleEnabled_ || !controller_)
 		return;
-	// O SDL usa 0-65535; a consola manda 0-255.
+	// SDL uses 0-65535; the console sends 0-255.
 	const Uint16 baixa = static_cast<Uint16>(left) * 257;
 	const Uint16 alta = static_cast<Uint16>(right) * 257;
 	// 200 ms renewed on every request: if the console stops asking, the
@@ -133,7 +133,7 @@ void Gamepad::poll()
 	SDL_Event event;
 	while(SDL_PollEvent(&event))
 	{
-		// Ligar e desligar o comando a meio do jogo tem de funcionar.
+		// Plugging and unplugging the controller mid-game has to work.
 		if(event.type == SDL_CONTROLLERDEVICEREMOVED && controller_
 			&& event.cdevice.which
 				== SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(
@@ -191,7 +191,7 @@ void Gamepad::poll()
 	emit stateChanged(state);
 }
 
-#else // sem SDL
+#else // no SDL
 
 Gamepad::Gamepad(QObject *parent) : QObject(parent) {}
 Gamepad::~Gamepad() = default;

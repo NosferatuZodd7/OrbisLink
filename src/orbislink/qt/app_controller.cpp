@@ -244,7 +244,7 @@ void AppController::selectConsole(const QString &address)
 		settings_.consoleName = consola.name;
 		settings_.consoleAddress = consola.address;
 		store_.save(settings_);
-		// O FTP, o instalador e o servidor HTTP passam a falar com ela.
+		// FTP, the installer and the HTTP server now talk to it.
 		rebuildBackends();
 		setStatusMessage(tr("Using %1 (%2).").arg(QString::fromStdString(consola.name),
 			QString::fromStdString(consola.address)));
@@ -442,7 +442,7 @@ QStringList AppController::collectPkgFiles(const QStringList &paths)
 		const QFileInfo info(path);
 		if(info.isDir())
 		{
-			// Pasta largada: procura .pkg recursivamente (§5.7).
+			// Dropped folder: look for .pkg recursively (§5.7).
 			QDirIterator it(path, QStringList { QStringLiteral("*.pkg") }, QDir::Files,
 				QDirIterator::Subdirectories);
 			while(it.hasNext())

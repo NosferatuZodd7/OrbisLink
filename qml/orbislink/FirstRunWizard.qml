@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Primeira abertura: em vez de uma janela vazia com serviços vermelhos e
-// nenhuma explicação, três passos que põem a aplicação a funcionar.
+// First launch: instead of an empty window with red services and no
+// explanation, three steps that get the application working.
 //
-// Aparece uma vez. Quem quiser voltar a vê-lo tem o botão nas definições.
+// It appears once. Anyone who wants to see it again has the button in the settings.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -21,8 +21,8 @@ Dialog {
     property int passo: 0
     readonly property int passos: 3
 
-    // A mesma verificação automática das definições: escreve-se o IP e o
-    // assistente diz se a consola respondeu, sem carregar em nada.
+    // The same automatic check as in the settings: type the IP and the
+    // wizard says whether the console answered, without pressing anything.
     property string probeState: "idle"
     property bool probeFtpOk: false
     property bool probeInstallerOk: false
@@ -115,23 +115,23 @@ Dialog {
         close()
     }
 
-    // Guardar fecha o assistente para sempre: a partir daqui abre-se pelo
-    // botão nas definições.
+    // Saving closes the wizard for good: from then on it opens from the
+    // button in the settings.
     function guardar() {
         app.applySettings({
             "consoleAddress": enderecoField.text.trim(),
             "consoleName": nomeField.text.trim().length > 0 ? nomeField.text.trim() : "PS4",
-            // Guarda-se convertido: a consola só aceita base64, e assim o
-            // que fica gravado é directamente utilizável.
+            // Stored converted: the console only accepts base64, and this way
+            // what is saved is directly usable.
             "streamAccountId": accountWizardField.ok ? accountWizardField.base64
                                                      : accountWizardField.text.trim(),
             "firstRunDone": true
         })
     }
 
-    // Um modal quase opaco: com a transparência dos painéis, o que está por
-    // trás ver-se-ia através da caixa, e uma caixa que pede uma decisão não
-    // pode ser uma janela.
+    // A nearly opaque modal: with the panels' transparency, what is behind
+    // would show through the box, and a box asking for a decision must not
+    // be a window.
     Overlay.modal: Rectangle { color: Theme.scrim }
 
     background: Rectangle {
@@ -160,7 +160,7 @@ Dialog {
                 font.pixelSize: 16
                 font.bold: true
             }
-            // Três pontos a dizer onde se vai.
+            // Three dots saying where you are going.
             Row {
                 spacing: 6
                 Repeater {
@@ -212,7 +212,7 @@ Dialog {
     contentItem: StackLayout {
         currentIndex: wizard.passo
 
-        // ── 1. a consola
+        // ── 1. the console
         ColumnLayout {
             spacing: 12
             Text {
@@ -279,7 +279,7 @@ Dialog {
             }
         }
 
-        // ── 2. o que tem de estar ligado na consola
+        // ── 2. what has to be enabled on the console
         ColumnLayout {
             spacing: 10
             Text {

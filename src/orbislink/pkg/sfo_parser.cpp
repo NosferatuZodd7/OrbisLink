@@ -8,7 +8,7 @@ namespace orbislink {
 namespace {
 constexpr size_t kSfoHeaderSize = 0x14;
 constexpr size_t kSfoIndexEntrySize = 0x10;
-constexpr uint32_t kMaxEntries = 4096; // salvaguarda contra ficheiros corrompidos
+constexpr uint32_t kMaxEntries = 4096; // safeguard against corrupted files
 } // namespace
 
 std::string SfoEntry::asString() const
@@ -65,7 +65,7 @@ bool Sfo::parse(const uint8_t *data, size_t size, std::string *error)
 
 		const size_t keyStart = static_cast<size_t>(keyTableOffset) + keyOffset;
 		if(keyStart >= size)
-			continue; // entrada corrompida: ignora sem rejeitar o ficheiro todo
+			continue; // corrupted entry: skip it without rejecting the whole file
 		size_t keyLen = 0;
 		while(keyStart + keyLen < size && data[keyStart + keyLen] != '\0')
 			++keyLen;

@@ -66,7 +66,7 @@ UpdateChannel updateChannelFromName(const std::string &name, UpdateChannel fallb
 std::string platformAssetSuffix()
 {
 #if defined(_WIN32)
-	// O instalador que o release.yml publica.
+	// The installer release.yml publishes.
 	return "-setup.exe";
 #else
 	// On Linux there is no self-installing package yet (the AppImage

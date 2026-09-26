@@ -109,7 +109,7 @@ void run(QQuickWindow *window, std::function<void(int, const QString &)> finishe
 			if(*indice >= passos->size())
 			{
 				timer->stop();
-				// Largar na zona da esquerda tem de ser aceite.
+				// Dropping on the left zone must be accepted.
 				QDropEvent largar(passos->last().ponto, Qt::CopyAction, mime, Qt::LeftButton,
 					Qt::NoModifier);
 				QGuiApplication::sendEvent(window, &largar);

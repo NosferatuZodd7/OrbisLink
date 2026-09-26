@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Campo de texto em vidro. Sem contorno agressivo: ao ganhar o foco,
-// acende-se um halo azul suave e a moldura ilumina-se.
+// Glass text field. No harsh outline: on gaining focus, a soft blue halo
+// lights up and the frame brightens.
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -19,7 +19,7 @@ TextField {
     selectedTextColor: Theme.text
 
     background: Item {
-        // O halo do foco, por baixo.
+        // The focus halo, underneath.
         Rectangle {
             anchors.fill: parent
             anchors.margins: -4

@@ -6,8 +6,8 @@
 
 namespace orbislink {
 
-// Estado da consola tal como responde ao pedido de descoberta (porta
-// 987/UDP no PS4 — ver docs/validation.md).
+// Console state as it answers the discovery request (port
+// 987/UDP on the PS4 — see docs/validation.md).
 enum class HostState { Unknown, Ready, Standby };
 
 const char *hostStateName(HostState state);
@@ -20,7 +20,7 @@ struct HostInfo
 	bool ps5 = false;
 	std::string address;
 	std::string name;           // name the user gave the console
-	std::string id;             // host-id, o MAC sem separadores
+	std::string id;             // host-id, the MAC without separators
 	std::string systemVersion;  // ex.: "09000000"
 	std::string runningAppName;
 	std::string runningAppTitleId;
@@ -36,9 +36,9 @@ struct StreamCredentials
 {
 	bool valid = false;
 	std::string nickname;
-	std::string hostId;       // MAC em hexadecimal, para casar com a descoberta
+	std::string hostId;       // MAC in hexadecimal, to match with discovery
 	std::string registKey;    // rp_regist_key, texto
-	std::string rpKeyHex;     // rp_key (16 bytes) em hexadecimal
+	std::string rpKeyHex;     // rp_key (16 bytes) in hexadecimal
 	uint32_t rpKeyType = 0;
 	int target = 0;
 	bool ps5 = false;

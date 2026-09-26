@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Gera as capturas de ecrã de docs/images/ com a consola falsa, sem PS4 e sem
-# ambiente gráfico (usa Xvfb). É também o "smoke test" da interface: se a
-# janela não abrir, o script falha.
+# Generates the docs/images/ screenshots with the fake console, with no PS4 and
+# no graphical environment (uses Xvfb). It is also the interface "smoke test":
+# if the window does not open, the script fails.
 #
 #   sudo apt install xvfb
-#   ./scripts/screenshots.sh [pasta-de-saida]
+#   ./scripts/screenshots.sh [output-folder]
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -53,8 +53,8 @@ Xvfb "$DISPLAY_NUM" -screen 0 1400x900x24 >/dev/null 2>&1 &
 XVFB_PID=$!
 
 echo "==> consola falsa"
-# A porta 987 é a real da descoberta do Remote Play; se não houver
-# privilégios para a abrir, a consola falsa continua sem ela.
+# Port 987 is Remote Play discovery's real one; if there are no
+# privileges to open it, the fake console carries on without it.
 python3 "$REPO/tools/mock-console/mock_console.py" --ftp-port 2121 --api-port 12800 \
 	--discovery-port 987 --root "$CONSOLE" --slow 0.5 > "$WORK/mock.log" 2>&1 &
 MOCK_PID=$!
@@ -73,8 +73,8 @@ JSON
 shot() {
 	local name="$1"; shift
 	rm -f "$CONFIG/orbislink/queue.json"
-	# A saída completa fica guardada: quando a captura falha, o que
-	# interessa é o que a aplicação disse, não um "falhou" seco.
+	# The full output is kept: when the screenshot fails, what matters
+	# is what the application said, not a bare "failed".
 	local registo="$WORK/gui-$name.log"
 	DISPLAY="$DISPLAY_NUM" XDG_CONFIG_HOME="$CONFIG" QT_QPA_PLATFORM=xcb \
 		"$GUI" --screenshot "$OUT/$name" "$@" > "$registo" 2>&1 || true
@@ -101,9 +101,9 @@ shot 08-diagnostics.png --screenshot-delay 4000 --demo-log
 shot 09-wizard.png --screenshot-delay 3000 --demo-wizard
 shot 10-update.png --screenshot-delay 3000 --demo-update
 
-# O palco parado segue o tema (fundo, grelha e texto): sem uma captura no
-# claro, um texto branco sobre o fundo branco passaria sem se ver.
-# Pelo JSON e não por sed: a app regrava o ficheiro com outra formatação.
+# The idle stage follows the theme (background, grid and text): without a light
+# screenshot, white text on the white background would go unnoticed.
+# Through JSON and not sed: the app rewrites the file with other formatting.
 python3 - "$CONFIG/orbislink/settings.json" <<'PY'
 import json, sys
 with open(sys.argv[1]) as f:

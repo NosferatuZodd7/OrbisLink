@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// O campo do Account ID da PSN, com a conversão à vista.
+// The PSN Account ID field, with the conversion in view.
 //
-// Aceita-se o valor na forma em que aparecer (hexadecimal, decimal ou
-// base64), e mostram-se as outras duas por baixo: quem tem o ID à frente
-// confirma de relance que é o mesmo número, em vez de ter de acreditar.
+// The value is accepted in whatever form it comes (hexadecimal, decimal or
+// base64), and the other two are shown below: whoever has the ID in front
+// of them confirms at a glance that it is the same number, instead of
+// having to take it on trust.
 //
-// A ordem dos bytes tem um interruptor, e ele NÃO toca no que está
-// escrito: lê o mesmo texto de outra maneira, e desligá-lo põe tudo como
-// estava. Um controlo que reescrevesse o campo deixaria quem lhe tocasse
-// para ver o que fazia com outro Account ID e sem o seu.
+// The byte order has a switch, and it does NOT touch what is typed: it
+// reads the same text another way, and turning it off puts everything back
+// as it was. A control that rewrote the field would leave whoever touched
+// it to see what it did with another Account ID and without their own.
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
@@ -17,8 +18,8 @@ import QtQuick.Layouts
 ColumnLayout {
     id: root
 
-    // O que a consola precisa. Vazio enquanto o que está escrito não der um
-    // Account ID válido.
+    // What the console needs. Empty while what is typed does not give a
+    // valid Account ID.
     readonly property string base64: formas.valid ? formas.base64 : ""
     readonly property bool ok: formas.valid === true
     property alias text: campo.text
@@ -40,16 +41,16 @@ ColumnLayout {
         Layout.fillWidth: true
         placeholderText: qsTr("hexadecimal, decimal or base64")
         onTextChanged: {
-            // Um ID novo começa sempre pela leitura normal: manter o
-            // interruptor ligado de uma tentativa anterior seria uma
-            // armadilha silenciosa.
+            // A new ID always starts with the normal reading: keeping the
+            // switch on from a previous attempt would be a silent
+            // trap.
             inverso.checked = false
             root.reler()
         }
     }
 
-    // A caixa de conversão. Só aparece depois de haver alguma coisa escrita:
-    // um painel de ajuda permanentemente vazio é ruído.
+    // The conversion box. It only appears once something is typed: a help
+    // panel that is permanently empty is noise.
     Rectangle {
         Layout.fillWidth: true
         visible: campo.text.trim().length > 0
@@ -71,7 +72,7 @@ ColumnLayout {
             anchors.rightMargin: 14
             spacing: 7
 
-            // Quando não dá, diz-se porquê em vez de deixar a caixa vazia.
+            // When it does not work, say why instead of leaving the box empty.
             Text {
                 Layout.fillWidth: true
                 visible: !root.ok
@@ -110,8 +111,8 @@ ColumnLayout {
                         font.pixelSize: 11
                         wrapMode: Text.WordWrap
                     }
-                    // Seleccionável: o valor convertido só serve se puder
-                    // ser copiado para outro sítio.
+                    // Selectable: the converted value is only useful if it
+                    // can be copied elsewhere.
                     TextInput {
                         Layout.fillWidth: true
                         text: modelData.valor
@@ -133,9 +134,9 @@ ColumnLayout {
                 color: Theme.glassEdge
             }
 
-            // A escotilha de emergência, e só isso: há ferramentas que
-            // mostram os oito bytes em bruto em vez do número, e aí o
-            // hexadecimal aparece pela ordem contrária.
+            // The emergency hatch, and only that: some tools show the eight
+            // raw bytes instead of the number, and then the hexadecimal
+            // appears in reverse order.
             StyledCheck {
                 id: inverso
                 visible: root.ok

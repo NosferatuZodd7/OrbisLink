@@ -29,7 +29,7 @@ class AppController : public QObject
 	Q_OBJECT
 	Q_PROPERTY(QString consoleName READ consoleName NOTIFY settingsChanged)
 	Q_PROPERTY(QString consoleAddress READ consoleAddress NOTIFY settingsChanged)
-	// As consolas guardadas: [{ name, address, active }].
+	// The saved consoles: [{ name, address, active }].
 	Q_PROPERTY(QVariantList consoles READ consoles NOTIFY settingsChanged)
 	Q_PROPERTY(QString remotePlayState READ remotePlayState NOTIFY statusChanged)
 	Q_PROPERTY(QString remotePlayHint READ remotePlayHint NOTIFY statusChanged)
@@ -82,7 +82,7 @@ public:
 	bool canUseFtp() const;
 	// The console in use is a PS5 (by the type that was stored).
 	bool activeIsPs5() const;
-	// A porta FTP da consola em uso (a da PS4 ou a da PS5).
+	// The FTP port of the console in use (the PS4 one or the PS5 one).
 	uint16_t activeFtpPort() const;
 	// The Account ID of the console in use, or the last accepted one if it
 	// does not have one yet.
@@ -154,7 +154,7 @@ public:
 	// folder (desktop).
 	Q_INVOKABLE void ftpDownload(const QString &remotePath, const QString &name,
 		const QString &destinationDir);
-	// Igual, mas para a cache local que alimenta o arrastar para fora.
+	// The same, but for the local cache that feeds dragging out.
 	Q_INVOKABLE void ftpPrepareForDrag(const QString &remotePath, const QString &name, qint64 size);
 	// Local URL of the file if it is already cached with the right size, otherwise empty.
 	Q_INVOKABLE QString cachedFileUrl(const QString &remotePath, qint64 size) const;

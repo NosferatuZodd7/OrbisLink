@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Juntar uma consola à lista: as que respondem na rede aparecem sozinhas, e
-// uma que não apareça (outra sub-rede, descoberta bloqueada) escreve-se à mão.
+// Adding a console to the list: those answering on the network show up by
+// themselves, and one that does not (another subnet, blocked discovery) is typed by hand.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -33,9 +33,9 @@ Dialog {
     modal: true
     padding: 0
 
-    // Um modal quase opaco: com a transparência dos painéis, o que está por
-    // trás ver-se-ia através da caixa, e uma caixa que pede uma decisão não
-    // pode ser uma janela.
+    // A nearly opaque modal: with the panels' transparency, what is behind
+    // would show through the box, and a box asking for a decision must not
+    // be a window.
     Overlay.modal: Rectangle { color: Theme.scrim }
 
     background: Rectangle {
@@ -89,7 +89,7 @@ Dialog {
 
         Item { Layout.preferredHeight: Theme.dialogInner - 14 }
 
-        // ── Na rede
+        // ── On the network
         RowLayout {
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
@@ -196,7 +196,7 @@ Dialog {
             color: Theme.border
         }
 
-        // ── À mão
+        // ── By hand
         Text {
             Layout.leftMargin: Theme.dialogMargin
             text: qsTr("By hand")

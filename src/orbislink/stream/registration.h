@@ -24,7 +24,7 @@ public:
 	struct Request
 	{
 		std::string address;
-		std::string accountIdBase64; // Account ID da PSN, 8 bytes em base64
+		std::string accountIdBase64; // PSN Account ID, 8 bytes in base64
 		uint32_t pin = 0;            // the 8 digits the console shows
 		int target = 0;              // ChiakiTarget, vindo da descoberta
 		bool ps5 = false;

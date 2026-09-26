@@ -22,7 +22,7 @@ struct ConsoleEntry
 {
 	std::string name;
 	std::string address;
-	// "ps4", "ps5", ou vazio enquanto a consola nunca tiver respondido.
+	// "ps4", "ps5", or empty while the console has never answered.
 	std::string type;
 	// The Account ID this console accepted at registration, in base64. Each
 	// console keeps its own: a PS4 whose account was activated by hand may
@@ -54,7 +54,7 @@ struct Settings
 
 	// Servidor HTTP local
 	uint16_t httpPort = 8765;
-	std::string httpBindAddress;       // vazio = escolher pela sub-rede da consola
+	std::string httpBindAddress;       // empty = choose by the console's subnet
 	bool restrictToConsoleIp = true;
 	bool firewallNoticeShown = false;  // aviso da firewall do Windows (§5.3)
 
@@ -63,9 +63,9 @@ struct Settings
 	bool ftpAdvancedMode = false;
 
 	// Remote Play
-	int streamResolution = 720;      // 360, 540, 720 ou 1080
-	int streamFps = 60;              // 30 ou 60
-	int streamBitrateKbps = 0;       // 0 = o que o preset do chiaki definir
+	int streamResolution = 720;      // 360, 540, 720 or 1080
+	int streamFps = 60;              // 30 or 60
+	int streamBitrateKbps = 0;       // 0 = whatever chiaki's preset sets
 	bool streamHardwareDecode = true;
 	bool streamFullscreenOnConnect = false;
 	bool streamRumble = true;

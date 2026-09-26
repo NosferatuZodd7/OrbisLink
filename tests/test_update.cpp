@@ -20,7 +20,7 @@ ORBISLINK_TEST(sha256_bate_com_os_vectores_publicos)
 	CHECK_EQ(sha256Hex("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"),
 		std::string("248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"));
 
-	// Um milhão de "a": exercita os blocos em cadeia, não só o padding.
+	// A million "a": exercises chained blocks, not just the padding.
 	Sha256 longo;
 	const std::string bloco(1000, 'a');
 	for(int i = 0; i < 1000; ++i)
@@ -40,8 +40,8 @@ ORBISLINK_TEST(sha256_de_um_ficheiro_bate_com_o_da_memoria)
 		out.write(conteudo.data(), static_cast<std::streamsize>(conteudo.size()));
 	}
 	CHECK_EQ(sha256File(path), sha256Hex(conteudo));
-	// Um ficheiro que não existe não pode devolver o hash do vazio: isso
-	// deixaria passar uma verificação de integridade.
+	// A file that does not exist must not return the empty hash: that
+	// would let an integrity check pass.
 	CHECK(sha256File(".orbislink-nao-existe.bin").empty());
 	std::remove(path.c_str());
 }
@@ -63,10 +63,10 @@ ORBISLINK_TEST(le_versoes_com_e_sem_v)
 	CHECK_EQ(b.pre, std::string("dev.42"));
 	CHECK_EQ(b.toString(), std::string("1.2.3-dev.42"));
 
-	// O que a app usa quando o CI lhe dá um nome estranho.
+	// What the app uses when CI gives it a strange name.
 	CHECK(!parseVersion("").valid);
 	CHECK(!parseVersion("nao-e-uma-versao").valid);
-	// Metadados de build não contam.
+	// Build metadata does not count.
 	CHECK_EQ(compareVersions("0.1.8+abc", "0.1.8"), 0);
 }
 
@@ -77,20 +77,20 @@ ORBISLINK_TEST(ordena_versoes_como_o_semver)
 	CHECK(compareVersions("0.2.0", "0.1.9") > 0);
 	CHECK(compareVersions("1.0.0", "0.9.9") > 0);
 
-	// O que faz o canal de testes funcionar: uma dev vem antes do final.
+	// What makes the testing channel work: a dev comes before the final.
 	CHECK(compareVersions("0.1.8-dev.2", "0.1.8") < 0);
 	CHECK(compareVersions("0.1.8", "0.1.8-dev.2") > 0);
 	CHECK(compareVersions("0.1.8-dev.2", "0.1.8-dev.3") < 0);
-	// Por valor e não por texto: a 10 é posterior à 9.
+	// By value, not as text: 10 comes after 9.
 	CHECK(compareVersions("0.1.8-dev.9", "0.1.8-dev.10") < 0);
-	// Quem está numa dev recebe a seguinte e depois a final.
+	// Someone on a dev build gets the next one and then the final.
 	CHECK(compareVersions("0.1.8-dev.42", "0.1.9") < 0);
 }
 
 ORBISLINK_TEST(versao_ilegivel_nunca_ganha)
 {
-	// Se o GitHub devolver lixo no tag_name, a app não pode concluir que há
-	// uma versão nova — seria um update para nenhures.
+	// If GitHub returns garbage in tag_name, the app must not conclude there
+	// is a new version — it would be an update to nowhere.
 	CHECK(compareVersions("lixo", "0.1.8") < 0);
 	CHECK(compareVersions("0.1.8", "lixo") > 0);
 }
@@ -98,13 +98,13 @@ ORBISLINK_TEST(versao_ilegivel_nunca_ganha)
 
 namespace {
 
-// Uma resposta como a que a API do GitHub dá, encurtada ao que se lê.
+// A reply like the GitHub API gives, trimmed to what is read.
 const char *kRespostaGitHub = R"([
   {
     "tag_name": "v0.1.9-dev.3",
     "name": "Build de testes 3",
     "body": "Mudanças do dia.\n\nOrbisLink-0.1.9-dev.3-setup.exe  0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n",
-    "html_url": "https://github.com/exemplo/app/releases/tag/v0.1.9-dev.3",
+    "html_url": "https://github.com/example/app/releases/tag/v0.1.9-dev.3",
     "draft": false,
     "prerelease": true,
     "assets": [
@@ -116,7 +116,7 @@ const char *kRespostaGitHub = R"([
     "tag_name": "v0.1.8",
     "name": "v0.1.8",
     "body": "Remote Play.",
-    "html_url": "https://github.com/exemplo/app/releases/tag/v0.1.8",
+    "html_url": "https://github.com/example/app/releases/tag/v0.1.8",
     "draft": false,
     "prerelease": false,
     "assets": [
@@ -143,7 +143,7 @@ const char *kRespostaGitHub = R"([
 ORBISLINK_TEST(le_a_resposta_do_github)
 {
 	const auto releases = UpdateChecker::parseReleases(kRespostaGitHub, "-setup.exe");
-	// O rascunho não conta: para quem está de fora, não existe.
+	// The draft does not count: for anyone outside, it does not exist.
 	CHECK_EQ(releases.size(), static_cast<size_t>(2));
 
 	CHECK_EQ(releases[0].tag, std::string("v0.1.9-dev.3"));
@@ -151,13 +151,13 @@ ORBISLINK_TEST(le_a_resposta_do_github)
 	CHECK_EQ(releases[0].assetName, std::string("OrbisLink-0.1.9-dev.3-setup.exe"));
 	CHECK_EQ(releases[0].assetUrl, std::string("https://exemplo/dev3-setup.exe"));
 	CHECK_EQ(releases[0].assetSize, static_cast<int64_t>(12345));
-	// O hash vinha escrito no corpo, na linha do ficheiro.
+	// The hash was written in the body, on the file's line.
 	CHECK_EQ(releases[0].assetSha256,
 		std::string("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"));
 
 	CHECK_EQ(releases[1].tag, std::string("v0.1.8"));
 	CHECK(!releases[1].prerelease);
-	// Escolheu o instalador e não o zip nem o .sha256.
+	// It picked the installer and not the zip or the .sha256.
 	CHECK_EQ(releases[1].assetName, std::string("OrbisLink-0.1.8-setup.exe"));
 	CHECK_EQ(releases[1].assetSha256Url, std::string("https://exemplo/018.sha256"));
 	CHECK(releases[1].assetSha256.empty());
@@ -165,8 +165,8 @@ ORBISLINK_TEST(le_a_resposta_do_github)
 
 ORBISLINK_TEST(hash_e_o_do_ficheiro_que_se_descarrega)
 {
-	// Um .sha256 por ficheiro, pela ordem em que a API os devolve: o do zip
-	// vem depois do do instalador. O que conta é o do instalador.
+	// One .sha256 per file, in the order the API returns them: the zip's
+	// comes after the installer's. The installer's is what counts.
 	const char *resposta = R"([{
 	  "tag_name": "v1.0.0", "draft": false, "prerelease": false, "body": "",
 	  "assets": [
@@ -180,8 +180,8 @@ ORBISLINK_TEST(hash_e_o_do_ficheiro_que_se_descarrega)
 	CHECK_EQ(releases[0].assetName, std::string("OrbisLink-1.0.0-setup.exe"));
 	CHECK_EQ(releases[0].assetSha256Url, std::string("https://x/setup.sha256"));
 
-	// As notas levam uma linha por ficheiro, no formato que o release.yml
-	// escreve. Conta a do instalador, e não a do zip nem a do Linux.
+	// The notes carry one line per file, in the format release.yml
+	// writes. The installer's counts, not the zip's or the Linux one.
 	const char *comNotas = R"([{
 	  "tag_name": "v1.0.0", "draft": false, "prerelease": false,
 	  "body": "Notas.\n\n### SHA-256\n\n`096da89a3a9f3624311e907d24af4c9b907b9bfabcd0af7dec2f5fdc935f2777`  OrbisLink-1.0.0-setup.exe\n\n`d2f6e324971ce63f55db4e66ce5e15be2359de673111619213c9b81f42f512cc`  OrbisLink-1.0.0-windows-x64.zip\n\n`e85c6cf68dfaa7d1f48a0a02a5b7eb43747adc7c074819547b38276ed8abd337`  orbislink-1.0.0-linux-x86_64.tar.gz\n",
@@ -191,7 +191,7 @@ ORBISLINK_TEST(hash_e_o_do_ficheiro_que_se_descarrega)
 	CHECK_EQ(UpdateChecker::parseReleases(comNotas, "-setup.exe")[0].assetSha256,
 		std::string("096da89a3a9f3624311e907d24af4c9b907b9bfabcd0af7dec2f5fdc935f2777"));
 
-	// Sem o .sha256 do próprio ficheiro, não se usa o de outro.
+	// Without the file's own .sha256, another's is not used.
 	const char *semHash = R"([{
 	  "tag_name": "v1.0.0", "draft": false, "prerelease": false, "body": "",
 	  "assets": [
@@ -205,13 +205,13 @@ ORBISLINK_TEST(canal_estavel_ignora_pre_lancamentos)
 {
 	const auto releases = UpdateChecker::parseReleases(kRespostaGitHub, "-setup.exe");
 
-	// Quem está na 0.1.7 e no canal estável recebe a 0.1.8, não a dev.
+	// Someone on 0.1.7 and the stable channel gets 0.1.8, not the dev.
 	const ReleaseInfo *estavel =
 		UpdateChecker::pick(releases, UpdateChannel::Stable, "0.1.7");
 	CHECK(estavel != nullptr);
 	CHECK_EQ(estavel->tag, std::string("v0.1.8"));
 
-	// No canal de testes recebe a dev, que é posterior.
+	// On the testing channel they get the dev, which is newer.
 	const ReleaseInfo *testes =
 		UpdateChecker::pick(releases, UpdateChannel::Testing, "0.1.7");
 	CHECK(testes != nullptr);
@@ -222,12 +222,12 @@ ORBISLINK_TEST(nao_oferece_o_que_ja_esta_instalado)
 {
 	const auto releases = UpdateChecker::parseReleases(kRespostaGitHub, "-setup.exe");
 
-	// Já na 0.1.8, canal estável: nada a fazer.
+	// Already on 0.1.8, stable channel: nothing to do.
 	CHECK(UpdateChecker::pick(releases, UpdateChannel::Stable, "0.1.8") == nullptr);
-	// E nunca se empurra para trás quem está à frente.
+	// And someone ahead is never pushed back.
 	CHECK(UpdateChecker::pick(releases, UpdateChannel::Stable, "0.3.0") == nullptr);
 	CHECK(UpdateChecker::pick(releases, UpdateChannel::Testing, "0.3.0") == nullptr);
-	// Quem está numa dev recebe a dev seguinte.
+	// Someone on a dev gets the next dev.
 	const ReleaseInfo *seguinte =
 		UpdateChecker::pick(releases, UpdateChannel::Testing, "0.1.9-dev.2");
 	CHECK(seguinte != nullptr);
@@ -239,14 +239,14 @@ ORBISLINK_TEST(canal_estavel_avisa_quando_ha_uma_de_testes)
 {
 	const auto releases = UpdateChecker::parseReleases(kRespostaGitHub, "-setup.exe");
 
-	// Na 0.1.8 e no canal estável não há nada — mas há uma dev posterior, e
-	// isso tem de ser dito em vez de "estás actualizado".
+	// On 0.1.8 and the stable channel there is nothing — but there is a newer
+	// dev, and that has to be said instead of "you are up to date".
 	const std::string aviso =
 		UpdateChecker::describeNothingNew(releases, UpdateChannel::Stable, "0.1.8");
 	CHECK(aviso.find("0.1.9-dev.3") != std::string::npos);
 	CHECK(aviso.find("Testing") != std::string::npos);
 
-	// Sem nada em lado nenhum, diz só que está actualizado.
+	// With nothing anywhere, it just says it is up to date.
 	const std::string nada =
 		UpdateChecker::describeNothingNew(releases, UpdateChannel::Stable, "0.3.0");
 	CHECK(nada.find("dev") == std::string::npos);
@@ -258,14 +258,14 @@ ORBISLINK_TEST(resposta_ilegivel_nao_inventa_lancamentos)
 	CHECK(UpdateChecker::parseReleases("", "-setup.exe").empty());
 	CHECK(UpdateChecker::parseReleases("isto nao e json", "-setup.exe").empty());
 	CHECK(UpdateChecker::parseReleases("[]", "-setup.exe").empty());
-	// Uma entrada sem tag não dá uma versão para comparar.
+	// An entry without a tag gives no version to compare.
 	CHECK(UpdateChecker::parseReleases(R"([{"name":"sem tag"}])", "-setup.exe").empty());
 }
 
 ORBISLINK_TEST(sem_anexo_para_a_plataforma_ainda_ha_pagina)
 {
-	// Em Linux não há instalador publicado: o lançamento continua a contar,
-	// só não tem ficheiro para descarregar.
+	// On Linux there is no published installer: the release still counts,
+	// it just has no file to download.
 	const auto releases = UpdateChecker::parseReleases(kRespostaGitHub, "");
 	CHECK_EQ(releases.size(), static_cast<size_t>(2));
 	CHECK(releases[1].assetName.empty());

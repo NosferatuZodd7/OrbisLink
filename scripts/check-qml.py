@@ -27,8 +27,8 @@ TIPOS = ("Dialog", "Popup", "Menu")
 def blocos(texto, tipo):
     """Devolve (linha, corpo) de cada bloco `Tipo {` … `}` equilibrado."""
     for m in re.finditer(r"(?<![A-Za-z_.])" + tipo + r"\s*\{", texto):
-        # Um "Overlay.modal: Rectangle" ou um "property var x: Dialog"
-        # não abrem um bloco destes; o regex acima já os exclui pelo ponto.
+        # An "Overlay.modal: Rectangle" or a "property var x: Dialog"
+        # does not open one of these blocks; the regex above already excludes them by the dot.
         inicio = m.end() - 1
         nivel = 0
         for i in range(inicio, len(texto)):

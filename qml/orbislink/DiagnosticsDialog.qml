@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// A janela do registo. Serve para duas coisas: ver ao vivo o que a
-// aplicação está a fazer (sobretudo o Remote Play, que tem muitos passos e
-// falha em qualquer um deles), e produzir um ficheiro que se possa anexar
-// a uma mensagem sem ter de explicar nada.
+// The log window. It serves two purposes: watching live what the
+// application is doing (above all Remote Play, which has many steps and
+// can fail at any of them), and producing a file that can be attached
+// to a message without having to explain anything.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -22,9 +22,9 @@ Dialog {
     property bool followTail: true
     property string filtro: ""
 
-    // Um modal quase opaco: com a transparência dos painéis, o que está por
-    // trás ver-se-ia através da caixa, e uma caixa que pede uma decisão não
-    // pode ser uma janela.
+    // A nearly opaque modal: with the panels' transparency, what is behind
+    // would show through the box, and a box asking for a decision must not
+    // be a window.
     Overlay.modal: Rectangle { color: Theme.scrim }
 
     background: Rectangle {
@@ -49,7 +49,7 @@ Dialog {
             lista.positionViewAtEnd()
     }
 
-    // As linhas vindas do registo já trazem "data [nível] texto".
+    // Lines coming from the log already carry "date [level] text".
     function acrescentar(linha) {
         var nivel = ""
         var abre = linha.indexOf("[")
@@ -70,7 +70,7 @@ Dialog {
         function onLogLine(level, text) {
             if (!dialog.visible)
                 return
-            // Recompõe a linha como ela aparece no ficheiro.
+            // Rebuilds the line as it appears in the file.
             dialog.acrescentar(Qt.formatDateTime(new Date(), "yyyy-MM-dd hh:mm:ss.zzz")
                                + " [" + level + "] " + text)
             if (dialog.followTail)

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// O botão da aplicação, em vidro líquido.
+// The application's button, in liquid glass.
 //
-// O QtQuick.Controls.Basic desenha botões cinzentos chapados. Este é uma
-// superfície translúcida com aresta de luz, que cresce 2% ao passar o rato
-// e encolhe ao carregar — o movimento é o que o faz parecer um corpo e não
-// um desenho.
+// QtQuick.Controls.Basic draws flat grey buttons. This one is a
+// translucent surface with an edge of light, which grows 2% on hover
+// and shrinks when pressed — the movement is what makes it feel like a body
+// and not a drawing.
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -15,28 +15,28 @@ Button {
     property bool primary: false
     property bool danger: false
     property bool chip: false
-    // Largura pedida — e é um mínimo, não um máximo. Os números dos
-    // diálogos foram medidos com as etiquetas em português; em inglês a
-    // mesma etiqueta pode ser mais comprida. Um botão nunca fica mais
-    // estreito do que o seu texto.
+    // Requested width — and it is a minimum, not a maximum. The dialogs'
+    // numbers were measured with one language's labels; in another the
+    // same label may be longer. A button is never narrower than its
+    // text.
     property int larguraMinima: 0
 
     implicitWidth: Math.max(larguraMinima, rotulo.implicitWidth + leftPadding + rightPadding)
     implicitHeight: chip ? 30 : 38
-    // Só folga dos lados. O "padding" do Control aplica-se aos quatro, e
-    // 20 em cima mais 20 em baixo não cabem numa altura de 38: o texto
-    // ficaria com altura negativa e não apareceria.
+    // Side padding only. Control's "padding" applies to all four, and
+    // 20 above plus 20 below do not fit in a height of 38: the text
+    // would get a negative height and not appear.
     leftPadding: chip ? 14 : 20
     rightPadding: chip ? 14 : 20
     topPadding: 0
     bottomPadding: 0
     font.pixelSize: chip ? 11 : 13
     font.weight: primary ? Font.DemiBold : Font.Medium
-    // O tracking ligeiramente fechado é metade da personalidade da
-    // tipografia da Apple.
+    // The slightly tight tracking is half the personality of Apple's
+    // typography.
     font.letterSpacing: -0.2
 
-    // Cresce ao passar o rato, encolhe ao carregar. O OutBack dá o peso.
+    // Grows on hover, shrinks when pressed. OutBack gives it weight.
     scale: down ? Theme.pressScale : (hovered ? Theme.hoverScale : 1.0)
     Behavior on scale {
         NumberAnimation { duration: Theme.fast; easing.type: Theme.easeSpring; easing.overshoot: 1.1 }
@@ -64,7 +64,7 @@ Button {
     }
 
     background: Item {
-        // Halo por baixo do botão principal: é ele que puxa o olho.
+        // Halo under the primary button: it is what draws the eye.
         Rectangle {
             anchors.fill: parent
             anchors.margins: -5
@@ -89,7 +89,7 @@ Button {
                     : Theme.glassEdge)
             Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
 
-            // Gradiente interno e aresta de luz, como nas outras superfícies.
+            // Inner gradient and edge of light, as on the other surfaces.
             Rectangle {
                 anchors.fill: parent
                 radius: parent.radius

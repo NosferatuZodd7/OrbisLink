@@ -121,8 +121,8 @@ bool parseUnixLine(const std::string &line, FtpEntry *entry)
 	return true;
 }
 
-// Formato MS-DOS, caso algum servidor o use:
-// 01-01-70  00:00AM       <DIR>          nome
+// MS-DOS format, in case some server uses it:
+// 01-01-70  00:00AM       <DIR>          name
 bool parseDosLine(const std::string &line, FtpEntry *entry)
 {
 	std::istringstream stream(line);

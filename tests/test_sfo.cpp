@@ -42,7 +42,7 @@ ORBISLINK_TEST(rejeita_ficheiro_curto)
 ORBISLINK_TEST(ignora_entrada_fora_dos_limites)
 {
 	auto data = buildSfo({ { "TITLE", "Bom" }, { "TITLE_ID", "CUSA00001" } });
-	// Corrompe o value_offset da segunda entrada para lá do fim do ficheiro.
+	// Corrupts the second entry's value_offset to beyond the end of the file.
 	putLE32(data, 0x14 + 0x10 + 0x0C, 0x7FFFFFFF);
 	Sfo sfo;
 	CHECK(sfo.parse(data, nullptr));

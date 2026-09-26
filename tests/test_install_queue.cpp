@@ -17,7 +17,7 @@ using namespace orbislink_test;
 
 namespace {
 
-// Instalador falso: implementa IInstallerBackend para testar a fila sem PS4.
+// Fake installer: implements IInstallerBackend to test the queue without a PS4.
 class FakeInstaller : public IInstallerBackend
 {
 public:
@@ -36,7 +36,7 @@ public:
 	bool probe(std::string *detail) override
 	{
 		if(detail)
-			*detail = available.load() ? "ok" : "sem resposta";
+			*detail = available.load() ? "ok" : "no reply";
 		return available.load();
 	}
 
@@ -176,7 +176,7 @@ ORBISLINK_TEST(ordena_jogo_patch_dlc_do_mesmo_title_id)
 
 	InstallQueue queue(InstallQueue::Dependencies {}, Settings {});
 	std::vector<std::string> rejected;
-	// Largados fora de ordem, de propósito.
+	// Dropped out of order, on purpose.
 	queue.enqueue({ dlc.path, patch.path, game.path }, TransferMode::DirectInstall, &rejected);
 	CHECK(rejected.empty());
 
@@ -199,7 +199,7 @@ ORBISLINK_TEST(mantem_ordem_entre_titulos_diferentes)
 	const auto tasks = queue.tasks();
 	CHECK_EQ(tasks.size(), static_cast<size_t>(3));
 	CHECK_EQ(tasks[0].titleId, std::string("CUSA00002"));
-	CHECK(tasks[0].category == PkgCategory::Game); // o jogo passa à frente do patch
+	CHECK(tasks[0].category == PkgCategory::Game); // the game goes ahead of the patch
 	CHECK_EQ(tasks[1].titleId, std::string("CUSA00002"));
 	CHECK_EQ(tasks[2].titleId, std::string("CUSA00001"));
 }
@@ -262,10 +262,10 @@ ORBISLINK_TEST(instalacao_direta_do_principio_ao_fim)
 	CHECK_EQ(task.doneBytes, task.totalBytes);
 	CHECK(notifications.load() > 0);
 	CHECK_EQ(installer.installCalls.load(), 1);
-	// O URL enviado à consola aponta para o token do servidor local.
+	// The URL sent to the console points at the local server's token.
 	CHECK_EQ(installer.lastUrls.size(), static_cast<size_t>(1));
 	CHECK(installer.lastUrls[0].find("/f/") != std::string::npos);
-	// O token é removido quando a tarefa acaba.
+	// The token is removed when the task finishes.
 	CHECK(server.allStats().empty());
 	server.stop();
 }
@@ -283,7 +283,7 @@ ORBISLINK_TEST(deteta_que_a_consola_nao_alcanca_o_pc)
 
 	FakeInstaller installer;
 	installer.totalBytes.store(fileSize(game.path));
-	installer.stepBytes.store(0); // a consola nunca descarrega nada
+	installer.stepBytes.store(0); // the console never downloads anything
 
 	InstallQueue::Dependencies deps;
 	deps.httpServer = &server;
@@ -320,7 +320,7 @@ ORBISLINK_TEST(pausa_a_fila_quando_o_instalador_cai)
 	CHECK(server.start(config, nullptr));
 
 	FakeInstaller installer;
-	installer.available.store(false); // consola adormeceu
+	installer.available.store(false); // console went to sleep
 	installer.totalBytes.store(fileSize(game.path));
 
 	InstallQueue::Dependencies deps;
@@ -336,11 +336,11 @@ ORBISLINK_TEST(pausa_a_fila_quando_o_instalador_cai)
 	CHECK(waitFor([&]() { return queue.paused(); }));
 	QueueTask task;
 	CHECK(queue.task(id, &task));
-	// A tarefa volta a "Pendente" e a fila fica em pausa (§6.3).
+	// The task goes back to "Pending" and the queue is paused (§6.3).
 	CHECK(task.state == TaskState::Pending);
 	CHECK(!queue.pauseReason().empty());
 
-	// Quando o serviço volta, a fila retoma e a tarefa acaba.
+	// When the service comes back, the queue resumes and the task finishes.
 	installer.available.store(true);
 	queue.resume();
 	CHECK(waitFor([&]() {

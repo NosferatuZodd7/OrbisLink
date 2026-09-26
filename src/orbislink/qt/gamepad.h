@@ -47,7 +47,7 @@ private:
 
 	QTimer timer_;
 	QString name_;
-	void *controller_ = nullptr; // SDL_GameController*, sem arrastar o SDL para aqui
+	void *controller_ = nullptr; // SDL_GameController*, without dragging SDL in here
 	StreamSession::ControllerState last_;
 	bool haveLast_ = false;
 	bool initialised_ = false;

@@ -34,7 +34,7 @@ class StreamController : public QObject
 	// The step the one-click connection is at: "", "checking", "waking".
 	Q_PROPERTY(QString connectStage READ connectStage NOTIFY connectStageChanged)
 	Q_PROPERTY(QString consoleName READ consoleName NOTIFY consoleChanged)
-	// PS5 ou PS4, pelo que a consola disse na descoberta.
+	// PS5 or PS4, from what the console said in discovery.
 	Q_PROPERTY(bool consolePs5 READ consolePs5 NOTIFY consoleChanged)
 	Q_PROPERTY(QString runningApp READ runningApp NOTIFY consoleChanged)
 	Q_PROPERTY(bool registered READ registered NOTIFY registrationChanged)
@@ -66,7 +66,7 @@ class StreamController : public QObject
 	// The state of the other saved consoles, by address:
 	// { state, name, ps5, registered }.
 	Q_PROPERTY(QVariantMap consoleStates READ consoleStates NOTIFY consoleStatesChanged)
-	// A procura na rede da janela "Adicionar consola".
+	// The network search of the "Add console" window.
 	Q_PROPERTY(bool scanning READ scanning NOTIFY scanChanged)
 	Q_PROPERTY(QVariantList scanResults READ scanResults NOTIFY scanChanged)
 
@@ -117,7 +117,7 @@ public:
 	// Asks the console what state it is in (discovery) and reports the result
 	// in a notification: this is what runs when the refresh is requested.
 	Q_INVOKABLE void refreshConsole();
-	// Acorda uma consola em repouso.
+	// Wakes a console in rest mode.
 	Q_INVOKABLE void wakeUp();
 	// Registers this PC on the console. The Account ID may come in hexadecimal,
 	// decimal or base64 — the conversion is done here, so no path in the

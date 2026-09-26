@@ -113,8 +113,8 @@ AccountId parseAccountId(const std::string &texto)
 	if(limpo.size() > 2 && limpo[0] == '0' && (limpo[1] == 'x' || limpo[1] == 'X'))
 		hex = limpo.substr(2);
 
-	// 2. Base64 dos 8 bytes tem exactamente 12 caracteres e acaba em "=".
-	//    Nenhuma das outras formas se parece com isto.
+	// 2. Base64 of the 8 bytes has exactly 12 characters and ends in "=".
+	//    None of the other forms looks like this.
 	if(hex.empty() && limpo.size() == 12 && limpo.back() == '=')
 	{
 		bool parece = true;
@@ -174,7 +174,7 @@ AccountId parseAccountId(const std::string &texto)
 		}
 	}
 
-	// 4. Hexadecimal, com ou sem "0x".
+	// 4. Hexadecimal, with or without "0x".
 	if(hex.empty())
 		hex = limpo;
 	// Separators that show up on console screens.

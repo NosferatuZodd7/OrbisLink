@@ -27,7 +27,7 @@ struct SessionSettings
 	// Presets do chiaki: 360p, 540p, 720p, 1080p.
 	int resolution = 720;
 	int fps = 60;
-	// 0 = deixa o chiaki escolher pelo preset.
+	// 0 = let chiaki choose by the preset.
 	unsigned int bitrateKbps = 0;
 	bool hardwareDecoder = true;
 };
@@ -114,7 +114,7 @@ public:
 	static constexpr unsigned int kMicrophoneChannels = 2;
 	static constexpr unsigned int kMicrophoneFrameSamples = 480;
 
-	// Avisa a consola de que vamos falar e prepara o codificador.
+	// Tells the console we are going to talk and prepares the encoder.
 	bool startMicrophone(std::string *error = nullptr);
 	void stopMicrophone();
 	// Stays on, but stops sending. This is what the console expects from a
@@ -122,8 +122,8 @@ public:
 	void setMicrophoneMuted(bool muted);
 	bool microphoneActive() const;
 	bool microphoneMuted() const;
-	// Uma trama de PCM intercalado, com exactamente kMicrophoneFrameSamples
-	// amostras por canal. Chamado pela captura, fora da thread do chiaki.
+	// One frame of interleaved PCM, with exactly kMicrophoneFrameSamples
+	// samples per channel. Called by the capture, off chiaki's thread.
 	void sendMicrophoneFrame(const int16_t *pcm, size_t samplesPerChannel);
 
 	// Dimensions of the last frame received (0 before the first).

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Gera os dois PNG do comando do mapa das teclas a partir do
-# src/icons/dualshock.svg: corpo escuro (para o tema claro) e corpo claro
-# (para os temas escuros).
+# Generates the two PNGs of the key map controller from
+# src/icons/dualshock.svg: dark body (for the light theme) and light body
+# (for the dark themes).
 #
-# Os PNG ficam no repositório para a compilação não precisar de um
-# renderizador de SVG; este script só se corre quando o desenho muda.
-# Precisa do rsvg-convert (apt install librsvg2-bin).
+# The PNGs live in the repository so the build does not need an SVG
+# renderer; this script is only run when the drawing changes.
+# Needs rsvg-convert (apt install librsvg2-bin).
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"

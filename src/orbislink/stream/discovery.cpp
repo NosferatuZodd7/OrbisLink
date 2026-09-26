@@ -55,8 +55,8 @@ HostInfo fromChiaki(ChiakiDiscoveryHost *host)
 	return info;
 }
 
-// O callback do chiaki corre na thread da descoberta; guarda-se o que
-// chegar aqui, protegido.
+// chiaki's callback runs on the discovery thread; whatever arrives here
+// is stored, under a lock.
 struct Colheita
 {
 	std::mutex mutex;
@@ -71,7 +71,7 @@ void colher(ChiakiDiscoveryHost *host, void *user)
 	HostInfo info = fromChiaki(host);
 	for(HostInfo &existente : colheita->hosts)
 	{
-		// A mesma consola responde a mais do que um pedido.
+		// The same console answers more than one request.
 		if(existente.id == info.id && !info.id.empty())
 		{
 			existente = info;

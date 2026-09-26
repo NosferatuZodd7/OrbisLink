@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Registar este PC na consola. Sem isto não há Remote Play: a consola só
-// aceita sessões de dispositivos que ela própria autorizou.
+// Registering this PC on the console. Without it there is no Remote Play:
+// the console only accepts sessions from devices it has authorised itself.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -10,8 +10,8 @@ import QtQuick.Layouts
 Dialog {
     id: dialog
 
-    // Ver a nota em StreamArea.qml: ao fechar a janela o controlador some
-    // antes das bindings.
+    // See the note in StreamArea.qml: when closing the window the controller
+    // goes away before the bindings.
     readonly property bool ready: typeof stream !== "undefined" && stream !== null
     readonly property bool busy: ready && stream.registering
     parent: Overlay.overlay
@@ -20,9 +20,9 @@ Dialog {
     modal: true
     padding: 0
 
-    // Um modal quase opaco: com a transparência dos painéis, o que está por
-    // trás ver-se-ia através da caixa, e uma caixa que pede uma decisão não
-    // pode ser uma janela.
+    // A nearly opaque modal: with the panels' transparency, what is behind
+    // would show through the box, and a box asking for a decision must not
+    // be a window.
     Overlay.modal: Rectangle { color: Theme.scrim }
 
     background: Rectangle {
@@ -82,9 +82,9 @@ Dialog {
             StyledButton {
                 text: qsTr("Register")
                 larguraMinima: 110
-                // Só activo quando o Account ID já dá um valor válido: um
-                // botão que se pode carregar e falha na consola é pior do
-                // que um botão apagado.
+                // Only enabled once the Account ID gives a valid value: a
+                // button that can be pressed and fails on the console is worse
+                // than a greyed-out button.
                 enabled: pinField.text.length >= 8 && accountField.ok
                          && dialog.ready && !dialog.busy
                 primary: true
@@ -96,8 +96,8 @@ Dialog {
     contentItem: ColumnLayout {
         spacing: 12
 
-        // Passo a passo, porque isto falha sempre pelo mesmo: PIN expirado
-        // ou Account ID trocado.
+        // Step by step, because this always fails for the same reasons: an
+        // expired PIN or a swapped Account ID.
         Rectangle {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
@@ -167,11 +167,11 @@ Dialog {
             AccountIdField {
                 id: accountField
                 Layout.fillWidth: true
-                // Vem preenchido com o último que a consola aceitou. O PIN
-                // muda de cada vez; o Account ID não.
+                // Pre-filled with the last one the console accepted. The PIN
+                // changes every time; the Account ID does not.
                 //
-                // O guarda não é por preciosismo: num build sem Remote Play
-                // o "stream" não existe e a ligação rebentaria com
+                // The guard is not fussiness: in a build without Remote Play
+                // "stream" does not exist and the binding would blow up with
                 // "Cannot read property of null".
                 text: (typeof stream !== "undefined" && stream) ? stream.savedAccountId : ""
             }

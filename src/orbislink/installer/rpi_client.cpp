@@ -94,8 +94,8 @@ InstallerResult RpiClient::call(const std::string &path, const std::string &json
 		return result;
 	}
 
-	// Dois formatos de falha: { "error_code": 0x... } da API e
-	// { "error": "texto" } dos erros de pedido malformado.
+	// Two failure formats: { "error_code": 0x... } from the API and
+	// { "error": "text" } from malformed request errors.
 	InstallerResult result;
 	result.httpStatus = response.status;
 	result.rawBody = response.body;
@@ -163,7 +163,7 @@ InstallerResult RpiClient::isExists(const std::string &titleId, bool *exists, in
 	if(result.ok)
 	{
 		const Json json = Json::parse(body);
-		// "exists" vem como string ("true"/"false") no instalador do flatz.
+		// "exists" comes as a string ("true"/"false") in flatz's installer.
 		if(exists)
 			*exists = json["exists"].toLooseBool(false);
 		if(size)

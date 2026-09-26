@@ -25,9 +25,9 @@ if(ORBISLINK_ENABLE_STREAM AND TARGET orbislink_stream)
 	endforeach()
 endif()
 
-# A fila de PCM vive no lado do Qt, mas o que interessa testar nela — as
-# contas de quanto entrou e quanto saiu — não precisa de placa de som
-# nenhuma, e é isso que distingue "o som não chegou" de "o som não saiu".
+# The PCM queue lives on the Qt side, but what matters to test in it — the
+# accounting of how much went in and how much came out — needs no sound card
+# at all, and that is what tells "the sound did not arrive" from "the sound did not come out".
 if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET Qt6::Multimedia)
 	set(CMAKE_AUTOMOC ON)
 	add_executable(test_pcm_queue
@@ -38,8 +38,8 @@ if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET Qt6::Multimedia)
 	add_test(NAME test_pcm_queue COMMAND test_pcm_queue)
 endif()
 
-# O teclado como comando: as regras de troca de teclas vivem no lado do
-# Qt (os códigos são Qt::Key) e usam os botões do chiaki.
+# Keyboard as controller: the key swap rules live on the Qt side
+# (the codes are Qt::Key) and use chiaki's buttons.
 if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET orbislink_stream)
 	add_executable(test_keyboard_map
 		test_keyboard_map.cpp
@@ -56,7 +56,7 @@ foreach(test_name ${ORBISLINK_TESTS})
 	add_test(NAME ${test_name} COMMAND ${test_name})
 endforeach()
 
-# Teste de integração com a consola falsa (tools/mock-console).
+# Integration test with the fake console (tools/mock-console).
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND AND ORBISLINK_BUILD_CLI)
 	add_test(NAME integration_mock_console

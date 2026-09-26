@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// O fundo da janela: um gradiente profundo com halos de luz suaves.
+// The window background: a deep gradient with soft halos of light.
 //
-// Os halos não são decoração. Uma superfície translúcida só se lê como
-// vidro quando o que está por trás tem variação — sobre uma cor chapada,
-// translucidez é indistinguível de opacidade. É daqui que o vidro tira a
-// cor.
+// The halos are not decoration. A translucent surface only reads as glass
+// when what is behind it varies — over a flat colour, translucency is
+// indistinguishable from opacity. This is where the glass gets its
+// colour from.
 //
-// São pintados num Canvas porque o RadialGradient do QML vive no
-// Qt5Compat, que não está garantido. O Canvas desenha uma vez e fica.
+// They are painted on a Canvas because QML's RadialGradient lives in
+// Qt5Compat, which is not guaranteed. The Canvas draws once and stays.
 import QtQuick
 
 Item {
@@ -28,7 +28,7 @@ Item {
         opacity: Theme.claro ? 0.55 : 0.75
         renderStrategy: Canvas.Cooperative
 
-        // Repinta quando o tema muda; não precisa de mais nada, é estático.
+        // Repaints when the theme changes; it needs nothing else, it is static.
         readonly property color corA: Theme.accent
         readonly property color corB: Theme.ok
         onCorAChanged: requestPaint()

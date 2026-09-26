@@ -197,7 +197,7 @@ bool CredentialStore::forget(const std::string &hostId)
 	if(todas.size() == antes)
 		return false;
 
-	// Reescreve o ficheiro sem a consola esquecida.
+	// Rewrites the file without the forgotten console.
 	std::remove(path_.c_str());
 	for(const StreamCredentials &c : todas)
 		save(c);

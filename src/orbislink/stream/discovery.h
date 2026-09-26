@@ -29,11 +29,11 @@ public:
 	// few seconds, also in the middle of a session.
 	static HostInfo peek(const std::string &address, int timeoutMs = 2000, uint16_t ps4Port = 0);
 
-	// Varre a rede local. Devolve todas as consolas que responderem.
+	// Sweeps the local network. Returns every console that answers.
 	static std::vector<HostInfo> scan(int timeoutMs = 3000);
 
-	// Acorda uma consola em repouso. Precisa da credencial que vem do
-	// registo; sem ela a consola ignora o pacote.
+	// Wakes a console in rest mode. Needs the credential that comes from
+	// registration; without it the console ignores the packet.
 	static bool wakeup(const std::string &address, uint64_t credential, bool ps5,
 		std::string *error = nullptr);
 };

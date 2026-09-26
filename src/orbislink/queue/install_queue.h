@@ -35,7 +35,7 @@ struct QueueTask
 	TransferMode mode = TransferMode::DirectInstall;
 	TaskState state = TaskState::Pending;
 
-	// Metadados do pkg (preenchidos pelo PkgInspector).
+	// pkg metadata (filled in by PkgInspector).
 	std::string title;
 	std::string titleId;
 	std::string contentId;
@@ -101,8 +101,8 @@ public:
 	void setSettings(const Settings &settings);
 	Settings settings() const;
 
-	// Valida e acrescenta. Ordena o lote por jogo → patch → DLC dentro do
-	// mesmo TITLE_ID. `rejected` recebe "ficheiro: motivo" por cada recusa.
+	// Validates and appends. Orders the batch as game → patch → DLC within the
+	// same TITLE_ID. `rejected` receives "file: reason" for each refusal.
 	std::vector<std::string> enqueue(const std::vector<std::string> &paths, TransferMode mode,
 		std::vector<std::string> *rejected = nullptr);
 	std::string enqueueOne(const std::string &path, TransferMode mode, std::string *error = nullptr);

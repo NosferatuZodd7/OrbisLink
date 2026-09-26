@@ -110,7 +110,7 @@ ORBISLINK_TEST(pkg_sem_param_sfo_continua_valido)
 	const PkgInfo info = PkgInspector().inspect(path);
 	CHECK(info.valid);
 	CHECK(info.title.empty());
-	// O TITLE_ID vem do content id do cabeçalho mesmo sem PARAM.SFO.
+	// The TITLE_ID comes from the header's content id even without PARAM.SFO.
 	CHECK_EQ(info.titleId, std::string("CUSA12345"));
 	CHECK_EQ(info.displayTitle(), std::string("CUSA12345"));
 
@@ -121,7 +121,7 @@ ORBISLINK_TEST(tabela_de_entradas_fora_dos_limites)
 {
 	PkgOptions options;
 	auto data = buildPkg(options);
-	putBE32(data, 0x10, 100000); // entry_count impossível para este ficheiro
+	putBE32(data, 0x10, 100000); // entry_count impossible for this file
 	const std::string path = writeTempFile("corrompido.pkg", data);
 
 	const PkgInfo info = PkgInspector().inspect(path);
@@ -133,8 +133,8 @@ ORBISLINK_TEST(tabela_de_entradas_fora_dos_limites)
 
 ORBISLINK_TEST(ficheiro_acima_de_4gb_e_lido_por_offsets)
 {
-	// Ficheiro esparso de ~5 GB: confirma que os tamanhos usam 64 bits e que
-	// só se leem os offsets necessários (o teste corre em segundos).
+	// Sparse ~5 GB file: checks that sizes use 64 bits and that only the
+	// needed offsets are read (the test runs in seconds).
 	PkgOptions options;
 	const auto data = buildPkg(options);
 	const std::string path = ".orbislink-test-grande.pkg";
@@ -151,7 +151,7 @@ ORBISLINK_TEST(ficheiro_acima_de_4gb_e_lido_por_offsets)
 	const PkgInfo info = PkgInspector().inspect(path);
 	if(info.fileSize < 4ll * 1024 * 1024 * 1024)
 	{
-		// Sistema de ficheiros sem suporte a ficheiros esparsos: não falha o teste.
+		// File system without sparse file support: does not fail the test.
 		std::cout << "        (aviso: ficheiro esparso não criado; teste ignorado)\n";
 		removeTempFile(path);
 		return;

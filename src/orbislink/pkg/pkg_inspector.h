@@ -7,7 +7,7 @@
 
 namespace orbislink {
 
-// Categoria usada pela fila para ordenar jogo -> patch -> DLC (§5.6).
+// Category used by the queue to order game -> patch -> DLC (§5.6).
 enum class PkgCategory { Unknown, Game, Patch, Dlc, Theme, DeltaPatch };
 
 const char *pkgCategoryCode(PkgCategory category);       // "gd", "gp", "ac", ...

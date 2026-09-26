@@ -10,7 +10,7 @@ Item {
         anchors.fill: parent
         spacing: 0
 
-        // Aviso de fila em pausa (§6.3)
+        // Paused queue notice (§6.3)
         Rectangle {
             Layout.fillWidth: true
             Layout.margins: 10
@@ -243,7 +243,7 @@ Item {
             }
         }
 
-        // Rodapé com o resumo (§5.7)
+        // Footer with the summary (§5.7)
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: 34

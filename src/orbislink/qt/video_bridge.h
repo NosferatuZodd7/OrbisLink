@@ -30,7 +30,7 @@ public:
 	explicit VideoBridge(QObject *parent = nullptr);
 	~VideoBridge() override;
 
-	// Chamado pelo QML com o videoSink do VideoOutput.
+	// Called by QML with the VideoOutput's videoSink.
 	Q_INVOKABLE void setVideoSink(QVideoSink *sink);
 
 	// Chamado da thread do descodificador.

@@ -218,7 +218,7 @@ void AudioOutput::ensureStarted()
 			converter_.configure(format_.sampleRate(), format_.channelCount(),
 				deviceFormat_.sampleRate(), deviceFormat_.channelCount());
 
-			// A folga da fila passa a ser medida no formato da placa.
+			// The queue's slack is now measured in the card's format.
 			queue_.setLimit(static_cast<qint64>(deviceFormat_.sampleRate())
 				* deviceFormat_.channelCount() * 2 / 2);
 			formatoDaPlaca = deviceFormat_;

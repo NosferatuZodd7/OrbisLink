@@ -15,10 +15,10 @@ namespace orbislink {
 // by themselves.
 namespace startup {
 
-// Encaminha as mensagens do Qt para <dados da app>/orbislink-gui.log.
+// Forwards Qt's messages to <app data>/orbislink-gui.log.
 void installFileLogger();
 
-// Caminho do registo, para o mostrar ao utilizador quando algo corre mal.
+// Log path, to show the user when something goes wrong.
 QString logPath();
 
 // true if the previous startup never drew a single frame.
@@ -27,7 +27,7 @@ bool previousLaunchFailed();
 // Marks "starting up" (a file that is only deleted once the window draws).
 void markLaunchStarted();
 
-// Chamar quando a janela desenhar o primeiro fotograma.
+// Call when the window draws the first frame.
 void markLaunchSucceeded();
 
 // true if Qt has already complained it could not create the window.

@@ -7,7 +7,7 @@
 
 namespace orbislink {
 
-// Resultado de qualquer chamada ao instalador da consola.
+// Result of any call to the console's installer.
 struct InstallerResult
 {
 	bool ok = false;
@@ -49,7 +49,7 @@ struct TaskProgress
 	int32_t preparingPercent = 0;
 	int32_t localCopyPercent = 0;
 
-	// 0..100 com base no total transferido.
+	// 0..100 based on the total transferred.
 	double percent() const
 	{
 		if(lengthTotal <= 0)
@@ -64,7 +64,7 @@ struct TaskProgress
 // Sub-tipos de tarefa aceites por /api/find_task (README do instalador).
 enum class TaskSubType { Game = 6, AdditionalContent = 7, Patch = 8, License = 9 };
 
-// Interface abstrata (§5.4): permite trocar de instalador sem mexer na UI.
+// Abstract interface (§5.4): lets the installer be swapped without touching the UI.
 class IInstallerBackend
 {
 public:

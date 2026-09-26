@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// A verificação automática do endereço nas definições assenta nesta função.
-// Aqui confirma-se contra servidores falsos: FTP a responder com o banner do
-// GoldHEN e instalador remoto a responder HTTP, cada um podendo faltar.
+// The automatic address check in the settings relies on this function.
+// Here it is checked against fake servers: FTP answering with the GoldHEN
+// banner and the remote installer answering HTTP, either of which may be missing.
 
 #include "orbislink/console/console_manager.h"
 #include "orbislink/net/socket_compat.h"
@@ -16,8 +16,8 @@ using namespace orbislink;
 
 namespace {
 
-// Servidor TCP mínimo: aceita uma ligação, envia `greeting` e fecha. O FTP
-// cumprimenta primeiro; o instalador só responde depois de ler o pedido HTTP.
+// Minimal TCP server: accepts a connection, sends `greeting` and closes. FTP
+// greets first; the installer only answers after reading the HTTP request.
 class FakeService
 {
 public:
@@ -108,8 +108,8 @@ private:
 	std::thread thread_;
 };
 
-// Uma porta que ninguém está a ouvir: abre-se e fecha-se um socket para
-// ficar com um número que o sistema acabou de libertar.
+// A port nobody is listening on: a socket is opened and closed to get
+// a number the system has just released.
 uint16_t closedPort()
 {
 	FakeService service("");
