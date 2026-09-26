@@ -82,6 +82,8 @@ public:
 	bool canUseFtp() const;
 	// A consola em uso é uma PS5 (pelo tipo que ficou guardado).
 	bool activeIsPs5() const;
+	// A porta FTP da consola em uso (a da PS4 ou a da PS5).
+	uint16_t activeFtpPort() const;
 	// O Account ID da consola em uso, ou o último aceite se ela ainda não
 	// tiver nenhum.
 	std::string activeAccountId() const;
