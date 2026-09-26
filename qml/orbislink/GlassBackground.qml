@@ -12,7 +12,7 @@
 import QtQuick
 
 Item {
-    id: fundo
+    id: backdrop
 
     Rectangle {
         anchors.fill: parent
@@ -25,32 +25,32 @@ Item {
     Canvas {
         id: halos
         anchors.fill: parent
-        opacity: Theme.claro ? 0.55 : 0.75
+        opacity: Theme.light ? 0.55 : 0.75
         renderStrategy: Canvas.Cooperative
 
         // Repaints when the theme changes; it needs nothing else, it is static.
-        readonly property color corA: Theme.accent
-        readonly property color corB: Theme.ok
-        onCorAChanged: requestPaint()
+        readonly property color toneA: Theme.accent
+        readonly property color toneB: Theme.ok
+        onToneAChanged: requestPaint()
         onWidthChanged: requestPaint()
         onHeightChanged: requestPaint()
 
-        function halo(ctx, x, y, raio, cor, forca) {
-            var g = ctx.createRadialGradient(x, y, 0, x, y, raio)
-            g.addColorStop(0, Qt.rgba(cor.r, cor.g, cor.b, forca))
-            g.addColorStop(0.55, Qt.rgba(cor.r, cor.g, cor.b, forca * 0.35))
-            g.addColorStop(1, Qt.rgba(cor.r, cor.g, cor.b, 0))
+        function halo(ctx, x, y, radius, tone, force) {
+            var g = ctx.createRadialGradient(x, y, 0, x, y, radius)
+            g.addColorStop(0, Qt.rgba(tone.r, tone.g, tone.b, force))
+            g.addColorStop(0.55, Qt.rgba(tone.r, tone.g, tone.b, force * 0.35))
+            g.addColorStop(1, Qt.rgba(tone.r, tone.g, tone.b, 0))
             ctx.fillStyle = g
-            ctx.fillRect(x - raio, y - raio, raio * 2, raio * 2)
+            ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2)
         }
 
         onPaint: {
             var ctx = getContext("2d")
             ctx.reset()
             var r = Math.max(width, height)
-            halo(ctx, width * 0.18, height * 0.12, r * 0.55, corA, Theme.claro ? 0.10 : 0.16)
-            halo(ctx, width * 0.88, height * 0.78, r * 0.50, corB, Theme.claro ? 0.06 : 0.09)
-            halo(ctx, width * 0.62, height * 0.05, r * 0.35, corA, Theme.claro ? 0.05 : 0.07)
+            halo(ctx, width * 0.18, height * 0.12, r * 0.55, toneA, Theme.light ? 0.10 : 0.16)
+            halo(ctx, width * 0.88, height * 0.78, r * 0.50, toneB, Theme.light ? 0.06 : 0.09)
+            halo(ctx, width * 0.62, height * 0.05, r * 0.35, toneA, Theme.light ? 0.05 : 0.07)
         }
     }
 }

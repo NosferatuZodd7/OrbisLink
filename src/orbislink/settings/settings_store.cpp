@@ -33,18 +33,18 @@ std::string Settings::toJson() const
 	Json root = Json::makeObject();
 	root.set("console_name", Json::fromString(consoleName));
 	root.set("console_address", Json::fromString(consoleAddress));
-	Json lista = Json::makeArray();
-	for(const ConsoleEntry &consola : consoles)
+	Json items = Json::makeArray();
+	for(const ConsoleEntry &console : consoles)
 	{
-		Json entrada = Json::makeObject();
-		entrada.set("name", Json::fromString(consola.name));
-		entrada.set("address", Json::fromString(consola.address));
-		entrada.set("type", Json::fromString(consola.type));
-		if(!consola.accountId.empty())
-			entrada.set("account_id", Json::fromString(consola.accountId));
-		lista.push(entrada);
+		Json input = Json::makeObject();
+		input.set("name", Json::fromString(console.name));
+		input.set("address", Json::fromString(console.address));
+		input.set("type", Json::fromString(console.type));
+		if(!console.accountId.empty())
+			input.set("account_id", Json::fromString(console.accountId));
+		items.push(input);
 	}
-	root.set("consoles", lista);
+	root.set("consoles", items);
 	root.set("ftp_port", Json::fromInt(ftpPort));
 	root.set("ftp_port_ps5", Json::fromInt(ftpPortPs5));
 	root.set("installer_port", Json::fromInt(installerPort));
@@ -67,10 +67,10 @@ std::string Settings::toJson() const
 	root.set("stream_rumble", Json::fromBool(streamRumble));
 	root.set("stream_touchpad_from_mouse", Json::fromBool(streamTouchpadFromMouse));
 	root.set("stream_account_id", Json::fromString(streamAccountId));
-	Json teclas = Json::makeObject();
-	for(const auto &par : keyboardBindings)
-		teclas.set(par.first, Json::fromInt(par.second));
-	root.set("keyboard_bindings", teclas);
+	Json keys = Json::makeObject();
+	for(const auto &pair : keyboardBindings)
+		keys.set(pair.first, Json::fromInt(pair.second));
+	root.set("keyboard_bindings", keys);
 	root.set("theme", Json::fromString(theme));
 	root.set("language", Json::fromString(language));
 	root.set("debug_logging", Json::fromBool(debugLogging));
@@ -98,15 +98,15 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.consoleAddress = root["console_address"].toString(settings.consoleAddress);
 	if(root["consoles"].isArray())
 	{
-		for(const Json &entrada : root["consoles"].items())
+		for(const Json &input : root["consoles"].items())
 		{
-			if(!entrada.isObject())
+			if(!input.isObject())
 				continue;
-			std::string tipo = entrada["type"].toString();
-			if(tipo != "ps4" && tipo != "ps5")
-				tipo.clear();
-			settings.consoles.push_back({ entrada["name"].toString(),
-				entrada["address"].toString(), tipo, entrada["account_id"].toString() });
+			std::string kind = input["type"].toString();
+			if(kind != "ps4" && kind != "ps5")
+				kind.clear();
+			settings.consoles.push_back({ input["name"].toString(),
+				input["address"].toString(), kind, input["account_id"].toString() });
 		}
 	}
 	normaliseConsoles(settings);
@@ -141,10 +141,10 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.streamAccountId = root["stream_account_id"].toString(settings.streamAccountId);
 	if(root["keyboard_bindings"].isObject())
 	{
-		for(const auto &par : root["keyboard_bindings"].members())
+		for(const auto &pair : root["keyboard_bindings"].members())
 		{
-			if(par.second.isNumber())
-				settings.keyboardBindings[par.first] = static_cast<int>(par.second.toInt());
+			if(pair.second.isNumber())
+				settings.keyboardBindings[pair.first] = static_cast<int>(pair.second.toInt());
 		}
 	}
 	settings.theme = root["theme"].toString(settings.theme);
@@ -157,11 +157,11 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.checkForUpdates = root["check_for_updates"].toLooseBool(settings.checkForUpdates);
 	settings.firstRunDone = root["first_run_done"].toLooseBool(settings.firstRunDone);
 	{
-		const std::string gravado = root["update_repository"].toString(settings.updateRepository);
-		const bool temOmissao = root["update_repository_default"].isString();
-		const std::string omissaoGravada = root["update_repository_default"].toString();
-		settings.updateRepository = resolveUpdateRepository(gravado,
-			temOmissao ? &omissaoGravada : nullptr, ORBISLINK_REPOSITORY_STRING);
+		const std::string stored = root["update_repository"].toString(settings.updateRepository);
+		const bool hasDefault = root["update_repository_default"].isString();
+		const std::string savedDefault = root["update_repository_default"].toString();
+		settings.updateRepository = resolveUpdateRepository(stored,
+			hasDefault ? &savedDefault : nullptr, ORBISLINK_REPOSITORY_STRING);
 	}
 	settings.updateChannel = root["update_channel"].toString(settings.updateChannel);
 
@@ -178,8 +178,15 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 		settings.streamFps = 60;
 	if(settings.streamBitrateKbps < 0)
 		settings.streamBitrateKbps = 0;
-	if(settings.theme != "escuro" && settings.theme != "vidro" && settings.theme != "claro")
-		settings.theme = "escuro";
+	// "escuro"/"vidro"/"claro" are the names older versions saved.
+	if(settings.theme == "escuro")
+		settings.theme = "dark";
+	else if(settings.theme == "vidro")
+		settings.theme = "glass";
+	else if(settings.theme == "claro")
+		settings.theme = "light";
+	if(settings.theme != "dark" && settings.theme != "glass" && settings.theme != "light")
+		settings.theme = "dark";
 	// "estavel"/"testes" are the names older versions saved.
 	if(settings.updateChannel == "testes")
 		settings.updateChannel = "testing";
@@ -192,40 +199,40 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 
 void normaliseConsoles(Settings &settings)
 {
-	std::vector<ConsoleEntry> limpa;
-	auto ja = [&limpa](const std::string &endereco) {
-		for(const ConsoleEntry &c : limpa)
-			if(c.address == endereco)
+	std::vector<ConsoleEntry> clean;
+	auto alreadyHas = [&clean](const std::string &address) {
+		for(const ConsoleEntry &c : clean)
+			if(c.address == address)
 				return true;
 		return false;
 	};
-	for(const ConsoleEntry &consola : settings.consoles)
+	for(const ConsoleEntry &console : settings.consoles)
 	{
-		const std::string endereco = trim(consola.address);
-		if(endereco.empty() || ja(endereco))
+		const std::string address = trim(console.address);
+		if(address.empty() || alreadyHas(address))
 			continue;
-		ConsoleEntry copia = consola;
-		copia.address = endereco;
-		limpa.push_back(copia);
+		ConsoleEntry copy = console;
+		copy.address = address;
+		clean.push_back(copy);
 	}
-	const std::string ativa = trim(settings.consoleAddress);
-	if(!ativa.empty())
+	const std::string current = trim(settings.consoleAddress);
+	if(!current.empty())
 	{
-		bool encontrada = false;
-		for(ConsoleEntry &c : limpa)
+		bool found = false;
+		for(ConsoleEntry &c : clean)
 		{
-			if(c.address == ativa)
+			if(c.address == current)
 			{
 				// The name of the console in use is the one in the settings:
 				// that is the one edited in the settings dialog.
 				c.name = settings.consoleName;
-				encontrada = true;
+				found = true;
 			}
 		}
-		if(!encontrada)
-			limpa.insert(limpa.begin(), { settings.consoleName, ativa, std::string() });
+		if(!found)
+			clean.insert(clean.begin(), { settings.consoleName, current, std::string() });
 	}
-	settings.consoles = limpa;
+	settings.consoles = clean;
 }
 
 std::string resolveUpdateRepository(const std::string &stored, const std::string *storedDefault,

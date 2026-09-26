@@ -86,7 +86,7 @@ def main() -> int:
 
     runner = Runner(arguments.cli)
     workspace = tempfile.mkdtemp(prefix="orbislink-integration-")
-    console_root = os.path.join(workspace, "consola")
+    console_root = os.path.join(workspace, "console")
     os.makedirs(console_root)
 
     # synthetic ~3 MB pkg, enough for several Range requests.
@@ -164,29 +164,29 @@ def main() -> int:
                      "ftp-rm apaga o ficheiro")
 
         # 5. Upload via FTP and install afterwards, in a single pass
-        antes = len(os.listdir(downloads))
-        duplo = runner.run("install", *common, "--ftp", "--install-after-upload",
+        before = len(os.listdir(downloads))
+        twice = runner.run("install", *common, "--ftp", "--install-after-upload",
                            "--http-port", str(http_port), "--bind", "127.0.0.1",
                            "--timeout", "120", pkg_path)
-        runner.check(duplo.returncode == 0, "install --ftp --install-after-upload termina bem")
+        runner.check(twice.returncode == 0, "install --ftp --install-after-upload termina bem")
         # The remote name comes from the local file, with spaces replaced by
         # underscores (the queue sanitises the name before uploading it).
-        enviado = os.path.join(console_root, "data", "pkg", "jogo_de_teste.pkg")
-        runner.check(os.path.exists(enviado) and digest(enviado) == pkg_digest,
+        sent = os.path.join(console_root, "data", "pkg", "jogo_de_teste.pkg")
+        runner.check(os.path.exists(sent) and digest(sent) == pkg_digest,
                      "o pkg fica guardado na consola depois do envio")
-        runner.check(len(os.listdir(downloads)) == antes + 1,
+        runner.check(len(os.listdir(downloads)) == before + 1,
                      "e é logo instalado a partir do PC")
-        if os.path.exists(enviado):
-            os.remove(enviado)
+        if os.path.exists(sent):
+            os.remove(sent)
 
         # 6. The same, but deleting the copy on the console at the end
-        antes = len(os.listdir(downloads))
-        limpo = runner.run("install", *common, "--ftp", "--install-after-upload",
+        before = len(os.listdir(downloads))
+        cleaned = runner.run("install", *common, "--ftp", "--install-after-upload",
                            "--delete-after-install", "--http-port", str(http_port),
                            "--bind", "127.0.0.1", "--timeout", "120", pkg_path)
-        runner.check(limpo.returncode == 0, "install com --delete-after-install termina bem")
-        runner.check(len(os.listdir(downloads)) == antes + 1, "instalou a partir do PC")
-        runner.check(not os.path.exists(enviado),
+        runner.check(cleaned.returncode == 0, "install com --delete-after-install termina bem")
+        runner.check(len(os.listdir(downloads)) == before + 1, "instalou a partir do PC")
+        runner.check(not os.path.exists(sent),
                      "e a cópia enviada já não está na consola")
 
         # 7. Protected area stays blocked without advanced mode

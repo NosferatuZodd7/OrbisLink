@@ -22,7 +22,7 @@ const std::vector<KeyboardMap::Action> &KeyboardMap::actions()
 {
 	// The order is the map window's. The default keys are
 	// chiaki-ng's.
-	static const std::vector<Action> lista = {
+	static const std::vector<Action> items = {
 		{ "cross", CHIAKI_CONTROLLER_BUTTON_CROSS, Qt::Key_Return },
 		{ "circle", CHIAKI_CONTROLLER_BUTTON_MOON, Qt::Key_Backspace },
 		{ "square", CHIAKI_CONTROLLER_BUTTON_BOX, Qt::Key_C },
@@ -50,7 +50,7 @@ const std::vector<KeyboardMap::Action> &KeyboardMap::actions()
 		{ "touchpad", CHIAKI_CONTROLLER_BUTTON_TOUCHPAD, Qt::Key_T },
 		{ "ps", CHIAKI_CONTROLLER_BUTTON_PS, Qt::Key_P },
 	};
-	return lista;
+	return items;
 }
 
 KeyboardMap::Bindings KeyboardMap::defaults()
@@ -71,16 +71,16 @@ bool KeyboardMap::rebind(Bindings &bindings, const std::string &action, int key)
 	key = normalise(key);
 	if(reserved(key))
 		return false;
-	auto alvo = bindings.find(action);
-	if(alvo == bindings.end())
+	auto target = bindings.find(action);
+	if(target == bindings.end())
 		return false;
-	const int antiga = alvo->second;
-	for(auto &par : bindings)
+	const int old = target->second;
+	for(auto &pair : bindings)
 	{
-		if(par.first != action && par.second == key)
-			par.second = antiga;
+		if(pair.first != action && pair.second == key)
+			pair.second = old;
 	}
-	alvo->second = key;
+	target->second = key;
 	return true;
 }
 
@@ -93,11 +93,11 @@ void KeyboardMap::setBindings(const Bindings &custom)
 	// file cannot leave two actions on the same key or an action
 	// without a key.
 	bindings_ = defaults();
-	for(const auto &par : custom)
-		rebind(bindings_, par.first, par.second);
+	for(const auto &pair : custom)
+		rebind(bindings_, pair.first, pair.second);
 	byKey_.clear();
-	for(const auto &par : bindings_)
-		byKey_.insert(par.second, par.first);
+	for(const auto &pair : bindings_)
+		byKey_.insert(pair.second, pair.first);
 	pressed_.clear();
 }
 
@@ -124,34 +124,34 @@ void KeyboardMap::clear() { pressed_.clear(); }
 StreamSession::ControllerState KeyboardMap::state() const
 {
 	StreamSession::ControllerState state;
-	auto carregada = [this](const char *acao) {
-		auto tecla = bindings_.find(acao);
-		return tecla != bindings_.end() && pressed_.contains(tecla->second);
+	auto pressed = [this](const char *action) {
+		auto keyCap = bindings_.find(action);
+		return keyCap != bindings_.end() && pressed_.contains(keyCap->second);
 	};
 	for(const Action &action : actions())
 	{
-		if(action.button != 0 && carregada(action.id))
+		if(action.button != 0 && pressed(action.id))
 			state.buttons |= action.button;
 	}
-	if(carregada("l2"))
+	if(pressed("l2"))
 		state.l2 = 255;
-	if(carregada("r2"))
+	if(pressed("r2"))
 		state.r2 = 255;
-	if(carregada("lstick_left"))
+	if(pressed("lstick_left"))
 		state.leftX = -kAxisMax;
-	if(carregada("lstick_right"))
+	if(pressed("lstick_right"))
 		state.leftX = kAxisMax;
-	if(carregada("lstick_up"))
+	if(pressed("lstick_up"))
 		state.leftY = -kAxisMax;
-	if(carregada("lstick_down"))
+	if(pressed("lstick_down"))
 		state.leftY = kAxisMax;
-	if(carregada("rstick_left"))
+	if(pressed("rstick_left"))
 		state.rightX = -kAxisMax;
-	if(carregada("rstick_right"))
+	if(pressed("rstick_right"))
 		state.rightX = kAxisMax;
-	if(carregada("rstick_up"))
+	if(pressed("rstick_up"))
 		state.rightY = -kAxisMax;
-	if(carregada("rstick_down"))
+	if(pressed("rstick_down"))
 		state.rightY = kAxisMax;
 	return state;
 }

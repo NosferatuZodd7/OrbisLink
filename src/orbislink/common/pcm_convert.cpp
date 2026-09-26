@@ -52,41 +52,41 @@ const std::vector<int16_t> &PcmConverter::convert(const int16_t *pcm, size_t sam
 	if(!pcm || samples == 0)
 		return out_;
 
-	const double passo = static_cast<double>(sourceRate_) / static_cast<double>(targetRate_);
+	const double step = static_cast<double>(sourceRate_) / static_cast<double>(targetRate_);
 	// While there is a pair of source samples to interpolate. The frame's
 	// last sample is carried to the next one, through position_.
 	out_.reserve(outputSamples(samples) * static_cast<size_t>(targetChannels_) + 8);
 
 	while(position_ < static_cast<double>(samples) - 1.0)
 	{
-		const size_t indice = static_cast<size_t>(position_);
-		const double fraccao = position_ - static_cast<double>(indice);
+		const size_t idx = static_cast<size_t>(position_);
+		const double fraction = position_ - static_cast<double>(idx);
 
-		for(int canal = 0; canal < targetChannels_; ++canal)
+		for(int channel = 0; channel < targetChannels_; ++channel)
 		{
 			// More channels out than in: the last one is repeated
 			// (mono to stereo gives the same sound on both sides).
-			const int canalOrigem = std::min(canal, sourceChannels_ - 1);
-			const double a = sampleAt(pcm, indice, sourceChannels_, canalOrigem);
-			const double b = sampleAt(pcm, indice + 1, sourceChannels_, canalOrigem);
-			double valor = a + (b - a) * fraccao;
+			const int sourceChannel = std::min(channel, sourceChannels_ - 1);
+			const double a = sampleAt(pcm, idx, sourceChannels_, sourceChannel);
+			const double b = sampleAt(pcm, idx + 1, sourceChannels_, sourceChannel);
+			double value = a + (b - a) * fraction;
 
 			// Stereo to mono: add and divide, otherwise half of the
 			// sound would be lost.
 			if(targetChannels_ == 1 && sourceChannels_ > 1)
 			{
-				double soma = 0.0;
+				double total = 0.0;
 				for(int c = 0; c < sourceChannels_; ++c)
 				{
-					const double x = sampleAt(pcm, indice, sourceChannels_, c);
-					const double y = sampleAt(pcm, indice + 1, sourceChannels_, c);
-					soma += x + (y - x) * fraccao;
+					const double x = sampleAt(pcm, idx, sourceChannels_, c);
+					const double y = sampleAt(pcm, idx + 1, sourceChannels_, c);
+					total += x + (y - x) * fraction;
 				}
-				valor = soma / sourceChannels_;
+				value = total / sourceChannels_;
 			}
-			out_.push_back(clamp16(valor));
+			out_.push_back(clamp16(value));
 		}
-		position_ += passo;
+		position_ += step;
 	}
 
 	// What is left of this frame counts towards the next one.

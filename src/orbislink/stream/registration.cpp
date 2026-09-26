@@ -57,15 +57,15 @@ StreamCredentials fromChiaki(const ChiakiRegisteredHost *host)
 
 // What the console said when refusing, in two versions: short for the
 // diagnostics, full for whoever is registering.
-struct Recusa
+struct Refusal
 {
-	std::string diagnostico;
-	std::string mensagem;
+	std::string diagnostics;
+	std::string message;
 };
 
-Recusa explicarRecusa(uint32_t motivo)
+Refusal explainRefusal(uint32_t reason)
 {
-	switch(motivo)
+	switch(reason)
 	{
 		case CHIAKI_RP_APPLICATION_REASON_INVALID_PSN_ID:
 			return { "the console did not recognise the Account ID (0x80108b02)",
@@ -129,10 +129,10 @@ void registCallback(ChiakiRegistEvent *event, void *user)
 		default:
 		{
 			impl->running.store(false);
-			const Recusa recusa = explicarRecusa(takeApplicationReason());
-			StreamTrace::instance().fail(recusa.diagnostico);
+			const Refusal refusal = explainRefusal(takeApplicationReason());
+			StreamTrace::instance().fail(refusal.diagnostics);
 			if(finished)
-				finished(false, {}, recusa.mensagem);
+				finished(false, {}, refusal.message);
 			break;
 		}
 	}

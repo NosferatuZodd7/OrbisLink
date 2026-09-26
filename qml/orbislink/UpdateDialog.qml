@@ -16,8 +16,8 @@ Dialog {
     modal: true
     padding: 0
 
-    readonly property bool aDescarregar: app.updateState === "downloading"
-    readonly property bool pronto: app.updateState === "ready"
+    readonly property bool downloading: app.updateState === "downloading"
+    readonly property bool isReady: app.updateState === "ready"
 
     // A nearly opaque modal: with the panels' transparency, what is behind
     // would show through the box, and a box asking for a decision must not
@@ -73,14 +73,14 @@ Dialog {
             Item { Layout.fillWidth: true }
             StyledButton {
                 text: qsTr("Later")
-                enabled: !dialog.aDescarregar && !dialog.pronto
+                enabled: !dialog.downloading && !dialog.isReady
                 onClicked: { app.dismissUpdate(); dialog.close() }
             }
             StyledButton {
                 text: app.updateCanInstall ? qsTr("Install now") : qsTr("Open the page")
                 primary: true
-                larguraMinima: 140
-                enabled: !dialog.aDescarregar && !dialog.pronto
+                minimumWidth: 140
+                enabled: !dialog.downloading && !dialog.isReady
                 onClicked: app.installUpdate()
             }
         }
@@ -124,7 +124,7 @@ Dialog {
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
             spacing: 4
-            visible: dialog.aDescarregar || dialog.pronto || app.updateState === "error"
+            visible: dialog.downloading || dialog.isReady || app.updateState === "error"
 
             Text {
                 Layout.fillWidth: true
@@ -135,7 +135,7 @@ Dialog {
             }
             Rectangle {
                 Layout.fillWidth: true
-                visible: dialog.aDescarregar
+                visible: dialog.downloading
                 height: 4
                 radius: 2
                 color: Theme.border

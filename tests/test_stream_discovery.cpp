@@ -60,8 +60,8 @@ public:
 			addr.sin_family = AF_INET;
 			addr.sin_port = htons(port_);
 			inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
-			const char nada = 0;
-			sendto(waker, &nada, 1, 0, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr));
+			const char nothing = 0;
+			sendto(waker, &nothing, 1, 0, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr));
 			closeSocketHandle(waker);
 		}
 		if(thread_.joinable())
@@ -101,7 +101,7 @@ private:
 };
 
 // Reply from a console that is on, with a game running.
-const char *kPronta =
+const char *kReady =
 	"HTTP/1.1 200 Ok\r\n"
 	"host-id:1122334455AA\r\n"
 	"host-type:PS4\r\n"
@@ -113,7 +113,7 @@ const char *kPronta =
 	"running-app-titleid:CUSA00207\r\n";
 
 // Console in rest mode: same format, code 620.
-const char *kEmRepouso =
+const char *kStandby =
 	"HTTP/1.1 620 Server Standby\r\n"
 	"host-id:1122334455AA\r\n"
 	"host-type:PS4\r\n"
@@ -124,9 +124,9 @@ const char *kEmRepouso =
 
 } // namespace
 
-ORBISLINK_TEST(le_uma_consola_pronta)
+ORBISLINK_TEST(reads_a_ready_console)
 {
-	FakeConsole console(kPronta);
+	FakeConsole console(kReady);
 	CHECK(console.start());
 
 	const HostInfo info = StreamDiscovery::probe("127.0.0.1", 2000, console.port());
@@ -145,9 +145,9 @@ ORBISLINK_TEST(le_uma_consola_pronta)
 	CHECK(info.target != 0);
 }
 
-ORBISLINK_TEST(distingue_consola_em_repouso)
+ORBISLINK_TEST(tells_apart_a_console_in_rest_mode)
 {
-	FakeConsole console(kEmRepouso);
+	FakeConsole console(kStandby);
 	CHECK(console.start());
 
 	const HostInfo info = StreamDiscovery::probe("127.0.0.1", 2000, console.port());
@@ -157,34 +157,34 @@ ORBISLINK_TEST(distingue_consola_em_repouso)
 	CHECK(info.runningAppName.empty());
 }
 
-ORBISLINK_TEST(envia_um_pedido_de_procura)
+ORBISLINK_TEST(sends_a_search_request)
 {
-	FakeConsole console(kPronta);
+	FakeConsole console(kReady);
 	CHECK(console.start());
 	StreamDiscovery::probe("127.0.0.1", 2000, console.port());
 
 	// What the console received must really be a PS4-protocol SRCH.
-	const std::string pedido = console.lastRequest();
-	CHECK(pedido.find("SRCH") != std::string::npos);
-	CHECK(pedido.find("device-discovery-protocol-version:00020020") != std::string::npos);
+	const std::string request = console.lastRequest();
+	CHECK(request.find("SRCH") != std::string::npos);
+	CHECK(request.find("device-discovery-protocol-version:00020020") != std::string::npos);
 }
 
-ORBISLINK_TEST(sem_ninguem_a_responder_nao_inventa_consola)
+ORBISLINK_TEST(with_nobody_answering_no_console_is_invented)
 {
-	FakeConsole console(kPronta);
+	FakeConsole console(kReady);
 	CHECK(console.start());
-	const uint16_t porta = console.port();
+	const uint16_t port = console.port();
 	console.stop();
 
-	const HostInfo info = StreamDiscovery::probe("127.0.0.1", 600, porta);
+	const HostInfo info = StreamDiscovery::probe("127.0.0.1", 600, port);
 
 	CHECK(!info.found);
 	CHECK(info.state == HostState::Unknown);
 }
 
-ORBISLINK_TEST(verificacao_periodica_nao_mexe_na_tentativa)
+ORBISLINK_TEST(periodic_check_does_not_touch_the_attempt)
 {
-	FakeConsole console(kPronta);
+	FakeConsole console(kReady);
 	CHECK(console.start());
 
 	// An attempt in progress: the periodic check of the other consoles
@@ -194,18 +194,18 @@ ORBISLINK_TEST(verificacao_periodica_nao_mexe_na_tentativa)
 	const HostInfo info = StreamDiscovery::peek("127.0.0.1", 2000, console.port());
 
 	CHECK(info.found);
-	const auto passos = StreamTrace::instance().steps();
-	CHECK_EQ(passos.size(), std::size_t(1));
-	CHECK_EQ(passos.front().name, std::string("primeiro fotograma"));
-	CHECK(passos.front().result == StreamTrace::Result::Running);
+	const auto steps = StreamTrace::instance().steps();
+	CHECK_EQ(steps.size(), std::size_t(1));
+	CHECK_EQ(steps.front().name, std::string("primeiro fotograma"));
+	CHECK(steps.front().result == StreamTrace::Result::Running);
 	StreamTrace::instance().end();
 }
 
-ORBISLINK_TEST(acordar_sem_credencial_recusa_em_vez_de_enviar_lixo)
+ORBISLINK_TEST(wakeup_without_credential_refuses_instead_of_sending_garbage)
 {
-	std::string erro;
-	CHECK(!StreamDiscovery::wakeup("127.0.0.1", 0, false, &erro));
-	CHECK(!erro.empty());
+	std::string err;
+	CHECK(!StreamDiscovery::wakeup("127.0.0.1", 0, false, &err));
+	CHECK(!err.empty());
 }
 
 TEST_MAIN()

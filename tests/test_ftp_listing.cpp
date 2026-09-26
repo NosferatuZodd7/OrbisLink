@@ -7,7 +7,7 @@
 
 using namespace orbislink;
 
-ORBISLINK_TEST(le_listagem_estilo_unix)
+ORBISLINK_TEST(reads_unix_style_listing)
 {
 	const std::string listing =
 		"drwxr-xr-x   2 root  root      4096 Jan  1 00:00 pkg\r\n"
@@ -26,7 +26,7 @@ ORBISLINK_TEST(le_listagem_estilo_unix)
 	CHECK_EQ(entries[2].path, std::string("/data/nota.txt"));
 }
 
-ORBISLINK_TEST(ignora_ponto_e_ponto_ponto)
+ORBISLINK_TEST(ignores_dot_and_dot_dot)
 {
 	const std::string listing =
 		"drwxr-xr-x 2 root root 4096 Jan 1 00:00 .\n"
@@ -38,7 +38,7 @@ ORBISLINK_TEST(ignora_ponto_e_ponto_ponto)
 	CHECK_EQ(entries[0].path, std::string("/a.bin"));
 }
 
-ORBISLINK_TEST(le_ligacoes_simbolicas)
+ORBISLINK_TEST(reads_symbolic_links)
 {
 	const std::string listing = "lrwxrwxrwx 1 root root 7 Jan 1 00:00 atalho -> /data/pkg\n";
 	const auto entries = FtpClient::parseListing(listing, "/mnt");
@@ -47,7 +47,7 @@ ORBISLINK_TEST(le_ligacoes_simbolicas)
 	CHECK_EQ(entries[0].name, std::string("atalho"));
 }
 
-ORBISLINK_TEST(le_listagem_estilo_ms_dos)
+ORBISLINK_TEST(reads_ms_dos_style_listing)
 {
 	const std::string listing =
 		"01-15-24  10:22AM       <DIR>          pkg\r\n"
@@ -58,14 +58,14 @@ ORBISLINK_TEST(le_listagem_estilo_ms_dos)
 	CHECK_EQ(entries[1].size, 1048576);
 }
 
-ORBISLINK_TEST(linha_desconhecida_nao_se_perde)
+ORBISLINK_TEST(unknown_line_is_not_lost)
 {
 	const auto entries = FtpClient::parseListing("qualquer-coisa-estranha\n", "/data");
 	CHECK_EQ(entries.size(), static_cast<size_t>(1));
 	CHECK_EQ(entries[0].name, std::string("qualquer-coisa-estranha"));
 }
 
-ORBISLINK_TEST(zonas_protegidas_do_sistema)
+ORBISLINK_TEST(protected_system_areas)
 {
 	CHECK(FtpClient::isProtectedPath("/system"));
 	CHECK(FtpClient::isProtectedPath("/system/priv_data"));
@@ -85,7 +85,7 @@ ORBISLINK_TEST(zonas_protegidas_do_sistema)
 	CHECK(client.isWriteAllowed("/system/x"));
 }
 
-ORBISLINK_TEST(escreve_urls_ftp_corretos)
+ORBISLINK_TEST(writes_correct_ftp_urls)
 {
 	FtpClient::Config config;
 	config.host = "192.168.1.10";
@@ -95,7 +95,7 @@ ORBISLINK_TEST(escreve_urls_ftp_corretos)
 		std::string("ftp://192.168.1.10:2121/data/pkg/jogo%20teste.pkg"));
 }
 
-ORBISLINK_TEST(atalhos_sugeridos)
+ORBISLINK_TEST(suggested_shortcuts)
 {
 	const auto shortcuts = FtpClient::shortcutPaths();
 	CHECK(std::find(shortcuts.begin(), shortcuts.end(), "/data/pkg/") != shortcuts.end());

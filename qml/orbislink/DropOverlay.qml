@@ -56,13 +56,13 @@ Item {
     // Called by the window's DropArea: returns true if the file was accepted.
     function dropAt(x, y, urls) {
         movePointer(x, y)
-        var zona = zoneUnderPointer
+        var zoneName = zoneUnderPointer
         hide()
-        if (zona === 0 && app.canInstallDirectly) {
+        if (zoneName === 0 && app.canInstallDirectly) {
             app.dropUrls(urls, 0)
             return true
         }
-        if (zona === 1 && app.canUseFtp) {
+        if (zoneName === 1 && app.canUseFtp) {
             app.dropUrls(urls, 1)
             return true
         }

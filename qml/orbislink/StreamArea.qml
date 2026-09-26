@@ -13,21 +13,21 @@ Item {
     // The video stage floats like everything else: margins, wide corners and
     // a glass frame. In full screen all of that goes away — there the
     // picture rules.
-    readonly property bool solto: typeof window !== "undefined" && window
+    readonly property bool free: typeof window !== "undefined" && window
                                   && window.streamFullscreen
 
     Rectangle {
-        id: palco
+        id: videoStage
         anchors.fill: parent
-        anchors.leftMargin: root.solto ? 0 : Theme.gutter
-        anchors.topMargin: root.solto ? 0 : 6
-        anchors.bottomMargin: root.solto ? 0 : Theme.gutter
-        anchors.rightMargin: root.solto ? 0 : 6
-        radius: root.solto ? 0 : Theme.radius
+        anchors.leftMargin: root.free ? 0 : Theme.gutter
+        anchors.topMargin: root.free ? 0 : 6
+        anchors.bottomMargin: root.free ? 0 : Theme.gutter
+        anchors.rightMargin: root.free ? 0 : 6
+        radius: root.free ? 0 : Theme.radius
         // Black whenever there is (or will be) a picture; idle, it follows the theme.
         color: root.streaming ? "#000000" : Theme.stageIdle
         Behavior on color { ColorAnimation { duration: Theme.normal } }
-        border.width: root.solto ? 0 : 1
+        border.width: root.free ? 0 : 1
         border.color: Theme.glassEdge
         clip: true
 
@@ -51,7 +51,7 @@ Item {
     // of the window opens anyway.
     Loader {
         id: videoLoader
-        anchors.fill: palco
+        anchors.fill: videoStage
         anchors.margins: 1
         visible: root.streaming
         active: root.built
@@ -80,7 +80,7 @@ Item {
 
     // ───────────────────────────── background, when there is no picture
     Image {
-        anchors.fill: palco
+        anchors.fill: videoStage
         anchors.margins: 1
         source: Theme.stageBackdrop
         fillMode: Image.PreserveAspectFit
@@ -91,18 +91,18 @@ Item {
     }
 
     Canvas {
-        id: grelha
-        anchors.fill: palco
+        id: grid
+        anchors.fill: videoStage
         anchors.margins: 1
         visible: !root.streaming
         opacity: 0.25
         // The Canvas does not repaint by itself when the colour changes.
-        readonly property color cor: Theme.stageGrid
-        onCorChanged: requestPaint()
+        readonly property color tone: Theme.stageGrid
+        onToneChanged: requestPaint()
         onPaint: {
             var ctx = getContext("2d")
             ctx.reset()
-            ctx.strokeStyle = cor
+            ctx.strokeStyle = tone
             ctx.lineWidth = 1
             for (var x = 0; x < width; x += 40) {
                 ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke()
@@ -117,7 +117,7 @@ Item {
     // registers or searches, depending on the state. Below, only the
     // explanation the state calls for (the registration PIN, the reason for a failure, the game running).
     Column {
-        anchors.centerIn: palco
+        anchors.centerIn: videoStage
         spacing: 18
         visible: !root.streaming
 
@@ -125,74 +125,74 @@ Item {
         // The one in use is the usual one; the others show their state and
         // a click switches to them.
         Row {
-            id: filaConsolas
+            id: consoleRow
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 18
-            readonly property var lista: app.consoles
+            readonly property var items: app.consoles
             // A little below the drawing's size, so they do not dominate the
             // stage; and they shrink together, without changing proportions,
             // when they do not fit.
-            readonly property real fator: Math.max(0.42, Math.min(0.72,
-                (palco.width - 60 - spacing * lista.length) / (360 * lista.length + 250)))
+            readonly property real scaleFactor: Math.max(0.42, Math.min(0.72,
+                (videoStage.width - 60 - spacing * items.length) / (360 * items.length + 250)))
 
             Repeater {
-                model: filaConsolas.lista
+                model: consoleRow.items
 
                 ConsoleCard {
-                    readonly property var outra: root.built && !modelData.active
+                    readonly property var other: root.built && !modelData.active
                                                  ? stream.consoleStates[modelData.address] : undefined
-                    fator: filaConsolas.fator
-                    ativa: modelData.active
-                    disponivel: root.built
-                    endereco: modelData.address
-                    nome: modelData.active && root.built && stream.consoleName.length > 0
+                    scaleFactor: consoleRow.scaleFactor
+                    current: modelData.active
+                    available: root.built
+                    address: modelData.address
+                    name: modelData.active && root.built && stream.consoleName.length > 0
                           ? stream.consoleName : modelData.name
-                    estado: modelData.active ? root.consoleState
-                          : (outra ? outra.state : "unknown")
-                    registada: modelData.active ? root.registered : (outra ? outra.registered : false)
+                    status: modelData.active ? root.consoleState
+                          : (other ? other.state : "unknown")
+                    registered: modelData.active ? root.registered : (other ? other.registered : false)
                     // What the console said just now, if it answered; otherwise,
                     // what was stored the last time it answered.
-                    tipo: {
-                        var respondeu = modelData.active
+                    kind: {
+                        var answered = modelData.active
                             ? (root.consoleState === "ready" || root.consoleState === "standby")
-                            : (outra !== undefined && outra.state !== "offline"
-                               && outra.state !== "unknown")
-                        if (!respondeu)
+                            : (other !== undefined && other.state !== "offline"
+                               && other.state !== "unknown")
+                        if (!answered)
                             return modelData.type
-                        var ps5 = modelData.active ? stream.consolePs5 : outra.ps5
+                        var ps5 = modelData.active ? stream.consolePs5 : other.ps5
                         return ps5 ? "ps5" : "ps4"
                     }
-                    aLigar: modelData.active && root.sessionState === "connecting"
-                    aProcurar: modelData.active && root.built && stream.searching
-                    etapa: modelData.active && root.built ? stream.connectStage : ""
-                    onLigar: stream.connectOneClick()
-                    onCancelar: {
+                    connecting: modelData.active && root.sessionState === "connecting"
+                    searching: modelData.active && root.built && stream.searching
+                    stage: modelData.active && root.built ? stream.connectStage : ""
+                    onConnect: stream.connectOneClick()
+                    onCancel: {
                         if (stream.connectStage.length > 0)
                             stream.cancelOneClick()
                         else
                             stream.stopStream()
                     }
-                    onEditar: registerDialog.open()
+                    onEdit: registerDialog.open()
                     // Another console: it becomes the console in use and connects
                     // right away, in the same click.
-                    onEscolher: {
+                    onChoose: {
                         app.selectConsole(modelData.address)
                         stream.connectOneClick()
                     }
-                    onRemover: app.removeConsole(modelData.address)
+                    onRemove: app.removeConsole(modelData.address)
                 }
             }
 
             AddConsoleCard {
-                width: 250 * filaConsolas.fator
-                height: 330 * filaConsolas.fator
-                onAdicionar: addConsoleDialog.open()
+                width: 250 * consoleRow.scaleFactor
+                height: 330 * consoleRow.scaleFactor
+                onAdd: addConsoleDialog.open()
             }
         }
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            width: Math.min(palco.width - 80, 440)
+            width: Math.min(videoStage.width - 80, 440)
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
             visible: text.length > 0
@@ -225,15 +225,15 @@ Item {
     // Floats over the picture, in a glass capsule, and fades in
     // instead of jumping onto the screen.
     Rectangle {
-        id: barraStream
-        anchors.top: palco.top
-        anchors.horizontalCenter: palco.horizontalCenter
+        id: streamToolbar
+        anchors.top: videoStage.top
+        anchors.horizontalCenter: videoStage.horizontalCenter
         anchors.topMargin: 16
-        readonly property bool mostrar: root.streaming
+        readonly property bool shown: root.streaming
                                         && (streamBar.containsMouse || streamHover.hovered)
         visible: opacity > 0.01
-        opacity: mostrar ? 1.0 : 0.0
-        scale: mostrar ? 1.0 : 0.96
+        opacity: shown ? 1.0 : 0.0
+        scale: shown ? 1.0 : 0.96
         Behavior on opacity { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
         Behavior on scale {
             NumberAnimation { duration: Theme.normal; easing.type: Theme.easeSpring; easing.overshoot: 1.05 }
@@ -265,10 +265,10 @@ Item {
                 text: {
                     if (!root.built || stream.frameWidth <= 0)
                         return ""
-                    var texto = qsTr("%1×%2").arg(stream.frameWidth).arg(stream.frameHeight)
+                    var message = qsTr("%1×%2").arg(stream.frameWidth).arg(stream.frameHeight)
                     if (stream.measuredFps > 0)
-                        texto += qsTr(" · %1 fps").arg(stream.measuredFps)
-                    return texto
+                        message += qsTr(" · %1 fps").arg(stream.measuredFps)
+                    return message
                 }
                 color: Theme.onStageMuted
                 font.pixelSize: 11
@@ -282,20 +282,20 @@ Item {
                 Layout.maximumWidth: 160
             }
             StyledButton {
-                readonly property string somEstado: root.built ? stream.audioState : "stopped"
+                readonly property string audioStatus: root.built ? stream.audioState : "stopped"
                 text: !root.built ? qsTr("Sound")
-                     : somEstado === "error" || somEstado === "no-device" ? qsTr("No sound")
+                     : audioStatus === "error" || audioStatus === "no-device" ? qsTr("No sound")
                      : stream.muted ? qsTr("Sound: off")
                      : qsTr("Sound: on")
-                danger: somEstado === "error" || somEstado === "no-device"
+                danger: audioStatus === "error" || audioStatus === "no-device"
                 implicitHeight: 30
                 font.pixelSize: 11
                 ToolTip.visible: hovered
-                ToolTip.text: somEstado === "no-device"
+                ToolTip.text: audioStatus === "no-device"
                         ? qsTr("This PC has no active sound output.")
-                    : somEstado === "error"
+                    : audioStatus === "error"
                         ? qsTr("The sound card refused the stream — see Ctrl+L.")
-                    : somEstado === "playing"
+                    : audioStatus === "playing"
                         ? qsTr("Coming out of %1").arg(stream.audioDevice)
                         : qsTr("No sound has arrived from the console yet.")
                 onClicked: stream.muted = !stream.muted
@@ -309,23 +309,23 @@ Item {
             // The microphone must be visible. While it is capturing, the button
             // stays lit — nobody can be heard without noticing.
             StyledButton {
-                readonly property string micEstado: root.built ? stream.microphoneState
+                readonly property string micStatus: root.built ? stream.microphoneState
                                                                : "off"
-                text: micEstado === "talking" ? qsTr("🎤 Talking")
-                     : micEstado === "muted" ? qsTr("🎤 Muted")
+                text: micStatus === "talking" ? qsTr("🎤 Talking")
+                     : micStatus === "muted" ? qsTr("🎤 Muted")
                      : qsTr("Microphone")
                 implicitHeight: 30
                 font.pixelSize: 11
-                danger: micEstado === "talking"
+                danger: micStatus === "talking"
                 ToolTip.visible: hovered
-                ToolTip.text: micEstado === "off"
+                ToolTip.text: micStatus === "off"
                     ? qsTr("Send your microphone to the console")
                     : qsTr("Capturing from %1. Click to mute, or right-click to turn it off.").arg(stream.microphoneDevice)
                 onClicked: {
-                    if (micEstado === "off")
+                    if (micStatus === "off")
                         stream.setMicrophoneEnabled(true)
                     else
-                        stream.setMicrophoneMuted(micEstado === "talking")
+                        stream.setMicrophoneMuted(micStatus === "talking")
                 }
                 // Right click turns it off entirely, instead of just muting.
                 MouseArea {
@@ -357,7 +357,7 @@ Item {
     }
 
     HoverHandler { id: streamHover }
-    MouseArea { id: streamBar; anchors.fill: palco; hoverEnabled: true; acceptedButtons: Qt.NoButton }
+    MouseArea { id: streamBar; anchors.fill: videoStage; hoverEnabled: true; acceptedButtons: Qt.NoButton }
 
     // Keyboard map, because nobody guesses that V is the triangle.
     //
@@ -374,9 +374,9 @@ Item {
         padding: 0
         // While waiting for a new key, Esc cancels the choice and does not
         // close the window.
-        closePolicy: keyboardMap.escolhida.length > 0
+        closePolicy: keyboardMap.chosen.length > 0
                      ? Popup.NoAutoClose : Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        onClosed: keyboardMap.editando = false
+        onClosed: keyboardMap.editing = false
 
         Overlay.modal: Rectangle { color: Theme.scrim }
 
@@ -418,25 +418,25 @@ Item {
                 spacing: 10
                 StyledButton {
                     visible: root.built
-                    text: keyboardMap.editando ? qsTr("Done") : qsTr("Change keys")
-                    larguraMinima: 130
-                    onClicked: keyboardMap.editando = !keyboardMap.editando
+                    text: keyboardMap.editing ? qsTr("Done") : qsTr("Change keys")
+                    minimumWidth: 130
+                    onClicked: keyboardMap.editing = !keyboardMap.editing
                 }
                 StyledButton {
-                    visible: root.built && keyboardMap.editando
+                    visible: root.built && keyboardMap.editing
                     text: qsTr("Reset")
-                    larguraMinima: 100
+                    minimumWidth: 100
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Go back to the default keys")
                     onClicked: {
-                        keyboardMap.escolhida = ""
+                        keyboardMap.chosen = ""
                         stream.resetKeyBindings()
                     }
                 }
                 Item { Layout.fillWidth: true }
                 StyledButton {
                     text: qsTr("Close")
-                    larguraMinima: 110
+                    minimumWidth: 110
                     primary: true
                     onClicked: keysDialog.close()
                 }
@@ -487,7 +487,7 @@ Item {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.preferredWidth: 236
                     Layout.preferredHeight: 178
-                    destaque: keyboardMap.destaque
+                    highlight: keyboardMap.highlight
                 }
 
                 Rectangle {
@@ -497,13 +497,13 @@ Item {
                     // every time the mouse moves from key to key.
                     Layout.preferredHeight: 56
                     radius: Theme.radiusSmall
-                    readonly property bool cheia: keyboardMap.texto.length > 0
-                    color: cheia ? Theme.accentFill
+                    readonly property bool full: keyboardMap.message.length > 0
+                    color: full ? Theme.accentFill
                          : Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b,
-                                   Theme.claro ? 1.0 : 0.6)
+                                   Theme.light ? 1.0 : 0.6)
                     border.width: 1
-                    border.color: cheia ? Theme.accent
-                                : Theme.claro ? Qt.rgba(0, 0, 0, 0.12) : Theme.glassEdge
+                    border.color: full ? Theme.accent
+                                : Theme.light ? Qt.rgba(0, 0, 0, 0.12) : Theme.glassEdge
                     Behavior on color { ColorAnimation { duration: Theme.fast } }
 
                     Text {
@@ -513,11 +513,11 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                         wrapMode: Text.WordWrap
-                        color: parent.cheia ? Theme.text : Theme.textSecondary
-                        font.pixelSize: parent.cheia ? 14 : 12
-                        font.bold: parent.cheia
-                        text: parent.cheia ? keyboardMap.texto
-                            : keyboardMap.editando
+                        color: parent.full ? Theme.text : Theme.textSecondary
+                        font.pixelSize: parent.full ? 14 : 12
+                        font.bold: parent.full
+                        text: parent.full ? keyboardMap.message
+                            : keyboardMap.editing
                               ? qsTr("Click the key you want to change, then press the new key. "
                                      + "If it already does something, the two swap.")
                               : qsTr("Hover over a key to see on the controller which button it "
@@ -538,8 +538,8 @@ Item {
         // the key and the lit button on the controller.
         onTriggered: {
             keysDialog.open()
-            keyboardMap.destaqueRato = "ps"
-            keyboardMap.descricao = "P — " + keyboardMap.acoes["ps"].nome
+            keyboardMap.hoverHighlight = "ps"
+            keyboardMap.description = "P — " + keyboardMap.actions["ps"].name
         }
     }
 
@@ -551,12 +551,12 @@ Item {
         repeat: true
         triggeredOnStart: true
         onTriggered: {
-            var outras = []
-            var lista = app.consoles
-            for (var i = 0; i < lista.length; ++i)
-                if (!lista[i].active)
-                    outras.push(lista[i].address)
-            stream.probeConsoles(outras)
+            var others = []
+            var items = app.consoles
+            for (var i = 0; i < items.length; ++i)
+                if (!items[i].active)
+                    others.push(items[i].address)
+            stream.probeConsoles(others)
         }
     }
 
@@ -574,11 +574,11 @@ Item {
         // opened instead of a message telling you to open it.
         function onRegistrationNeeded() { registerDialog.open() }
                 function onConsoleStatesChanged() {
-            var estados = stream.consoleStates
-            for (var endereco in estados) {
-                var e = estados[endereco]
+            var stateList = stream.consoleStates
+            for (var address in stateList) {
+                var e = stateList[address]
                 if (e.state === "ready" || e.state === "standby")
-                    app.rememberConsoleType(endereco, e.ps5)
+                    app.rememberConsoleType(address, e.ps5)
             }
         }
     }
@@ -646,12 +646,12 @@ Item {
                 Item { Layout.fillWidth: true }
                 StyledButton {
                     text: qsTr("Cancel")
-                    larguraMinima: 110
+                    minimumWidth: 110
                     onClicked: loginPinDialog.close()
                 }
                 StyledButton {
                     text: qsTr("Send")
-                    larguraMinima: 110
+                    minimumWidth: 110
                     primary: true
                     enabled: loginPinField.text.length > 0
                     onClicked: {

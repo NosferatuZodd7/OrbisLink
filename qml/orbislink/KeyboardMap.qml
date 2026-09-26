@@ -13,78 +13,78 @@ import QtQuick
 import QtQuick.Controls.Basic
 
 Item {
-    id: mapa
+    id: keyMap
 
     // The button under the mouse, for the controller drawing to light up.
-    property string destaque: escolhida.length > 0 ? acoes[escolhida].alvo : destaqueRato
-    property string destaqueRato: ""
-    property string descricao: ""
+    property string highlight: chosen.length > 0 ? actions[chosen].target : hoverHighlight
+    property string hoverHighlight: ""
+    property string description: ""
 
-    property bool editando: false
+    property bool editing: false
     // The action waiting for a new key ("" when none).
-    property string escolhida: ""
-    property string aviso: ""
+    property string chosen: ""
+    property string notice: ""
 
-    readonly property bool temStream: typeof stream !== "undefined" && stream !== null
-    readonly property var ligacoes: temStream ? stream.keyBindings : ({})
+    readonly property bool hasStream: typeof stream !== "undefined" && stream !== null
+    readonly property var bindings: hasStream ? stream.keyBindings : ({})
 
     // key → action, the reverse of what comes from the stream.
-    readonly property var porTecla: {
-        var inverso = {}
-        for (var acao in ligacoes)
-            inverso[ligacoes[acao]] = acao
-        return inverso
+    readonly property var byKey: {
+        var inverse = {}
+        for (var action in bindings)
+            inverse[bindings[action]] = action
+        return inverse
     }
 
     // The text of the box under the controller.
-    readonly property string texto: {
-        if (escolhida.length > 0)
+    readonly property string message: {
+        if (chosen.length > 0)
             return qsTr("Changing %1: press the new key, or click a key in the drawing. Esc "
-                        + "cancels.").arg(acoes[escolhida].nome)
-        if (aviso.length > 0)
-            return aviso
-        return descricao
+                        + "cancels.").arg(actions[chosen].name)
+        if (notice.length > 0)
+            return notice
+        return description
     }
 
-    readonly property color corCruz: "#7CB2E8"
-    readonly property color corCirculo: "#FF6B6B"
-    readonly property color corQuadrado: "#E88BD6"
-    readonly property color corTriangulo: "#40E0B0"
+    readonly property color crossColor: "#7CB2E8"
+    readonly property color circleColor: "#FF6B6B"
+    readonly property color squareColor: "#E88BD6"
+    readonly property color triangleColor: "#40E0B0"
 
     // What each action shows inside the key. "target" is the part of the
     // controller that lights up; "kind" says how the sign is drawn.
-    readonly property var acoes: ({
-        "cross":        { sinal: "✕", tipo: "simbolo", cor: corCruz, alvo: "cross", nome: qsTr("Cross") },
-        "circle":       { sinal: "◯", tipo: "simbolo", cor: corCirculo, alvo: "circle", nome: qsTr("Circle") },
-        "square":       { sinal: "▢", tipo: "simbolo", cor: corQuadrado, alvo: "square", nome: qsTr("Square") },
-        "triangle":     { sinal: "△", tipo: "simbolo", cor: corTriangulo, alvo: "triangle", nome: qsTr("Triangle") },
-        "dpad_up":      { sinal: "✚↑", tipo: "botao", alvo: "dpad", nome: qsTr("D-pad up") },
-        "dpad_down":    { sinal: "✚↓", tipo: "botao", alvo: "dpad", nome: qsTr("D-pad down") },
-        "dpad_left":    { sinal: "✚←", tipo: "botao", alvo: "dpad", nome: qsTr("D-pad left") },
-        "dpad_right":   { sinal: "✚→", tipo: "botao", alvo: "dpad", nome: qsTr("D-pad right") },
-        "l1":           { sinal: "L1", tipo: "botao", alvo: "l1", nome: qsTr("L1") },
-        "l2":           { sinal: "L2", tipo: "botao", alvo: "l2", nome: qsTr("L2 (trigger)") },
-        "r1":           { sinal: "R1", tipo: "botao", alvo: "r1", nome: qsTr("R1") },
-        "r2":           { sinal: "R2", tipo: "botao", alvo: "r2", nome: qsTr("R2 (trigger)") },
-        "l3":           { sinal: "L3", tipo: "botao", alvo: "lstick", nome: qsTr("L3 (press the left stick)") },
-        "r3":           { sinal: "R3", tipo: "botao", alvo: "rstick", nome: qsTr("R3 (press the right stick)") },
-        "lstick_up":    { sinal: "L↑", tipo: "botao", alvo: "lstick", nome: qsTr("left stick up") },
-        "lstick_left":  { sinal: "L←", tipo: "botao", alvo: "lstick", nome: qsTr("left stick left") },
-        "lstick_down":  { sinal: "L↓", tipo: "botao", alvo: "lstick", nome: qsTr("left stick down") },
-        "lstick_right": { sinal: "L→", tipo: "botao", alvo: "lstick", nome: qsTr("left stick right") },
-        "rstick_up":    { sinal: "R↑", tipo: "botao", alvo: "rstick", nome: qsTr("right stick up") },
-        "rstick_left":  { sinal: "R←", tipo: "botao", alvo: "rstick", nome: qsTr("right stick left") },
-        "rstick_down":  { sinal: "R↓", tipo: "botao", alvo: "rstick", nome: qsTr("right stick down") },
-        "rstick_right": { sinal: "R→", tipo: "botao", alvo: "rstick", nome: qsTr("right stick right") },
-        "options":      { sinal: "OPT", tipo: "botao", alvo: "options", nome: qsTr("Options") },
-        "share":        { sinal: "SHR", tipo: "botao", alvo: "share", nome: qsTr("Share") },
-        "touchpad":     { sinal: "PAD", tipo: "botao", alvo: "touchpad", nome: qsTr("press the touchpad") },
-        "ps":           { sinal: "PS", tipo: "ps", alvo: "ps", nome: qsTr("PS button") }
+    readonly property var actions: ({
+        "cross":        { sign: "✕", kind: "symbol", tone: crossColor, target: "cross", name: qsTr("Cross") },
+        "circle":       { sign: "◯", kind: "symbol", tone: circleColor, target: "circle", name: qsTr("Circle") },
+        "square":       { sign: "▢", kind: "symbol", tone: squareColor, target: "square", name: qsTr("Square") },
+        "triangle":     { sign: "△", kind: "symbol", tone: triangleColor, target: "triangle", name: qsTr("Triangle") },
+        "dpad_up":      { sign: "✚↑", kind: "button", target: "dpad", name: qsTr("D-pad up") },
+        "dpad_down":    { sign: "✚↓", kind: "button", target: "dpad", name: qsTr("D-pad down") },
+        "dpad_left":    { sign: "✚←", kind: "button", target: "dpad", name: qsTr("D-pad left") },
+        "dpad_right":   { sign: "✚→", kind: "button", target: "dpad", name: qsTr("D-pad right") },
+        "l1":           { sign: "L1", kind: "button", target: "l1", name: qsTr("L1") },
+        "l2":           { sign: "L2", kind: "button", target: "l2", name: qsTr("L2 (trigger)") },
+        "r1":           { sign: "R1", kind: "button", target: "r1", name: qsTr("R1") },
+        "r2":           { sign: "R2", kind: "button", target: "r2", name: qsTr("R2 (trigger)") },
+        "l3":           { sign: "L3", kind: "button", target: "lstick", name: qsTr("L3 (press the left stick)") },
+        "r3":           { sign: "R3", kind: "button", target: "rstick", name: qsTr("R3 (press the right stick)") },
+        "lstick_up":    { sign: "L↑", kind: "button", target: "lstick", name: qsTr("left stick up") },
+        "lstick_left":  { sign: "L←", kind: "button", target: "lstick", name: qsTr("left stick left") },
+        "lstick_down":  { sign: "L↓", kind: "button", target: "lstick", name: qsTr("left stick down") },
+        "lstick_right": { sign: "L→", kind: "button", target: "lstick", name: qsTr("left stick right") },
+        "rstick_up":    { sign: "R↑", kind: "button", target: "rstick", name: qsTr("right stick up") },
+        "rstick_left":  { sign: "R←", kind: "button", target: "rstick", name: qsTr("right stick left") },
+        "rstick_down":  { sign: "R↓", kind: "button", target: "rstick", name: qsTr("right stick down") },
+        "rstick_right": { sign: "R→", kind: "button", target: "rstick", name: qsTr("right stick right") },
+        "options":      { sign: "OPT", kind: "button", target: "options", name: qsTr("Options") },
+        "share":        { sign: "SHR", kind: "button", target: "share", name: qsTr("Share") },
+        "touchpad":     { sign: "PAD", kind: "button", target: "touchpad", name: qsTr("press the touchpad") },
+        "ps":           { sign: "PS", kind: "ps", target: "ps", name: qsTr("PS button") }
     })
 
     // The keys, in units of one key: [label, code, x, row, width].
     // A real keyboard, reduced to the five rows that matter and the arrows.
-    readonly property var teclas: [
+    readonly property var keys: [
         ["Esc", Qt.Key_Escape, 0, 0, 1],
         ["1", Qt.Key_1, 1.5, 0, 1], ["2", Qt.Key_2, 2.5, 0, 1], ["3", Qt.Key_3, 3.5, 0, 1],
         ["4", Qt.Key_4, 4.5, 0, 1], ["5", Qt.Key_5, 5.5, 0, 1], ["6", Qt.Key_6, 6.5, 0, 1],
@@ -112,108 +112,108 @@ Item {
 
     // Actions whose keys are not on the drawing (F1, numeric keypad…):
     // they are written below, so no action disappears from the map.
-    readonly property string foraDoDesenho: {
-        var desenhadas = {}
-        for (var i = 0; i < teclas.length; ++i)
-            desenhadas[teclas[i][1]] = true
-        var linhas = []
-        for (var acao in ligacoes) {
-            var codigo = ligacoes[acao]
-            if (!desenhadas[codigo] && acoes[acao])
-                linhas.push((temStream ? stream.keyName(codigo) : codigo) + " → "
-                            + acoes[acao].sinal + " " + acoes[acao].nome)
+    readonly property string offDrawing: {
+        var drawn = {}
+        for (var i = 0; i < keys.length; ++i)
+            drawn[keys[i][1]] = true
+        var lines = []
+        for (var action in bindings) {
+            var code = bindings[action]
+            if (!drawn[code] && actions[action])
+                lines.push((hasStream ? stream.keyName(code) : code) + " → "
+                            + actions[action].sign + " " + actions[action].name)
         }
-        return linhas.join("   ·   ")
+        return lines.join("   ·   ")
     }
 
     // 17 units wide; each unit shrinks if the window is narrow.
-    readonly property real unidade: Math.min(40, width / 17)
-    readonly property real folga: Math.max(3, unidade * 0.1)
+    readonly property real unit: Math.min(40, width / 17)
+    readonly property real slack: Math.max(3, unit * 0.1)
 
     implicitWidth: 17 * 40
-    implicitHeight: 5 * unidade + (foraDoDesenho.length > 0 ? 22 : 0)
+    implicitHeight: 5 * unit + (offDrawing.length > 0 ? 22 : 0)
 
-    function atribuir(codigo) {
-        if (!temStream || escolhida.length === 0)
+    function assign(code) {
+        if (!hasStream || chosen.length === 0)
             return
-        if (codigo === Qt.Key_Escape) {
-            escolhida = ""
+        if (code === Qt.Key_Escape) {
+            chosen = ""
             return
         }
-        if (stream.setKeyBinding(escolhida, codigo)) {
-            aviso = ""
-            escolhida = ""
+        if (stream.setKeyBinding(chosen, code)) {
+            notice = ""
+            chosen = ""
         } else {
-            aviso = qsTr("That key can't be used: Esc leaves the stream and F11 toggles full "
+            notice = qsTr("That key can't be used: Esc leaves the stream and F11 toggles full "
                          + "screen.")
-            escolhida = ""
+            chosen = ""
         }
     }
 
-    onEditandoChanged: { escolhida = ""; aviso = "" }
-    onEscolhidaChanged: if (escolhida.length > 0) forceActiveFocus()
+    onEditingChanged: { chosen = ""; notice = "" }
+    onChosenChanged: if (chosen.length > 0) forceActiveFocus()
 
     // The new key comes from here. The event is accepted so the dialog does
     // not use it (Enter does not press a button, Esc does not close the window).
     Keys.onPressed: function (event) {
-        if (!editando || escolhida.length === 0)
+        if (!editing || chosen.length === 0)
             return
         if (event.isAutoRepeat) {
             event.accepted = true
             return
         }
-        atribuir(event.key)
+        assign(event.key)
         event.accepted = true
     }
 
     Repeater {
-        model: mapa.teclas
+        model: keyMap.keys
 
         Rectangle {
-            id: tecla
-            readonly property string rotulo: modelData[0]
-            readonly property int codigo: modelData[1]
-            readonly property bool fixa: codigo === Qt.Key_Escape
-            readonly property string acao: mapa.porTecla[codigo] !== undefined
-                                           ? mapa.porTecla[codigo] : ""
-            readonly property var funcao: fixa
-                ? { sinal: qsTr("exit"), tipo: "aviso", alvo: "", nome: qsTr("leaves the stream") }
-                : (acao.length > 0 ? mapa.acoes[acao] : undefined)
-            readonly property bool util: funcao !== undefined
-            readonly property bool escolhidaAqui: acao.length > 0 && mapa.escolhida === acao
+            id: keyCap
+            readonly property string keyLabel: modelData[0]
+            readonly property int code: modelData[1]
+            readonly property bool fixed: code === Qt.Key_Escape
+            readonly property string action: keyMap.byKey[code] !== undefined
+                                           ? keyMap.byKey[code] : ""
+            readonly property var binding: fixed
+                ? { sign: qsTr("exit"), kind: "notice", target: "", name: qsTr("leaves the stream") }
+                : (action.length > 0 ? keyMap.actions[action] : undefined)
+            readonly property bool useful: binding !== undefined
+            readonly property bool chosenHere: action.length > 0 && keyMap.chosen === action
             // In edit mode, any key on the drawing responds to the mouse: it is
             // a possible destination for the chosen action.
-            readonly property bool sobre: area.containsMouse
-                                          && (util || (mapa.editando && mapa.escolhida.length > 0))
+            readonly property bool hover: area.containsMouse
+                                          && (useful || (keyMap.editing && keyMap.chosen.length > 0))
 
-            x: modelData[2] * mapa.unidade
-            y: modelData[3] * mapa.unidade
-            width: modelData[4] * mapa.unidade - mapa.folga
-            height: mapa.unidade - mapa.folga
-            radius: Math.round(mapa.unidade * 0.2)
+            x: modelData[2] * keyMap.unit
+            y: modelData[3] * keyMap.unit
+            width: modelData[4] * keyMap.unit - keyMap.slack
+            height: keyMap.unit - keyMap.slack
+            radius: Math.round(keyMap.unit * 0.2)
 
             // On the light theme the panel is white, like the dialog: the useful
             // keys get an icy grey and a dark edge, otherwise the dimmed ones
             // would be the ones standing out.
-            color: escolhidaAqui || sobre ? Theme.accentFill
-                 : !util ? "transparent"
-                 : Theme.claro ? "#EEF1F6"
+            color: chosenHere || hover ? Theme.accentFill
+                 : !useful ? "transparent"
+                 : Theme.light ? "#EEF1F6"
                  : Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b, 0.9)
-            border.width: escolhidaAqui ? 2 : 1
-            border.color: escolhidaAqui || sobre ? Theme.accent
-                        : !util ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.10)
-                        : Theme.claro ? Qt.rgba(0, 0, 0, 0.22)
+            border.width: chosenHere ? 2 : 1
+            border.color: chosenHere || hover ? Theme.accent
+                        : !useful ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.10)
+                        : Theme.light ? Qt.rgba(0, 0, 0, 0.22)
                         : Theme.glassEdge
-            scale: sobre || escolhidaAqui ? 1.06 : 1.0
-            z: sobre || escolhidaAqui ? 1 : 0
+            scale: hover || chosenHere ? 1.06 : 1.0
+            z: hover || chosenHere ? 1 : 0
             Behavior on scale { NumberAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
             Behavior on color { ColorAnimation { duration: Theme.fast } }
 
             // The key waiting blinks slowly, to show which one is changing.
             SequentialAnimation on opacity {
-                running: tecla.escolhidaAqui
+                running: keyCap.chosenHere
                 loops: Animation.Infinite
-                onStopped: tecla.opacity = 1
+                onStopped: keyCap.opacity = 1
                 NumberAnimation { to: 0.55; duration: 520; easing.type: Easing.InOutSine }
                 NumberAnimation { to: 1.0; duration: 520; easing.type: Easing.InOutSine }
             }
@@ -222,39 +222,39 @@ Item {
             Text {
                 x: 5
                 y: 3
-                text: tecla.rotulo
-                color: tecla.util ? Theme.text
+                text: keyCap.keyLabel
+                color: keyCap.useful ? Theme.text
                                   : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.28)
-                font.pixelSize: Math.max(8, Math.round(mapa.unidade * (tecla.rotulo.length > 1 ? 0.24 : 0.3)))
-                font.bold: tecla.util
+                font.pixelSize: Math.max(8, Math.round(keyMap.unit * (keyCap.keyLabel.length > 1 ? 0.24 : 0.3)))
+                font.bold: keyCap.useful
             }
 
             // And the PlayStation button, inside the same key, bottom
             // right. This is what you look for when looking at the map.
             Rectangle {
-                visible: tecla.util
+                visible: keyCap.useful
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 anchors.margins: 3
-                readonly property string tipo: tecla.util ? tecla.funcao.tipo : ""
-                width: Math.max(height, sinal.implicitWidth + 6)
-                height: Math.round(mapa.unidade * 0.42)
+                readonly property string kind: keyCap.useful ? keyCap.binding.kind : ""
+                width: Math.max(height, sign.implicitWidth + 6)
+                height: Math.round(keyMap.unit * 0.42)
                 radius: height / 2
-                color: tipo === "ps" ? Theme.accent
-                     : tipo === "aviso" ? Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, 0.20)
-                     : tipo === "simbolo" ? "transparent"
+                color: kind === "ps" ? Theme.accent
+                     : kind === "notice" ? Qt.rgba(Theme.warn.r, Theme.warn.g, Theme.warn.b, 0.20)
+                     : kind === "symbol" ? "transparent"
                      : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.10)
                 Text {
-                    id: sinal
+                    id: sign
                     anchors.centerIn: parent
-                    text: tecla.util ? tecla.funcao.sinal : ""
-                    color: parent.tipo === "ps" ? "#FFFFFF"
-                         : parent.tipo === "simbolo" ? tecla.funcao.cor
-                         : parent.tipo === "aviso" ? Theme.warn
+                    text: keyCap.useful ? keyCap.binding.sign : ""
+                    color: parent.kind === "ps" ? "#FFFFFF"
+                         : parent.kind === "symbol" ? keyCap.binding.tone
+                         : parent.kind === "notice" ? Theme.warn
                          : Theme.text
-                    font.pixelSize: parent.tipo === "simbolo"
-                                    ? Math.round(mapa.unidade * 0.36)
-                                    : Math.max(7, Math.round(mapa.unidade * 0.22))
+                    font.pixelSize: parent.kind === "symbol"
+                                    ? Math.round(keyMap.unit * 0.36)
+                                    : Math.max(7, Math.round(keyMap.unit * 0.22))
                     font.bold: true
                 }
             }
@@ -263,31 +263,31 @@ Item {
                 id: area
                 anchors.fill: parent
                 hoverEnabled: true
-                cursorShape: mapa.editando && (tecla.util || mapa.escolhida.length > 0)
-                             && !tecla.fixa ? Qt.PointingHandCursor : Qt.ArrowCursor
+                cursorShape: keyMap.editing && (keyCap.useful || keyMap.chosen.length > 0)
+                             && !keyCap.fixed ? Qt.PointingHandCursor : Qt.ArrowCursor
                 onContainsMouseChanged: {
-                    if (containsMouse && tecla.util) {
-                        mapa.destaqueRato = tecla.funcao.alvo
-                        mapa.descricao = tecla.rotulo + " — " + tecla.funcao.nome
-                    } else if (!containsMouse && tecla.util
-                               && mapa.descricao === tecla.rotulo + " — " + tecla.funcao.nome) {
-                        mapa.destaqueRato = ""
-                        mapa.descricao = ""
+                    if (containsMouse && keyCap.useful) {
+                        keyMap.hoverHighlight = keyCap.binding.target
+                        keyMap.description = keyCap.keyLabel + " — " + keyCap.binding.name
+                    } else if (!containsMouse && keyCap.useful
+                               && keyMap.description === keyCap.keyLabel + " — " + keyCap.binding.name) {
+                        keyMap.hoverHighlight = ""
+                        keyMap.description = ""
                     }
                 }
                 onClicked: {
-                    if (!mapa.editando)
+                    if (!keyMap.editing)
                         return
-                    if (mapa.escolhida.length > 0) {
-                        if (tecla.escolhidaAqui)
-                            mapa.escolhida = ""
+                    if (keyMap.chosen.length > 0) {
+                        if (keyCap.chosenHere)
+                            keyMap.chosen = ""
                         else
-                            mapa.atribuir(tecla.codigo)
+                            keyMap.assign(keyCap.code)
                         return
                     }
-                    if (tecla.acao.length > 0) {
-                        mapa.aviso = ""
-                        mapa.escolhida = tecla.acao
+                    if (keyCap.action.length > 0) {
+                        keyMap.notice = ""
+                        keyMap.chosen = keyCap.action
                     }
                 }
             }
@@ -295,12 +295,12 @@ Item {
     }
 
     Text {
-        visible: mapa.foraDoDesenho.length > 0
-        y: 5 * mapa.unidade + 6
+        visible: keyMap.offDrawing.length > 0
+        y: 5 * keyMap.unit + 6
         width: parent.width
         horizontalAlignment: Text.AlignHCenter
         elide: Text.ElideRight
-        text: qsTr("Not in the drawing: %1").arg(mapa.foraDoDesenho)
+        text: qsTr("Not in the drawing: %1").arg(keyMap.offDrawing)
         color: Theme.textSecondary
         font.pixelSize: 11
     }

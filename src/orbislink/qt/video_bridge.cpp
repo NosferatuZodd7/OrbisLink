@@ -58,7 +58,7 @@ void VideoBridge::presentFrame(AVFrame *frame)
 	// what av_hwframe_transfer_data does — and follows the same path as the
 	// others.
 	AVFrame *software = nullptr;
-	AVFrame *fonte = frame;
+	AVFrame *source = frame;
 	if(frame->hw_frames_ctx)
 	{
 		software = av_frame_alloc();
@@ -73,26 +73,26 @@ void VideoBridge::presentFrame(AVFrame *frame)
 		}
 		software->width = frame->width;
 		software->height = frame->height;
-		fonte = software;
+		source = software;
 	}
 
-	QVideoFrameFormat::PixelFormat formato = QVideoFrameFormat::Format_Invalid;
-	switch(fonte->format)
+	QVideoFrameFormat::PixelFormat format = QVideoFrameFormat::Format_Invalid;
+	switch(source->format)
 	{
 		case AV_PIX_FMT_YUV420P:
-			formato = QVideoFrameFormat::Format_YUV420P;
+			format = QVideoFrameFormat::Format_YUV420P;
 			break;
 		case AV_PIX_FMT_NV12:
 			// It is what most hardware decoders return.
-			formato = QVideoFrameFormat::Format_NV12;
+			format = QVideoFrameFormat::Format_NV12;
 			break;
 		case AV_PIX_FMT_P010LE:
-			formato = QVideoFrameFormat::Format_P010;
+			format = QVideoFrameFormat::Format_P010;
 			break;
 		default:
 			break;
 	}
-	if(formato == QVideoFrameFormat::Format_Invalid)
+	if(format == QVideoFrameFormat::Format_Invalid)
 	{
 		// Better to show nothing than swapped colours. Said once, so the
 		// log does not fill up with the same line.
@@ -100,15 +100,15 @@ void VideoBridge::presentFrame(AVFrame *frame)
 		{
 			unsupportedReported_ = true;
 			logWarning("Remote Play: unsupported picture format ("
-				+ std::to_string(fonte->format) + "); no video.");
+				+ std::to_string(source->format) + "); no video.");
 		}
 		if(software)
 			av_frame_free(&software);
 		return;
 	}
 
-	QVideoFrameFormat descricao(QSize(fonte->width, fonte->height), formato);
-	QVideoFrame videoFrame(descricao);
+	QVideoFrameFormat description(QSize(source->width, source->height), format);
+	QVideoFrame videoFrame(description);
 	if(!videoFrame.map(QVideoFrame::WriteOnly))
 	{
 		if(software)
@@ -116,26 +116,26 @@ void VideoBridge::presentFrame(AVFrame *frame)
 		return;
 	}
 
-	const int metadeLargura = (fonte->width + 1) / 2;
-	const int metadeAltura = (fonte->height + 1) / 2;
-	if(formato == QVideoFrameFormat::Format_YUV420P)
+	const int halfWidth = (source->width + 1) / 2;
+	const int halfHeight = (source->height + 1) / 2;
+	if(format == QVideoFrameFormat::Format_YUV420P)
 	{
-		copyPlane(videoFrame.bits(0), videoFrame.bytesPerLine(0), fonte->data[0],
-			fonte->linesize[0], fonte->width, fonte->height);
-		copyPlane(videoFrame.bits(1), videoFrame.bytesPerLine(1), fonte->data[1],
-			fonte->linesize[1], metadeLargura, metadeAltura);
-		copyPlane(videoFrame.bits(2), videoFrame.bytesPerLine(2), fonte->data[2],
-			fonte->linesize[2], metadeLargura, metadeAltura);
+		copyPlane(videoFrame.bits(0), videoFrame.bytesPerLine(0), source->data[0],
+			source->linesize[0], source->width, source->height);
+		copyPlane(videoFrame.bits(1), videoFrame.bytesPerLine(1), source->data[1],
+			source->linesize[1], halfWidth, halfHeight);
+		copyPlane(videoFrame.bits(2), videoFrame.bytesPerLine(2), source->data[2],
+			source->linesize[2], halfWidth, halfHeight);
 	}
 	else
 	{
 		// NV12 and P010: two planes, the second with both colours interleaved
 		// (so the width in bytes is the same as the luma's).
-		const int bytesPorAmostra = formato == QVideoFrameFormat::Format_P010 ? 2 : 1;
-		copyPlane(videoFrame.bits(0), videoFrame.bytesPerLine(0), fonte->data[0],
-			fonte->linesize[0], fonte->width * bytesPorAmostra, fonte->height);
-		copyPlane(videoFrame.bits(1), videoFrame.bytesPerLine(1), fonte->data[1],
-			fonte->linesize[1], fonte->width * bytesPorAmostra, metadeAltura);
+		const int bytesPerSample = format == QVideoFrameFormat::Format_P010 ? 2 : 1;
+		copyPlane(videoFrame.bits(0), videoFrame.bytesPerLine(0), source->data[0],
+			source->linesize[0], source->width * bytesPerSample, source->height);
+		copyPlane(videoFrame.bits(1), videoFrame.bytesPerLine(1), source->data[1],
+			source->linesize[1], source->width * bytesPerSample, halfHeight);
 	}
 	videoFrame.unmap();
 

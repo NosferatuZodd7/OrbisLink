@@ -548,7 +548,7 @@ Item {
                 StyledButton {
                     text: qsTr("Delete")
                     danger: true
-                    larguraMinima: 110
+                    minimumWidth: 110
                     onClicked: {
                         app.ftpDelete(confirmDelete.targetPath, confirmDelete.targetIsDirectory)
                         confirmDelete.close()

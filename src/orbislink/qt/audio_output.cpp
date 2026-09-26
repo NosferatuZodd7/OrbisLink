@@ -21,9 +21,9 @@ namespace {
 // 40 ms of silence the queue starts with.
 constexpr int kPushTickMs = 20;
 
-QString stateName(QAudio::State estado)
+QString stateName(QAudio::State status)
 {
-	switch(estado)
+	switch(status)
 	{
 		case QAudio::ActiveState: return QStringLiteral("Active");
 		case QAudio::SuspendedState: return QStringLiteral("Suspended");
@@ -99,14 +99,14 @@ void PcmQueue::push(const char *data, qint64 size)
 qint64 PcmQueue::take(char *dest, qint64 max)
 {
 	QMutexLocker lock(&mutex_);
-	const qint64 quanto = qMin<qint64>(buffer_.size(), max);
-	if(quanto > 0)
+	const qint64 howMuch = qMin<qint64>(buffer_.size(), max);
+	if(howMuch > 0)
 	{
-		std::memcpy(dest, buffer_.constData(), static_cast<size_t>(quanto));
-		buffer_.remove(0, quanto);
-		pulled_ += quanto;
+		std::memcpy(dest, buffer_.constData(), static_cast<size_t>(howMuch));
+		buffer_.remove(0, howMuch);
+		pulled_ += howMuch;
 	}
-	return quanto;
+	return howMuch;
 }
 
 qint64 PcmQueue::readData(char *data, qint64 maxSize)
@@ -156,7 +156,7 @@ void AudioOutput::configure(unsigned int channels, unsigned int rate)
 		format_.setChannelCount(static_cast<int>(channels));
 		format_.setSampleFormat(QAudioFormat::Int16);
 		configured_ = true;
-		terminada_ = false;
+		ended_ = false;
 		samplesPlayed_ = 0;
 		framesReceived_ = 0;
 		underruns_ = 0;
@@ -173,7 +173,7 @@ void AudioOutput::configure(unsigned int channels, unsigned int rate)
 void AudioOutput::ensureStarted()
 {
 	QAudioDevice device;
-	QAudioFormat formatoDaPlaca;
+	QAudioFormat deviceFormat;
 	{
 		QMutexLocker lock(&mutex_);
 		if(!configured_ || sink_)
@@ -199,20 +199,20 @@ void AudioOutput::ensureStarted()
 			deviceFormat_ = format_;
 			if(!device.isFormatSupported(format_))
 			{
-				QAudioFormat preferido = device.preferredFormat();
-				preferido.setSampleFormat(QAudioFormat::Int16);
-				if(!device.isFormatSupported(preferido))
+				QAudioFormat preferred = device.preferredFormat();
+				preferred.setSampleFormat(QAudioFormat::Int16);
+				if(!device.isFormatSupported(preferred))
 				{
 					// Last resort: the preferred format as is, even if
 					// it is not Int16 — better to try than to give up.
-					preferido = device.preferredFormat();
+					preferred = device.preferredFormat();
 				}
 				logWarning("Remote Play: the sound card does not accept "
 					+ std::to_string(format_.sampleRate()) + " Hz/"
 					+ std::to_string(format_.channelCount()) + " channels; converting to "
-					+ std::to_string(preferido.sampleRate()) + " Hz/"
-					+ std::to_string(preferido.channelCount()) + " channels.");
-				deviceFormat_ = preferido;
+					+ std::to_string(preferred.sampleRate()) + " Hz/"
+					+ std::to_string(preferred.channelCount()) + " channels.");
+				deviceFormat_ = preferred;
 			}
 
 			converter_.configure(format_.sampleRate(), format_.channelCount(),
@@ -221,7 +221,7 @@ void AudioOutput::ensureStarted()
 			// The queue's slack is now measured in the card's format.
 			queue_.setLimit(static_cast<qint64>(deviceFormat_.sampleRate())
 				* deviceFormat_.channelCount() * 2 / 2);
-			formatoDaPlaca = deviceFormat_;
+			deviceFormat = deviceFormat_;
 		}
 	}
 
@@ -241,32 +241,32 @@ void AudioOutput::ensureStarted()
 	// fetches a single sample — the sink says it is active, the queue fills,
 	// and the stream stays silent with no error. Direct writing works on all
 	// of them, and so it is the only one used.
-	auto novo = std::make_unique<QAudioSink>(device, formatoDaPlaca);
-	connect(novo.get(), &QAudioSink::stateChanged, this, &AudioOutput::handleSinkState,
+	auto fresh = std::make_unique<QAudioSink>(device, deviceFormat);
+	connect(fresh.get(), &QAudioSink::stateChanged, this, &AudioOutput::handleSinkState,
 		Qt::QueuedConnection);
-	QIODevice *alvo = novo->start();
+	QIODevice *target = fresh->start();
 
-	if(!alvo || novo->error() != QAudio::NoError)
+	if(!target || fresh->error() != QAudio::NoError)
 	{
-		const int codigo = static_cast<int>(novo->error());
+		const int code = static_cast<int>(fresh->error());
 		{
 			QMutexLocker lock(&mutex_);
 			state_ = QStringLiteral("error");
 		}
-		logError("Remote Play: QAudioSink failed to start, error " + std::to_string(codigo));
-		emit failed(tr("The sound card refused the stream (error %1).").arg(codigo));
+		logError("Remote Play: QAudioSink failed to start, error " + std::to_string(code));
+		emit failed(tr("The sound card refused the stream (error %1).").arg(code));
 		return;
 	}
 
-	QString dispositivo;
+	QString deviceLabel;
 	{
 		QMutexLocker lock(&mutex_);
-		sink_ = std::move(novo);
-		pushTarget_ = alvo;
+		sink_ = std::move(fresh);
+		pushTarget_ = target;
 		pushMode_ = true;
 		state_ = QStringLiteral("playing");
 		sinkState_ = stateName(sink_->state());
-		dispositivo = deviceName_;
+		deviceLabel = deviceName_;
 		logInfo("Remote Play: sound playing through \"" + deviceName_.toStdString() + "\" ("
 			+ sinkState_.toStdString() + ", buffer of "
 			+ std::to_string(sink_->bufferSize()) + " bytes, direct write).");
@@ -283,34 +283,34 @@ void AudioOutput::ensureStarted()
 	watchdog_->start();
 	feedPushMode();
 
-	emit started(dispositivo);
+	emit started(deviceLabel);
 }
 
-void AudioOutput::handleSinkState(QAudio::State estado)
+void AudioOutput::handleSinkState(QAudio::State status)
 {
-	QString falha;
+	QString fail;
 	{
 		QMutexLocker lock(&mutex_);
 		if(!sink_)
 			return;
-		sinkState_ = stateName(estado);
+		sinkState_ = stateName(status);
 		// Every transition is logged. Without this, a sink that goes Idle and
 		// never comes back is indistinguishable from one that never started.
 		logInfo("Remote Play: QAudioSink -> " + sinkState_.toStdString() + " (queued "
 			+ std::to_string(queue_.queuedBytes()) + " bytes, delivered so far "
 			+ std::to_string(queue_.pulledBytes()) + ").");
-		if(estado == QAudio::IdleState)
+		if(status == QAudio::IdleState)
 			++underruns_;
-		if(estado == QAudio::StoppedState && sink_->error() != QAudio::NoError)
+		if(status == QAudio::StoppedState && sink_->error() != QAudio::NoError)
 		{
 			state_ = QStringLiteral("error");
-			falha = tr("The sound stopped (error %1).").arg(static_cast<int>(sink_->error()));
+			fail = tr("The sound stopped (error %1).").arg(static_cast<int>(sink_->error()));
 			logError("Remote Play: the sound stopped with error "
 				+ std::to_string(static_cast<int>(sink_->error())));
 		}
 	}
-	if(!falha.isEmpty())
-		emit failed(falha);
+	if(!fail.isEmpty())
+		emit failed(fail);
 }
 
 void AudioOutput::watchdogTick()
@@ -320,26 +320,26 @@ void AudioOutput::watchdogTick()
 
 void AudioOutput::feedPushMode()
 {
-	QIODevice *alvo = nullptr;
-	qint64 espaco = 0;
+	QIODevice *target = nullptr;
+	qint64 space = 0;
 	{
 		QMutexLocker lock(&mutex_);
 		if(!pushMode_ || !sink_ || !pushTarget_)
 			return;
-		alvo = pushTarget_;
+		target = pushTarget_;
 		// The card's buffer is the only brake we need: write everything
 		// it accepts and not a byte more.
-		espaco = sink_->bytesFree();
+		space = sink_->bytesFree();
 	}
 
-	const qint64 quanto = qMin(espaco, queue_.queuedBytes());
-	if(quanto <= 0)
+	const qint64 howMuch = qMin(space, queue_.queuedBytes());
+	if(howMuch <= 0)
 		return;
-	if(scratch_.size() < quanto)
-		scratch_.resize(static_cast<int>(quanto));
-	const qint64 lidos = queue_.take(scratch_.data(), quanto);
-	if(lidos > 0)
-		alvo->write(scratch_.constData(), lidos);
+	if(scratch_.size() < howMuch)
+		scratch_.resize(static_cast<int>(howMuch));
+	const qint64 parsed = queue_.take(scratch_.data(), howMuch);
+	if(parsed > 0)
+		target->write(scratch_.constData(), parsed);
 }
 
 QString AudioOutput::pipelineSummary() const
@@ -347,52 +347,52 @@ QString AudioOutput::pipelineSummary() const
 	QMutexLocker lock(&mutex_);
 	// One line per stretch, in the order the sound flows through. Whoever
 	// reads this wants to know where the flow drops to zero.
-	QStringList linhas;
-	linhas << QStringLiteral("  1. console announced %1")
-			.arg(configured_ || terminada_ ? QStringLiteral("%1 Hz, %2 channels")
+	QStringList lines;
+	lines << QStringLiteral("  1. console announced %1")
+			.arg(configured_ || ended_ ? QStringLiteral("%1 Hz, %2 channels")
 						.arg(format_.sampleRate())
 						.arg(format_.channelCount())
 					: QStringLiteral("(nothing — the audio header never arrived)"));
-	linhas << QStringLiteral("  2. frames received   %1 (%2 samples per channel)")
+	lines << QStringLiteral("  2. frames received   %1 (%2 samples per channel)")
 			.arg(framesReceived_)
 			.arg(samplesPlayed_);
-	linhas << QStringLiteral("  3. output chosen     %1")
+	lines << QStringLiteral("  3. output chosen     %1")
 			.arg(deviceName_.isEmpty() ? QStringLiteral("(none)") : deviceName_);
-	linhas << QStringLiteral("  4. card format       %1 Hz, %2 channels%3")
+	lines << QStringLiteral("  4. card format       %1 Hz, %2 channels%3")
 			.arg(deviceFormat_.sampleRate())
 			.arg(deviceFormat_.channelCount())
 			.arg(converter_.needed() ? QStringLiteral("  (converting)") : QString());
-	linhas << QStringLiteral("  5. bytes queued      %1").arg(queue_.pushedBytes());
-	linhas << QStringLiteral("  6. bytes delivered   %1").arg(queue_.pulledBytes());
-	linhas << QStringLiteral("  7. bytes waiting     %1").arg(queue_.queuedBytes());
-	linhas << QStringLiteral("  8. QAudioSink        %1 (%2 pauses for lack of data)")
+	lines << QStringLiteral("  5. bytes queued      %1").arg(queue_.pushedBytes());
+	lines << QStringLiteral("  6. bytes delivered   %1").arg(queue_.pulledBytes());
+	lines << QStringLiteral("  7. bytes waiting     %1").arg(queue_.queuedBytes());
+	lines << QStringLiteral("  8. QAudioSink        %1 (%2 pauses for lack of data)")
 			.arg(sinkState_)
 			.arg(underruns_);
-	linhas << QStringLiteral("  9. state             %1%2")
+	lines << QStringLiteral("  9. state             %1%2")
 			.arg(state_)
 			.arg(muted_ ? QStringLiteral("  (muted on request)") : QString());
 
 	// The conclusion, written by hand, because it is the only part anyone reads.
-	QString veredicto;
-	if(terminada_)
-		veredicto = framesReceived_ > 0
+	QString verdict;
+	if(ended_)
+		verdict = framesReceived_ > 0
 			? QStringLiteral("the session ended; sound arrived and was played (%1 frames) — "
 							 "the numbers above are from that session").arg(framesReceived_)
 			: QStringLiteral("the session ended without any sound arriving");
 	else if(!configured_)
-		veredicto = QStringLiteral("the console never announced the audio format");
+		verdict = QStringLiteral("the console never announced the audio format");
 	else if(queue_.pushedBytes() == 0)
-		veredicto = QStringLiteral("the decoder did not deliver a single frame");
+		verdict = QStringLiteral("the decoder did not deliver a single frame");
 	else if(deviceName_.isEmpty())
-		veredicto = QStringLiteral("there is no sound output on this PC — is the Qt "
+		verdict = QStringLiteral("there is no sound output on this PC — is the Qt "
 			"multimedia backend missing?");
 	else if(queue_.pulledBytes() == 0)
-		veredicto = QStringLiteral("sound reaches the queue but never goes out to the card");
+		verdict = QStringLiteral("sound reaches the queue but never goes out to the card");
 	else
-		veredicto = QStringLiteral("the sound path is running");
-	linhas << QStringLiteral(" => %1").arg(veredicto);
+		verdict = QStringLiteral("the sound path is running");
+	lines << QStringLiteral(" => %1").arg(verdict);
 
-	return linhas.join(QLatin1Char('\n')) + QLatin1Char('\n');
+	return lines.join(QLatin1Char('\n')) + QLatin1Char('\n');
 }
 
 void AudioOutput::write(const int16_t *pcm, size_t samples)
@@ -422,10 +422,10 @@ void AudioOutput::write(const int16_t *pcm, size_t samples)
 	// Conversion happens on chiaki's thread, the same one that always
 	// wrote here; converter_ is not touched by anyone else once
 	// configured.
-	const std::vector<int16_t> &convertido = converter_.convert(pcm, samples);
-	if(!convertido.empty())
-		queue_.push(reinterpret_cast<const char *>(convertido.data()),
-			static_cast<qint64>(convertido.size()) * 2);
+	const std::vector<int16_t> &converted = converter_.convert(pcm, samples);
+	if(!converted.empty())
+		queue_.push(reinterpret_cast<const char *>(converted.data()),
+			static_cast<qint64>(converted.size()) * 2);
 }
 
 void AudioOutput::setMuted(bool muted)
@@ -443,19 +443,19 @@ void AudioOutput::stop()
 	if(watchdog_ && watchdog_->thread() == QThread::currentThread())
 		watchdog_->stop();
 
-	std::unique_ptr<QAudioSink> morto;
+	std::unique_ptr<QAudioSink> dead;
 	{
 		QMutexLocker lock(&mutex_);
-		morto = std::move(sink_);
+		dead = std::move(sink_);
 		pushTarget_ = nullptr;
 		pushMode_ = false;
 		// The session's numbers stay for the diagnostics; only mark that
 		// it ended, so it does not look like the sound never arrived.
-		terminada_ = configured_;
+		ended_ = configured_;
 		configured_ = false;
 	}
-	if(morto)
-		morto->stop();
+	if(dead)
+		dead->stop();
 	{
 		QMutexLocker lock(&mutex_);
 		state_ = QStringLiteral("stopped");

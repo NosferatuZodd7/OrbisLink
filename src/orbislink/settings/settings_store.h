@@ -76,7 +76,7 @@ struct Settings
 	std::map<std::string, int> keyboardBindings;
 
 	// Application
-	std::string theme = "escuro";    // "escuro", "vidro" ou "claro"
+	std::string theme = "dark";      // "dark", "glass" or "light"
 	std::string language = "en";    // "en" or "pt_PT"
 	bool debugLogging = false;
 	// "Updates over the internet". On by default: with a public repository

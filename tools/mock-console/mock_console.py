@@ -569,10 +569,10 @@ class DiscoveryServer:
 
     def _response(self) -> bytes:
         if self.state == "standby":
-            linhas = ["HTTP/1.1 620 Server Standby"]
+            lines = ["HTTP/1.1 620 Server Standby"]
         else:
-            linhas = ["HTTP/1.1 200 Ok"]
-        linhas += [
+            lines = ["HTTP/1.1 200 Ok"]
+        lines += [
             "host-id:1122334455AA",
             "host-type:PS4",
             f"host-name:{self.name}",
@@ -581,8 +581,8 @@ class DiscoveryServer:
             "system-version:09000000",
         ]
         if self.state == "ready":
-            linhas += ["running-app-name:Bloodborne", "running-app-titleid:CUSA00207"]
-        return ("\r\n".join(linhas) + "\r\n").encode("utf-8")
+            lines += ["running-app-name:Bloodborne", "running-app-titleid:CUSA00207"]
+        return ("\r\n".join(lines) + "\r\n").encode("utf-8")
 
     def _loop(self) -> None:
         while self._running:

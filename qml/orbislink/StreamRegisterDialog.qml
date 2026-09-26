@@ -76,12 +76,12 @@ Dialog {
             Item { Layout.fillWidth: true }
             StyledButton {
                 text: qsTr("Close")
-                larguraMinima: 100
+                minimumWidth: 100
                 onClicked: dialog.close()
             }
             StyledButton {
                 text: qsTr("Register")
-                larguraMinima: 110
+                minimumWidth: 110
                 // Only enabled once the Account ID gives a valid value: a
                 // button that can be pressed and fails on the console is worse
                 // than a greyed-out button.
@@ -106,10 +106,10 @@ Dialog {
             color: Theme.panelAltFill
             border.color: Theme.border
             radius: 8
-            implicitHeight: passos.implicitHeight + 28
+            implicitHeight: steps.implicitHeight + 28
 
             ColumnLayout {
-                id: passos
+                id: steps
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter

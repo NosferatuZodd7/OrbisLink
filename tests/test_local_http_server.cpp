@@ -130,7 +130,7 @@ const std::string kPayload = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmn
 
 } // namespace
 
-ORBISLINK_TEST(serve_ficheiro_completo)
+ORBISLINK_TEST(serves_complete_file)
 {
 	ServerFixture fixture(kPayload);
 	const std::string url = "/f/" + fixture.token + "/jogo_teste_.pkg";
@@ -142,7 +142,7 @@ ORBISLINK_TEST(serve_ficheiro_completo)
 	CHECK_EQ(response.header("Content-Length"), std::to_string(kPayload.size()));
 }
 
-ORBISLINK_TEST(url_gerado_tem_token_e_nome_sanitizado)
+ORBISLINK_TEST(generated_url_has_token_and_sanitised_name)
 {
 	ServerFixture fixture(kPayload);
 	const std::string url = fixture.server.urlForToken(fixture.token);
@@ -151,7 +151,7 @@ ORBISLINK_TEST(url_gerado_tem_token_e_nome_sanitizado)
 	CHECK(url.find("jogo_teste_.pkg") != std::string::npos);
 }
 
-ORBISLINK_TEST(range_do_inicio)
+ORBISLINK_TEST(range_from_the_start)
 {
 	ServerFixture fixture(kPayload);
 	const std::string url = "/f/" + fixture.token + "/x.pkg";
@@ -163,7 +163,7 @@ ORBISLINK_TEST(range_do_inicio)
 	CHECK_EQ(response.header("Content-Length"), std::string("10"));
 }
 
-ORBISLINK_TEST(range_do_meio)
+ORBISLINK_TEST(range_from_the_middle)
 {
 	ServerFixture fixture(kPayload);
 	const std::string url = "/f/" + fixture.token + "/x.pkg";
@@ -173,7 +173,7 @@ ORBISLINK_TEST(range_do_meio)
 	CHECK_EQ(response.body, kPayload.substr(20, 10));
 }
 
-ORBISLINK_TEST(range_aberto_ate_ao_fim)
+ORBISLINK_TEST(range_open_to_the_end)
 {
 	ServerFixture fixture(kPayload);
 	const std::string url = "/f/" + fixture.token + "/x.pkg";
@@ -183,7 +183,7 @@ ORBISLINK_TEST(range_aberto_ate_ao_fim)
 	CHECK_EQ(response.body, kPayload.substr(50));
 }
 
-ORBISLINK_TEST(range_sufixo)
+ORBISLINK_TEST(suffix_range)
 {
 	ServerFixture fixture(kPayload);
 	const std::string url = "/f/" + fixture.token + "/x.pkg";
@@ -193,7 +193,7 @@ ORBISLINK_TEST(range_sufixo)
 	CHECK_EQ(response.body, kPayload.substr(kPayload.size() - 8));
 }
 
-ORBISLINK_TEST(range_fora_dos_limites_devolve_416)
+ORBISLINK_TEST(out_of_bounds_range_returns_416)
 {
 	ServerFixture fixture(kPayload);
 	const std::string url = "/f/" + fixture.token + "/x.pkg";
@@ -203,7 +203,7 @@ ORBISLINK_TEST(range_fora_dos_limites_devolve_416)
 	CHECK_EQ(response.header("Content-Range"), "bytes */" + std::to_string(kPayload.size()));
 }
 
-ORBISLINK_TEST(head_devolve_cabecalhos_sem_corpo)
+ORBISLINK_TEST(head_returns_headers_without_body)
 {
 	ServerFixture fixture(kPayload);
 	const std::string url = "/f/" + fixture.token + "/x.pkg";
@@ -214,7 +214,7 @@ ORBISLINK_TEST(head_devolve_cabecalhos_sem_corpo)
 	CHECK_EQ(response.header("Content-Length"), std::to_string(kPayload.size()));
 }
 
-ORBISLINK_TEST(token_invalido_devolve_404)
+ORBISLINK_TEST(invalid_token_returns_404)
 {
 	ServerFixture fixture(kPayload);
 	CHECK_EQ(rawRequest(fixture.server.port(), fixture.get("/f/token-errado/x.pkg")).status, 404);
@@ -223,7 +223,7 @@ ORBISLINK_TEST(token_invalido_devolve_404)
 	CHECK_EQ(rawRequest(fixture.server.port(), fixture.get("/../etc/passwd")).status, 404);
 }
 
-ORBISLINK_TEST(token_expira_ao_ser_removido)
+ORBISLINK_TEST(token_expires_when_removed)
 {
 	ServerFixture fixture(kPayload);
 	const std::string url = "/f/" + fixture.token + "/x.pkg";
@@ -232,14 +232,14 @@ ORBISLINK_TEST(token_expira_ao_ser_removido)
 	CHECK_EQ(rawRequest(fixture.server.port(), fixture.get(url)).status, 404);
 }
 
-ORBISLINK_TEST(ip_nao_autorizado_devolve_403)
+ORBISLINK_TEST(unauthorised_ip_returns_403)
 {
 	ServerFixture fixture(kPayload, /*allowLoopback=*/false, /*allowedClient=*/"192.168.1.50");
 	const std::string url = "/f/" + fixture.token + "/x.pkg";
 	CHECK_EQ(rawRequest(fixture.server.port(), fixture.get(url)).status, 403);
 }
 
-ORBISLINK_TEST(metodo_nao_suportado_devolve_405)
+ORBISLINK_TEST(unsupported_method_returns_405)
 {
 	ServerFixture fixture(kPayload);
 	const std::string url = "/f/" + fixture.token + "/x.pkg";
@@ -248,7 +248,7 @@ ORBISLINK_TEST(metodo_nao_suportado_devolve_405)
 	CHECK_EQ(response.status, 405);
 }
 
-ORBISLINK_TEST(contabiliza_bytes_servidos)
+ORBISLINK_TEST(counts_served_bytes)
 {
 	ServerFixture fixture(kPayload);
 	const std::string url = "/f/" + fixture.token + "/x.pkg";
@@ -261,7 +261,7 @@ ORBISLINK_TEST(contabiliza_bytes_servidos)
 	CHECK_EQ(stats.size, static_cast<int64_t>(kPayload.size()));
 }
 
-ORBISLINK_TEST(varias_ligacoes_em_simultaneo)
+ORBISLINK_TEST(several_simultaneous_connections)
 {
 	ServerFixture fixture(kPayload);
 	const std::string url = "/f/" + fixture.token + "/x.pkg";

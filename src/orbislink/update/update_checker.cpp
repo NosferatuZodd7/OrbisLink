@@ -22,26 +22,26 @@ std::string sha256FromNotes(const std::string &notes, const std::string &assetNa
 {
 	if(notes.empty() || assetName.empty())
 		return std::string();
-	for(const std::string &linha : split(notes, '\n', false))
+	for(const std::string &line : split(notes, '\n', false))
 	{
-		if(linha.find(assetName) == std::string::npos)
+		if(line.find(assetName) == std::string::npos)
 			continue;
-		size_t inicio = std::string::npos;
-		size_t contados = 0;
-		for(size_t i = 0; i <= linha.size(); ++i)
+		size_t start = std::string::npos;
+		size_t counted = 0;
+		for(size_t i = 0; i <= line.size(); ++i)
 		{
-			const bool hex = i < linha.size()
-				&& std::isxdigit(static_cast<unsigned char>(linha[i])) != 0;
+			const bool hex = i < line.size()
+				&& std::isxdigit(static_cast<unsigned char>(line[i])) != 0;
 			if(hex)
 			{
-				if(contados == 0)
-					inicio = i;
-				++contados;
+				if(counted == 0)
+					start = i;
+				++counted;
 				continue;
 			}
-			if(contados == 64)
-				return toLower(linha.substr(inicio, 64));
-			contados = 0;
+			if(counted == 64)
+				return toLower(line.substr(start, 64));
+			counted = 0;
 		}
 	}
 	return std::string();
@@ -82,51 +82,51 @@ std::vector<ReleaseInfo> UpdateChecker::parseReleases(const std::string &json,
 	std::string error;
 	const Json root = Json::parse(json, &error);
 	// The API returns a list; /releases/latest returns a single object.
-	std::vector<Json> entradas;
+	std::vector<Json> entries;
 	if(root.isArray())
-		entradas = root.items();
+		entries = root.items();
 	else if(root.isObject())
-		entradas.push_back(root);
+		entries.push_back(root);
 	else
 		return releases;
 
-	for(const Json &entrada : entradas)
+	for(const Json &input : entries)
 	{
-		if(!entrada.isObject())
+		if(!input.isObject())
 			continue;
 		// Drafts do not exist for anyone on the outside.
-		if(entrada["draft"].toLooseBool(false))
+		if(input["draft"].toLooseBool(false))
 			continue;
 		ReleaseInfo info;
-		info.tag = entrada["tag_name"].toString();
+		info.tag = input["tag_name"].toString();
 		if(info.tag.empty())
 			continue;
-		info.name = entrada["name"].toString(info.tag);
-		info.notes = entrada["body"].toString();
-		info.pageUrl = entrada["html_url"].toString();
-		info.prerelease = entrada["prerelease"].toLooseBool(false);
+		info.name = input["name"].toString(info.tag);
+		info.notes = input["body"].toString();
+		info.pageUrl = input["html_url"].toString();
+		info.prerelease = input["prerelease"].toLooseBool(false);
 
 		// Every published file has its own "<name>.sha256" next to it; what
 		// matters is the one for the file being downloaded, not just any
 		// (the zip's does not verify the installer).
 		std::map<std::string, std::string> hashes;
-		const Json &anexos = entrada["assets"];
-		for(size_t i = 0; i < anexos.size(); ++i)
+		const Json &assets = input["assets"];
+		for(size_t i = 0; i < assets.size(); ++i)
 		{
-			const Json &anexo = anexos.at(i);
-			const std::string nome = anexo["name"].toString();
-			if(nome.empty())
+			const Json &asset = assets.at(i);
+			const std::string name = asset["name"].toString();
+			if(name.empty())
 				continue;
-			if(endsWith(toLower(nome), ".sha256"))
+			if(endsWith(toLower(name), ".sha256"))
 			{
-				hashes[toLower(nome)] = anexo["browser_download_url"].toString();
+				hashes[toLower(name)] = asset["browser_download_url"].toString();
 				continue;
 			}
-			if(assetSuffix.empty() || !endsWith(toLower(nome), toLower(assetSuffix)))
+			if(assetSuffix.empty() || !endsWith(toLower(name), toLower(assetSuffix)))
 				continue;
-			info.assetName = nome;
-			info.assetUrl = anexo["browser_download_url"].toString();
-			info.assetSize = anexo["size"].toInt(0);
+			info.assetName = name;
+			info.assetUrl = asset["browser_download_url"].toString();
+			info.assetSize = asset["size"].toInt(0);
 		}
 		if(!info.assetName.empty())
 		{
@@ -143,30 +143,30 @@ std::vector<ReleaseInfo> UpdateChecker::parseReleases(const std::string &json,
 const ReleaseInfo *UpdateChecker::pick(const std::vector<ReleaseInfo> &releases,
 	UpdateChannel channel, const std::string &currentVersion)
 {
-	const Version atual = parseVersion(currentVersion);
-	const ReleaseInfo *melhor = nullptr;
-	Version melhorVersao;
+	const Version current = parseVersion(currentVersion);
+	const ReleaseInfo *best = nullptr;
+	Version bestVersion;
 	for(const ReleaseInfo &info : releases)
 	{
 		// On the stable channel, a prerelease does not count.
 		if(channel == UpdateChannel::Stable && info.prerelease)
 			continue;
-		const Version versao = info.version();
-		if(!versao.valid)
+		const Version version = info.version();
+		if(!version.valid)
 			continue;
-		if(melhor && compareVersions(versao, melhorVersao) <= 0)
+		if(best && compareVersions(version, bestVersion) <= 0)
 			continue;
-		melhor = &info;
-		melhorVersao = versao;
+		best = &info;
+		bestVersion = version;
 	}
-	if(!melhor)
+	if(!best)
 		return nullptr;
 	// It is only news if it is really newer than what is installed. An
 	// unreadable local version counts as old, and then any valid release
 	// will do.
-	if(atual.valid && compareVersions(melhorVersao, atual) <= 0)
+	if(current.valid && compareVersions(bestVersion, current) <= 0)
 		return nullptr;
-	return melhor;
+	return best;
 }
 
 std::string UpdateChecker::describeNothingNew(const std::vector<ReleaseInfo> &releases,
@@ -176,12 +176,12 @@ std::string UpdateChecker::describeNothingNew(const std::vector<ReleaseInfo> &re
 	{
 		// With only testing builds published, the stable channel would answer
 		// "you are on the latest version" with a new version right next to it.
-		const ReleaseInfo *testes = pick(releases, UpdateChannel::Testing, currentVersion);
-		if(testes)
+		const ReleaseInfo *testing = pick(releases, UpdateChannel::Testing, currentVersion);
+		if(testing)
 			return std::string(QT_TRANSLATE_NOOP("Messages",
 					   "There is no newer stable version, but there is a test build (to get it, choose the "
 					   	"\"Testing\" channel in the settings)"))
-				+ ": " + testes->version().toString();
+				+ ": " + testing->version().toString();
 		return QT_TRANSLATE_NOOP("Messages", "You are on the latest stable version.");
 	}
 	return QT_TRANSLATE_NOOP("Messages", "You are on the latest version, including test builds.");
@@ -242,17 +242,17 @@ UpdateCheckResult UpdateChecker::check() const
 	}
 
 	result.ok = true;
-	const ReleaseInfo *novo = pick(releases, config_.channel, config_.currentVersion);
-	if(!novo)
+	const ReleaseInfo *fresh = pick(releases, config_.channel, config_.currentVersion);
+	if(!fresh)
 	{
 		result.message = describeNothingNew(releases, config_.channel, config_.currentVersion);
 		return result;
 	}
 	result.updateAvailable = true;
-	result.release = *novo;
+	result.release = *fresh;
 	result.message = std::string(QT_TRANSLATE_NOOP("Messages", "A new version is available"))
-		+ ": " + novo->version().toString();
-	logInfo("Update available: " + novo->tag + " (installed: " + config_.currentVersion
+		+ ": " + fresh->version().toString();
+	logInfo("Update available: " + fresh->tag + " (installed: " + config_.currentVersion
 		+ ")");
 	return result;
 }

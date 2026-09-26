@@ -27,12 +27,12 @@ namespace orbislink {
 
 namespace {
 
-void titulo(QTextStream &out, const QString &texto)
+void heading(QTextStream &out, const QString &message)
 {
-	out << "\n" << texto << "\n" << QString(texto.size(), QLatin1Char('-')) << "\n";
+	out << "\n" << message << "\n" << QString(message.size(), QLatin1Char('-')) << "\n";
 }
 
-QString sim(bool valor) { return valor ? QStringLiteral("yes") : QStringLiteral("no"); }
+QString sim(bool value) { return value ? QStringLiteral("yes") : QStringLiteral("no"); }
 
 } // namespace
 
@@ -44,14 +44,14 @@ QString Diagnostics::suggestedFileName()
 
 QString Diagnostics::report(AppController *app)
 {
-	QString texto;
-	QTextStream out(&texto);
+	QString message;
+	QTextStream out(&message);
 
 	out << "OrbisLink diagnostics\n";
 	out << "=====================\n";
 	out << "Generated at " << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n";
 
-	titulo(out, "Versions");
+	heading(out, "Versions");
 	out << "OrbisLink        " << (app ? app->version() : QStringLiteral("?")) << "\n";
 	out << "Qt               " << qVersion() << " (built with " << QT_VERSION_STR << ")\n";
 	out << "System           " << QSysInfo::prettyProductName() << " ("
@@ -71,7 +71,7 @@ QString Diagnostics::report(AppController *app)
 	out << "Remote Play      NOT built into this version\n";
 #endif
 
-	titulo(out, "Network");
+	heading(out, "Network");
 	const std::vector<LocalInterface> interfaces = localInterfaces();
 	if(interfaces.empty())
 	{
@@ -90,7 +90,7 @@ QString Diagnostics::report(AppController *app)
 
 	if(app)
 	{
-		titulo(out, "Console and services");
+		heading(out, "Console and services");
 		out << "Name             " << app->consoleName() << "\n";
 		out << "Address          " << app->consoleAddress() << "\n";
 		out << "Remote Play      " << app->remotePlayState();
@@ -107,15 +107,15 @@ QString Diagnostics::report(AppController *app)
 		out << "\n";
 		out << "HTTP server      " << app->httpServerAddress() << "\n";
 
-		titulo(out, "Settings");
+		heading(out, "Settings");
 		// Only what helps diagnose. The Account ID and the keys are left
 		// out on purpose.
-		const QVariantMap definicoes = app->settingsMap();
-		static const QStringList segredos { QStringLiteral("streamAccountId"),
+		const QVariantMap settings = app->settingsMap();
+		static const QStringList secrets { QStringLiteral("streamAccountId"),
 			QStringLiteral("accountId") };
-		for(auto it = definicoes.constBegin(); it != definicoes.constEnd(); ++it)
+		for(auto it = settings.constBegin(); it != settings.constEnd(); ++it)
 		{
-			if(segredos.contains(it.key()))
+			if(secrets.contains(it.key()))
 				continue;
 			out << "  " << it.key().leftJustified(34) << it.value().toString() << "\n";
 		}
@@ -124,97 +124,97 @@ QString Diagnostics::report(AppController *app)
 #ifdef ORBISLINK_HAS_STREAM
 	if(app)
 	{
-		titulo(out, "Drag and drop");
+		heading(out, "Drag and drop");
 		out << app->dragSummary() << "\n";
 	}
 
-	titulo(out, "Remote Play — video");
+	heading(out, "Remote Play — video");
 	if(app && !app->videoProbe().isEmpty())
 		out << app->videoProbe();
 	else
 		out << "(no information)\n";
 
-	titulo(out, "Remote Play — sound path");
+	heading(out, "Remote Play — sound path");
 	if(app && !app->audioProbe().isEmpty())
 		out << app->audioProbe();
 	else
 		out << "(no information)\n";
 
-	titulo(out, "Remote Play — last attempt");
+	heading(out, "Remote Play — last attempt");
 	out << QString::fromStdString(StreamTrace::instance().summary());
 
-	titulo(out, "Registered consoles");
+	heading(out, "Registered consoles");
 	const CredentialStore store(CredentialStore::defaultPath());
-	const std::vector<StreamCredentials> registadas = store.all();
-	if(registadas.empty())
+	const std::vector<StreamCredentials> registeredOnes = store.all();
+	if(registeredOnes.empty())
 	{
 		out << "None. Without registration there is no Remote Play.\n";
 	}
 	else
 	{
-		for(const StreamCredentials &credencial : registadas)
+		for(const StreamCredentials &credential : registeredOnes)
 		{
 			// The keys do not go in here. What matters is knowing that
 			// they exist and have the right size.
-			out << "  " << QString::fromStdString(credencial.nickname) << "  host-id "
-				<< QString::fromStdString(credencial.hostId) << "  target " << credencial.target
-				<< "  ps5 " << sim(credencial.ps5) << "  regist key "
-				<< credencial.registKey.size() << " characters"
-				<< "  rp_key " << credencial.rpKeyHex.size() << " characters\n";
+			out << "  " << QString::fromStdString(credential.nickname) << "  host-id "
+				<< QString::fromStdString(credential.hostId) << "  target " << credential.target
+				<< "  ps5 " << sim(credential.ps5) << "  regist key "
+				<< credential.registKey.size() << " characters"
+				<< "  rp_key " << credential.rpKeyHex.size() << " characters\n";
 		}
 	}
 #endif
 
-	titulo(out, "Files");
+	heading(out, "Files");
 	out << "Settings         " << QString::fromStdString(SettingsStore::defaultSettingsPath())
 		<< "\n";
 	out << "Log              " << QString::fromStdString(SettingsStore::defaultLogPath()) << "\n";
 	out << "Data folder      " << QString::fromStdString(SettingsStore::defaultDirectory())
 		<< "\n";
 
-	titulo(out, "Log (last lines)");
-	const std::vector<std::string> linhas = Logger::instance().recent();
-	if(linhas.empty())
+	heading(out, "Log (last lines)");
+	const std::vector<std::string> lines = Logger::instance().recent();
+	if(lines.empty())
 	{
 		out << "(empty)\n";
 	}
 	else
 	{
-		for(const std::string &linha : linhas)
-			out << QString::fromStdString(linha) << "\n";
+		for(const std::string &line : lines)
+			out << QString::fromStdString(line) << "\n";
 	}
 
 	out << "\n-- end of diagnostics --\n";
-	return texto;
+	return message;
 }
 
 QString Diagnostics::write(AppController *app, const QString &directory, QString *error)
 {
-	QString pasta = directory;
-	if(pasta.startsWith(QStringLiteral("file:")))
-		pasta = QUrl(pasta).toLocalFile();
-	if(pasta.trimmed().isEmpty())
+	QString folder = directory;
+	if(folder.startsWith(QStringLiteral("file:")))
+		folder = QUrl(folder).toLocalFile();
+	if(folder.trimmed().isEmpty())
 	{
-		pasta = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
-		if(pasta.isEmpty() || !QDir(pasta).exists())
-			pasta = QDir::homePath();
+		folder = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
+		if(folder.isEmpty() || !QDir(folder).exists())
+			folder = QDir::homePath();
 	}
-	QDir().mkpath(pasta);
+	QDir().mkpath(folder);
 
-	const QString caminho = QDir(pasta).filePath(suggestedFileName());
-	QFile ficheiro(caminho);
-	if(!ficheiro.open(QIODevice::WriteOnly | QIODevice::Text))
+	const QString path = QDir(folder).filePath(suggestedFileName());
+	QFile file(path);
+	if(!file.open(QIODevice::WriteOnly | QIODevice::Text))
 	{
 		if(error)
-			*error = ficheiro.errorString();
+			*error = file.errorString();
 		return {};
 	}
-	QTextStream out(&ficheiro);
+	QTextStream out(&file);
 	out.setEncoding(QStringConverter::Utf8);
 	out << report(app);
-	ficheiro.close();
-	logInfo("Diagnostics exported to " + caminho.toStdString());
-	return caminho;
+	file.close();
+	logInfo("Diagnostics exported to " + path.toStdString());
+	return path;
 }
 
 } // namespace orbislink

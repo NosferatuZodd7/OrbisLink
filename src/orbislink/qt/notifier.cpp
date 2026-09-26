@@ -23,31 +23,31 @@ namespace {
 // on every start.
 NOTIFYICONDATAW &iconData()
 {
-	static NOTIFYICONDATAW dados {};
-	return dados;
+	static NOTIFYICONDATAW data {};
+	return data;
 }
 
-bool criarIcone()
+bool createIcon()
 {
-	NOTIFYICONDATAW &dados = iconData();
-	dados.cbSize = sizeof(NOTIFYICONDATAW);
+	NOTIFYICONDATAW &data = iconData();
+	data.cbSize = sizeof(NOTIFYICONDATAW);
 	// The owner window: any will do, as long as it exists while the icon
 	// exists. The application's window is used.
-	const QWindowList janelas = QGuiApplication::allWindows();
-	if(janelas.isEmpty())
+	const QWindowList windowList = QGuiApplication::allWindows();
+	if(windowList.isEmpty())
 		return false;
-	dados.hWnd = reinterpret_cast<HWND>(janelas.first()->winId());
-	if(!dados.hWnd)
+	data.hWnd = reinterpret_cast<HWND>(windowList.first()->winId());
+	if(!data.hWnd)
 		return false;
-	dados.uID = 1;
-	dados.uFlags = NIF_ICON | NIF_TIP;
-	dados.hIcon = static_cast<HICON>(
+	data.uID = 1;
+	data.uFlags = NIF_ICON | NIF_TIP;
+	data.hIcon = static_cast<HICON>(
 		LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(1), IMAGE_ICON, 0, 0,
 			LR_DEFAULTSIZE | LR_SHARED));
-	if(!dados.hIcon)
-		dados.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
-	wcscpy_s(dados.szTip, L"OrbisLink");
-	return Shell_NotifyIconW(NIM_ADD, &dados) != FALSE;
+	if(!data.hIcon)
+		data.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
+	wcscpy_s(data.szTip, L"OrbisLink");
+	return Shell_NotifyIconW(NIM_ADD, &data) != FALSE;
 }
 
 #endif // _WIN32
@@ -80,17 +80,17 @@ void Notifier::show(const QString &title, const QString &message, bool error)
 
 #ifdef _WIN32
 	if(!registered_)
-		registered_ = criarIcone();
+		registered_ = createIcon();
 	if(registered_)
 	{
-		NOTIFYICONDATAW &dados = iconData();
-		dados.uFlags = NIF_INFO;
-		dados.dwInfoFlags = error ? NIIF_ERROR : NIIF_INFO;
-		const QString cabecalho = title.isEmpty() ? QStringLiteral("OrbisLink") : title;
-		wcsncpy_s(dados.szInfoTitle, reinterpret_cast<const wchar_t *>(cabecalho.utf16()),
+		NOTIFYICONDATAW &data = iconData();
+		data.uFlags = NIF_INFO;
+		data.dwInfoFlags = error ? NIIF_ERROR : NIIF_INFO;
+		const QString header = title.isEmpty() ? QStringLiteral("OrbisLink") : title;
+		wcsncpy_s(data.szInfoTitle, reinterpret_cast<const wchar_t *>(header.utf16()),
 			_TRUNCATE);
-		wcsncpy_s(dados.szInfo, reinterpret_cast<const wchar_t *>(message.utf16()), _TRUNCATE);
-		Shell_NotifyIconW(NIM_MODIFY, &dados);
+		wcsncpy_s(data.szInfo, reinterpret_cast<const wchar_t *>(message.utf16()), _TRUNCATE);
+		Shell_NotifyIconW(NIM_MODIFY, &data);
 		return;
 	}
 #endif

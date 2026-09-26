@@ -17,7 +17,7 @@
 import QtQuick
 
 Item {
-    id: superficie
+    id: surface
 
     // The content goes in here, already with the theme's padding.
     default property alias content: area.data
@@ -43,7 +43,7 @@ Item {
             z: -2
             anchors.fill: parent
             anchors.margins: -(index + 1) * 3
-            radius: superficie.radius + (index + 1) * 3
+            radius: surface.radius + (index + 1) * 3
             color: "transparent"
             border.width: 3
             border.color: Qt.rgba(Theme.shadow.r, Theme.shadow.g, Theme.shadow.b,
@@ -56,20 +56,20 @@ Item {
         z: -1
         anchors.fill: parent
         anchors.margins: -6
-        radius: superficie.radius + 6
-        visible: superficie.glowing
+        radius: surface.radius + 6
+        visible: surface.glowing
         color: "transparent"
         border.width: 6
-        border.color: Qt.rgba(superficie.glowColor.r, superficie.glowColor.g,
-                              superficie.glowColor.b, 0.16)
+        border.color: Qt.rgba(surface.glowColor.r, surface.glowColor.g,
+                              surface.glowColor.b, 0.16)
     }
 
     // ── o vidro
     Rectangle {
-        id: vidro
+        id: glass
         anchors.fill: parent
-        radius: superficie.radius
-        color: Qt.rgba(superficie.tint.r, superficie.tint.g, superficie.tint.b, superficie.fill)
+        radius: surface.radius
+        color: Qt.rgba(surface.tint.r, surface.tint.g, surface.tint.b, surface.fill)
         border.width: 1
         border.color: Theme.glassEdge
 
@@ -81,7 +81,7 @@ Item {
             gradient: Gradient {
                 GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.glassHighlight * 0.9) }
                 GradientStop { position: 0.35; color: Qt.rgba(1, 1, 1, Theme.glassHighlight * 0.15) }
-                GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, Theme.claro ? 0.02 : 0.10) }
+                GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, Theme.light ? 0.02 : 0.10) }
             }
         }
 
@@ -99,7 +99,7 @@ Item {
             gradient: Gradient {
                 orientation: Gradient.Horizontal
                 GradientStop { position: 0.0; color: "transparent" }
-                GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, Theme.claro ? 0.9 : 0.35) }
+                GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, Theme.light ? 0.9 : 0.35) }
                 GradientStop { position: 1.0; color: "transparent" }
             }
         }
@@ -110,6 +110,6 @@ Item {
     Item {
         id: area
         anchors.fill: parent
-        anchors.margins: superficie.padding
+        anchors.margins: surface.padding
     }
 }

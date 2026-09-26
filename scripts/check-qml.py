@@ -20,61 +20,61 @@ import pathlib
 import re
 import sys
 
-RAIZ = pathlib.Path(__file__).resolve().parent.parent
-TIPOS = ("Dialog", "Popup", "Menu")
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+KINDS = ("Dialog", "Popup", "Menu")
 
 
-def blocos(texto, tipo):
+def blocks(message, kind):
     """Devolve (linha, corpo) de cada bloco `Tipo {` … `}` equilibrado."""
-    for m in re.finditer(r"(?<![A-Za-z_.])" + tipo + r"\s*\{", texto):
+    for m in re.finditer(r"(?<![A-Za-z_.])" + kind + r"\s*\{", message):
         # An "Overlay.modal: Rectangle" or a "property var x: Dialog"
         # does not open one of these blocks; the regex above already excludes them by the dot.
-        inicio = m.end() - 1
-        nivel = 0
-        for i in range(inicio, len(texto)):
-            if texto[i] == "{":
-                nivel += 1
-            elif texto[i] == "}":
-                nivel -= 1
-                if nivel == 0:
-                    yield texto[: m.start()].count("\n") + 1, texto[inicio : i + 1]
+        start = m.end() - 1
+        level = 0
+        for i in range(start, len(message)):
+            if message[i] == "{":
+                level += 1
+            elif message[i] == "}":
+                level -= 1
+                if level == 0:
+                    yield message[: m.start()].count("\n") + 1, message[start : i + 1]
                     break
 
 
-def sem_aninhados(corpo):
+def no_nesting(body):
     """O corpo sem os blocos de Dialog/Popup/Menu lá dentro.
 
     Sem isto, um diálogo sem background passaria por ter um filho que o
     tem — que é exactamente o caso que interessa apanhar.
     """
-    for tipo in TIPOS:
-        for _, interno in list(blocos(corpo[1:], tipo)):
-            corpo = corpo.replace(interno, "")
-    return corpo
+    for kind in KINDS:
+        for _, inner in list(blocks(body[1:], kind)):
+            body = body.replace(inner, "")
+    return body
 
 
 def main():
-    problemas = []
-    for ficheiro in sorted((RAIZ / "qml").rglob("*.qml")):
-        texto = ficheiro.read_text(encoding="utf-8")
-        for tipo in TIPOS:
-            for linha, corpo in blocos(texto, tipo):
-                proprio = sem_aninhados(corpo)
-                nome = f"{ficheiro.relative_to(RAIZ)}:{linha} ({tipo})"
-                if not re.search(r"^\s*background\s*:", proprio, re.M):
-                    problemas.append(
-                        f"{nome} não define background — "
+    problems = []
+    for file in sorted((ROOT / "qml").rglob("*.qml")):
+        message = file.read_text(encoding="utf-8")
+        for kind in KINDS:
+            for line, body in blocks(message, kind):
+                own = no_nesting(body)
+                name = f"{file.relative_to(ROOT)}:{line} ({kind})"
+                if not re.search(r"^\s*background\s*:", own, re.M):
+                    problems.append(
+                        f"{name} não define background — "
                         f"o estilo Basic pinta-o de branco e o texto do tema desaparece"
                     )
-                if "Theme.onStage" in proprio:
-                    problemas.append(
-                        f"{nome} usa Theme.onStage, que é branco e serve para "
+                if "Theme.onStage" in own:
+                    problems.append(
+                        f"{name} usa Theme.onStage, que é branco e serve para "
                         f"escrever por cima do vídeo, não dentro de um diálogo"
                     )
 
-    if problemas:
+    if problems:
         print("QML: encontrei superfícies que iam sair brancas:\n", file=sys.stderr)
-        for p in problemas:
+        for p in problems:
             print(f"  {p}", file=sys.stderr)
         return 1
 

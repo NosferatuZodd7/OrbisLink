@@ -107,10 +107,10 @@ shot 10-update.png --screenshot-delay 3000 --demo-update
 python3 - "$CONFIG/orbislink/settings.json" <<'PY'
 import json, sys
 with open(sys.argv[1]) as f:
-    definicoes = json.load(f)
-definicoes["theme"] = "claro"
+    settings = json.load(f)
+settings["theme"] = "light"
 with open(sys.argv[1], "w") as f:
-    json.dump(definicoes, f)
+    json.dump(settings, f)
 PY
 shot 11-remote-play-light.png --screenshot-delay 3500
 
