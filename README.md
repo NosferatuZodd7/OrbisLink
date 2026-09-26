@@ -278,6 +278,10 @@ também. É por isso que este repositório existe.
 Os avisos de copyright do chiaki-ng e das outras bibliotecas ficam onde
 estão — são de outras pessoas e a licença obriga a preservá-los.
 
+As wordmarks PS4/PS5 da caixa da consola são escritas em
+[Fugaz One](https://fonts.google.com/specimen/Fugaz+One), de LatinoType,
+sob a SIL Open Font License 1.1 (ver [`third-party/fugaz-one`](third-party/fugaz-one)).
+
 Créditos das fontes consultadas para a implementação do protocolo:
 [chiaki-ng](https://github.com/streetpea/chiaki-ng),
 [Remote Package Installer](https://github.com/flatz/ps4_remote_pkg_installer),
