@@ -259,6 +259,7 @@ void AppController::rememberConsoleType(const QString &address, bool ps5)
 		consola.type = tipo;
 		store_.save(settings_);
 		emit settingsChanged();
+		emit statusChanged();
 		return;
 	}
 }
@@ -318,22 +319,46 @@ QString AppController::remotePlayHint() const
 		return tr("Ainda não perguntei à consola. Carrega em Procurar.");
 	return QString::fromStdString(status_.remotePlay.hint);
 }
-QString AppController::ftpState() const { return stateName(status_.ftp.state); }
+bool AppController::activeIsPs5() const
+{
+	for(const ConsoleEntry &consola : settings_.consoles)
+		if(consola.address == settings_.consoleAddress)
+			return consola.type == "ps5";
+	return false;
+}
+
+// O FTP e o instalador são do GoldHEN, que só existe na PS4. Com uma PS5 não
+// estão "em baixo": não existem, e um indicador vermelho mandava procurar
+// um problema que não há.
+QString AppController::ftpState() const
+{
+	return activeIsPs5() ? QStringLiteral("not-applicable") : stateName(status_.ftp.state);
+}
 QString AppController::ftpHint() const
 {
+	if(activeIsPs5())
+		return tr("O FTP é do GoldHEN, que só existe na PS4. A PS5 não tem FTP.");
 	return status_.ftp.state == ServiceState::Available
 		? QString::fromStdString(status_.ftp.detail)
 		: QString::fromStdString(status_.ftp.hint);
 }
-QString AppController::installerState() const { return stateName(status_.installer.state); }
+QString AppController::installerState() const
+{
+	return activeIsPs5() ? QStringLiteral("not-applicable") : stateName(status_.installer.state);
+}
 QString AppController::installerHint() const
 {
+	if(activeIsPs5())
+		return tr("Instalar .pkg é só na PS4 (com o GoldHEN). A PS5 não instala pacotes daqui.");
 	return status_.installer.state == ServiceState::Available
 		? QString::fromStdString(status_.installer.detail)
 		: QString::fromStdString(status_.installer.hint);
 }
-bool AppController::canInstallDirectly() const { return status_.canInstallDirectly(); }
-bool AppController::canUseFtp() const { return status_.canUseFtp(); }
+bool AppController::canInstallDirectly() const
+{
+	return !activeIsPs5() && status_.canInstallDirectly();
+}
+bool AppController::canUseFtp() const { return !activeIsPs5() && status_.canUseFtp(); }
 bool AppController::queuePaused() const { return queue_ && queue_->paused(); }
 QString AppController::pauseReason() const
 {
@@ -444,6 +469,14 @@ void AppController::addPaths(const QStringList &paths, int mode)
 {
 	if(!queue_)
 		return;
+	if(activeIsPs5())
+	{
+		emit notify(tr("Instalar"),
+			tr("A consola em uso é uma PS5, e instalar .pkg é só na PS4 (com o GoldHEN). "
+			   "Escolhe a PS4 no palco e larga os ficheiros outra vez."),
+			true);
+		return;
+	}
 	const TransferMode transferMode = mode == 1 ? TransferMode::FtpUpload : TransferMode::DirectInstall;
 	const QStringList files = collectPkgFiles(paths);
 	if(files.isEmpty())
@@ -547,6 +580,11 @@ bool AppController::ftpReady(const QString &operacao)
 			tr("O FTP não está ligado. Confirma o IP da consola e que o servidor FTP do "
 			   "GoldHEN está a correr."),
 			true);
+		return false;
+	}
+	if(activeIsPs5())
+	{
+		emit notify(operacao, ftpHint(), true);
 		return false;
 	}
 	if(ftpBusy_)
