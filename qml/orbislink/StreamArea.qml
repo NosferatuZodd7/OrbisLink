@@ -200,21 +200,21 @@ Item {
             font.pixelSize: 12
             text: {
                 if (!root.built)
-                    return qsTr("Este pacote foi compilado sem o chiaki-ng. Tudo o resto — "
-                                + "instalar pkg e FTP — funciona na mesma.")
+                    return qsTr("This package was built without chiaki-ng. Everything else — "
+                                + "installing pkg files and FTP — still works.")
                 if (root.sessionState === "failed" && stream.sessionDetail.length > 0)
                     return stream.sessionDetail
                 if (root.consoleState === "offline")
-                    return qsTr("Confirma o IP nas definições e que a consola está ligada "
-                                + "na mesma rede.")
+                    return qsTr("Check the IP in the settings, and that the console is on the "
+                                + "same network.")
                 if (!root.registered && root.consoleState !== "unknown")
                     return stream.consolePs5
-                        ? qsTr("Na PS5: Definições → Sistema → Remote Play → Associar "
-                               + "dispositivo. Aparece um PIN de 8 dígitos.")
-                        : qsTr("Na consola: Definições → Definições de Ligação do Remote Play "
-                               + "→ Adicionar Dispositivo. Aparece um PIN de 8 dígitos.")
+                        ? qsTr("On the PS5: Settings → System → Remote Play → Link Device. An "
+                               + "8-digit PIN appears.")
+                        : qsTr("On the console: Settings → Remote Play Connection Settings → Add "
+                               + "Device. An 8-digit PIN appears.")
                 if (stream.runningApp.length > 0)
-                    return qsTr("A correr: %1").arg(stream.runningApp)
+                    return qsTr("Running: %1").arg(stream.runningApp)
                 return ""
             }
         }
@@ -283,26 +283,26 @@ Item {
             }
             StyledButton {
                 readonly property string somEstado: root.built ? stream.audioState : "parado"
-                text: !root.built ? qsTr("Som")
-                     : somEstado === "erro" || somEstado === "sem-dispositivo" ? qsTr("Sem som")
-                     : stream.muted ? qsTr("Som: desligado")
-                     : qsTr("Som: ligado")
+                text: !root.built ? qsTr("Sound")
+                     : somEstado === "erro" || somEstado === "sem-dispositivo" ? qsTr("No sound")
+                     : stream.muted ? qsTr("Sound: off")
+                     : qsTr("Sound: on")
                 danger: somEstado === "erro" || somEstado === "sem-dispositivo"
                 implicitHeight: 30
                 font.pixelSize: 11
                 ToolTip.visible: hovered
                 ToolTip.text: somEstado === "sem-dispositivo"
-                        ? qsTr("Este PC não tem saída de som activa.")
+                        ? qsTr("This PC has no active sound output.")
                     : somEstado === "erro"
-                        ? qsTr("A placa de som recusou o stream — vê o Ctrl+L.")
+                        ? qsTr("The sound card refused the stream — see Ctrl+L.")
                     : somEstado === "a-tocar"
-                        ? qsTr("A sair por %1").arg(stream.audioDevice)
-                        : qsTr("Ainda não chegou som da consola.")
+                        ? qsTr("Coming out of %1").arg(stream.audioDevice)
+                        : qsTr("No sound has arrived from the console yet.")
                 onClicked: stream.muted = !stream.muted
             }
             Text {
                 text: root.built && stream.hardwareDecoder
-                      ? qsTr("placa gráfica") : qsTr("processador")
+                      ? qsTr("graphics card") : qsTr("processor")
                 color: Theme.onStageMuted
                 font.pixelSize: 10
             }
@@ -311,17 +311,16 @@ Item {
             StyledButton {
                 readonly property string micEstado: root.built ? stream.microphoneState
                                                                : "desligado"
-                text: micEstado === "a-falar" ? qsTr("🎤 A falar")
-                     : micEstado === "em-silencio" ? qsTr("🎤 Em silêncio")
-                     : qsTr("Microfone")
+                text: micEstado === "a-falar" ? qsTr("🎤 Talking")
+                     : micEstado === "em-silencio" ? qsTr("🎤 Muted")
+                     : qsTr("Microphone")
                 implicitHeight: 30
                 font.pixelSize: 11
                 danger: micEstado === "a-falar"
                 ToolTip.visible: hovered
                 ToolTip.text: micEstado === "desligado"
-                    ? qsTr("Enviar o teu microfone para a consola")
-                    : qsTr("A captar de %1. Clica para calar, ou usa o botão direito para "
-                           + "desligar.").arg(stream.microphoneDevice)
+                    ? qsTr("Send your microphone to the console")
+                    : qsTr("Capturing from %1. Click to mute, or right-click to turn it off.").arg(stream.microphoneDevice)
                 onClicked: {
                     if (micEstado === "desligado")
                         stream.setMicrophoneEnabled(true)
@@ -336,20 +335,20 @@ Item {
                 }
             }
             StyledButton {
-                text: window.streamFullscreen ? qsTr("Sair do ecrã inteiro")
-                                              : qsTr("Ecrã inteiro")
+                text: window.streamFullscreen ? qsTr("Leave full screen")
+                                              : qsTr("Full screen")
                 implicitHeight: 30
                 font.pixelSize: 11
                 onClicked: window.setStreamFullscreen(!window.streamFullscreen)
             }
             StyledButton {
-                text: qsTr("Teclas")
+                text: qsTr("Keys")
                 implicitHeight: 30
                 font.pixelSize: 11
                 onClicked: keysDialog.open()
             }
             StyledButton {
-                text: qsTr("Terminar sessão")
+                text: qsTr("End the session")
                 implicitHeight: 30
                 font.pixelSize: 11
                 onClicked: stream.stopStream()
@@ -394,7 +393,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.dialogMargin
-                text: qsTr("O teclado como comando")
+                text: qsTr("The keyboard as a controller")
                 color: Theme.text
                 font.pixelSize: 15
                 font.bold: true
@@ -419,16 +418,16 @@ Item {
                 spacing: 10
                 StyledButton {
                     visible: root.built
-                    text: keyboardMap.editando ? qsTr("Concluir") : qsTr("Mudar teclas")
+                    text: keyboardMap.editando ? qsTr("Done") : qsTr("Change keys")
                     larguraMinima: 130
                     onClicked: keyboardMap.editando = !keyboardMap.editando
                 }
                 StyledButton {
                     visible: root.built && keyboardMap.editando
-                    text: qsTr("Repor")
+                    text: qsTr("Reset")
                     larguraMinima: 100
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Voltar às teclas por omissão")
+                    ToolTip.text: qsTr("Go back to the default keys")
                     onClicked: {
                         keyboardMap.escolhida = ""
                         stream.resetKeyBindings()
@@ -436,7 +435,7 @@ Item {
                 }
                 Item { Layout.fillWidth: true }
                 StyledButton {
-                    text: qsTr("Fechar")
+                    text: qsTr("Close")
                     larguraMinima: 110
                     primary: true
                     onClicked: keysDialog.close()
@@ -467,10 +466,10 @@ Item {
                         if (!root.built)
                             return ""
                         if (stream.gamepadName.length > 0)
-                            return qsTr("Comando ligado: %1. O teclado também funciona:")
+                            return qsTr("Controller connected: %1. The keyboard works too:")
                                 .arg(stream.gamepadName)
-                        return qsTr("Nenhum comando ligado — liga um por USB e é reconhecido "
-                                    + "sozinho. Entretanto, o teclado:")
+                        return qsTr("No controller connected — plug one in over USB and it is "
+                                    + "picked up on its own. Meanwhile, the keyboard:")
                     }
                 }
 
@@ -519,10 +518,10 @@ Item {
                         font.bold: parent.cheia
                         text: parent.cheia ? keyboardMap.texto
                             : keyboardMap.editando
-                              ? qsTr("Clica na tecla que queres mudar e depois carrega na tecla "
-                                     + "nova. Se ela já tiver uma função, as duas trocam.")
-                              : qsTr("Passa o rato por cima de uma tecla para ver no comando o "
-                                     + "botão que ela faz. As teclas apagadas não fazem nada.")
+                              ? qsTr("Click the key you want to change, then press the new key. "
+                                     + "If it already does something, the two swap.")
+                              : qsTr("Hover over a key to see on the controller which button it "
+                                     + "presses. Greyed-out keys do nothing.")
                     }
                 }
 
@@ -621,7 +620,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.dialogMargin
-                text: qsTr("PIN da consola")
+                text: qsTr("Console PIN")
                 color: Theme.text
                 font.pixelSize: 15
                 font.bold: true
@@ -646,12 +645,12 @@ Item {
                 spacing: 10
                 Item { Layout.fillWidth: true }
                 StyledButton {
-                    text: qsTr("Cancelar")
+                    text: qsTr("Cancel")
                     larguraMinima: 110
                     onClicked: loginPinDialog.close()
                 }
                 StyledButton {
-                    text: qsTr("Enviar")
+                    text: qsTr("Send")
                     larguraMinima: 110
                     primary: true
                     enabled: loginPinField.text.length > 0
@@ -672,8 +671,8 @@ Item {
                 Layout.topMargin: Theme.dialogInner
                 wrapMode: Text.WordWrap
                 text: loginPinDialog.incorrect
-                      ? qsTr("O PIN não estava certo. Tenta outra vez.")
-                      : qsTr("A consola pede o PIN de início de sessão da conta.")
+                      ? qsTr("That PIN was wrong. Try again.")
+                      : qsTr("The console is asking for the account's login PIN.")
                 color: loginPinDialog.incorrect ? Theme.error : Theme.textSecondary
                 font.pixelSize: 12
             }

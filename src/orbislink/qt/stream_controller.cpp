@@ -124,8 +124,8 @@ StreamController::StreamController(QObject *parent)
 	// Uma falha do som não pode ficar só numa linha do registo: avisa-se.
 	connect(&audio_, &AudioOutput::failed, this, [this](const QString &razao) {
 		emit audioChanged();
-		emit notify(tr("Som"),
-			tr("%1 O vídeo continua; o som do jogo não vai ouvir-se.").arg(razao), true);
+		emit notify(tr("Sound"),
+			tr("%1 The video carries on; you will not hear the game.").arg(razao), true);
 	});
 	connect(&audio_, &AudioOutput::started, this, [this](const QString &dispositivo) {
 		emit audioChanged();
@@ -166,15 +166,14 @@ StreamController::StreamController(QObject *parent)
 			if(resolution_ == 1080 && height == 720)
 			{
 				emit notify(tr("Remote Play"),
-					tr("Pediste 1080p e a consola está a enviar %1. O Remote Play de uma "
-					   "PS4 que não seja Pro não passa de 720p, e o pedido é baixado "
-					   "automaticamente.").arg(recebido),
+					tr("You asked for 1080p and the console is sending %1. Remote Play on a PS4 that is not a "
+						"Pro does not go above 720p, and the request is downgraded automatically.").arg(recebido),
 					false);
 			}
 			else
 			{
 				emit notify(tr("Remote Play"),
-					tr("Pediste %1p e a consola está a enviar %2.")
+					tr("You asked for %1p and the console is sending %2.")
 						.arg(resolution_).arg(recebido),
 					false);
 			}
@@ -271,7 +270,7 @@ QString StreamController::keyName(int key) const
 		case Qt::Key_Down: return QStringLiteral("↓");
 		case Qt::Key_Left: return QStringLiteral("←");
 		case Qt::Key_Right: return QStringLiteral("→");
-		case Qt::Key_Space: return tr("Espaço");
+		case Qt::Key_Space: return tr("Space");
 		default: return QKeySequence(key).toString(QKeySequence::NativeText);
 	}
 }
@@ -362,8 +361,8 @@ void StreamController::procurar(bool avisar)
 	if(address_.isEmpty())
 	{
 		if(avisar)
-			emit notify(tr("Procurar"),
-				tr("Falta o endereço IP da consola. Define-o nas definições."), true);
+			emit notify(tr("Search"),
+				tr("The console IP address is missing. Set it in the settings."), true);
 		return;
 	}
 	// Um "Procurar" carregado enquanto já se procura não se perde: a
@@ -396,21 +395,21 @@ void StreamController::procurar(bool avisar)
 					return;
 				if(!info.found)
 				{
-					emit notify(tr("Procurar"),
-						tr("A consola em %1 não respondeu. Está ligada, na mesma rede, e com "
-						   "o Remote Play activado?").arg(address_),
+					emit notify(tr("Search"),
+						tr("The console at %1 did not answer. Is it on, on the same network, and with Remote Play "
+							"enabled?").arg(address_),
 						true);
 					return;
 				}
 				const QString nome = QString::fromStdString(info.name);
 				if(consoleState() == QLatin1String("standby"))
-					emit notify(tr("Procurar"),
-						tr("%1 encontrada, em repouso. Clica na caixa dela para a acordar.")
+					emit notify(tr("Search"),
+						tr("%1 found, in rest mode. Click its box to wake it.")
 							.arg(nome.isEmpty() ? address_ : nome),
 						false);
 				else
-					emit notify(tr("Procurar"),
-						tr("%1 encontrada e pronta.").arg(nome.isEmpty() ? address_ : nome),
+					emit notify(tr("Search"),
+						tr("%1 found and ready.").arg(nome.isEmpty() ? address_ : nome),
 						false);
 			},
 			Qt::QueuedConnection);
@@ -422,7 +421,7 @@ void StreamController::wakeUp()
 	if(!credentials_.valid)
 	{
 		emit notify(tr("Remote Play"),
-			tr("Regista primeiro a consola: sem a chave de registo ela ignora o pedido."), true);
+			tr("Register the console first: without the registration key it ignores the request."), true);
 		return;
 	}
 	const std::string address = address_.toStdString();
@@ -432,12 +431,12 @@ void StreamController::wakeUp()
 		std::string erro;
 		const bool ok = StreamDiscovery::wakeup(address, credential, ps5, &erro);
 		const QString mensagem = ok
-			? tr("Pedido enviado. A consola demora alguns segundos a acordar.")
+			? tr("Request sent. The console takes a few seconds to wake up.")
 			: translateMessage(erro);
 		QMetaObject::invokeMethod(
 			this,
 			[this, ok, mensagem]() {
-				emit notify(tr("Acordar consola"), mensagem, !ok);
+				emit notify(tr("Wake the console"), mensagem, !ok);
 				// Sem aviso: acabada de acordar, é normal ainda não responder.
 				if(ok)
 					procurar(false);
@@ -489,7 +488,7 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 		return;
 	if(address_.isEmpty())
 	{
-		emit notify(tr("Registo"), tr("Define primeiro o endereço IP da consola."), true);
+		emit notify(tr("Registration"), tr("Set the console's IP address first."), true);
 		return;
 	}
 
@@ -512,9 +511,8 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 					applyHost(info);
 					if(!info.found)
 					{
-						emit notify(tr("Registo"),
-							tr("A consola não respondeu. Confirma o IP e que está ligada "
-							   "(não em repouso)."),
+						emit notify(tr("Registration"),
+							tr("The console did not answer. Check the IP, and that it is on (not in rest mode)."),
 							true);
 						return;
 					}
@@ -531,7 +529,7 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 	const AccountId conta = parseAccountId(accountIdBase64.toStdString());
 	if(!conta.valid)
 	{
-		emit notify(tr("Registo"), translateMessage(conta.error), true);
+		emit notify(tr("Registration"), translateMessage(conta.error), true);
 		return;
 	}
 
@@ -544,9 +542,8 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 
 	if(request.target == 0)
 	{
-		emit notify(tr("Registo"),
-			tr("A consola respondeu mas não disse a versão de sistema. "
-			   "Clica na caixa dela para procurar outra vez."),
+		emit notify(tr("Registration"),
+			tr("The console answered but did not report its system version. Click its box to search again."),
 			true);
 		return;
 	}
@@ -576,13 +573,12 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 							emit accountIdAccepted(accountParaGuardar);
 							emit settingsApplied();
 						}
-						emit notify(tr("Registo"),
-							tr("Consola registada. O Account ID fica guardado — da próxima "
-							   "só precisas do PIN."), false);
+						emit notify(tr("Registration"),
+							tr("Console registered. The Account ID is saved — next time you only need the PIN."), false);
 					}
 					else
 					{
-						emit notify(tr("Registo"), mensagem, true);
+						emit notify(tr("Registration"), mensagem, true);
 					}
 					emit registrationChanged();
 				},
@@ -592,7 +588,7 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 
 	if(!started)
 	{
-		emit notify(tr("Registo"), translateMessage(erro), true);
+		emit notify(tr("Registration"), translateMessage(erro), true);
 		return;
 	}
 	registering_ = true;
@@ -613,32 +609,32 @@ void StreamController::forgetConsole()
 	store_.forget(credentials_.hostId);
 	credentials_ = {};
 	emit registrationChanged();
-	emit notify(tr("Remote Play"), tr("Registo apagado deste PC."), false);
+	emit notify(tr("Remote Play"), tr("Registration removed from this PC."), false);
 }
 
 void StreamController::startStream()
 {
 	if(streaming_)
 	{
-		emit notify(tr("Remote Play"), tr("A sessão já está a decorrer."), false);
+		emit notify(tr("Remote Play"), tr("The session is already running."), false);
 		return;
 	}
 	if(address_.isEmpty())
 	{
 		emit notify(tr("Remote Play"),
-			tr("Falta o endereço IP da consola. Define-o nas definições."), true);
+			tr("The console IP address is missing. Set it in the settings."), true);
 		return;
 	}
 	if(!credentials_.valid)
 	{
 		emit notify(tr("Remote Play"),
-			tr("Regista primeiro a consola: clica na caixa dela e segue os passos."), true);
+			tr("Register the console first: click its box and follow the steps."), true);
 		return;
 	}
 	// Dizer que se está a ligar antes de bloquear a pensar: o clique tem de
 	// ter resposta imediata.
 	sessionState_ = QStringLiteral("connecting");
-	sessionDetail_ = tr("A ligar a %1…").arg(address_);
+	sessionDetail_ = tr("Connecting to %1…").arg(address_);
 	emit sessionChanged();
 
 	StreamSession::Config config;
@@ -674,7 +670,7 @@ void StreamController::connectOneClick()
 	if(address_.isEmpty())
 	{
 		emit notify(tr("Remote Play"),
-			tr("Falta o endereço IP da consola. Define-o nas definições."), true);
+			tr("The console IP address is missing. Set it in the settings."), true);
 		return;
 	}
 	// Cada clique é uma corrida própria: uma resposta de uma corrida
@@ -701,9 +697,9 @@ void StreamController::oneClickDecide(const HostInfo &info)
 	if(!info.found)
 	{
 		setConnectStage(QString());
-		emit notify(tr("Ligar"),
-			tr("A consola em %1 não respondeu. Confirma que está ligada (ou em repouso), "
-			   "na mesma rede e com o Remote Play activado.").arg(address_),
+		emit notify(tr("Connect"),
+			tr("The console at %1 did not respond. Check that it is on (or in rest mode), on the same "
+				"network, with Remote Play enabled.").arg(address_),
 			true);
 		return;
 	}
@@ -741,8 +737,8 @@ void StreamController::oneClickDecide(const HostInfo &info)
 	if(info.state != HostState::Ready)
 	{
 		setConnectStage(QString());
-		emit notify(tr("Ligar"), tr("A consola respondeu, mas não disse se está pronta. "
-									"Tenta outra vez daqui a pouco."), true);
+		emit notify(tr("Connect"), tr("The console answered but did not say whether it is ready. Try "
+			"again in a moment."), true);
 		return;
 	}
 	setConnectStage(QString());
@@ -758,9 +754,9 @@ void StreamController::oneClickPoll()
 	if(++wakeAttempts_ > 30)
 	{
 		setConnectStage(QString());
-		emit notify(tr("Ligar"),
-			tr("A consola não acordou. Confirma nas definições dela que pode ser ligada "
-			   "pela rede (Ficar ligado à Internet / Permitir ligar pela rede)."),
+		emit notify(tr("Connect"),
+			tr("The console did not wake up. Check in its settings that it can be turned on over the "
+				"network (Stay Connected to the Internet / Enable Turning On from Network)."),
 			true);
 		return;
 	}
@@ -836,7 +832,7 @@ void StreamController::setMicrophoneEnabled(bool enabled)
 
 	if(!streaming_)
 	{
-		emit notify(tr("Microfone"), tr("Liga primeiro o Remote Play."), true);
+		emit notify(tr("Microphone"), tr("Start Remote Play first."), true);
 		return;
 	}
 
@@ -845,8 +841,8 @@ void StreamController::setMicrophoneEnabled(bool enabled)
 	std::string erro;
 	if(!session_->startMicrophone(&erro))
 	{
-		emit notify(tr("Microfone"),
-			tr("A consola não aceitou o microfone: %1").arg(translateMessage(erro)), true);
+		emit notify(tr("Microphone"),
+			tr("The console did not accept the microphone: %1").arg(translateMessage(erro)), true);
 		return;
 	}
 
@@ -854,12 +850,12 @@ void StreamController::setMicrophoneEnabled(bool enabled)
 	if(!microphone_.start(&erroCaptura))
 	{
 		session_->stopMicrophone();
-		emit notify(tr("Microfone"), erroCaptura, true);
+		emit notify(tr("Microphone"), erroCaptura, true);
 		emit microphoneChanged();
 		return;
 	}
-	emit notify(tr("Microfone"),
-		tr("A falar para a consola (%1).").arg(microphone_.deviceName()), false);
+	emit notify(tr("Microphone"),
+		tr("Talking to the console (%1).").arg(microphone_.deviceName()), false);
 	emit microphoneChanged();
 }
 

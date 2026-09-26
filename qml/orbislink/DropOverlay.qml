@@ -90,7 +90,7 @@ Item {
         Text {
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
-            text: qsTr("Larga para…")
+            text: qsTr("Drop to…")
             color: Theme.onStage
             font.pixelSize: 22
             font.bold: true
@@ -106,8 +106,8 @@ Item {
                 objectName: "installZone"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                title: qsTr("Instalar diretamente")
-                subtitle: qsTr("A consola descarrega do PC e instala")
+                title: qsTr("Install directly")
+                subtitle: qsTr("The console downloads from this PC and installs")
                 glyph: "⤓"
                 enabledZone: app.canInstallDirectly
                 disabledReason: app.installerHint
@@ -119,8 +119,8 @@ Item {
                 objectName: "ftpZone"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                title: qsTr("Enviar por FTP")
-                subtitle: qsTr("Copia para %1").arg(app.ftpPath)
+                title: qsTr("Send over FTP")
+                subtitle: qsTr("Copies to %1").arg(app.ftpPath)
                 glyph: "⇪"
                 enabledZone: app.canUseFtp
                 disabledReason: app.ftpHint
@@ -131,7 +131,7 @@ Item {
         Text {
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
-            text: qsTr("Aceita vários ficheiros e pastas (procura .pkg lá dentro)")
+            text: qsTr("Takes several files and folders (it looks for .pkg inside)")
             color: Theme.onStageMuted
             font.pixelSize: 12
         }

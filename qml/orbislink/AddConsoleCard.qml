@@ -117,7 +117,7 @@ Item {
             width: caixa.width - 32
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
-            text: qsTr("Adicionar consola")
+            text: qsTr("Add console")
             color: area.containsMouse ? Theme.cardGlow : Theme.onIdleStage
             font.pixelSize: Math.max(11, Math.round(20 * caixa.escala))
             font.weight: Font.DemiBold

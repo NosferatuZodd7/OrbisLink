@@ -58,7 +58,7 @@ Dialog {
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             anchors.leftMargin: Theme.dialogMargin
-            text: qsTr("Adicionar consola")
+            text: qsTr("Add console")
             color: Theme.text
             font.pixelSize: 15
             font.bold: true
@@ -77,7 +77,7 @@ Dialog {
             anchors.rightMargin: Theme.dialogMargin
             Item { Layout.fillWidth: true }
             StyledButton {
-                text: qsTr("Fechar")
+                text: qsTr("Close")
                 larguraMinima: 100
                 onClicked: dialog.close()
             }
@@ -96,7 +96,7 @@ Dialog {
             spacing: 10
             Text {
                 Layout.fillWidth: true
-                text: qsTr("Na rede")
+                text: qsTr("On the network")
                 color: Theme.accent
                 font.bold: true
                 font.pixelSize: 12
@@ -110,7 +110,7 @@ Dialog {
             StyledButton {
                 visible: dialog.temStream
                 enabled: !dialog.aProcurar
-                text: dialog.aProcurar ? qsTr("A procurar…") : qsTr("Procurar outra vez")
+                text: dialog.aProcurar ? qsTr("Searching…") : qsTr("Search again")
                 implicitHeight: 30
                 font.pixelSize: 11
                 onClicked: stream.scanNetwork()
@@ -126,10 +126,10 @@ Dialog {
             color: Theme.textSecondary
             font.pixelSize: 12
             text: !dialog.temStream
-                  ? qsTr("Esta versão não tem Remote Play, por isso não procura na rede. "
-                         + "Escreve o endereço em baixo.")
-                  : qsTr("Nenhuma consola respondeu. Confirma que está ligada, na mesma rede, "
-                         + "com o Remote Play activado — ou escreve o endereço em baixo.")
+                  ? qsTr("This build has no Remote Play, so it can't search the network. Type "
+                         + "the address below.")
+                  : qsTr("No console answered. Check that it's on, on the same network, with "
+                         + "Remote Play enabled — or type the address below.")
         }
 
         Repeater {
@@ -168,14 +168,14 @@ Dialog {
                         }
                         Text {
                             text: modelData.address + "  ·  "
-                                  + (modelData.state === "standby" ? qsTr("em repouso")
-                                                                   : qsTr("pronta"))
+                                  + (modelData.state === "standby" ? qsTr("in rest mode")
+                                                                   : qsTr("ready"))
                             color: Theme.textSecondary
                             font.pixelSize: 11
                         }
                     }
                     StyledButton {
-                        text: linha.naLista ? qsTr("Já está") : qsTr("Adicionar")
+                        text: linha.naLista ? qsTr("Already added") : qsTr("Add")
                         enabled: !linha.naLista
                         primary: !linha.naLista
                         implicitHeight: 32
@@ -199,7 +199,7 @@ Dialog {
         // ── À mão
         Text {
             Layout.leftMargin: Theme.dialogMargin
-            text: qsTr("À mão")
+            text: qsTr("By hand")
             color: Theme.accent
             font.bold: true
             font.pixelSize: 12
@@ -213,16 +213,16 @@ Dialog {
             StyledField {
                 id: nomeField
                 Layout.preferredWidth: 150
-                placeholderText: qsTr("Nome (opcional)")
+                placeholderText: qsTr("Name (optional)")
             }
             StyledField {
                 id: enderecoField
                 Layout.fillWidth: true
-                placeholderText: qsTr("Endereço IP, ex.: 192.168.1.50")
+                placeholderText: qsTr("IP address, e.g. 192.168.1.50")
                 onAccepted: if (text.trim().length > 0) dialog.adicionar(nomeField.text, text)
             }
             StyledButton {
-                text: qsTr("Adicionar")
+                text: qsTr("Add")
                 enabled: enderecoField.text.trim().length > 0
                 larguraMinima: 100
                 onClicked: dialog.adicionar(nomeField.text, enderecoField.text)

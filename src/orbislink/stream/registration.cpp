@@ -69,29 +69,32 @@ Recusa explicarRecusa(uint32_t motivo)
 	{
 		case CHIAKI_RP_APPLICATION_REASON_INVALID_PSN_ID:
 			return { "a consola não reconheceu o Account ID (0x80108b02)",
-				QT_TRANSLATE_NOOP("Mensagens", "A consola não reconheceu o Account ID. Tem de ser o da conta PSN com "
-				"que pediste o PIN na consola (cada utilizador tem o seu), e não o nome "
-				"de utilizador da PSN.") };
+				QT_TRANSLATE_NOOP("Messages", "The console did not recognise the Account ID. It must belong "
+					"to the PSN account you used to request the PIN on the "
+					"console (each user has their own), not the PSN user name.") };
 		case CHIAKI_RP_APPLICATION_REASON_REGIST_FAILED:
 			return { "a consola recusou o PIN (0x80108b09)",
-				QT_TRANSLATE_NOOP("Mensagens", "A consola recusou o PIN. Pede um novo na consola — só é válido poucos "
-				"minutos — e escreve-o outra vez.") };
+				QT_TRANSLATE_NOOP("Messages", "The console rejected the PIN. Request a new one on the "
+					"console — it is only valid for a few minutes — and type it "
+					"again.") };
 		case CHIAKI_RP_APPLICATION_REASON_IN_USE:
 			return { "o Remote Play da consola já está a ser usado (0x80108b10)",
-				QT_TRANSLATE_NOOP("Mensagens", "O Remote Play da consola já está a ser usado por outro dispositivo. "
-				"Fecha essa sessão e tenta outra vez.") };
+				QT_TRANSLATE_NOOP("Messages", "The console's Remote Play is already in use by another "
+					"device. Close that session and try again.") };
 		case CHIAKI_RP_APPLICATION_REASON_CRASH:
 			return { "o Remote Play da consola foi abaixo (0x80108b15)",
-				QT_TRANSLATE_NOOP("Mensagens", "O Remote Play da consola foi abaixo. Reinicia a consola e tenta outra vez.") };
+				QT_TRANSLATE_NOOP("Messages", "The console's Remote Play crashed. Restart the console and "
+					"try again.") };
 		case CHIAKI_RP_APPLICATION_REASON_RP_VERSION:
 			return { "versão do Remote Play incompatível (0x80108b11)",
-				QT_TRANSLATE_NOOP("Mensagens", "A consola não aceitou a versão do Remote Play. Atualiza o sistema da "
-				"consola e tenta outra vez.") };
+				QT_TRANSLATE_NOOP("Messages", "The console did not accept the Remote Play version. Update "
+					"the console system software and try again.") };
 		default:
 			return { "a consola recusou o registo (PIN expirado ou errado, Account ID errado, "
 					 "ou Remote Play desligado na consola)",
-				QT_TRANSLATE_NOOP("Mensagens", "A consola recusou o registo. Confirma o PIN (é válido poucos minutos), "
-				"o Account ID da PSN e que a consola está ligada na mesma rede.") };
+				QT_TRANSLATE_NOOP("Messages", "The console rejected the registration. Check the PIN (it is "
+					"valid for a few minutes), the PSN Account ID, and that the "
+					"console is on the same network.") };
 	}
 }
 
@@ -120,7 +123,7 @@ void registCallback(ChiakiRegistEvent *event, void *user)
 			impl->running.store(false);
 			StreamTrace::instance().fail("registo cancelado");
 			if(finished)
-				finished(false, {}, QT_TRANSLATE_NOOP("Mensagens", "Registo cancelado."));
+				finished(false, {}, QT_TRANSLATE_NOOP("Messages", "Registration cancelled."));
 			break;
 		case CHIAKI_REGIST_EVENT_TYPE_FINISHED_FAILED:
 		default:
@@ -147,20 +150,21 @@ bool StreamRegistration::start(const Request &request, Finished finished, std::s
 	if(impl_->running.load())
 	{
 		if(error)
-			*error = QT_TRANSLATE_NOOP("Mensagens", "Já há um registo a decorrer.");
+			*error = QT_TRANSLATE_NOOP("Messages", "A registration is already in progress.");
 		return false;
 	}
 	if(request.address.empty())
 	{
 		if(error)
-			*error = QT_TRANSLATE_NOOP("Mensagens", "Falta o endereço da consola.");
+			*error = QT_TRANSLATE_NOOP("Messages", "The console's address is missing.");
 		return false;
 	}
 	// O PIN da consola tem 8 dígitos.
 	if(request.pin == 0)
 	{
 		if(error)
-			*error = QT_TRANSLATE_NOOP("Mensagens", "Falta o PIN que a consola mostra em Adicionar Dispositivo.");
+			*error = QT_TRANSLATE_NOOP("Messages", "The PIN shown by the console under Add Device is "
+				"missing.");
 		return false;
 	}
 

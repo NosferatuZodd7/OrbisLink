@@ -28,7 +28,7 @@ bool AudioInput::start(QString *error)
 	if(entrada.isNull())
 	{
 		if(error)
-			*error = tr("Não há nenhum microfone disponível neste PC.");
+			*error = tr("There is no microphone available on this PC.");
 		return false;
 	}
 
@@ -54,8 +54,8 @@ bool AudioInput::start(QString *error)
 		else
 		{
 			if(error)
-				*error = tr("O microfone não aceita 48 kHz em 16 bits, que é o que a consola "
-							"espera.");
+				*error = tr("The microphone does not accept 48 kHz at 16 bits, which is what the console "
+					"expects.");
 			return false;
 		}
 	}
@@ -65,7 +65,7 @@ bool AudioInput::start(QString *error)
 	if(!device_)
 	{
 		if(error)
-			*error = tr("O sistema recusou o acesso ao microfone.");
+			*error = tr("The system refused access to the microphone.");
 		source_.reset();
 		return false;
 	}

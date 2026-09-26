@@ -197,7 +197,7 @@ Item {
                         }
 
                         Text {
-                            text: row.preparing ? qsTr("a preparar…") : model.sizeText
+                            text: row.preparing ? qsTr("getting it…") : model.sizeText
                             color: row.preparing ? Theme.accent : Theme.textMuted
                             font.pixelSize: 11
                         }
@@ -218,7 +218,7 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     visible: files.count === 0 && !app.ftpBusy
-                    text: qsTr("Sem ficheiros (ou FTP indisponível)")
+                    text: qsTr("No files (or FTP is down)")
                     color: Theme.textMuted
                     font.pixelSize: 12
                 }
@@ -238,7 +238,7 @@ Item {
             visible: app.downloadActive
 
             Text {
-                text: qsTr("A transferir %1").arg(app.downloadName)
+                text: qsTr("Downloading %1").arg(app.downloadName)
                 color: Theme.textMuted
                 font.pixelSize: 11
                 elide: Text.ElideMiddle
@@ -256,7 +256,7 @@ Item {
                 font.pixelSize: 11
             }
             StyledButton {
-                text: qsTr("Cancelar")
+                text: qsTr("Cancel")
                 implicitHeight: 24
                 font.pixelSize: 10
                 onClicked: app.cancelDownload()
@@ -269,7 +269,7 @@ Item {
             TextField {
                 id: newFolderName
                 Layout.fillWidth: true
-                placeholderText: qsTr("nova pasta")
+                placeholderText: qsTr("new folder")
                 color: Theme.text
                 font.pixelSize: 12
                 background: Rectangle {
@@ -279,7 +279,7 @@ Item {
                 }
             }
             StyledButton {
-                text: qsTr("Criar")
+                text: qsTr("Create")
                 enabled: newFolderName.text.length > 0 && !app.ftpBusy
                 onClicked: { app.ftpMakeDirectory(newFolderName.text); newFolderName.text = "" }
             }
@@ -341,7 +341,7 @@ Item {
                     elide: Text.ElideMiddle
                 }
                 Text {
-                    text: rowMenu.targetIsDirectory ? qsTr("pasta") : rowMenu.targetSizeText
+                    text: rowMenu.targetIsDirectory ? qsTr("folder") : rowMenu.targetSizeText
                     color: Theme.textMuted
                     font.pixelSize: 10
                 }
@@ -358,33 +358,33 @@ Item {
         }
 
         StyledMenuItem {
-            text: qsTr("Abrir")
+            text: qsTr("Open")
             visible: rowMenu.targetIsDirectory
             height: visible ? implicitHeight : 0
             onTriggered: app.ftpNavigate(rowMenu.targetPath)
         }
         StyledMenuItem {
-            text: qsTr("Usar como pasta de envio")
+            text: qsTr("Use as the upload folder")
             visible: rowMenu.targetIsDirectory
             height: visible ? implicitHeight : 0
             onTriggered: app.setFtpUploadDirectory(rowMenu.targetPath)
         }
         StyledMenuItem {
-            text: qsTr("Transferir para o ambiente de trabalho")
+            text: qsTr("Download to the desktop")
             visible: !rowMenu.targetIsDirectory
             height: visible ? implicitHeight : 0
             enabled: !app.downloadActive
             onTriggered: app.ftpDownload(rowMenu.targetPath, rowMenu.targetName, "")
         }
         StyledMenuItem {
-            text: qsTr("Transferir para…")
+            text: qsTr("Download to…")
             visible: !rowMenu.targetIsDirectory
             height: visible ? implicitHeight : 0
             enabled: !app.downloadActive
             onTriggered: destinationDialog.open()
         }
         StyledMenuItem {
-            text: qsTr("Preparar para arrastar")
+            text: qsTr("Get it ready to drag")
             visible: !rowMenu.targetIsDirectory && (rowMenu.targetRow ? rowMenu.targetRow.localUrl.length === 0 : false)
             height: visible ? implicitHeight : 0
             enabled: !app.downloadActive
@@ -395,7 +395,7 @@ Item {
             }
         }
         StyledMenuItem {
-            text: qsTr("Mostrar a cópia local")
+            text: qsTr("Show the local copy")
             visible: rowMenu.targetRow ? rowMenu.targetRow.localUrl.length > 0 : false
             height: visible ? implicitHeight : 0
             onTriggered: app.openLocalFolder(rowMenu.targetRow.localUrl)
@@ -411,15 +411,15 @@ Item {
         }
 
         StyledMenuItem {
-            text: qsTr("Copiar o caminho")
+            text: qsTr("Copy the path")
             onTriggered: app.copyToClipboard(rowMenu.targetPath)
         }
         StyledMenuItem {
-            text: qsTr("Mudar o nome…")
+            text: qsTr("Rename…")
             onTriggered: renameDialog.open(rowMenu.targetPath, rowMenu.targetName)
         }
         StyledMenuItem {
-            text: qsTr("Apagar na consola")
+            text: qsTr("Delete on the console")
             onTriggered: confirmDelete.open(rowMenu.targetPath, rowMenu.targetIsDirectory,
                 rowMenu.targetName)
         }
@@ -427,7 +427,7 @@ Item {
 
     FolderDialog {
         id: destinationDialog
-        title: qsTr("Onde guardar")
+        title: qsTr("Where to save")
         currentFolder: root.lastDestination.length > 0
             ? root.lastDestination
             : "file://" + app.defaultDownloadDirectory()
@@ -444,7 +444,7 @@ Item {
         anchors.centerIn: parent
         width: 380
         modal: true
-        title: qsTr("Mudar o nome")
+        title: qsTr("Rename")
         standardButtons: Dialog.Ok | Dialog.Cancel
 
         function open(path, name) {
@@ -509,8 +509,8 @@ Item {
                 anchors.leftMargin: 18
                 anchors.rightMargin: 18
                 verticalAlignment: Text.AlignVCenter
-                text: confirmDelete.targetIsDirectory ? qsTr("Apagar a pasta na consola?")
-                                                      : qsTr("Apagar na consola?")
+                text: confirmDelete.targetIsDirectory ? qsTr("Delete the folder on the console?")
+                                                      : qsTr("Delete on the console?")
                 color: Theme.text
                 font.pixelSize: 15
                 font.bold: true
@@ -524,9 +524,9 @@ Item {
             topPadding: 14
             bottomPadding: 14
             text: confirmDelete.targetIsDirectory
-                ? qsTr("Apagar \"%1\" e tudo o que está lá dentro? Não há como desfazer.")
+                ? qsTr("Delete \"%1\" and everything inside it? There is no undo.")
                     .arg(confirmDelete.targetName)
-                : qsTr("Apagar \"%1\"? Não há como desfazer.").arg(confirmDelete.targetName)
+                : qsTr("Delete \"%1\"? There is no undo.").arg(confirmDelete.targetName)
             color: Theme.text
             font.pixelSize: 12
             wrapMode: Text.WordWrap
@@ -542,11 +542,11 @@ Item {
                 spacing: 8
                 Item { Layout.fillWidth: true }
                 StyledButton {
-                    text: qsTr("Cancelar")
+                    text: qsTr("Cancel")
                     onClicked: confirmDelete.close()
                 }
                 StyledButton {
-                    text: qsTr("Apagar")
+                    text: qsTr("Delete")
                     danger: true
                     larguraMinima: 110
                     onClicked: {

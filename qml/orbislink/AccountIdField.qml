@@ -38,7 +38,7 @@ ColumnLayout {
     StyledField {
         id: campo
         Layout.fillWidth: true
-        placeholderText: qsTr("hexadecimal, decimal ou base64")
+        placeholderText: qsTr("hexadecimal, decimal or base64")
         onTextChanged: {
             // Um ID novo começa sempre pela leitura normal: manter o
             // interruptor ligado de uma tentativa anterior seria uma
@@ -85,9 +85,9 @@ ColumnLayout {
                 Layout.fillWidth: true
                 visible: root.ok
                 text: {
-                    if (root.formas.format === "base64") return qsTr("Lido como base64")
-                    if (root.formas.format === "decimal") return qsTr("Lido como decimal")
-                    return qsTr("Lido como hexadecimal")
+                    if (root.formas.format === "base64") return qsTr("Read as base64")
+                    if (root.formas.format === "decimal") return qsTr("Read as decimal")
+                    return qsTr("Read as hexadecimal")
                 }
                 color: Theme.textSecondary
                 font.pixelSize: 11
@@ -95,7 +95,7 @@ ColumnLayout {
 
             Repeater {
                 model: root.ok ? [
-                    { etiqueta: qsTr("Base64 — o que a consola recebe"), valor: root.formas.base64, destaque: true },
+                    { etiqueta: qsTr("Base64 — what the console receives"), valor: root.formas.base64, destaque: true },
                     { etiqueta: qsTr("Hexadecimal"), valor: root.formas.hex, destaque: false },
                     { etiqueta: qsTr("Decimal"), valor: root.formas.decimal, destaque: false }
                 ] : []
@@ -139,7 +139,7 @@ ColumnLayout {
             StyledCheck {
                 id: inverso
                 visible: root.ok
-                text: qsTr("Os bytes estão pela ordem contrária")
+                text: qsTr("The bytes are in the opposite order")
                 labelColor: Theme.textSecondary
                 font.pixelSize: 11
                 onCheckedChanged: root.reler()
@@ -150,10 +150,10 @@ ColumnLayout {
                 visible: root.ok
                 wrapMode: Text.WordWrap
                 text: inverso.checked
-                    ? qsTr("A ler o ID ao contrário. Desliga isto se as linhas acima "
-                           + "deixaram de bater certo com o que a consola mostra.")
-                    : qsTr("Só liga isto se as linhas acima não baterem certo com o que "
-                           + "viste na consola. O que escreveste não é alterado.")
+                    ? qsTr("Reading the ID backwards. Turn this off if the lines above no longer "
+                           + "match what the console shows.")
+                    : qsTr("Only turn this on if the lines above do not match what you saw on "
+                           + "the console. What you typed is not changed.")
                 color: inverso.checked ? Theme.warn : Theme.textSecondary
                 font.pixelSize: 10
             }

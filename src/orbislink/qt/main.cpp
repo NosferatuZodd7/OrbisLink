@@ -148,29 +148,23 @@ int main(int argc, char **argv)
 			enqueuePaths << arguments[++i];
 	}
 
-	// Traduções. A língua vem das definições; "auto" segue o sistema.
-	// Sem correspondência fica o português, que é a língua-fonte.
+	// Translations. The source language is English; Portuguese is chosen in
+	// the settings.
 	QTranslator tradutor;
 	{
 		Settings definicoes;
 		SettingsStore(SettingsStore::defaultSettingsPath()).load(&definicoes);
-		QString lingua = QString::fromStdString(definicoes.language);
-		if(lingua.isEmpty() || lingua == QLatin1String("auto"))
-			lingua = QLocale::system().name(); // ex.: "en_GB", "pt_PT"
-		// Uma língua que não seja português usa o inglês; o português usa a
-		// língua-fonte. É o que há, e diz-se no registo qual saiu.
-		const QString ficheiro = lingua.startsWith(QLatin1String("pt"))
+		const QString ficheiro = definicoes.language == "pt_PT"
 			? QStringLiteral(":/i18n/orbislink_pt_PT.qm")
 			: QStringLiteral(":/i18n/orbislink_en.qm");
 		if(tradutor.load(ficheiro))
 		{
 			app.installTranslator(&tradutor);
-			qInfo("Idioma: %s", qPrintable(ficheiro));
+			qInfo("Language: %s", qPrintable(ficheiro));
 		}
 		else
 		{
-			qWarning("Não consegui carregar %s; a aplicação fica em português.",
-				qPrintable(ficheiro));
+			qWarning("Could not load %s; the app stays in English.", qPrintable(ficheiro));
 		}
 	}
 
@@ -309,7 +303,7 @@ int main(int argc, char **argv)
 			logWarning("A correr com privilégios de administrador: o arrastar e largar "
 					   "não vai funcionar.");
 			QTimer::singleShot(1200, controller.get(), [ptr = controller.get(), avisoElevacao]() {
-				emit ptr->notify(QCoreApplication::translate("main", "Arrastar e largar"),
+				emit ptr->notify(QCoreApplication::translate("main", "Drag and drop"),
 					avisoElevacao, true);
 			});
 		}

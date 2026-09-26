@@ -191,7 +191,7 @@ ORBISLINK_TEST(erro_da_consola_e_traduzido)
 
 	CHECK(!result.ok);
 	CHECK_EQ(result.errorCode, 0x8002001Cu);
-	CHECK(result.message.find("Espaço insuficiente") != std::string::npos);
+	CHECK(result.message.find("Not enough space") != std::string::npos);
 	CHECK(isOutOfSpaceError(result.errorCode));
 	server.stop();
 }
@@ -300,7 +300,7 @@ ORBISLINK_TEST(sem_servidor_a_mensagem_e_a_do_requisito)
 	RpiClient client(config);
 	const InstallerResult result = client.isExists("CUSA12345", nullptr, nullptr);
 	CHECK(!result.ok);
-	CHECK(result.message.find("Instalador remoto indisponível") != std::string::npos);
+	CHECK(result.message.find("Remote installer unavailable") != std::string::npos);
 	CHECK(!client.probe(nullptr));
 }
 

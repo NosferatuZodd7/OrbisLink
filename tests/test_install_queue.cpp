@@ -43,7 +43,7 @@ public:
 	InstallerResult installDirect(const std::vector<std::string> &urls, InstallTaskHandle *handle) override
 	{
 		if(!available.load())
-			return InstallerResult::failure("Instalador remoto indisponível. Abre o Remote Package Installer na consola.");
+			return InstallerResult::failure("Remote installer unavailable. Open Remote Package Installer on the console.");
 		if(failWithCode.load() != 0)
 		{
 			InstallerResult result;
@@ -79,7 +79,7 @@ public:
 	InstallerResult taskProgress(int, TaskProgress *progress) override
 	{
 		if(!available.load())
-			return InstallerResult::failure("Instalador remoto indisponível. Abre o Remote Package Installer na consola.");
+			return InstallerResult::failure("Remote installer unavailable. Open Remote Package Installer on the console.");
 		const int64_t total = totalBytes.load();
 		int64_t done = transferred.load() + stepBytes.load();
 		if(done > total)
@@ -215,7 +215,7 @@ ORBISLINK_TEST(recusa_ficheiros_invalidos)
 	const auto ids = queue.enqueue({ path }, TransferMode::DirectInstall, &rejected);
 	CHECK(ids.empty());
 	CHECK_EQ(rejected.size(), static_cast<size_t>(1));
-	CHECK(rejected[0].find("pkg PS4 válido") != std::string::npos);
+	CHECK(rejected[0].find("valid PS4 pkg") != std::string::npos);
 	removeTempFile(path);
 }
 
@@ -303,7 +303,7 @@ ORBISLINK_TEST(deteta_que_a_consola_nao_alcanca_o_pc)
 
 	QueueTask task;
 	CHECK(queue.task(id, &task));
-	CHECK(task.message.find("não conseguiu descarregar do PC") != std::string::npos);
+	CHECK(task.message.find("could not download from the PC") != std::string::npos);
 	CHECK(installer.stopCalls.load() > 0);
 	server.stop();
 }
@@ -385,7 +385,7 @@ ORBISLINK_TEST(salta_titulo_ja_instalado_quando_a_politica_o_diz)
 
 	QueueTask task;
 	CHECK(queue.task(id, &task));
-	CHECK(task.message.find("Já existe na consola") != std::string::npos);
+	CHECK(task.message.find("Already on the console") != std::string::npos);
 	CHECK_EQ(installer.installCalls.load(), 0);
 	server.stop();
 }

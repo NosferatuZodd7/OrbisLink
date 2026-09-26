@@ -39,9 +39,7 @@ Dialog {
     }
 
     function idiomaParaIndice(idioma) {
-        if (idioma === "pt_PT" || idioma === "pt") return 1
-        if (idioma === "en") return 2
-        return 0
+        return idioma === "pt_PT" || idioma === "pt" ? 1 : 0
     }
 
     // Verificação automática do endereço: "idle", "checking", "ok",
@@ -59,19 +57,22 @@ Dialog {
 
     readonly property string probeText: {
         if (probeState === "checking")
-            return qsTr("A verificar %1…").arg(addressField.text.trim())
+            return qsTr("Checking %1…").arg(addressField.text.trim())
         if (probeState === "ok")
             return probeDetail.length > 0
-                ? qsTr("Consola encontrada — instalador e FTP respondem (%1).").arg(probeDetail)
-                : qsTr("Consola encontrada — instalador e FTP respondem.")
+                ? qsTr("Console found — the installer and FTP both answer (%1).").arg(probeDetail)
+                : qsTr("Console found — the installer and FTP both answer.")
         if (probeState === "partial") {
             if (probeInstallerOk)
-                return qsTr("Instalador remoto responde, FTP não. Confirma que o servidor FTP do GoldHEN está ativo.")
-            return qsTr("FTP responde, instalador remoto não. Abre o Remote Package Installer na consola.")
+                return qsTr("The remote installer answers, FTP does not. Check that GoldHEN's "
+                            + "FTP server is running.")
+            return qsTr("FTP answers, the remote installer does not. Open Remote Package "
+                        + "Installer on the console.")
         }
         if (probeState === "fail")
-            return qsTr("Sem resposta de %1. Confirma o IP e que a consola está ligada na mesma rede.").arg(addressField.text.trim())
-        return qsTr("Escreve o endereço IP da consola — é verificado sozinho.")
+            return qsTr("No answer from %1. Check the IP, and that the console is on and on the "
+                        + "same network.").arg(addressField.text.trim())
+        return qsTr("Type the console's IP address — it is checked on its own.")
     }
 
     // Só vale a pena ligar quando o endereço está inteiro: um IPv4 completo
@@ -186,7 +187,7 @@ Dialog {
             "streamRumble": rumbleBox.checked,
             "streamTouchpadFromMouse": touchpadBox.checked,
             "streamAccountId": accountField.ok ? accountField.base64 : accountField.text.trim(),
-            "language": ["auto", "pt_PT", "en"][idiomaBox.currentIndex]
+            "language": ["en", "pt_PT"][idiomaBox.currentIndex]
         })
         close()
     }
@@ -198,7 +199,7 @@ Dialog {
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             anchors.leftMargin: Theme.dialogMargin
-            text: qsTr("Definições")
+            text: qsTr("Settings")
             color: Theme.text
             font.pixelSize: 16
             font.bold: true
@@ -227,20 +228,20 @@ Dialog {
             anchors.rightMargin: Theme.dialogMargin
             spacing: 10
             StyledButton {
-                text: qsTr("Assistente…")
+                text: qsTr("Setup wizard…")
                 larguraMinima: 130
                 ToolTip.visible: hovered
-                ToolTip.text: qsTr("Voltar a ver os três passos da primeira utilização")
+                ToolTip.text: qsTr("See the three first-run steps again")
                 onClicked: dialog.abrirAssistente()
             }
             Item { Layout.fillWidth: true }
             StyledButton {
-                text: qsTr("Cancelar")
+                text: qsTr("Cancel")
                 larguraMinima: 110
                 onClicked: dialog.close()
             }
             StyledButton {
-                text: qsTr("Guardar")
+                text: qsTr("Save")
                 larguraMinima: 110
                 primary: true
                 onClicked: dialog.save()
@@ -258,7 +259,7 @@ Dialog {
             y: Theme.dialogInner
             spacing: 14
 
-            Text { text: qsTr("Consola"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
+            Text { text: qsTr("Console"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
 
             GridLayout {
                 Layout.fillWidth: true
@@ -266,10 +267,10 @@ Dialog {
                 columnSpacing: 12
                 rowSpacing: 8
 
-                Text { text: qsTr("Nome"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Name"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField { id: nameField; Layout.fillWidth: true }
 
-                Text { text: qsTr("Endereço IP"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("IP address"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField {
                     id: addressField
                     Layout.fillWidth: true
@@ -279,7 +280,7 @@ Dialog {
 
                 Text {
                     // A porta é a da consola em uso: a PS5 com etaHEN usa outra.
-                    text: dialog.consolaPs5 ? qsTr("Porta FTP (PS5)") : qsTr("Porta FTP")
+                    text: dialog.consolaPs5 ? qsTr("FTP port (PS5)") : qsTr("FTP port")
                     color: Theme.textMuted
                     font.pixelSize: 12
                 }
@@ -289,7 +290,7 @@ Dialog {
                     onTextChanged: dialog.scheduleProbe()
                 }
 
-                Text { text: qsTr("Porta do instalador"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Installer port"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField {
                     id: installerPortField
                     Layout.fillWidth: true
@@ -345,7 +346,7 @@ Dialog {
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
-            Text { text: qsTr("Instalação"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
+            Text { text: qsTr("Installation"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
 
             GridLayout {
                 Layout.fillWidth: true
@@ -353,12 +354,12 @@ Dialog {
                 columnSpacing: 12
                 rowSpacing: 8
 
-                Text { text: qsTr("Modo por omissão"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Default mode"); color: Theme.textMuted; font.pixelSize: 12 }
                 ComboBox {
                     id: modeBox
                     Layout.fillWidth: true
                     implicitHeight: 32
-                    model: [qsTr("Instalação direta"), qsTr("Envio por FTP")]
+                    model: [qsTr("Direct install"), qsTr("FTP upload")]
 
                     background: Rectangle {
                         color: Theme.panelAltFill
@@ -410,41 +411,41 @@ Dialog {
                     }
                 }
 
-                Text { text: qsTr("Pasta no FTP"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("FTP folder"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField { id: uploadDirField; Layout.fillWidth: true }
             }
 
             StyledCheck {
                 id: existsBox
                 Layout.fillWidth: true
-                text: qsTr("Verificar se o título já existe na consola antes de instalar")
+                text: qsTr("Check whether the title is already on the console before installing")
             }
 
             StyledCheck {
                 id: installAfterBox
                 Layout.fillWidth: true
-                text: qsTr("Instalar também depois de enviar por FTP")
+                text: qsTr("Also install after sending over FTP")
             }
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 color: Theme.textMuted
                 font.pixelSize: 11
-                text: qsTr("O ficheiro fica guardado na consola e é logo instalado a partir do PC "
-                           + "— o instalador remoto só sabe descarregar por HTTP.")
+                text: qsTr("The file stays on the console and is installed right away from the "
+                           + "PC — the remote installer only knows how to download over HTTP.")
             }
             StyledCheck {
                 id: deleteAfterBox
                 Layout.fillWidth: true
                 Layout.leftMargin: 20
                 enabled: installAfterBox.checked
-                text: qsTr("E apagar a cópia da consola depois de instalar")
+                text: qsTr("And delete the console copy once installed")
             }
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
             Text {
-                text: qsTr("Servidor HTTP local")
+                text: qsTr("Local HTTP server")
                 color: Theme.accent
                 font.bold: true
                 font.pixelSize: 12
@@ -455,14 +456,14 @@ Dialog {
                 columns: 2
                 columnSpacing: 12
                 rowSpacing: 8
-                Text { text: qsTr("Porta"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Port"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField { id: httpPortField; Layout.fillWidth: true }
             }
 
             StyledCheck {
                 id: restrictBox
                 Layout.fillWidth: true
-                text: qsTr("Aceitar pedidos apenas do IP da consola")
+                text: qsTr("Only accept requests from the console's IP")
             }
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
@@ -477,7 +478,7 @@ Dialog {
                 columnSpacing: 12
                 rowSpacing: 8
 
-                Text { text: qsTr("Qualidade"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Quality"); color: Theme.textMuted; font.pixelSize: 12 }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
@@ -488,8 +489,8 @@ Dialog {
                         // normal o pedido é baixado para 720p pela própria
                         // consola, e a etiqueta diz isso em vez de deixar
                         // a pessoa a pensar que a definição não faz nada.
-                        model: [qsTr("1080p — só em PS4 Pro e PS5"), qsTr("720p — equilíbrio"),
-                                qsTr("540p"), qsTr("360p — rede fraca")]
+                        model: [qsTr("1080p — PS4 Pro and PS5 only"), qsTr("720p — balanced"),
+                                qsTr("540p"), qsTr("360p — weak network")]
                     }
                     StyledCombo {
                         id: fpsBox
@@ -502,10 +503,10 @@ Dialog {
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
-                    text: qsTr("Estas três só valem a partir da próxima ligação: o perfil de "
-                               + "vídeo é combinado com a consola no início da sessão. "
-                               + "Durante o stream, a barra de baixo mostra o que está "
-                               + "mesmo a chegar.")
+                    text: qsTr("These three only take effect from the next connection: the video "
+                               + "profile is agreed with the console when the session starts. "
+                               + "During the stream, the bar at the bottom shows what is actually "
+                               + "arriving.")
                     color: Theme.textSecondary
                     font.pixelSize: 10
                 }
@@ -514,7 +515,7 @@ Dialog {
                 StyledField {
                     id: bitrateField
                     Layout.fillWidth: true
-                    placeholderText: qsTr("automático (kbps)")
+                    placeholderText: qsTr("automatic (kbps)")
                     inputMethodHints: Qt.ImhDigitsOnly
                     validator: RegularExpressionValidator { regularExpression: /[0-9]{0,6}/ }
                 }
@@ -537,35 +538,36 @@ Dialog {
 
             StyledCheck {
                 id: hardwareBox
-                text: qsTr("Descodificar o vídeo na placa gráfica (recua para o processador se não der)")
+                text: qsTr("Decode video on the graphics card (falls back to the processor if it "
+                           + "cannot)")
             }
             StyledCheck {
                 id: fullscreenBox
-                text: qsTr("Ecrã inteiro ao ligar")
+                text: qsTr("Full screen on connect")
             }
             StyledCheck {
                 id: rumbleBox
-                text: qsTr("Vibração no comando")
+                text: qsTr("Controller rumble")
             }
             StyledCheck {
                 id: touchpadBox
-                text: qsTr("Rato faz de touchpad durante o stream")
+                text: qsTr("Mouse acts as the touchpad while streaming")
             }
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
-            Text { text: qsTr("Aspeto"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
+            Text { text: qsTr("Appearance"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
 
             GridLayout {
                 Layout.fillWidth: true
                 columns: 2
                 columnSpacing: 12
                 rowSpacing: 8
-                Text { text: qsTr("Idioma"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Language"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledCombo {
                     id: idiomaBox
                     Layout.fillWidth: true
-                    model: [qsTr("Como o sistema"), "Português", "English"]
+                    model: ["English", "Português"]
                 }
             }
 
@@ -574,17 +576,18 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.textMuted
                 font.pixelSize: 11
-                text: qsTr("O idioma muda na próxima abertura. O tema escolhe-se nos ícones da barra de cima, ao lado das definições.")
+                text: qsTr("The language changes the next time the app opens. The theme is "
+                           + "picked with the icons in the top bar, next to settings.")
             }
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
-            Text { text: qsTr("Actualizações"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
+            Text { text: qsTr("Updates"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
 
             StyledCheck {
                 id: updatesBox
                 Layout.fillWidth: true
-                text: qsTr("Updates pela internet")
+                text: qsTr("Updates over the internet")
             }
 
             Text {
@@ -593,10 +596,10 @@ Dialog {
                 color: Theme.textMuted
                 font.pixelSize: 11
                 text: updatesBox.checked
-                      ? qsTr("Ao abrir, procura uma versão nova no repositório abaixo e pergunta "
-                             + "antes de instalar. Nada é instalado sem o teu clique.")
-                      : qsTr("Desligado: a aplicação não vai à internet à procura de versões. "
-                             + "\"Verificar agora\" continua a funcionar.")
+                      ? qsTr("On start, looks for a new version in the repository below and asks "
+                             + "before installing. Nothing is installed without your click.")
+                      : qsTr("Off: the app does not go online looking for versions. \"Check now\" "
+                             + "still works.")
             }
 
             GridLayout {
@@ -604,17 +607,17 @@ Dialog {
                 columns: 2
                 columnSpacing: 12
                 rowSpacing: 8
-                Text { text: qsTr("Repositório"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Repository"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField {
                     id: updateRepoField
                     Layout.fillWidth: true
                     placeholderText: "dono/nome"
                 }
-                Text { text: qsTr("Canal"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Channel"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledCombo {
                     id: updateChannelBox
                     Layout.fillWidth: true
-                    model: [qsTr("Estável"), qsTr("Testes (builds da branch)")]
+                    model: [qsTr("Stable"), qsTr("Testing (branch builds)")]
                 }
             }
 
@@ -622,7 +625,7 @@ Dialog {
                 Layout.fillWidth: true
                 spacing: 8
                 StyledButton {
-                    text: qsTr("Verificar agora")
+                    text: qsTr("Check now")
                     enabled: app.updateState !== "a-verificar"
                              && app.updateState !== "a-descarregar"
                     onClicked: {
@@ -653,25 +656,25 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.textMuted
                 font.pixelSize: 11
-                text: qsTr("Os lançamentos são lidos da API do GitHub e o repositório tem "
-                           + "de ser público. \"Verificar agora\" guarda as definições primeiro.")
+                text: qsTr("Releases are read from the GitHub API and the repository has to be "
+                           + "public. \"Check now\" saves the settings first.")
             }
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
-            Text { text: qsTr("Avançado"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
+            Text { text: qsTr("Advanced"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
 
             StyledCheck {
                 id: advancedBox
                 Layout.fillWidth: true
                 labelColor: Theme.warn
-                text: qsTr("Modo avançado: permite escrever nas zonas de sistema do FTP")
+                text: qsTr("Advanced mode: allows writing to the FTP system areas")
             }
 
             StyledCheck {
                 id: debugBox
                 Layout.fillWidth: true
-                text: qsTr("Registo detalhado (debug)")
+                text: qsTr("Verbose log (debug)")
             }
 
             Item { Layout.fillWidth: true; Layout.preferredHeight: 6 }

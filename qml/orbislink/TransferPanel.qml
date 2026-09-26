@@ -33,13 +33,13 @@ Item {
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: app.pauseReason.length > 0 ? app.pauseReason : qsTr("Fila em pausa.")
+                    text: app.pauseReason.length > 0 ? app.pauseReason : qsTr("Queue paused.")
                     color: Theme.text
                     wrapMode: Text.WordWrap
                     font.pixelSize: 12
                 }
                 StyledButton {
-                    text: qsTr("Retomar")
+                    text: qsTr("Resume")
                     onClicked: app.resumeQueue()
                 }
             }
@@ -227,7 +227,7 @@ Item {
                     Text {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
-                        text: qsTr("A fila está vazia")
+                        text: qsTr("The queue is empty")
                         color: Theme.textMuted
                         font.pixelSize: 13
                     }
@@ -235,7 +235,7 @@ Item {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
-                        text: qsTr("Arrasta ficheiros .pkg para a janela.")
+                        text: qsTr("Drag .pkg files onto the window.")
                         color: Theme.border
                         font.pixelSize: 11
                     }
@@ -258,18 +258,18 @@ Item {
                 spacing: 12
 
                 Text {
-                    text: qsTr("Velocidade: %1").arg(app.queue.totalSpeedText)
+                    text: qsTr("Speed: %1").arg(app.queue.totalSpeedText)
                     color: Theme.textMuted
                     font.pixelSize: 11
                 }
                 Text {
-                    text: qsTr("Em falta: %1").arg(app.queue.remainingText)
+                    text: qsTr("Left: %1").arg(app.queue.remainingText)
                     color: Theme.textMuted
                     font.pixelSize: 11
                 }
                 Item { Layout.fillWidth: true }
                 StyledToolButton {
-                    text: app.queuePaused ? qsTr("Retomar") : qsTr("Pausar")
+                    text: app.queuePaused ? qsTr("Resume") : qsTr("Pause")
                     onClicked: app.queuePaused ? app.resumeQueue() : app.pauseQueue()
                     enabled: app.queue.count > 0
                 }

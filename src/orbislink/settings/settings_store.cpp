@@ -149,6 +149,10 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	}
 	settings.theme = root["theme"].toString(settings.theme);
 	settings.language = root["language"].toString(settings.language);
+	// English is the default for everyone; "auto" (following the system) was
+	// the old default and becomes English too.
+	if(settings.language != "pt_PT")
+		settings.language = "en";
 	settings.debugLogging = root["debug_logging"].toLooseBool(settings.debugLogging);
 	settings.checkForUpdates = root["check_for_updates"].toLooseBool(settings.checkForUpdates);
 	settings.firstRunDone = root["first_run_done"].toLooseBool(settings.firstRunDone);

@@ -35,18 +35,18 @@ Dialog {
 
     readonly property string probeText: {
         if (probeState === "checking")
-            return qsTr("A verificar %1…").arg(enderecoField.text.trim())
+            return qsTr("Checking %1…").arg(enderecoField.text.trim())
         if (probeState === "ok")
-            return qsTr("Consola encontrada — instalador e FTP respondem.")
+            return qsTr("Console found — the installer and FTP both answer.")
         if (probeState === "partial") {
             if (probeInstallerOk)
-                return qsTr("Instalador remoto responde, FTP não — vê o passo seguinte.")
-            return qsTr("FTP responde, instalador remoto não — vê o passo seguinte.")
+                return qsTr("The remote installer answers, FTP does not — see the next step.")
+            return qsTr("FTP answers, the remote installer does not — see the next step.")
         }
         if (probeState === "fail")
-            return qsTr("Sem resposta de %1. Confirma o IP e que a consola está ligada.")
+            return qsTr("No answer from %1. Check the IP and that the console is on.")
                 .arg(enderecoField.text.trim())
-        return qsTr("Escreve o endereço — é verificado sozinho.")
+        return qsTr("Type the address — it is checked on its own.")
     }
 
     function enderecoCompleto(texto) {
@@ -155,7 +155,7 @@ Dialog {
             }
             Text {
                 Layout.fillWidth: true
-                text: qsTr("Bem-vindo ao OrbisLink")
+                text: qsTr("Welcome to OrbisLink")
                 color: Theme.text
                 font.pixelSize: 16
                 font.bold: true
@@ -188,19 +188,19 @@ Dialog {
             anchors.rightMargin: Theme.dialogMargin
             spacing: 8
             StyledButton {
-                text: qsTr("Saltar")
+                text: qsTr("Skip")
                 implicitHeight: 32
                 onClicked: { wizard.guardar(); wizard.close() }
             }
             Item { Layout.fillWidth: true }
             StyledButton {
-                text: qsTr("Anterior")
+                text: qsTr("Back")
                 implicitHeight: 32
                 enabled: wizard.passo > 0
                 onClicked: wizard.passo--
             }
             StyledButton {
-                text: wizard.passo === wizard.passos - 1 ? qsTr("Começar") : qsTr("Seguinte")
+                text: wizard.passo === wizard.passos - 1 ? qsTr("Start") : qsTr("Next")
                 implicitHeight: 32
                 larguraMinima: 120
                 primary: true
@@ -223,7 +223,7 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.text
                 font.pixelSize: 13
-                text: qsTr("Antes de mais, onde está a consola.")
+                text: qsTr("First of all, where the console is.")
             }
             Text {
                 Layout.fillWidth: true
@@ -232,8 +232,8 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.textMuted
                 font.pixelSize: 12
-                text: qsTr("O IP está na consola em Definições → Rede → Ver Estado da Ligação. "
-                           + "Tem de estar na mesma rede que este PC.")
+                text: qsTr("The IP is on the console under Settings → Network → View Connection "
+                           + "Status. It has to be on the same network as this PC.")
             }
             GridLayout {
                 Layout.fillWidth: true
@@ -242,18 +242,18 @@ Dialog {
                 columns: 2
                 columnSpacing: 12
                 rowSpacing: 8
-                Text { text: qsTr("Endereço IP"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("IP address"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField {
                     id: enderecoField
                     Layout.fillWidth: true
                     placeholderText: "192.168.1.42"
                     onTextChanged: wizard.agendarVerificacao()
                 }
-                Text { text: qsTr("Nome"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Name"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField {
                     id: nomeField
                     Layout.fillWidth: true
-                    placeholderText: qsTr("PS4 da sala")
+                    placeholderText: qsTr("Living room PS4")
                 }
             }
             RowLayout {
@@ -290,13 +290,13 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.text
                 font.pixelSize: 13
-                text: qsTr("Na consola, três coisas:")
+                text: qsTr("On the console, three things:")
             }
             Repeater {
                 model: [
-                    qsTr("GoldHEN carregado — é ele que traz o servidor FTP (porta 2121)."),
-                    qsTr("Remote Package Installer aberto, para instalar .pkg a partir daqui."),
-                    qsTr("Remote Play activado em Definições → Definições de Ligação do Remote Play.")
+                    qsTr("GoldHEN loaded — it is what brings the FTP server (port 2121)."),
+                    qsTr("Remote Package Installer open, to install .pkg files from here."),
+                    qsTr("Remote Play enabled under Settings → Remote Play Connection Settings.")
                 ]
                 delegate: RowLayout {
                     Layout.fillWidth: true
@@ -326,8 +326,8 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.textMuted
                 font.pixelSize: 11
-                text: qsTr("Nada disto é obrigatório agora — os indicadores na barra de cima "
-                           + "dizem sempre o que está em falta.")
+                text: qsTr("None of this is required right now — the indicators in the top bar "
+                           + "always say what is missing.")
             }
         }
 
@@ -342,7 +342,7 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.text
                 font.pixelSize: 13
-                text: qsTr("Para o Remote Play, a consola tem de autorizar este PC.")
+                text: qsTr("For Remote Play, the console has to authorise this PC.")
             }
             Text {
                 Layout.fillWidth: true
@@ -351,10 +351,10 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.textMuted
                 font.pixelSize: 12
-                text: qsTr("Precisas do Account ID da PSN — o número de 64 bits da conta que "
-                           + "usa a consola. Cola-o como o tiveres: em hexadecimal, em decimal "
-                           + "ou em base64. A conversão é feita aqui. Podes deixar em branco e "
-                           + "preencher depois.")
+                text: qsTr("You need the PSN Account ID — the 64-bit number of the account that "
+                           + "uses the console. Paste it however you have it: hexadecimal, decimal "
+                           + "or base64. The conversion is done here. You can leave it blank and "
+                           + "fill it in later.")
             }
             GridLayout {
                 Layout.fillWidth: true

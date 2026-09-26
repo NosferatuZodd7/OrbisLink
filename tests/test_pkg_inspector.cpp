@@ -72,7 +72,7 @@ ORBISLINK_TEST(rejeita_magic_invalido)
 
 	const PkgInfo info = PkgInspector().inspect(path);
 	CHECK(!info.valid);
-	CHECK_EQ(info.error, std::string("Não é um pkg PS4 válido."));
+	CHECK_EQ(info.error, std::string("Not a valid PS4 pkg."));
 	CHECK(!PkgInspector::hasPkgMagic(path));
 
 	removeTempFile(path);
@@ -89,7 +89,7 @@ ORBISLINK_TEST(rejeita_ficheiro_pequeno_demais)
 
 	const PkgInfo info = PkgInspector().inspect(path);
 	CHECK(!info.valid);
-	CHECK(info.error.find("demasiado pequeno") != std::string::npos);
+	CHECK(info.error.find("too small") != std::string::npos);
 
 	removeTempFile(path);
 }
@@ -126,7 +126,7 @@ ORBISLINK_TEST(tabela_de_entradas_fora_dos_limites)
 
 	const PkgInfo info = PkgInspector().inspect(path);
 	CHECK(!info.valid);
-	CHECK(info.error.find("Tabela de entradas") != std::string::npos);
+	CHECK(info.error.find("entry table") != std::string::npos);
 
 	removeTempFile(path);
 }
