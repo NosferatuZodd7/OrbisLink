@@ -558,6 +558,19 @@ void StreamSession::stop()
 		impl_->publish(SessionState::Stopped, "Sessão terminada.");
 }
 
+namespace {
+
+// O parâmetro do chiaki_session_toggle_microphone diz o estado em que o
+// microfone *está*, não o que se quer: true manda "tirar o silêncio" e
+// false manda "silenciar" (é assim que o próprio chiaki-ng o usa). Passar
+// o que se quer silenciava a consola precisamente ao ligar o microfone.
+void pedirSilencio(ChiakiSession *session, bool silenciar)
+{
+	chiaki_session_toggle_microphone(session, !silenciar);
+}
+
+} // namespace
+
 bool StreamSession::startMicrophone(std::string *error)
 {
 	if(!impl_->sessionStarted || !impl_->active.load())
@@ -585,7 +598,7 @@ bool StreamSession::startMicrophone(std::string *error)
 		logWarning(std::string("O microfone não arrancou: ") + chiaki_error_string(result));
 		return false;
 	}
-	chiaki_session_toggle_microphone(&impl_->session, false);
+	pedirSilencio(&impl_->session, false);
 	impl_->micMuted.store(false);
 	impl_->micActive.store(true);
 	logInfo("Microfone ligado: a enviar para a consola.");
@@ -599,7 +612,7 @@ void StreamSession::stopMicrophone()
 		return;
 	impl_->micActive.store(false);
 	if(impl_->sessionStarted)
-		chiaki_session_toggle_microphone(&impl_->session, true);
+		pedirSilencio(&impl_->session, true);
 	logInfo("Microfone desligado.");
 }
 
@@ -610,7 +623,7 @@ void StreamSession::setMicrophoneMuted(bool muted)
 		return;
 	impl_->micMuted.store(muted);
 	if(impl_->sessionStarted)
-		chiaki_session_toggle_microphone(&impl_->session, muted);
+		pedirSilencio(&impl_->session, muted);
 }
 
 bool StreamSession::microphoneActive() const { return impl_->micActive.load(); }
