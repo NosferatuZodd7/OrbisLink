@@ -62,7 +62,7 @@ enum class RemotePlayState { Unknown, Ready, Standby, Offline };
 // O Remote Play em si é do chiaki-ng: o estado entra aqui por
 // setRemotePlayState(), chamado pelo wrapper da sessão. As portas
 // confirmadas do Remote Play (987/UDP descoberta PS4, 9295/TCP controlo e
-// registo, 9296/UDP stream, 9297/UDP senkusha) estão em docs/validacao.md.
+// registo, 9296/UDP stream, 9297/UDP senkusha) estão em docs/validation.md.
 class ConsoleManager
 {
 public:

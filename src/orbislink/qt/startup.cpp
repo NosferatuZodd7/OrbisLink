@@ -207,7 +207,7 @@ LONG WINAPI crashHandler(EXCEPTION_POINTERS *info)
 	}
 
 	MessageBoxW(nullptr, L"OrbisLink closed unexpectedly.\n\n"
-						 L"Run diagnostico.bat and send the report.",
+						 L"Run diagnostics.bat and send the report.",
 		L"OrbisLink", MB_OK | MB_ICONERROR);
 	return EXCEPTION_EXECUTE_HANDLER;
 }

@@ -7,7 +7,7 @@
 namespace orbislink {
 
 // Estado da consola tal como responde ao pedido de descoberta (porta
-// 987/UDP no PS4 — ver docs/validacao.md).
+// 987/UDP no PS4 — ver docs/validation.md).
 enum class HostState { Unknown, Ready, Standby };
 
 const char *hostStateName(HostState state);
