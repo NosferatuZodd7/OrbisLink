@@ -211,7 +211,10 @@ void StreamController::setAddress(const QString &address)
 	applyHost(nova);
 	consoleState_ = QStringLiteral("unknown");
 	emit consoleChanged();
-	refreshConsole();
+	// Sem aviso: a caixa já mostra o que a consola respondeu, e uma
+	// notificação de erro só por se ter escolhido uma consola desligada
+	// parecia que alguma coisa tinha corrido mal.
+	procurar(false);
 }
 
 void StreamController::applySettings(const Settings &settings)
@@ -343,16 +346,22 @@ void StreamController::scanNetwork()
 	}).detach();
 }
 
-void StreamController::refreshConsole()
+void StreamController::refreshConsole() { procurar(true); }
+
+void StreamController::procurar(bool avisar)
 {
 	// Diz sempre alguma coisa: quando falta o endereço e quando acaba. Um
 	// "Procurar" calado parece não fazer nada.
 	if(address_.isEmpty())
 	{
-		emit notify(tr("Procurar"),
-			tr("Falta o endereço IP da consola. Define-o nas definições."), true);
+		if(avisar)
+			emit notify(tr("Procurar"),
+				tr("Falta o endereço IP da consola. Define-o nas definições."), true);
 		return;
 	}
+	// Um "Procurar" carregado enquanto já se procura não se perde: a
+	// procura em curso passa a avisar no fim.
+	avisarNoFim_ = avisarNoFim_ || avisar;
 	if(searching_)
 		return;
 	searching_ = true;
@@ -365,15 +374,19 @@ void StreamController::refreshConsole()
 			this,
 			[this, info, address]() {
 				searching_ = false;
+				const bool avisar = avisarNoFim_;
+				avisarNoFim_ = false;
 				// Entretanto passou-se a outra consola: esta resposta já não
 				// é dela. Pergunta-se à nova.
 				if(address != address_.toStdString())
 				{
 					emit consoleChanged();
-					refreshConsole();
+					procurar(avisar);
 					return;
 				}
 				applyHost(info);
+				if(!avisar)
+					return;
 				if(!info.found)
 				{
 					emit notify(tr("Procurar"),
@@ -418,8 +431,9 @@ void StreamController::wakeUp()
 			this,
 			[this, ok, mensagem]() {
 				emit notify(tr("Acordar consola"), mensagem, !ok);
+				// Sem aviso: acabada de acordar, é normal ainda não responder.
 				if(ok)
-					refreshConsole();
+					procurar(false);
 			},
 			Qt::QueuedConnection);
 	}).detach();

@@ -112,7 +112,8 @@ public:
 	void applySettings(const Settings &settings);
 	QString accountId() const { return accountId_; }
 
-	// Pergunta à consola em que estado está (descoberta na 987/UDP).
+	// Pergunta à consola em que estado está (descoberta na 987/UDP) e diz
+	// o resultado numa notificação: é o "Procurar" que se carrega.
 	Q_INVOKABLE void refreshConsole();
 	// Acorda uma consola em repouso.
 	Q_INVOKABLE void wakeUp();
@@ -191,6 +192,8 @@ signals:
 private:
 	void applyHost(const HostInfo &info);
 	void loadCredentials();
+	// O mesmo que refreshConsole(), com ou sem notificação no fim.
+	void procurar(bool avisar);
 
 	QString address_;
 	QString consoleState_ = QStringLiteral("unknown");
@@ -216,6 +219,7 @@ private:
 	int touchId_ = -1;
 	QString accountId_;
 	bool searching_ = false;
+	bool avisarNoFim_ = false;
 
 	HostInfo host_;
 	StreamCredentials credentials_;
