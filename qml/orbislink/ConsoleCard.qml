@@ -11,6 +11,10 @@
 // consolas lado a lado: assim as proporções nunca mudam. Sem QtQuick.Effects
 // (o Qt 6.4 das capturas não o tem), o vidro, o brilho e a sombra são camadas
 // e gradientes desenhados aqui.
+//
+// A consola de tipo desconhecido tem outra caixa, ao estilo de um desenho
+// animado: cor lisa, contorno grosso e uma sombra dura deslocada, sem vidro,
+// ondas nem brilho.
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -24,8 +28,10 @@ Item {
     property bool aProcurar: false
     property bool disponivel: true   // falso numa compilação sem Remote Play
     // "ps4", "ps5", ou vazio quando a consola nunca respondeu — e aí não se
-    // inventa um número: aparece "Unknown PlayStation".
+    // inventa um número: aparece "Unknown PlayStation", numa caixa de
+    // desenho mais simples, para não passar por uma consola conhecida.
     property string tipo: ""
+    readonly property bool conhecida: tipo === "ps4" || tipo === "ps5"
     property string nome: ""
     property string endereco: ""
     // Falso para as outras consolas da lista: aí o clique escolhe-a (passa a
@@ -109,7 +115,7 @@ Item {
 
         // ── Sombra suave: três camadas a alargar e a desaparecer.
         Repeater {
-            model: 3
+            model: caixa.conhecida ? 3 : 0
             Rectangle {
                 anchors.fill: fundo
                 anchors.margins: -(index + 1) * 4
@@ -124,7 +130,7 @@ Item {
 
         // ── Brilho azul à volta quando está pronta a ligar.
         Repeater {
-            model: 3
+            model: caixa.conhecida ? 3 : 0
             Rectangle {
                 anchors.fill: fundo
                 anchors.margins: -(index + 1) * 3
@@ -148,12 +154,25 @@ Item {
             NumberAnimation { target: brilho; property: "nivel"; to: 1.0; duration: 1600; easing.type: Easing.InOutSine }
         }
 
+        // ── Cartoon: a sombra dura, a mesma forma deslocada e sem desfoque.
+        Rectangle {
+            visible: !caixa.conhecida
+            x: area.pressed ? 3 : 8
+            y: area.pressed ? 3 : 8
+            width: fundo.width
+            height: fundo.height
+            radius: fundo.radius
+            color: Theme.claro ? Theme.cardText : Qt.rgba(Theme.cardGlow.r, Theme.cardGlow.g,
+                                                         Theme.cardGlow.b, 0.5)
+        }
+
         Rectangle {
             id: fundo
             anchors.fill: parent
             radius: 30
-            border.width: caixa.ativa && caixa.disponivel ? 1.5 : 1
+            border.width: !caixa.conhecida ? 4 : caixa.ativa && caixa.disponivel ? 1.5 : 1
             border.color: area.containsMouse && caixa.accao.length > 0 ? Theme.cardGlow
+                        : !caixa.conhecida ? (Theme.claro ? Theme.cardText : Theme.cardTextMuted)
                         : caixa.ativa && caixa.disponivel ? Qt.rgba(Theme.cardGlow.r, Theme.cardGlow.g,
                                                                     Theme.cardGlow.b, 0.75)
                         : Theme.cardEdge
@@ -169,6 +188,7 @@ Item {
             Canvas {
                 id: ondas
                 anchors.fill: parent
+                visible: caixa.conhecida
                 readonly property color corOnda: Theme.cardWave
                 readonly property color corLuz: caixa.corEstado
                 readonly property bool claro: Theme.claro
@@ -214,8 +234,18 @@ Item {
                 }
             }
 
+            // Cartoon: a cor lisa por cima do gradiente, dentro do contorno.
+            Rectangle {
+                visible: !caixa.conhecida
+                anchors.fill: parent
+                anchors.margins: parent.border.width
+                radius: parent.radius - parent.border.width
+                color: Theme.cardTop
+            }
+
             // A aresta de luz em cima.
             Rectangle {
+                visible: caixa.conhecida
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
@@ -298,16 +328,14 @@ Item {
             width: parent.width
             spacing: 0
 
-            // A wordmark PS4/PS5, gerada por scripts/gerar-wordmarks.py:
-            // branca nos temas escuros, preta no claro. Quando o tipo não se
-            // sabe é um "Unknown PlayStation" cinzento, noutro estilo.
+            // A wordmark PS4/PS5 (ou "Unknown PlayStation", quando o tipo não
+            // se sabe), gerada por scripts/gerar-wordmarks.py: branca nos
+            // temas escuros, preta no claro.
             Image {
                 id: letras
                 anchors.horizontalCenter: parent.horizontalCenter
-                readonly property bool conhecida: caixa.tipo === "ps4" || caixa.tipo === "ps5"
-                source: conhecida
-                        ? "qrc:/icons/wordmark-" + caixa.tipo + (Theme.claro ? "-preto" : "-branco") + ".png"
-                        : "qrc:/icons/wordmark-ps-" + (Theme.claro ? "claro" : "escuro") + ".png"
+                source: "qrc:/icons/wordmark-" + (caixa.conhecida ? caixa.tipo : "desconhecida")
+                        + (Theme.claro ? "-preto" : "-branco") + ".png"
                 sourceSize.height: 186
                 height: 62
                 width: implicitWidth / 3
@@ -383,9 +411,12 @@ Item {
                     return Qt.rgba(c.r, c.g, c.b, (Theme.claro ? 0.10 : 0.16) * alfa)
                 return Qt.rgba(c.r, c.g, c.b, (Theme.claro ? 0.10 : 0.20) * alfa)
             }
-            border.width: 1
-            border.color: Qt.rgba(caixa.corEstado.r, caixa.corEstado.g, caixa.corEstado.b,
-                                  Theme.claro ? 0.10 : 0.28)
+            // Na caixa cartoon, contorno grosso na cor do estado.
+            border.width: caixa.conhecida ? 1 : 3
+            border.color: caixa.conhecida
+                          ? Qt.rgba(caixa.corEstado.r, caixa.corEstado.g, caixa.corEstado.b,
+                                    Theme.claro ? 0.10 : 0.28)
+                          : caixa.corEstado
             Behavior on color { ColorAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
 
             // O ponto à esquerda, o texto (até duas linhas) e o chevron à
