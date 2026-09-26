@@ -42,6 +42,8 @@ std::string Settings::toJson() const
 		input.set("type", Json::fromString(console.type));
 		if(!console.accountId.empty())
 			input.set("account_id", Json::fromString(console.accountId));
+		if(!console.hostId.empty())
+			input.set("host_id", Json::fromString(console.hostId));
 		items.push(input);
 	}
 	root.set("consoles", items);
@@ -105,8 +107,13 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 			std::string kind = input["type"].toString();
 			if(kind != "ps4" && kind != "ps5")
 				kind.clear();
-			settings.consoles.push_back({ input["name"].toString(),
-				input["address"].toString(), kind, input["account_id"].toString() });
+			ConsoleEntry entry;
+			entry.name = input["name"].toString();
+			entry.address = input["address"].toString();
+			entry.type = kind;
+			entry.accountId = input["account_id"].toString();
+			entry.hostId = input["host_id"].toString();
+			settings.consoles.push_back(entry);
 		}
 	}
 	normaliseConsoles(settings);
@@ -230,7 +237,12 @@ void normaliseConsoles(Settings &settings)
 			}
 		}
 		if(!found)
-			clean.insert(clean.begin(), { settings.consoleName, current, std::string(), std::string() });
+		{
+			ConsoleEntry entry;
+			entry.name = settings.consoleName;
+			entry.address = current;
+			clean.insert(clean.begin(), entry);
+		}
 	}
 	settings.consoles = clean;
 }

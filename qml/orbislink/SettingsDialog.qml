@@ -161,6 +161,27 @@ Dialog {
         debugBox.checked = values.debugLogging
     }
 
+    // Switching, editing or removing consoles in the list changes which one
+    // is in use: its fields follow, so saving never writes one console's
+    // values over another's.
+    Connections {
+        target: app
+        function onSettingsChanged() {
+            if (!dialog.visible)
+                return
+            var fresh = app.settingsMap()
+            if (fresh.consoleAddress === dialog.values.consoleAddress
+                    && fresh.consoleName === dialog.values.consoleName)
+                return
+            dialog.values.consoleName = fresh.consoleName
+            dialog.values.consoleAddress = fresh.consoleAddress
+            nameField.text = fresh.consoleName
+            addressField.text = fresh.consoleAddress
+            ftpPortField.text = fresh.ftpPort
+            dialog.consoleIsPs5 = fresh.consoleIsPs5 === true
+        }
+    }
+
     function save() {
         app.applySettings({
             "consoleName": nameField.text,
@@ -259,7 +280,11 @@ Dialog {
             y: Theme.dialogInner
             spacing: 14
 
-            Text { text: qsTr("Console"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
+            ConsoleManager { Layout.fillWidth: true }
+
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
+
+            Text { text: qsTr("Console in use"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
 
             GridLayout {
                 Layout.fillWidth: true

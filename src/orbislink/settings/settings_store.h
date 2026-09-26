@@ -28,6 +28,10 @@ struct ConsoleEntry
 	// console keeps its own: a PS4 whose account was activated by hand may
 	// have the bytes in a different order from the PS5 of the same account.
 	std::string accountId;
+	// The host-id the console reported in discovery (its MAC). It is what
+	// ties the entry to its Remote Play registration on this PC; empty until
+	// the console has answered once.
+	std::string hostId;
 };
 
 struct Settings
