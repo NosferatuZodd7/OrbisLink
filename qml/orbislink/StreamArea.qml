@@ -129,9 +129,9 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 18
             readonly property var lista: app.consoles
-            // Encolhem juntas quando não cabem.
-            readonly property real largura: Math.max(230, Math.min(320,
-                (palco.width - 80 - 170 - spacing * lista.length) / Math.max(1, lista.length)))
+            // Encolhem juntas, sem mudar de proporções, quando não cabem.
+            readonly property real fator: Math.max(0.42, Math.min(1.0,
+                (palco.width - 60 - spacing * lista.length) / (360 * lista.length + 180)))
 
             Repeater {
                 model: filaConsolas.lista
@@ -139,7 +139,7 @@ Item {
                 ConsoleCard {
                     readonly property var outra: root.built && !modelData.active
                                                  ? stream.consoleStates[modelData.address] : undefined
-                    width: filaConsolas.largura
+                    fator: filaConsolas.fator
                     ativa: modelData.active
                     disponivel: root.built
                     endereco: modelData.address
@@ -164,6 +164,8 @@ Item {
             }
 
             AddConsoleCard {
+                width: 180 * filaConsolas.fator
+                height: 280 * filaConsolas.fator
                 onAdicionar: addConsoleDialog.open()
             }
         }
