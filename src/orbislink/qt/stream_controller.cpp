@@ -203,8 +203,14 @@ void StreamController::setAddress(const QString &address)
 	if(address_ == address)
 		return;
 	address_ = address;
-	loadCredentials();
-	emit registrationChanged();
+	// O que se sabia era da consola anterior: o nome, o estado, o tipo e a
+	// chave de registo. Mantê-lo até a nova responder fazia a caixa da
+	// nova mostrar os dados da antiga (e guardá-los como se fossem dela).
+	HostInfo nova;
+	nova.address = address.toStdString();
+	applyHost(nova);
+	consoleState_ = QStringLiteral("unknown");
+	emit consoleChanged();
 	refreshConsole();
 }
 
@@ -357,8 +363,16 @@ void StreamController::refreshConsole()
 		const HostInfo info = StreamDiscovery::probe(address, 1500);
 		QMetaObject::invokeMethod(
 			this,
-			[this, info]() {
+			[this, info, address]() {
 				searching_ = false;
+				// Entretanto passou-se a outra consola: esta resposta já não
+				// é dela. Pergunta-se à nova.
+				if(address != address_.toStdString())
+				{
+					emit consoleChanged();
+					refreshConsole();
+					return;
+				}
 				applyHost(info);
 				if(!info.found)
 				{
