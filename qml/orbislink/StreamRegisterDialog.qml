@@ -122,8 +122,11 @@ Dialog {
                     wrapMode: Text.WordWrap
                     color: Theme.text
                     font.pixelSize: 12
-                    text: qsTr("Na consola: Definições → Definições de Ligação do Remote Play "
-                               + "→ Adicionar Dispositivo.")
+                    text: (typeof stream !== "undefined" && stream && stream.consolePs5)
+                          ? qsTr("Na PS5: Definições → Sistema → Remote Play → Associar "
+                                 + "dispositivo, com a conta que vais usar.")
+                          : qsTr("Na consola: Definições → Definições de Ligação do Remote Play "
+                                 + "→ Adicionar Dispositivo.")
                 }
                 Text {
                     Layout.fillWidth: true

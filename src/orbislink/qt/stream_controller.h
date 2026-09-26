@@ -31,6 +31,8 @@ class StreamController : public QObject
 	// Verdadeiro enquanto o "Procurar" está a falar com a consola, para o
 	// botão poder dizer que está a fazer alguma coisa.
 	Q_PROPERTY(bool searching READ searching NOTIFY consoleChanged)
+	// O passo em que está a ligação de um só clique: "", "checking", "waking".
+	Q_PROPERTY(QString connectStage READ connectStage NOTIFY connectStageChanged)
 	Q_PROPERTY(QString consoleName READ consoleName NOTIFY consoleChanged)
 	// PS5 ou PS4, pelo que a consola disse na descoberta.
 	Q_PROPERTY(bool consolePs5 READ consolePs5 NOTIFY consoleChanged)
@@ -130,6 +132,12 @@ public:
 	Q_INVOKABLE void cancelRegistration();
 	Q_INVOKABLE void forgetConsole();
 	Q_INVOKABLE void startStream();
+	// Ligar com um só clique: pergunta à consola como está, acorda-a se
+	// estiver em repouso, espera que fique pronta e liga. Se ainda não
+	// estiver registada, pede o registo (registrationNeeded).
+	Q_INVOKABLE void connectOneClick();
+	Q_INVOKABLE void cancelOneClick();
+	QString connectStage() const { return connectStage_; }
 	Q_INVOKABLE void stopStream();
 	// A consola pediu o PIN da conta (não é o do registo).
 	Q_INVOKABLE void sendLoginPin(const QString &pin);
@@ -168,6 +176,9 @@ public:
 	Q_INVOKABLE bool touchpadFromMouse() const { return touchpadFromMouse_; }
 
 signals:
+	void connectStageChanged();
+	// A consola respondeu mas este PC ainda não está registado nela.
+	void registrationNeeded();
 	void consoleChanged();
 	void registrationChanged();
 	void sessionChanged();
@@ -206,6 +217,14 @@ private:
 	int frameWidth_ = 0;
 	int frameHeight_ = 0;
 	class QTimer *fpsTimer_ = nullptr;
+	// Ligação de um só clique.
+	void setConnectStage(const QString &stage);
+	void oneClickDecide(const HostInfo &info);
+	void oneClickPoll();
+	QString connectStage_;
+	class QTimer *wakeTimer_ = nullptr;
+	int wakeAttempts_ = 0;
+	quint64 oneClickRun_ = 0;
 	qint64 lastFrameCount_ = 0;
 	int measuredFps_ = 0;
 	int resolution_ = 720;
