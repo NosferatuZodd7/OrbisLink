@@ -112,8 +112,8 @@ public:
 	void applySettings(const Settings &settings);
 	QString accountId() const { return accountId_; }
 
-	// Pergunta à consola em que estado está (descoberta na 987/UDP) e diz
-	// o resultado numa notificação: é o "Procurar" que se carrega.
+	// Pergunta à consola em que estado está (descoberta) e diz o resultado
+	// numa notificação: é o que corre quando se clica na caixa para procurar.
 	Q_INVOKABLE void refreshConsole();
 	// Acorda uma consola em repouso.
 	Q_INVOKABLE void wakeUp();
