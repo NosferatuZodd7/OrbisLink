@@ -222,6 +222,7 @@ QVariantList AppController::consoles() const
 		entrada[QStringLiteral("name")] = QString::fromStdString(consola.name);
 		entrada[QStringLiteral("address")] = QString::fromStdString(consola.address);
 		entrada[QStringLiteral("active")] = consola.address == settings_.consoleAddress;
+		entrada[QStringLiteral("type")] = QString::fromStdString(consola.type);
 		lista.append(entrada);
 	}
 	return lista;
@@ -247,7 +248,22 @@ void AppController::selectConsole(const QString &address)
 	}
 }
 
-void AppController::addConsole(const QString &name, const QString &address)
+void AppController::rememberConsoleType(const QString &address, bool ps5)
+{
+	const std::string endereco = address.trimmed().toStdString();
+	const std::string tipo = ps5 ? "ps5" : "ps4";
+	for(ConsoleEntry &consola : settings_.consoles)
+	{
+		if(consola.address != endereco || consola.type == tipo)
+			continue;
+		consola.type = tipo;
+		store_.save(settings_);
+		emit settingsChanged();
+		return;
+	}
+}
+
+void AppController::addConsole(const QString &name, const QString &address, const QString &type)
 {
 	const std::string endereco = address.trimmed().toStdString();
 	if(endereco.empty())
@@ -260,7 +276,9 @@ void AppController::addConsole(const QString &name, const QString &address)
 		std::string nome = name.trimmed().toStdString();
 		if(nome.empty())
 			nome = endereco;
-		settings_.consoles.push_back({ nome, endereco });
+		const std::string tipo = type == QStringLiteral("ps5") ? "ps5"
+			: type == QStringLiteral("ps4") ? "ps4" : "";
+		settings_.consoles.push_back({ nome, endereco, tipo });
 	}
 	selectConsole(address);
 	// selectConsole() não faz nada se ela já estava em uso; a lista mudou

@@ -22,6 +22,8 @@ struct ConsoleEntry
 {
 	std::string name;
 	std::string address;
+	// "ps4", "ps5", ou vazio enquanto a consola nunca tiver respondido.
+	std::string type;
 };
 
 struct Settings
