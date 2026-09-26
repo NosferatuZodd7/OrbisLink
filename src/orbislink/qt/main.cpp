@@ -37,10 +37,10 @@ int main(int argc, char **argv)
 {
 	QCoreApplication::setApplicationName(QStringLiteral("OrbisLink"));
 	QCoreApplication::setOrganizationName(QStringLiteral("OrbisLink"));
-	// A versão vem da tag do git ("v1.2.3"), e o "v" é da tag e não da
-	// versão. Sem o cortar aqui, a barra de estado — que escreve "v" +
-	// versão — mostraria "vv1.2.3". Corta-se uma vez, no sítio de onde
-	// todos leem.
+	// The version comes from the git tag ("v1.2.3"), and the "v" belongs to
+	// the tag, not the version. Without stripping it here, the status bar —
+	// which writes "v" + version — would show "vv1.2.3". It is stripped once,
+	// at the place everyone reads from.
 	QString versao = QStringLiteral(ORBISLINK_VERSION_STRING);
 	if(versao.startsWith(QLatin1Char('v')) || versao.startsWith(QLatin1Char('V')))
 		versao.remove(0, 1);
@@ -48,9 +48,9 @@ int main(int argc, char **argv)
 
 	startup::installFileLogger();
 
-	// Desenho por software: obrigatório onde não há GPU (Windows Sandbox,
-	// máquinas virtuais, ambiente remoto). Liga-se por opção, por variável de
-	// ambiente, ou sozinho quando o arranque anterior não chegou a desenhar.
+	// Software rendering: required where there is no GPU (Windows Sandbox,
+	// virtual machines, remote desktop). Enabled by option, by environment
+	// variable, or by itself when the previous startup never got to draw.
 	bool forceSoftware = qEnvironmentVariableIsSet("ORBISLINK_SOFTWARE");
 	for(int i = 1; i < argc; ++i)
 	{
@@ -66,20 +66,20 @@ int main(int argc, char **argv)
 	if(forceSoftware)
 	{
 		QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
-		// Também para o caso de o Qt voltar a um backend acelerado.
+		// Also in case Qt falls back to an accelerated backend.
 		qputenv("QSG_RHI_PREFER_SOFTWARE_RENDERER", "1");
 		qInfo("Rendering mode: software.");
 	}
 
 	QGuiApplication app(argc, argv);
-	// O ícone da janela e da barra de tarefas. Em Windows o ícone do próprio
-	// ficheiro vem do recurso .rc; este é o que a aplicação mostra a correr.
+	// The window and taskbar icon. On Windows the file's own icon comes
+	// from the .rc resource; this is the one the running application shows.
 	app.setWindowIcon(QIcon(QStringLiteral(":/icons/mark.png")));
 	QQuickStyle::setStyle(QStringLiteral("Basic"));
 	qInfo("OrbisLink %s starting.", ORBISLINK_VERSION_STRING);
-	// Ficheiros de versões diferentes na mesma pasta são causa provável de
-	// estoiros: acontece quando se instala por cima com a aplicação aberta e
-	// os ficheiros bloqueados são ignorados.
+	// Files from different versions in the same folder are a likely cause of
+	// crashes: it happens when installing over the top with the application
+	// open and the locked files are skipped.
 	if(qstrcmp(qVersion(), QT_VERSION_STR) != 0)
 	{
 		startup::reportFatal(QStringLiteral("OrbisLink — inconsistent installation"),
@@ -92,8 +92,8 @@ int main(int argc, char **argv)
 	qInfo("Qt %s (built with %s), platform \"%s\"", qVersion(), QT_VERSION_STR,
 		qPrintable(app.platformName()));
 
-	// Opções de desenvolvimento: capturar o ecrã e sair, para documentação
-	// e para o CI conseguir provar que a janela abre.
+	// Development options: capture the screen and quit, for documentation
+	// and so CI can prove the window opens.
 	QString screenshotPath;
 	int screenshotDelayMs = 1200;
 	bool demoOverlay = false;
@@ -177,8 +177,8 @@ int main(int argc, char **argv)
 	qmlRegisterUncreatableType<FtpModel>("OrbisLink", 1, 0, "FtpModel",
 		QStringLiteral("Fornecido pelo controlador."));
 
-	// Uma exceção aqui mataria o processo sem deixar rasto, e a aplicação
-	// pareceria instalada mas não abriria.
+	// An exception here would kill the process without a trace, and the
+	// application would look installed but would not open.
 	std::unique_ptr<AppController> controller;
 	try
 	{
@@ -200,9 +200,9 @@ int main(int argc, char **argv)
 	if(!enqueuePaths.isEmpty())
 		controller->addPaths(enqueuePaths, 0);
 
-	// Os avisos importantes também saem para o sistema, para chegarem com a
-	// janela minimizada. Onde não houver área de notificação, isto não faz
-	// nada e a aplicação continua igual.
+	// Important notices also go to the system, so they arrive with the
+	// window minimised. Where there is no notification area, this does
+	// nothing and the application carries on the same.
 	Notifier notifier;
 	QObject::connect(controller.get(), &AppController::notify, &notifier,
 		[&notifier](const QString &title, const QString &message, bool error) {
@@ -221,8 +221,8 @@ int main(int argc, char **argv)
 	engine.rootContext()->setContextProperty(QStringLiteral("app"), controller.get());
 
 #ifdef ORBISLINK_HAS_STREAM
-	// O Remote Play é um controlador à parte, mas acompanha o endereço da
-	// consola definido nas definições do OrbisLink.
+	// Remote Play is a separate controller, but it follows the console
+	// address set in the OrbisLink settings.
 	auto stream = std::make_unique<StreamController>();
 	stream->setAddress(controller->consoleAddress());
 	stream->applySettings(controller->settings());
@@ -231,26 +231,26 @@ int main(int argc, char **argv)
 			stream->setAddress(controller->consoleAddress());
 			stream->applySettings(controller->settings());
 		});
-	// As teclas editadas na janela do mapa ficam nas definições; o mapa
-	// novo volta ao stream pelo settingsChanged acima.
+	// The keys edited in the map window are kept in the settings; the new
+	// map comes back to the stream through settingsChanged above.
 	QObject::connect(stream.get(), &StreamController::keyBindingsEdited, controller.get(),
 		[&controller](const std::map<std::string, int> &bindings) {
 			controller->saveKeyBindings(bindings);
 		});
-	// O indicador "Remote Play" na barra de cima passa a dizer o que a
-	// consola respondeu à descoberta, em vez de ficar sempre cinzento.
+	// The "Remote Play" indicator in the top bar shows what the console
+	// answered to discovery, instead of staying grey forever.
 	QObject::connect(stream.get(), &StreamController::consoleChanged, controller.get(),
 		[&controller, &stream]() {
 			controller->reportRemotePlayState(stream->consoleState(), stream->runningApp());
 		});
-	// As notificações do stream aparecem na mesma barra que as outras.
+	// Stream notifications appear in the same bar as the others.
 	QObject::connect(stream.get(), &StreamController::notify, controller.get(),
 		&AppController::notify);
-	// O Account ID que a consola aceitou fica guardado nas definições.
+	// The Account ID the console accepted is kept in the settings.
 	QObject::connect(stream.get(), &StreamController::accountIdAccepted, controller.get(),
 		&AppController::rememberAccountId);
-	// O diagnóstico passa a poder responder "o som morre aqui" em vez de
-	// deixar a pergunta em aberto.
+	// Diagnostics can now answer "the sound dies here" instead of leaving
+	// the question open.
 	controller->setAudioProbe([ptr = stream.get()]() { return ptr->audioPipeline(); });
 	controller->setVideoProbe([ptr = stream.get()]() { return ptr->videoSummary(); });
 	engine.rootContext()->setContextProperty(QStringLiteral("stream"), stream.get());
@@ -283,9 +283,9 @@ int main(int argc, char **argv)
 	if(window)
 	{
 		notifier.setWindow(window);
-		// A barra de título é do sistema. Sem isto, no Windows, aparece uma
-		// faixa branca por cima de uma aplicação escura. O QML chama-lhe o tema
-		// quando ele muda.
+		// The title bar belongs to the system. Without this, on Windows, a
+		// white strip appears on top of a dark application. QML calls this
+		// when the theme changes.
 		auto *chrome = new WindowChrome(window, window);
 		engine.rootContext()->setContextProperty(QStringLiteral("chrome"), chrome);
 		QMetaObject::invokeMethod(window, "aplicarTema", Qt::QueuedConnection);
@@ -295,9 +295,9 @@ int main(int argc, char **argv)
 			startup::markLaunchSucceeded();
 		});
 
-		// Correr elevado mata o arrastar e largar, e o Windows não diz nada
-		// a ninguém. Mais vale a aplicação dizê-lo do que a pessoa achar
-		// que a funcionalidade desapareceu.
+		// Running elevated kills drag and drop, and Windows tells nobody.
+		// Better for the application to say so than for the person to think
+		// the feature disappeared.
 		const QString avisoElevacao = WindowChrome::elevationWarning();
 		if(!avisoElevacao.isEmpty())
 		{
@@ -309,7 +309,7 @@ int main(int argc, char **argv)
 			});
 		}
 
-		// Se o motor de desenho falhar, diz-se porquê em vez de morrer calado.
+		// If the rendering engine fails, say why instead of dying silently.
 		QObject::connect(window, &QQuickWindow::sceneGraphError, &app,
 			[forceSoftware](QQuickWindow::SceneGraphError, const QString &message) {
 				const QString hint = forceSoftware
@@ -322,8 +322,8 @@ int main(int argc, char **argv)
 			});
 	}
 
-	// Se ao fim de alguns segundos nada foi desenhado, diz-se porquê e onde
-	// ver o registo.
+	// If after a few seconds nothing was drawn, say why and where to
+	// find the log.
 	if(screenshotPath.isEmpty())
 	{
 		QTimer::singleShot(9000, &app, [drawn, forceSoftware]() {
@@ -340,10 +340,10 @@ int main(int argc, char **argv)
 		});
 	}
 
-	// Verificação de actualizações ao arrancar, quando está ligada nas
-	// definições. Silenciosa quando não há novidades: só interrompe para
-	// dizer que há uma versão nova. Espera uns segundos para não competir
-	// com o arranque da janela nem com a primeira verificação de serviços.
+	// Update check at startup, when enabled in the settings. Silent when
+	// there is nothing new: it only interrupts to say there is a new
+	// version. Waits a few seconds so as not to compete with the window
+	// startup or the first service check.
 	if(controller->settings().checkForUpdates && screenshotPath.isEmpty() && !printDiagnostics
 		&& !selfTestDrag)
 	{
@@ -352,8 +352,8 @@ int main(int argc, char **argv)
 		});
 	}
 
-	// Escreve o diagnóstico para a saída padrão e sai. Serve para pedir o
-	// relatório sem ter de o exportar pela janela.
+	// Writes the diagnostics to standard output and quits. Useful to get
+	// the report without exporting it through the window.
 	if(printDiagnostics)
 	{
 		QTimer::singleShot(2500, &app, [&controller]() {
@@ -363,8 +363,8 @@ int main(int argc, char **argv)
 		});
 	}
 
-	// Teste automático do arrastar: a janela abre, um ficheiro falso é
-	// arrastado por cima dela e verifica-se que a sobreposição não pisca.
+	// Automatic drag test: the window opens, a fake file is dragged over
+	// it and the overlay is checked not to flicker.
 	if(selfTestDrag && window)
 	{
 		QTimer::singleShot(1500, &app, [window]() {

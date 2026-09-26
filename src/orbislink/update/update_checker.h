@@ -9,26 +9,26 @@
 
 namespace orbislink {
 
-// Um lançamento tal como o GitHub o descreve.
+// A release as GitHub describes it.
 struct ReleaseInfo
 {
 	std::string tag;        // "v0.1.8"
-	std::string name;       // título do lançamento
+	std::string name;       // release title
 	std::string notes;      // corpo em markdown
-	std::string pageUrl;    // página do lançamento, para abrir no browser
+	std::string pageUrl;    // release page, to open in the browser
 	bool prerelease = false;
 
 	// O ficheiro a descarregar para esta plataforma, se existir.
 	std::string assetName;
 	std::string assetUrl;
 	int64_t assetSize = 0;
-	// SHA-256 publicado ao lado do ficheiro, quando o há. Vazio significa
-	// "não foi publicado" — e aí não se verifica nada, o que tem de ser
-	// dito a quem carrega no botão.
+	// SHA-256 published next to the file, when there is one. Empty means
+	// "not published" — and then nothing is verified, which has to be
+	// told to whoever presses the button.
 	std::string assetSha256;
-	// Em alternativa, o anexo "<nome>.sha256" de onde o ler. Só se vai
-	// buscar na hora de descarregar, para a verificação não custar dois
-	// pedidos a quem nem vai actualizar.
+	// Alternatively, the "<name>.sha256" asset to read it from. It is only
+	// fetched at download time, so verification does not cost two requests
+	// for someone who is not even going to update.
 	std::string assetSha256Url;
 
 	Version version() const { return parseVersion(tag); }
@@ -41,32 +41,32 @@ UpdateChannel updateChannelFromName(const std::string &name, UpdateChannel fallb
 
 struct UpdateCheckResult
 {
-	bool ok = false;              // a verificação em si correu bem
+	bool ok = false;              // the check itself went well
 	bool updateAvailable = false;
-	std::string message;          // o que dizer a quem está a olhar
+	std::string message;          // what to tell whoever is looking
 	ReleaseInfo release;
 };
 
-// Vê se há uma versão mais recente publicada no GitHub.
+// Checks whether a newer version is published on GitHub.
 //
-// Não precisa de credenciais: assume um repositório público. O repositório
-// é configurável em vez de estar no código, para a app o poder seguir sem
-// ser recompilada.
+// It needs no credentials: it assumes a public repository. The repository
+// is configurable instead of being in the code, so the app can follow it
+// without being recompiled.
 class UpdateChecker
 {
 public:
 	struct Config
 	{
-		// Vem do ORBISLINK_REPOSITORY do CMake, que o CI preenche com o
-		// repositório onde a compilação correu. Vazio numa compilação
-		// local: aí a verificação diz que não está configurada, em vez de
-		// ir bater ao repositório de outra pessoa.
+		// Comes from CMake's ORBISLINK_REPOSITORY, which CI fills with the
+		// repository the build ran in. Empty in a local build: then the
+		// check says it is not configured, instead of hitting someone
+		// else's repository.
 		std::string repository = ORBISLINK_REPOSITORY_STRING; // "dono/nome"
 		UpdateChannel channel = UpdateChannel::Stable;
 		std::string currentVersion;
-		// Sufixo do ficheiro a procurar nos anexos do lançamento. Em
-		// Windows é o instalador; noutros sistemas fica vazio e só se
-		// oferece a página do lançamento.
+		// Suffix of the file to look for in the release assets. On
+		// Windows it is the installer; on other systems it is empty and
+		// only the release page is offered.
 		std::string assetSuffix;
 		std::string apiBase = "https://api.github.com";
 		int timeoutMs = 15000;
@@ -78,17 +78,17 @@ public:
 
 	UpdateCheckResult check() const;
 
-	// Exposto para testes: converte a resposta da API na lista de
-	// lançamentos, sem rede pelo meio.
+	// Exposed for tests: turns the API reply into the list of
+	// releases, with no network involved.
 	static std::vector<ReleaseInfo> parseReleases(const std::string &json,
 		const std::string &assetSuffix);
-	// Escolhe o lançamento a oferecer de entre os que vieram.
+	// Picks the release to offer from those that came back.
 	static const ReleaseInfo *pick(const std::vector<ReleaseInfo> &releases,
 		UpdateChannel channel, const std::string &currentVersion);
-	// O que dizer quando o canal escolhido não tem nada mais recente. Se o
-	// outro canal tiver, diz qual é e onde está: "estás actualizado", com
-	// uma versão nova publicada ao lado, é uma meia verdade que faz
-	// desistir de procurar.
+	// What to say when the chosen channel has nothing newer. If the other
+	// channel does, say which and where: "you are up to date", with a new
+	// version published right next to it, is a half-truth that makes
+	// people stop looking.
 	static std::string describeNothingNew(const std::vector<ReleaseInfo> &releases,
 		UpdateChannel channel, const std::string &currentVersion);
 
@@ -96,7 +96,7 @@ private:
 	Config config_;
 };
 
-// O sufixo do instalador desta plataforma, ou vazio se não houver um.
+// This platform's installer suffix, or empty if there is none.
 std::string platformAssetSuffix();
 
 } // namespace orbislink

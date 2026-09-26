@@ -108,8 +108,8 @@ QString Diagnostics::report(AppController *app)
 		out << "HTTP server      " << app->httpServerAddress() << "\n";
 
 		titulo(out, "Settings");
-		// Só o que ajuda a diagnosticar. O Account ID e as chaves ficam de
-		// fora de propósito.
+		// Only what helps diagnose. The Account ID and the keys are left
+		// out on purpose.
 		const QVariantMap definicoes = app->settingsMap();
 		static const QStringList segredos { QStringLiteral("streamAccountId"),
 			QStringLiteral("accountId") };
@@ -154,8 +154,8 @@ QString Diagnostics::report(AppController *app)
 	{
 		for(const StreamCredentials &credencial : registadas)
 		{
-			// As chaves não entram aqui. O que interessa é saber que
-			// existem e se têm o tamanho certo.
+			// The keys do not go in here. What matters is knowing that
+			// they exist and have the right size.
 			out << "  " << QString::fromStdString(credencial.nickname) << "  host-id "
 				<< QString::fromStdString(credencial.hostId) << "  target " << credencial.target
 				<< "  ps5 " << sim(credencial.ps5) << "  regist key "

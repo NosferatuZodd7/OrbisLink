@@ -11,10 +11,10 @@ namespace orbislink {
 struct InstallerResult
 {
 	bool ok = false;
-	uint32_t errorCode = 0;   // código devolvido pela consola (0 se não houver)
-	std::string message;      // mensagem já traduzida para o utilizador
+	uint32_t errorCode = 0;   // code returned by the console (0 if none)
+	std::string message;      // message already worded for the user
 	long httpStatus = 0;
-	std::string rawBody;      // resposta crua, para o log/diagnóstico
+	std::string rawBody;      // raw reply, for the log/diagnostics
 
 	static InstallerResult success() { InstallerResult r; r.ok = true; return r; }
 	static InstallerResult failure(const std::string &message, uint32_t code = 0)
@@ -32,8 +32,8 @@ struct InstallTaskHandle
 	std::string title;
 };
 
-// Campos devolvidos por /api/get_task_progress (ver server.c do Remote
-// Package Installer). Os valores vêm em hexadecimal sem aspas no JSON.
+// Fields returned by /api/get_task_progress (see Remote Package Installer's
+// server.c). The values come in hexadecimal without quotes in the JSON.
 struct TaskProgress
 {
 	uint32_t bits = 0;
@@ -73,7 +73,7 @@ public:
 	virtual std::string name() const = 0;
 	virtual std::string endpoint() const = 0;
 
-	// Disponibilidade: qualquer resposta HTTP conta como disponível (§5.1).
+	// Availability: any HTTP reply counts as available (§5.1).
 	virtual bool probe(std::string *detail = nullptr) = 0;
 
 	virtual InstallerResult installDirect(const std::vector<std::string> &packageUrls,

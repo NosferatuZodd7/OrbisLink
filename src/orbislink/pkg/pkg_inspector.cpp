@@ -14,9 +14,9 @@ namespace orbislink {
 
 namespace {
 
-// Offsets do cabeçalho PKG (big-endian), confirmados em
+// PKG header offsets (big-endian), confirmed in
 // flatz/ps4_remote_pkg_installer/pkg.h.
-constexpr size_t kHeaderReadSize = 0x1000; // chega para todos os campos até 0x430
+constexpr size_t kHeaderReadSize = 0x1000; // enough for every field up to 0x430
 constexpr size_t kOffMagic = 0x00;
 constexpr size_t kOffEntryCount = 0x10;
 constexpr size_t kOffEntryTableOffset = 0x18;
@@ -210,7 +210,7 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 		}
 	}
 
-	// Metadados em falta não invalidam o pkg (§5.2): fica "(sem título)".
+	// Missing metadata does not invalidate the pkg (§5.2): it becomes "(untitled)".
 	if(sfoOffset >= 0 && sfoSize > 0 && sfoOffset + sfoSize <= size
 		&& static_cast<size_t>(sfoSize) <= options_.maxSfoBytes)
 	{
@@ -243,7 +243,7 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 			info.iconPng = std::move(icon);
 	}
 
-	// Classificação: o cabeçalho manda, o CATEGORY do SFO desempata.
+	// Classification: the header decides, the SFO CATEGORY breaks ties.
 	switch(info.contentType)
 	{
 		case kContentTypeGd:

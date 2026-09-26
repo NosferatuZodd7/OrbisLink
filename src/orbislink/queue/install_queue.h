@@ -19,13 +19,13 @@
 
 namespace orbislink {
 
-// Pendente → A validar → A enviar/A instalar → Concluído | Erro | Cancelado (§5.6).
+// Pending → Validating → Uploading/Installing → Done | Error | Cancelled (§5.6).
 enum class TaskState { Pending, Validating, Sending, Installing, Completed, Error, Cancelled };
 
-const char *taskStateName(TaskState state);      // identificador estável (persistência)
+const char *taskStateName(TaskState state);      // stable identifier (persistence)
 const char *taskStateLabel(TaskState state);   // text for the UI (translated there)
 
-// O que fazer quando o título já existe na consola.
+// What to do when the title already exists on the console.
 enum class ExistingPolicy { Reinstall, Skip };
 
 struct QueueTask
@@ -50,10 +50,10 @@ struct QueueTask
 	int consoleTaskId = -1;
 	std::string httpToken;
 	std::string remotePath; // destino no FTP (modo B)
-	// Ficheiro a apagar da consola quando esta tarefa acabar bem. Só é
-	// preenchido pelo "enviar e instalar" com "apagar depois" ligado.
+	// File to delete from the console when this task succeeds. Only set
+	// by "upload and install" with "delete afterwards" enabled.
 	std::string cleanupRemotePath;
-	std::string message;    // erro ou informação para a UI
+	std::string message;    // error or information for the UI
 	uint32_t errorCode = 0;
 	int attempts = 0;
 
@@ -75,7 +75,7 @@ struct QueueTask
 	}
 };
 
-// Fila sequencial de instalações/envios (§5.6).
+// Sequential queue of installs/uploads (§5.6).
 class InstallQueue
 {
 public:
@@ -84,14 +84,14 @@ public:
 		LocalHttpServer *httpServer = nullptr;
 		IInstallerBackend *installer = nullptr;
 		FtpClient *ftp = nullptr;
-		ConsoleManager *console = nullptr; // opcional: pausa a fila se os serviços caírem
+		ConsoleManager *console = nullptr; // optional: pauses the queue if the services go down
 	};
 
 	struct Tuning
 	{
 		int progressPollMs = 1000;  // §5.4: polling de 1 s
-		int stallTimeoutMs = 20000; // §7: tarefa criada mas 0 bytes após 20 s
-		size_t historyLimit = 100;  // §5.7: histórico das últimas 100 tarefas
+		int stallTimeoutMs = 20000; // §7: task created but 0 bytes after 20 s
+		size_t historyLimit = 100;  // §5.7: history of the last 100 tasks
 	};
 
 	InstallQueue(Dependencies dependencies, Settings settings);
@@ -124,15 +124,15 @@ public:
 	std::vector<QueueTask> history() const;
 	bool task(const std::string &id, QueueTask *out) const;
 
-	// Notificado a cada mudança de estado/progresso (a UI liga-se aqui).
+	// Notified on every state/progress change (the UI hooks in here).
 	void setListener(std::function<void(const QueueTask &)> listener);
-	// Decisão quando o título já existe na consola; por omissão, reinstalar.
+	// Decision when the title already exists on the console; reinstall by default.
 	void setExistingPolicyResolver(std::function<ExistingPolicy(const QueueTask &)> resolver);
 
 	bool save(const std::string &path) const;
 	bool load(const std::string &path);
 
-	// Serialização exposta para testes.
+	// Serialisation exposed for tests.
 	std::string toJson() const;
 	bool fromJson(const std::string &text);
 
@@ -140,8 +140,8 @@ private:
 	void workerLoop();
 	bool takeNextTask(QueueTask *task);
 	void runDirectInstall(QueueTask task);
-	// A tarefa de instalação criada por "instalar depois de enviar" precisa
-	// de saber que ficheiro apagar na consola quando acabar.
+	// The install task created by "install after upload" needs to know
+	// which file to delete on the console when it finishes.
 	void setCleanupPath(const std::string &id, const std::string &remotePath);
 	void runFtpUpload(QueueTask task);
 	void finishTask(QueueTask task);

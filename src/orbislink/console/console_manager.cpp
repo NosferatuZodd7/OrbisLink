@@ -31,8 +31,8 @@ ProbeResult probeConsoleServices(const std::string &address, uint16_t ftpPort,
 		return result;
 	}
 
-	// FTP: ligação TCP à 2121 + banner (§5.1). A ligação já chega para dizer
-	// que o serviço está de pé; o banner só enriquece a mensagem.
+	// FTP: TCP connection to the FTP port + banner (§5.1). The connection alone
+	// says the service is up; the banner only enriches the message.
 	std::string banner;
 	result.ftpOk = tcpProbe(address, ftpPort, timeoutMs, &banner);
 	const std::string trimmed = trim(banner);
@@ -41,7 +41,7 @@ ProbeResult probeConsoleServices(const std::string &address, uint16_t ftpPort,
 	else
 		result.ftpDetail = trimmed;
 
-	// Instalador: qualquer resposta HTTP na 12800 conta como disponível.
+	// Installer: any HTTP reply on 12800 counts as available.
 	RpiClient::Config rpiConfig;
 	rpiConfig.host = address;
 	rpiConfig.port = installerPort;

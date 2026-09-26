@@ -9,19 +9,19 @@ namespace orbislink {
 
 namespace {
 
-// Os eixos do PS4 vão de -32768 a 32767; com teclado só há tudo ou nada.
+// PS4 axes range from -32768 to 32767; with a keyboard it is all or nothing.
 constexpr int16_t kAxisMax = 32767;
 
-// O Enter do teclado numérico conta como o Enter normal: são a mesma tecla
-// para quem está a jogar.
+// The keypad Enter counts as the normal Enter: they are the same key
+// to someone playing.
 int normalise(int key) { return key == Qt::Key_Enter ? Qt::Key_Return : key; }
 
 } // namespace
 
 const std::vector<KeyboardMap::Action> &KeyboardMap::actions()
 {
-	// A ordem é a da janela do mapa. As teclas por omissão são as do
-	// chiaki-ng.
+	// The order is the map window's. The default keys are
+	// chiaki-ng's.
 	static const std::vector<Action> lista = {
 		{ "cross", CHIAKI_CONTROLLER_BUTTON_CROSS, Qt::Key_Return },
 		{ "circle", CHIAKI_CONTROLLER_BUTTON_MOON, Qt::Key_Backspace },
@@ -88,10 +88,10 @@ KeyboardMap::KeyboardMap() { setBindings({}); }
 
 void KeyboardMap::setBindings(const Bindings &custom)
 {
-	// Parte-se sempre das teclas por omissão e aplica-se o que foi mudado,
-	// uma acção de cada vez e pelas mesmas regras de troca: um ficheiro de
-	// definições editado à mão não consegue deixar duas acções na mesma
-	// tecla nem uma acção sem tecla.
+	// Always start from the default keys and apply what was changed, one
+	// action at a time and by the same swap rules: a hand-edited settings
+	// file cannot leave two actions on the same key or an action
+	// without a key.
 	bindings_ = defaults();
 	for(const auto &par : custom)
 		rebind(bindings_, par.first, par.second);

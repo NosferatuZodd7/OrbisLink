@@ -7,15 +7,15 @@
 
 namespace orbislink {
 
-// Converte PCM de 16 bits intercalado entre formatos.
+// Converts interleaved 16-bit PCM between formats.
 //
-// Existe porque a consola não negoceia: manda sempre 48 kHz estéreo. A
-// placa de som do PC pode não aceitar exactamente isso — muitas estão a
-// 44100, outras são mono — e sem conversão ficaria tudo mudo.
+// It exists because the console does not negotiate: it always sends 48 kHz
+// stereo. The PC's sound card may not accept exactly that — many run at
+// 44100, others are mono — and without conversion everything would be silent.
 //
-// A reamostragem é interpolação linear. Não é um resampler de estúdio, mas
-// para voz e efeitos de um jogo a diferença não se ouve, e o custo é
-// desprezável ao pé de descodificar vídeo.
+// Resampling is linear interpolation. It is not a studio resampler, but for a
+// game's voice and effects the difference is inaudible, and the cost is
+// negligible next to decoding video.
 class PcmConverter
 {
 public:
@@ -25,11 +25,11 @@ public:
 	int targetRate() const { return targetRate_; }
 	int targetChannels() const { return targetChannels_; }
 
-	// Devolve as amostras convertidas, intercaladas. `samples` é o número
-	// de amostras por canal à entrada.
+	// Returns the converted samples, interleaved. `samples` is the number of
+	// samples per channel coming in.
 	const std::vector<int16_t> &convert(const int16_t *pcm, size_t samples);
 
-	// Quantas amostras por canal saem para um dado número à entrada.
+	// How many samples per channel come out for a given number going in.
 	size_t outputSamples(size_t inputSamples) const;
 
 private:
@@ -38,8 +38,8 @@ private:
 	int targetRate_ = 48000;
 	int targetChannels_ = 2;
 	bool needed_ = false;
-	// A fase guarda-se entre chamadas: sem isso ouvia-se um estalo na
-	// fronteira de cada trama.
+	// The phase is kept between calls: without it there would be a click at
+	// every frame boundary.
 	double position_ = 0.0;
 	std::vector<int16_t> out_;
 };

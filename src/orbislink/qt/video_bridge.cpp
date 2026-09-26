@@ -17,8 +17,8 @@ namespace orbislink {
 
 namespace {
 
-// Copia um plano linha a linha: o AVFrame tem um "linesize" que quase
-// nunca é igual à largura, e o QVideoFrame tem o seu próprio.
+// Copies a plane line by line: AVFrame has a "linesize" that is almost
+// never equal to the width, and QVideoFrame has its own.
 void copyPlane(uchar *destination, int destinationStride, const uint8_t *source, int sourceStride,
 	int width, int height)
 {
@@ -53,10 +53,10 @@ void VideoBridge::presentFrame(AVFrame *frame)
 	if(!frame || frame->width <= 0 || frame->height <= 0)
 		return;
 
-	// Quando a descodificação é feita pela placa gráfica, o fotograma está
-	// na memória dela e não se pode ler directamente. Traz-se para a
-	// memória do sistema — que é o que o av_hwframe_transfer_data faz — e
-	// segue o mesmo caminho dos outros.
+	// When decoding is done on the GPU, the frame is in its memory and
+	// cannot be read directly. It is brought into system memory — which is
+	// what av_hwframe_transfer_data does — and follows the same path as the
+	// others.
 	AVFrame *software = nullptr;
 	AVFrame *fonte = frame;
 	if(frame->hw_frames_ctx)
@@ -67,8 +67,8 @@ void VideoBridge::presentFrame(AVFrame *frame)
 		if(av_hwframe_transfer_data(software, frame, 0) < 0)
 		{
 			av_frame_free(&software);
-			// Não se mostra lixo: falha-se este fotograma e espera-se o
-			// seguinte. Se for sistemático, o registo do chiaki di-lo.
+			// No garbage is shown: this frame is dropped and the next one
+			// awaited. If it is systematic, chiaki's log says so.
 			return;
 		}
 		software->width = frame->width;
@@ -83,7 +83,7 @@ void VideoBridge::presentFrame(AVFrame *frame)
 			formato = QVideoFrameFormat::Format_YUV420P;
 			break;
 		case AV_PIX_FMT_NV12:
-			// É o que a maior parte dos descodificadores por hardware devolve.
+			// It is what most hardware decoders return.
 			formato = QVideoFrameFormat::Format_NV12;
 			break;
 		case AV_PIX_FMT_P010LE:
@@ -94,8 +94,8 @@ void VideoBridge::presentFrame(AVFrame *frame)
 	}
 	if(formato == QVideoFrameFormat::Format_Invalid)
 	{
-		// Melhor não mostrar nada do que mostrar cores trocadas. Diz-se uma
-		// vez, para o registo não ficar cheio da mesma linha.
+		// Better to show nothing than swapped colours. Said once, so the
+		// log does not fill up with the same line.
 		if(!unsupportedReported_)
 		{
 			unsupportedReported_ = true;
@@ -129,8 +129,8 @@ void VideoBridge::presentFrame(AVFrame *frame)
 	}
 	else
 	{
-		// NV12 e P010: dois planos, o segundo com as duas cores entrelaçadas
-		// (por isso a largura em bytes é a mesma da luminância).
+		// NV12 and P010: two planes, the second with both colours interleaved
+		// (so the width in bytes is the same as the luma's).
 		const int bytesPorAmostra = formato == QVideoFrameFormat::Format_P010 ? 2 : 1;
 		copyPlane(videoFrame.bits(0), videoFrame.bytesPerLine(0), fonte->data[0],
 			fonte->linesize[0], fonte->width * bytesPorAmostra, fonte->height);
@@ -151,8 +151,8 @@ void VideoBridge::deliver(const QVideoFrame &frame)
 	if(!sink_)
 		return;
 	sink_->setVideoFrame(frame);
-	// Contado aqui e não à entrada: o que interessa é o que chega ao ecrã,
-	// não o que o descodificador produziu e depois se perdeu pelo caminho.
+	// Counted here and not on entry: what matters is what reaches the
+	// screen, not what the decoder produced and then got lost on the way.
 	frames_.fetch_add(1, std::memory_order_relaxed);
 	if(!announced_)
 	{

@@ -58,8 +58,8 @@ struct StreamSession::Impl
 	ChiakiOpusDecoder audioDecoder {};
 	bool audioReady = false;
 
-	// Microfone. O encoderReady distingue "preparado" de "a enviar": o
-	// codificador é montado com a sessão, mas só se fala depois de
+	// Microphone. encoderReady tells "prepared" apart from "sending": the
+	// encoder is set up with the session, but nothing is sent until
 	// startMicrophone().
 	ChiakiOpusEncoder audioEncoder {};
 	bool encoderReady = false;
@@ -127,9 +127,8 @@ const char *quitReasonText(ChiakiQuitReason reason)
 	return QT_TRANSLATE_NOOP("Messages", "The session ended for an unknown reason.");
 }
 
-// O nome que o FFmpeg dá ao descodificador da placa gráfica de cada
-// sistema. Não se inventa nada: são os nomes que o
-// av_hwdevice_find_type_by_name reconhece.
+// The name FFmpeg gives to each system's GPU decoder. Nothing is made
+// up: these are the names av_hwdevice_find_type_by_name recognises.
 const char *hardwareDecoderName()
 {
 #if defined(_WIN32)
@@ -153,8 +152,8 @@ ChiakiVideoResolutionPreset resolutionPreset(int resolution)
 	}
 }
 
-// Chamado pelo descodificador quando há um fotograma pronto. Corre na
-// thread do descodificador.
+// Called by the decoder when a frame is ready. Runs on the decoder
+// thread.
 void frameAvailable(ChiakiFfmpegDecoder *decoder, void *user)
 {
 	auto *impl = static_cast<StreamSession::Impl *>(user);
@@ -354,11 +353,11 @@ bool StreamSession::start(const Config &config, std::string *error)
 {
 	if(impl_->sessionStarted)
 	{
-		// Uma sessão que já terminou não pode impedir a seguinte.
+		// A session that has already ended must not block the next one.
 		//
-		// O evento QUIT do chiaki publica o estado mas não desmonta nada — não
-		// pode, está a correr numa thread do próprio chiaki — e o sessionStarted
-		// ficaria a true para sempre. Aqui arruma-se a anterior e segue-se.
+		// chiaki's QUIT event publishes the state but tears nothing down — it
+		// cannot, it is running on one of chiaki's own threads — and sessionStarted
+		// would stay true forever. Here the previous one is cleaned up and we move on.
 		if(impl_->active.load())
 		{
 			if(error)
@@ -383,8 +382,8 @@ bool StreamSession::start(const Config &config, std::string *error)
 		return false;
 	}
 
-	// Contadores desta sessão: o "primeiro fotograma" é o primeiro desta, não
-	// o primeiro desde que a aplicação abriu.
+	// Counters for this session: the "first frame" is this one's first, not
+	// the first since the application opened.
 	impl_->frames.store(0);
 	impl_->width.store(0);
 	impl_->height.store(0);
@@ -402,12 +401,12 @@ bool StreamSession::start(const Config &config, std::string *error)
 	if(config.settings.bitrateKbps > 0)
 		profile.bitrate = config.settings.bitrateKbps;
 
-	// O descodificador tem de existir antes da sessão: é ele que recebe as
-	// amostras de vídeo.
+	// The decoder has to exist before the session: it receives the video
+	// samples.
 	//
-	// Com a placa gráfica é muito mais leve, mas nem todas as máquinas
-	// conseguem — por isso tenta-se, e se não der volta-se ao processador
-	// em vez de deixar o utilizador sem imagem. O relatório diz qual saiu.
+	// On the GPU it is much lighter, but not every machine manages it —
+	// so it is tried, and if it fails it falls back to the CPU instead of
+	// leaving the user without a picture. The report says which one was used.
 	ChiakiErrorCode decoderResult = CHIAKI_ERR_UNKNOWN;
 	impl_->usingHardware = false;
 	if(config.settings.hardwareDecoder)
@@ -452,7 +451,7 @@ bool StreamSession::start(const Config &config, std::string *error)
 	ChiakiConnectInfo info {};
 	info.ps5 = config.credentials.ps5;
 	info.host = impl_->host.c_str();
-	// A chave de registo tem de preencher o campo todo, com zeros à direita.
+	// The registration key has to fill the whole field, zero-padded on the right.
 	std::memset(info.regist_key, 0, sizeof(info.regist_key));
 	std::memcpy(info.regist_key, config.credentials.registKey.c_str(),
 		std::min(config.credentials.registKey.size(), sizeof(info.regist_key)));
@@ -489,7 +488,7 @@ bool StreamSession::start(const Config &config, std::string *error)
 
 	chiaki_session_set_event_cb(&impl_->session, eventCallback, impl_.get());
 
-	// Áudio: o chiaki entrega Opus, o descodificador dele devolve PCM.
+	// Audio: chiaki delivers Opus, its decoder returns PCM.
 	chiaki_opus_decoder_init(&impl_->audioDecoder, chiakiLog());
 	chiaki_opus_decoder_set_cb(&impl_->audioDecoder, audioSettings, audioFrame, impl_.get());
 	ChiakiAudioSink audioSink {};
@@ -497,9 +496,9 @@ bool StreamSession::start(const Config &config, std::string *error)
 	chiaki_session_set_audio_sink(&impl_->session, &audioSink);
 	impl_->audioReady = true;
 
-	// O caminho do microfone fica montado, mas calado. O formato vem do
-	// chiaki-ng e não é negociável: 2 canais, 16 bits, 48 kHz, tramas de
-	// 480 amostras. O chiaki trata do Opus; nós só entregamos PCM.
+	// The microphone path is set up, but silent. The format comes from
+	// chiaki-ng and is not negotiable: 2 channels, 16 bits, 48 kHz, frames of
+	// 480 samples. chiaki handles Opus; we only deliver PCM.
 	chiaki_opus_encoder_init(&impl_->audioEncoder, chiakiLog());
 	ChiakiAudioHeader micHeader {};
 	chiaki_audio_header_set(&micHeader, static_cast<uint8_t>(kMicrophoneChannels), 16,
@@ -534,10 +533,10 @@ bool StreamSession::start(const Config &config, std::string *error)
 
 void StreamSession::stop()
 {
-	// O stop pode vir de dois sítios ao mesmo tempo: do botão "terminar
-	// sessão" (numa thread à parte, para a janela não congelar) e do
-	// destrutor quando se fecha a aplicação. Sem isto, o segundo mexeria numa
-	// sessão já destruída.
+	// stop can come from two places at once: the "end session" button
+	// (on a separate thread, so the window does not freeze) and the
+	// destructor when the application closes. Without this, the second would
+	// touch a session already destroyed.
 	std::lock_guard<std::mutex> guard(impl_->stopMutex);
 	if(!impl_->sessionStarted)
 		return;
@@ -558,8 +557,8 @@ void StreamSession::stop()
 		impl_->audioReady = false;
 	}
 	{
-		// O microfone tem de fechar antes do codificador: uma trama a
-		// chegar a meio do fini mexeria em memória já libertada.
+		// The microphone has to close before the encoder: a frame arriving
+		// in the middle of fini would touch memory already freed.
 		std::lock_guard<std::mutex> micLock(impl_->micMutex);
 		impl_->micActive.store(false);
 		impl_->micMuted.store(false);
@@ -575,10 +574,10 @@ void StreamSession::stop()
 
 namespace {
 
-// O parâmetro do chiaki_session_toggle_microphone diz o estado em que o
-// microfone *está*, não o que se quer: true manda "tirar o silêncio" e
-// false manda "silenciar" (é assim que o próprio chiaki-ng o usa). Passar
-// o que se quer silenciava a consola precisamente ao ligar o microfone.
+// The chiaki_session_toggle_microphone parameter gives the state the
+// microphone *is in*, not the one wanted: true means "unmute" and false
+// means "mute" (that is how chiaki-ng itself uses it). Passing the wanted
+// state muted the console precisely when the microphone was turned on.
 void pedirSilencio(ChiakiSession *session, bool silenciar)
 {
 	chiaki_session_toggle_microphone(session, !silenciar);
@@ -604,7 +603,7 @@ bool StreamSession::startMicrophone(std::string *error)
 	if(impl_->micActive.load())
 		return true;
 
-	// Avisa a consola. Sem isto os pacotes de áudio chegam e são ignorados.
+	// Tell the console. Without this the audio packets arrive and are ignored.
 	const ChiakiErrorCode result = chiaki_session_connect_microphone(&impl_->session);
 	if(result != CHIAKI_ERR_SUCCESS)
 	{
@@ -647,12 +646,12 @@ bool StreamSession::microphoneMuted() const { return impl_->micMuted.load(); }
 
 void StreamSession::sendMicrophoneFrame(const int16_t *pcm, size_t samplesPerChannel)
 {
-	// Silêncio enquanto estiver em mute: não se envia nada, em vez de
-	// enviar zeros. A consola percebe a diferença e o rádio fica livre.
+	// Silence while muted: nothing is sent, instead of sending zeros. The
+	// console notices the difference and the radio stays free.
 	if(!pcm || !impl_->micActive.load() || impl_->micMuted.load())
 		return;
-	// A trama tem de ter exactamente o tamanho que o cabeçalho anunciou: o
-	// chiaki lê frame_size amostras do buffer, sem verificar.
+	// The frame must be exactly the size the header announced: chiaki
+	// reads frame_size samples from the buffer, without checking.
 	if(samplesPerChannel != kMicrophoneFrameSamples)
 	{
 		logWarning("Microphone frame with " + std::to_string(samplesPerChannel)
@@ -663,7 +662,7 @@ void StreamSession::sendMicrophoneFrame(const int16_t *pcm, size_t samplesPerCha
 	std::lock_guard<std::mutex> lock(impl_->micMutex);
 	if(!impl_->encoderReady || !impl_->sessionStarted)
 		return;
-	// O chiaki não altera o buffer, mas a assinatura não é const.
+	// chiaki does not modify the buffer, but the signature is not const.
 	chiaki_opus_encoder_frame(const_cast<int16_t *>(pcm), &impl_->audioEncoder);
 }
 
@@ -673,8 +672,8 @@ void StreamSession::sendController(const ControllerState &state)
 		return;
 
 	std::lock_guard<std::mutex> lock(impl_->mutex);
-	// Parte-se do estado actual para não apagar os toques do touchpad, que
-	// vivem no mesmo pacote que os botões.
+	// Start from the current state so the touchpad touches, which live in
+	// the same packet as the buttons, are not wiped.
 	ChiakiControllerState novo = impl_->controller;
 	if(!impl_->controllerInitialised)
 		chiaki_controller_state_set_idle(&novo);
@@ -686,7 +685,7 @@ void StreamSession::sendController(const ControllerState &state)
 	novo.right_x = state.rightX;
 	novo.right_y = state.rightY;
 
-	// Repetir o mesmo estado é tráfego a mais sem nada em troca.
+	// Repeating the same state is extra traffic for nothing.
 	if(impl_->controllerInitialised && chiaki_controller_state_equals(&impl_->controller, &novo))
 		return;
 	impl_->controller = novo;

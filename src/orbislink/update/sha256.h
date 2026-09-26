@@ -7,20 +7,20 @@
 
 namespace orbislink {
 
-// SHA-256 próprio, sem dependências.
+// Self-contained SHA-256, with no dependencies.
 //
-// É de propósito que não usa o OpenSSL: o núcleo do OrbisLink compila sem
-// Remote Play, e nesse caso não há OpenSSL nenhum no build. São cem linhas
-// e o algoritmo tem vectores de teste públicos — está coberto em
-// tests/test_update.cpp.
+// It deliberately does not use OpenSSL: the OrbisLink core builds without
+// Remote Play, and in that case there is no OpenSSL in the build. It is a
+// hundred lines and the algorithm has public test vectors — it is covered
+// in tests/test_update.cpp.
 class Sha256
 {
 public:
 	Sha256();
 	void update(const void *data, size_t size);
 	void update(const std::string &data);
-	// Devolve os 64 caracteres em minúsculas. Depois disto o objecto não
-	// deve ser reutilizado.
+	// Returns the 64 characters in lowercase. After this the object must
+	// not be reused.
 	std::string hex();
 
 private:
@@ -33,7 +33,7 @@ private:
 };
 
 std::string sha256Hex(const std::string &data);
-// Vazio se o ficheiro não se conseguir ler.
+// Empty if the file cannot be read.
 std::string sha256File(const std::string &path);
 
 } // namespace orbislink

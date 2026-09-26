@@ -9,12 +9,12 @@
 
 namespace orbislink {
 
-// JSON mínimo, sem dependências externas.
+// Minimal JSON, without external dependencies.
 //
-// Tolerância deliberada: o Remote Package Installer devolve números em
-// hexadecimal sem aspas (ex.: { "error_code": 0x80990015, "size": 0x1A2B }),
-// o que NÃO é JSON válido. O parser aceita literais 0x... como inteiros para
-// conseguir ler as respostas reais da consola.
+// Deliberate tolerance: Remote Package Installer returns numbers in
+// hexadecimal without quotes (e.g. { "error_code": 0x80990015, "size": 0x1A2B }),
+// which is NOT valid JSON. The parser accepts 0x... literals as integers so it
+// can read the console's real replies.
 class Json
 {
 public:
@@ -36,14 +36,14 @@ public:
 	bool isNumber() const { return type_ == Type::Int || type_ == Type::Double; }
 	bool isBool() const { return type_ == Type::Bool; }
 
-	// Acessos com valor por omissão: nunca lançam exceções.
+	// Accessors with a default value: they never throw.
 	bool toBool(bool def = false) const;
 	int64_t toInt(int64_t def = 0) const;
 	double toDouble(double def = 0.0) const;
 	std::string toString(const std::string &def = std::string()) const;
 
-	// `"true"`/`"false"` (o is_exists da consola devolve o booleano como texto)
-	// e também true/false reais.
+	// `"true"`/`"false"` (the console's is_exists returns the boolean as text)
+	// as well as real true/false.
 	bool toLooseBool(bool def = false) const;
 
 	const Json &operator[](const std::string &key) const;
@@ -58,7 +58,7 @@ public:
 
 	std::string dump() const;
 
-	// Devolve Json nulo em caso de erro; `error` recebe a descrição.
+	// Returns a null Json on error; `error` receives the description.
 	static Json parse(const std::string &text, std::string *error = nullptr);
 
 	static std::string escape(const std::string &s);

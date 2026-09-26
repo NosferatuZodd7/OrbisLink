@@ -12,43 +12,43 @@
 
 namespace orbislink {
 
-// Teclado → comando do PS4.
+// Keyboard → PS4 controller.
 //
-// Não substitui um comando a sério, mas chega para confirmar que o stream
-// responde e para navegar nos menus. O mapa por omissão é o do chiaki-ng,
-// para quem vem de lá não ter de reaprender; cada acção pode ser mudada para
-// outra tecla, e o que mudou fica nas definições.
+// It does not replace a real controller, but it is enough to confirm the
+// stream responds and to navigate menus. The default map is chiaki-ng's,
+// so people coming from there do not have to relearn it; each action can be
+// moved to another key, and what changed is kept in the settings.
 class KeyboardMap
 {
 public:
-	// Uma acção do comando: um botão (button != 0) ou metade de um eixo.
+	// A controller action: a button (button != 0) or half of an axis.
 	struct Action
 	{
-		const char *id;   // o nome que fica nas definições, ex.: "cross"
+		const char *id;   // the name stored in the settings, e.g. "cross"
 		uint32_t button;  // CHIAKI_CONTROLLER_BUTTON_*, ou 0 se for um eixo
 		int defaultKey;   // Qt::Key
 	};
 	static const std::vector<Action> &actions();
 
-	// acção → tecla. As que não vierem ficam com a tecla por omissão.
+	// action → key. Actions not given keep their default key.
 	using Bindings = std::map<std::string, int>;
 	static Bindings defaults();
 
-	// Teclas que não se podem dar a uma acção: o Esc sai do stream e o F11
-	// muda o ecrã inteiro.
+	// Keys that cannot be given to an action: Esc leaves the stream and F11
+	// toggles full screen.
 	static bool reserved(int key);
 
-	// Dá `key` à acção `action`. Se a tecla já era de outra acção, as duas
-	// trocam — nenhuma acção fica sem tecla. Devolve false (sem mexer em
-	// nada) para uma acção desconhecida ou uma tecla reservada.
+	// Gives `key` to `action`. If the key already belonged to another action,
+	// the two swap — no action is left without a key. Returns false (touching
+	// nothing) for an unknown action or a reserved key.
 	static bool rebind(Bindings &bindings, const std::string &action, int key);
 
 	KeyboardMap();
 	void setBindings(const Bindings &custom);
 	const Bindings &bindings() const { return bindings_; }
 
-	// Devolve false se a tecla não estiver mapeada (para o evento seguir
-	// o seu caminho normal, por exemplo o Esc a fechar a sessão).
+	// Returns false if the key is not mapped (so the event follows its
+	// normal path, for example Esc closing the session).
 	bool press(int key);
 	bool release(int key);
 	void clear();

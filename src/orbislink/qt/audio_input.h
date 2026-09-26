@@ -15,23 +15,23 @@ QT_END_NAMESPACE
 
 namespace orbislink {
 
-// Captura do microfone para o Remote Play.
+// Microphone capture for Remote Play.
 //
-// A consola não negoceia o formato: quer 48 kHz, 2 canais, 16 bits, em
-// tramas de 480 amostras por canal. O microfone da máquina raramente é
-// estéreo, por isso um canal é duplicado quando for preciso; o resto do
-// caminho (Opus, pacotes) é do chiaki.
+// The console does not negotiate the format: it wants 48 kHz, 2 channels,
+// 16 bits, in frames of 480 samples per channel. The machine's microphone is
+// rarely stereo, so one channel is duplicated when needed; the rest of the
+// path (Opus, packets) is chiaki's.
 //
-// A captura é deliberadamente explícita: só arranca quando alguém chama
-// start(), e para quando a sessão acaba. Não há aqui nenhum caminho que a
-// ligue sozinha.
+// Capture is deliberately explicit: it only starts when someone calls
+// start(), and stops when the session ends. There is no path here that
+// turns it on by itself.
 class AudioInput : public QObject
 {
 	Q_OBJECT
 
 public:
-	// Uma trama pronta a enviar: `samples` amostras por canal, já
-	// intercaladas em estéreo.
+	// A frame ready to send: `samples` samples per channel, already
+	// interleaved in stereo.
 	using FrameCallback = std::function<void(const int16_t *pcm, size_t samples)>;
 
 	explicit AudioInput(QObject *parent = nullptr);
@@ -39,9 +39,9 @@ public:
 
 	void setFrameCallback(FrameCallback callback);
 
-	// Arranca a captura no dispositivo de entrada por omissão.
-	// Devolve false e preenche `error` quando não há microfone, quando o
-	// sistema recusa o acesso, ou quando o formato não é aceite.
+	// Starts capture on the default input device.
+	// Returns false and fills `error` when there is no microphone, when the
+	// system denies access, or when the format is not accepted.
 	bool start(QString *error = nullptr);
 	void stop();
 	bool active() const { return active_; }
@@ -64,8 +64,8 @@ private:
 	FrameCallback onFrame_;
 	QString deviceName_;
 	bool active_ = false;
-	// Quando o microfone é mono, cada amostra é duplicada para os dois
-	// canais em vez de se enviar metade do estéreo em silêncio.
+	// When the microphone is mono, each sample is duplicated to both
+	// channels instead of sending half of the stereo as silence.
 	bool duplicateMono_ = false;
 };
 

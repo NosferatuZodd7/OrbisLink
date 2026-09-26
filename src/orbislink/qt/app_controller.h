@@ -21,9 +21,9 @@
 
 namespace orbislink {
 
-// Ponte entre o núcleo (threads próprias) e o QML (thread da UI).
-// O núcleo não conhece Qt: é aqui que os listeners são reencaminhados para
-// sinais, sempre marshalled para a thread da UI.
+// Bridge between the core (its own threads) and QML (the UI thread).
+// The core does not know Qt: this is where listeners are forwarded to
+// signals, always marshalled to the UI thread.
 class AppController : public QObject
 {
 	Q_OBJECT
@@ -52,11 +52,11 @@ class AppController : public QObject
 	Q_PROPERTY(orbislink::QueueModel *queue READ queue CONSTANT)
 	Q_PROPERTY(orbislink::FtpModel *files READ files CONSTANT)
 	Q_PROPERTY(QString version READ version CONSTANT)
-	// Verdadeiro quando a aplicação foi compilada com o Remote Play.
+	// True when the application was built with Remote Play.
 	Q_PROPERTY(bool streamAvailable READ streamAvailable CONSTANT)
 
-	// Actualizações: "parado", "a-verificar", "disponivel", "a-descarregar",
-	// "pronto", "sem-novidades" ou "erro".
+	// Updates: "idle", "checking", "available", "downloading",
+	// "ready", "up-to-date" or "error".
 	Q_PROPERTY(QString updateState READ updateState NOTIFY updateChanged)
 	Q_PROPERTY(QString updateMessage READ updateMessage NOTIFY updateChanged)
 	Q_PROPERTY(QString updateVersion READ updateVersion NOTIFY updateChanged)
@@ -80,12 +80,12 @@ public:
 	QString installerHint() const;
 	bool canInstallDirectly() const;
 	bool canUseFtp() const;
-	// A consola em uso é uma PS5 (pelo tipo que ficou guardado).
+	// The console in use is a PS5 (by the type that was stored).
 	bool activeIsPs5() const;
 	// A porta FTP da consola em uso (a da PS4 ou a da PS5).
 	uint16_t activeFtpPort() const;
-	// O Account ID da consola em uso, ou o último aceite se ela ainda não
-	// tiver nenhum.
+	// The Account ID of the console in use, or the last accepted one if it
+	// does not have one yet.
 	std::string activeAccountId() const;
 	bool queuePaused() const;
 	QString pauseReason() const;
@@ -100,10 +100,10 @@ public:
 	QueueModel *queue() { return &queueModel_; }
 	FtpModel *files() { return &ftpModel_; }
 	QString version() const;
-	// As definições em vigor, para quem precisa delas inteiras (o
-	// controlador do Remote Play).
+	// The settings in effect, for whoever needs all of them (the
+	// Remote Play controller).
 	const Settings &settings() const { return settings_; }
-	// Guarda o Account ID da PSN, para não ser preciso escrevê-lo de cada vez.
+	// Stores the PSN Account ID, so it does not have to be typed every time.
 	Q_INVOKABLE void rememberAccountId(const QString &accountId);
 	bool streamAvailable() const
 	{
@@ -114,23 +114,23 @@ public:
 #endif
 	}
 
-	// Largar ficheiros: mode 0 = instalação direta, 1 = envio por FTP.
+	// Dropping files: mode 0 = direct install, 1 = FTP upload.
 	Q_INVOKABLE void dropUrls(const QList<QUrl> &urls, int mode);
 	Q_INVOKABLE void addPaths(const QStringList &paths, int mode);
 	Q_INVOKABLE void checkServicesNow();
-	// O estado do Remote Play vem do chiaki (StreamController), não da
-	// verificação periódica: é por aqui que entra no indicador da barra.
+	// The Remote Play state comes from chiaki (StreamController), not from
+	// the periodic check: this is how it reaches the status bar indicator.
 	Q_INVOKABLE void reportRemotePlayState(const QString &state, const QString &detail);
-	// O QML avisa aqui cada vez que um arrasto entra, sai ou é largado.
+	// QML reports here every time a drag enters, leaves or is dropped.
 	//
-	// Sem contadores não se distingue o Windows a não entregar o evento
-	// (aplicação elevada, por exemplo) de nós a recusá-lo. Com eles, zero
-	// arrastos vistos é uma resposta, e não um palpite.
+	// Without counters there is no telling Windows not delivering the event
+	// (an elevated application, for example) apart from us refusing it. With
+	// them, zero drags seen is an answer, not a guess.
 	Q_INVOKABLE void noteDrag(const QString &evento, bool comFicheiros);
 	QString dragSummary() const;
-	// O diagnóstico precisa de perguntar ao Remote Play como está o caminho
-	// do som, mas o AppController não conhece o StreamController (nem sempre
-	// há um). Fica só com a pergunta, não com quem a responde.
+	// Diagnostics need to ask Remote Play how the audio path is doing, but
+	// AppController does not know StreamController (there is not always
+	// one). It keeps only the question, not who answers it.
 	void setAudioProbe(std::function<QString()> probe);
 	QString audioProbe() const;
 	void setVideoProbe(std::function<QString()> probe);
@@ -150,13 +150,13 @@ public:
 	Q_INVOKABLE void ftpMakeDirectory(const QString &name);
 	Q_INVOKABLE void ftpRename(const QString &path, const QString &newName);
 
-	// Trazer da consola para o PC (§5.5). `destination` vazio = pasta por
-	// omissão (ambiente de trabalho).
+	// Bring from the console to the PC (§5.5). Empty `destination` = default
+	// folder (desktop).
 	Q_INVOKABLE void ftpDownload(const QString &remotePath, const QString &name,
 		const QString &destinationDir);
 	// Igual, mas para a cache local que alimenta o arrastar para fora.
 	Q_INVOKABLE void ftpPrepareForDrag(const QString &remotePath, const QString &name, qint64 size);
-	// URL local do ficheiro se já estiver na cache com o tamanho certo, senão vazio.
+	// Local URL of the file if it is already cached with the right size, otherwise empty.
 	Q_INVOKABLE QString cachedFileUrl(const QString &remotePath, qint64 size) const;
 	Q_INVOKABLE void cancelDownload();
 	Q_INVOKABLE QString defaultDownloadDirectory() const;
@@ -164,12 +164,12 @@ public:
 	Q_INVOKABLE void copyToClipboard(const QString &text) const;
 	Q_INVOKABLE void setFtpUploadDirectory(const QString &path);
 
-	// Verificação pontual de um endereço ainda não guardado: as definições
-	// chamam isto enquanto se escreve o IP, sem mexer nas definições em vigor.
+	// One-off check of an address not saved yet: the settings dialog calls
+	// this while the IP is typed, without touching the settings in effect.
 	Q_INVOKABLE void probeConsole(const QString &address, int ftpPort, int installerPort);
 
-	// Diagnóstico: o registo ao vivo na janela, e o relatório num ficheiro
-	// que se pode anexar a uma mensagem.
+	// Diagnostics: the live log in the window, and the report in a file
+	// that can be attached to a message.
 	Q_INVOKABLE QStringList recentLog(int lines = 300) const;
 	Q_INVOKABLE QString diagnosticsReport() const;
 	Q_INVOKABLE QString exportDiagnostics(const QString &directory = QString());
@@ -178,17 +178,17 @@ public:
 	Q_INVOKABLE void setStreamVerbose(bool verbose);
 	Q_INVOKABLE bool streamVerbose() const { return streamVerbose_; }
 
-	// Actualizações. A verificação e a descarga acontecem fora do fio da
-	// interface; o estado chega por updateChanged().
+	// Updates. Checking and downloading happen off the interface thread;
+	// the state arrives through updateChanged().
 	Q_INVOKABLE void checkForUpdatesNow(bool silentWhenUpToDate = false);
-	// Descarrega o instalador, confirma o SHA-256 quando há um publicado, e
-	// corre-o. Em sistemas sem instalador publicado, abre a página.
+	// Downloads the installer, confirms the SHA-256 when one is published,
+	// and runs it. On systems without a published installer, opens the page.
 	Q_INVOKABLE void installUpdate();
 	Q_INVOKABLE void openUpdatePage() const;
 	Q_INVOKABLE void dismissUpdate();
-	// Só para as capturas de ecrã (--demo-update): preenche os campos a
-	// partir de uma resposta de exemplo, pelo mesmo caminho de código que a
-	// resposta verdadeira segue.
+	// Only for screenshots (--demo-update): fills in the fields from a
+	// sample reply, through the same code path the real reply
+	// follows.
 	Q_INVOKABLE void loadDemoUpdate();
 	QString updateState() const { return updateState_; }
 	QString updateMessage() const { return updateMessage_; }
@@ -200,34 +200,34 @@ public:
 
 	Q_INVOKABLE QVariantMap settingsMap() const;
 	Q_INVOKABLE void applySettings(const QVariantMap &values);
-	// Passa a usar a consola com este endereço (tem de estar na lista).
+	// Switches to the console with this address (it must be in the list).
 	Q_INVOKABLE void selectConsole(const QString &address);
-	// Junta uma consola à lista e passa a usá-la. Se o endereço já lá
-	// estiver, só a escolhe.
-	// `type` é "ps4", "ps5" ou vazio (desconhecido).
+	// Adds a console to the list and switches to it. If the address is
+	// already there, it is just selected.
+	// `type` is "ps4", "ps5" or empty (unknown).
 	Q_INVOKABLE void addConsole(const QString &name, const QString &address,
 		const QString &type = QString());
-	// Lembra o tipo de uma consola que respondeu, para o mostrar mesmo quando
-	// ela estiver desligada. Só grava se mudou.
+	// Remembers the type of a console that answered, to show it even when
+	// it is off. Only saves if it changed.
 	Q_INVOKABLE void rememberConsoleType(const QString &address, bool ps5);
-	// Tira da lista uma consola que não esteja em uso.
+	// Removes a console that is not in use from the list.
 	Q_INVOKABLE void removeConsole(const QString &address);
-	// Grava só o tema. O applySettings reconstrói os serviços todos (fila,
-	// servidor HTTP, gestor da consola) — mudar de tema a meio de uma
-	// instalação pararia a transferência.
+	// Saves only the theme. applySettings rebuilds all the services (queue,
+	// HTTP server, console manager) — changing theme in the middle of an
+	// install would stop the transfer.
 	Q_INVOKABLE void setTheme(const QString &theme);
-	// Grava só o que a verificação de actualizações precisa, pela mesma
-	// razão: carregar em "Verificar agora" não pode mexer em mais nada.
-	// Grava as teclas do teclado como comando (acção → tecla), sem
-	// reconstruir os serviços.
+	// Saves only what the update check needs, for the same reason:
+	// pressing "Check now" must not touch anything else.
+	// Saves the keyboard-as-controller keys (action → key), without
+	// rebuilding the services.
 	void saveKeyBindings(const std::map<std::string, int> &bindings);
 	Q_INVOKABLE void saveUpdateSettings(bool checkForUpdates, const QString &repository,
 		const QString &channel);
 
 signals:
 	void settingsChanged();
-	// Uma linha nova no registo, já mascarada. A janela de diagnóstico
-	// liga-se a isto para se ver o que acontece em tempo real.
+	// A new log line, already masked. The diagnostics window connects to
+	// this to show what happens in real time.
 	void logLine(const QString &level, const QString &text);
 	void statusChanged();
 	void queueStateChanged();
@@ -238,18 +238,18 @@ signals:
 	void consoleProbed(const QString &address, bool ftpOk, bool installerOk,
 		const QString &detail);
 	void downloadChanged();
-	// Emitido quando um ficheiro fica pronto na cache local: o FtpBrowser
-	// passa então a poder arrastá-lo para fora da janela.
+	// Emitted when a file is ready in the local cache: FtpBrowser can then
+	// drag it out of the window.
 	void dragFileReady(const QString &remotePath, const QString &localUrl);
 	void updateChanged();
-	// Emitido quando há uma versão nova e a verificação não foi silenciosa:
-	// a janela abre o diálogo a partir daqui.
+	// Emitted when there is a new version and the check was not silent:
+	// the window opens the dialog from here.
 	void updateAvailable(const QString &version);
 
 private:
 	void rebuildBackends();
-	// Diz porque é que um clique não fez nada, em vez de o engolir em
-	// silêncio. Devolve false quando a operação não pode seguir.
+	// Says why a click did nothing, instead of swallowing it silently.
+	// Returns false when the operation cannot go ahead.
 	bool ftpReady(const QString &operacao);
 	void refreshQueueModel();
 	void setStatusMessage(const QString &message);
@@ -272,8 +272,8 @@ private:
 	QString statusMessage_;
 	QString ftpPath_ = QStringLiteral("/data/pkg/");
 	bool ftpBusy_ = false;
-	// Só a verificação mais recente interessa: as anteriores são descartadas
-	// quando chegam, para o resultado nunca contradizer o que está escrito.
+	// Only the most recent check matters: earlier ones are discarded when
+	// they arrive, so the result never contradicts what is on screen.
 	std::atomic<uint64_t> probeGeneration_ { 0 };
 	bool streamVerbose_ = false;
 	int dragsVistos_ = 0;
@@ -281,8 +281,8 @@ private:
 	int dragsRecusados_ = 0;
 	std::function<QString()> audioProbe_;
 	std::function<QString()> videoProbe_;
-	// O último estado do Remote Play que o StreamController reportou, para
-	// o repor depois de os serviços serem reconstruídos.
+	// The last Remote Play state StreamController reported, to restore it
+	// after the services are rebuilt.
 	QString lastRemotePlayState_;
 	QString lastRemotePlayDetail_;
 

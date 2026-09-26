@@ -50,7 +50,7 @@ uint32_t buttonFor(SDL_GameControllerButton button)
 	}
 }
 
-// Os gatilhos do SDL vão de 0 a 32767; a consola espera 0 a 255.
+// SDL triggers range from 0 to 32767; the console expects 0 to 255.
 uint8_t triggerFrom(int16_t value)
 {
 	if(value <= 0)
@@ -68,8 +68,8 @@ bool equals(const StreamSession::ControllerState &a, const StreamSession::Contro
 
 Gamepad::Gamepad(QObject *parent) : QObject(parent)
 {
-	// 8 ms: 125 leituras por segundo, o dobro da cadência de imagem, que
-	// chega e sobra sem dar trabalho de mais ao processador.
+	// 8 ms: 125 reads per second, twice the frame rate, which is more
+	// than enough without overworking the CPU.
 	timer_.setInterval(8);
 	connect(&timer_, &QTimer::timeout, this, &Gamepad::poll);
 }
@@ -83,7 +83,7 @@ void Gamepad::start()
 
 	if(!initialised_)
 	{
-		// Sem vídeo nem áudio: só os comandos. O SDL não abre janela nenhuma.
+		// No video or audio: just controllers. SDL opens no window.
 		SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
 		if(SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) != 0)
 		{
@@ -123,8 +123,8 @@ void Gamepad::rumble(quint8 left, quint8 right)
 	// O SDL usa 0-65535; a consola manda 0-255.
 	const Uint16 baixa = static_cast<Uint16>(left) * 257;
 	const Uint16 alta = static_cast<Uint16>(right) * 257;
-	// 200 ms renovados a cada pedido: se a consola parar de pedir, o
-	// comando pára sozinho em vez de ficar a vibrar para sempre.
+	// 200 ms renewed on every request: if the console stops asking, the
+	// controller stops by itself instead of rumbling forever.
 	SDL_GameControllerRumble(static_cast<SDL_GameController *>(controller_), baixa, alta, 200);
 }
 
@@ -144,7 +144,7 @@ void Gamepad::poll()
 			name_.clear();
 			logInfo("Remote Play: controller disconnected.");
 			emit connectedChanged(name_);
-			// Larga tudo, senão fica um botão preso do outro lado.
+			// Release everything, otherwise a button stays stuck on the other side.
 			emit stateChanged({});
 			haveLast_ = false;
 		}

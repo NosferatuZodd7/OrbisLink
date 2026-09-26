@@ -14,10 +14,10 @@ namespace orbislink {
 
 namespace {
 
-// Um SHA-256 publicado ao lado do ficheiro pode vir de duas maneiras: num
-// anexo "<nome>.sha256", ou escrito no corpo do lançamento. Aqui trata-se
-// da segunda: procura-se uma palavra de 64 dígitos hexadecimais na mesma
-// linha que o nome do ficheiro.
+// A SHA-256 published next to the file can come in two ways: in an
+// "<name>.sha256" asset, or written in the release body. This handles
+// the second: look for a 64-hex-digit word on the same line as the
+// file name.
 std::string sha256FromNotes(const std::string &notes, const std::string &assetName)
 {
 	if(notes.empty() || assetName.empty())
@@ -69,8 +69,8 @@ std::string platformAssetSuffix()
 	// O instalador que o release.yml publica.
 	return "-setup.exe";
 #else
-	// Em Linux ainda não há um pacote que se instale sozinho (o AppImage
-	// está por fazer), por isso só se oferece a página do lançamento.
+	// On Linux there is no self-installing package yet (the AppImage
+	// is still to do), so only the release page is offered.
 	return std::string();
 #endif
 }
@@ -81,7 +81,7 @@ std::vector<ReleaseInfo> UpdateChecker::parseReleases(const std::string &json,
 	std::vector<ReleaseInfo> releases;
 	std::string error;
 	const Json root = Json::parse(json, &error);
-	// A API devolve uma lista; /releases/latest devolve um objecto só.
+	// The API returns a list; /releases/latest returns a single object.
 	std::vector<Json> entradas;
 	if(root.isArray())
 		entradas = root.items();
@@ -94,7 +94,7 @@ std::vector<ReleaseInfo> UpdateChecker::parseReleases(const std::string &json,
 	{
 		if(!entrada.isObject())
 			continue;
-		// Rascunhos não existem para quem está do lado de fora.
+		// Drafts do not exist for anyone on the outside.
 		if(entrada["draft"].toLooseBool(false))
 			continue;
 		ReleaseInfo info;
@@ -106,9 +106,9 @@ std::vector<ReleaseInfo> UpdateChecker::parseReleases(const std::string &json,
 		info.pageUrl = entrada["html_url"].toString();
 		info.prerelease = entrada["prerelease"].toLooseBool(false);
 
-		// Cada ficheiro publicado tem o seu "<nome>.sha256" ao lado; o que
-		// interessa é o do ficheiro que se vai descarregar, e não um
-		// qualquer (o do zip não serve para verificar o instalador).
+		// Every published file has its own "<name>.sha256" next to it; what
+		// matters is the one for the file being downloaded, not just any
+		// (the zip's does not verify the installer).
 		std::map<std::string, std::string> hashes;
 		const Json &anexos = entrada["assets"];
 		for(size_t i = 0; i < anexos.size(); ++i)
@@ -148,7 +148,7 @@ const ReleaseInfo *UpdateChecker::pick(const std::vector<ReleaseInfo> &releases,
 	Version melhorVersao;
 	for(const ReleaseInfo &info : releases)
 	{
-		// No canal estável, uma pré-lançamento não conta.
+		// On the stable channel, a prerelease does not count.
 		if(channel == UpdateChannel::Stable && info.prerelease)
 			continue;
 		const Version versao = info.version();
@@ -161,9 +161,9 @@ const ReleaseInfo *UpdateChecker::pick(const std::vector<ReleaseInfo> &releases,
 	}
 	if(!melhor)
 		return nullptr;
-	// Só é novidade se for mesmo posterior ao que está instalado. Uma
-	// versão local ilegível conta como antiga, e aí qualquer lançamento
-	// válido serve.
+	// It is only news if it is really newer than what is installed. An
+	// unreadable local version counts as old, and then any valid release
+	// will do.
 	if(atual.valid && compareVersions(melhorVersao, atual) <= 0)
 		return nullptr;
 	return melhor;
@@ -174,8 +174,8 @@ std::string UpdateChecker::describeNothingNew(const std::vector<ReleaseInfo> &re
 {
 	if(channel == UpdateChannel::Stable)
 	{
-		// Só com compilações de testes publicadas, o canal estável responderia
-		// "estás na versão mais recente" com uma versão nova ao lado.
+		// With only testing builds published, the stable channel would answer
+		// "you are on the latest version" with a new version right next to it.
 		const ReleaseInfo *testes = pick(releases, UpdateChannel::Testing, currentVersion);
 		if(testes)
 			return std::string(QT_TRANSLATE_NOOP("Messages",
@@ -213,8 +213,8 @@ UpdateCheckResult UpdateChecker::check() const
 	}
 	if(response.status == 404)
 	{
-		// O caso que realmente acontece: o repositório é privado, ou mudou
-		// de nome. Dizê-lo em vez de um "sem novidades" que mente.
+		// The case that actually happens: the repository is private, or was
+		// renamed. Say so instead of a misleading "nothing new".
 		result.message = std::string(QT_TRANSLATE_NOOP("Messages",
 							 "The update repository did not respond (it is private, or the name is wrong)"))
 			+ ": " + config_.repository;

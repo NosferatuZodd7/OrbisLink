@@ -323,7 +323,7 @@ private:
 				return false;
 			skipWhitespace();
 			if(pos_ >= text_.size() || text_[pos_] != ':')
-				return fail("esperava-se ':'");
+				return fail("expected ':'");
 			++pos_;
 			Json value;
 			if(!parseValue(value))
@@ -342,7 +342,7 @@ private:
 				++pos_;
 				return true;
 			}
-			return fail("esperava-se ',' ou '}'");
+			return fail("expected ',' or '}'");
 		}
 	}
 
@@ -375,7 +375,7 @@ private:
 				++pos_;
 				return true;
 			}
-			return fail("esperava-se ',' ou ']'");
+			return fail("expected ',' or ']'");
 		}
 	}
 
@@ -455,7 +455,7 @@ private:
 			negative = text_[pos_] == '-';
 			++pos_;
 		}
-		// Extensão: hexadecimal (o instalador da consola devolve 0x...).
+		// Extension: hexadecimal (the console's installer returns 0x...).
 		if(pos_ + 1 < text_.size() && text_[pos_] == '0'
 			&& (text_[pos_ + 1] == 'x' || text_[pos_ + 1] == 'X'))
 		{

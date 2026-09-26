@@ -16,9 +16,9 @@ struct HttpResponse
 	std::string error; // mensagem do libcurl quando transportOk == false
 };
 
-// Cliente HTTP minimalista sobre libcurl, usado pelo RpiClient e pelas
-// verificações de serviço. Não segue redireções e não usa proxies do sistema:
-// os pedidos são sempre para a consola na rede local.
+// Minimal HTTP client on top of libcurl, used by RpiClient and the service
+// checks. It does not follow redirects or use the system proxies: requests
+// always go to the console on the local network.
 class HttpClient
 {
 public:
@@ -31,10 +31,9 @@ public:
 		const std::string &contentType = "application/json") const;
 	HttpResponse get(const std::string &url) const;
 
-	// Pedidos para fora da rede local (a API do GitHub, na verificação de
-	// actualizações). Ao contrário do get() acima, este segue redireções —
-	// um repositório que mudou de nome responde 301 — e aceita cabeçalhos
-	// à medida.
+	// Requests outside the local network (the GitHub API, for the update
+	// check). Unlike get() above, this one follows redirects — a renamed
+	// repository answers 301 — and takes custom headers.
 	struct FetchOptions
 	{
 		bool followRedirects = true;
@@ -49,9 +48,9 @@ public:
 		std::string error;
 		int64_t bytes = 0;
 	};
-	// Descarrega para um ficheiro. O progresso é chamado ao longo do
-	// caminho e devolver false cancela. Segue redireções sempre: os anexos
-	// dos lançamentos do GitHub vivem noutro domínio.
+	// Downloads to a file. Progress is called along the way and returning
+	// false cancels. It always follows redirects: GitHub release assets live
+	// on another domain.
 	DownloadResult download(const std::string &url, const std::string &destinationPath,
 		const std::function<bool(int64_t done, int64_t total)> &progress = nullptr) const;
 

@@ -11,9 +11,9 @@ namespace orbislink {
 
 namespace {
 
-// Compara dois pedaços de um identificador de pré-lançamento. Pelo semver,
-// um pedaço numérico vale menos que um alfanumérico, e dois numéricos
-// comparam-se por valor e não por texto ("10" > "9").
+// Compares two parts of a prerelease identifier. Per semver, a numeric
+// part ranks lower than an alphanumeric one, and two numeric parts are
+// compared by value, not as text ("10" > "9").
 bool allDigits(const std::string &s)
 {
 	if(s.empty())
@@ -28,7 +28,7 @@ bool allDigits(const std::string &s)
 
 int comparePreRelease(const std::string &a, const std::string &b)
 {
-	// Sem pré-lançamento é sempre a versão mais recente das duas.
+	// Without a prerelease it is always the newer of the two.
 	if(a.empty() && b.empty())
 		return 0;
 	if(a.empty())
@@ -80,12 +80,12 @@ Version parseVersion(const std::string &text)
 	std::string value = trim(text);
 	if(value.empty())
 		return version;
-	// As tags vêm com "v" à frente; o nome que a app tem de si própria não.
+	// Tags come with a leading "v"; the app's own version name does not.
 	if(value[0] == 'v' || value[0] == 'V')
 		value.erase(0, 1);
 
-	// Tudo o que venha depois de um "+" é metadados de build e não conta
-	// para a ordem (semver).
+	// Anything after a "+" is build metadata and does not count
+	// for ordering (semver).
 	const size_t plus = value.find('+');
 	if(plus != std::string::npos)
 		value.erase(plus);

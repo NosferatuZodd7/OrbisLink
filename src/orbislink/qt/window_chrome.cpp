@@ -18,9 +18,9 @@ QString g_resumo = QStringLiteral("the title bar is the system's (nothing to adj
 
 #ifdef Q_OS_WIN
 
-// Os números vêm do dwmapi.h da Microsoft. Estão aqui à mão de propósito:
-// os cabeçalhos antigos não os têm todos, e não quero que a compilação
-// dependa da versão do SDK instalada no runner.
+// The numbers come from Microsoft's dwmapi.h. They are here by hand on
+// purpose: old headers do not have them all, and the build should not
+// depend on the SDK version installed on the runner.
 constexpr DWORD kUseImmersiveDarkMode = 20;
 constexpr DWORD kUseImmersiveDarkModeAntigo = 19; // Windows 10 1809 a 1903
 constexpr DWORD kBorderColor = 34;
@@ -28,7 +28,7 @@ constexpr DWORD kCaptionColor = 35;
 constexpr DWORD kTextColor = 36;
 constexpr DWORD kSystemBackdropType = 38;
 
-// DWMSBT_*: 2 é mica (janela principal), 3 é acrílico (janela passageira).
+// DWMSBT_*: 2 is mica (main window), 3 is acrylic (transient window).
 constexpr int kBackdropMica = 2;
 constexpr int kBackdropAcrylic = 3;
 
@@ -38,8 +38,8 @@ using SetAttributeFn = HRESULT(WINAPI *)(HWND, DWORD, LPCVOID, DWORD);
 
 SetAttributeFn resolveSetAttribute()
 {
-	// Carregado à mão para a aplicação continuar a arrancar num Windows sem
-	// composição, em vez de morrer no arranque por falta de um símbolo.
+	// Loaded by hand so the application still starts on a Windows without
+	// composition, instead of dying at startup for lack of a symbol.
 	static SetAttributeFn fn = []() -> SetAttributeFn {
 		HMODULE dwm = LoadLibraryW(L"dwmapi.dll");
 		if(!dwm)
@@ -50,10 +50,10 @@ SetAttributeFn resolveSetAttribute()
 	return fn;
 }
 
-// Devolve true quando o sistema aceitou o atributo. Um E_INVALIDARG aqui
-// não é erro nenhum: é esta versão do Windows a dizer que não conhece a
-// funcionalidade, e é assim que se descobre até onde se pode ir sem ter uma
-// tabela de números de build para manter.
+// Returns true when the system accepted the attribute. An E_INVALIDARG here
+// is no error at all: it is this Windows version saying it does not know
+// the feature, and that is how we find out how far we can go without a
+// table of build numbers to maintain.
 bool trySet(HWND hwnd, DWORD atributo, const void *valor, DWORD tamanho)
 {
 	SetAttributeFn fn = resolveSetAttribute();
@@ -64,7 +64,7 @@ bool trySet(HWND hwnd, DWORD atributo, const void *valor, DWORD tamanho)
 
 DWORD toColorRef(const QColor &cor)
 {
-	// O Windows quer 0x00BBGGRR, ao contrário de toda a gente.
+	// Windows wants 0x00BBGGRR, unlike everyone else.
 	return static_cast<DWORD>(cor.red()) | (static_cast<DWORD>(cor.green()) << 8)
 		| (static_cast<DWORD>(cor.blue()) << 16);
 }
@@ -80,7 +80,7 @@ QString WindowChrome::summary() { return g_resumo; }
 bool WindowChrome::runningElevated()
 {
 #ifdef Q_OS_WIN
-	// Calculado uma vez: o token do processo não muda durante a vida dele.
+	// Computed once: the process token does not change during its life.
 	static const bool elevado = []() {
 		HANDLE token = nullptr;
 		if(!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token))
@@ -95,8 +95,8 @@ bool WindowChrome::runningElevated()
 	}();
 	return elevado;
 #else
-	// Noutros sistemas correr como root não impede arrastar ficheiros, e
-	// portanto não há aqui nada a avisar.
+	// On other systems running as root does not prevent dragging files, and
+	// so there is nothing to warn about here.
 	return false;
 #endif
 }
@@ -120,17 +120,17 @@ void WindowChrome::applyTheme(const QColor &caption, const QColor &text, const Q
 	if(!hwnd)
 		return;
 
-	// A barra escura é a base de tudo o resto: mesmo quando se escolhe a
-	// cor, é isto que decide a cor dos botões de minimizar e fechar.
+	// The dark bar is the base of everything else: even when the colour is
+	// chosen, this is what decides the colour of the minimise and close buttons.
 	const BOOL escuro = dark ? TRUE : FALSE;
 	if(!trySet(hwnd, kUseImmersiveDarkMode, &escuro, sizeof(escuro)))
 		trySet(hwnd, kUseImmersiveDarkModeAntigo, &escuro, sizeof(escuro));
 
 	QString conseguido;
 
-	// 1. O material do sistema. É o único que dá translucidez a sério: o
-	//    Windows desfoca o que está por trás da janela, coisa que nós não
-	//    conseguimos fazer a partir daqui.
+	// 1. The system material. It is the only one giving real translucency:
+	//    Windows blurs what is behind the window, something we cannot do
+	//    from here.
 	bool comMaterial = false;
 	if(translucent)
 	{
@@ -151,16 +151,16 @@ void WindowChrome::applyTheme(const QColor &caption, const QColor &text, const Q
 
 	if(comMaterial)
 	{
-		// Com material, escolher a cor da barra estraga-o: o DWM passa a
-		// pintá-la de sólido e o efeito desaparece.
+		// With a material, choosing the bar colour ruins it: DWM starts
+		// painting it solid and the effect disappears.
 		const DWORD porOmissao = kColorDefault;
 		trySet(hwnd, kCaptionColor, &porOmissao, sizeof(porOmissao));
 		trySet(hwnd, kTextColor, &porOmissao, sizeof(porOmissao));
 	}
 	else
 	{
-		// 2. Sem material, pinta-se a barra da cor do tema. Não é vidro,
-		//    mas deixa de haver uma faixa branca por cima de tudo.
+		// 2. Without a material, paint the bar in the theme colour. It is not
+		//    glass, but there is no longer a white strip on top of everything.
 		const DWORD corBarra = toColorRef(caption);
 		if(trySet(hwnd, kCaptionColor, &corBarra, sizeof(corBarra)))
 		{
@@ -171,7 +171,7 @@ void WindowChrome::applyTheme(const QColor &caption, const QColor &text, const Q
 		}
 		else
 		{
-			// 3. Resta o modo escuro, que já foi pedido acima.
+			// 3. What is left is dark mode, already requested above.
 			conseguido = dark ? QStringLiteral("dark system bar, colour not chosen")
 							  : QStringLiteral("light system bar, colour not chosen");
 		}
@@ -181,8 +181,8 @@ void WindowChrome::applyTheme(const QColor &caption, const QColor &text, const Q
 	const DWORD corMoldura = toColorRef(border);
 	trySet(hwnd, kBorderColor, &corMoldura, sizeof(corMoldura));
 
-	// Sem isto, a barra só muda quando a janela for redesenhada por outro
-	// motivo qualquer — e trocar de tema ficaria sem efeito visível.
+	// Without this, the bar only changes when the window is redrawn for
+	// some other reason — and switching theme would have no visible effect.
 	SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
 		SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
 
@@ -192,8 +192,8 @@ void WindowChrome::applyTheme(const QColor &caption, const QColor &text, const Q
 		logInfo("Janela: " + conseguido.toStdString() + ".");
 	}
 #else
-	// Fora do Windows a decoração é do gestor de janelas e não há aqui nada
-	// a pedir-lhe. Os parâmetros ficam usados para o compilador não avisar.
+	// Outside Windows the decoration belongs to the window manager and there
+	// is nothing to ask it here. The parameters are marked used so the compiler does not warn.
 	Q_UNUSED(caption)
 	Q_UNUSED(text)
 	Q_UNUSED(border)

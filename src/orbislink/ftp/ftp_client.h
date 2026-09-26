@@ -37,14 +37,14 @@ struct FtpResult
 	}
 };
 
-// Devolve false para cancelar a operação.
+// Return false to cancel the operation.
 using FtpProgressCallback = std::function<bool(int64_t done, int64_t total)>;
 
-// Cliente FTP sobre libcurl para o servidor do GoldHEN (porta 2121, login
-// anónimo, modo passivo) — §5.5.
+// FTP client on top of libcurl for GoldHEN's server (port 2121, anonymous
+// login, passive mode) — §5.5 — and etaHEN's on the PS5 (port 1337).
 //
-// Uma ligação de cada vez por omissão: os servidores FTP de HEN são frágeis
-// com ligações paralelas. O limite é configurável até 2.
+// One connection at a time by default: HEN FTP servers are fragile with
+// parallel connections. The limit can be raised to 2.
 class FtpClient
 {
 public:
@@ -57,8 +57,8 @@ public:
 		bool passive = true;
 		int idleTimeoutSeconds = 30; // §5.5
 		int connectTimeoutSeconds = 10;
-		int maxRetries = 3;          // reconexão automática
-		int maxConnections = 1;      // até 2
+		int maxRetries = 3;          // automatic reconnection
+		int maxConnections = 1;      // up to 2
 		bool advancedMode = false;   // desbloqueia as zonas protegidas
 	};
 
@@ -82,11 +82,11 @@ public:
 	FtpResult removeDirectory(const std::string &remotePath);
 	FtpResult rename(const std::string &fromPath, const std::string &toPath);
 
-	// Cancela a operação em curso; volta a false quando a operação termina.
+	// Cancels the current operation; goes back to false when the operation ends.
 	void cancel();
 	bool cancelRequested() const { return cancel_.load(); }
 
-	// Zonas protegidas (§5.5): só de leitura salvo "Modo avançado".
+	// Protected areas (§5.5): read-only unless "Advanced mode" is on.
 	static bool isProtectedPath(const std::string &remotePath);
 	bool isWriteAllowed(const std::string &remotePath) const;
 
@@ -105,7 +105,7 @@ private:
 	mutable std::mutex mutex_;
 	Config config_;
 	std::atomic<bool> cancel_ { false };
-	// Semáforo simples para limitar ligações simultâneas.
+	// Simple semaphore to limit simultaneous connections.
 	mutable std::mutex slotMutex_;
 	int slotsInUse_ = 0;
 };
