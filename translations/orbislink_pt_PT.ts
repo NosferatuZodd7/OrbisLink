@@ -57,7 +57,7 @@
 <context>
     <name>AddConsoleCard</name>
     <message>
-        <location filename="../qml/orbislink/AddConsoleCard.qml" line="55"/>
+        <location filename="../qml/orbislink/AddConsoleCard.qml" line="114"/>
         <source>Adicionar consola</source>
         <translation>Adicionar consola</translation>
     </message>
@@ -204,22 +204,22 @@
         <translation>Por registar — clica para registar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="265"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="269"/>
         <source>Registar este PC outra vez</source>
         <translation>Registar este PC outra vez</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="266"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="270"/>
         <source>Registar este PC na consola</source>
         <translation>Registar este PC na consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="279"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="283"/>
         <source>Tirar esta consola da lista</source>
         <translation>Tirar esta consola da lista</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="363"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="377"/>
         <source>Consola</source>
         <translation>Consola</translation>
     </message>
