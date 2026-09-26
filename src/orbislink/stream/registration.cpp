@@ -68,30 +68,30 @@ Recusa explicarRecusa(uint32_t motivo)
 	switch(motivo)
 	{
 		case CHIAKI_RP_APPLICATION_REASON_INVALID_PSN_ID:
-			return { "a consola não reconheceu o Account ID (0x80108b02)",
+			return { "the console did not recognise the Account ID (0x80108b02)",
 				QT_TRANSLATE_NOOP("Messages", "The console did not recognise the Account ID. It must belong "
 					"to the PSN account you used to request the PIN on the "
 					"console (each user has their own), not the PSN user name.") };
 		case CHIAKI_RP_APPLICATION_REASON_REGIST_FAILED:
-			return { "a consola recusou o PIN (0x80108b09)",
+			return { "the console rejected the PIN (0x80108b09)",
 				QT_TRANSLATE_NOOP("Messages", "The console rejected the PIN. Request a new one on the "
 					"console — it is only valid for a few minutes — and type it "
 					"again.") };
 		case CHIAKI_RP_APPLICATION_REASON_IN_USE:
-			return { "o Remote Play da consola já está a ser usado (0x80108b10)",
+			return { "the console's Remote Play is already in use (0x80108b10)",
 				QT_TRANSLATE_NOOP("Messages", "The console's Remote Play is already in use by another "
 					"device. Close that session and try again.") };
 		case CHIAKI_RP_APPLICATION_REASON_CRASH:
-			return { "o Remote Play da consola foi abaixo (0x80108b15)",
+			return { "the console's Remote Play crashed (0x80108b15)",
 				QT_TRANSLATE_NOOP("Messages", "The console's Remote Play crashed. Restart the console and "
 					"try again.") };
 		case CHIAKI_RP_APPLICATION_REASON_RP_VERSION:
-			return { "versão do Remote Play incompatível (0x80108b11)",
+			return { "incompatible Remote Play version (0x80108b11)",
 				QT_TRANSLATE_NOOP("Messages", "The console did not accept the Remote Play version. Update "
 					"the console system software and try again.") };
 		default:
-			return { "a consola recusou o registo (PIN expirado ou errado, Account ID errado, "
-					 "ou Remote Play desligado na consola)",
+			return { "the console rejected the registration (expired or wrong PIN, wrong "
+					 "Account ID, or Remote Play turned off on the console)",
 				QT_TRANSLATE_NOOP("Messages", "The console rejected the registration. Check the PIN (it is "
 					"valid for a few minutes), the PSN Account ID, and that the "
 					"console is on the same network.") };
@@ -113,7 +113,7 @@ void registCallback(ChiakiRegistEvent *event, void *user)
 		{
 			StreamCredentials credentials = fromChiaki(event->registered_host);
 			impl->running.store(false);
-			StreamTrace::instance().ok("consola \"" + credentials.nickname + "\" registada, "
+			StreamTrace::instance().ok("console \"" + credentials.nickname + "\" registered, "
 				"host-id " + credentials.hostId);
 			if(finished)
 				finished(true, credentials, std::string());
@@ -121,7 +121,7 @@ void registCallback(ChiakiRegistEvent *event, void *user)
 		}
 		case CHIAKI_REGIST_EVENT_TYPE_FINISHED_CANCELED:
 			impl->running.store(false);
-			StreamTrace::instance().fail("registo cancelado");
+			StreamTrace::instance().fail("registration cancelled");
 			if(finished)
 				finished(false, {}, QT_TRANSLATE_NOOP("Messages", "Registration cancelled."));
 			break;
@@ -194,10 +194,10 @@ bool StreamRegistration::start(const Request &request, Finished finished, std::s
 	info.holepunch_info = nullptr;
 	info.rudp = nullptr;
 
-	StreamTrace::instance().step("registo",
-		"alvo " + std::to_string(request.target) + ", PIN de " + std::to_string(request.pin > 0 ? 8 : 0)
-			+ " dígitos, Account ID com "
-			+ std::to_string(request.accountIdBase64.size()) + " caracteres");
+	StreamTrace::instance().step("registration",
+		"target " + std::to_string(request.target) + ", " + std::to_string(request.pin > 0 ? 8 : 0)
+			+ "-digit PIN, Account ID with "
+			+ std::to_string(request.accountIdBase64.size()) + " characters");
 
 	impl_->running.store(true);
 	takeApplicationReason(); // um motivo antigo não serve para este registo
@@ -213,7 +213,7 @@ bool StreamRegistration::start(const Request &request, Finished finished, std::s
 		return false;
 	}
 	impl_->started = true;
-	logInfo("Remote Play: registo iniciado em " + request.address);
+	logInfo("Remote Play: registration started on " + request.address);
 	return true;
 }
 

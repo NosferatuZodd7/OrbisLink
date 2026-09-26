@@ -113,7 +113,7 @@ std::string sanitizeFileName(const std::string &name)
 	while(!out.empty() && out.front() == '.')
 		out.erase(out.begin());
 	if(out.empty())
-		out = "ficheiro";
+		out = "file";
 	if(out.size() > 120)
 		out = out.substr(out.size() - 120);
 	return out;

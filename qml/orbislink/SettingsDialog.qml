@@ -155,7 +155,7 @@ Dialog {
         installAfterBox.checked = values.installAfterUpload
         updatesBox.checked = values.checkForUpdates
         updateRepoField.text = values.updateRepository
-        updateChannelBox.currentIndex = values.updateChannel === "testes" ? 1 : 0
+        updateChannelBox.currentIndex = values.updateChannel === "testing" ? 1 : 0
         deleteAfterBox.checked = values.deleteFromConsoleAfterInstall
         advancedBox.checked = values.ftpAdvancedMode
         debugBox.checked = values.debugLogging
@@ -175,7 +175,7 @@ Dialog {
             "installAfterUpload": installAfterBox.checked,
             "checkForUpdates": updatesBox.checked,
             "updateRepository": updateRepoField.text.trim(),
-            "updateChannel": updateChannelBox.currentIndex === 1 ? "testes" : "estavel",
+            "updateChannel": updateChannelBox.currentIndex === 1 ? "testing" : "stable",
             "deleteFromConsoleAfterInstall": deleteAfterBox.checked,
             "ftpAdvancedMode": advancedBox.checked,
             "debugLogging": debugBox.checked,
@@ -626,8 +626,8 @@ Dialog {
                 spacing: 8
                 StyledButton {
                     text: qsTr("Check now")
-                    enabled: app.updateState !== "a-verificar"
-                             && app.updateState !== "a-descarregar"
+                    enabled: app.updateState !== "checking"
+                             && app.updateState !== "downloading"
                     onClicked: {
                         // Guardar primeiro: senão verificava-se o repositório
                         // antigo, não o que está escrito no campo. Só estes
@@ -636,7 +636,7 @@ Dialog {
                         app.saveUpdateSettings(updatesBox.checked,
                                                updateRepoField.text.trim(),
                                                updateChannelBox.currentIndex === 1
-                                                   ? "testes" : "estavel")
+                                                   ? "testing" : "stable")
                         app.checkForUpdatesNow(false)
                     }
                 }
@@ -644,8 +644,8 @@ Dialog {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     text: app.updateMessage
-                    color: app.updateState === "erro" ? Theme.error
-                         : app.updateState === "disponivel" ? Theme.ok
+                    color: app.updateState === "error" ? Theme.error
+                         : app.updateState === "available" ? Theme.ok
                          : Theme.textMuted
                     font.pixelSize: 11
                 }

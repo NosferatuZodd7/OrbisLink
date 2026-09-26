@@ -28,7 +28,7 @@ const char *taskStateName(TaskState state)
 	return "pending";
 }
 
-const char *taskStateLabelPt(TaskState state)
+const char *taskStateLabel(TaskState state)
 {
 	switch(state)
 	{
@@ -219,7 +219,7 @@ std::vector<std::string> InstallQueue::enqueue(const std::vector<std::string> &p
 		{
 			const std::string reason = info.error.empty() ? QT_TRANSLATE_NOOP("Messages", "This file is not a valid PS4 pkg.")
 													  : info.error;
-			logWarning("Ficheiro recusado: " + path + " — " + reason);
+			logWarning("File rejected: " + path + " — " + reason);
 			if(rejected)
 				rejected->push_back(baseName(path) + ": " + reason);
 			continue;
@@ -252,7 +252,7 @@ std::vector<std::string> InstallQueue::enqueue(const std::vector<std::string> &p
 	}
 	for(const QueueTask &task : batch)
 	{
-		logInfo("Na fila: " + task.title + " (" + pkgCategoryLabelPt(task.category) + ", "
+		logInfo("Queued: " + task.title + " (" + pkgCategoryLabel(task.category) + ", "
 			+ humanBytes(task.totalBytes) + ")");
 		notify(task);
 	}
@@ -287,7 +287,7 @@ void InstallQueue::pause(const std::string &reason)
 		pauseReason_ = reason;
 	}
 	if(!reason.empty())
-		logWarning("Fila em pausa: " + reason);
+		logWarning("Queue paused: " + reason);
 }
 
 void InstallQueue::resume()
@@ -622,7 +622,7 @@ void InstallQueue::runDirectInstall(QueueTask task)
 				finishTask(task);
 				return;
 			}
-			logInfo(task.titleId + " já existe na consola; a reinstalar.");
+			logInfo(task.titleId + " is already on the console; reinstalling.");
 		}
 	}
 
@@ -799,9 +799,9 @@ void InstallQueue::runDirectInstall(QueueTask task)
 			{
 				const FtpResult removed = deps_.ftp->removeFile(task.cleanupRemotePath);
 				if(removed.ok)
-					task.message += " Cópia apagada da consola.";
+					task.message += " Copy deleted from the console.";
 				else
-					task.message += " (não foi possível apagar " + task.cleanupRemotePath + ": "
+					task.message += " (could not delete " + task.cleanupRemotePath + ": "
 						+ removed.message + ")";
 			}
 			finishTask(task);
@@ -902,13 +902,13 @@ void InstallQueue::runFtpUpload(QueueTask task)
 		std::string erro;
 		const std::string id = enqueueOne(task.localPath, TransferMode::DirectInstall, &erro);
 		if(id.empty())
-			logWarning("Não foi possível instalar " + baseName(task.localPath)
-				+ " depois do envio: " + erro);
+			logWarning("Could not install " + baseName(task.localPath)
+				+ " after the upload: " + erro);
 		else
 		{
 			if(cfg.deleteFromConsoleAfterInstall)
 				setCleanupPath(id, task.remotePath);
-			logInfo("Enviado; a instalar " + task.title + " a partir do PC.");
+			logInfo("Uploaded; installing " + task.title + " from the PC.");
 		}
 	}
 }
@@ -935,7 +935,7 @@ bool InstallQueue::fromJson(const std::string &text)
 	const Json root = Json::parse(text, &error);
 	if(!root.isObject())
 	{
-		logWarning("Fila persistida ilegível: " + error);
+		logWarning("Unreadable saved queue: " + error);
 		return false;
 	}
 
@@ -983,7 +983,7 @@ bool InstallQueue::save(const std::string &path) const
 	std::ofstream file(path, std::ios::binary | std::ios::trunc);
 	if(!file)
 	{
-		logError("Não foi possível guardar a fila em " + path);
+		logError("Could not save the queue to " + path);
 		return false;
 	}
 	file << toJson();

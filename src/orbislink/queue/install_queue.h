@@ -23,7 +23,7 @@ namespace orbislink {
 enum class TaskState { Pending, Validating, Sending, Installing, Completed, Error, Cancelled };
 
 const char *taskStateName(TaskState state);      // identificador estável (persistência)
-const char *taskStateLabelPt(TaskState state);   // texto para a UI
+const char *taskStateLabel(TaskState state);   // text for the UI (translated there)
 
 // O que fazer quando o título já existe na consola.
 enum class ExistingPolicy { Reinstall, Skip };

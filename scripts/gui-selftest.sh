@@ -45,7 +45,7 @@ JSON
 
 echo "==> arrastar e largar"
 if DISPLAY="$DISPLAY_NUM" XDG_CONFIG_HOME="$CONFIG" QT_QPA_PLATFORM=xcb \
-	"$GUI" --software --selftest-drag 2>&1 | grep -vE "^Arranque|^Serviços|^Registo"; then
+	"$GUI" --software --selftest-drag 2>&1 | grep -vE "^Startup|^Services|^Log"; then
 	echo "    passou"
 else
 	echo "    FALHOU" >&2

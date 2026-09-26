@@ -163,13 +163,13 @@ Dialog {
             spacing: 8
             StyledField {
                 Layout.fillWidth: true
-                placeholderText: qsTr("filter (e.g. Remote Play, FALHOU, FTP)")
+                placeholderText: qsTr("filter (e.g. Remote Play, FAILED, FTP)")
                 onTextChanged: dialog.filtro = text
             }
             StyledButton {
                 text: qsTr("Errors only")
                 implicitHeight: 30
-                onClicked: dialog.filtro = "ERRO"
+                onClicked: dialog.filtro = "ERROR"
             }
             StyledButton {
                 text: qsTr("Clear filter")

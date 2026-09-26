@@ -298,7 +298,7 @@ private:
 	std::atomic<bool> downloadCancel_ { false };
 
 	void setUpdateState(const QString &state, const QString &message);
-	QString updateState_ = QStringLiteral("parado");
+	QString updateState_ = QStringLiteral("idle");
 	QString updateMessage_;
 	QString updateVersion_;
 	QString updateNotes_;

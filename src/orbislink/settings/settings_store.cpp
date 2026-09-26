@@ -180,8 +180,11 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 		settings.streamBitrateKbps = 0;
 	if(settings.theme != "escuro" && settings.theme != "vidro" && settings.theme != "claro")
 		settings.theme = "escuro";
-	if(settings.updateChannel != "estavel" && settings.updateChannel != "testes")
-		settings.updateChannel = "estavel";
+	// "estavel"/"testes" are the names older versions saved.
+	if(settings.updateChannel == "testes")
+		settings.updateChannel = "testing";
+	if(settings.updateChannel != "stable" && settings.updateChannel != "testing")
+		settings.updateChannel = "stable";
 	if(ok)
 		*ok = true;
 	return settings;
@@ -249,7 +252,7 @@ bool SettingsStore::load(Settings *settings) const
 	const Settings parsed = Settings::fromJson(text, &ok);
 	if(!ok)
 	{
-		logWarning("Definições ilegíveis em " + path_ + "; a usar os valores por omissão.");
+		logWarning("Unreadable settings in " + path_ + "; using the defaults.");
 		return false;
 	}
 	if(settings)
@@ -265,7 +268,7 @@ bool SettingsStore::save(const Settings &settings) const
 	std::ofstream file(path_, std::ios::binary | std::ios::trunc);
 	if(!file)
 	{
-		logError("Não foi possível guardar as definições em " + path_);
+		logError("Could not save the settings to " + path_);
 		return false;
 	}
 	file << settings.toJson();

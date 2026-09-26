@@ -16,8 +16,8 @@ Dialog {
     modal: true
     padding: 0
 
-    readonly property bool aDescarregar: app.updateState === "a-descarregar"
-    readonly property bool pronto: app.updateState === "pronto"
+    readonly property bool aDescarregar: app.updateState === "downloading"
+    readonly property bool pronto: app.updateState === "ready"
 
     // Um modal quase opaco: com a transparência dos painéis, o que está por
     // trás ver-se-ia através da caixa, e uma caixa que pede uma decisão não
@@ -124,12 +124,12 @@ Dialog {
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
             spacing: 4
-            visible: dialog.aDescarregar || dialog.pronto || app.updateState === "erro"
+            visible: dialog.aDescarregar || dialog.pronto || app.updateState === "error"
 
             Text {
                 Layout.fillWidth: true
                 text: app.updateMessage
-                color: app.updateState === "erro" ? Theme.error : Theme.textMuted
+                color: app.updateState === "error" ? Theme.error : Theme.textMuted
                 font.pixelSize: 11
                 wrapMode: Text.WordWrap
             }

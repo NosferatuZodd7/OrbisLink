@@ -195,7 +195,7 @@ bool LocalHttpServer::start(const Config &config, std::string *error)
 	};
 
 	if(running_.load())
-		return fail("o servidor já está a correr");
+		return fail("the server is already running");
 
 	config_ = config;
 	if(config_.bindAddress.empty())
@@ -205,11 +205,11 @@ bool LocalHttpServer::start(const Config &config, std::string *error)
 
 	uint16_t port = config_.port;
 	if(config_.autoSelectPort && !findFreePort(config_.bindAddress, port, &port))
-		return fail("não há portas livres a partir de " + std::to_string(config_.port));
+		return fail("no free ports from " + std::to_string(config_.port));
 
 	socket_t sock = socket(AF_INET, SOCK_STREAM, 0);
 	if(sock == ORBISLINK_INVALID_SOCKET)
-		return fail("não foi possível criar o socket: " + socketErrorString(lastSocketError()));
+		return fail("could not create the socket: " + socketErrorString(lastSocketError()));
 
 	int reuse = 1;
 	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&reuse), sizeof(reuse));
@@ -220,19 +220,19 @@ bool LocalHttpServer::start(const Config &config, std::string *error)
 	if(inet_pton(AF_INET, config_.bindAddress.c_str(), &addr.sin_addr) != 1)
 	{
 		closeSocketHandle(sock);
-		return fail("endereço de bind inválido: " + config_.bindAddress);
+		return fail("invalid bind address: " + config_.bindAddress);
 	}
 	if(bind(sock, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr)) != 0)
 	{
 		const std::string message = socketErrorString(lastSocketError());
 		closeSocketHandle(sock);
-		return fail("bind falhou em " + config_.bindAddress + ":" + std::to_string(port) + ": " + message);
+		return fail("bind failed on " + config_.bindAddress + ":" + std::to_string(port) + ": " + message);
 	}
 	if(listen(sock, config_.backlog) != 0)
 	{
 		const std::string message = socketErrorString(lastSocketError());
 		closeSocketHandle(sock);
-		return fail("listen falhou: " + message);
+		return fail("listen failed: " + message);
 	}
 
 	// Confirma a porta efetiva (útil se alguma vez se usar porta 0).
@@ -295,7 +295,7 @@ void LocalHttpServer::stop()
 		std::unique_lock<std::mutex> lock(mutex_);
 		workersDone_.wait(lock, [this]() { return activeWorkers_ == 0; });
 	}
-	logInfo("Servidor HTTP local parado.");
+	logInfo("Local HTTP server stopped.");
 }
 
 uint16_t LocalHttpServer::port() const { return boundPort_; }
@@ -323,7 +323,7 @@ std::string LocalHttpServer::registerFile(const std::string &path, const std::st
 	const int64_t size = fileSize(path);
 	if(size < 0)
 	{
-		logError("registerFile: ficheiro inacessível: " + path);
+		logError("registerFile: file not accessible: " + path);
 		return std::string();
 	}
 
@@ -336,7 +336,7 @@ std::string LocalHttpServer::registerFile(const std::string &path, const std::st
 
 	std::lock_guard<std::mutex> lock(mutex_);
 	files_[stats.token] = stats;
-	logDebug("Ficheiro registado no servidor HTTP: " + stats.name + " (" + humanBytes(size) + ")");
+	logDebug("File registered on the HTTP server: " + stats.name + " (" + humanBytes(size) + ")");
 	return stats.token;
 }
 
@@ -442,7 +442,7 @@ void LocalHttpServer::handleConnection(socket_t client, const std::string &peerA
 	const std::string allowed = allowedClient();
 	if(!allowed.empty() && peerAddress != allowed && !(allowLoopback && peerAddress == "127.0.0.1"))
 	{
-		logWarning("Pedido HTTP recusado de " + peerAddress + " (só " + allowed + " é aceite).");
+		logWarning("HTTP request refused from " + peerAddress + " (only " + allowed + " is accepted).");
 		sendSimpleStatus(client, 403);
 		return;
 	}
@@ -472,7 +472,7 @@ void LocalHttpServer::handleConnection(socket_t client, const std::string &peerA
 	ServedFileStats stats;
 	if(token.empty() || !statsForToken(token, &stats))
 	{
-		logDebug("404 para " + path + " de " + peerAddress);
+		logDebug("404 for " + path + " from " + peerAddress);
 		sendSimpleStatus(client, 404);
 		return;
 	}
@@ -480,7 +480,7 @@ void LocalHttpServer::handleConnection(socket_t client, const std::string &peerA
 	std::ifstream file(stats.path, std::ios::binary);
 	if(!file)
 	{
-		logError("Ficheiro registado desapareceu do disco: " + stats.path);
+		logError("Registered file disappeared from disk: " + stats.path);
 		sendSimpleStatus(client, 404);
 		return;
 	}
@@ -551,7 +551,7 @@ void LocalHttpServer::handleConnection(socket_t client, const std::string &peerA
 			it->second.requestCount += 1;
 	}
 
-	logDebug("Servidos " + humanBytes(sentTotal) + " de " + stats.name + " para " + peerAddress
+	logDebug("Served " + humanBytes(sentTotal) + " of " + stats.name + " to " + peerAddress
 		+ (partial ? " (Range " + std::to_string(start) + "-" + std::to_string(end) + ")" : ""));
 }
 

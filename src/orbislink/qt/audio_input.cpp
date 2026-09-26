@@ -49,7 +49,7 @@ bool AudioInput::start(QString *error)
 		{
 			formato = mono;
 			duplicateMono_ = true;
-			logInfo("O microfone só faz mono; cada amostra vai duplicada para os dois canais.");
+			logInfo("The microphone is mono only; each sample is duplicated to both channels.");
 		}
 		else
 		{
@@ -74,7 +74,7 @@ bool AudioInput::start(QString *error)
 	pending_.clear();
 	deviceName_ = entrada.description();
 	active_ = true;
-	logInfo("Microfone a captar de \"" + deviceName_.toStdString() + "\".");
+	logInfo("Microphone capturing from \"" + deviceName_.toStdString() + "\".");
 	return true;
 }
 
@@ -94,7 +94,7 @@ void AudioInput::stop()
 		source_.reset();
 	}
 	pending_.clear();
-	logInfo("Microfone parado.");
+	logInfo("Microphone stopped.");
 }
 
 void AudioInput::drain()
@@ -132,7 +132,7 @@ void AudioInput::drain()
 	const int limite = bytesPorTrama * 10;
 	if(pending_.size() > limite)
 	{
-		logDebug("A captura do microfone atrasou-se; a deitar fora o acumulado.");
+		logDebug("Microphone capture fell behind; dropping the backlog.");
 		pending_.clear();
 	}
 }

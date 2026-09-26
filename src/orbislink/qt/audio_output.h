@@ -120,8 +120,8 @@ private:
 	QIODevice *pushTarget_ = nullptr;
 	QByteArray scratch_;
 	QString deviceName_;
-	QString state_ = QStringLiteral("parado");
-	QString sinkState_ = QStringLiteral("sem-sink");
+	QString state_ = QStringLiteral("stopped");
+	QString sinkState_ = QStringLiteral("no-sink");
 	qint64 samplesPlayed_ = 0;
 	qint64 framesReceived_ = 0;
 	qint64 underruns_ = 0;

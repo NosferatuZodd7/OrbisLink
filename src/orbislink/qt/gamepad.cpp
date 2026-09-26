@@ -87,8 +87,8 @@ void Gamepad::start()
 		SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
 		if(SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) != 0)
 		{
-			logWarning(std::string("Remote Play: o SDL não arrancou (") + SDL_GetError()
-				+ "); o comando não vai funcionar.");
+			logWarning(std::string("Remote Play: SDL did not start (") + SDL_GetError()
+				+ "); the controller will not work.");
 			return;
 		}
 		initialised_ = true;
@@ -142,7 +142,7 @@ void Gamepad::poll()
 			SDL_GameControllerClose(static_cast<SDL_GameController *>(controller_));
 			controller_ = nullptr;
 			name_.clear();
-			logInfo("Remote Play: comando desligado.");
+			logInfo("Remote Play: controller disconnected.");
 			emit connectedChanged(name_);
 			// Larga tudo, senão fica um botão preso do outro lado.
 			emit stateChanged({});
@@ -162,7 +162,7 @@ void Gamepad::poll()
 			controller_ = opened;
 			const char *nome = SDL_GameControllerName(opened);
 			name_ = QString::fromUtf8(nome ? nome : "comando");
-			logInfo("Remote Play: comando ligado — " + name_.toStdString());
+			logInfo("Remote Play: controller connected — " + name_.toStdString());
 			emit connectedChanged(name_);
 			break;
 		}

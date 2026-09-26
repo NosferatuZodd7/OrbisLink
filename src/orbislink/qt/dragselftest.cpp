@@ -38,7 +38,7 @@ void run(QQuickWindow *window, std::function<void(int, const QString &)> finishe
 	auto *direita = window->findChild<QQuickItem *>(QStringLiteral("ftpZone"));
 	if(!overlay || !esquerda || !direita)
 	{
-		finished(-1, QStringLiteral("não encontrei a sobreposição ou as zonas"));
+		finished(-1, QStringLiteral("could not find the overlay or the zones"));
 		return;
 	}
 
@@ -48,13 +48,13 @@ void run(QQuickWindow *window, std::function<void(int, const QString &)> finishe
 	const qreal w = window->width();
 	const qreal h = window->height();
 	auto *passos = new QList<Passo> {
-		{ QPointF(w * 0.50, h * 0.08), QStringLiteral("entrar pelo cimo da janela") },
-		{ QPointF(w * 0.20, h * 0.50), QStringLiteral("apontar a zona da esquerda") },
-		{ QPointF(w * 0.25, h * 0.60), QStringLiteral("mexer dentro da esquerda") },
-		{ QPointF(w * 0.50, h * 0.50), QStringLiteral("atravessar para o meio") },
-		{ QPointF(w * 0.75, h * 0.50), QStringLiteral("apontar a zona da direita") },
-		{ QPointF(w * 0.80, h * 0.60), QStringLiteral("mexer dentro da direita") },
-		{ QPointF(w * 0.20, h * 0.50), QStringLiteral("voltar à da esquerda") },
+		{ QPointF(w * 0.50, h * 0.08), QStringLiteral("enter from the top of the window") },
+		{ QPointF(w * 0.20, h * 0.50), QStringLiteral("point at the left zone") },
+		{ QPointF(w * 0.25, h * 0.60), QStringLiteral("move inside the left zone") },
+		{ QPointF(w * 0.50, h * 0.50), QStringLiteral("cross to the middle") },
+		{ QPointF(w * 0.75, h * 0.50), QStringLiteral("point at the right zone") },
+		{ QPointF(w * 0.80, h * 0.60), QStringLiteral("move inside the right zone") },
+		{ QPointF(w * 0.20, h * 0.50), QStringLiteral("back to the left zone") },
 	};
 
 	auto *indice = new int(0);
@@ -87,21 +87,21 @@ void run(QQuickWindow *window, std::function<void(int, const QString &)> finishe
 				: (direita->property("highlighted").toBool() ? 1 : -1);
 
 			auto nome = [](int zona) {
-				return zona == 0 ? "esquerda" : (zona == 1 ? "direita" : "nenhuma");
+				return zona == 0 ? "left" : (zona == 1 ? "right" : "none");
 			};
-			qInfo("  t=%02d  sobreposição=%-7s  sob o cursor=%-8s  acesa=%-8s  (%s)", *indice,
-				aberta ? "aberta" : "FECHADA", nome(esperada), nome(acesa),
+			qInfo("  t=%02d  overlay=%-7s  under cursor=%-8s  lit=%-8s  (%s)", *indice,
+				aberta ? "open" : "CLOSED", nome(esperada), nome(acesa),
 				qPrintable(passo.descricao));
 
 			if(!aberta)
 			{
 				++(*erros);
-				relato->append(QStringLiteral("fechou a meio, depois de \"%1\"").arg(passo.descricao));
+				relato->append(QStringLiteral("closed halfway, after \"%1\"").arg(passo.descricao));
 			}
 			else if(esperada != acesa)
 			{
 				++(*erros);
-				relato->append(QStringLiteral("em \"%1\" o cursor estava na zona %2 mas acendeu %3")
+				relato->append(QStringLiteral("at \"%1\" the cursor was on zone %2 but %3 lit up")
 						.arg(passo.descricao, QString::fromLatin1(nome(esperada)),
 							QString::fromLatin1(nome(acesa))));
 			}
@@ -116,12 +116,12 @@ void run(QQuickWindow *window, std::function<void(int, const QString &)> finishe
 				if(!largar.isAccepted())
 				{
 					++(*erros);
-					relato->append(QStringLiteral("largar sobre a zona da esquerda não foi aceite"));
+					relato->append(QStringLiteral("dropping on the left zone was not accepted"));
 				}
 
 				const int total = *erros;
 				const QString texto = relato->isEmpty()
-					? QStringLiteral("a sobreposição acompanhou o cursor e aceitou o ficheiro")
+					? QStringLiteral("the overlay followed the cursor and accepted the file")
 					: relato->join(QStringLiteral("; "));
 				delete mime;
 				delete passos;

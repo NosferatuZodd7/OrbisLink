@@ -16,8 +16,8 @@ const char *logLevelName(LogLevel level)
 	{
 		case LogLevel::Debug: return "DEBUG";
 		case LogLevel::Info: return "INFO";
-		case LogLevel::Warning: return "AVISO";
-		case LogLevel::Error: return "ERRO";
+		case LogLevel::Warning: return "WARNING";
+		case LogLevel::Error: return "ERROR";
 		case LogLevel::Off: return "OFF";
 	}
 	return "?";

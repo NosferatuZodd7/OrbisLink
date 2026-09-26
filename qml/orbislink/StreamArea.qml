@@ -59,7 +59,7 @@ Item {
 
         onStatusChanged: {
             if (status === Loader.Error)
-                console.warn("Sem QtMultimedia: o Remote Play não tem onde desenhar.")
+                console.warn("No QtMultimedia: Remote Play has nowhere to draw.")
         }
     }
 
@@ -282,20 +282,20 @@ Item {
                 Layout.maximumWidth: 160
             }
             StyledButton {
-                readonly property string somEstado: root.built ? stream.audioState : "parado"
+                readonly property string somEstado: root.built ? stream.audioState : "stopped"
                 text: !root.built ? qsTr("Sound")
-                     : somEstado === "erro" || somEstado === "sem-dispositivo" ? qsTr("No sound")
+                     : somEstado === "error" || somEstado === "no-device" ? qsTr("No sound")
                      : stream.muted ? qsTr("Sound: off")
                      : qsTr("Sound: on")
-                danger: somEstado === "erro" || somEstado === "sem-dispositivo"
+                danger: somEstado === "error" || somEstado === "no-device"
                 implicitHeight: 30
                 font.pixelSize: 11
                 ToolTip.visible: hovered
-                ToolTip.text: somEstado === "sem-dispositivo"
+                ToolTip.text: somEstado === "no-device"
                         ? qsTr("This PC has no active sound output.")
-                    : somEstado === "erro"
+                    : somEstado === "error"
                         ? qsTr("The sound card refused the stream — see Ctrl+L.")
-                    : somEstado === "a-tocar"
+                    : somEstado === "playing"
                         ? qsTr("Coming out of %1").arg(stream.audioDevice)
                         : qsTr("No sound has arrived from the console yet.")
                 onClicked: stream.muted = !stream.muted
@@ -310,22 +310,22 @@ Item {
             // aceso — ninguém pode estar a ser ouvido sem dar por isso.
             StyledButton {
                 readonly property string micEstado: root.built ? stream.microphoneState
-                                                               : "desligado"
-                text: micEstado === "a-falar" ? qsTr("🎤 Talking")
-                     : micEstado === "em-silencio" ? qsTr("🎤 Muted")
+                                                               : "off"
+                text: micEstado === "talking" ? qsTr("🎤 Talking")
+                     : micEstado === "muted" ? qsTr("🎤 Muted")
                      : qsTr("Microphone")
                 implicitHeight: 30
                 font.pixelSize: 11
-                danger: micEstado === "a-falar"
+                danger: micEstado === "talking"
                 ToolTip.visible: hovered
-                ToolTip.text: micEstado === "desligado"
+                ToolTip.text: micEstado === "off"
                     ? qsTr("Send your microphone to the console")
                     : qsTr("Capturing from %1. Click to mute, or right-click to turn it off.").arg(stream.microphoneDevice)
                 onClicked: {
-                    if (micEstado === "desligado")
+                    if (micEstado === "off")
                         stream.setMicrophoneEnabled(true)
                     else
-                        stream.setMicrophoneMuted(micEstado === "a-falar")
+                        stream.setMicrophoneMuted(micEstado === "talking")
                 }
                 // Botão direito desliga de vez, em vez de só calar.
                 MouseArea {

@@ -285,8 +285,8 @@ ORBISLINK_TEST(repositorio_mal_definido_falha_a_dizer_porque)
 
 ORBISLINK_TEST(canal_le_se_e_escreve_se_por_nome)
 {
-	CHECK_EQ(std::string(updateChannelName(UpdateChannel::Stable)), std::string("estavel"));
-	CHECK_EQ(std::string(updateChannelName(UpdateChannel::Testing)), std::string("testes"));
+	CHECK_EQ(std::string(updateChannelName(UpdateChannel::Stable)), std::string("stable"));
+	CHECK_EQ(std::string(updateChannelName(UpdateChannel::Testing)), std::string("testing"));
 	CHECK(updateChannelFromName("testes", UpdateChannel::Stable) == UpdateChannel::Testing);
 	CHECK(updateChannelFromName("lixo", UpdateChannel::Stable) == UpdateChannel::Stable);
 }

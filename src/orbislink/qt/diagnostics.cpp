@@ -32,13 +32,13 @@ void titulo(QTextStream &out, const QString &texto)
 	out << "\n" << texto << "\n" << QString(texto.size(), QLatin1Char('-')) << "\n";
 }
 
-QString sim(bool valor) { return valor ? QStringLiteral("sim") : QStringLiteral("não"); }
+QString sim(bool valor) { return valor ? QStringLiteral("yes") : QStringLiteral("no"); }
 
 } // namespace
 
 QString Diagnostics::suggestedFileName()
 {
-	return QStringLiteral("orbislink-diagnostico-%1.txt")
+	return QStringLiteral("orbislink-diagnostics-%1.txt")
 		.arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss")));
 }
 
@@ -47,42 +47,42 @@ QString Diagnostics::report(AppController *app)
 	QString texto;
 	QTextStream out(&texto);
 
-	out << "Diagnóstico do OrbisLink\n";
-	out << "========================\n";
-	out << "Gerado em " << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n";
+	out << "OrbisLink diagnostics\n";
+	out << "=====================\n";
+	out << "Generated at " << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n";
 
-	titulo(out, "Versões");
+	titulo(out, "Versions");
 	out << "OrbisLink        " << (app ? app->version() : QStringLiteral("?")) << "\n";
-	out << "Qt               " << qVersion() << " (compilado com " << QT_VERSION_STR << ")\n";
-	out << "Sistema          " << QSysInfo::prettyProductName() << " ("
+	out << "Qt               " << qVersion() << " (built with " << QT_VERSION_STR << ")\n";
+	out << "System           " << QSysInfo::prettyProductName() << " ("
 		<< QSysInfo::currentCpuArchitecture() << ")\n";
 	out << "Kernel           " << QSysInfo::kernelType() << " " << QSysInfo::kernelVersion()
 		<< "\n";
-	out << "Plataforma Qt    " << QGuiApplication::platformName() << "\n";
-	out << "Barra de título  " << WindowChrome::summary() << "\n";
-	out << "Privilégios      "
+	out << "Qt platform      " << QGuiApplication::platformName() << "\n";
+	out << "Title bar        " << WindowChrome::summary() << "\n";
+	out << "Privileges       "
 		<< (WindowChrome::runningElevated()
-				? "ADMINISTRADOR — o arrastar e largar não funciona assim"
-				: "normais")
+				? "ADMINISTRATOR — drag and drop does not work like this"
+				: "normal")
 		<< "\n";
 #ifdef ORBISLINK_HAS_STREAM
-	out << "Remote Play      compilado\n";
+	out << "Remote Play      built in\n";
 #else
-	out << "Remote Play      NÃO compilado nesta versão\n";
+	out << "Remote Play      NOT built into this version\n";
 #endif
 
-	titulo(out, "Rede");
+	titulo(out, "Network");
 	const std::vector<LocalInterface> interfaces = localInterfaces();
 	if(interfaces.empty())
 	{
-		out << "Nenhuma interface de rede encontrada.\n";
+		out << "No network interface found.\n";
 	}
 	else
 	{
 		for(const LocalInterface &interface : interfaces)
 		{
 			out << "  " << QString::fromStdString(interface.name) << "  "
-				<< QString::fromStdString(interface.address) << "  máscara "
+				<< QString::fromStdString(interface.address) << "  mask "
 				<< QString::fromStdString(interface.netmask)
 				<< (interface.loopback ? "  (loopback)" : "") << "\n";
 		}
@@ -90,9 +90,9 @@ QString Diagnostics::report(AppController *app)
 
 	if(app)
 	{
-		titulo(out, "Consola e serviços");
-		out << "Nome             " << app->consoleName() << "\n";
-		out << "Endereço         " << app->consoleAddress() << "\n";
+		titulo(out, "Console and services");
+		out << "Name             " << app->consoleName() << "\n";
+		out << "Address          " << app->consoleAddress() << "\n";
 		out << "Remote Play      " << app->remotePlayState();
 		if(!app->remotePlayHint().isEmpty())
 			out << "  — " << app->remotePlayHint();
@@ -101,13 +101,13 @@ QString Diagnostics::report(AppController *app)
 		if(!app->ftpHint().isEmpty())
 			out << "  — " << app->ftpHint();
 		out << "\n";
-		out << "Instalador       " << app->installerState();
+		out << "Installer        " << app->installerState();
 		if(!app->installerHint().isEmpty())
 			out << "  — " << app->installerHint();
 		out << "\n";
-		out << "Servidor HTTP    " << app->httpServerAddress() << "\n";
+		out << "HTTP server      " << app->httpServerAddress() << "\n";
 
-		titulo(out, "Definições");
+		titulo(out, "Settings");
 		// Só o que ajuda a diagnosticar. O Account ID e as chaves ficam de
 		// fora de propósito.
 		const QVariantMap definicoes = app->settingsMap();
@@ -124,31 +124,31 @@ QString Diagnostics::report(AppController *app)
 #ifdef ORBISLINK_HAS_STREAM
 	if(app)
 	{
-		titulo(out, "Arrastar e largar");
+		titulo(out, "Drag and drop");
 		out << app->dragSummary() << "\n";
 	}
 
-	titulo(out, "Remote Play — vídeo");
+	titulo(out, "Remote Play — video");
 	if(app && !app->videoProbe().isEmpty())
 		out << app->videoProbe();
 	else
-		out << "(sem informação)\n";
+		out << "(no information)\n";
 
-	titulo(out, "Remote Play — caminho do som");
+	titulo(out, "Remote Play — sound path");
 	if(app && !app->audioProbe().isEmpty())
 		out << app->audioProbe();
 	else
-		out << "(sem informação)\n";
+		out << "(no information)\n";
 
-	titulo(out, "Remote Play — última tentativa");
+	titulo(out, "Remote Play — last attempt");
 	out << QString::fromStdString(StreamTrace::instance().summary());
 
-	titulo(out, "Consolas registadas");
+	titulo(out, "Registered consoles");
 	const CredentialStore store(CredentialStore::defaultPath());
 	const std::vector<StreamCredentials> registadas = store.all();
 	if(registadas.empty())
 	{
-		out << "Nenhuma. Sem registo não há Remote Play.\n";
+		out << "None. Without registration there is no Remote Play.\n";
 	}
 	else
 	{
@@ -157,26 +157,26 @@ QString Diagnostics::report(AppController *app)
 			// As chaves não entram aqui. O que interessa é saber que
 			// existem e se têm o tamanho certo.
 			out << "  " << QString::fromStdString(credencial.nickname) << "  host-id "
-				<< QString::fromStdString(credencial.hostId) << "  alvo " << credencial.target
-				<< "  ps5 " << sim(credencial.ps5) << "  chave de registo "
-				<< credencial.registKey.size() << " caracteres"
-				<< "  rp_key " << credencial.rpKeyHex.size() << " caracteres\n";
+				<< QString::fromStdString(credencial.hostId) << "  target " << credencial.target
+				<< "  ps5 " << sim(credencial.ps5) << "  regist key "
+				<< credencial.registKey.size() << " characters"
+				<< "  rp_key " << credencial.rpKeyHex.size() << " characters\n";
 		}
 	}
 #endif
 
-	titulo(out, "Ficheiros");
-	out << "Definições       " << QString::fromStdString(SettingsStore::defaultSettingsPath())
+	titulo(out, "Files");
+	out << "Settings         " << QString::fromStdString(SettingsStore::defaultSettingsPath())
 		<< "\n";
-	out << "Registo          " << QString::fromStdString(SettingsStore::defaultLogPath()) << "\n";
-	out << "Pasta de dados   " << QString::fromStdString(SettingsStore::defaultDirectory())
+	out << "Log              " << QString::fromStdString(SettingsStore::defaultLogPath()) << "\n";
+	out << "Data folder      " << QString::fromStdString(SettingsStore::defaultDirectory())
 		<< "\n";
 
-	titulo(out, "Registo (últimas linhas)");
+	titulo(out, "Log (last lines)");
 	const std::vector<std::string> linhas = Logger::instance().recent();
 	if(linhas.empty())
 	{
-		out << "(vazio)\n";
+		out << "(empty)\n";
 	}
 	else
 	{
@@ -184,7 +184,7 @@ QString Diagnostics::report(AppController *app)
 			out << QString::fromStdString(linha) << "\n";
 	}
 
-	out << "\n-- fim do diagnóstico --\n";
+	out << "\n-- end of diagnostics --\n";
 	return texto;
 }
 
@@ -213,7 +213,7 @@ QString Diagnostics::write(AppController *app, const QString &directory, QString
 	out.setEncoding(QStringConverter::Utf8);
 	out << report(app);
 	ficheiro.close();
-	logInfo("Diagnóstico exportado para " + caminho.toStdString());
+	logInfo("Diagnostics exported to " + caminho.toStdString());
 	return caminho;
 }
 

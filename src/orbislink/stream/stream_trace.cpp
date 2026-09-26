@@ -32,9 +32,9 @@ const char *resultName(StreamTrace::Result result)
 	switch(result)
 	{
 		case StreamTrace::Result::Ok: return "ok";
-		case StreamTrace::Result::Failed: return "FALHOU";
-		case StreamTrace::Result::Skipped: return "saltado";
-		case StreamTrace::Result::Running: return "a decorrer";
+		case StreamTrace::Result::Failed: return "FAILED";
+		case StreamTrace::Result::Skipped: return "skipped";
+		case StreamTrace::Result::Running: return "running";
 	}
 	return "?";
 }
@@ -56,7 +56,7 @@ void StreamTrace::begin(const std::string &address)
 	s.active = true;
 	s.steps.clear();
 	s.notes.clear();
-	logInfo("Remote Play: tentativa iniciada para " + address);
+	logInfo("Remote Play: attempt started for " + address);
 }
 
 void StreamTrace::addressIfUnset(const std::string &address)
@@ -98,7 +98,7 @@ void StreamTrace::ok(const std::string &detail)
 	passo.endedMs = monotonicMillis();
 	if(!detail.empty())
 		passo.detail = detail;
-	logInfo("Remote Play [" + passo.name + "] ok em " + std::to_string(passo.durationMs()) + " ms"
+	logInfo("Remote Play [" + passo.name + "] ok in " + std::to_string(passo.durationMs()) + " ms"
 		+ (detail.empty() ? "" : " — " + detail));
 }
 
@@ -108,7 +108,7 @@ void StreamTrace::fail(const std::string &detail)
 	std::lock_guard<std::mutex> lock(s.mutex);
 	if(s.steps.empty() || s.steps.back().result != Result::Running)
 	{
-		s.notes.push_back("falha fora de um passo: " + detail);
+		s.notes.push_back("failure outside a step: " + detail);
 		logError("Remote Play: " + detail);
 		return;
 	}
@@ -116,7 +116,7 @@ void StreamTrace::fail(const std::string &detail)
 	passo.result = Result::Failed;
 	passo.endedMs = monotonicMillis();
 	passo.detail = detail;
-	logError("Remote Play [" + passo.name + "] FALHOU ao fim de "
+	logError("Remote Play [" + passo.name + "] FAILED after "
 		+ std::to_string(passo.durationMs()) + " ms — " + detail);
 }
 
@@ -180,10 +180,10 @@ std::string StreamTrace::summary() const
 	State &s = state();
 	std::lock_guard<std::mutex> lock(s.mutex);
 	if(s.steps.empty() && s.notes.empty())
-		return "Ainda não houve nenhuma tentativa de Remote Play nesta sessão.";
+		return "No Remote Play attempt yet in this session.";
 
 	std::ostringstream out;
-	out << "Tentativa de Remote Play para " << (s.address.empty() ? "(sem endereço)" : s.address)
+	out << "Remote Play attempt for " << (s.address.empty() ? "(no address)" : s.address)
 		<< "\n";
 	for(const Step &passo : s.steps)
 	{
@@ -199,7 +199,7 @@ std::string StreamTrace::summary() const
 	}
 	if(!s.notes.empty())
 	{
-		out << "  notas:\n";
+		out << "  notes:\n";
 		for(const std::string &nota : s.notes)
 			out << "    " << nota << "\n";
 	}

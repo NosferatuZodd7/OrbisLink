@@ -9,11 +9,11 @@ const char *hostStateName(HostState state)
 {
 	switch(state)
 	{
-		case HostState::Ready: return "pronta";
-		case HostState::Standby: return "em repouso";
+		case HostState::Ready: return "ready";
+		case HostState::Standby: return "rest mode";
 		case HostState::Unknown: break;
 	}
-	return "desconhecido";
+	return "unknown";
 }
 
 uint64_t StreamCredentials::wakeupCredential() const

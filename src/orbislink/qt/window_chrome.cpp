@@ -13,8 +13,8 @@ namespace orbislink {
 
 namespace {
 
-QString g_resumo = QStringLiteral("a barra de título é a do sistema (nesta plataforma não há "
-								  "nada a fazer-lhe)");
+QString g_resumo = QStringLiteral("the title bar is the system's (nothing to adjust on this "
+								  "platform)");
 
 #ifdef Q_OS_WIN
 
@@ -137,16 +137,16 @@ void WindowChrome::applyTheme(const QColor &caption, const QColor &text, const Q
 		const int material = kBackdropAcrylic;
 		comMaterial = trySet(hwnd, kSystemBackdropType, &material, sizeof(material));
 		if(comMaterial)
-			conseguido = QStringLiteral("acrílico do sistema (o que está por trás da janela "
-										"vê-se desfocado)");
+			conseguido = QStringLiteral("system acrylic (what is behind the window shows "
+										"blurred)");
 	}
 	if(!comMaterial)
 	{
 		const int material = kBackdropMica;
 		comMaterial = trySet(hwnd, kSystemBackdropType, &material, sizeof(material));
 		if(comMaterial)
-			conseguido = QStringLiteral("mica do sistema (a barra tira a cor do fundo do "
-										"ambiente de trabalho)");
+			conseguido = QStringLiteral("system mica (the bar takes its colour from the "
+										"desktop wallpaper)");
 	}
 
 	if(comMaterial)
@@ -166,14 +166,14 @@ void WindowChrome::applyTheme(const QColor &caption, const QColor &text, const Q
 		{
 			const DWORD corTexto = toColorRef(text);
 			trySet(hwnd, kTextColor, &corTexto, sizeof(corTexto));
-			conseguido = QStringLiteral("barra pintada com a cor do tema (%1)")
+			conseguido = QStringLiteral("bar painted in the theme colour (%1)")
 				.arg(caption.name());
 		}
 		else
 		{
 			// 3. Resta o modo escuro, que já foi pedido acima.
-			conseguido = dark ? QStringLiteral("barra escura do sistema, sem escolher a cor")
-							  : QStringLiteral("barra clara do sistema, sem escolher a cor");
+			conseguido = dark ? QStringLiteral("dark system bar, colour not chosen")
+							  : QStringLiteral("light system bar, colour not chosen");
 		}
 	}
 
