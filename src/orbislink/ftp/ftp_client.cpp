@@ -2,6 +2,7 @@
 #include "orbislink/ftp/ftp_client.h"
 
 #include "orbislink/common/log.h"
+#include "orbislink/common/tr.h"
 #include "orbislink/common/util.h"
 
 #include <algorithm>
@@ -414,10 +415,10 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 {
 	const std::string path = normalizeRemotePath(remotePath);
 	if(!isWriteAllowed(path))
-		return FtpResult::failure("Zona protegida do sistema: ativa o Modo avançado nas definições.");
+		return FtpResult::failure(QT_TRANSLATE_NOOP("Mensagens", "Zona protegida do sistema: ativa o Modo avançado nas definições."));
 	const int64_t localSize = fileSize(localPath);
 	if(localSize < 0)
-		return FtpResult::failure("Ficheiro local inacessível: " + localPath);
+		return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Mensagens", "Ficheiro local inacessível")) + ": " + localPath);
 
 	// Retoma: só faz sentido se o servidor já tiver parte do ficheiro.
 	int64_t alreadyThere = 0;
@@ -433,7 +434,7 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 		const Config cfg = config();
 		std::ifstream input(localPath, std::ios::binary);
 		if(!input)
-			return FtpResult::failure("Não foi possível abrir " + localPath);
+			return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Mensagens", "Não foi possível abrir o ficheiro")) + ": " + localPath);
 		if(alreadyThere > 0)
 			input.seekg(static_cast<std::streamoff>(alreadyThere), std::ios::beg);
 
@@ -471,7 +472,7 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 		{
 			FtpResult result;
 			result.cancelled = true;
-			result.message = "Operação cancelada.";
+			result.message = QT_TRANSLATE_NOOP("Mensagens", "Operação cancelada.");
 			return result;
 		}
 		if(code != CURLE_OK)
@@ -494,7 +495,7 @@ FtpResult FtpClient::download(const std::string &remotePath, const std::string &
 		std::ofstream output(localPath,
 			std::ios::binary | (existing > 0 ? std::ios::app : std::ios::trunc));
 		if(!output)
-			return FtpResult::failure("Não foi possível escrever em " + localPath);
+			return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Mensagens", "Não foi possível escrever no ficheiro")) + ": " + localPath);
 
 		CURL *curl = curl_easy_init();
 		if(!curl)
@@ -522,7 +523,7 @@ FtpResult FtpClient::download(const std::string &remotePath, const std::string &
 		{
 			FtpResult result;
 			result.cancelled = true;
-			result.message = "Operação cancelada.";
+			result.message = QT_TRANSLATE_NOOP("Mensagens", "Operação cancelada.");
 			return result;
 		}
 		if(code != CURLE_OK)
@@ -565,7 +566,7 @@ FtpResult FtpClient::makeDirectory(const std::string &remotePath)
 {
 	const std::string path = normalizeRemotePath(remotePath);
 	if(!isWriteAllowed(path))
-		return FtpResult::failure("Zona protegida do sistema: ativa o Modo avançado nas definições.");
+		return FtpResult::failure(QT_TRANSLATE_NOOP("Mensagens", "Zona protegida do sistema: ativa o Modo avançado nas definições."));
 	return withRetries("criar pasta " + path, [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
@@ -578,7 +579,7 @@ FtpResult FtpClient::removeFile(const std::string &remotePath)
 {
 	const std::string path = normalizeRemotePath(remotePath);
 	if(!isWriteAllowed(path))
-		return FtpResult::failure("Zona protegida do sistema: ativa o Modo avançado nas definições.");
+		return FtpResult::failure(QT_TRANSLATE_NOOP("Mensagens", "Zona protegida do sistema: ativa o Modo avançado nas definições."));
 	return withRetries("apagar " + path, [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
@@ -591,7 +592,7 @@ FtpResult FtpClient::removeDirectory(const std::string &remotePath)
 {
 	const std::string path = normalizeRemotePath(remotePath);
 	if(!isWriteAllowed(path))
-		return FtpResult::failure("Zona protegida do sistema: ativa o Modo avançado nas definições.");
+		return FtpResult::failure(QT_TRANSLATE_NOOP("Mensagens", "Zona protegida do sistema: ativa o Modo avançado nas definições."));
 	return withRetries("apagar pasta " + path, [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
@@ -605,7 +606,7 @@ FtpResult FtpClient::rename(const std::string &fromPath, const std::string &toPa
 	const std::string from = normalizeRemotePath(fromPath);
 	const std::string to = normalizeRemotePath(toPath);
 	if(!isWriteAllowed(from) || !isWriteAllowed(to))
-		return FtpResult::failure("Zona protegida do sistema: ativa o Modo avançado nas definições.");
+		return FtpResult::failure(QT_TRANSLATE_NOOP("Mensagens", "Zona protegida do sistema: ativa o Modo avançado nas definições."));
 	return withRetries("mudar nome de " + from, [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();

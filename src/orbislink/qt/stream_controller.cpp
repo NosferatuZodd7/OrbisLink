@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "orbislink/qt/stream_controller.h"
 
+#include "orbislink/qt/translate_message.h"
 #include "orbislink/stream/account_id.h"
 
-#include <QCoreApplication>
 #include <QKeySequence>
 #include <QTimer>
 
@@ -15,29 +15,6 @@
 namespace orbislink {
 
 namespace {
-
-// Os textos do Remote Play nascem fora do Qt, em português, marcados com
-// QT_TRANSLATE_NOOP("Mensagens", ...). Traduzem-se aqui, ao chegar à
-// interface. Os que levam um detalhe técnico no fim (": …" ou " (…)")
-// traduzem-se até ao detalhe, que fica como veio.
-QString translateMessage(const std::string &texto)
-{
-	const QString original = QString::fromStdString(texto);
-	const QString inteiro = QCoreApplication::translate("Mensagens", texto.c_str());
-	if(inteiro != original)
-		return inteiro;
-	for(const char *separador : { ": ", " (" })
-	{
-		const size_t pos = texto.find(separador);
-		if(pos == std::string::npos)
-			continue;
-		const std::string inicio = texto.substr(0, pos);
-		const QString traduzido = QCoreApplication::translate("Mensagens", inicio.c_str());
-		if(traduzido != QString::fromStdString(inicio))
-			return traduzido + QString::fromStdString(texto.substr(pos));
-	}
-	return original;
-}
 
 // O mesmo Account ID nas três formas, para o QML poder mostrar as outras
 // duas enquanto se escreve numa delas.
@@ -427,7 +404,7 @@ void StreamController::procurar(bool avisar)
 				const QString nome = QString::fromStdString(info.name);
 				if(consoleState() == QLatin1String("standby"))
 					emit notify(tr("Procurar"),
-						tr("%1 encontrada, em repouso. Usa \"Acordar consola\".")
+						tr("%1 encontrada, em repouso. Clica na caixa dela para a acordar.")
 							.arg(nome.isEmpty() ? address_ : nome),
 						false);
 				else
@@ -568,7 +545,7 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 	{
 		emit notify(tr("Registo"),
 			tr("A consola respondeu mas não disse a versão de sistema. "
-			   "Tenta \"Procurar\" outra vez."),
+			   "Clica na caixa dela para procurar outra vez."),
 			true);
 		return;
 	}
@@ -654,7 +631,7 @@ void StreamController::startStream()
 	if(!credentials_.valid)
 	{
 		emit notify(tr("Remote Play"),
-			tr("Regista primeiro a consola: carrega em \"Registar consola\"."), true);
+			tr("Regista primeiro a consola: clica na caixa dela e segue os passos."), true);
 		return;
 	}
 	// Dizer que se está a ligar antes de bloquear a pensar: o clique tem de

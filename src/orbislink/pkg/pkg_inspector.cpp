@@ -3,6 +3,7 @@
 
 #include "orbislink/common/bytes.h"
 #include "orbislink/common/log.h"
+#include "orbislink/common/tr.h"
 #include "orbislink/common/util.h"
 #include "orbislink/pkg/sfo_parser.h"
 
@@ -59,14 +60,14 @@ const char *pkgCategoryLabelPt(PkgCategory category)
 {
 	switch(category)
 	{
-		case PkgCategory::Game: return "Jogo";
-		case PkgCategory::Patch: return "Patch";
-		case PkgCategory::Dlc: return "DLC";
-		case PkgCategory::Theme: return "Tema";
-		case PkgCategory::DeltaPatch: return "Patch delta";
+		case PkgCategory::Game: return QT_TRANSLATE_NOOP("Mensagens", "Jogo");
+		case PkgCategory::Patch: return QT_TRANSLATE_NOOP("Mensagens", "Patch");
+		case PkgCategory::Dlc: return QT_TRANSLATE_NOOP("Mensagens", "DLC");
+		case PkgCategory::Theme: return QT_TRANSLATE_NOOP("Mensagens", "Tema");
+		case PkgCategory::DeltaPatch: return QT_TRANSLATE_NOOP("Mensagens", "Patch delta");
 		case PkgCategory::Unknown: break;
 	}
-	return "Desconhecido";
+	return QT_TRANSLATE_NOOP("Mensagens", "Desconhecido");
 }
 
 int pkgCategoryInstallOrder(PkgCategory category)
@@ -118,20 +119,20 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 	const int64_t size = fileSize(path);
 	if(size < 0)
 	{
-		info.error = "Não foi possível ler o ficheiro.";
+		info.error = QT_TRANSLATE_NOOP("Mensagens", "Não foi possível ler o ficheiro.");
 		return info;
 	}
 	info.fileSize = size;
 	if(size < kMinPkgSize)
 	{
-		info.error = "Não é um pkg PS4 válido (ficheiro demasiado pequeno).";
+		info.error = QT_TRANSLATE_NOOP("Mensagens", "Não é um pkg PS4 válido (ficheiro demasiado pequeno).");
 		return info;
 	}
 
 	std::ifstream file(path, std::ios::binary);
 	if(!file)
 	{
-		info.error = "Não foi possível abrir o ficheiro.";
+		info.error = QT_TRANSLATE_NOOP("Mensagens", "Não foi possível abrir o ficheiro.");
 		return info;
 	}
 
@@ -140,14 +141,14 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 		size < static_cast<int64_t>(kHeaderReadSize) ? size : static_cast<int64_t>(kHeaderReadSize));
 	if(!readAt(file, 0, header.data(), headerBytes))
 	{
-		info.error = "Não foi possível ler o cabeçalho do pkg.";
+		info.error = QT_TRANSLATE_NOOP("Mensagens", "Não foi possível ler o cabeçalho do pkg.");
 		return info;
 	}
 
 	if(!(header[kOffMagic] == 0x7F && header[kOffMagic + 1] == 'C' && header[kOffMagic + 2] == 'N'
 		   && header[kOffMagic + 3] == 'T'))
 	{
-		info.error = "Não é um pkg PS4 válido.";
+		info.error = QT_TRANSLATE_NOOP("Mensagens", "Não é um pkg PS4 válido.");
 		return info;
 	}
 
@@ -172,21 +173,21 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 
 	if(entryCount == 0 || entryCount > kMaxEntryCount)
 	{
-		info.error = "Tabela de entradas do pkg inválida.";
+		info.error = QT_TRANSLATE_NOOP("Mensagens", "Tabela de entradas do pkg inválida.");
 		return info;
 	}
 	const int64_t tableEnd = static_cast<int64_t>(entryTableOffset)
 		+ static_cast<int64_t>(entryCount) * static_cast<int64_t>(kTableEntrySize);
 	if(tableEnd > size)
 	{
-		info.error = "Tabela de entradas do pkg fora dos limites do ficheiro.";
+		info.error = QT_TRANSLATE_NOOP("Mensagens", "Tabela de entradas do pkg fora dos limites do ficheiro.");
 		return info;
 	}
 
 	std::vector<uint8_t> table(static_cast<size_t>(entryCount) * kTableEntrySize);
 	if(!readAt(file, entryTableOffset, table.data(), table.size()))
 	{
-		info.error = "Não foi possível ler a tabela de entradas do pkg.";
+		info.error = QT_TRANSLATE_NOOP("Mensagens", "Não foi possível ler a tabela de entradas do pkg.");
 		return info;
 	}
 

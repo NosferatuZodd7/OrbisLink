@@ -2,6 +2,7 @@
 #include "orbislink/console/console_manager.h"
 
 #include "orbislink/common/log.h"
+#include "orbislink/common/tr.h"
 #include "orbislink/common/util.h"
 #include "orbislink/installer/rpi_client.h"
 #include "orbislink/net/net_utils.h"
@@ -55,10 +56,10 @@ ProbeResult probeConsoleServices(const std::string &address, uint16_t ftpPort,
 
 ConsoleManager::ConsoleManager(Settings settings) : settings_(std::move(settings))
 {
-	status_.ftp.hint = "FTP indisponível — confirma que o GoldHEN está carregado e o FTP ativo.";
+	status_.ftp.hint = QT_TRANSLATE_NOOP("Mensagens", "FTP indisponível — confirma que o GoldHEN está carregado e o FTP ativo.");
 	status_.installer.hint =
-		"Instalador remoto indisponível. Abre o Remote Package Installer na consola.";
-	status_.remotePlay.hint = "Remote Play indisponível — liga a consola e confirma o registo.";
+		QT_TRANSLATE_NOOP("Mensagens", "Instalador remoto indisponível. Abre o Remote Package Installer na consola.");
+	status_.remotePlay.hint = QT_TRANSLATE_NOOP("Mensagens", "Remote Play indisponível — liga a consola e confirma o registo.");
 }
 
 ConsoleManager::~ConsoleManager() { stop(); }
@@ -112,11 +113,11 @@ void ConsoleManager::setRemotePlayState(RemotePlayState state, const std::string
 				break;
 			case RemotePlayState::Standby:
 				status_.remotePlay.state = ServiceState::Unavailable;
-				status_.remotePlay.hint = "A consola está em repouso — usa \"Acordar consola\".";
+				status_.remotePlay.hint = QT_TRANSLATE_NOOP("Mensagens", "A consola está em repouso — clica na caixa dela para a acordar.");
 				break;
 			case RemotePlayState::Offline:
 				status_.remotePlay.state = ServiceState::Unavailable;
-				status_.remotePlay.hint = "A consola está desligada ou fora da rede.";
+				status_.remotePlay.hint = QT_TRANSLATE_NOOP("Mensagens", "A consola está desligada ou fora da rede.");
 				break;
 			case RemotePlayState::Unknown:
 				status_.remotePlay.state = ServiceState::Unknown;
@@ -158,7 +159,7 @@ ConsoleStatus ConsoleManager::checkNow()
 		result.ftp.detail = probe.ftpDetail;
 		result.ftp.hint = probe.ftpOk
 			? std::string()
-			: "FTP indisponível — confirma que o GoldHEN está carregado e o FTP ativo.";
+			: QT_TRANSLATE_NOOP("Mensagens", "FTP indisponível — confirma que o GoldHEN está carregado e o FTP ativo.");
 		result.ftp.checkedAtMs = now;
 
 		result.installer.state =
@@ -166,7 +167,7 @@ ConsoleStatus ConsoleManager::checkNow()
 		result.installer.detail = probe.installerDetail;
 		result.installer.hint = probe.installerOk
 			? std::string()
-			: "Instalador remoto indisponível. Abre o Remote Package Installer na consola.";
+			: QT_TRANSLATE_NOOP("Mensagens", "Instalador remoto indisponível. Abre o Remote Package Installer na consola.");
 		result.installer.checkedAtMs = now;
 	}
 

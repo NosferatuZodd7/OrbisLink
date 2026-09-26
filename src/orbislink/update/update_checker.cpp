@@ -3,6 +3,7 @@
 
 #include "orbislink/common/json.h"
 #include "orbislink/common/log.h"
+#include "orbislink/common/tr.h"
 #include "orbislink/common/util.h"
 #include "orbislink/net/http_client.h"
 
@@ -177,12 +178,13 @@ std::string UpdateChecker::describeNothingNew(const std::vector<ReleaseInfo> &re
 		// "estás na versão mais recente" com uma versão nova ao lado.
 		const ReleaseInfo *testes = pick(releases, UpdateChannel::Testing, currentVersion);
 		if(testes)
-			return "Não há versão estável mais recente. Há uma compilação de testes, "
-				+ testes->version().toString()
-				+ ": para a receber, escolhe o canal \"Testes\" nas definições.";
-		return "Estás na versão estável mais recente.";
+			return std::string(QT_TRANSLATE_NOOP("Mensagens",
+					   "Não há versão estável mais recente, mas há uma compilação de testes "
+					   "(para a receber, escolhe o canal \"Testes\" nas definições)"))
+				+ ": " + testes->version().toString();
+		return QT_TRANSLATE_NOOP("Mensagens", "Estás na versão estável mais recente.");
 	}
-	return "Estás na versão mais recente, contando com as compilações de testes.";
+	return QT_TRANSLATE_NOOP("Mensagens", "Estás na versão mais recente, contando com as compilações de testes.");
 }
 
 UpdateCheckResult UpdateChecker::check() const
@@ -190,8 +192,8 @@ UpdateCheckResult UpdateChecker::check() const
 	UpdateCheckResult result;
 	if(config_.repository.find('/') == std::string::npos)
 	{
-		result.message = "O repositório de actualizações não está definido "
-						 "(espera-se \"dono/nome\").";
+		result.message = QT_TRANSLATE_NOOP("Mensagens", "O repositório de actualizações não está definido "
+						 "(espera-se \"dono/nome\").");
 		return result;
 	}
 
@@ -205,25 +207,29 @@ UpdateCheckResult UpdateChecker::check() const
 
 	if(!response.transportOk)
 	{
-		result.message = "Não foi possível falar com o GitHub: " + response.error;
+		result.message = std::string(QT_TRANSLATE_NOOP("Mensagens", "Não foi possível falar com o GitHub"))
+			+ ": " + response.error;
 		return result;
 	}
 	if(response.status == 404)
 	{
 		// O caso que realmente acontece: o repositório é privado, ou mudou
 		// de nome. Dizê-lo em vez de um "sem novidades" que mente.
-		result.message = "O repositório " + config_.repository
-			+ " não respondeu (é privado, ou o nome está errado).";
+		result.message = std::string(QT_TRANSLATE_NOOP("Mensagens",
+							 "O repositório de actualizações não respondeu (é privado, ou o "
+							 "nome está errado)"))
+			+ ": " + config_.repository;
 		return result;
 	}
 	if(response.status == 403 || response.status == 429)
 	{
-		result.message = "O GitHub pediu para esperar (limite de pedidos). Tenta mais tarde.";
+		result.message = QT_TRANSLATE_NOOP("Mensagens", "O GitHub pediu para esperar (limite de pedidos). Tenta mais tarde.");
 		return result;
 	}
 	if(response.status < 200 || response.status >= 300)
 	{
-		result.message = "O GitHub respondeu " + std::to_string(response.status) + ".";
+		result.message = std::string(QT_TRANSLATE_NOOP("Mensagens", "O GitHub respondeu com um erro"))
+			+ ": " + std::to_string(response.status);
 		return result;
 	}
 
@@ -231,7 +237,7 @@ UpdateCheckResult UpdateChecker::check() const
 	if(releases.empty())
 	{
 		result.ok = true;
-		result.message = "Ainda não há lançamentos publicados.";
+		result.message = QT_TRANSLATE_NOOP("Mensagens", "Ainda não há lançamentos publicados.");
 		return result;
 	}
 
@@ -244,7 +250,8 @@ UpdateCheckResult UpdateChecker::check() const
 	}
 	result.updateAvailable = true;
 	result.release = *novo;
-	result.message = "Há uma versão nova: " + novo->version().toString() + ".";
+	result.message = std::string(QT_TRANSLATE_NOOP("Mensagens", "Há uma versão nova"))
+		+ ": " + novo->version().toString();
 	logInfo("Actualização disponível: " + novo->tag + " (instalada: " + config_.currentVersion
 		+ ")");
 	return result;

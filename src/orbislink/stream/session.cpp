@@ -373,7 +373,7 @@ bool StreamSession::start(const Config &config, std::string *error)
 	if(!config.credentials.valid)
 	{
 		if(error)
-			*error = QT_TRANSLATE_NOOP("Mensagens", "A consola ainda não foi registada. Usa \"Registar consola\".");
+			*error = QT_TRANSLATE_NOOP("Mensagens", "A consola ainda não foi registada. Clica na caixa dela para a registar.");
 		return false;
 	}
 

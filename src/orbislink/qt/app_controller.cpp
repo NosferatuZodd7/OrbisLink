@@ -3,6 +3,7 @@
 
 #include "orbislink/qt/diagnostics.h"
 #ifdef ORBISLINK_HAS_STREAM
+#include "orbislink/qt/translate_message.h"
 #include "orbislink/stream/chiaki_log_bridge.h"
 #endif
 
@@ -190,7 +191,7 @@ void AppController::rebuildBackends()
 	queue_->setListener([this](const QueueTask &task) {
 		const bool terminal = task.isTerminal();
 		const QString title = QString::fromStdString(task.title);
-		const QString message = QString::fromStdString(task.message);
+		const QString message = translateMessage(task.message);
 		const bool failed = task.state == TaskState::Error;
 		QMetaObject::invokeMethod(
 			this,
@@ -316,8 +317,8 @@ QString AppController::remotePlayHint() const
 	// o indicador diria "Remote Play não integrado" a meio de uma sessão a
 	// correr. O estado verdadeiro vem do StreamController.
 	if(status_.remotePlay.state == ServiceState::Unknown)
-		return tr("Ainda não perguntei à consola. Carrega em Procurar.");
-	return QString::fromStdString(status_.remotePlay.hint);
+		return tr("Ainda não perguntei à consola. Clica na caixa dela para procurar.");
+	return translateMessage(status_.remotePlay.hint);
 }
 std::string AppController::activeAccountId() const
 {
@@ -348,7 +349,7 @@ QString AppController::ftpHint() const
 		return tr("O FTP é do GoldHEN, que só existe na PS4. A PS5 não tem FTP.");
 	return status_.ftp.state == ServiceState::Available
 		? QString::fromStdString(status_.ftp.detail)
-		: QString::fromStdString(status_.ftp.hint);
+		: translateMessage(status_.ftp.hint);
 }
 QString AppController::installerState() const
 {
@@ -360,7 +361,7 @@ QString AppController::installerHint() const
 		return tr("Instalar .pkg é só na PS4 (com o GoldHEN). A PS5 não instala pacotes daqui.");
 	return status_.installer.state == ServiceState::Available
 		? QString::fromStdString(status_.installer.detail)
-		: QString::fromStdString(status_.installer.hint);
+		: translateMessage(status_.installer.hint);
 }
 bool AppController::canInstallDirectly() const
 {
@@ -520,7 +521,7 @@ void AppController::addPaths(const QStringList &paths, int mode)
 
 	refreshQueueModel();
 	if(!rejected.empty())
-		setStatusMessage(QString::fromStdString(rejected.front()));
+		setStatusMessage(translateMessage(rejected.front()));
 	else
 		setStatusMessage(tr("%n ficheiro(s) na fila.", "", static_cast<int>(ids.size())));
 }
@@ -604,7 +605,7 @@ bool AppController::ftpReady(const QString &operacao)
 	if(status_.ftp.state == ServiceState::Unavailable)
 	{
 		emit notify(operacao,
-			tr("A consola não responde no FTP: %1").arg(QString::fromStdString(status_.ftp.hint)),
+			tr("A consola não responde no FTP: %1").arg(translateMessage(status_.ftp.hint)),
 			true);
 		return false;
 	}
@@ -634,7 +635,7 @@ void AppController::ftpRefresh()
 	std::thread([this, path]() {
 		std::vector<FtpEntry> entries;
 		const FtpResult result = ftp_->list(path, &entries);
-		const QString error = QString::fromStdString(result.message);
+		const QString error = translateMessage(result.message);
 		QMetaObject::invokeMethod(
 			this,
 			[this, entries, result, error]() {
@@ -664,7 +665,7 @@ void AppController::ftpDelete(const QString &path, bool isDirectory)
 	const std::string target = path.toStdString();
 	std::thread([this, target, isDirectory]() {
 		const FtpResult result = isDirectory ? ftp_->removeDirectory(target) : ftp_->removeFile(target);
-		const QString message = QString::fromStdString(result.message);
+		const QString message = translateMessage(result.message);
 		const bool ok = result.ok;
 		QMetaObject::invokeMethod(
 			this,
@@ -696,7 +697,7 @@ void AppController::ftpMakeDirectory(const QString &name)
 		normalizeRemotePath((ftpPath_ + "/" + name.trimmed()).toStdString());
 	std::thread([this, target]() {
 		const FtpResult result = ftp_->makeDirectory(target);
-		const QString message = QString::fromStdString(result.message);
+		const QString message = translateMessage(result.message);
 		const bool ok = result.ok;
 		QMetaObject::invokeMethod(
 			this,
@@ -736,7 +737,7 @@ void AppController::ftpRename(const QString &path, const QString &newName)
 	setFtpBusy(true);
 	std::thread([this, from, to]() {
 		const FtpResult result = ftp_->rename(from, to);
-		const QString message = QString::fromStdString(result.message);
+		const QString message = translateMessage(result.message);
 		const bool ok = result.ok;
 		QMetaObject::invokeMethod(
 			this,
@@ -897,7 +898,7 @@ void AppController::startDownload(const QString &remotePath, const QString &name
 
 		const bool ok = result.ok;
 		const bool cancelled = result.cancelled || downloadCancel_.load();
-		const QString message = QString::fromStdString(result.message);
+		const QString message = translateMessage(result.message);
 		QMetaObject::invokeMethod(
 			this,
 			[this, ok, cancelled, message, name, remotePath, localPath, forDrag]() {
@@ -1178,7 +1179,7 @@ void AppController::checkForUpdatesNow(bool silentWhenUpToDate)
 			this,
 			[this, result, silentWhenUpToDate]() {
 				updateBusy_.store(false);
-				const QString mensagem = QString::fromStdString(result.message);
+				const QString mensagem = translateMessage(result.message);
 				if(!result.ok)
 				{
 					setUpdateState(QStringLiteral("erro"), mensagem);
@@ -1310,7 +1311,7 @@ void AppController::installUpdate()
 
 		QString erro;
 		if(!resultado.ok)
-			erro = tr("A descarga falhou: %1").arg(QString::fromStdString(resultado.error));
+			erro = tr("A descarga falhou: %1").arg(translateMessage(resultado.error));
 		else if(!esperado.empty())
 		{
 			const std::string obtido = sha256File(destino.toStdString());

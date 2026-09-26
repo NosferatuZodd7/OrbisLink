@@ -3,6 +3,7 @@
 
 #include "orbislink/common/json.h"
 #include "orbislink/common/log.h"
+#include "orbislink/common/tr.h"
 #include "orbislink/common/util.h"
 #include "orbislink/installer/error_codes.h"
 #include "orbislink/net/http_client.h"
@@ -64,8 +65,9 @@ InstallerResult RpiClient::call(const std::string &path, const std::string &json
 	if(!response.transportOk)
 	{
 		return InstallerResult::failure(
-			"Instalador remoto indisponível. Abre o Remote Package Installer na consola. ("
-			+ response.error + ")");
+			std::string(QT_TRANSLATE_NOOP("Mensagens",
+				"Instalador remoto indisponível. Abre o Remote Package Installer na consola."))
+			+ " (" + response.error + ")");
 	}
 
 	if(body)
@@ -76,7 +78,8 @@ InstallerResult RpiClient::call(const std::string &path, const std::string &json
 	if(json.isNull() || !json.isObject())
 	{
 		InstallerResult result = InstallerResult::failure(
-			"Resposta inesperada do instalador remoto (" + parseError + ").");
+			std::string(QT_TRANSLATE_NOOP("Mensagens", "Resposta inesperada do instalador remoto"))
+			+ " (" + parseError + ").");
 		result.httpStatus = response.status;
 		result.rawBody = response.body;
 		return result;
@@ -104,7 +107,7 @@ InstallerResult RpiClient::call(const std::string &path, const std::string &json
 	else if(json["error"].isString())
 		result.message = json["error"].toString();
 	else
-		result.message = "O instalador remoto recusou o pedido.";
+		result.message = QT_TRANSLATE_NOOP("Mensagens", "O instalador remoto recusou o pedido.");
 	logError("Instalador remoto: " + path + " -> " + result.message);
 	return result;
 }
@@ -113,7 +116,7 @@ InstallerResult RpiClient::installDirect(const std::vector<std::string> &package
 	InstallTaskHandle *handle)
 {
 	if(packageUrls.empty())
-		return InstallerResult::failure("Nenhum pacote indicado para instalação.");
+		return InstallerResult::failure(QT_TRANSLATE_NOOP("Mensagens", "Nenhum pacote indicado para instalação."));
 
 	Json request = Json::makeObject();
 	request.set("type", Json::fromString("direct"));
