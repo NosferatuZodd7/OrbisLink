@@ -227,7 +227,7 @@ void AudioOutput::ensureStarted()
 
 	if(device.isNull())
 	{
-		emit failed(tr("Este PC não tem nenhuma saída de som activa."));
+		emit failed(tr("This PC has no active sound output."));
 		return;
 	}
 
@@ -254,7 +254,7 @@ void AudioOutput::ensureStarted()
 			state_ = QStringLiteral("erro");
 		}
 		logError("Remote Play: o QAudioSink falhou a arrancar, erro " + std::to_string(codigo));
-		emit failed(tr("A placa de som recusou o stream (erro %1).").arg(codigo));
+		emit failed(tr("The sound card refused the stream (error %1).").arg(codigo));
 		return;
 	}
 
@@ -304,7 +304,7 @@ void AudioOutput::handleSinkState(QAudio::State estado)
 		if(estado == QAudio::StoppedState && sink_->error() != QAudio::NoError)
 		{
 			state_ = QStringLiteral("erro");
-			falha = tr("O som parou (erro %1).").arg(static_cast<int>(sink_->error()));
+			falha = tr("The sound stopped (error %1).").arg(static_cast<int>(sink_->error()));
 			logError("Remote Play: o som parou com erro "
 				+ std::to_string(static_cast<int>(sink_->error())));
 		}

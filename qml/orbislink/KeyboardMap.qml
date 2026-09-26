@@ -39,8 +39,8 @@ Item {
     // O texto da caixa por baixo do comando.
     readonly property string texto: {
         if (escolhida.length > 0)
-            return qsTr("A mudar %1: carrega na tecla nova, ou clica numa tecla do desenho. "
-                        + "Esc cancela.").arg(acoes[escolhida].nome)
+            return qsTr("Changing %1: press the new key, or click a key in the drawing. Esc "
+                        + "cancels.").arg(acoes[escolhida].nome)
         if (aviso.length > 0)
             return aviso
         return descricao
@@ -54,32 +54,32 @@ Item {
     // O que cada acção mostra dentro da tecla. "alvo" é a parte do comando
     // que se acende; "tipo" diz como se desenha o sinal.
     readonly property var acoes: ({
-        "cross":        { sinal: "✕", tipo: "simbolo", cor: corCruz, alvo: "cross", nome: qsTr("Cruz") },
-        "circle":       { sinal: "◯", tipo: "simbolo", cor: corCirculo, alvo: "circle", nome: qsTr("Círculo") },
-        "square":       { sinal: "▢", tipo: "simbolo", cor: corQuadrado, alvo: "square", nome: qsTr("Quadrado") },
-        "triangle":     { sinal: "△", tipo: "simbolo", cor: corTriangulo, alvo: "triangle", nome: qsTr("Triângulo") },
-        "dpad_up":      { sinal: "✚↑", tipo: "botao", alvo: "dpad", nome: qsTr("cruzeta para cima") },
-        "dpad_down":    { sinal: "✚↓", tipo: "botao", alvo: "dpad", nome: qsTr("cruzeta para baixo") },
-        "dpad_left":    { sinal: "✚←", tipo: "botao", alvo: "dpad", nome: qsTr("cruzeta para a esquerda") },
-        "dpad_right":   { sinal: "✚→", tipo: "botao", alvo: "dpad", nome: qsTr("cruzeta para a direita") },
+        "cross":        { sinal: "✕", tipo: "simbolo", cor: corCruz, alvo: "cross", nome: qsTr("Cross") },
+        "circle":       { sinal: "◯", tipo: "simbolo", cor: corCirculo, alvo: "circle", nome: qsTr("Circle") },
+        "square":       { sinal: "▢", tipo: "simbolo", cor: corQuadrado, alvo: "square", nome: qsTr("Square") },
+        "triangle":     { sinal: "△", tipo: "simbolo", cor: corTriangulo, alvo: "triangle", nome: qsTr("Triangle") },
+        "dpad_up":      { sinal: "✚↑", tipo: "botao", alvo: "dpad", nome: qsTr("D-pad up") },
+        "dpad_down":    { sinal: "✚↓", tipo: "botao", alvo: "dpad", nome: qsTr("D-pad down") },
+        "dpad_left":    { sinal: "✚←", tipo: "botao", alvo: "dpad", nome: qsTr("D-pad left") },
+        "dpad_right":   { sinal: "✚→", tipo: "botao", alvo: "dpad", nome: qsTr("D-pad right") },
         "l1":           { sinal: "L1", tipo: "botao", alvo: "l1", nome: qsTr("L1") },
-        "l2":           { sinal: "L2", tipo: "botao", alvo: "l2", nome: qsTr("L2 (gatilho)") },
+        "l2":           { sinal: "L2", tipo: "botao", alvo: "l2", nome: qsTr("L2 (trigger)") },
         "r1":           { sinal: "R1", tipo: "botao", alvo: "r1", nome: qsTr("R1") },
-        "r2":           { sinal: "R2", tipo: "botao", alvo: "r2", nome: qsTr("R2 (gatilho)") },
-        "l3":           { sinal: "L3", tipo: "botao", alvo: "lstick", nome: qsTr("L3 (carregar no analógico esquerdo)") },
-        "r3":           { sinal: "R3", tipo: "botao", alvo: "rstick", nome: qsTr("R3 (carregar no analógico direito)") },
-        "lstick_up":    { sinal: "L↑", tipo: "botao", alvo: "lstick", nome: qsTr("analógico esquerdo para cima") },
-        "lstick_left":  { sinal: "L←", tipo: "botao", alvo: "lstick", nome: qsTr("analógico esquerdo para a esquerda") },
-        "lstick_down":  { sinal: "L↓", tipo: "botao", alvo: "lstick", nome: qsTr("analógico esquerdo para baixo") },
-        "lstick_right": { sinal: "L→", tipo: "botao", alvo: "lstick", nome: qsTr("analógico esquerdo para a direita") },
-        "rstick_up":    { sinal: "R↑", tipo: "botao", alvo: "rstick", nome: qsTr("analógico direito para cima") },
-        "rstick_left":  { sinal: "R←", tipo: "botao", alvo: "rstick", nome: qsTr("analógico direito para a esquerda") },
-        "rstick_down":  { sinal: "R↓", tipo: "botao", alvo: "rstick", nome: qsTr("analógico direito para baixo") },
-        "rstick_right": { sinal: "R→", tipo: "botao", alvo: "rstick", nome: qsTr("analógico direito para a direita") },
+        "r2":           { sinal: "R2", tipo: "botao", alvo: "r2", nome: qsTr("R2 (trigger)") },
+        "l3":           { sinal: "L3", tipo: "botao", alvo: "lstick", nome: qsTr("L3 (press the left stick)") },
+        "r3":           { sinal: "R3", tipo: "botao", alvo: "rstick", nome: qsTr("R3 (press the right stick)") },
+        "lstick_up":    { sinal: "L↑", tipo: "botao", alvo: "lstick", nome: qsTr("left stick up") },
+        "lstick_left":  { sinal: "L←", tipo: "botao", alvo: "lstick", nome: qsTr("left stick left") },
+        "lstick_down":  { sinal: "L↓", tipo: "botao", alvo: "lstick", nome: qsTr("left stick down") },
+        "lstick_right": { sinal: "L→", tipo: "botao", alvo: "lstick", nome: qsTr("left stick right") },
+        "rstick_up":    { sinal: "R↑", tipo: "botao", alvo: "rstick", nome: qsTr("right stick up") },
+        "rstick_left":  { sinal: "R←", tipo: "botao", alvo: "rstick", nome: qsTr("right stick left") },
+        "rstick_down":  { sinal: "R↓", tipo: "botao", alvo: "rstick", nome: qsTr("right stick down") },
+        "rstick_right": { sinal: "R→", tipo: "botao", alvo: "rstick", nome: qsTr("right stick right") },
         "options":      { sinal: "OPT", tipo: "botao", alvo: "options", nome: qsTr("Options") },
         "share":        { sinal: "SHR", tipo: "botao", alvo: "share", nome: qsTr("Share") },
-        "touchpad":     { sinal: "PAD", tipo: "botao", alvo: "touchpad", nome: qsTr("carregar no touchpad") },
-        "ps":           { sinal: "PS", tipo: "ps", alvo: "ps", nome: qsTr("botão PS") }
+        "touchpad":     { sinal: "PAD", tipo: "botao", alvo: "touchpad", nome: qsTr("press the touchpad") },
+        "ps":           { sinal: "PS", tipo: "ps", alvo: "ps", nome: qsTr("PS button") }
     })
 
     // As teclas, em unidades de uma tecla: [rótulo, código, x, linha, largura].
@@ -105,7 +105,7 @@ Item {
         ["V", Qt.Key_V, 5.25, 3, 1], ["B", Qt.Key_B, 6.25, 3, 1], ["N", Qt.Key_N, 7.25, 3, 1],
         ["M", Qt.Key_M, 8.25, 3, 1],
         ["Ctrl", Qt.Key_Control, 0, 4, 1.5], ["Alt", Qt.Key_Alt, 1.5, 4, 1.25],
-        [qsTr("Espaço"), Qt.Key_Space, 2.75, 4, 6.5], ["AltGr", Qt.Key_AltGr, 9.25, 4, 1.25],
+        [qsTr("Space"), Qt.Key_Space, 2.75, 4, 6.5], ["AltGr", Qt.Key_AltGr, 9.25, 4, 1.25],
         ["↑", Qt.Key_Up, 15, 3, 1],
         ["←", Qt.Key_Left, 14, 4, 1], ["↓", Qt.Key_Down, 15, 4, 1], ["→", Qt.Key_Right, 16, 4, 1]
     ]
@@ -144,8 +144,8 @@ Item {
             aviso = ""
             escolhida = ""
         } else {
-            aviso = qsTr("Essa tecla não se pode usar: o Esc sai do stream e o F11 muda o "
-                         + "ecrã inteiro.")
+            aviso = qsTr("That key can't be used: Esc leaves the stream and F11 toggles full "
+                         + "screen.")
             escolhida = ""
         }
     }
@@ -177,7 +177,7 @@ Item {
             readonly property string acao: mapa.porTecla[codigo] !== undefined
                                            ? mapa.porTecla[codigo] : ""
             readonly property var funcao: fixa
-                ? { sinal: qsTr("sair"), tipo: "aviso", alvo: "", nome: qsTr("sai do stream") }
+                ? { sinal: qsTr("exit"), tipo: "aviso", alvo: "", nome: qsTr("leaves the stream") }
                 : (acao.length > 0 ? mapa.acoes[acao] : undefined)
             readonly property bool util: funcao !== undefined
             readonly property bool escolhidaAqui: acao.length > 0 && mapa.escolhida === acao
@@ -300,7 +300,7 @@ Item {
         width: parent.width
         horizontalAlignment: Text.AlignHCenter
         elide: Text.ElideRight
-        text: qsTr("Fora do desenho: %1").arg(mapa.foraDoDesenho)
+        text: qsTr("Not in the drawing: %1").arg(mapa.foraDoDesenho)
         color: Theme.textSecondary
         font.pixelSize: 11
     }

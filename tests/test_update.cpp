@@ -244,7 +244,7 @@ ORBISLINK_TEST(canal_estavel_avisa_quando_ha_uma_de_testes)
 	const std::string aviso =
 		UpdateChecker::describeNothingNew(releases, UpdateChannel::Stable, "0.1.8");
 	CHECK(aviso.find("0.1.9-dev.3") != std::string::npos);
-	CHECK(aviso.find("Testes") != std::string::npos);
+	CHECK(aviso.find("Testing") != std::string::npos);
 
 	// Sem nada em lado nenhum, diz só que está actualizado.
 	const std::string nada =
@@ -280,7 +280,7 @@ ORBISLINK_TEST(repositorio_mal_definido_falha_a_dizer_porque)
 	const UpdateCheckResult result = UpdateChecker(config).check();
 	CHECK(!result.ok);
 	CHECK(!result.updateAvailable);
-	CHECK(result.message.find("dono/nome") != std::string::npos);
+	CHECK(result.message.find("owner/name") != std::string::npos);
 }
 
 ORBISLINK_TEST(canal_le_se_e_escreve_se_por_nome)

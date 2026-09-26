@@ -60,14 +60,14 @@ const char *pkgCategoryLabelPt(PkgCategory category)
 {
 	switch(category)
 	{
-		case PkgCategory::Game: return QT_TRANSLATE_NOOP("Mensagens", "Jogo");
-		case PkgCategory::Patch: return QT_TRANSLATE_NOOP("Mensagens", "Patch");
-		case PkgCategory::Dlc: return QT_TRANSLATE_NOOP("Mensagens", "DLC");
-		case PkgCategory::Theme: return QT_TRANSLATE_NOOP("Mensagens", "Tema");
-		case PkgCategory::DeltaPatch: return QT_TRANSLATE_NOOP("Mensagens", "Patch delta");
+		case PkgCategory::Game: return QT_TRANSLATE_NOOP("Messages", "Game");
+		case PkgCategory::Patch: return QT_TRANSLATE_NOOP("Messages", "Patch");
+		case PkgCategory::Dlc: return QT_TRANSLATE_NOOP("Messages", "DLC");
+		case PkgCategory::Theme: return QT_TRANSLATE_NOOP("Messages", "Theme");
+		case PkgCategory::DeltaPatch: return QT_TRANSLATE_NOOP("Messages", "Delta patch");
 		case PkgCategory::Unknown: break;
 	}
-	return QT_TRANSLATE_NOOP("Mensagens", "Desconhecido");
+	return QT_TRANSLATE_NOOP("Messages", "Unknown");
 }
 
 int pkgCategoryInstallOrder(PkgCategory category)
@@ -119,20 +119,20 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 	const int64_t size = fileSize(path);
 	if(size < 0)
 	{
-		info.error = QT_TRANSLATE_NOOP("Mensagens", "Não foi possível ler o ficheiro.");
+		info.error = QT_TRANSLATE_NOOP("Messages", "Could not read the file.");
 		return info;
 	}
 	info.fileSize = size;
 	if(size < kMinPkgSize)
 	{
-		info.error = QT_TRANSLATE_NOOP("Mensagens", "Não é um pkg PS4 válido (ficheiro demasiado pequeno).");
+		info.error = QT_TRANSLATE_NOOP("Messages", "Not a valid PS4 pkg (file too small).");
 		return info;
 	}
 
 	std::ifstream file(path, std::ios::binary);
 	if(!file)
 	{
-		info.error = QT_TRANSLATE_NOOP("Mensagens", "Não foi possível abrir o ficheiro.");
+		info.error = QT_TRANSLATE_NOOP("Messages", "Could not open the file.");
 		return info;
 	}
 
@@ -141,14 +141,14 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 		size < static_cast<int64_t>(kHeaderReadSize) ? size : static_cast<int64_t>(kHeaderReadSize));
 	if(!readAt(file, 0, header.data(), headerBytes))
 	{
-		info.error = QT_TRANSLATE_NOOP("Mensagens", "Não foi possível ler o cabeçalho do pkg.");
+		info.error = QT_TRANSLATE_NOOP("Messages", "Could not read the pkg header.");
 		return info;
 	}
 
 	if(!(header[kOffMagic] == 0x7F && header[kOffMagic + 1] == 'C' && header[kOffMagic + 2] == 'N'
 		   && header[kOffMagic + 3] == 'T'))
 	{
-		info.error = QT_TRANSLATE_NOOP("Mensagens", "Não é um pkg PS4 válido.");
+		info.error = QT_TRANSLATE_NOOP("Messages", "Not a valid PS4 pkg.");
 		return info;
 	}
 
@@ -173,21 +173,21 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 
 	if(entryCount == 0 || entryCount > kMaxEntryCount)
 	{
-		info.error = QT_TRANSLATE_NOOP("Mensagens", "Tabela de entradas do pkg inválida.");
+		info.error = QT_TRANSLATE_NOOP("Messages", "Invalid pkg entry table.");
 		return info;
 	}
 	const int64_t tableEnd = static_cast<int64_t>(entryTableOffset)
 		+ static_cast<int64_t>(entryCount) * static_cast<int64_t>(kTableEntrySize);
 	if(tableEnd > size)
 	{
-		info.error = QT_TRANSLATE_NOOP("Mensagens", "Tabela de entradas do pkg fora dos limites do ficheiro.");
+		info.error = QT_TRANSLATE_NOOP("Messages", "The pkg entry table is outside the file.");
 		return info;
 	}
 
 	std::vector<uint8_t> table(static_cast<size_t>(entryCount) * kTableEntrySize);
 	if(!readAt(file, entryTableOffset, table.data(), table.size()))
 	{
-		info.error = QT_TRANSLATE_NOOP("Mensagens", "Não foi possível ler a tabela de entradas do pkg.");
+		info.error = QT_TRANSLATE_NOOP("Messages", "Could not read the pkg entry table.");
 		return info;
 	}
 

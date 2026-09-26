@@ -256,7 +256,8 @@ bool StreamDiscovery::wakeup(const std::string &address, uint64_t credential, bo
 	if(address.empty() || credential == 0)
 	{
 		if(error)
-			*error = QT_TRANSLATE_NOOP("Mensagens", "Falta o endereço ou a consola ainda não foi registada.");
+			*error = QT_TRANSLATE_NOOP("Messages", "The address is missing or the console has not been "
+				"registered yet.");
 		return false;
 	}
 	const ChiakiErrorCode result =

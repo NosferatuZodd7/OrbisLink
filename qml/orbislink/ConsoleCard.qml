@@ -74,23 +74,23 @@ Item {
                                      : Theme.cardTextMuted
 
     readonly property string estadoTexto: {
-        if (!disponivel) return qsTr("Remote Play não incluído nesta versão")
-        if (confirmarRemocao) return qsTr("Clica outra vez no ✕ para remover")
+        if (!disponivel) return qsTr("Remote Play is not in this build")
+        if (confirmarRemocao) return qsTr("Click ✕ again to remove")
         if (!ativa) {
-            if (estado === "ready") return qsTr("Pronta — clica para ligar")
-            if (estado === "standby") return qsTr("Em repouso — clica para acordar e ligar")
-            if (estado === "offline") return qsTr("Não responde — clica para tentar ligar")
-            return qsTr("A verificar — clica para ligar")
+            if (estado === "ready") return qsTr("Ready — click to connect")
+            if (estado === "standby") return qsTr("In rest mode — click to wake and connect")
+            if (estado === "offline") return qsTr("Not responding — click to try to connect")
+            return qsTr("Checking — click to connect")
         }
-        if (aLigar) return qsTr("A ligar… — clica para cancelar")
-        if (etapa === "waking") return qsTr("A acordar a consola… — clica para cancelar")
-        if (etapa === "checking") return qsTr("A verificar a consola… — clica para cancelar")
-        if (aProcurar) return qsTr("A procurar a consola…")
-        if (estado === "offline") return qsTr("Não responde — clica para tentar ligar")
-        if (estado === "unknown") return qsTr("Clica para ligar")
-        if (!registada) return qsTr("Por registar — clica para registar")
-        if (estado === "standby") return qsTr("Em repouso — clica para acordar e ligar")
-        return qsTr("Pronta — clica para ligar")
+        if (aLigar) return qsTr("Connecting… — click to cancel")
+        if (etapa === "waking") return qsTr("Waking the console… — click to cancel")
+        if (etapa === "checking") return qsTr("Checking the console… — click to cancel")
+        if (aProcurar) return qsTr("Searching for the console…")
+        if (estado === "offline") return qsTr("Not responding — click to try to connect")
+        if (estado === "unknown") return qsTr("Click to connect")
+        if (!registada) return qsTr("Not registered — click to register")
+        if (estado === "standby") return qsTr("In rest mode — click to wake and connect")
+        return qsTr("Ready — click to connect")
     }
 
     implicitWidth: 360 * fator
@@ -295,8 +295,8 @@ Item {
             opacity: 0.7
             text: "🔗"
             ToolTip.visible: hovered
-            ToolTip.text: caixa.registada ? qsTr("Registar este PC outra vez")
-                                          : qsTr("Registar este PC na consola")
+            ToolTip.text: caixa.registada ? qsTr("Register this PC again")
+                                          : qsTr("Register this PC on the console")
             onClicked: caixa.editar()
         }
         StyledToolButton {
@@ -309,7 +309,7 @@ Item {
             opacity: 0.7
             text: "✕"
             ToolTip.visible: hovered
-            ToolTip.text: qsTr("Tirar esta consola da lista")
+            ToolTip.text: qsTr("Remove this console from the list")
             onClicked: {
                 if (caixa.confirmarRemocao)
                     caixa.remover()
@@ -370,7 +370,7 @@ Item {
                 width: parent.width - 48
                 horizontalAlignment: Text.AlignHCenter
                 elide: Text.ElideRight
-                text: caixa.nome.length > 0 ? caixa.nome : qsTr("Consola")
+                text: caixa.nome.length > 0 ? caixa.nome : qsTr("Console")
                 color: Theme.cardText
                 font.pixelSize: 26
                 font.weight: Font.DemiBold

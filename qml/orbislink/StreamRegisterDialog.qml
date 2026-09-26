@@ -43,7 +43,7 @@ Dialog {
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             anchors.leftMargin: Theme.dialogMargin
-            text: qsTr("Registar este PC na consola")
+            text: qsTr("Register this PC on the console")
             color: Theme.text
             font.pixelSize: 15
             font.bold: true
@@ -69,18 +69,18 @@ Dialog {
             }
             Text {
                 visible: dialog.busy
-                text: qsTr("A falar com a consola…")
+                text: qsTr("Talking to the console…")
                 color: Theme.textMuted
                 font.pixelSize: 11
             }
             Item { Layout.fillWidth: true }
             StyledButton {
-                text: qsTr("Fechar")
+                text: qsTr("Close")
                 larguraMinima: 100
                 onClicked: dialog.close()
             }
             StyledButton {
-                text: qsTr("Registar")
+                text: qsTr("Register")
                 larguraMinima: 110
                 // Só activo quando o Account ID já dá um valor válido: um
                 // botão que se pode carregar e falha na consola é pior do
@@ -123,18 +123,18 @@ Dialog {
                     color: Theme.text
                     font.pixelSize: 12
                     text: (typeof stream !== "undefined" && stream && stream.consolePs5)
-                          ? qsTr("Na PS5: Definições → Sistema → Remote Play → Associar "
-                                 + "dispositivo, com a conta que vais usar.")
-                          : qsTr("Na consola: Definições → Definições de Ligação do Remote Play "
-                                 + "→ Adicionar Dispositivo.")
+                          ? qsTr("On the PS5: Settings → System → Remote Play → Link Device, "
+                                 + "signed in with the account you will use.")
+                          : qsTr("On the console: Settings → Remote Play Connection Settings → "
+                                 + "Add Device.")
                 }
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     color: Theme.textMuted
                     font.pixelSize: 11
-                    text: qsTr("O PIN de 8 dígitos que aparece dura poucos minutos. Se falhar, "
-                               + "pede outro na consola.")
+                    text: qsTr("The 8-digit PIN it shows lasts only a few minutes. If it fails, "
+                               + "ask the console for another.")
                 }
             }
         }
@@ -185,10 +185,10 @@ Dialog {
             wrapMode: Text.WordWrap
             color: Theme.textMuted
             font.pixelSize: 11
-            text: qsTr("O Account ID é um número de 64 bits da conta PSN que usa a consola "
-                       + "— não é o nome de utilizador. Cola-o como o tiveres: em "
-                       + "hexadecimal, em decimal ou já em base64. A consola só aceita a "
-                       + "forma em base64, e essa conversão passa a ser feita aqui.")
+            text: qsTr("The Account ID is a 64-bit number belonging to the PSN account that uses "
+                       + "the console — it is not the username. Paste it however you have it: "
+                       + "hexadecimal, decimal or already in base64. The console only accepts the "
+                       + "base64 form, and that conversion now happens here.")
         }
     }
 }

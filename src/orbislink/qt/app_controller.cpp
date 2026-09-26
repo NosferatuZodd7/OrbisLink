@@ -168,7 +168,7 @@ void AppController::rebuildBackends()
 		static_cast<unsigned>(httpConfig.port));
 	std::string httpError;
 	if(!httpServer_->start(httpConfig, &httpError))
-		setStatusMessage(tr("Servidor HTTP local não arrancou: %1").arg(QString::fromStdString(httpError)));
+		setStatusMessage(tr("The local HTTP server did not start: %1").arg(QString::fromStdString(httpError)));
 
 	qInfo("Serviços: instalador remoto e FTP");
 	RpiClient::Config rpiConfig;
@@ -246,7 +246,7 @@ void AppController::selectConsole(const QString &address)
 		store_.save(settings_);
 		// O FTP, o instalador e o servidor HTTP passam a falar com ela.
 		rebuildBackends();
-		setStatusMessage(tr("A usar %1 (%2).").arg(QString::fromStdString(consola.name),
+		setStatusMessage(tr("Using %1 (%2).").arg(QString::fromStdString(consola.name),
 			QString::fromStdString(consola.address)));
 		return;
 	}
@@ -320,7 +320,7 @@ QString AppController::remotePlayHint() const
 	// o indicador diria "Remote Play não integrado" a meio de uma sessão a
 	// correr. O estado verdadeiro vem do StreamController.
 	if(status_.remotePlay.state == ServiceState::Unknown)
-		return tr("Ainda não perguntei à consola. Clica na caixa dela para procurar.");
+		return tr("I have not asked the console yet. Click its box to search.");
 	return translateMessage(status_.remotePlay.hint);
 }
 std::string AppController::activeAccountId() const
@@ -357,8 +357,8 @@ QString AppController::ftpState() const
 QString AppController::ftpHint() const
 {
 	if(activeIsPs5() && status_.ftp.state != ServiceState::Available)
-		return tr("Na PS5, o FTP só existe com um jailbreak. No etaHEN liga-se com FTP=1 "
-				  "no config.ini e fica na porta %1 (muda-a nas definições se for outra).")
+		return tr("On the PS5, FTP only exists with a jailbreak. In etaHEN turn it on with FTP=1 in "
+			"config.ini; it listens on port %1 (change it in the settings if yours differs).")
 			.arg(activeFtpPort());
 	return status_.ftp.state == ServiceState::Available
 		? QString::fromStdString(status_.ftp.detail)
@@ -373,8 +373,8 @@ QString AppController::installerState() const
 QString AppController::installerHint() const
 {
 	if(activeIsPs5() && status_.installer.state != ServiceState::Available)
-		return tr("Na PS5, instalar pacotes só com um jailbreak que tenha um instalador na "
-				  "porta %1 — no etaHEN, o DPI v2 (DPI_v2=1 no config.ini).")
+		return tr("On the PS5, installing packages needs a jailbreak with an installer on port %1 — in "
+			"etaHEN, DPI v2 (DPI_v2=1 in config.ini).")
 			.arg(settings_.installerPort);
 	return status_.installer.state == ServiceState::Available
 		? QString::fromStdString(status_.installer.detail)
@@ -391,7 +391,7 @@ QString AppController::pauseReason() const
 QString AppController::httpServerAddress() const
 {
 	if(!httpServer_ || !httpServer_->running())
-		return tr("parado");
+		return tr("stopped");
 	return QStringLiteral("http://%1:%2")
 		.arg(QString::fromStdString(httpServer_->bindAddress()))
 		.arg(httpServer_->port());
@@ -494,14 +494,14 @@ void AppController::addPaths(const QStringList &paths, int mode)
 		return;
 	if(activeIsPs5() && !status_.canInstallDirectly() && !status_.canUseFtp())
 	{
-		emit notify(tr("Instalar"), installerHint(), true);
+		emit notify(tr("Install"), installerHint(), true);
 		return;
 	}
 	const TransferMode transferMode = mode == 1 ? TransferMode::FtpUpload : TransferMode::DirectInstall;
 	const QStringList files = collectPkgFiles(paths);
 	if(files.isEmpty())
 	{
-		setStatusMessage(tr("Nenhum ficheiro utilizável foi largado."));
+		setStatusMessage(tr("None of the dropped files can be used."));
 		return;
 	}
 
@@ -512,7 +512,7 @@ void AppController::addPaths(const QStringList &paths, int mode)
 		if(transferMode == TransferMode::DirectInstall
 			&& QFileInfo(file).suffix().toLower() != QStringLiteral("pkg"))
 		{
-			setStatusMessage(tr("%1 não é um .pkg — só é aceite na zona de FTP.")
+			setStatusMessage(tr("%1 is not a .pkg — only the FTP zone takes it.")
 					.arg(QFileInfo(file).fileName()));
 			continue;
 		}
@@ -534,7 +534,7 @@ void AppController::addPaths(const QStringList &paths, int mode)
 	if(!rejected.empty())
 		setStatusMessage(translateMessage(rejected.front()));
 	else
-		setStatusMessage(tr("%n ficheiro(s) na fila.", "", static_cast<int>(ids.size())));
+		setStatusMessage(tr("%n file(s) queued.", "", static_cast<int>(ids.size())));
 }
 
 void AppController::checkServicesNow()
@@ -578,7 +578,7 @@ void AppController::pauseQueue()
 {
 	if(!queue_)
 		return;
-	queue_->pause(tr("Pausado pelo utilizador.").toStdString());
+	queue_->pause(tr("Paused by you.").toStdString());
 	emit queueStateChanged();
 }
 
@@ -597,21 +597,20 @@ bool AppController::ftpReady(const QString &operacao)
 	if(!ftp_)
 	{
 		emit notify(operacao,
-			tr("O FTP não está ligado. Confirma o IP da consola e que o servidor FTP do "
-			   "GoldHEN está a correr."),
+			tr("FTP is not connected. Check the console IP and that the GoldHEN FTP server is running."),
 			true);
 		return false;
 	}
 	if(ftpBusy_)
 	{
-		emit notify(operacao, tr("O FTP está ocupado com outra operação. Espera que acabe."),
+		emit notify(operacao, tr("FTP is busy with another operation. Wait for it to finish."),
 			true);
 		return false;
 	}
 	if(status_.ftp.state == ServiceState::Unavailable)
 	{
 		emit notify(operacao,
-			tr("A consola não responde no FTP: %1").arg(translateMessage(status_.ftp.hint)),
+			tr("The console is not answering on FTP: %1").arg(translateMessage(status_.ftp.hint)),
 			true);
 		return false;
 	}
@@ -648,14 +647,14 @@ void AppController::ftpRefresh()
 				if(result.ok)
 				{
 					ftpModel_.setEntries(entries);
-					setStatusMessage(tr("%1: %2 entradas").arg(ftpPath_).arg(entries.size()));
+					setStatusMessage(tr("%1: %2 entries").arg(ftpPath_).arg(entries.size()));
 				}
 				else
 				{
 					ftpModel_.clear();
 					setStatusMessage(tr("FTP: %1").arg(error));
 					emit notify(tr("FTP"),
-						tr("Não consegui listar %1: %2").arg(ftpPath_).arg(error), true);
+						tr("I could not list %1: %2").arg(ftpPath_).arg(error), true);
 				}
 				setFtpBusy(false);
 			},
@@ -665,7 +664,7 @@ void AppController::ftpRefresh()
 
 void AppController::ftpDelete(const QString &path, bool isDirectory)
 {
-	if(!ftpReady(tr("Apagar")))
+	if(!ftpReady(tr("Delete")))
 		return;
 	setFtpBusy(true);
 	const std::string target = path.toStdString();
@@ -677,10 +676,10 @@ void AppController::ftpDelete(const QString &path, bool isDirectory)
 			this,
 			[this, ok, message]() {
 				setFtpBusy(false);
-				setStatusMessage(ok ? tr("Apagado.") : tr("FTP: %1").arg(message));
+				setStatusMessage(ok ? tr("Deleted.") : tr("FTP: %1").arg(message));
 				// Apagar é destrutivo: confirma-se sempre, deu ou não deu.
-				emit notify(tr("Apagar"),
-					ok ? tr("Apagado da consola.") : tr("Não consegui apagar: %1").arg(message),
+				emit notify(tr("Delete"),
+					ok ? tr("Deleted from the console.") : tr("I could not delete it: %1").arg(message),
 					!ok);
 				if(ok)
 					ftpRefresh();
@@ -693,10 +692,10 @@ void AppController::ftpMakeDirectory(const QString &name)
 {
 	if(name.trimmed().isEmpty())
 	{
-		emit notify(tr("Criar pasta"), tr("Escreve primeiro o nome da pasta."), true);
+		emit notify(tr("Create folder"), tr("Type the folder name first."), true);
 		return;
 	}
-	if(!ftpReady(tr("Criar pasta")))
+	if(!ftpReady(tr("Create folder")))
 		return;
 	setFtpBusy(true);
 	const std::string target =
@@ -709,9 +708,9 @@ void AppController::ftpMakeDirectory(const QString &name)
 			this,
 			[this, ok, message]() {
 				setFtpBusy(false);
-				setStatusMessage(ok ? tr("Pasta criada.") : tr("FTP: %1").arg(message));
-				emit notify(tr("Criar pasta"),
-					ok ? tr("Pasta criada.") : tr("Não consegui criar a pasta: %1").arg(message),
+				setStatusMessage(ok ? tr("Folder created.") : tr("FTP: %1").arg(message));
+				emit notify(tr("Create folder"),
+					ok ? tr("Folder created.") : tr("I could not create the folder: %1").arg(message),
 					!ok);
 				if(ok)
 					ftpRefresh();
@@ -725,18 +724,18 @@ void AppController::ftpRename(const QString &path, const QString &newName)
 	const QString trimmed = newName.trimmed();
 	if(trimmed.isEmpty() || path.isEmpty())
 	{
-		emit notify(tr("Mudar o nome"), tr("Escreve o nome novo."), true);
+		emit notify(tr("Rename"), tr("Type the new name."), true);
 		return;
 	}
 	// O nome novo fica na mesma pasta: não se muda um ficheiro de sítio por
 	// engano ao escrever uma barra.
 	if(trimmed.contains(QLatin1Char('/')) || trimmed.contains(QLatin1Char('\\')))
 	{
-		setStatusMessage(tr("O nome não pode conter barras."));
-		emit notify(tr("Mudar o nome"), tr("O nome não pode conter barras."), true);
+		setStatusMessage(tr("The name cannot contain slashes."));
+		emit notify(tr("Rename"), tr("The name cannot contain slashes."), true);
 		return;
 	}
-	if(!ftpReady(tr("Mudar o nome")))
+	if(!ftpReady(tr("Rename")))
 		return;
 	const std::string from = path.toStdString();
 	const std::string to = normalizeRemotePath(from + "/../" + trimmed.toStdString());
@@ -749,10 +748,10 @@ void AppController::ftpRename(const QString &path, const QString &newName)
 			this,
 			[this, ok, message]() {
 				setFtpBusy(false);
-				setStatusMessage(ok ? tr("Nome mudado.") : tr("FTP: %1").arg(message));
+				setStatusMessage(ok ? tr("Renamed.") : tr("FTP: %1").arg(message));
 				if(!ok)
-					emit notify(tr("Mudar o nome"),
-						tr("Não consegui mudar o nome: %1").arg(message), true);
+					emit notify(tr("Rename"),
+						tr("I could not rename it: %1").arg(message), true);
 				if(ok)
 					ftpRefresh();
 			},
@@ -854,16 +853,16 @@ void AppController::startDownload(const QString &remotePath, const QString &name
 {
 	if(downloadActive_)
 	{
-		setStatusMessage(tr("Já há uma transferência a decorrer."));
-		emit notify(tr("Trazer para o PC"),
-			tr("Já há uma transferência a decorrer (%1). Espera que acabe.").arg(downloadName_),
+		setStatusMessage(tr("A download is already running."));
+		emit notify(tr("Bring to the PC"),
+			tr("A transfer is already running (%1). Wait for it to finish.").arg(downloadName_),
 			true);
 		return;
 	}
 	if(!ftp_)
 	{
-		emit notify(tr("Trazer para o PC"),
-			tr("O FTP não está ligado. Confirma o IP da consola e o servidor FTP do GoldHEN."),
+		emit notify(tr("Bring to the PC"),
+			tr("FTP is not connected. Check the console IP and the GoldHEN FTP server."),
 			true);
 		return;
 	}
@@ -873,7 +872,7 @@ void AppController::startDownload(const QString &remotePath, const QString &name
 	downloadName_ = name;
 	downloadProgress_ = 0.0;
 	emit downloadChanged();
-	setStatusMessage(tr("A transferir %1…").arg(name));
+	setStatusMessage(tr("Downloading %1…").arg(name));
 
 	const std::string remote = remotePath.toStdString();
 	const std::string local = localPath.toStdString();
@@ -914,26 +913,26 @@ void AppController::startDownload(const QString &remotePath, const QString &name
 				if(cancelled)
 				{
 					QFile::remove(localPath);
-					setStatusMessage(tr("Transferência cancelada."));
+					setStatusMessage(tr("Download cancelled."));
 					return;
 				}
 				if(!ok)
 				{
 					QFile::remove(localPath);
 					setStatusMessage(tr("FTP: %1").arg(message));
-					emit notify(tr("Transferência falhou"), message, true);
+					emit notify(tr("Download failed"), message, true);
 					return;
 				}
 				if(forDrag)
 				{
-					setStatusMessage(tr("%1 pronto para arrastar.").arg(name));
+					setStatusMessage(tr("%1 is ready to drag.").arg(name));
 					emit dragFileReady(remotePath, QUrl::fromLocalFile(localPath).toString());
 				}
 				else
 				{
-					setStatusMessage(tr("%1 guardado em %2").arg(name, QFileInfo(localPath).path()));
-					emit notify(tr("Transferência concluída"),
-						tr("%1 guardado em %2").arg(name, QFileInfo(localPath).path()), false);
+					setStatusMessage(tr("%1 saved to %2").arg(name, QFileInfo(localPath).path()));
+					emit notify(tr("Download finished"),
+						tr("%1 saved to %2").arg(name, QFileInfo(localPath).path()), false);
 				}
 			},
 			Qt::QueuedConnection);
@@ -974,7 +973,7 @@ void AppController::setFtpUploadDirectory(const QString &path)
 	store_.save(settings_);
 	rebuildBackends();
 	emit settingsChanged();
-	setStatusMessage(tr("Envios por FTP passam a ir para %1")
+	setStatusMessage(tr("FTP uploads will now go to %1")
 			.arg(QString::fromStdString(settings_.ftpUploadDirectory)));
 }
 
@@ -1119,19 +1118,19 @@ QString AppController::exportDiagnostics(const QString &directory)
 	const QString caminho = Diagnostics::write(this, directory, &erro);
 	if(caminho.isEmpty())
 	{
-		setStatusMessage(tr("Não consegui escrever o diagnóstico: %1").arg(erro));
-		emit notify(tr("Diagnóstico"), erro, true);
+		setStatusMessage(tr("Could not write the diagnostics file: %1").arg(erro));
+		emit notify(tr("Diagnostics"), erro, true);
 		return {};
 	}
-	setStatusMessage(tr("Diagnóstico guardado em %1").arg(caminho));
-	emit notify(tr("Diagnóstico"), tr("Guardado em %1").arg(caminho), false);
+	setStatusMessage(tr("Diagnostics saved to %1").arg(caminho));
+	emit notify(tr("Diagnostics"), tr("Saved to %1").arg(caminho), false);
 	return caminho;
 }
 
 void AppController::copyDiagnosticsToClipboard()
 {
 	copyToClipboard(diagnosticsReport());
-	setStatusMessage(tr("Diagnóstico copiado."));
+	setStatusMessage(tr("Diagnostics copied."));
 }
 
 QString AppController::logFilePath() const
@@ -1177,7 +1176,7 @@ void AppController::checkForUpdatesNow(bool silentWhenUpToDate)
 	config.currentVersion = version().toStdString();
 	config.assetSuffix = platformAssetSuffix();
 
-	setUpdateState(QStringLiteral("a-verificar"), tr("A procurar versões novas…"));
+	setUpdateState(QStringLiteral("a-verificar"), tr("Looking for new versions…"));
 
 	std::thread([this, config, silentWhenUpToDate]() {
 		const UpdateCheckResult result = UpdateChecker(config).check();
@@ -1190,7 +1189,7 @@ void AppController::checkForUpdatesNow(bool silentWhenUpToDate)
 				{
 					setUpdateState(QStringLiteral("erro"), mensagem);
 					if(!silentWhenUpToDate)
-						emit notify(tr("Actualizações"), mensagem, true);
+						emit notify(tr("Updates"), mensagem, true);
 					return;
 				}
 				if(!result.updateAvailable)
@@ -1199,7 +1198,7 @@ void AppController::checkForUpdatesNow(bool silentWhenUpToDate)
 					updateAssetUrl_.clear();
 					setUpdateState(QStringLiteral("sem-novidades"), mensagem);
 					if(!silentWhenUpToDate)
-						emit notify(tr("Actualizações"), mensagem, false);
+						emit notify(tr("Updates"), mensagem, false);
 					return;
 				}
 				updateVersion_ = QString::fromStdString(result.release.version().toString());
@@ -1252,7 +1251,7 @@ void AppController::loadDemoUpdate()
 	updateAssetName_ = QString::fromStdString(info.assetName);
 	updateAssetSize_ = info.assetSize;
 	setUpdateState(QStringLiteral("disponivel"),
-		tr("Há uma versão nova: %1.").arg(updateVersion_));
+		tr("There is a new version: %1.").arg(updateVersion_));
 }
 
 void AppController::installUpdate()
@@ -1274,7 +1273,7 @@ void AppController::installUpdate()
 	const QString shaEsperado = updateAssetSha256_;
 
 	updateProgress_ = 0.0;
-	setUpdateState(QStringLiteral("a-descarregar"), tr("A descarregar %1…").arg(updateAssetName_));
+	setUpdateState(QStringLiteral("a-descarregar"), tr("Downloading %1…").arg(updateAssetName_));
 
 	std::thread([this, url, destino, shaUrl, shaEsperado]() {
 		HttpClient client(20000);
@@ -1317,14 +1316,13 @@ void AppController::installUpdate()
 
 		QString erro;
 		if(!resultado.ok)
-			erro = tr("A descarga falhou: %1").arg(translateMessage(resultado.error));
+			erro = tr("The download failed: %1").arg(translateMessage(resultado.error));
 		else if(!esperado.empty())
 		{
 			const std::string obtido = sha256File(destino.toStdString());
 			if(obtido != esperado)
 			{
-				erro = tr("O ficheiro descarregado não corresponde ao SHA-256 publicado. "
-						  "Não vou instalá-lo.");
+				erro = tr("The downloaded file does not match the published SHA-256. I will not install it.");
 				logError("SHA-256 do update não bate: esperado " + esperado + ", obtido " + obtido);
 				QFile::remove(destino);
 			}
@@ -1337,7 +1335,7 @@ void AppController::installUpdate()
 				if(!erro.isEmpty())
 				{
 					setUpdateState(QStringLiteral("erro"), erro);
-					emit notify(tr("Actualização"), erro, true);
+					emit notify(tr("Update"), erro, true);
 					return;
 				}
 				if(esperado.empty())
@@ -1348,7 +1346,7 @@ void AppController::installUpdate()
 							   "ficheiro.");
 				}
 				setUpdateState(QStringLiteral("pronto"),
-					tr("Descarregado. O instalador vai abrir e a aplicação fecha-se."));
+					tr("Downloaded. The installer will open and the app will close."));
 				emit updateChanged();
 
 				// O instalador não pode substituir um executável a correr,
@@ -1358,7 +1356,7 @@ void AppController::installUpdate()
 				if(!QProcess::startDetached(destino, QStringList()))
 				{
 					setUpdateState(QStringLiteral("erro"),
-						tr("Não consegui abrir o instalador em %1.").arg(destino));
+						tr("I could not open the installer at %1.").arg(destino));
 					return;
 				}
 				logInfo("Instalador de actualização lançado; a fechar a aplicação.");
@@ -1489,7 +1487,7 @@ void AppController::applySettings(const QVariantMap &values)
 	store_.save(settings_);
 	Logger::instance().setLevel(settings_.debugLogging ? LogLevel::Debug : LogLevel::Info);
 	rebuildBackends();
-	setStatusMessage(tr("Definições guardadas."));
+	setStatusMessage(tr("Settings saved."));
 }
 
 void AppController::setTheme(const QString &theme)

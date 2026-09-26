@@ -105,10 +105,9 @@ QString WindowChrome::elevationWarning()
 {
 	if(!runningElevated())
 		return {};
-	return QObject::tr("O OrbisLink está a correr como administrador. O Windows não deixa "
-					   "arrastar ficheiros do Explorador para uma janela com privilégios "
-					   "elevados, por isso o arrastar e largar não vai funcionar. Fecha e "
-					   "abre pelo atalho normal do menu Iniciar.");
+	return QObject::tr("OrbisLink is running as administrator. Windows does not allow dragging "
+		"files from Explorer into an elevated window, so drag and drop will not "
+		"work. Close it and open it from the normal Start menu shortcut.");
 }
 
 void WindowChrome::applyTheme(const QColor &caption, const QColor &text, const QColor &border,

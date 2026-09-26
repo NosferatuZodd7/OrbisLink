@@ -178,13 +178,13 @@ std::string UpdateChecker::describeNothingNew(const std::vector<ReleaseInfo> &re
 		// "estás na versão mais recente" com uma versão nova ao lado.
 		const ReleaseInfo *testes = pick(releases, UpdateChannel::Testing, currentVersion);
 		if(testes)
-			return std::string(QT_TRANSLATE_NOOP("Mensagens",
-					   "Não há versão estável mais recente, mas há uma compilação de testes "
-					   "(para a receber, escolhe o canal \"Testes\" nas definições)"))
+			return std::string(QT_TRANSLATE_NOOP("Messages",
+					   "There is no newer stable version, but there is a test build (to get it, choose the "
+					   	"\"Testing\" channel in the settings)"))
 				+ ": " + testes->version().toString();
-		return QT_TRANSLATE_NOOP("Mensagens", "Estás na versão estável mais recente.");
+		return QT_TRANSLATE_NOOP("Messages", "You are on the latest stable version.");
 	}
-	return QT_TRANSLATE_NOOP("Mensagens", "Estás na versão mais recente, contando com as compilações de testes.");
+	return QT_TRANSLATE_NOOP("Messages", "You are on the latest version, including test builds.");
 }
 
 UpdateCheckResult UpdateChecker::check() const
@@ -192,8 +192,8 @@ UpdateCheckResult UpdateChecker::check() const
 	UpdateCheckResult result;
 	if(config_.repository.find('/') == std::string::npos)
 	{
-		result.message = QT_TRANSLATE_NOOP("Mensagens", "O repositório de actualizações não está definido "
-						 "(espera-se \"dono/nome\").");
+		result.message = QT_TRANSLATE_NOOP("Messages", "The update repository is not set (expected "
+			"\"owner/name\").");
 		return result;
 	}
 
@@ -207,7 +207,7 @@ UpdateCheckResult UpdateChecker::check() const
 
 	if(!response.transportOk)
 	{
-		result.message = std::string(QT_TRANSLATE_NOOP("Mensagens", "Não foi possível falar com o GitHub"))
+		result.message = std::string(QT_TRANSLATE_NOOP("Messages", "Could not reach GitHub"))
 			+ ": " + response.error;
 		return result;
 	}
@@ -215,20 +215,20 @@ UpdateCheckResult UpdateChecker::check() const
 	{
 		// O caso que realmente acontece: o repositório é privado, ou mudou
 		// de nome. Dizê-lo em vez de um "sem novidades" que mente.
-		result.message = std::string(QT_TRANSLATE_NOOP("Mensagens",
-							 "O repositório de actualizações não respondeu (é privado, ou o "
-							 "nome está errado)"))
+		result.message = std::string(QT_TRANSLATE_NOOP("Messages",
+							 "The update repository did not respond (it is private, or the name is wrong)"))
 			+ ": " + config_.repository;
 		return result;
 	}
 	if(response.status == 403 || response.status == 429)
 	{
-		result.message = QT_TRANSLATE_NOOP("Mensagens", "O GitHub pediu para esperar (limite de pedidos). Tenta mais tarde.");
+		result.message = QT_TRANSLATE_NOOP("Messages", "GitHub asked to wait (rate limit). Try again "
+			"later.");
 		return result;
 	}
 	if(response.status < 200 || response.status >= 300)
 	{
-		result.message = std::string(QT_TRANSLATE_NOOP("Mensagens", "O GitHub respondeu com um erro"))
+		result.message = std::string(QT_TRANSLATE_NOOP("Messages", "GitHub responded with an error"))
 			+ ": " + std::to_string(response.status);
 		return result;
 	}
@@ -237,7 +237,7 @@ UpdateCheckResult UpdateChecker::check() const
 	if(releases.empty())
 	{
 		result.ok = true;
-		result.message = QT_TRANSLATE_NOOP("Mensagens", "Ainda não há lançamentos publicados.");
+		result.message = QT_TRANSLATE_NOOP("Messages", "No releases have been published yet.");
 		return result;
 	}
 
@@ -250,7 +250,7 @@ UpdateCheckResult UpdateChecker::check() const
 	}
 	result.updateAvailable = true;
 	result.release = *novo;
-	result.message = std::string(QT_TRANSLATE_NOOP("Mensagens", "Há uma versão nova"))
+	result.message = std::string(QT_TRANSLATE_NOOP("Messages", "A new version is available"))
 		+ ": " + novo->version().toString();
 	logInfo("Actualização disponível: " + novo->tag + " (instalada: " + config_.currentVersion
 		+ ")");

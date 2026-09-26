@@ -57,7 +57,7 @@ ORBISLINK_TEST(valores_por_omissao_seguem_a_especificacao)
 	CHECK(!settings.streamFullscreenOnConnect);
 	CHECK(settings.streamRumble);
 	CHECK_EQ(settings.theme, std::string("escuro"));
-	CHECK_EQ(settings.language, std::string("auto"));
+	CHECK_EQ(settings.language, std::string("en"));
 }
 
 ORBISLINK_TEST(definicoes_de_stream_fora_do_admissivel_sao_corrigidas)

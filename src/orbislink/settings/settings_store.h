@@ -78,7 +78,7 @@ struct Settings
 
 	// Aplicação
 	std::string theme = "escuro";    // "escuro", "vidro" ou "claro"
-	std::string language = "auto";  // "auto", "pt_PT" ou "en"
+	std::string language = "en";    // "en" or "pt_PT"
 	bool debugLogging = false;
 	// "Updates pela internet". Ligado por omissão: com o repositório público
 	// e uma compilação por push, uma app que nunca pergunta fica para trás

@@ -10,9 +10,9 @@ Rectangle {
     id: seletor
 
     readonly property var temas: [
-        { nome: "escuro", icone: "☾", dica: qsTr("Tema escuro") },
-        { nome: "vidro",  icone: "◐", dica: qsTr("Tema vidro (escuro, mais transparente)") },
-        { nome: "claro",  icone: "☀", dica: qsTr("Tema claro") }
+        { nome: "escuro", icone: "☾", dica: qsTr("Dark theme") },
+        { nome: "vidro",  icone: "◐", dica: qsTr("Glass theme (dark, more translucent)") },
+        { nome: "claro",  icone: "☀", dica: qsTr("Light theme") }
     ]
 
     implicitWidth: linha.implicitWidth + 8

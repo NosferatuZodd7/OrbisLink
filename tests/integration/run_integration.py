@@ -129,7 +129,7 @@ def main() -> int:
         install = runner.run("install", *common, "--http-port", str(http_port),
                              "--bind", "127.0.0.1", "--timeout", "120", pkg_path)
         runner.check(install.returncode == 0, "install termina com sucesso")
-        runner.check("Concluído" in install.stdout, "a tarefa chega ao estado Concluído")
+        runner.check("Done" in install.stdout, "a tarefa chega ao estado Concluído")
 
         downloads = os.path.join(console_root, "data", "downloads")
         received = [os.path.join(downloads, name) for name in os.listdir(downloads)]
@@ -191,7 +191,7 @@ def main() -> int:
 
         # 7. Zona protegida continua bloqueada sem modo avançado
         blocked = runner.run("ftp-mkdir", *common, "/system/teste", expect=1)
-        runner.check(blocked.returncode != 0 and "Zona protegida" in blocked.stderr,
+        runner.check(blocked.returncode != 0 and "Protected system area" in blocked.stderr,
                      "escrever em /system é recusado sem Modo avançado")
     finally:
         mock.terminate()

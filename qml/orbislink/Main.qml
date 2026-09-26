@@ -109,7 +109,7 @@ ApplicationWindow {
                     }
                     Text {
                         text: app.consoleAddress.length > 0 ? app.consoleAddress
-                                                            : qsTr("sem endereço definido")
+                                                            : qsTr("no address set")
                         color: Theme.textSecondary
                         font.pixelSize: 11
                         font.letterSpacing: -0.1
@@ -129,7 +129,7 @@ ApplicationWindow {
                     hint: app.ftpHint
                 }
                 ServiceIndicator {
-                    label: qsTr("Instalador")
+                    label: qsTr("Installer")
                     state_: app.installerState
                     hint: app.installerHint
                 }
@@ -137,26 +137,26 @@ ApplicationWindow {
                 StyledToolButton {
                     text: "⟳"
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Verificar serviços agora")
+                    ToolTip.text: qsTr("Check the services now")
                     onClicked: app.checkServicesNow()
                 }
                 StyledToolButton {
                     text: "☰"
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Painel lateral (F9)")
+                    ToolTip.text: qsTr("Side panel (F9)")
                     onClicked: window.panelVisible = !window.panelVisible
                 }
                 StyledToolButton {
                     text: "📋"
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Registo e diagnóstico (Ctrl+L)")
+                    ToolTip.text: qsTr("Log and diagnostics (Ctrl+L)")
                     onClicked: diagnosticsDialog.open()
                 }
                 ThemeSwitcher {}
                 StyledToolButton {
                     text: "⚙"
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Definições (Ctrl+,)")
+                    ToolTip.text: qsTr("Settings (Ctrl+,)")
                     onClicked: { settingsDialog.loadValues(); settingsDialog.open() }
                 }
             }
@@ -214,10 +214,10 @@ ApplicationWindow {
                         background: Rectangle { color: "transparent" }
 
                         StyledTab {
-                            text: app.queue.count > 0 ? qsTr("Fila (%1)").arg(app.queue.count)
-                                                      : qsTr("Fila")
+                            text: app.queue.count > 0 ? qsTr("Queue (%1)").arg(app.queue.count)
+                                                      : qsTr("Queue")
                         }
-                        StyledTab { text: qsTr("Ficheiros (FTP)") }
+                        StyledTab { text: qsTr("Files (FTP)") }
                     }
 
                     StackLayout {
@@ -253,7 +253,7 @@ ApplicationWindow {
                     elide: Text.ElideRight
                 }
                 Text {
-                    text: qsTr("HTTP local: %1").arg(app.httpServerAddress)
+                    text: qsTr("Local HTTP: %1").arg(app.httpServerAddress)
                     color: Theme.textSecondary
                     font.pixelSize: 11
                 }

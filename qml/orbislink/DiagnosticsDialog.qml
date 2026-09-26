@@ -87,19 +87,19 @@ Dialog {
             anchors.rightMargin: Theme.dialogInner
             spacing: 12
             Text {
-                text: qsTr("Registo e diagnóstico")
+                text: qsTr("Log and diagnostics")
                 color: Theme.text
                 font.pixelSize: 15
                 font.bold: true
             }
             Item { Layout.fillWidth: true }
             StyledCheck {
-                text: qsTr("Detalhe do Remote Play")
+                text: qsTr("Remote Play detail")
                 checked: app.streamVerbose()
                 onCheckedChanged: app.setStreamVerbose(checked)
             }
             StyledCheck {
-                text: qsTr("Acompanhar o fim")
+                text: qsTr("Follow the tail")
                 checked: dialog.followTail
                 onCheckedChanged: dialog.followTail = checked
             }
@@ -119,23 +119,23 @@ Dialog {
             spacing: 8
             Text {
                 Layout.fillWidth: true
-                text: qsTr("Ficheiro: %1").arg(app.logFilePath())
+                text: qsTr("File: %1").arg(app.logFilePath())
                 color: Theme.textMuted
                 font.pixelSize: 10
                 elide: Text.ElideMiddle
             }
             StyledButton {
-                text: qsTr("Copiar tudo")
+                text: qsTr("Copy everything")
                 implicitHeight: 30
                 onClicked: app.copyDiagnosticsToClipboard()
             }
             StyledButton {
-                text: qsTr("Guardar em…")
+                text: qsTr("Save to…")
                 implicitHeight: 30
                 onClicked: destinoDiagnostico.open()
             }
             StyledButton {
-                text: qsTr("Guardar no ambiente de trabalho")
+                text: qsTr("Save to the desktop")
                 implicitHeight: 30
                 primary: true
                 onClicked: {
@@ -145,7 +145,7 @@ Dialog {
                 }
             }
             StyledButton {
-                text: qsTr("Fechar")
+                text: qsTr("Close")
                 implicitHeight: 30
                 onClicked: dialog.close()
             }
@@ -163,16 +163,16 @@ Dialog {
             spacing: 8
             StyledField {
                 Layout.fillWidth: true
-                placeholderText: qsTr("filtrar (ex.: Remote Play, FALHOU, FTP)")
+                placeholderText: qsTr("filter (e.g. Remote Play, FALHOU, FTP)")
                 onTextChanged: dialog.filtro = text
             }
             StyledButton {
-                text: qsTr("Só erros")
+                text: qsTr("Errors only")
                 implicitHeight: 30
                 onClicked: dialog.filtro = "ERRO"
             }
             StyledButton {
-                text: qsTr("Limpar filtro")
+                text: qsTr("Clear filter")
                 implicitHeight: 30
                 onClicked: dialog.filtro = ""
             }
@@ -213,7 +213,7 @@ Dialog {
             Text {
                 anchors.centerIn: parent
                 visible: linhas.count === 0
-                text: qsTr("Sem nada registado ainda.")
+                text: qsTr("Nothing logged yet.")
                 color: Theme.textMuted
                 font.pixelSize: 12
             }
@@ -222,7 +222,7 @@ Dialog {
 
     FolderDialog {
         id: destinoDiagnostico
-        title: qsTr("Onde guardar o diagnóstico")
+        title: qsTr("Where to save the diagnostics")
         onAccepted: {
             var caminho = app.exportDiagnostics(selectedFolder)
             if (caminho.length > 0)

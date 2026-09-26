@@ -40,14 +40,14 @@ Dialog {
             spacing: 10
             Text {
                 Layout.fillWidth: true
-                text: qsTr("Versão %1 disponível").arg(app.updateVersion)
+                text: qsTr("Version %1 available").arg(app.updateVersion)
                 color: Theme.text
                 font.pixelSize: 16
                 font.bold: true
                 elide: Text.ElideRight
             }
             Text {
-                text: qsTr("tens a %1").arg(app.version)
+                text: qsTr("you have %1").arg(app.version)
                 color: Theme.textMuted
                 font.pixelSize: 11
             }
@@ -66,18 +66,18 @@ Dialog {
             anchors.rightMargin: Theme.dialogMargin
             spacing: 8
             StyledButton {
-                text: qsTr("Ver no GitHub")
+                text: qsTr("View on GitHub")
                 enabled: app.updatePageUrl.length > 0
                 onClicked: app.openUpdatePage()
             }
             Item { Layout.fillWidth: true }
             StyledButton {
-                text: qsTr("Mais tarde")
+                text: qsTr("Later")
                 enabled: !dialog.aDescarregar && !dialog.pronto
                 onClicked: { app.dismissUpdate(); dialog.close() }
             }
             StyledButton {
-                text: app.updateCanInstall ? qsTr("Instalar agora") : qsTr("Abrir a página")
+                text: app.updateCanInstall ? qsTr("Install now") : qsTr("Open the page")
                 primary: true
                 larguraMinima: 140
                 enabled: !dialog.aDescarregar && !dialog.pronto
@@ -107,7 +107,7 @@ Dialog {
                 clip: true
                 TextArea {
                     text: app.updateNotes.length > 0 ? app.updateNotes
-                                                     : qsTr("Este lançamento não trouxe notas.")
+                                                     : qsTr("This release came with no notes.")
                     readOnly: true
                     wrapMode: Text.WordWrap
                     color: Theme.text
@@ -157,8 +157,8 @@ Dialog {
             color: Theme.textMuted
             font.pixelSize: 11
             visible: app.updateCanInstall
-            text: qsTr("O instalador abre e a aplicação fecha-se. O Windows vai pedir "
-                       + "autorização — o instalador escreve no Program Files.")
+            text: qsTr("The installer opens and the app closes. Windows will ask for permission "
+                       + "— the installer writes to Program Files.")
         }
     }
 }

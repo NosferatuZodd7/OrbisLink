@@ -65,8 +65,8 @@ InstallerResult RpiClient::call(const std::string &path, const std::string &json
 	if(!response.transportOk)
 	{
 		return InstallerResult::failure(
-			std::string(QT_TRANSLATE_NOOP("Mensagens",
-				"Instalador remoto indisponível. Abre o Remote Package Installer na consola."))
+			std::string(QT_TRANSLATE_NOOP("Messages",
+				"Remote installer unavailable. Open Remote Package Installer on the console."))
 			+ " (" + response.error + ")");
 	}
 
@@ -78,7 +78,7 @@ InstallerResult RpiClient::call(const std::string &path, const std::string &json
 	if(json.isNull() || !json.isObject())
 	{
 		InstallerResult result = InstallerResult::failure(
-			std::string(QT_TRANSLATE_NOOP("Mensagens", "Resposta inesperada do instalador remoto"))
+			std::string(QT_TRANSLATE_NOOP("Messages", "Unexpected response from the remote installer"))
 			+ " (" + parseError + ").");
 		result.httpStatus = response.status;
 		result.rawBody = response.body;
@@ -107,7 +107,7 @@ InstallerResult RpiClient::call(const std::string &path, const std::string &json
 	else if(json["error"].isString())
 		result.message = json["error"].toString();
 	else
-		result.message = QT_TRANSLATE_NOOP("Mensagens", "O instalador remoto recusou o pedido.");
+		result.message = QT_TRANSLATE_NOOP("Messages", "The remote installer rejected the request.");
 	logError("Instalador remoto: " + path + " -> " + result.message);
 	return result;
 }
@@ -116,7 +116,7 @@ InstallerResult RpiClient::installDirect(const std::vector<std::string> &package
 	InstallTaskHandle *handle)
 {
 	if(packageUrls.empty())
-		return InstallerResult::failure(QT_TRANSLATE_NOOP("Mensagens", "Nenhum pacote indicado para instalação."));
+		return InstallerResult::failure(QT_TRANSLATE_NOOP("Messages", "No package given to install."));
 
 	Json request = Json::makeObject();
 	request.set("type", Json::fromString("direct"));
