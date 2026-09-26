@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # As wordmarks "PS4" e "PS5" da caixa da consola, desenhadas de raiz: traço
-# largo e uniforme, itálico a 13°, cantos de fora arredondados e as pontas
+# largo e uniforme, itálico a 13°, cantos vivos e as pontas
 # cortadas na diagonal (é o itálico que inclina os cortes a direito).
 #
 # Gera, a partir da mesma geometria:
@@ -50,7 +50,7 @@ def letra_4(e):
     """4: diagonal longa, barra fina, pé direito — aberto em cima."""
     w = 80 * e
     haste = w - 20
-    # A diagonal e a barra são um traço só, dobrado num canto redondo: duas
+    # A diagonal e a barra são um traço só, dobrado num canto vivo: duas
     # peças separadas deixavam a ponta da diagonal a sair por baixo da barra.
     return [
         (FINO + 3, f"M {haste - 4} {MEIO} L {MEIO} {70} H {w + 4}"),
@@ -91,7 +91,7 @@ def wordmark(numero, estreita=False, cor="#000000"):
     # põe a base de volta dentro da caixa.
     corpo = (f'<g transform="translate({margem + desvio:.2f} {margem}) '
              f'skewX(-{INCLINACAO})" fill="none" stroke="{cor}" '
-             f'stroke-linejoin="round" stroke-linecap="butt">{"".join(grupos)}</g>')
+             f'stroke-linejoin="miter" stroke-miterlimit="10" stroke-linecap="butt">{"".join(grupos)}</g>')
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {largura_svg:.2f} {altura_svg:.2f}" '
            f'width="{largura_svg:.0f}" height="{altura_svg:.0f}">{corpo}</svg>')
     return svg, largura_svg, altura_svg
