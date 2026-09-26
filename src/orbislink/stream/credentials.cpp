@@ -7,6 +7,7 @@
 #include "orbislink/settings/settings_store.h"
 
 #include <chiaki/base64.h>
+#include <chiaki/common.h>
 
 #include <cstdio>
 #include <fstream>
@@ -111,7 +112,10 @@ std::vector<StreamCredentials> CredentialStore::all() const
 		credentials.rpKeyHex = entry["rp_key"].toString();
 		credentials.rpKeyType = static_cast<uint32_t>(entry["rp_key_type"].toInt());
 		credentials.target = static_cast<int>(entry["target"].toInt());
-		credentials.ps5 = entry["ps5"].toBool();
+		// O alvo já diz se é PS5; o "ps5" guardado pode vir de uma versão
+		// que o gravava sempre a falso depois do registo.
+		credentials.ps5 = entry["ps5"].toBool()
+			|| chiaki_target_is_ps5(static_cast<ChiakiTarget>(credentials.target));
 		credentials.valid = !credentials.registKey.empty() && !credentials.rpKeyHex.empty();
 		if(credentials.valid)
 			out.push_back(credentials);
