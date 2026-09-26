@@ -61,7 +61,7 @@ struct Harvest
 {
 	std::mutex mutex;
 	std::vector<HostInfo> hosts;
-	bool único = false;
+	bool single = false;
 };
 
 void collect(ChiakiDiscoveryHost *host, void *user)
@@ -192,8 +192,8 @@ HostInfo ask(const std::string &address, int timeoutMs, uint16_t ps4Port, bool t
 	if(info.address.empty())
 		info.address = address;
 	if(step)
-		step->ok(std::string(hostStateName(info.state)) + ", " + info.name + ", sistema "
-			+ info.systemVersion + ", alvo " + std::to_string(info.target));
+		step->ok(std::string(hostStateName(info.state)) + ", " + info.name + ", system "
+			+ info.systemVersion + ", target " + std::to_string(info.target));
 	return info;
 }
 

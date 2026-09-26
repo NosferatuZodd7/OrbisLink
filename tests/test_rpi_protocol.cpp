@@ -158,23 +158,23 @@ ORBISLINK_TEST(install_sends_the_expected_body)
 {
 	FakeInstallerServer server;
 	CHECK(server.start());
-	server.setResponse(R"({ "status": "success", "task_id": 7, "title": "Jogo" })");
+	server.setResponse(R"({ "status": "success", "task_id": 7, "title": "Game" })");
 
 	RpiClient client = makeClient(server.port());
 	InstallTaskHandle handle;
 	const InstallerResult result =
-		client.installDirect({ "http://192.168.1.2:8765/f/abc/jogo.pkg" }, &handle);
+		client.installDirect({ "http://192.168.1.2:8765/f/abc/game.pkg" }, &handle);
 
 	CHECK(result.ok);
 	CHECK_EQ(handle.taskId, 7);
-	CHECK_EQ(handle.title, std::string("Jogo"));
+	CHECK_EQ(handle.title, std::string("Game"));
 	CHECK_EQ(server.lastPath(), std::string("/api/install"));
 
 	const Json sent = Json::parse(server.lastBody());
 	CHECK_EQ(sent["type"].toString(), std::string("direct"));
 	CHECK_EQ(sent["packages"].size(), static_cast<size_t>(1));
 	CHECK_EQ(sent["packages"].at(0).toString(),
-		std::string("http://192.168.1.2:8765/f/abc/jogo.pkg"));
+		std::string("http://192.168.1.2:8765/f/abc/game.pkg"));
 	server.stop();
 }
 

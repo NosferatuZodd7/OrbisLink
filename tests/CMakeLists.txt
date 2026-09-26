@@ -13,7 +13,7 @@ set(ORBISLINK_TESTS
 	test_pcm_convert
 )
 
-# Os testes do Remote Play precisam da biblioteca do stream.
+# The Remote Play tests need the stream library.
 if(ORBISLINK_ENABLE_STREAM AND TARGET orbislink_stream)
 	list(APPEND ORBISLINK_STREAM_TESTS test_stream_discovery test_stream_credentials
 		test_account_id)

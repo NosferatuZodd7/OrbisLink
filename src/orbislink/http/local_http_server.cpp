@@ -190,7 +190,7 @@ bool LocalHttpServer::start(const Config &config, std::string *error)
 	auto fail = [&](const std::string &message) {
 		if(error)
 			*error = message;
-		logError("Servidor HTTP local: " + message);
+		logError("Local HTTP server: " + message);
 		return false;
 	};
 
@@ -251,8 +251,8 @@ bool LocalHttpServer::start(const Config &config, std::string *error)
 	running_.store(true);
 	acceptThread_ = std::thread(&LocalHttpServer::acceptLoop, this);
 
-	logInfo("Servidor HTTP local em http://" + config_.bindAddress + ":" + std::to_string(boundPort_)
-		+ (config_.allowedClient.empty() ? "" : " (restrito a " + config_.allowedClient + ")"));
+	logInfo("Local HTTP server at http://" + config_.bindAddress + ":" + std::to_string(boundPort_)
+		+ (config_.allowedClient.empty() ? "" : " (restricted to " + config_.allowedClient + ")"));
 	if(error)
 		error->clear();
 	return true;

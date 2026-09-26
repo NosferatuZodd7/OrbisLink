@@ -38,7 +38,7 @@ bool Sfo::parse(const uint8_t *data, size_t size, std::string *error)
 	};
 
 	if(!data || size < kSfoHeaderSize)
-		return fail("PARAM.SFO demasiado pequeno");
+		return fail("PARAM.SFO too small");
 	if(!(data[0] == 0x00 && data[1] == 'P' && data[2] == 'S' && data[3] == 'F'))
 		return fail("invalid PARAM.SFO signature");
 

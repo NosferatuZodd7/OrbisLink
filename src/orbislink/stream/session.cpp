@@ -459,9 +459,9 @@ bool StreamSession::start(const Config &config, std::string *error)
 	{
 		chiaki_ffmpeg_decoder_fini(&impl_->decoder);
 		impl_->decoderReady = false;
-		prepareStep.fail("a rp_key guardada tem "
+		prepareStep.fail("the stored rp_key has "
 			+ std::to_string(config.credentials.rpKeyHex.size())
-			+ " caracteres, deviam ser 32");
+			+ " characters, it should have 32");
 		if(error)
 			*error = QT_TRANSLATE_NOOP("Messages", "The saved key is corrupted. Register the console "
 				"again.");

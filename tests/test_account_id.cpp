@@ -100,7 +100,7 @@ ORBISLINK_TEST(what_is_not_an_account_id_is_refused_with_a_reason)
 	CHECK(!huge.valid);
 	CHECK(!huge.error.empty());
 
-	const AccountId nonsense = parseAccountId("o-meu-account-id");
+	const AccountId nonsense = parseAccountId("my-account-id");
 	CHECK(!nonsense.valid);
 	CHECK(!nonsense.error.empty());
 }

@@ -105,7 +105,7 @@ const char *kReady =
 	"HTTP/1.1 200 Ok\r\n"
 	"host-id:1122334455AA\r\n"
 	"host-type:PS4\r\n"
-	"host-name:PS4 da sala\r\n"
+	"host-name:Living room PS4\r\n"
 	"host-request-port:997\r\n"
 	"device-discovery-protocol-version:00020020\r\n"
 	"system-version:09000000\r\n"
@@ -117,7 +117,7 @@ const char *kStandby =
 	"HTTP/1.1 620 Server Standby\r\n"
 	"host-id:1122334455AA\r\n"
 	"host-type:PS4\r\n"
-	"host-name:PS4 da sala\r\n"
+	"host-name:Living room PS4\r\n"
 	"host-request-port:997\r\n"
 	"device-discovery-protocol-version:00020020\r\n"
 	"system-version:09000000\r\n";
@@ -134,7 +134,7 @@ ORBISLINK_TEST(reads_a_ready_console)
 	CHECK(info.found);
 	CHECK(info.state == HostState::Ready);
 	CHECK(!info.ps5);
-	CHECK_EQ(info.name, std::string("PS4 da sala"));
+	CHECK_EQ(info.name, std::string("Living room PS4"));
 	CHECK_EQ(info.id, std::string("1122334455AA"));
 	CHECK_EQ(info.systemVersion, std::string("09000000"));
 	CHECK_EQ(info.runningAppName, std::string("Bloodborne"));
@@ -190,13 +190,13 @@ ORBISLINK_TEST(periodic_check_does_not_touch_the_attempt)
 	// An attempt in progress: the periodic check of the other consoles
 	// must not close this step nor add its own.
 	StreamTrace::instance().begin("192.0.2.1");
-	StreamTrace::instance().step("primeiro fotograma");
+	StreamTrace::instance().step("first frame");
 	const HostInfo info = StreamDiscovery::peek("127.0.0.1", 2000, console.port());
 
 	CHECK(info.found);
 	const auto steps = StreamTrace::instance().steps();
 	CHECK_EQ(steps.size(), std::size_t(1));
-	CHECK_EQ(steps.front().name, std::string("primeiro fotograma"));
+	CHECK_EQ(steps.front().name, std::string("first frame"));
 	CHECK(steps.front().result == StreamTrace::Result::Running);
 	StreamTrace::instance().end();
 }

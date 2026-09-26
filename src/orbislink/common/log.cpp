@@ -184,7 +184,7 @@ std::string redactSensitive(const std::string &text)
 	{
 		std::string out = text;
 		for(const auto &re : patterns)
-			out = std::regex_replace(out, re, "$1$2$3[REDIGIDO]");
+			out = std::regex_replace(out, re, "$1$2$3[REDACTED]");
 		return out;
 	}
 	catch(const std::exception &)

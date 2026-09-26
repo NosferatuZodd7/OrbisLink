@@ -21,9 +21,9 @@ set(ORBISLINK_CHIAKI_DIR "${CMAKE_CURRENT_SOURCE_DIR}/third-party/chiaki-ng")
 # the build log, otherwise someone ships a package without streaming unawares.
 if(NOT EXISTS "${ORBISLINK_CHIAKI_DIR}/lib/CMakeLists.txt")
 	message(WARNING
-		"O submódulo do chiaki-ng não está presente: o Remote Play NÃO vai ser "
-		"compilado. Corre 'git submodule update --init --recursive' e volta a "
-		"configurar, ou compila com -DORBISLINK_ENABLE_STREAM=OFF para calar este aviso.")
+		"The chiaki-ng submodule is not present: Remote Play will NOT be "
+		"built. Run 'git submodule update --init --recursive' and configure "
+		"again, or build with -DORBISLINK_ENABLE_STREAM=OFF to silence this warning.")
 	set(ORBISLINK_ENABLE_STREAM OFF)
 	return()
 endif()
@@ -62,8 +62,8 @@ set(CHIAKI_ENABLE_PI_DECODER OFF)
 find_package(FFMPEG COMPONENTS avcodec avutil avformat)
 if(NOT FFMPEG_FOUND)
 	message(WARNING
-		"O FFmpeg (avcodec/avutil/avformat) não foi encontrado: o Remote Play NÃO "
-		"vai ser compilado. Em Debian/Ubuntu: apt install libavcodec-dev "
+		"FFmpeg (avcodec/avutil/avformat) was not found: Remote Play will NOT "
+		"be built. On Debian/Ubuntu: apt install libavcodec-dev "
 		"libavutil-dev libavformat-dev.")
 	set(ORBISLINK_ENABLE_STREAM OFF)
 	return()
@@ -74,11 +74,11 @@ set(CHIAKI_ENABLE_FFMPEG_DECODER ON)
 # whoever lacks them gets a warning saying what is missing — instead of an
 # error from inside chiaki's CMakeLists, which explains nothing to someone
 # who is only building OrbisLink.
-set(ORBISLINK_CHIAKI_EM_FALTA "")
+set(ORBISLINK_CHIAKI_MISSING "")
 
 find_package(Opus QUIET)
 if(NOT Opus_FOUND)
-	list(APPEND ORBISLINK_CHIAKI_EM_FALTA "opus (libopus-dev)")
+	list(APPEND ORBISLINK_CHIAKI_MISSING "opus (libopus-dev)")
 endif()
 
 find_package(PkgConfig QUIET)
@@ -87,29 +87,29 @@ if(PkgConfig_FOUND)
 	pkg_check_modules(ORBISLINK_MINIUPNPC QUIET miniupnpc)
 	pkg_check_modules(ORBISLINK_LIBEVENT QUIET libevent)
 	if(NOT ORBISLINK_JSONC_FOUND)
-		list(APPEND ORBISLINK_CHIAKI_EM_FALTA "json-c (libjson-c-dev)")
+		list(APPEND ORBISLINK_CHIAKI_MISSING "json-c (libjson-c-dev)")
 	endif()
 	if(NOT ORBISLINK_MINIUPNPC_FOUND)
-		list(APPEND ORBISLINK_CHIAKI_EM_FALTA "miniupnpc (libminiupnpc-dev)")
+		list(APPEND ORBISLINK_CHIAKI_MISSING "miniupnpc (libminiupnpc-dev)")
 	endif()
 	if(NOT ORBISLINK_LIBEVENT_FOUND)
-		list(APPEND ORBISLINK_CHIAKI_EM_FALTA "libevent (libevent-dev)")
+		list(APPEND ORBISLINK_CHIAKI_MISSING "libevent (libevent-dev)")
 	endif()
 else()
-	list(APPEND ORBISLINK_CHIAKI_EM_FALTA "pkg-config")
+	list(APPEND ORBISLINK_CHIAKI_MISSING "pkg-config")
 endif()
 
 find_package(OpenSSL QUIET)
 if(NOT OpenSSL_FOUND)
-	list(APPEND ORBISLINK_CHIAKI_EM_FALTA "openssl (libssl-dev)")
+	list(APPEND ORBISLINK_CHIAKI_MISSING "openssl (libssl-dev)")
 endif()
 
-if(ORBISLINK_CHIAKI_EM_FALTA)
-	list(JOIN ORBISLINK_CHIAKI_EM_FALTA ", " ORBISLINK_CHIAKI_EM_FALTA_TEXTO)
+if(ORBISLINK_CHIAKI_MISSING)
+	list(JOIN ORBISLINK_CHIAKI_MISSING ", " ORBISLINK_CHIAKI_MISSING_TEXT)
 	message(WARNING
-		"O Remote Play NÃO vai ser compilado: falta ${ORBISLINK_CHIAKI_EM_FALTA_TEXTO}. "
-		"Instala o que falta e volta a configurar, ou compila com "
-		"-DORBISLINK_ENABLE_STREAM=OFF para calar este aviso.")
+		"Remote Play will NOT be built: missing ${ORBISLINK_CHIAKI_MISSING_TEXT}. "
+		"Install what is missing and configure again, or build with "
+		"-DORBISLINK_ENABLE_STREAM=OFF to silence this warning.")
 	set(ORBISLINK_ENABLE_STREAM OFF)
 	return()
 endif()

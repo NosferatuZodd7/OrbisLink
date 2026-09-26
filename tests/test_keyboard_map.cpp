@@ -49,7 +49,7 @@ ORBISLINK_TEST(esc_and_f11_are_given_to_nobody)
 	KeyboardMap::Bindings keys = KeyboardMap::defaults();
 	CHECK(!KeyboardMap::rebind(keys, "cross", Qt::Key_Escape));
 	CHECK(!KeyboardMap::rebind(keys, "cross", Qt::Key_F11));
-	CHECK(!KeyboardMap::rebind(keys, "nao-existe", Qt::Key_Q));
+	CHECK(!KeyboardMap::rebind(keys, "does-not-exist", Qt::Key_Q));
 	CHECK(keys == KeyboardMap::defaults());
 }
 
@@ -59,7 +59,7 @@ ORBISLINK_TEST(hand_edited_settings_leave_no_repeated_keys)
 	// valid map, with each key on a single action.
 	KeyboardMap keyMap;
 	keyMap.setBindings({ { "cross", Qt::Key_Q }, { "circle", Qt::Key_Q },
-		{ "inventada", Qt::Key_Z }, { "square", Qt::Key_Escape } });
+		{ "made_up", Qt::Key_Z }, { "square", Qt::Key_Escape } });
 	std::map<int, int> uses;
 	for(const auto &pair : keyMap.bindings())
 		++uses[pair.second];

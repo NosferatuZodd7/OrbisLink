@@ -189,7 +189,7 @@ void WindowChrome::applyTheme(const QColor &caption, const QColor &text, const Q
 	if(achieved != g_summary)
 	{
 		g_summary = achieved;
-		logInfo("Janela: " + achieved.toStdString() + ".");
+		logInfo("Window: " + achieved.toStdString() + ".");
 	}
 #else
 	// Outside Windows the decoration belongs to the window manager and there

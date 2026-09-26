@@ -5,13 +5,13 @@
         <file alias="mark.png">orbisDDM.png</file>
         <file alias="backdrop.png">orbisDDMWallpaper.png</file>
         <file alias="backdrop-light.png">orbisDDMWallpaperWhite.png</file>
-        <file alias="dualshock-dark.png">dualshock-corpo-escuro.png</file>
-        <file alias="dualshock-light.png">dualshock-corpo-claro.png</file>
-        <file alias="wordmark-ps4-preto.png">wordmark-ps4-preto.png</file>
-        <file alias="wordmark-ps4-branco.png">wordmark-ps4-branco.png</file>
-        <file alias="wordmark-ps5-preto.png">wordmark-ps5-preto.png</file>
-        <file alias="wordmark-ps5-branco.png">wordmark-ps5-branco.png</file>
-        <file alias="wordmark-desconhecida-preto.png">wordmark-desconhecida-preto.png</file>
-        <file alias="wordmark-desconhecida-branco.png">wordmark-desconhecida-branco.png</file>
+        <file alias="dualshock-dark.png">dualshock-body-dark.png</file>
+        <file alias="dualshock-light.png">dualshock-body-light.png</file>
+        <file alias="wordmark-ps4-black.png">wordmark-ps4-black.png</file>
+        <file alias="wordmark-ps4-white.png">wordmark-ps4-white.png</file>
+        <file alias="wordmark-ps5-black.png">wordmark-ps5-black.png</file>
+        <file alias="wordmark-ps5-white.png">wordmark-ps5-white.png</file>
+        <file alias="wordmark-unknown-black.png">wordmark-unknown-black.png</file>
+        <file alias="wordmark-unknown-white.png">wordmark-unknown-white.png</file>
     </qresource>
 </RCC>

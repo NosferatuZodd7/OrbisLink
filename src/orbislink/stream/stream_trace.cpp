@@ -130,15 +130,15 @@ void StreamTrace::skip(const std::string &name, const std::string &reason)
 	step.result = Result::Skipped;
 	step.startedMs = step.endedMs = monotonicMillis();
 	s.steps.push_back(step);
-	logInfo("Remote Play [" + name + "] saltado — " + reason);
+	logInfo("Remote Play [" + name + "] skipped — " + reason);
 }
 
 void StreamTrace::note(const std::string &text)
 {
 	State &s = state();
 	std::lock_guard<std::mutex> lock(s.mutex);
-	const int64_t desde = s.startedMs > 0 ? monotonicMillis() - s.startedMs : 0;
-	s.notes.push_back("+" + std::to_string(desde) + " ms  " + text);
+	const int64_t elapsed = s.startedMs > 0 ? monotonicMillis() - s.startedMs : 0;
+	s.notes.push_back("+" + std::to_string(elapsed) + " ms  " + text);
 	logInfo("Remote Play: " + text);
 }
 

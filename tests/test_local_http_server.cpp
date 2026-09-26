@@ -108,8 +108,8 @@ struct ServerFixture
 		config.chunkSize = 16; // forces several chunks
 		std::string error;
 		if(!server.start(config, &error))
-			throw std::runtime_error("servidor não arrancou: " + error);
-		token = server.registerFile(path, "jogo teste!.pkg");
+			throw std::runtime_error("server did not start: " + error);
+		token = server.registerFile(path, "game test!.pkg");
 	}
 
 	~ServerFixture()
@@ -133,7 +133,7 @@ const std::string kPayload = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmn
 ORBISLINK_TEST(serves_complete_file)
 {
 	ServerFixture fixture(kPayload);
-	const std::string url = "/f/" + fixture.token + "/jogo_teste_.pkg";
+	const std::string url = "/f/" + fixture.token + "/game_test_.pkg";
 	const RawResponse response = rawRequest(fixture.server.port(), fixture.get(url));
 	CHECK_EQ(response.status, 200);
 	CHECK_EQ(response.body, kPayload);
@@ -148,7 +148,7 @@ ORBISLINK_TEST(generated_url_has_token_and_sanitised_name)
 	const std::string url = fixture.server.urlForToken(fixture.token);
 	CHECK(url.find("/f/" + fixture.token + "/") != std::string::npos);
 	CHECK(url.find(' ') == std::string::npos);
-	CHECK(url.find("jogo_teste_.pkg") != std::string::npos);
+	CHECK(url.find("game_test_.pkg") != std::string::npos);
 }
 
 ORBISLINK_TEST(range_from_the_start)

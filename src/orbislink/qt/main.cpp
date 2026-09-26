@@ -169,13 +169,13 @@ int main(int argc, char **argv)
 	}
 
 	qmlRegisterUncreatableType<QueueModel>("OrbisLink", 1, 0, "QueueModel",
-		QStringLiteral("Fornecido pelo controlador."));
+		QStringLiteral("Provided by the controller."));
 #ifdef ORBISLINK_HAS_STREAM
 	qmlRegisterUncreatableType<VideoBridge>("OrbisLink", 1, 0, "VideoBridge",
-		QStringLiteral("Fornecido pelo controlador."));
+		QStringLiteral("Provided by the controller."));
 #endif
 	qmlRegisterUncreatableType<FtpModel>("OrbisLink", 1, 0, "FtpModel",
-		QStringLiteral("Fornecido pelo controlador."));
+		QStringLiteral("Provided by the controller."));
 
 	// An exception here would kill the process without a trace, and the
 	// application would look installed but would not open.
