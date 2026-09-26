@@ -10,6 +10,7 @@
 
 #include <cstring>
 #include <mutex>
+#include <optional>
 
 #ifdef _WIN32
 #include <ws2tcpip.h>
@@ -112,30 +113,37 @@ void setPort(struct sockaddr_storage *addr, uint16_t port)
 		reinterpret_cast<struct sockaddr_in6 *>(addr)->sin6_port = htons(port);
 }
 
-} // namespace
-
-HostInfo StreamDiscovery::probe(const std::string &address, int timeoutMs, uint16_t ps4Port)
+// A pergunta à consola, com ou sem registo no diário da tentativa.
+HostInfo perguntar(const std::string &address, int timeoutMs, uint16_t ps4Port, bool diario)
 {
 	HostInfo vazio;
 	vazio.address = address;
 	if(address.empty())
 		return vazio;
 
-	StreamTrace::instance().addressIfUnset(address);
-	StreamStep passo("descoberta", address);
+	std::optional<StreamStep> passo;
+	if(diario)
+	{
+		StreamTrace::instance().addressIfUnset(address);
+		passo.emplace("descoberta", address);
+	}
+	auto falhar = [&passo](const std::string &detalhe) {
+		if(passo)
+			passo->fail(detalhe);
+	};
 
 	struct sockaddr_storage addr {};
 	socklen_t addrLen = 0;
 	if(!resolve(address, &addr, &addrLen))
 	{
-		passo.fail("não consegui resolver o endereço \"" + address + "\"");
+		falhar("não consegui resolver o endereço \"" + address + "\"");
 		return vazio;
 	}
 
 	ChiakiDiscovery discovery {};
 	if(chiaki_discovery_init(&discovery, chiakiLog(), addr.ss_family) != CHIAKI_ERR_SUCCESS)
 	{
-		passo.fail("não consegui abrir o socket de descoberta (portas 9303-9319 ocupadas?)");
+		falhar("não consegui abrir o socket de descoberta (portas 9303-9319 ocupadas?)");
 		return vazio;
 	}
 
@@ -174,7 +182,7 @@ HostInfo StreamDiscovery::probe(const std::string &address, int timeoutMs, uint1
 	std::lock_guard<std::mutex> lock(colheita.mutex);
 	if(colheita.hosts.empty())
 	{
-		passo.fail("a consola não respondeu em " + std::to_string(timeoutMs)
+		falhar("a consola não respondeu em " + std::to_string(timeoutMs)
 			+ " ms (Remote Play desligado nas definições da consola? IP errado? "
 			  "outra rede?)");
 		return vazio;
@@ -182,9 +190,22 @@ HostInfo StreamDiscovery::probe(const std::string &address, int timeoutMs, uint1
 	HostInfo info = colheita.hosts.front();
 	if(info.address.empty())
 		info.address = address;
-	passo.ok(std::string(hostStateName(info.state)) + ", " + info.name + ", sistema "
-		+ info.systemVersion + ", alvo " + std::to_string(info.target));
+	if(passo)
+		passo->ok(std::string(hostStateName(info.state)) + ", " + info.name + ", sistema "
+			+ info.systemVersion + ", alvo " + std::to_string(info.target));
 	return info;
+}
+
+} // namespace
+
+HostInfo StreamDiscovery::probe(const std::string &address, int timeoutMs, uint16_t ps4Port)
+{
+	return perguntar(address, timeoutMs, ps4Port, true);
+}
+
+HostInfo StreamDiscovery::peek(const std::string &address, int timeoutMs, uint16_t ps4Port)
+{
+	return perguntar(address, timeoutMs, ps4Port, false);
 }
 
 std::vector<HostInfo> StreamDiscovery::scan(int timeoutMs)
