@@ -59,7 +59,7 @@ ORBISLINK_TEST(reconhece_dlc_pelo_content_type)
 	const PkgInfo info = PkgInspector().inspect(path);
 	CHECK(info.kind == PkgCategory::Dlc);
 	CHECK_EQ(pkgCategoryInstallOrder(info.kind), 3);
-	CHECK_EQ(std::string(pkgCategoryLabelPt(info.kind)), std::string("DLC"));
+	CHECK_EQ(std::string(pkgCategoryLabel(info.kind)), std::string("DLC"));
 
 	removeTempFile(path);
 }

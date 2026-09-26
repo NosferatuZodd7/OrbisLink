@@ -39,7 +39,7 @@ HttpResponse perform(const std::string &url, const std::string *body,
 	CURL *curl = curl_easy_init();
 	if(!curl)
 	{
-		response.error = "não foi possível inicializar o libcurl";
+		response.error = "could not initialise libcurl";
 		return response;
 	}
 
@@ -120,7 +120,7 @@ HttpResponse HttpClient::fetch(const std::string &url, const FetchOptions &optio
 	CURL *curl = curl_easy_init();
 	if(!curl)
 	{
-		response.error = "não foi possível inicializar o libcurl";
+		response.error = "could not initialise libcurl";
 		return response;
 	}
 
@@ -163,7 +163,7 @@ HttpClient::DownloadResult HttpClient::download(const std::string &url,
 	const std::string &destinationPath,
 	const std::function<bool(int64_t done, int64_t total)> &progress) const
 {
-	logInfo("A descarregar " + url + " para " + destinationPath);
+	logInfo("Downloading " + url + " to " + destinationPath);
 	ensureCurlInitialised();
 	DownloadResult result;
 
@@ -177,7 +177,7 @@ HttpClient::DownloadResult HttpClient::download(const std::string &url,
 #endif
 	if(!state.file)
 	{
-		result.error = "não foi possível escrever em " + destinationPath;
+		result.error = "could not write to " + destinationPath;
 		return result;
 	}
 
@@ -185,7 +185,7 @@ HttpClient::DownloadResult HttpClient::download(const std::string &url,
 	if(!curl)
 	{
 		std::fclose(state.file);
-		result.error = "não foi possível inicializar o libcurl";
+		result.error = "could not initialise libcurl";
 		return result;
 	}
 

@@ -99,8 +99,8 @@ void VideoBridge::presentFrame(AVFrame *frame)
 		if(!unsupportedReported_)
 		{
 			unsupportedReported_ = true;
-			logWarning("Remote Play: formato de imagem não suportado ("
-				+ std::to_string(fonte->format) + "); sem vídeo.");
+			logWarning("Remote Play: unsupported picture format ("
+				+ std::to_string(fonte->format) + "); no video.");
 		}
 		if(software)
 			av_frame_free(&software);

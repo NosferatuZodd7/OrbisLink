@@ -58,9 +58,9 @@ Item {
     // O que o clique faz agora.
     readonly property string accao: {
         if (!disponivel) return ""
-        if (!ativa) return "escolher"
-        if (aLigar || etapa.length > 0) return "cancelar"
-        return "ligar"
+        if (!ativa) return "choose"
+        if (aLigar || etapa.length > 0) return "cancel"
+        return "connect"
     }
     readonly property bool apagada: !disponivel || estado === "offline"
     readonly property bool aVerificar: aProcurar || etapa.length > 0
@@ -266,9 +266,9 @@ Item {
             cursorShape: caixa.accao.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: {
                 switch (caixa.accao) {
-                case "ligar": caixa.ligar(); break
-                case "cancelar": caixa.cancelar(); break
-                case "escolher": caixa.escolher(); break
+                case "connect": caixa.ligar(); break
+                case "cancel": caixa.cancelar(); break
+                case "choose": caixa.escolher(); break
                 }
             }
         }

@@ -55,22 +55,22 @@ AppController::AppController(QObject *parent)
 {
 	// Marcas em cada passo: se isto falhar numa máquina, o registo diz em
 	// que passo parou.
-	qInfo("Arranque: pasta de dados");
+	qInfo("Startup: data folder");
 	SettingsStore::ensureDirectory(SettingsStore::defaultDirectory());
-	qInfo("Arranque: a ler definições");
+	qInfo("Startup: reading settings");
 	store_.load(&settings_);
-	qInfo("Arranque: a calcular o caminho do registo");
+	qInfo("Startup: working out the log path");
 	const std::string coreLogPath = SettingsStore::defaultLogPath();
-	qInfo("Arranque: registo do núcleo em %s", coreLogPath.c_str());
+	qInfo("Startup: core log at %s", coreLogPath.c_str());
 	Logger::instance().setLevel(settings_.debugLogging ? LogLevel::Debug : LogLevel::Info);
-	qInfo("Arranque: nível de registo definido");
+	qInfo("Startup: log level set");
 	// A escrita para a consola não serve numa aplicação de janela; o
 	// ficheiro chega.
 	Logger::instance().setConsoleOutput(false);
-	qInfo("Arranque: a abrir o ficheiro de registo");
+	qInfo("Startup: opening the log file");
 	if(!Logger::instance().setFile(coreLogPath))
-		qWarning("Não foi possível abrir %s", coreLogPath.c_str());
-	qInfo("Arranque: ficheiro de registo aberto");
+		qWarning("Could not open %s", coreLogPath.c_str());
+	qInfo("Startup: log file open");
 
 	// Tudo o que for escrito no registo passa também para a janela de
 	// diagnóstico. A mensagem que chega aqui já vem mascarada.
@@ -82,9 +82,9 @@ AppController::AppController(QObject *parent)
 			Qt::QueuedConnection);
 	});
 
-	qInfo("Arranque: a preparar os serviços");
+	qInfo("Startup: preparing the services");
 	rebuildBackends();
-	qInfo("Arranque: serviços prontos");
+	qInfo("Startup: services ready");
 	if(!settings_.ftpUploadDirectory.empty())
 		ftpPath_ = QString::fromStdString(settings_.ftpUploadDirectory);
 }
@@ -112,7 +112,7 @@ void AppController::rebuildBackends()
 	if(httpServer_)
 		httpServer_->stop();
 
-	qInfo("Serviços: gestor da consola");
+	qInfo("Services: console manager");
 	// Os serviços falam com a consola em uso, na porta FTP dela.
 	Settings efetivas = settings_;
 	efetivas.ftpPort = activeFtpPort();
@@ -137,25 +137,25 @@ void AppController::rebuildBackends()
 			Qt::QueuedConnection);
 	});
 
-	qInfo("Serviços: servidor HTTP local");
+	qInfo("Services: local HTTP server");
 	httpServer_ = std::make_unique<LocalHttpServer>();
 	LocalHttpServer::Config httpConfig;
 	if(settings_.httpBindAddress.empty())
 	{
 		// Percorre as interfaces de rede do sistema. Se isto falhar, o
 		// servidor fica no endereço local em vez de deitar tudo abaixo.
-		qInfo("Serviços: a procurar a interface de rede");
+		qInfo("Services: looking for the network interface");
 		try
 		{
 			httpConfig.bindAddress = localAddressForConsole(settings_.consoleAddress);
 		}
 		catch(const std::exception &error)
 		{
-			qWarning("Não foi possível listar as interfaces de rede: %s", error.what());
+			qWarning("Could not list the network interfaces: %s", error.what());
 		}
 		catch(...)
 		{
-			qWarning("Não foi possível listar as interfaces de rede.");
+			qWarning("Could not list the network interfaces.");
 		}
 	}
 	else
@@ -164,13 +164,13 @@ void AppController::rebuildBackends()
 		httpConfig.bindAddress = "127.0.0.1";
 	httpConfig.port = settings_.httpPort;
 	httpConfig.allowedClient = settings_.restrictToConsoleIp ? settings_.consoleAddress : std::string();
-	qInfo("Serviços: a ligar o servidor HTTP em %s:%u", httpConfig.bindAddress.c_str(),
+	qInfo("Services: starting the HTTP server on %s:%u", httpConfig.bindAddress.c_str(),
 		static_cast<unsigned>(httpConfig.port));
 	std::string httpError;
 	if(!httpServer_->start(httpConfig, &httpError))
 		setStatusMessage(tr("The local HTTP server did not start: %1").arg(QString::fromStdString(httpError)));
 
-	qInfo("Serviços: instalador remoto e FTP");
+	qInfo("Services: remote installer and FTP");
 	RpiClient::Config rpiConfig;
 	rpiConfig.host = settings_.consoleAddress;
 	rpiConfig.port = settings_.installerPort;
@@ -188,7 +188,7 @@ void AppController::rebuildBackends()
 	deps.installer = installer_.get();
 	deps.ftp = ftp_.get();
 	deps.console = console_.get();
-	qInfo("Serviços: fila de instalação");
+	qInfo("Services: install queue");
 	queue_ = std::make_unique<InstallQueue>(deps, efetivas);
 	queue_->load(SettingsStore::defaultQueuePath());
 	queue_->setListener([this](const QueueTask &task) {
@@ -209,7 +209,7 @@ void AppController::rebuildBackends()
 	queue_->start();
 	refreshQueueModel();
 
-	qInfo("Serviços: verificação periódica");
+	qInfo("Services: periodic check");
 	console_->start(10);
 	emit settingsChanged();
 	emit statusChanged();
@@ -979,18 +979,18 @@ void AppController::setFtpUploadDirectory(const QString &path)
 
 void AppController::noteDrag(const QString &evento, bool comFicheiros)
 {
-	if(evento == QLatin1String("entrou"))
+	if(evento == QLatin1String("entered"))
 	{
 		++dragsVistos_;
 		if(!comFicheiros)
 			++dragsRecusados_;
-		logInfo("Arrastar: entrou na janela"
-			+ std::string(comFicheiros ? " (com ficheiros)" : " — SEM ficheiros, recusado"));
+		logInfo("Drag: entered the window"
+			+ std::string(comFicheiros ? " (with files)" : " — NO files, refused"));
 	}
-	else if(evento == QLatin1String("largado"))
+	else if(evento == QLatin1String("dropped"))
 	{
 		++dragsLargados_;
-		logInfo("Arrastar: largado na janela.");
+		logInfo("Drag: dropped on the window.");
 	}
 }
 
@@ -998,13 +998,13 @@ QString AppController::dragSummary() const
 {
 	if(dragsVistos_ == 0)
 	{
-		return QStringLiteral("nenhum arrasto chegou à janela nesta sessão. Se tentaste "
-							  "arrastar e não resultou, o Windows não entregou o evento — a "
-							  "causa mais comum é a aplicação estar a correr como "
-							  "administrador (ver a linha \"Privilégios\" acima).");
+		return QStringLiteral("no drag reached the window in this session. If you tried "
+							  "dragging and it did not work, Windows did not deliver the "
+							  "event — the most common cause is the app running as "
+							  "administrator (see the \"Privileges\" line above).");
 	}
-	return QStringLiteral("%1 arrasto(s) vistos, %2 largado(s), %3 recusado(s) por não "
-						  "trazerem ficheiros.")
+	return QStringLiteral("%1 drag(s) seen, %2 dropped, %3 refused for not carrying "
+						  "files.")
 		.arg(dragsVistos_).arg(dragsLargados_).arg(dragsRecusados_);
 }
 
@@ -1151,8 +1151,8 @@ void AppController::setStreamVerbose(bool verbose)
 	// Com o registo detalhado ligado, guardam-se mais linhas em memória:
 	// o handshake do Remote Play sozinho enche as 500 do costume.
 	Logger::instance().setRecentCapacity(verbose ? 4000 : 500);
-	logInfo(verbose ? "Registo detalhado do Remote Play ligado."
-					: "Registo detalhado do Remote Play desligado.");
+	logInfo(verbose ? "Detailed Remote Play log on."
+					: "Detailed Remote Play log off.");
 }
 
 
@@ -1176,7 +1176,7 @@ void AppController::checkForUpdatesNow(bool silentWhenUpToDate)
 	config.currentVersion = version().toStdString();
 	config.assetSuffix = platformAssetSuffix();
 
-	setUpdateState(QStringLiteral("a-verificar"), tr("Looking for new versions…"));
+	setUpdateState(QStringLiteral("checking"), tr("Looking for new versions…"));
 
 	std::thread([this, config, silentWhenUpToDate]() {
 		const UpdateCheckResult result = UpdateChecker(config).check();
@@ -1187,7 +1187,7 @@ void AppController::checkForUpdatesNow(bool silentWhenUpToDate)
 				const QString mensagem = translateMessage(result.message);
 				if(!result.ok)
 				{
-					setUpdateState(QStringLiteral("erro"), mensagem);
+					setUpdateState(QStringLiteral("error"), mensagem);
 					if(!silentWhenUpToDate)
 						emit notify(tr("Updates"), mensagem, true);
 					return;
@@ -1196,7 +1196,7 @@ void AppController::checkForUpdatesNow(bool silentWhenUpToDate)
 				{
 					updateVersion_.clear();
 					updateAssetUrl_.clear();
-					setUpdateState(QStringLiteral("sem-novidades"), mensagem);
+					setUpdateState(QStringLiteral("up-to-date"), mensagem);
 					if(!silentWhenUpToDate)
 						emit notify(tr("Updates"), mensagem, false);
 					return;
@@ -1210,7 +1210,7 @@ void AppController::checkForUpdatesNow(bool silentWhenUpToDate)
 				updateAssetSha256Url_ = QString::fromStdString(result.release.assetSha256Url);
 				updateAssetSize_ = result.release.assetSize;
 				updateProgress_ = 0.0;
-				setUpdateState(QStringLiteral("disponivel"), mensagem);
+				setUpdateState(QStringLiteral("available"), mensagem);
 				emit updateAvailable(updateVersion_);
 			},
 			Qt::QueuedConnection);
@@ -1226,7 +1226,7 @@ void AppController::openUpdatePage() const
 void AppController::dismissUpdate()
 {
 	// Não esquece que há uma versão nova — só deixa de a mostrar à frente.
-	setUpdateState(QStringLiteral("disponivel"), updateMessage_);
+	setUpdateState(QStringLiteral("available"), updateMessage_);
 }
 
 void AppController::loadDemoUpdate()
@@ -1234,8 +1234,8 @@ void AppController::loadDemoUpdate()
 	static const char *exemplo = R"([{
 	  "tag_name": "v0.1.9",
 	  "name": "v0.1.9",
-	  "body": "Remote Play confirmado numa PS4 real.\n\n- Descodificacao por hardware em Windows\n- Ecra inteiro com F11\n- Vibracao no comando\n- Assistente de primeira utilizacao\n\nOrbisLink-0.1.9-setup.exe\n",
-	  "html_url": "https://github.com/exemplo/orbislink/releases/tag/v0.1.9",
+	  "body": "Remote Play confirmed on a real PS4.\n\n- Hardware decoding on Windows\n- Full screen with F11\n- Controller rumble\n- First-run wizard\n\nOrbisLink-0.1.9-setup.exe\n",
+	  "html_url": "https://github.com/example/orbislink/releases/tag/v0.1.9",
 	  "draft": false, "prerelease": false,
 	  "assets": [{ "name": "OrbisLink-0.1.9-setup.exe",
 	    "browser_download_url": "https://exemplo/OrbisLink-0.1.9-setup.exe", "size": 48234496 }]
@@ -1250,7 +1250,7 @@ void AppController::loadDemoUpdate()
 	updateAssetUrl_ = QString::fromStdString(info.assetUrl);
 	updateAssetName_ = QString::fromStdString(info.assetName);
 	updateAssetSize_ = info.assetSize;
-	setUpdateState(QStringLiteral("disponivel"),
+	setUpdateState(QStringLiteral("available"),
 		tr("There is a new version: %1.").arg(updateVersion_));
 }
 
@@ -1273,7 +1273,7 @@ void AppController::installUpdate()
 	const QString shaEsperado = updateAssetSha256_;
 
 	updateProgress_ = 0.0;
-	setUpdateState(QStringLiteral("a-descarregar"), tr("Downloading %1…").arg(updateAssetName_));
+	setUpdateState(QStringLiteral("downloading"), tr("Downloading %1…").arg(updateAssetName_));
 
 	std::thread([this, url, destino, shaUrl, shaEsperado]() {
 		HttpClient client(20000);
@@ -1323,7 +1323,7 @@ void AppController::installUpdate()
 			if(obtido != esperado)
 			{
 				erro = tr("The downloaded file does not match the published SHA-256. I will not install it.");
-				logError("SHA-256 do update não bate: esperado " + esperado + ", obtido " + obtido);
+				logError("Update SHA-256 does not match: expected " + esperado + ", got " + obtido);
 				QFile::remove(destino);
 			}
 		}
@@ -1334,7 +1334,7 @@ void AppController::installUpdate()
 				updateBusy_.store(false);
 				if(!erro.isEmpty())
 				{
-					setUpdateState(QStringLiteral("erro"), erro);
+					setUpdateState(QStringLiteral("error"), erro);
 					emit notify(tr("Update"), erro, true);
 					return;
 				}
@@ -1342,10 +1342,10 @@ void AppController::installUpdate()
 				{
 					// Dizer isto é o mínimo: sem hash publicado, a única
 					// garantia é o HTTPS.
-					logWarning("O lançamento não publicou SHA-256; só o HTTPS garantiu o "
-							   "ficheiro.");
+					logWarning("The release did not publish a SHA-256; only HTTPS vouched for "
+							   "the file.");
 				}
-				setUpdateState(QStringLiteral("pronto"),
+				setUpdateState(QStringLiteral("ready"),
 					tr("Downloaded. The installer will open and the app will close."));
 				emit updateChanged();
 
@@ -1355,11 +1355,11 @@ void AppController::installUpdate()
 				// mudar para uma instalação por utilizador.
 				if(!QProcess::startDetached(destino, QStringList()))
 				{
-					setUpdateState(QStringLiteral("erro"),
+					setUpdateState(QStringLiteral("error"),
 						tr("I could not open the installer at %1.").arg(destino));
 					return;
 				}
-				logInfo("Instalador de actualização lançado; a fechar a aplicação.");
+				logInfo("Update installer launched; closing the app.");
 				QTimer::singleShot(500, qApp, &QCoreApplication::quit);
 			},
 			Qt::QueuedConnection);
@@ -1514,7 +1514,7 @@ void AppController::saveUpdateSettings(bool checkForUpdates, const QString &repo
 {
 	settings_.checkForUpdates = checkForUpdates;
 	settings_.updateRepository = repository.trimmed().toStdString();
-	settings_.updateChannel = channel == QStringLiteral("testes") ? "testes" : "estavel";
+	settings_.updateChannel = channel == QStringLiteral("testing") ? "testing" : "stable";
 	store_.save(settings_);
 }
 

@@ -28,13 +28,13 @@ const char *sessionStateName(SessionState state)
 {
 	switch(state)
 	{
-		case SessionState::Idle: return "parado";
-		case SessionState::Connecting: return "a ligar";
-		case SessionState::Connected: return "ligado";
-		case SessionState::Stopped: return "terminado";
-		case SessionState::Failed: return "falhou";
+		case SessionState::Idle: return "idle";
+		case SessionState::Connecting: return "connecting";
+		case SessionState::Connected: return "connected";
+		case SessionState::Stopped: return "stopped";
+		case SessionState::Failed: return "failed";
 	}
-	return "desconhecido";
+	return "unknown";
 }
 
 struct StreamSession::Impl
@@ -192,8 +192,8 @@ void audioSettings(uint32_t channels, uint32_t rate, void *user)
 		std::lock_guard<std::mutex> lock(impl->mutex);
 		callback = impl->onAudioSettings;
 	}
-	StreamTrace::instance().note("áudio a " + std::to_string(rate) + " Hz, "
-		+ std::to_string(channels) + " canais");
+	StreamTrace::instance().note("audio at " + std::to_string(rate) + " Hz, "
+		+ std::to_string(channels) + " channels");
 	if(callback)
 		callback(channels, rate);
 }
@@ -217,9 +217,9 @@ void eventCallback(ChiakiEvent *event, void *user)
 	{
 		case CHIAKI_EVENT_CONNECTED:
 			impl->active.store(true);
-			StreamTrace::instance().ok("a consola aceitou a sessão");
-			StreamTrace::instance().step("primeiro fotograma",
-				"à espera que a consola comece a enviar vídeo");
+			StreamTrace::instance().ok("the console accepted the session");
+			StreamTrace::instance().step("first frame",
+				"waiting for the console to start sending video");
 			impl->publish(SessionState::Connected, QT_TRANSLATE_NOOP("Messages", "Connected to the console."));
 			break;
 		case CHIAKI_EVENT_LOGIN_PIN_REQUEST:
@@ -230,8 +230,8 @@ void eventCallback(ChiakiEvent *event, void *user)
 				callback = impl->onLoginPin;
 			}
 			StreamTrace::instance().note(event->login_pin_request.pin_incorrect
-				? "a consola diz que o PIN de sessão estava errado"
-				: "a consola pediu o PIN de início de sessão da conta");
+				? "the console says the sign-in PIN was wrong"
+				: "the console asked for the account sign-in PIN");
 			if(callback)
 				callback(event->login_pin_request.pin_incorrect);
 			break;
@@ -248,7 +248,7 @@ void eventCallback(ChiakiEvent *event, void *user)
 			break;
 		}
 		case CHIAKI_EVENT_NICKNAME_RECEIVED:
-			StreamTrace::instance().note(std::string("a consola diz chamar-se \"")
+			StreamTrace::instance().note(std::string("the console says its name is \"")
 				+ event->server_nickname + "\"");
 			break;
 		case CHIAKI_EVENT_QUIT:
@@ -259,7 +259,7 @@ void eventCallback(ChiakiEvent *event, void *user)
 			if(event->quit.reason_str && *event->quit.reason_str)
 				detalhe += std::string(" (") + event->quit.reason_str + ")";
 			if(limpo)
-				StreamTrace::instance().note("sessão terminada a pedido");
+				StreamTrace::instance().note("session ended on request");
 			else
 				StreamTrace::instance().fail(detalhe);
 			StreamTrace::instance().end();
@@ -366,7 +366,7 @@ bool StreamSession::start(const Config &config, std::string *error)
 					"starting another.");
 			return false;
 		}
-		logInfo("Sessão anterior já terminada; a arrumá-la antes de ligar de novo.");
+		logInfo("Previous session already ended; tidying it up before connecting again.");
 		stop();
 	}
 	if(config.address.empty())
@@ -390,9 +390,9 @@ bool StreamSession::start(const Config &config, std::string *error)
 	impl_->height.store(0);
 
 	StreamTrace::instance().begin(config.address);
-	StreamStep passoPreparar("preparar sessão",
+	StreamStep passoPreparar("prepare session",
 		std::to_string(config.settings.resolution) + "p"
-			+ std::to_string(config.settings.fps) + ", consola "
+			+ std::to_string(config.settings.fps) + ", console "
 			+ (config.credentials.ps5 ? "PS5" : "PS4"));
 
 	ChiakiConnectVideoProfile profile {};
@@ -418,14 +418,14 @@ bool StreamSession::start(const Config &config, std::string *error)
 		if(decoderResult == CHIAKI_ERR_SUCCESS)
 		{
 			impl_->usingHardware = true;
-			StreamTrace::instance().note(std::string("descodificação pela placa gráfica (")
+			StreamTrace::instance().note(std::string("decoding on the graphics card (")
 				+ hardwareDecoderName() + ")");
 		}
 		else
 		{
-			StreamTrace::instance().note(std::string("a placa gráfica recusou (")
+			StreamTrace::instance().note(std::string("the graphics card refused (")
 				+ hardwareDecoderName() + "): " + chiaki_error_string(decoderResult)
-				+ " — a usar o processador");
+				+ " — using the processor");
 		}
 	}
 	if(!impl_->usingHardware)
@@ -434,11 +434,11 @@ bool StreamSession::start(const Config &config, std::string *error)
 			static_cast<unsigned int>(config.settings.fps), nullptr, nullptr, frameAvailable,
 			impl_.get());
 		if(decoderResult == CHIAKI_ERR_SUCCESS && config.settings.hardwareDecoder)
-			StreamTrace::instance().note("descodificação pelo processador");
+			StreamTrace::instance().note("decoding on the processor");
 	}
 	if(decoderResult != CHIAKI_ERR_SUCCESS)
 	{
-		passoPreparar.fail(std::string("descodificador de vídeo: ")
+		passoPreparar.fail(std::string("video decoder: ")
 			+ chiaki_error_string(decoderResult));
 		if(error)
 			*error = std::string(QT_TRANSLATE_NOOP("Messages", "Could not set up the video decoder")) + ": "
@@ -511,9 +511,9 @@ bool StreamSession::start(const Config &config, std::string *error)
 		&impl_->decoder);
 
 	passoPreparar.ok();
-	StreamTrace::instance().step("ligar",
+	StreamTrace::instance().step("connect",
 		std::string(config.credentials.ps5 ? "9302" : "987")
-			+ "/UDP descoberta, 9295/TCP controlo, 9296-9297/UDP stream");
+			+ "/UDP discovery, 9295/TCP control, 9296-9297/UDP stream");
 	impl_->publish(SessionState::Connecting, QT_TRANSLATE_NOOP("Messages", "Connecting to the console…"));
 	const ChiakiErrorCode started = chiaki_session_start(&impl_->session);
 	if(started != CHIAKI_ERR_SUCCESS)
@@ -610,13 +610,13 @@ bool StreamSession::startMicrophone(std::string *error)
 	{
 		if(error)
 			*error = chiaki_error_string(result);
-		logWarning(std::string("O microfone não arrancou: ") + chiaki_error_string(result));
+		logWarning(std::string("The microphone did not start: ") + chiaki_error_string(result));
 		return false;
 	}
 	pedirSilencio(&impl_->session, false);
 	impl_->micMuted.store(false);
 	impl_->micActive.store(true);
-	logInfo("Microfone ligado: a enviar para a consola.");
+	logInfo("Microphone on: sending to the console.");
 	return true;
 }
 
@@ -628,7 +628,7 @@ void StreamSession::stopMicrophone()
 	impl_->micActive.store(false);
 	if(impl_->sessionStarted)
 		pedirSilencio(&impl_->session, true);
-	logInfo("Microfone desligado.");
+	logInfo("Microphone off.");
 }
 
 void StreamSession::setMicrophoneMuted(bool muted)
@@ -655,9 +655,9 @@ void StreamSession::sendMicrophoneFrame(const int16_t *pcm, size_t samplesPerCha
 	// chiaki lê frame_size amostras do buffer, sem verificar.
 	if(samplesPerChannel != kMicrophoneFrameSamples)
 	{
-		logWarning("Trama de microfone com " + std::to_string(samplesPerChannel)
-			+ " amostras; esperavam-se " + std::to_string(kMicrophoneFrameSamples)
-			+ ". Descartada.");
+		logWarning("Microphone frame with " + std::to_string(samplesPerChannel)
+			+ " samples; expected " + std::to_string(kMicrophoneFrameSamples)
+			+ ". Dropped.");
 		return;
 	}
 	std::lock_guard<std::mutex> lock(impl_->micMutex);

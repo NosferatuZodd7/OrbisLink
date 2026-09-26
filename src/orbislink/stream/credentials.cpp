@@ -100,7 +100,7 @@ std::vector<StreamCredentials> CredentialStore::all() const
 	if(!root.isArray())
 	{
 		if(!erro.empty())
-			logWarning("Credenciais do Remote Play ilegíveis: " + erro);
+			logWarning("Unreadable Remote Play credentials: " + erro);
 		return out;
 	}
 
@@ -176,7 +176,7 @@ bool CredentialStore::save(const StreamCredentials &credentials)
 	std::ofstream file(path_, std::ios::binary | std::ios::trunc);
 	if(!file)
 	{
-		logError("Não consegui guardar as credenciais do Remote Play em " + path_);
+		logError("Could not save the Remote Play credentials to " + path_);
 		return false;
 	}
 	file << root.dump() << "\n";

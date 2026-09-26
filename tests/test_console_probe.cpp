@@ -171,8 +171,8 @@ ORBISLINK_TEST(endereco_vazio_nao_vai_a_rede)
 	const ProbeResult result = probeConsoleServices("   ", 2121, 12800, 1000);
 
 	CHECK(!result.anyOk());
-	CHECK(result.ftpDetail == "sem endereço de consola");
-	CHECK(result.installerDetail == "sem endereço de consola");
+	CHECK(result.ftpDetail == "no console address");
+	CHECK(result.installerDetail == "no console address");
 }
 
 TEST_MAIN()

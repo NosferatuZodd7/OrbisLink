@@ -126,7 +126,7 @@ HostInfo perguntar(const std::string &address, int timeoutMs, uint16_t ps4Port, 
 	if(diario)
 	{
 		StreamTrace::instance().addressIfUnset(address);
-		passo.emplace("descoberta", address);
+		passo.emplace("discovery", address);
 	}
 	auto falhar = [&passo](const std::string &detalhe) {
 		if(passo)
@@ -137,14 +137,14 @@ HostInfo perguntar(const std::string &address, int timeoutMs, uint16_t ps4Port, 
 	socklen_t addrLen = 0;
 	if(!resolve(address, &addr, &addrLen))
 	{
-		falhar("não consegui resolver o endereço \"" + address + "\"");
+		falhar("could not resolve the address \"" + address + "\"");
 		return vazio;
 	}
 
 	ChiakiDiscovery discovery {};
 	if(chiaki_discovery_init(&discovery, chiakiLog(), addr.ss_family) != CHIAKI_ERR_SUCCESS)
 	{
-		falhar("não consegui abrir o socket de descoberta (portas 9303-9319 ocupadas?)");
+		falhar("could not open the discovery socket (ports 9303-9319 in use?)");
 		return vazio;
 	}
 
@@ -183,9 +183,9 @@ HostInfo perguntar(const std::string &address, int timeoutMs, uint16_t ps4Port, 
 	std::lock_guard<std::mutex> lock(colheita.mutex);
 	if(colheita.hosts.empty())
 	{
-		falhar("a consola não respondeu em " + std::to_string(timeoutMs)
-			+ " ms (Remote Play desligado nas definições da consola? IP errado? "
-			  "outra rede?)");
+		falhar("the console did not answer within " + std::to_string(timeoutMs)
+			+ " ms (Remote Play turned off in the console settings? wrong IP? "
+			  "another network?)");
 		return vazio;
 	}
 	HostInfo info = colheita.hosts.front();
@@ -268,7 +268,7 @@ bool StreamDiscovery::wakeup(const std::string &address, uint64_t credential, bo
 			*error = chiaki_error_string(result);
 		return false;
 	}
-	logInfo("Remote Play: pedido de acordar enviado para " + address);
+	logInfo("Remote Play: wake-up request sent to " + address);
 	return true;
 }
 

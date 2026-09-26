@@ -27,7 +27,7 @@ ProbeResult probeConsoleServices(const std::string &address, uint16_t ftpPort,
 	ProbeResult result;
 	if(trim(address).empty())
 	{
-		result.ftpDetail = result.installerDetail = "sem endereço de consola";
+		result.ftpDetail = result.installerDetail = "no console address";
 		return result;
 	}
 
@@ -37,7 +37,7 @@ ProbeResult probeConsoleServices(const std::string &address, uint16_t ftpPort,
 	result.ftpOk = tcpProbe(address, ftpPort, timeoutMs, &banner);
 	const std::string trimmed = trim(banner);
 	if(result.ftpOk)
-		result.ftpDetail = trimmed.empty() ? "ligado, sem banner" : trimmed;
+		result.ftpDetail = trimmed.empty() ? "connected, no banner" : trimmed;
 	else
 		result.ftpDetail = trimmed;
 
@@ -150,9 +150,9 @@ ConsoleStatus ConsoleManager::checkNow()
 	if(cfg.consoleAddress.empty())
 	{
 		result.ftp.state = ServiceState::Unavailable;
-		result.ftp.detail = "sem endereço de consola";
+		result.ftp.detail = "no console address";
 		result.installer.state = ServiceState::Unavailable;
-		result.installer.detail = "sem endereço de consola";
+		result.installer.detail = "no console address";
 		result.ftp.checkedAtMs = result.installer.checkedAtMs = now;
 	}
 	else

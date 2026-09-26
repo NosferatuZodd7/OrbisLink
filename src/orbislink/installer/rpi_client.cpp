@@ -53,7 +53,7 @@ InstallerResult RpiClient::call(const std::string &path, const std::string &json
 		if(attempt > 0)
 		{
 			const int delayMs = config_.backoffBaseMs * (1 << (attempt - 1)); // 1 s, 2 s, 4 s
-			logWarning("Instalador remoto sem resposta (" + response.error + "); nova tentativa em "
+			logWarning("Remote installer not answering (" + response.error + "); retrying in "
 				+ std::to_string(delayMs) + " ms.");
 			std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
 		}

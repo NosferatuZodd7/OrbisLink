@@ -104,7 +104,7 @@ void handler(QtMsgType type, const QMessageLogContext &context, const QString &m
 		case QtDebugMsg: level = "debug"; break;
 		case QtInfoMsg: level = "info"; break;
 		case QtWarningMsg: level = "aviso"; break;
-		case QtCriticalMsg: level = "erro"; break;
+		case QtCriticalMsg: level = "error"; break;
 		case QtFatalMsg: level = "fatal"; break;
 	}
 	const QString stamp = QDateTime::currentDateTimeUtc().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss.zzz"));
@@ -169,7 +169,7 @@ LONG WINAPI crashHandler(EXCEPTION_POINTERS *info)
 		}
 
 		const int length = _snprintf_s(buffer, sizeof(buffer), _TRUNCATE,
-			"FATAL: o processo estoirou (codigo 0x%08lX em %s+0x%llX)\r\n",
+			"FATAL: the process crashed (code 0x%08lX at %s+0x%llX)\r\n",
 			static_cast<unsigned long>(code), module, offset);
 		DWORD written = 0;
 		if(length > 0)
@@ -206,8 +206,8 @@ LONG WINAPI crashHandler(EXCEPTION_POINTERS *info)
 		CloseHandle(file);
 	}
 
-	MessageBoxW(nullptr, L"O OrbisLink terminou inesperadamente.\n\n"
-						 L"Corre o diagnostico.bat e envia o relatório.",
+	MessageBoxW(nullptr, L"OrbisLink closed unexpectedly.\n\n"
+						 L"Run diagnostico.bat and send the report.",
 		L"OrbisLink", MB_OK | MB_ICONERROR);
 	return EXCEPTION_EXECUTE_HANDLER;
 }
@@ -238,7 +238,7 @@ void installFileLogger()
 #endif
 	g_previousHandler = qInstallMessageHandler(handler);
 	writeLine(QStringLiteral("──────────── arranque ────────────"));
-	qInfo("Registo em %s", qPrintable(g_logPath));
+	qInfo("Log at %s", qPrintable(g_logPath));
 }
 
 bool previousLaunchFailed() { return QFileInfo::exists(markerPath()); }
@@ -261,7 +261,7 @@ void reportFatal(const QString &title, const QString &message)
 {
 	writeLine(QStringLiteral("FATAL: ") + title + QStringLiteral(" — ") + message);
 #ifdef Q_OS_WIN
-	const QString full = message + QStringLiteral("\n\nDetalhes em:\n") + logPath();
+	const QString full = message + QStringLiteral("\n\nDetails in:\n") + logPath();
 	MessageBoxW(nullptr, reinterpret_cast<const wchar_t *>(full.utf16()),
 		reinterpret_cast<const wchar_t *>(title.utf16()), MB_OK | MB_ICONERROR);
 #else

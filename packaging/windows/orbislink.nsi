@@ -176,7 +176,9 @@ Section "Atalhos no Menu Iniciar" SEC_SHORTCUTS
   ; Para máquinas sem aceleração gráfica: Windows Sandbox, máquinas virtuais,
   ; ambiente de trabalho remoto. A aplicação também deteta isto sozinha ao
   ; segundo arranque, mas assim não é preciso esperar.
-  CreateShortcut "$SMPROGRAMS\${APP_NAME}\OrbisLink (modo compatível).lnk" \
+  ; The shortcut used to have a Portuguese name; an upgrade removes the old one.
+  Delete "$SMPROGRAMS\${APP_NAME}\OrbisLink (modo compatível).lnk"
+  CreateShortcut "$SMPROGRAMS\${APP_NAME}\OrbisLink (compatibility mode).lnk" \
     "$INSTDIR\gui\orbislink-gui.exe" "--software" "$INSTDIR\gui\orbislink-gui.exe" 0
   CreateShortcut "$DESKTOP\OrbisLink.lnk" \
     "$INSTDIR\gui\orbislink-gui.exe" "" "$INSTDIR\gui\orbislink-gui.exe" 0
@@ -258,6 +260,7 @@ Section "Uninstall"
 
   RMDir /r "$INSTDIR\gui"
   Delete "$SMPROGRAMS\${APP_NAME}\OrbisLink.lnk"
+  Delete "$SMPROGRAMS\${APP_NAME}\OrbisLink (compatibility mode).lnk"
   Delete "$SMPROGRAMS\${APP_NAME}\OrbisLink (modo compatível).lnk"
   Delete "$DESKTOP\OrbisLink.lnk"
 

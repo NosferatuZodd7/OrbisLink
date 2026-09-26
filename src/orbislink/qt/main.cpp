@@ -61,14 +61,14 @@ int main(int argc, char **argv)
 	if(recovering && !forceSoftware)
 	{
 		forceSoftware = true;
-		qWarning("O arranque anterior não chegou a desenhar nada; a tentar com desenho por software.");
+		qWarning("The previous start never drew anything; trying software rendering.");
 	}
 	if(forceSoftware)
 	{
 		QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
 		// Também para o caso de o Qt voltar a um backend acelerado.
 		qputenv("QSG_RHI_PREFER_SOFTWARE_RENDERER", "1");
-		qInfo("Modo de desenho: software.");
+		qInfo("Rendering mode: software.");
 	}
 
 	QGuiApplication app(argc, argv);
@@ -76,20 +76,20 @@ int main(int argc, char **argv)
 	// ficheiro vem do recurso .rc; este é o que a aplicação mostra a correr.
 	app.setWindowIcon(QIcon(QStringLiteral(":/icons/mark.png")));
 	QQuickStyle::setStyle(QStringLiteral("Basic"));
-	qInfo("OrbisLink %s a arrancar.", ORBISLINK_VERSION_STRING);
+	qInfo("OrbisLink %s starting.", ORBISLINK_VERSION_STRING);
 	// Ficheiros de versões diferentes na mesma pasta são causa provável de
 	// estoiros: acontece quando se instala por cima com a aplicação aberta e
 	// os ficheiros bloqueados são ignorados.
 	if(qstrcmp(qVersion(), QT_VERSION_STR) != 0)
 	{
-		startup::reportFatal(QStringLiteral("OrbisLink — instalação inconsistente"),
-			QStringLiteral("Esta cópia foi compilada com o Qt %1 mas encontrou o Qt %2 "
-						   "ao lado do executável.\n\nApaga a pasta da aplicação e instala "
-						   "de novo, com o OrbisLink fechado.")
+		startup::reportFatal(QStringLiteral("OrbisLink — inconsistent installation"),
+			QStringLiteral("This copy was built with Qt %1 but found Qt %2 next to the "
+						   "executable.\n\nDelete the app folder and install again, with "
+						   "OrbisLink closed.")
 				.arg(QLatin1String(QT_VERSION_STR), QLatin1String(qVersion())));
 		return 1;
 	}
-	qInfo("Qt %s (compilado com %s), plataforma \"%s\"", qVersion(), QT_VERSION_STR,
+	qInfo("Qt %s (built with %s), platform \"%s\"", qVersion(), QT_VERSION_STR,
 		qPrintable(app.platformName()));
 
 	// Opções de desenvolvimento: capturar o ecrã e sair, para documentação
@@ -186,14 +186,15 @@ int main(int argc, char **argv)
 	}
 	catch(const std::exception &error)
 	{
-		startup::reportFatal(QStringLiteral("OrbisLink não conseguiu arrancar"),
-			QStringLiteral("Falhou a preparação dos serviços:\n%1").arg(QString::fromUtf8(error.what())));
+		startup::reportFatal(QCoreApplication::translate("main", "OrbisLink could not start"),
+			QCoreApplication::translate("main", "Setting up the services failed:\n%1")
+				.arg(QString::fromUtf8(error.what())));
 		return 1;
 	}
 	catch(...)
 	{
-		startup::reportFatal(QStringLiteral("OrbisLink não conseguiu arrancar"),
-			QStringLiteral("Falhou a preparação dos serviços (erro desconhecido)."));
+		startup::reportFatal(QCoreApplication::translate("main", "OrbisLink could not start"),
+			QCoreApplication::translate("main", "Setting up the services failed (unknown error)."));
 		return 1;
 	}
 	if(!enqueuePaths.isEmpty())
@@ -214,7 +215,7 @@ int main(int argc, char **argv)
 	QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
 		[](const QUrl &url) {
 			startup::reportFatal(QStringLiteral("OrbisLink"),
-				QStringLiteral("Não foi possível carregar a interface (%1).").arg(url.toString()));
+				QCoreApplication::translate("main", "Could not load the interface (%1).").arg(url.toString()));
 			QCoreApplication::exit(1);
 		});
 	engine.rootContext()->setContextProperty(QStringLiteral("app"), controller.get());
@@ -273,7 +274,7 @@ int main(int argc, char **argv)
 	if(engine.rootObjects().isEmpty())
 	{
 		startup::reportFatal(QStringLiteral("OrbisLink"),
-			QStringLiteral("A interface não chegou a ser criada."));
+			QCoreApplication::translate("main", "The interface was never created."));
 		return 1;
 	}
 
@@ -300,8 +301,8 @@ int main(int argc, char **argv)
 		const QString avisoElevacao = WindowChrome::elevationWarning();
 		if(!avisoElevacao.isEmpty())
 		{
-			logWarning("A correr com privilégios de administrador: o arrastar e largar "
-					   "não vai funcionar.");
+			logWarning("Running with administrator privileges: drag and drop will not "
+					   "work.");
 			QTimer::singleShot(1200, controller.get(), [ptr = controller.get(), avisoElevacao]() {
 				emit ptr->notify(QCoreApplication::translate("main", "Drag and drop"),
 					avisoElevacao, true);
@@ -312,10 +313,11 @@ int main(int argc, char **argv)
 		QObject::connect(window, &QQuickWindow::sceneGraphError, &app,
 			[forceSoftware](QQuickWindow::SceneGraphError, const QString &message) {
 				const QString hint = forceSoftware
-					? QStringLiteral("Já estava em modo de software.")
-					: QStringLiteral("Tenta o atalho \"OrbisLink (modo compatível)\", "
-									 "ou corre com a opção --software.");
-				startup::reportFatal(QStringLiteral("OrbisLink — erro gráfico"),
+					? QCoreApplication::translate("main", "It was already in software mode.")
+					: QCoreApplication::translate("main",
+						  "Try the \"OrbisLink (compatibility mode)\" shortcut, or run it "
+						  "with the --software option.");
+				startup::reportFatal(QCoreApplication::translate("main", "OrbisLink — graphics error"),
 					message + QStringLiteral("\n\n") + hint);
 			});
 	}
@@ -328,12 +330,13 @@ int main(int argc, char **argv)
 			if(drawn->loadRelaxed() != 0)
 				return;
 			QString reason = startup::windowCreationFailed()
-				? QStringLiteral("O Windows recusou criar a janela.")
-				: QStringLiteral("A janela foi criada mas nada chegou a ser desenhado.");
+				? QCoreApplication::translate("main", "Windows refused to create the window.")
+				: QCoreApplication::translate("main", "The window was created but nothing was ever drawn.");
 			if(!forceSoftware)
-				reason += QStringLiteral("\n\nTenta o atalho \"OrbisLink (modo compatível)\" "
-										 "ou corre com a opção --software.");
-			startup::reportFatal(QStringLiteral("OrbisLink não conseguiu abrir"), reason);
+				reason += QStringLiteral("\n\n") + QCoreApplication::translate("main",
+					"Try the \"OrbisLink (compatibility mode)\" shortcut, or run it with the "
+					"--software option.");
+			startup::reportFatal(QCoreApplication::translate("main", "OrbisLink could not open"), reason);
 		});
 	}
 
@@ -368,13 +371,13 @@ int main(int argc, char **argv)
 			dragselftest::run(window, [](int fechouAMeio, const QString &relato) {
 				if(fechouAMeio == 0)
 				{
-					qInfo("selftest-drag: PASSOU — %s", qPrintable(relato));
+					qInfo("selftest-drag: PASSED — %s", qPrintable(relato));
 					QCoreApplication::exit(0);
 				}
 				else
 				{
-					qWarning("selftest-drag: FALHOU — a sobreposição fechou %d vez(es) a meio "
-							 "do arrastar: %s", fechouAMeio, qPrintable(relato));
+					qWarning("selftest-drag: FAILED — the overlay closed %d time(s) during the "
+							 "drag: %s", fechouAMeio, qPrintable(relato));
 					QCoreApplication::exit(1);
 				}
 			});
@@ -389,9 +392,9 @@ int main(int argc, char **argv)
 			{
 				const QImage image = window->grabWindow();
 				if(!image.isNull() && image.save(screenshotPath))
-					qInfo("Captura guardada em %s", qPrintable(screenshotPath));
+					qInfo("Screenshot saved to %s", qPrintable(screenshotPath));
 				else
-					qWarning("Não foi possível guardar a captura.");
+					qWarning("Could not save the screenshot.");
 			}
 			QCoreApplication::quit();
 		});
@@ -403,7 +406,7 @@ int main(int argc, char **argv)
 	}
 	catch(const std::exception &error)
 	{
-		startup::reportFatal(QStringLiteral("OrbisLink terminou com erro"),
+		startup::reportFatal(QCoreApplication::translate("main", "OrbisLink ended with an error"),
 			QString::fromUtf8(error.what()));
 		return 1;
 	}

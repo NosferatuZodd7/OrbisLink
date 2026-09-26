@@ -56,7 +56,7 @@ const char *pkgCategoryCode(PkgCategory category)
 	return "";
 }
 
-const char *pkgCategoryLabelPt(PkgCategory category)
+const char *pkgCategoryLabel(PkgCategory category)
 {
 	switch(category)
 	{
@@ -96,7 +96,7 @@ std::string PkgInfo::displayTitle() const
 		return titleId;
 	if(!path.empty())
 		return baseName(path);
-	return "(sem título)";
+	return "(untitled)";
 }
 
 bool PkgInspector::hasPkgMagic(const std::string &path)
@@ -231,7 +231,7 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 					info.contentId = sfoContentId;
 			}
 			else
-				logDebug("PARAM.SFO de " + baseName(path) + " ilegível: " + sfoError);
+				logDebug("PARAM.SFO of " + baseName(path) + " unreadable: " + sfoError);
 		}
 	}
 

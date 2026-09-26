@@ -129,7 +129,7 @@ StreamController::StreamController(QObject *parent)
 	});
 	connect(&audio_, &AudioOutput::started, this, [this](const QString &dispositivo) {
 		emit audioChanged();
-		logInfo("Som do Remote Play por " + dispositivo.toStdString());
+		logInfo("Remote Play sound through " + dispositivo.toStdString());
 	});
 
 	session_->setAudioCallbacks(
@@ -448,26 +448,26 @@ void StreamController::wakeUp()
 QString StreamController::videoSummary() const
 {
 	QString texto;
-	texto += QStringLiteral("  pedido       %1p, %2 fps%3\n")
+	texto += QStringLiteral("  requested    %1p, %2 fps%3\n")
 		.arg(resolution_)
 		.arg(fps_)
 		.arg(bitrateKbps_ > 0 ? QStringLiteral(", %1 kbps").arg(bitrateKbps_)
-							  : QStringLiteral(", bitrate automático"));
+							  : QStringLiteral(", automatic bitrate"));
 	if(frameWidth_ > 0)
 	{
-		texto += QStringLiteral("  a chegar     %1×%2, %3 fps medidos\n")
+		texto += QStringLiteral("  arriving     %1×%2, %3 fps measured\n")
 			.arg(frameWidth_).arg(frameHeight_).arg(measuredFps_);
 		if(frameHeight_ < resolution_)
-			texto += QStringLiteral("  => a consola baixou a resolução; uma PS4 que não "
-									"seja Pro não passa de 720p\n");
+			texto += QStringLiteral("  => the console lowered the resolution; a PS4 that is "
+									"not a Pro does not go above 720p\n");
 	}
 	else
 	{
-		texto += QStringLiteral("  a chegar     (nenhum fotograma ainda)\n");
+		texto += QStringLiteral("  arriving     (no frame yet)\n");
 	}
-	texto += QStringLiteral("  descodificação %1\n")
-		.arg(hardwareDecoder_ ? QStringLiteral("placa gráfica")
-							  : QStringLiteral("processador"));
+	texto += QStringLiteral("  decoding     %1\n")
+		.arg(hardwareDecoder_ ? QStringLiteral("graphics card")
+							  : QStringLiteral("processor"));
 	return texto;
 }
 
@@ -815,9 +815,9 @@ void StreamController::setMuted(bool muted)
 QString StreamController::microphoneState() const
 {
 	if(!microphone_.active() || !session_->microphoneActive())
-		return QStringLiteral("desligado");
-	return session_->microphoneMuted() ? QStringLiteral("em-silencio")
-									   : QStringLiteral("a-falar");
+		return QStringLiteral("off");
+	return session_->microphoneMuted() ? QStringLiteral("muted")
+									   : QStringLiteral("talking");
 }
 
 void StreamController::setMicrophoneEnabled(bool enabled)

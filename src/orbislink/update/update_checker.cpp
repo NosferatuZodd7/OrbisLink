@@ -51,7 +51,7 @@ std::string sha256FromNotes(const std::string &notes, const std::string &assetNa
 
 const char *updateChannelName(UpdateChannel channel)
 {
-	return channel == UpdateChannel::Testing ? "testes" : "estavel";
+	return channel == UpdateChannel::Testing ? "testing" : "stable";
 }
 
 UpdateChannel updateChannelFromName(const std::string &name, UpdateChannel fallback)
@@ -252,7 +252,7 @@ UpdateCheckResult UpdateChecker::check() const
 	result.release = *novo;
 	result.message = std::string(QT_TRANSLATE_NOOP("Messages", "A new version is available"))
 		+ ": " + novo->version().toString();
-	logInfo("Actualização disponível: " + novo->tag + " (instalada: " + config_.currentVersion
+	logInfo("Update available: " + novo->tag + " (installed: " + config_.currentVersion
 		+ ")");
 	return result;
 }

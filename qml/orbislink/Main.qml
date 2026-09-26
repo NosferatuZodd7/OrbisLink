@@ -275,7 +275,7 @@ ApplicationWindow {
             // Registado antes de qualquer decisão: se isto nunca aparecer
             // no diagnóstico, é porque o Windows não entregou o evento, e
             // aí o problema não está aqui.
-            app.noteDrag("entrou", drag.hasUrls)
+            app.noteDrag("entered", drag.hasUrls)
             if (!drag.hasUrls) {
                 drag.accepted = false
                 return
@@ -286,7 +286,7 @@ ApplicationWindow {
         onPositionChanged: function(drag) { overlay.movePointer(drag.x, drag.y) }
         onExited: overlay.hide()
         onDropped: function(drop) {
-            app.noteDrag("largado", drop.hasUrls)
+            app.noteDrag("dropped", drop.hasUrls)
             if (drop.hasUrls && overlay.dropAt(drop.x, drop.y, drop.urls))
                 drop.accept()
             else
@@ -323,7 +323,7 @@ ApplicationWindow {
         interval: 1200
         onTriggered: {
             window.setStreamFullscreen(true)
-            console.log("DIAG ecrã inteiro: visibility=" + window.visibility
+            console.log("DIAG full screen: visibility=" + window.visibility
                         + " esperado=" + Window.FullScreen
                         + " barra=" + window.streamFullscreen)
         }

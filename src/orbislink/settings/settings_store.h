@@ -93,7 +93,7 @@ struct Settings
 	std::string updateRepository = ORBISLINK_REPOSITORY_STRING;
 	// "estavel" só vê lançamentos finais; "testes" vê também as
 	// pré-lançamentos que o CI publica por cada build.
-	std::string updateChannel = "estavel";
+	std::string updateChannel = "stable";
 	// O assistente de primeira utilização só aparece uma vez; depois disso
 	// abre-se a partir das definições.
 	bool firstRunDone = false;

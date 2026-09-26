@@ -291,7 +291,7 @@ FtpResult FtpClient::withRetries(const std::string &what, const std::function<Ft
 		if(attempt > 0)
 		{
 			const int delayMs = 500 * (1 << (attempt - 1));
-			logWarning("FTP: " + what + " falhou (" + result.message + "); nova tentativa em "
+			logWarning("FTP: " + what + " failed (" + result.message + "); retrying in "
 				+ std::to_string(delayMs) + " ms.");
 			std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
 		}
@@ -300,7 +300,7 @@ FtpResult FtpClient::withRetries(const std::string &what, const std::function<Ft
 			break;
 	}
 	if(!result.ok && !result.cancelled)
-		logError("FTP: " + what + " falhou: " + result.message);
+		logError("FTP: " + what + " failed: " + result.message);
 	return result;
 }
 
@@ -356,7 +356,7 @@ FtpResult FtpClient::list(const std::string &remoteDir, std::vector<FtpEntry> *e
 		const Config cfg = config();
 		CURL *curl = curl_easy_init();
 		if(!curl)
-			return FtpResult::failure("não foi possível inicializar o libcurl");
+			return FtpResult::failure("could not initialise libcurl");
 
 		char errorBuffer[CURL_ERROR_SIZE] = { 0 };
 		std::string listing;
@@ -384,12 +384,12 @@ FtpResult FtpClient::list(const std::string &remoteDir, std::vector<FtpEntry> *e
 FtpResult FtpClient::remoteSize(const std::string &remotePath, int64_t *size)
 {
 	const std::string path = normalizeRemotePath(remotePath);
-	return withRetries("obter tamanho de " + path, [&]() -> FtpResult {
+	return withRetries("get size of " + path, [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
 		CURL *curl = curl_easy_init();
 		if(!curl)
-			return FtpResult::failure("não foi possível inicializar o libcurl");
+			return FtpResult::failure("could not initialise libcurl");
 
 		char errorBuffer[CURL_ERROR_SIZE] = { 0 };
 		applyCommonOptions(curl, cfg, errorBuffer);
@@ -441,7 +441,7 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 
 		CURL *curl = curl_easy_init();
 		if(!curl)
-			return FtpResult::failure("não foi possível inicializar o libcurl");
+			return FtpResult::failure("could not initialise libcurl");
 
 		char errorBuffer[CURL_ERROR_SIZE] = { 0 };
 		ProgressState state;
@@ -500,7 +500,7 @@ FtpResult FtpClient::download(const std::string &remotePath, const std::string &
 
 		CURL *curl = curl_easy_init();
 		if(!curl)
-			return FtpResult::failure("não foi possível inicializar o libcurl");
+			return FtpResult::failure("could not initialise libcurl");
 
 		char errorBuffer[CURL_ERROR_SIZE] = { 0 };
 		ProgressState state;
@@ -540,7 +540,7 @@ FtpResult runQuoteCommands(const FtpClient::Config &cfg, const std::string &host
 {
 	CURL *curl = curl_easy_init();
 	if(!curl)
-		return FtpResult::failure("não foi possível inicializar o libcurl");
+		return FtpResult::failure("could not initialise libcurl");
 
 	char errorBuffer[CURL_ERROR_SIZE] = { 0 };
 	struct curl_slist *list = nullptr;
@@ -612,7 +612,7 @@ FtpResult FtpClient::rename(const std::string &fromPath, const std::string &toPa
 	if(!isWriteAllowed(from) || !isWriteAllowed(to))
 		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
 			"mode in the settings."));
-	return withRetries("mudar nome de " + from, [&]() -> FtpResult {
+	return withRetries("rename " + from, [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
 		return runQuoteCommands(cfg, cfg.host, { "RNFR " + from, "RNTO " + to },

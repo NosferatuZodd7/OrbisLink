@@ -89,9 +89,9 @@ void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
 		row.id = QString::fromStdString(task.id);
 		row.title = QString::fromStdString(task.title);
 		row.titleId = QString::fromStdString(task.titleId);
-		row.category = translateMessage(pkgCategoryLabelPt(task.category));
+		row.category = translateMessage(pkgCategoryLabel(task.category));
 		row.state = QString::fromUtf8(taskStateName(task.state));
-		row.stateLabel = translateMessage(taskStateLabelPt(task.state));
+		row.stateLabel = translateMessage(taskStateLabel(task.state));
 		row.percent = task.percent();
 		row.sizeText = QString::fromStdString(humanBytes(task.totalBytes));
 		row.speedText = task.bytesPerSecond > 1.0
