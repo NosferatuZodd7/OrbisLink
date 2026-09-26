@@ -66,7 +66,6 @@ Item {
         if (estado === "standby") return "acordar"
         return "ligar"
     }
-    readonly property bool pronta: ativa && accao === "ligar"
     readonly property bool apagada: !disponivel || estado === "offline"
     readonly property bool aVerificar: aProcurar || (estado === "unknown" && disponivel)
 
@@ -102,9 +101,20 @@ Item {
     width: implicitWidth
     height: implicitHeight
 
+    // O rato por cima de uma caixa que faz alguma coisa ao clicar.
+    readonly property bool sobre: area.containsMouse && accao.length > 0
+
     // Sem resposta, a caixa inteira recua um pouco.
     opacity: apagada && !area.containsMouse ? 0.9 : 1.0
     Behavior on opacity { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
+
+    // Com o rato por cima cresce um pouco e sobe; ao carregar, afunda.
+    scale: area.pressed && sobre ? Theme.pressScale : (sobre ? 1.03 : 1.0)
+    Behavior on scale { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
+    transform: Translate {
+        y: caixa.sobre && !area.pressed ? -4 : 0
+        Behavior on y { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
+    }
 
     Item {
         id: desenho
@@ -124,11 +134,13 @@ Item {
                 radius: fundo.radius + (index + 1) * 4
                 color: "transparent"
                 border.width: 4
-                border.color: Qt.rgba(0, 0, 0, Theme.claro ? 0.035 - index * 0.01 : 0.12 - index * 0.035)
+                border.color: Qt.rgba(0, 0, 0, (Theme.claro ? 0.03 - index * 0.008 : 0.09 - index * 0.025)
+                                               * (caixa.sobre ? 1.6 : 1.0))
             }
         }
 
-        // ── Brilho azul à volta quando está pronta a ligar.
+        // ── Brilho azul à volta, só com o rato por cima: parada, a caixa
+        // fica discreta.
         Repeater {
             model: caixa.conhecida ? 3 : 0
             Rectangle {
@@ -138,27 +150,18 @@ Item {
                 color: "transparent"
                 border.width: 3
                 border.color: Theme.cardGlow
-                opacity: caixa.ativa && caixa.disponivel
-                         ? (0.22 - index * 0.07) * (caixa.pronta ? brilho.nivel : 0.7) : 0
+                opacity: caixa.sobre ? 0.2 - index * 0.06 : 0
                 Behavior on opacity { NumberAnimation { duration: Theme.cardEase } }
             }
-        }
-        QtObject {
-            id: brilho
-            property real nivel: 1.0
-        }
-        SequentialAnimation {
-            running: caixa.pronta && caixa.visible
-            loops: Animation.Infinite
-            NumberAnimation { target: brilho; property: "nivel"; to: 0.45; duration: 1600; easing.type: Easing.InOutSine }
-            NumberAnimation { target: brilho; property: "nivel"; to: 1.0; duration: 1600; easing.type: Easing.InOutSine }
         }
 
         // ── Cartoon: a sombra dura, a mesma forma deslocada e sem desfoque.
         Rectangle {
             visible: !caixa.conhecida
-            x: area.pressed ? 3 : 8
-            y: area.pressed ? 3 : 8
+            x: area.pressed ? 3 : caixa.sobre ? 10 : 7
+            y: area.pressed ? 3 : caixa.sobre ? 10 : 7
+            Behavior on x { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
+            Behavior on y { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
             width: fundo.width
             height: fundo.height
             radius: fundo.radius
@@ -170,11 +173,11 @@ Item {
             id: fundo
             anchors.fill: parent
             radius: 30
-            border.width: !caixa.conhecida ? 4 : caixa.ativa && caixa.disponivel ? 1.5 : 1
-            border.color: area.containsMouse && caixa.accao.length > 0 ? Theme.cardGlow
+            border.width: !caixa.conhecida ? 4 : 1
+            border.color: caixa.sobre ? Theme.cardGlow
                         : !caixa.conhecida ? (Theme.claro ? Theme.cardText : Theme.cardTextMuted)
                         : caixa.ativa && caixa.disponivel ? Qt.rgba(Theme.cardGlow.r, Theme.cardGlow.g,
-                                                                    Theme.cardGlow.b, 0.75)
+                                                                    Theme.cardGlow.b, 0.4)
                         : Theme.cardEdge
             Behavior on border.color { ColorAnimation { duration: Theme.cardEase } }
             gradient: Gradient {
@@ -201,7 +204,7 @@ Item {
                     var w = width, h = height
 
                     var halo = ctx.createRadialGradient(w / 2, 92, 4, w / 2, 92, 150)
-                    halo.addColorStop(0, Qt.rgba(corLuz.r, corLuz.g, corLuz.b, claro ? 0.10 : 0.20))
+                    halo.addColorStop(0, Qt.rgba(corLuz.r, corLuz.g, corLuz.b, claro ? 0.06 : 0.12))
                     halo.addColorStop(1, Qt.rgba(corLuz.r, corLuz.g, corLuz.b, 0))
                     ctx.fillStyle = halo
                     ctx.fillRect(0, 0, w, h)
