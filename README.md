@@ -92,6 +92,14 @@ the Account ID").
 > into the field and the app converts it correctly; or use the "The bytes
 > are in the opposite order" switch. Each console keeps its own Account ID.
 
+### Managing consoles
+
+Settings → **Consoles** lists every console saved on this PC. From there you
+can switch to one, rename it or change its IP, remove it, add a new one, and
+forget this PC's Remote Play registration on it (the next connection then asks
+for a new PIN). Registrations left behind by consoles no longer in the list
+appear at the end, so they can be forgotten too.
+
 ## Download (pre-built)
 
 The binaries are produced by GitHub Actions

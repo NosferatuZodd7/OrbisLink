@@ -568,17 +568,17 @@ Item {
         target: root.built ? stream : null
         function onConsoleChanged() {
             if (root.consoleState === "ready" || root.consoleState === "standby")
-                app.rememberConsoleType(app.consoleAddress, stream.consolePs5)
+                app.rememberConsoleType(app.consoleAddress, stream.consolePs5, stream.hostId)
         }
         // One-click connect found the console unregistered: registration is
         // opened instead of a message telling you to open it.
         function onRegistrationNeeded() { registerDialog.open() }
-                function onConsoleStatesChanged() {
+        function onConsoleStatesChanged() {
             var stateList = stream.consoleStates
             for (var address in stateList) {
                 var e = stateList[address]
                 if (e.state === "ready" || e.state === "standby")
-                    app.rememberConsoleType(address, e.ps5)
+                    app.rememberConsoleType(address, e.ps5, e.hostId || "")
             }
         }
     }

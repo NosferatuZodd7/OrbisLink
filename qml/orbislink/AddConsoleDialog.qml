@@ -22,8 +22,12 @@ Dialog {
         return false
     }
 
+    // False when opened from the settings: adding a console there does not
+    // switch to it.
+    property bool selectAfterAdd: true
+
     function add(name, address, kind) {
-        app.addConsole(name, address, kind || "")
+        app.addConsole(name, address, kind || "", selectAfterAdd)
         dialog.close()
     }
 

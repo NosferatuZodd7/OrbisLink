@@ -227,6 +227,7 @@ QVariantList AppController::consoles() const
 		input[QStringLiteral("address")] = QString::fromStdString(console.address);
 		input[QStringLiteral("active")] = console.address == settings_.consoleAddress;
 		input[QStringLiteral("type")] = QString::fromStdString(console.type);
+		input[QStringLiteral("hostId")] = QString::fromStdString(console.hostId);
 		items.append(input);
 	}
 	return items;
@@ -252,15 +253,20 @@ void AppController::selectConsole(const QString &address)
 	}
 }
 
-void AppController::rememberConsoleType(const QString &address, bool ps5)
+void AppController::rememberConsoleType(const QString &address, bool ps5, const QString &hostId)
 {
 	const std::string trimmedAddress = address.trimmed().toStdString();
 	const std::string kind = ps5 ? "ps5" : "ps4";
+	const std::string id = hostId.trimmed().toStdString();
 	for(ConsoleEntry &console : settings_.consoles)
 	{
-		if(console.address != trimmedAddress || console.type == kind)
+		if(console.address != trimmedAddress)
 			continue;
+		if(console.type == kind && (id.empty() || console.hostId == id))
+			return;
 		console.type = kind;
+		if(!id.empty())
+			console.hostId = id;
 		store_.save(settings_);
 		emit settingsChanged();
 		emit statusChanged();
@@ -268,7 +274,56 @@ void AppController::rememberConsoleType(const QString &address, bool ps5)
 	}
 }
 
-void AppController::addConsole(const QString &name, const QString &address, const QString &type)
+bool AppController::updateConsole(const QString &oldAddress, const QString &name, const QString &address)
+{
+	const std::string from = oldAddress.trimmed().toStdString();
+	const std::string to = address.trimmed().toStdString();
+	const std::string newName = name.trimmed().toStdString();
+	if(to.empty())
+	{
+		setStatusMessage(tr("The IP address cannot be empty."));
+		return false;
+	}
+	ConsoleEntry *target = nullptr;
+	for(ConsoleEntry &console : settings_.consoles)
+	{
+		if(console.address == from)
+			target = &console;
+		else if(console.address == to)
+		{
+			setStatusMessage(tr("Another console in the list already uses %1.").arg(address.trimmed()));
+			return false;
+		}
+	}
+	if(!target)
+		return false;
+	const bool addressChanged = target->address != to;
+	target->name = newName.empty() ? to : newName;
+	target->address = to;
+	// A new address may be a different console: what was learned about
+	// the old one (type, host-id) no longer applies.
+	if(addressChanged)
+	{
+		target->type.clear();
+		target->hostId.clear();
+	}
+	const bool active = from == settings_.consoleAddress;
+	if(active)
+	{
+		settings_.consoleName = target->name;
+		settings_.consoleAddress = target->address;
+	}
+	store_.save(settings_);
+	if(active && addressChanged)
+		rebuildBackends();
+	emit settingsChanged();
+	emit statusChanged();
+	setStatusMessage(tr("Console %1 saved.").arg(QString::fromStdString(target->name)));
+	return true;
+}
+
+void AppController::addConsole(const QString &name, const QString &address, const QString &type,
+	bool select)
 {
 	const std::string trimmedAddress = address.trimmed().toStdString();
 	if(trimmedAddress.empty())
@@ -283,9 +338,14 @@ void AppController::addConsole(const QString &name, const QString &address, cons
 			entryName = trimmedAddress;
 		const std::string kind = type == QStringLiteral("ps5") ? "ps5"
 			: type == QStringLiteral("ps4") ? "ps4" : "";
-		settings_.consoles.push_back({ entryName, trimmedAddress, kind });
+		ConsoleEntry entry;
+		entry.name = entryName;
+		entry.address = trimmedAddress;
+		entry.type = kind;
+		settings_.consoles.push_back(entry);
 	}
-	selectConsole(address);
+	if(select)
+		selectConsole(address);
 	// selectConsole() does nothing if it was already in use; the list
 	// changed anyway.
 	store_.save(settings_);
@@ -296,7 +356,23 @@ void AppController::removeConsole(const QString &address)
 {
 	const std::string trimmedAddress = address.trimmed().toStdString();
 	if(trimmedAddress == settings_.consoleAddress)
-		return;
+	{
+		// The console in use can go too, as long as another one takes its
+		// place: the services always need somewhere to point.
+		const ConsoleEntry *next = nullptr;
+		for(const ConsoleEntry &console : settings_.consoles)
+			if(console.address != trimmedAddress)
+			{
+				next = &console;
+				break;
+			}
+		if(!next)
+		{
+			setStatusMessage(tr("This is the only console in the list: add another one before removing it."));
+			return;
+		}
+		selectConsole(QString::fromStdString(next->address));
+	}
 	auto &items = settings_.consoles;
 	const auto before = items.size();
 	items.erase(std::remove_if(items.begin(), items.end(),

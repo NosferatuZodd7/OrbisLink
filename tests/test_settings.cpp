@@ -222,6 +222,17 @@ ORBISLINK_TEST(console_list)
 	CHECK_EQ(reloaded.consoles[1].accountId, std::string("AQIDBAUGBwg="));
 	// Without an Account ID nothing is stored, and reading returns empty.
 	CHECK(Settings::fromJson(withType.toJson()).consoles[0].accountId.empty());
+
+	// The host-id ties the console to its registration: it has to survive
+	// saving and reloading, and a console that never answered has none.
+	Settings withHost;
+	ConsoleEntry entry;
+	entry.name = "PS4";
+	entry.address = "10.0.0.3";
+	entry.hostId = "AABBCCDDEEFF";
+	withHost.consoles = { entry };
+	CHECK_EQ(Settings::fromJson(withHost.toJson()).consoles[0].hostId, std::string("AABBCCDDEEFF"));
+	CHECK(Settings::fromJson(withType.toJson()).consoles[0].hostId.empty());
 }
 
 TEST_MAIN()

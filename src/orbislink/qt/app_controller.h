@@ -29,7 +29,7 @@ class AppController : public QObject
 	Q_OBJECT
 	Q_PROPERTY(QString consoleName READ consoleName NOTIFY settingsChanged)
 	Q_PROPERTY(QString consoleAddress READ consoleAddress NOTIFY settingsChanged)
-	// The saved consoles: [{ name, address, active }].
+	// The saved consoles: [{ name, address, active, type, hostId }].
 	Q_PROPERTY(QVariantList consoles READ consoles NOTIFY settingsChanged)
 	Q_PROPERTY(QString remotePlayState READ remotePlayState NOTIFY statusChanged)
 	Q_PROPERTY(QString remotePlayHint READ remotePlayHint NOTIFY statusChanged)
@@ -202,15 +202,22 @@ public:
 	Q_INVOKABLE void applySettings(const QVariantMap &values);
 	// Switches to the console with this address (it must be in the list).
 	Q_INVOKABLE void selectConsole(const QString &address);
-	// Adds a console to the list and switches to it. If the address is
-	// already there, it is just selected.
+	// Adds a console to the list and, with `select`, switches to it. If the
+	// address is already there, it is just selected.
 	// `type` is "ps4", "ps5" or empty (unknown).
 	Q_INVOKABLE void addConsole(const QString &name, const QString &address,
-		const QString &type = QString());
+		const QString &type = QString(), bool select = true);
 	// Remembers the type of a console that answered, to show it even when
 	// it is off. Only saves if it changed.
-	Q_INVOKABLE void rememberConsoleType(const QString &address, bool ps5);
-	// Removes a console that is not in use from the list.
+	Q_INVOKABLE void rememberConsoleType(const QString &address, bool ps5,
+		const QString &hostId = QString());
+	// Changes the name and IP of a saved console (the one in use or any
+	// other). Returns false, with the reason in the status bar, when the
+	// new IP is empty or already belongs to another console.
+	Q_INVOKABLE bool updateConsole(const QString &oldAddress, const QString &name,
+		const QString &address);
+	// Removes a console from the list. If it is the one in use, the next
+	// one takes its place; the last console cannot be removed.
 	Q_INVOKABLE void removeConsole(const QString &address);
 	// Saves only the theme. applySettings rebuilds all the services (queue,
 	// HTTP server, console manager) — changing theme in the middle of an

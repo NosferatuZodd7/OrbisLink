@@ -3,6 +3,7 @@
 
 #include "orbislink/qt/translate_message.h"
 #include "orbislink/stream/account_id.h"
+#include "orbislink/common/util.h"
 
 #include <QKeySequence>
 #include <QTimer>
@@ -299,6 +300,7 @@ QVariantMap StreamController::describeHost(const HostInfo &info)
 	status[QStringLiteral("address")] = QString::fromStdString(info.address);
 	status[QStringLiteral("ps5")] = info.ps5;
 	status[QStringLiteral("registered")] = info.found && store_.load(info.id).valid;
+	status[QStringLiteral("hostId")] = QString::fromStdString(info.id);
 	return status;
 }
 
@@ -606,8 +608,30 @@ void StreamController::forgetConsole()
 {
 	if(!credentials_.valid)
 		return;
-	store_.forget(credentials_.hostId);
-	credentials_ = {};
+	forgetRegistration(QString::fromStdString(credentials_.hostId));
+}
+
+QVariantList StreamController::registrations() const
+{
+	QVariantList items;
+	for(const StreamCredentials &credentials : store_.all())
+	{
+		QVariantMap entry;
+		entry[QStringLiteral("hostId")] = QString::fromStdString(credentials.hostId);
+		entry[QStringLiteral("name")] = QString::fromStdString(credentials.nickname);
+		entry[QStringLiteral("ps5")] = credentials.ps5;
+		items.append(entry);
+	}
+	return items;
+}
+
+void StreamController::forgetRegistration(const QString &hostId)
+{
+	const std::string id = hostId.toStdString();
+	if(id.empty() || !store_.forget(id))
+		return;
+	if(iequals(credentials_.hostId, id))
+		credentials_ = {};
 	emit registrationChanged();
 	emit notify(tr("Remote Play"), tr("Registration removed from this PC."), false);
 }

@@ -38,6 +38,10 @@ class StreamController : public QObject
 	Q_PROPERTY(bool consolePs5 READ consolePs5 NOTIFY consoleChanged)
 	Q_PROPERTY(QString runningApp READ runningApp NOTIFY consoleChanged)
 	Q_PROPERTY(bool registered READ registered NOTIFY registrationChanged)
+	// The host-id (MAC) of the console in use, once it has answered.
+	Q_PROPERTY(QString hostId READ hostId NOTIFY consoleChanged)
+	// Every console this PC is registered on: [{ hostId, name, ps5 }].
+	Q_PROPERTY(QVariantList registrations READ registrations NOTIFY registrationChanged)
 	Q_PROPERTY(bool registering READ registering NOTIFY registrationChanged)
 	Q_PROPERTY(QString sessionState READ sessionState NOTIFY sessionChanged)
 	Q_PROPERTY(QString sessionDetail READ sessionDetail NOTIFY sessionChanged)
@@ -64,7 +68,7 @@ class StreamController : public QObject
 	Q_PROPERTY(QString savedAccountId READ accountId NOTIFY settingsApplied)
 	Q_PROPERTY(QVariantMap keyBindings READ keyBindings NOTIFY keyBindingsChanged)
 	// The state of the other saved consoles, by address:
-	// { state, name, ps5, registered }.
+	// { state, name, ps5, registered, hostId }.
 	Q_PROPERTY(QVariantMap consoleStates READ consoleStates NOTIFY consoleStatesChanged)
 	// The network search of the "Add console" window.
 	Q_PROPERTY(bool scanning READ scanning NOTIFY scanChanged)
@@ -79,6 +83,8 @@ public:
 	bool searching() const { return searching_; }
 	QString consoleName() const { return consoleName_; }
 	bool consolePs5() const { return host_.ps5; }
+	QString hostId() const { return QString::fromStdString(host_.id); }
+	QVariantList registrations() const;
 	QString runningApp() const { return runningApp_; }
 	bool registered() const { return credentials_.valid; }
 	bool registering() const { return registering_; }
@@ -131,6 +137,8 @@ public:
 	Q_INVOKABLE QVariantMap accountIdReversed(const QString &message) const;
 	Q_INVOKABLE void cancelRegistration();
 	Q_INVOKABLE void forgetConsole();
+	// Removes this PC's registration on the console with that host-id.
+	Q_INVOKABLE void forgetRegistration(const QString &hostId);
 	Q_INVOKABLE void startStream();
 	// One-click connect: asks the console how it is, wakes it if it is in
 	// rest mode, waits for it to be ready and connects. If it is not
