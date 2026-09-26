@@ -2,6 +2,7 @@
 #include "orbislink/stream/session.h"
 
 #include "orbislink/common/log.h"
+#include "orbislink/common/tr.h"
 #include "orbislink/stream/chiaki_log_bridge.h"
 #include "orbislink/stream/credentials.h"
 #include "orbislink/stream/stream_trace.h"
@@ -94,32 +95,32 @@ const char *quitReasonText(ChiakiQuitReason reason)
 	switch(reason)
 	{
 		case CHIAKI_QUIT_REASON_STOPPED:
-			return "Sessão terminada.";
+			return QT_TRANSLATE_NOOP("Mensagens", "Sessão terminada.");
 		case CHIAKI_QUIT_REASON_SESSION_REQUEST_CONNECTION_REFUSED:
-			return "A consola recusou a ligação. Confirma que o Remote Play está activado.";
+			return QT_TRANSLATE_NOOP("Mensagens", "A consola recusou a ligação. Confirma que o Remote Play está activado.");
 		case CHIAKI_QUIT_REASON_SESSION_REQUEST_RP_IN_USE:
-			return "A consola já está a ser usada por outra sessão de Remote Play.";
+			return QT_TRANSLATE_NOOP("Mensagens", "A consola já está a ser usada por outra sessão de Remote Play.");
 		case CHIAKI_QUIT_REASON_SESSION_REQUEST_RP_CRASH:
-			return "O Remote Play estoirou na consola. Reinicia a consola.";
+			return QT_TRANSLATE_NOOP("Mensagens", "O Remote Play estoirou na consola. Reinicia a consola.");
 		case CHIAKI_QUIT_REASON_SESSION_REQUEST_RP_VERSION_MISMATCH:
-			return "A versão do Remote Play da consola não é compatível.";
+			return QT_TRANSLATE_NOOP("Mensagens", "A versão do Remote Play da consola não é compatível.");
 		case CHIAKI_QUIT_REASON_CTRL_CONNECT_FAILED:
-			return "Não consegui ligar ao canal de controlo da consola.";
+			return QT_TRANSLATE_NOOP("Mensagens", "Não consegui ligar ao canal de controlo da consola.");
 		case CHIAKI_QUIT_REASON_CTRL_CONNECTION_REFUSED:
-			return "A consola recusou o canal de controlo. Volta a registar o PC.";
+			return QT_TRANSLATE_NOOP("Mensagens", "A consola recusou o canal de controlo. Volta a registar o PC.");
 		case CHIAKI_QUIT_REASON_STREAM_CONNECTION_REMOTE_DISCONNECTED:
-			return "A consola desligou a sessão.";
+			return QT_TRANSLATE_NOOP("Mensagens", "A consola desligou a sessão.");
 		case CHIAKI_QUIT_REASON_STREAM_CONNECTION_REMOTE_SHUTDOWN:
-			return "A consola desligou-se.";
+			return QT_TRANSLATE_NOOP("Mensagens", "A consola desligou-se.");
 		case CHIAKI_QUIT_REASON_PSN_REGIST_FAILED:
-			return "Falhou o registo pela PSN.";
+			return QT_TRANSLATE_NOOP("Mensagens", "Falhou o registo pela PSN.");
 		case CHIAKI_QUIT_REASON_SESSION_REQUEST_UNKNOWN:
 		case CHIAKI_QUIT_REASON_CTRL_UNKNOWN:
 		case CHIAKI_QUIT_REASON_STREAM_CONNECTION_UNKNOWN:
 		case CHIAKI_QUIT_REASON_NONE:
 			break;
 	}
-	return "A sessão terminou por uma razão desconhecida.";
+	return QT_TRANSLATE_NOOP("Mensagens", "A sessão terminou por uma razão desconhecida.");
 }
 
 // O nome que o FFmpeg dá ao descodificador da placa gráfica de cada
@@ -215,7 +216,7 @@ void eventCallback(ChiakiEvent *event, void *user)
 			StreamTrace::instance().ok("a consola aceitou a sessão");
 			StreamTrace::instance().step("primeiro fotograma",
 				"à espera que a consola comece a enviar vídeo");
-			impl->publish(SessionState::Connected, "Ligado à consola.");
+			impl->publish(SessionState::Connected, QT_TRANSLATE_NOOP("Mensagens", "Ligado à consola."));
 			break;
 		case CHIAKI_EVENT_LOGIN_PIN_REQUEST:
 		{
@@ -357,7 +358,7 @@ bool StreamSession::start(const Config &config, std::string *error)
 		if(impl_->active.load())
 		{
 			if(error)
-				*error = "Já há uma sessão a decorrer. Termina-a antes de ligar outra.";
+				*error = QT_TRANSLATE_NOOP("Mensagens", "Já há uma sessão a decorrer. Termina-a antes de ligar outra.");
 			return false;
 		}
 		logInfo("Sessão anterior já terminada; a arrumá-la antes de ligar de novo.");
@@ -366,13 +367,13 @@ bool StreamSession::start(const Config &config, std::string *error)
 	if(config.address.empty())
 	{
 		if(error)
-			*error = "Falta o endereço da consola.";
+			*error = QT_TRANSLATE_NOOP("Mensagens", "Falta o endereço da consola.");
 		return false;
 	}
 	if(!config.credentials.valid)
 	{
 		if(error)
-			*error = "A consola ainda não foi registada. Usa \"Registar consola\".";
+			*error = QT_TRANSLATE_NOOP("Mensagens", "A consola ainda não foi registada. Usa \"Registar consola\".");
 		return false;
 	}
 
@@ -434,7 +435,7 @@ bool StreamSession::start(const Config &config, std::string *error)
 		passoPreparar.fail(std::string("descodificador de vídeo: ")
 			+ chiaki_error_string(decoderResult));
 		if(error)
-			*error = std::string("Não consegui preparar o descodificador de vídeo: ")
+			*error = std::string(QT_TRANSLATE_NOOP("Mensagens", "Não consegui preparar o descodificador de vídeo")) + ": "
 				+ chiaki_error_string(decoderResult);
 		return false;
 	}
@@ -457,7 +458,7 @@ bool StreamSession::start(const Config &config, std::string *error)
 			+ std::to_string(config.credentials.rpKeyHex.size())
 			+ " caracteres, deviam ser 32");
 		if(error)
-			*error = "A chave guardada está corrompida. Volta a registar a consola.";
+			*error = QT_TRANSLATE_NOOP("Mensagens", "A chave guardada está corrompida. Volta a registar a consola.");
 		return false;
 	}
 	info.video_profile = profile;
@@ -506,7 +507,7 @@ bool StreamSession::start(const Config &config, std::string *error)
 	StreamTrace::instance().step("ligar",
 		std::string(config.credentials.ps5 ? "9302" : "987")
 			+ "/UDP descoberta, 9295/TCP controlo, 9296-9297/UDP stream");
-	impl_->publish(SessionState::Connecting, "A ligar a " + config.address + "…");
+	impl_->publish(SessionState::Connecting, QT_TRANSLATE_NOOP("Mensagens", "A ligar à consola…"));
 	const ChiakiErrorCode started = chiaki_session_start(&impl_->session);
 	if(started != CHIAKI_ERR_SUCCESS)
 	{
@@ -562,7 +563,7 @@ void StreamSession::stop()
 		}
 	}
 	if(static_cast<SessionState>(impl_->state.load()) != SessionState::Failed)
-		impl_->publish(SessionState::Stopped, "Sessão terminada.");
+		impl_->publish(SessionState::Stopped, QT_TRANSLATE_NOOP("Mensagens", "Sessão terminada."));
 }
 
 namespace {
@@ -583,14 +584,14 @@ bool StreamSession::startMicrophone(std::string *error)
 	if(!impl_->sessionStarted || !impl_->active.load())
 	{
 		if(error)
-			*error = "A sessão de Remote Play não está ligada.";
+			*error = QT_TRANSLATE_NOOP("Mensagens", "A sessão de Remote Play não está ligada.");
 		return false;
 	}
 	std::lock_guard<std::mutex> lock(impl_->micMutex);
 	if(!impl_->encoderReady)
 	{
 		if(error)
-			*error = "O codificador de áudio não ficou pronto.";
+			*error = QT_TRANSLATE_NOOP("Mensagens", "O codificador de áudio não ficou pronto.");
 		return false;
 	}
 	if(impl_->micActive.load())

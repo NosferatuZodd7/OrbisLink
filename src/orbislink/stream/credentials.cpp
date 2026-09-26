@@ -3,6 +3,7 @@
 
 #include "orbislink/common/json.h"
 #include "orbislink/common/log.h"
+#include "orbislink/common/tr.h"
 #include "orbislink/common/util.h"
 #include "orbislink/settings/settings_store.h"
 
@@ -62,7 +63,7 @@ bool decodeAccountId(const std::string &base64, unsigned char out[8], std::strin
 	if(trimmed.empty())
 	{
 		if(error)
-			*error = "Falta o Account ID da PSN.";
+			*error = QT_TRANSLATE_NOOP("Mensagens", "Falta o Account ID da PSN.");
 		return false;
 	}
 	size_t size = 8;
@@ -71,8 +72,8 @@ bool decodeAccountId(const std::string &base64, unsigned char out[8], std::strin
 	if(result != CHIAKI_ERR_SUCCESS || size != 8)
 	{
 		if(error)
-			*error = "O Account ID não é válido: tem de ser o valor em base64, "
-					 "com 8 bytes (por exemplo \"AbCdEfGhIjK=\").";
+			*error = QT_TRANSLATE_NOOP("Mensagens", "O Account ID não é válido: tem de ser o valor em base64, "
+					 "com 8 bytes (por exemplo \"AbCdEfGhIjK=\").");
 		return false;
 	}
 	return true;

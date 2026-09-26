@@ -3,6 +3,7 @@
 
 #include "orbislink/stream/account_id.h"
 
+#include <QCoreApplication>
 #include <QKeySequence>
 #include <QTimer>
 
@@ -15,6 +16,29 @@ namespace orbislink {
 
 namespace {
 
+// Os textos do Remote Play nascem fora do Qt, em português, marcados com
+// QT_TRANSLATE_NOOP("Mensagens", ...). Traduzem-se aqui, ao chegar à
+// interface. Os que levam um detalhe técnico no fim (": …" ou " (…)")
+// traduzem-se até ao detalhe, que fica como veio.
+QString translateMessage(const std::string &texto)
+{
+	const QString original = QString::fromStdString(texto);
+	const QString inteiro = QCoreApplication::translate("Mensagens", texto.c_str());
+	if(inteiro != original)
+		return inteiro;
+	for(const char *separador : { ": ", " (" })
+	{
+		const size_t pos = texto.find(separador);
+		if(pos == std::string::npos)
+			continue;
+		const std::string inicio = texto.substr(0, pos);
+		const QString traduzido = QCoreApplication::translate("Mensagens", inicio.c_str());
+		if(traduzido != QString::fromStdString(inicio))
+			return traduzido + QString::fromStdString(texto.substr(pos));
+	}
+	return original;
+}
+
 // O mesmo Account ID nas três formas, para o QML poder mostrar as outras
 // duas enquanto se escreve numa delas.
 QVariantMap formsFromAccountId(const AccountId &id)
@@ -25,7 +49,7 @@ QVariantMap formsFromAccountId(const AccountId &id)
 	mapa[QStringLiteral("hex")] = QString::fromStdString(id.hex);
 	mapa[QStringLiteral("decimal")] = QString::fromStdString(id.decimal);
 	mapa[QStringLiteral("format")] = QString::fromStdString(id.format);
-	mapa[QStringLiteral("error")] = QString::fromStdString(id.error);
+	mapa[QStringLiteral("error")] = translateMessage(id.error);
 	return mapa;
 }
 
@@ -73,7 +97,7 @@ StreamController::StreamController(QObject *parent)
 
 	session_->setStateCallback([this](SessionState state, const std::string &detail) {
 		const QString slug = sessionStateSlug(state);
-		const QString texto = QString::fromStdString(detail);
+		const QString texto = translateMessage(detail);
 		QMetaObject::invokeMethod(
 			this,
 			[this, slug, texto, state]() {
@@ -431,7 +455,7 @@ void StreamController::wakeUp()
 		const bool ok = StreamDiscovery::wakeup(address, credential, ps5, &erro);
 		const QString mensagem = ok
 			? tr("Pedido enviado. A consola demora alguns segundos a acordar.")
-			: QString::fromStdString(erro);
+			: translateMessage(erro);
 		QMetaObject::invokeMethod(
 			this,
 			[this, ok, mensagem]() {
@@ -529,7 +553,7 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 	const AccountId conta = parseAccountId(accountIdBase64.toStdString());
 	if(!conta.valid)
 	{
-		emit notify(tr("Registo"), QString::fromStdString(conta.error), true);
+		emit notify(tr("Registo"), translateMessage(conta.error), true);
 		return;
 	}
 
@@ -557,7 +581,7 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 	const bool started = registration_->start(
 		request,
 		[this, accountParaGuardar](bool ok, StreamCredentials credentials, std::string error) {
-			const QString mensagem = QString::fromStdString(error);
+			const QString mensagem = translateMessage(error);
 			QMetaObject::invokeMethod(
 				this,
 				[this, ok, credentials, mensagem, accountParaGuardar]() {
@@ -590,7 +614,7 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 
 	if(!started)
 	{
-		emit notify(tr("Registo"), QString::fromStdString(erro), true);
+		emit notify(tr("Registo"), translateMessage(erro), true);
 		return;
 	}
 	registering_ = true;
@@ -651,7 +675,7 @@ void StreamController::startStream()
 	if(!session_->start(config, &erro))
 	{
 		sessionState_ = QStringLiteral("failed");
-		sessionDetail_ = QString::fromStdString(erro);
+		sessionDetail_ = translateMessage(erro);
 		emit sessionChanged();
 		emit notify(tr("Remote Play"), sessionDetail_, true);
 	}
@@ -708,7 +732,7 @@ void StreamController::setMicrophoneEnabled(bool enabled)
 	if(!session_->startMicrophone(&erro))
 	{
 		emit notify(tr("Microfone"),
-			tr("A consola não aceitou o microfone: %1").arg(QString::fromStdString(erro)), true);
+			tr("A consola não aceitou o microfone: %1").arg(translateMessage(erro)), true);
 		return;
 	}
 
