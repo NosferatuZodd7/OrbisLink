@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later
+
+     Um comando ao estilo do DualShock 4, desenhado para o OrbisLink. Silhueta
+     lisa com os botões, o touchpad, o PS e os analógicos recortados: a app
+     pinta por baixo o que está aceso, e o recorte deixa-o ver.
+
+     As posições dos recortes são as que o ControllerSketch.qml usa (em
+     unidades deste viewBox, 1590×988). Mudar uma aqui obriga a mudá-la lá.
+
+     A cor do corpo vem de fora: scripts/gerar-dualshock.sh troca CORPO pela
+     cor de cada tema e gera os dois PNG. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1590" height="988" viewBox="0 0 1590 988">
+  <defs>
+    <mask id="recortes" maskUnits="userSpaceOnUse" x="0" y="0" width="1590" height="988">
+      <!-- O corpo. -->
+      <path fill="#fff" d="M 150,110 C 190,40 250,10 330,8 L 420,8 C 440,30 460,48 520,48
+               L 1070,48 C 1130,48 1150,30 1170,8 L 1260,8 C 1340,10 1400,40 1440,110
+               C 1510,230 1540,420 1570,620 C 1596,800 1592,900 1556,948
+               C 1516,990 1400,996 1320,958 C 1260,928 1230,860 1190,700
+               C 1180,660 1162,642 1142,640 C 1110,664 1080,672 1040,672 L 550,672
+               C 510,672 480,664 448,640 C 428,642 410,660 400,700
+               C 360,860 330,928 270,958 C 190,996 74,990 34,948
+               C -2,900 -6,800 20,620 C 50,420 80,230 150,110 Z"/>
+
+      <!-- Recortes. -->
+      <g fill="#000">
+        <rect x="533" y="70" width="524" height="256" rx="30"/>   <!-- touchpad -->
+        <rect x="438" y="80" width="60" height="86" rx="22"/>     <!-- share -->
+        <rect x="1087" y="80" width="60" height="86" rx="22"/>    <!-- options -->
+        <circle cx="299" cy="278" r="180"/>                       <!-- cruzeta -->
+        <circle cx="1287" cy="278" r="180"/>                      <!-- botões -->
+        <circle cx="541" cy="492" r="146"/>                       <!-- analógico esq. -->
+        <circle cx="1045" cy="492" r="146"/>                      <!-- analógico dir. -->
+        <circle cx="795" cy="502" r="42"/>                        <!-- PS -->
+        <!-- altifalante -->
+        <g>
+          <circle cx="739" cy="388" r="7"/><circle cx="767" cy="388" r="7"/>
+          <circle cx="795" cy="388" r="7"/><circle cx="823" cy="388" r="7"/>
+          <circle cx="851" cy="388" r="7"/>
+          <circle cx="753" cy="410" r="7"/><circle cx="781" cy="410" r="7"/>
+          <circle cx="809" cy="410" r="7"/><circle cx="837" cy="410" r="7"/>
+          <circle cx="767" cy="432" r="7"/><circle cx="795" cy="432" r="7"/>
+          <circle cx="823" cy="432" r="7"/>
+        </g>
+      </g>
+
+      <!-- Dentro dos recortes: as peças, na cor do corpo. -->
+      <g fill="#fff">
+        <!-- cruzeta -->
+        <rect x="264" y="146" width="70" height="108" rx="14"/>
+        <rect x="264" y="302" width="70" height="108" rx="14"/>
+        <rect x="167" y="243" width="108" height="70" rx="14"/>
+        <rect x="323" y="243" width="108" height="70" rx="14"/>
+        <rect x="262" y="241" width="74" height="74"/>
+        <!-- botões da direita -->
+        <circle cx="1286" cy="163" r="52"/>
+        <circle cx="1404" cy="278" r="52"/>
+        <circle cx="1286" cy="393" r="52"/>
+        <circle cx="1171" cy="278" r="52"/>
+        <!-- analógicos: aro e cabeça -->
+        <circle cx="541" cy="492" r="104"/>
+        <circle cx="1045" cy="492" r="104"/>
+      </g>
+      <g fill="#000">
+        <circle cx="541" cy="492" r="92"/>
+        <circle cx="1045" cy="492" r="92"/>
+      </g>
+      <g fill="#fff">
+        <circle cx="541" cy="492" r="60"/>
+        <circle cx="1045" cy="492" r="60"/>
+      </g>
+
+      <!-- Os símbolos, recortados nos botões. -->
+      <g fill="none" stroke="#000" stroke-width="11" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M 1286,128 L 1318,184 L 1254,184 Z"/>
+        <circle cx="1404" cy="278" r="25"/>
+        <path d="M 1263,370 L 1309,416 M 1309,370 L 1263,416"/>
+        <rect x="1148" y="255" width="46" height="46"/>
+      </g>
+    </mask>
+  </defs>
+
+  <rect width="1590" height="988" fill="CORPO" mask="url(#recortes)"/>
+</svg>

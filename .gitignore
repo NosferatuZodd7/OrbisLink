@@ -1,0 +1,17 @@
+build/
+build-windows/
+build-release/
+dist/
+build-*/
+cmake-build-*/
+.orbislink-test-*
+*.o
+*.a
+*.so
+*.exe
+__pycache__/
+*.pyc
+build-deps/
+.idea/
+.vscode/
+*.user
