@@ -24,6 +24,10 @@ struct ConsoleEntry
 	std::string address;
 	// "ps4", "ps5", ou vazio enquanto a consola nunca tiver respondido.
 	std::string type;
+	// O Account ID que esta consola aceitou no registo, em base64. Cada
+	// consola guarda o seu: uma PS4 com a conta activada à mão pode ter os
+	// bytes por outra ordem que a PS5 da mesma conta.
+	std::string accountId;
 };
 
 struct Settings
@@ -64,7 +68,7 @@ struct Settings
 	bool streamFullscreenOnConnect = false;
 	bool streamRumble = true;
 	bool streamTouchpadFromMouse = true;
-	std::string streamAccountId;     // Account ID da PSN, em base64
+	std::string streamAccountId;     // o último Account ID aceite, em base64 (para consolas novas)
 	// Teclado como comando: acção → tecla (Qt::Key). Só o que foi mudado;
 	// as restantes ficam com a tecla por omissão.
 	std::map<std::string, int> keyboardBindings;

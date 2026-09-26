@@ -319,6 +319,14 @@ QString AppController::remotePlayHint() const
 		return tr("Ainda não perguntei à consola. Carrega em Procurar.");
 	return QString::fromStdString(status_.remotePlay.hint);
 }
+std::string AppController::activeAccountId() const
+{
+	for(const ConsoleEntry &consola : settings_.consoles)
+		if(consola.address == settings_.consoleAddress && !consola.accountId.empty())
+			return consola.accountId;
+	return settings_.streamAccountId;
+}
+
 bool AppController::activeIsPs5() const
 {
 	for(const ConsoleEntry &consola : settings_.consoles)
@@ -1064,10 +1072,20 @@ void AppController::probeConsole(const QString &address, int ftpPort, int instal
 
 void AppController::rememberAccountId(const QString &accountId)
 {
+	// Fica na consola em uso (a que acabou de o aceitar) e como o último
+	// usado, que é o que aparece ao registar uma consola nova.
 	const std::string valor = trim(accountId.toStdString());
-	if(settings_.streamAccountId == valor)
-		return;
+	bool mudou = settings_.streamAccountId != valor;
 	settings_.streamAccountId = valor;
+	for(ConsoleEntry &consola : settings_.consoles)
+	{
+		if(consola.address != settings_.consoleAddress || consola.accountId == valor)
+			continue;
+		consola.accountId = valor;
+		mudou = true;
+	}
+	if(!mudou)
+		return;
 	store_.save(settings_);
 	emit settingsChanged();
 }
@@ -1370,7 +1388,9 @@ QVariantMap AppController::settingsMap() const
 	map[QStringLiteral("streamFullscreenOnConnect")] = settings_.streamFullscreenOnConnect;
 	map[QStringLiteral("streamRumble")] = settings_.streamRumble;
 	map[QStringLiteral("streamTouchpadFromMouse")] = settings_.streamTouchpadFromMouse;
-	map[QStringLiteral("streamAccountId")] = QString::fromStdString(settings_.streamAccountId);
+	// Nas definições mostra-se o da consola em uso, que é o que vai para
+	// ela no próximo registo.
+	map[QStringLiteral("streamAccountId")] = QString::fromStdString(activeAccountId());
 	map[QStringLiteral("firstRunDone")] = settings_.firstRunDone;
 	map[QStringLiteral("checkForUpdates")] = settings_.checkForUpdates;
 	map[QStringLiteral("updateRepository")] = QString::fromStdString(settings_.updateRepository);
@@ -1436,7 +1456,17 @@ void AppController::applySettings(const QVariantMap &values)
 	settings_.streamRumble = boolOr("streamRumble", settings_.streamRumble);
 	settings_.streamTouchpadFromMouse =
 		boolOr("streamTouchpadFromMouse", settings_.streamTouchpadFromMouse);
-	settings_.streamAccountId = stringOr("streamAccountId", settings_.streamAccountId);
+	{
+		const std::string antes = activeAccountId();
+		const std::string depois = trim(stringOr("streamAccountId", antes));
+		if(depois != antes)
+		{
+			settings_.streamAccountId = depois;
+			for(ConsoleEntry &consola : settings_.consoles)
+				if(consola.address == settings_.consoleAddress)
+					consola.accountId = depois;
+		}
+	}
 	settings_.debugLogging = boolOr("debugLogging", settings_.debugLogging);
 	settings_.language = stringOr("language", settings_.language);
 	settings_.firstRunDone = boolOr("firstRunDone", settings_.firstRunDone);
