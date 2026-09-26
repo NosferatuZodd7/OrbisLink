@@ -74,10 +74,10 @@ Item {
             ctx.strokeStyle = tone
             ctx.lineWidth = 1.5
             ctx.lineCap = "round"
-            var dash = 7, space = 6, ciclo = dash + space
+            var dash = 7, space = 6, period = dash + space
             ctx.beginPath()
             for (var j = 0; j + 1 < dots.length; ++j) {
-                if (j % ciclo < dash) {
+                if (j % period < dash) {
                     ctx.moveTo(dots[j][0], dots[j][1])
                     ctx.lineTo(dots[j + 1][0], dots[j + 1][1])
                 }

@@ -273,10 +273,10 @@ void AppController::addConsole(const QString &name, const QString &address, cons
 	const std::string trimmedAddress = address.trimmed().toStdString();
 	if(trimmedAddress.empty())
 		return;
-	bool existe = false;
+	bool alreadyListed = false;
 	for(const ConsoleEntry &console : settings_.consoles)
-		existe = existe || console.address == trimmedAddress;
-	if(!existe)
+		alreadyListed = alreadyListed || console.address == trimmedAddress;
+	if(!alreadyListed)
 	{
 		std::string entryName = name.trimmed().toStdString();
 		if(entryName.empty())
@@ -1081,16 +1081,16 @@ void AppController::rememberAccountId(const QString &accountId)
 	// Stored on the console in use (the one that just accepted it) and as
 	// the last used, which is what shows up when registering a new console.
 	const std::string trimmedId = trim(accountId.toStdString());
-	bool mudou = settings_.streamAccountId != trimmedId;
+	bool changed = settings_.streamAccountId != trimmedId;
 	settings_.streamAccountId = trimmedId;
 	for(ConsoleEntry &console : settings_.consoles)
 	{
 		if(console.address != settings_.consoleAddress || console.accountId == trimmedId)
 			continue;
 		console.accountId = trimmedId;
-		mudou = true;
+		changed = true;
 	}
-	if(!mudou)
+	if(!changed)
 		return;
 	store_.save(settings_);
 	emit settingsChanged();
@@ -1270,19 +1270,19 @@ void AppController::installUpdate()
 		updateAssetName_.isEmpty() ? QStringLiteral("orbislink-update.exe") : updateAssetName_);
 	const QString url = updateAssetUrl_;
 	const QString shaUrl = updateAssetSha256Url_;
-	const QString shaEsperado = updateAssetSha256_;
+	const QString expectedSha = updateAssetSha256_;
 
 	updateProgress_ = 0.0;
 	setUpdateState(QStringLiteral("downloading"), tr("Downloading %1…").arg(updateAssetName_));
 
-	std::thread([this, url, destination, shaUrl, shaEsperado]() {
+	std::thread([this, url, destination, shaUrl, expectedSha]() {
 		HttpClient client(20000);
 
 		// The hash may come in a separate asset. It is fetched before
 		// downloading 80 MB, so as not to find out at the end that there is
 		// nothing to compare against.
-		std::string esperado = shaEsperado.toStdString();
-		if(esperado.empty() && !shaUrl.isEmpty())
+		std::string expected = expectedSha.toStdString();
+		if(expected.empty() && !shaUrl.isEmpty())
 		{
 			HttpClient::FetchOptions options;
 			const HttpResponse reply = client.fetch(shaUrl.toStdString(), options);
@@ -1291,10 +1291,10 @@ void AppController::installUpdate()
 				// Formato do sha256sum: "<hash>  <nome>".
 				const std::string body = trim(reply.body);
 				const size_t space = body.find_first_of(" \t");
-				const std::string primeiro =
+				const std::string firstWord =
 					space == std::string::npos ? body : body.substr(0, space);
-				if(primeiro.size() == 64)
-					esperado = toLower(primeiro);
+				if(firstWord.size() == 64)
+					expected = toLower(firstWord);
 			}
 		}
 
@@ -1317,20 +1317,20 @@ void AppController::installUpdate()
 		QString err;
 		if(!outcome.ok)
 			err = tr("The download failed: %1").arg(translateMessage(outcome.error));
-		else if(!esperado.empty())
+		else if(!expected.empty())
 		{
-			const std::string obtido = sha256File(destination.toStdString());
-			if(obtido != esperado)
+			const std::string actual = sha256File(destination.toStdString());
+			if(actual != expected)
 			{
 				err = tr("The downloaded file does not match the published SHA-256. I will not install it.");
-				logError("Update SHA-256 does not match: expected " + esperado + ", got " + obtido);
+				logError("Update SHA-256 does not match: expected " + expected + ", got " + actual);
 				QFile::remove(destination);
 			}
 		}
 
 		QMetaObject::invokeMethod(
 			this,
-			[this, destination, err, esperado]() {
+			[this, destination, err, expected]() {
 				updateBusy_.store(false);
 				if(!err.isEmpty())
 				{
@@ -1338,7 +1338,7 @@ void AppController::installUpdate()
 					emit notify(tr("Update"), err, true);
 					return;
 				}
-				if(esperado.empty())
+				if(expected.empty())
 				{
 					// Saying this is the minimum: without a published hash,
 					// the only guarantee is HTTPS.
@@ -1425,12 +1425,12 @@ void AppController::applySettings(const QVariantMap &values)
 
 	// Changing the name or IP in the settings edits the console in use, and
 	// does not add another to the list: its entry takes the new values.
-	const std::string enderecoAntigo = settings_.consoleAddress;
+	const std::string oldAddress = settings_.consoleAddress;
 	settings_.consoleName = stringOr("consoleName", settings_.consoleName);
 	settings_.consoleAddress = stringOr("consoleAddress", settings_.consoleAddress);
 	for(ConsoleEntry &console : settings_.consoles)
 	{
-		if(console.address == enderecoAntigo)
+		if(console.address == oldAddress)
 		{
 			console.address = trim(settings_.consoleAddress);
 			console.name = settings_.consoleName;
@@ -1468,13 +1468,13 @@ void AppController::applySettings(const QVariantMap &values)
 		boolOr("streamTouchpadFromMouse", settings_.streamTouchpadFromMouse);
 	{
 		const std::string before = activeAccountId();
-		const std::string depois = trim(stringOr("streamAccountId", before));
-		if(depois != before)
+		const std::string after = trim(stringOr("streamAccountId", before));
+		if(after != before)
 		{
-			settings_.streamAccountId = depois;
+			settings_.streamAccountId = after;
 			for(ConsoleEntry &console : settings_.consoles)
 				if(console.address == settings_.consoleAddress)
-					console.accountId = depois;
+					console.accountId = after;
 		}
 	}
 	settings_.debugLogging = boolOr("debugLogging", settings_.debugLogging);

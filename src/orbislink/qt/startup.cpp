@@ -148,7 +148,7 @@ LONG WINAPI crashHandler(EXCEPTION_POINTERS *info)
 			: nullptr;
 		// Resolve the address to module + offset: without this the address
 		// changes on every start (ASLR) and tells nobody anything.
-		char module[MAX_PATH] = "desconhecido";
+		char module[MAX_PATH] = "unknown";
 		unsigned long long offset = 0;
 		HMODULE handle = nullptr;
 		if(address
@@ -199,7 +199,7 @@ LONG WINAPI crashHandler(EXCEPTION_POINTERS *info)
 					- reinterpret_cast<const unsigned char *>(frameModule));
 			}
 			const int frameLength = _snprintf_s(buffer, sizeof(buffer), _TRUNCATE,
-				"  pilha %02u: %s+0x%llX\r\n", static_cast<unsigned>(i), frameName, frameOffset);
+				"  stack %02u: %s+0x%llX\r\n", static_cast<unsigned>(i), frameName, frameOffset);
 			if(frameLength > 0)
 				WriteFile(file, buffer, static_cast<DWORD>(frameLength), &written, nullptr);
 		}
@@ -237,7 +237,7 @@ void installFileLogger()
 	SetUnhandledExceptionFilter(crashHandler);
 #endif
 	g_previousHandler = qInstallMessageHandler(handler);
-	writeLine(QStringLiteral("──────────── arranque ────────────"));
+	writeLine(QStringLiteral("──────────── startup ────────────"));
 	qInfo("Log at %s", qPrintable(g_logPath));
 }
 

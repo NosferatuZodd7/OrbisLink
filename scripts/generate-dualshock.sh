@@ -12,13 +12,13 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 ICONS="$REPO/src/icons"
-command -v rsvg-convert >/dev/null || { echo "Falta o rsvg-convert (apt install librsvg2-bin)." >&2; exit 1; }
+command -v rsvg-convert >/dev/null || { echo "rsvg-convert is missing (apt install librsvg2-bin)." >&2; exit 1; }
 
-gerar() {
-	local cor="$1" saida="$2"
-	sed "s/fill=\"CORPO\"/fill=\"$cor\"/" "$ICONS/dualshock.svg" | rsvg-convert -w 1590 -h 988 -o "$ICONS/$saida"
-	echo "$ICONS/$saida"
+generate() {
+	local colour="$1" output="$2"
+	sed "s/fill=\"BODY\"/fill=\"$colour\"/" "$ICONS/dualshock.svg" | rsvg-convert -w 1590 -h 988 -o "$ICONS/$output"
+	echo "$ICONS/$output"
 }
 
-gerar "#2B2A29" dualshock-corpo-escuro.png
-gerar "#D4D5D6" dualshock-corpo-claro.png
+generate "#2B2A29" dualshock-body-dark.png
+generate "#D4D5D6" dualshock-body-light.png

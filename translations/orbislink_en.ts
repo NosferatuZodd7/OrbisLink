@@ -4,52 +4,52 @@
 <context>
     <name>AccountIdField</name>
     <message>
-        <location filename="../qml/orbislink/AccountIdField.qml" line="41"/>
+        <location filename="../qml/orbislink/AccountIdField.qml" line="42"/>
         <source>hexadecimal, decimal or base64</source>
         <translation>hexadecimal, decimal or base64</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AccountIdField.qml" line="88"/>
+        <location filename="../qml/orbislink/AccountIdField.qml" line="89"/>
         <source>Read as base64</source>
         <translation>Read as base64</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AccountIdField.qml" line="89"/>
+        <location filename="../qml/orbislink/AccountIdField.qml" line="90"/>
         <source>Read as decimal</source>
         <translation>Read as decimal</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AccountIdField.qml" line="90"/>
+        <location filename="../qml/orbislink/AccountIdField.qml" line="91"/>
         <source>Read as hexadecimal</source>
         <translation>Read as hexadecimal</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AccountIdField.qml" line="98"/>
+        <location filename="../qml/orbislink/AccountIdField.qml" line="99"/>
         <source>Base64 — what the console receives</source>
         <translation>Base64 — what the console receives</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AccountIdField.qml" line="99"/>
+        <location filename="../qml/orbislink/AccountIdField.qml" line="100"/>
         <source>Hexadecimal</source>
         <translation>Hexadecimal</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AccountIdField.qml" line="100"/>
+        <location filename="../qml/orbislink/AccountIdField.qml" line="101"/>
         <source>Decimal</source>
         <translation>Decimal</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AccountIdField.qml" line="142"/>
+        <location filename="../qml/orbislink/AccountIdField.qml" line="143"/>
         <source>The bytes are in the opposite order</source>
         <translation>The bytes are in the opposite order</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AccountIdField.qml" line="153"/>
+        <location filename="../qml/orbislink/AccountIdField.qml" line="154"/>
         <source>Reading the ID backwards. Turn this off if the lines above no longer match what the console shows.</source>
         <translation>Reading the ID backwards. Turn this off if the lines above no longer match what the console shows.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AccountIdField.qml" line="155"/>
+        <location filename="../qml/orbislink/AccountIdField.qml" line="156"/>
         <source>Only turn this on if the lines above do not match what you saw on the console. What you typed is not changed.</source>
         <translation>Only turn this on if the lines above do not match what you saw on the console. What you typed is not changed.</translation>
     </message>
@@ -1211,7 +1211,7 @@
     </message>
     <message>
         <location filename="../src/orbislink/stream/registration.cpp" line="159"/>
-        <location filename="../src/orbislink/stream/session.cpp" line="375"/>
+        <location filename="../src/orbislink/stream/session.cpp" line="374"/>
         <source>The console&apos;s address is missing.</source>
         <translation>The console&apos;s address is missing.</translation>
     </message>
@@ -1222,7 +1222,7 @@
     </message>
     <message>
         <location filename="../src/orbislink/stream/session.cpp" line="98"/>
-        <location filename="../src/orbislink/stream/session.cpp" line="573"/>
+        <location filename="../src/orbislink/stream/session.cpp" line="572"/>
         <source>Session ended.</source>
         <translation>Session ended.</translation>
     </message>
@@ -1277,42 +1277,42 @@
         <translation>The session ended for an unknown reason.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/stream/session.cpp" line="223"/>
+        <location filename="../src/orbislink/stream/session.cpp" line="222"/>
         <source>Connected to the console.</source>
         <translation>Connected to the console.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/stream/session.cpp" line="365"/>
+        <location filename="../src/orbislink/stream/session.cpp" line="364"/>
         <source>A session is already running. End it before starting another.</source>
         <translation>A session is already running. End it before starting another.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/stream/session.cpp" line="381"/>
+        <location filename="../src/orbislink/stream/session.cpp" line="380"/>
         <source>The console has not been registered yet. Click its box to register it.</source>
         <translation>The console has not been registered yet. Click its box to register it.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/stream/session.cpp" line="444"/>
+        <location filename="../src/orbislink/stream/session.cpp" line="443"/>
         <source>Could not set up the video decoder</source>
         <translation>Could not set up the video decoder</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/stream/session.cpp" line="467"/>
+        <location filename="../src/orbislink/stream/session.cpp" line="466"/>
         <source>The saved key is corrupted. Register the console again.</source>
         <translation>The saved key is corrupted. Register the console again.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/stream/session.cpp" line="517"/>
+        <location filename="../src/orbislink/stream/session.cpp" line="516"/>
         <source>Connecting to the console…</source>
         <translation>Connecting to the console…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/stream/session.cpp" line="594"/>
+        <location filename="../src/orbislink/stream/session.cpp" line="593"/>
         <source>The Remote Play session is not connected.</source>
         <translation>The Remote Play session is not connected.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/stream/session.cpp" line="601"/>
+        <location filename="../src/orbislink/stream/session.cpp" line="600"/>
         <source>The audio encoder is not ready.</source>
         <translation>The audio encoder is not ready.</translation>
     </message>

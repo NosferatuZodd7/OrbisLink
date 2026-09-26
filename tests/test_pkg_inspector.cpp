@@ -12,12 +12,12 @@ using namespace orbislink_test;
 ORBISLINK_TEST(reads_metadata_of_a_valid_pkg)
 {
 	PkgOptions options;
-	const std::string path = writeTempFile("jogo.pkg", buildPkg(options));
+	const std::string path = writeTempFile("game.pkg", buildPkg(options));
 
 	PkgInspector inspector;
 	const PkgInfo info = inspector.inspect(path);
 	CHECK(info.valid);
-	CHECK_EQ(info.title, std::string("Jogo de Teste"));
+	CHECK_EQ(info.title, std::string("Test Game"));
 	CHECK_EQ(info.titleId, std::string("CUSA12345"));
 	CHECK_EQ(info.contentId, std::string("UP0001-CUSA12345_00-ORBISLINKTEST001"));
 	CHECK_EQ(info.category, std::string("gd"));
@@ -35,7 +35,7 @@ ORBISLINK_TEST(tells_patch_apart_by_header_flags)
 {
 	PkgOptions options;
 	options.contentFlags = 0x00100000; // FIRST_PATCH
-	options.sfoEntries = { { "CATEGORY", "gp" }, { "TITLE", "Jogo de Teste" },
+	options.sfoEntries = { { "CATEGORY", "gp" }, { "TITLE", "Test Game" },
 		{ "TITLE_ID", "CUSA12345" }, { "APP_VER", "01.02" } };
 	const std::string path = writeTempFile("patch.pkg", buildPkg(options));
 
@@ -52,7 +52,7 @@ ORBISLINK_TEST(recognises_dlc_by_content_type)
 {
 	PkgOptions options;
 	options.contentType = 0x1B; // AC
-	options.sfoEntries = { { "CATEGORY", "ac" }, { "TITLE", "Pacote extra" },
+	options.sfoEntries = { { "CATEGORY", "ac" }, { "TITLE", "Extra pack" },
 		{ "TITLE_ID", "CUSA12345" } };
 	const std::string path = writeTempFile("dlc.pkg", buildPkg(options));
 
@@ -68,7 +68,7 @@ ORBISLINK_TEST(rejects_invalid_magic)
 {
 	PkgOptions options;
 	options.validMagic = false;
-	const std::string path = writeTempFile("naoepkg.pkg", buildPkg(options));
+	const std::string path = writeTempFile("notapkg.pkg", buildPkg(options));
 
 	const PkgInfo info = PkgInspector().inspect(path);
 	CHECK(!info.valid);
@@ -85,7 +85,7 @@ ORBISLINK_TEST(rejects_too_small_file)
 	tiny[1] = 'C';
 	tiny[2] = 'N';
 	tiny[3] = 'T';
-	const std::string path = writeTempFile("pequeno.pkg", tiny);
+	const std::string path = writeTempFile("small.pkg", tiny);
 
 	const PkgInfo info = PkgInspector().inspect(path);
 	CHECK(!info.valid);
@@ -96,7 +96,7 @@ ORBISLINK_TEST(rejects_too_small_file)
 
 ORBISLINK_TEST(missing_file)
 {
-	const PkgInfo info = PkgInspector().inspect("nao-existe-mesmo.pkg");
+	const PkgInfo info = PkgInspector().inspect("really-missing.pkg");
 	CHECK(!info.valid);
 	CHECK(!info.error.empty());
 }
@@ -105,7 +105,7 @@ ORBISLINK_TEST(pkg_without_param_sfo_is_still_valid)
 {
 	PkgOptions options;
 	options.includeSfo = false;
-	const std::string path = writeTempFile("semsfo.pkg", buildPkg(options));
+	const std::string path = writeTempFile("nosfo.pkg", buildPkg(options));
 
 	const PkgInfo info = PkgInspector().inspect(path);
 	CHECK(info.valid);
@@ -122,7 +122,7 @@ ORBISLINK_TEST(out_of_bounds_entry_table)
 	PkgOptions options;
 	auto data = buildPkg(options);
 	putBE32(data, 0x10, 100000); // entry_count impossible for this file
-	const std::string path = writeTempFile("corrompido.pkg", data);
+	const std::string path = writeTempFile("corrupted.pkg", data);
 
 	const PkgInfo info = PkgInspector().inspect(path);
 	CHECK(!info.valid);
@@ -137,7 +137,7 @@ ORBISLINK_TEST(file_over_4gb_is_read_by_offsets)
 	// needed offsets are read (the test runs in seconds).
 	PkgOptions options;
 	const auto data = buildPkg(options);
-	const std::string path = ".orbislink-test-grande.pkg";
+	const std::string path = ".orbislink-test-big.pkg";
 	{
 		std::ofstream file(path, std::ios::binary | std::ios::trunc);
 		file.write(reinterpret_cast<const char *>(data.data()),
@@ -152,7 +152,7 @@ ORBISLINK_TEST(file_over_4gb_is_read_by_offsets)
 	if(info.fileSize < 4ll * 1024 * 1024 * 1024)
 	{
 		// File system without sparse file support: does not fail the test.
-		std::cout << "        (aviso: ficheiro esparso não criado; teste ignorado)\n";
+		std::cout << "        (warning: sparse file not created; test skipped)\n";
 		removeTempFile(path);
 		return;
 	}

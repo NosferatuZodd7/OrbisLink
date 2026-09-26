@@ -42,7 +42,7 @@ ORBISLINK_TEST(sha256_of_a_file_matches_the_in_memory_one)
 	CHECK_EQ(sha256File(path), sha256Hex(content));
 	// A file that does not exist must not return the empty hash: that
 	// would let an integrity check pass.
-	CHECK(sha256File(".orbislink-nao-existe.bin").empty());
+	CHECK(sha256File(".orbislink-missing.bin").empty());
 	std::remove(path.c_str());
 }
 
@@ -65,7 +65,7 @@ ORBISLINK_TEST(reads_versions_with_and_without_v)
 
 	// What the app uses when CI gives it a strange name.
 	CHECK(!parseVersion("").valid);
-	CHECK(!parseVersion("nao-e-uma-versao").valid);
+	CHECK(!parseVersion("not-a-version").valid);
 	// Build metadata does not count.
 	CHECK_EQ(compareVersions("0.1.8+abc", "0.1.8"), 0);
 }
@@ -91,8 +91,8 @@ ORBISLINK_TEST(unreadable_version_never_wins)
 {
 	// If GitHub returns garbage in tag_name, the app must not conclude there
 	// is a new version — it would be an update to nowhere.
-	CHECK(compareVersions("lixo", "0.1.8") < 0);
-	CHECK(compareVersions("0.1.8", "lixo") > 0);
+	CHECK(compareVersions("garbage", "0.1.8") < 0);
+	CHECK(compareVersions("0.1.8", "garbage") > 0);
 }
 
 
@@ -102,8 +102,8 @@ namespace {
 const char *kGitHubReply = R"([
   {
     "tag_name": "v0.1.9-dev.3",
-    "name": "Build de testes 3",
-    "body": "Mudanças do dia.\n\nOrbisLink-0.1.9-dev.3-setup.exe  0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n",
+    "name": "Testing build 3",
+    "body": "Changes of the day.\n\nOrbisLink-0.1.9-dev.3-setup.exe  0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n",
     "html_url": "https://github.com/example/app/releases/tag/v0.1.9-dev.3",
     "draft": false,
     "prerelease": true,
@@ -130,7 +130,7 @@ const char *kGitHubReply = R"([
   },
   {
     "tag_name": "v0.2.0",
-    "name": "rascunho, ainda não publicado",
+    "name": "draft, not published yet",
     "body": "",
     "draft": true,
     "prerelease": false,
@@ -184,7 +184,7 @@ ORBISLINK_TEST(hash_is_the_downloaded_files_one)
 	// writes. The installer's counts, not the zip's or the Linux one.
 	const char *withNotes = R"([{
 	  "tag_name": "v1.0.0", "draft": false, "prerelease": false,
-	  "body": "Notas.\n\n### SHA-256\n\n`096da89a3a9f3624311e907d24af4c9b907b9bfabcd0af7dec2f5fdc935f2777`  OrbisLink-1.0.0-setup.exe\n\n`d2f6e324971ce63f55db4e66ce5e15be2359de673111619213c9b81f42f512cc`  OrbisLink-1.0.0-windows-x64.zip\n\n`e85c6cf68dfaa7d1f48a0a02a5b7eb43747adc7c074819547b38276ed8abd337`  orbislink-1.0.0-linux-x86_64.tar.gz\n",
+	  "body": "Notes.\n\n### SHA-256\n\n`096da89a3a9f3624311e907d24af4c9b907b9bfabcd0af7dec2f5fdc935f2777`  OrbisLink-1.0.0-setup.exe\n\n`d2f6e324971ce63f55db4e66ce5e15be2359de673111619213c9b81f42f512cc`  OrbisLink-1.0.0-windows-x64.zip\n\n`e85c6cf68dfaa7d1f48a0a02a5b7eb43747adc7c074819547b38276ed8abd337`  orbislink-1.0.0-linux-x86_64.tar.gz\n",
 	  "assets": [
 	    { "name": "OrbisLink-1.0.0-setup.exe", "browser_download_url": "https://x/setup.exe", "size": 10 }
 	  ]}])";
@@ -256,10 +256,10 @@ ORBISLINK_TEST(stable_channel_mentions_a_newer_testing_build)
 ORBISLINK_TEST(unreadable_reply_invents_no_releases)
 {
 	CHECK(UpdateChecker::parseReleases("", "-setup.exe").empty());
-	CHECK(UpdateChecker::parseReleases("isto nao e json", "-setup.exe").empty());
+	CHECK(UpdateChecker::parseReleases("this is not json", "-setup.exe").empty());
 	CHECK(UpdateChecker::parseReleases("[]", "-setup.exe").empty());
 	// An entry without a tag gives no version to compare.
-	CHECK(UpdateChecker::parseReleases(R"([{"name":"sem tag"}])", "-setup.exe").empty());
+	CHECK(UpdateChecker::parseReleases(R"([{"name":"no tag"}])", "-setup.exe").empty());
 }
 
 ORBISLINK_TEST(without_a_platform_asset_there_is_still_a_page)
@@ -275,7 +275,7 @@ ORBISLINK_TEST(without_a_platform_asset_there_is_still_a_page)
 ORBISLINK_TEST(badly_set_repository_fails_saying_why)
 {
 	UpdateChecker::Config config;
-	config.repository = "sem-barra";
+	config.repository = "no-slash";
 	config.currentVersion = "0.1.8";
 	const UpdateCheckResult result = UpdateChecker(config).check();
 	CHECK(!result.ok);
@@ -288,7 +288,7 @@ ORBISLINK_TEST(channel_is_read_and_written_by_name)
 	CHECK_EQ(std::string(updateChannelName(UpdateChannel::Stable)), std::string("stable"));
 	CHECK_EQ(std::string(updateChannelName(UpdateChannel::Testing)), std::string("testing"));
 	CHECK(updateChannelFromName("testes", UpdateChannel::Stable) == UpdateChannel::Testing);
-	CHECK(updateChannelFromName("lixo", UpdateChannel::Stable) == UpdateChannel::Stable);
+	CHECK(updateChannelFromName("garbage", UpdateChannel::Stable) == UpdateChannel::Stable);
 }
 
 TEST_MAIN()

@@ -324,8 +324,8 @@ ApplicationWindow {
         onTriggered: {
             window.setStreamFullscreen(true)
             console.log("DIAG full screen: visibility=" + window.visibility
-                        + " esperado=" + Window.FullScreen
-                        + " barra=" + window.streamFullscreen)
+                        + " expected=" + Window.FullScreen
+                        + " bar=" + window.streamFullscreen)
         }
     }
 

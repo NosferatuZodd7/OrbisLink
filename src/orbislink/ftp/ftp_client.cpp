@@ -351,7 +351,7 @@ bool FtpClient::probe(std::string *detail)
 FtpResult FtpClient::list(const std::string &remoteDir, std::vector<FtpEntry> *entries)
 {
 	const std::string dir = normalizeRemotePath(remoteDir);
-	return withRetries("listar " + dir, [&]() -> FtpResult {
+	return withRetries("list " + dir, [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
 		CURL *curl = curl_easy_init();
@@ -430,7 +430,7 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 			alreadyThere = remote;
 	}
 
-	return withRetries("enviar " + baseName(localPath), [&]() -> FtpResult {
+	return withRetries("upload " + baseName(localPath), [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
 		std::ifstream input(localPath, std::ios::binary);
@@ -490,7 +490,7 @@ FtpResult FtpClient::download(const std::string &remotePath, const std::string &
 	if(existing < 0)
 		existing = 0;
 
-	return withRetries("descarregar " + baseName(path), [&]() -> FtpResult {
+	return withRetries("download " + baseName(path), [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
 		std::ofstream output(localPath,
@@ -569,7 +569,7 @@ FtpResult FtpClient::makeDirectory(const std::string &remotePath)
 	if(!isWriteAllowed(path))
 		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
 			"mode in the settings."));
-	return withRetries("criar pasta " + path, [&]() -> FtpResult {
+	return withRetries("create folder " + path, [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
 		return runQuoteCommands(cfg, cfg.host, { "MKD " + path },
@@ -583,7 +583,7 @@ FtpResult FtpClient::removeFile(const std::string &remotePath)
 	if(!isWriteAllowed(path))
 		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
 			"mode in the settings."));
-	return withRetries("apagar " + path, [&]() -> FtpResult {
+	return withRetries("delete " + path, [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
 		return runQuoteCommands(cfg, cfg.host, { "DELE " + path },
@@ -597,7 +597,7 @@ FtpResult FtpClient::removeDirectory(const std::string &remotePath)
 	if(!isWriteAllowed(path))
 		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
 			"mode in the settings."));
-	return withRetries("apagar pasta " + path, [&]() -> FtpResult {
+	return withRetries("delete folder " + path, [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
 		return runQuoteCommands(cfg, cfg.host, { "RMD " + path },

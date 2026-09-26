@@ -10,16 +10,16 @@ using namespace orbislink_test;
 
 ORBISLINK_TEST(reads_text_entries)
 {
-	const auto data = buildSfo({ { "CATEGORY", "gp" }, { "TITLE", "Jogo Acentuado ção" },
+	const auto data = buildSfo({ { "CATEGORY", "gp" }, { "TITLE", "Accented Game ção" },
 		{ "TITLE_ID", "CUSA00123" } });
 	Sfo sfo;
 	std::string error;
 	CHECK(sfo.parse(data, &error));
 	CHECK(error.empty());
-	CHECK_EQ(sfo.stringValue("TITLE"), std::string("Jogo Acentuado ção"));
+	CHECK_EQ(sfo.stringValue("TITLE"), std::string("Accented Game ção"));
 	CHECK_EQ(sfo.stringValue("TITLE_ID"), std::string("CUSA00123"));
 	CHECK_EQ(sfo.stringValue("CATEGORY"), std::string("gp"));
-	CHECK_EQ(sfo.stringValue("NAO_EXISTE", "omissao"), std::string("omissao"));
+	CHECK_EQ(sfo.stringValue("MISSING", "default"), std::string("default"));
 }
 
 ORBISLINK_TEST(rejects_invalid_magic)
@@ -41,12 +41,12 @@ ORBISLINK_TEST(rejects_short_file)
 
 ORBISLINK_TEST(ignores_out_of_bounds_entry)
 {
-	auto data = buildSfo({ { "TITLE", "Bom" }, { "TITLE_ID", "CUSA00001" } });
+	auto data = buildSfo({ { "TITLE", "Good" }, { "TITLE_ID", "CUSA00001" } });
 	// Corrupts the second entry's value_offset to beyond the end of the file.
 	putLE32(data, 0x14 + 0x10 + 0x0C, 0x7FFFFFFF);
 	Sfo sfo;
 	CHECK(sfo.parse(data, nullptr));
-	CHECK_EQ(sfo.stringValue("TITLE"), std::string("Bom"));
+	CHECK_EQ(sfo.stringValue("TITLE"), std::string("Good"));
 	CHECK(sfo.find("TITLE_ID") == nullptr);
 }
 

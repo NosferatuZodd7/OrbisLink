@@ -17,7 +17,7 @@ namespace {
 std::string tempFile()
 {
 	static int counter = 0;
-	return std::string(".orbislink-test-credenciais-") + std::to_string(++counter) + ".json";
+	return std::string(".orbislink-test-credentials-") + std::to_string(++counter) + ".json";
 }
 
 StreamCredentials sample(const std::string &hostId, const std::string &name)
@@ -70,7 +70,7 @@ ORBISLINK_TEST(account_id_must_be_base64_of_eight_bytes)
 
 	// Empty, text that is not base64, and base64 of the wrong size: all three
 	// must be refused with an explanation.
-	for(const char *bad : { "", "isto não é base64", "AQID" })
+	for(const char *bad : { "", "this is not base64", "AQID" })
 	{
 		err.clear();
 		CHECK(!decodeAccountId(bad, id, &err));
@@ -83,11 +83,11 @@ ORBISLINK_TEST(saves_and_reads_a_console)
 	const std::string path = tempFile();
 	CredentialStore store(path);
 
-	CHECK(store.save(sample("AABBCCDDEEFF", "PS4 da sala")));
+	CHECK(store.save(sample("AABBCCDDEEFF", "Living room PS4")));
 
 	const StreamCredentials loaded = store.load("AABBCCDDEEFF");
 	CHECK(loaded.valid);
-	CHECK_EQ(loaded.nickname, std::string("PS4 da sala"));
+	CHECK_EQ(loaded.nickname, std::string("Living room PS4"));
 	CHECK_EQ(loaded.registKey, std::string("1a2b3c4d"));
 	CHECK_EQ(loaded.rpKeyHex, std::string("000102030405060708090A0B0C0D0E0F"));
 	CHECK_EQ(int(loaded.rpKeyType), 2);
@@ -103,14 +103,14 @@ ORBISLINK_TEST(a_ps5_stored_without_the_flag_stays_a_ps5)
 
 	// What was stored after registering a PS5: a PS5 target, but "ps5"
 	// false. Uncorrected, the session spoke the PS4 protocol.
-	StreamCredentials ps5 = sample("0A1B2C3D4E5F", "PS5 do quarto");
+	StreamCredentials ps5 = sample("0A1B2C3D4E5F", "Bedroom PS5");
 	ps5.target = 1000100;
 	ps5.ps5 = false;
 	CHECK(store.save(ps5));
 
 	CHECK(store.load("0A1B2C3D4E5F").ps5);
 	CHECK(!store.load("0A1B2C3D4E5F").nickname.empty());
-	CHECK(store.save(sample("AABBCCDDEEFF", "PS4 da sala")));
+	CHECK(store.save(sample("AABBCCDDEEFF", "Living room PS4")));
 	CHECK(!store.load("AABBCCDDEEFF").ps5);
 
 	std::remove(path.c_str());
@@ -121,8 +121,8 @@ ORBISLINK_TEST(saves_several_consoles_without_mixing_them_up)
 	const std::string path = tempFile();
 	CredentialStore store(path);
 
-	CHECK(store.save(sample("AABBCCDDEEFF", "Sala")));
-	StreamCredentials second = sample("112233445566", "Quarto");
+	CHECK(store.save(sample("AABBCCDDEEFF", "Living room")));
+	StreamCredentials second = sample("112233445566", "Bedroom");
 	second.registKey = "ffffffff";
 	CHECK(store.save(second));
 
@@ -140,14 +140,14 @@ ORBISLINK_TEST(registering_again_replaces_instead_of_duplicating)
 	const std::string path = tempFile();
 	CredentialStore store(path);
 
-	CHECK(store.save(sample("AABBCCDDEEFF", "Nome antigo")));
-	StreamCredentials fresh = sample("AABBCCDDEEFF", "Nome novo");
+	CHECK(store.save(sample("AABBCCDDEEFF", "Old name")));
+	StreamCredentials fresh = sample("AABBCCDDEEFF", "New name");
 	fresh.registKey = "deadbeef";
 	CHECK(store.save(fresh));
 
 	CHECK_EQ(store.all().size(), size_t(1));
 	CHECK_EQ(store.load("AABBCCDDEEFF").registKey, std::string("deadbeef"));
-	CHECK_EQ(store.load("AABBCCDDEEFF").nickname, std::string("Nome novo"));
+	CHECK_EQ(store.load("AABBCCDDEEFF").nickname, std::string("New name"));
 
 	std::remove(path.c_str());
 }
@@ -156,8 +156,8 @@ ORBISLINK_TEST(forget_deletes_only_the_requested_console)
 {
 	const std::string path = tempFile();
 	CredentialStore store(path);
-	store.save(sample("AABBCCDDEEFF", "Sala"));
-	store.save(sample("112233445566", "Quarto"));
+	store.save(sample("AABBCCDDEEFF", "Living room"));
+	store.save(sample("112233445566", "Bedroom"));
 
 	CHECK(store.forget("AABBCCDDEEFF"));
 	CHECK(!store.load("AABBCCDDEEFF").valid);
@@ -170,7 +170,7 @@ ORBISLINK_TEST(forget_deletes_only_the_requested_console)
 
 ORBISLINK_TEST(wakeup_credential_comes_from_the_registration_key)
 {
-	StreamCredentials c = sample("AABBCCDDEEFF", "Sala");
+	StreamCredentials c = sample("AABBCCDDEEFF", "Living room");
 	// The key is read as a hexadecimal number, which is what the wakeup
 	// packet carries (chiaki_discovery_wakeup, user_credential field).
 	CHECK_EQ(c.wakeupCredential(), uint64_t(0x1a2b3c4d));
@@ -185,7 +185,7 @@ ORBISLINK_TEST(a_broken_file_does_not_bring_the_app_down)
 	{
 		FILE *f = std::fopen(path.c_str(), "wb");
 		CHECK(f != nullptr);
-		std::fputs("isto não é json {{{", f);
+		std::fputs("this is not json {{{", f);
 		std::fclose(f);
 	}
 

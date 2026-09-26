@@ -83,7 +83,13 @@ CredentialStore::CredentialStore(std::string path) : path_(std::move(path)) {}
 
 std::string CredentialStore::defaultPath()
 {
-	return joinPath(SettingsStore::defaultDirectory(), "consolas-registadas.json");
+	const std::string directory = SettingsStore::defaultDirectory();
+	const std::string path = joinPath(directory, "registered-consoles.json");
+	// Older versions used a Portuguese file name; carry it over once.
+	const std::string legacy = joinPath(directory, "consolas-registadas.json");
+	if(!std::ifstream(path) && std::ifstream(legacy))
+		std::rename(legacy.c_str(), path.c_str());
+	return path;
 }
 
 std::vector<StreamCredentials> CredentialStore::all() const
@@ -145,17 +151,17 @@ bool CredentialStore::save(const StreamCredentials &credentials)
 		return false;
 
 	std::vector<StreamCredentials> stored = all();
-	bool substituída = false;
+	bool replaced = false;
 	for(StreamCredentials &existing : stored)
 	{
 		if(iequals(existing.hostId, credentials.hostId))
 		{
 			existing = credentials;
-			substituída = true;
+			replaced = true;
 			break;
 		}
 	}
-	if(!substituída)
+	if(!replaced)
 		stored.push_back(credentials);
 
 	Json root = Json::makeArray();

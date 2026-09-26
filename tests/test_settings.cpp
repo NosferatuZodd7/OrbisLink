@@ -11,7 +11,7 @@ using namespace orbislink;
 ORBISLINK_TEST(settings_round_trip)
 {
 	Settings settings;
-	settings.consoleName = "PS4 da sala";
+	settings.consoleName = "Living room PS4";
 	settings.consoleAddress = "192.168.1.42";
 	settings.defaultMode = TransferMode::FtpUpload;
 	settings.ftpUploadDirectory = "/mnt/usb0/pkg/";
@@ -24,7 +24,7 @@ ORBISLINK_TEST(settings_round_trip)
 	bool ok = false;
 	const Settings restored = Settings::fromJson(settings.toJson(), &ok);
 	CHECK(ok);
-	CHECK_EQ(restored.consoleName, std::string("PS4 da sala"));
+	CHECK_EQ(restored.consoleName, std::string("Living room PS4"));
 	CHECK_EQ(restored.consoleAddress, std::string("192.168.1.42"));
 	CHECK(restored.defaultMode == TransferMode::FtpUpload);
 	CHECK_EQ(restored.ftpUploadDirectory, std::string("/mnt/usb0/pkg/"));
@@ -90,7 +90,7 @@ ORBISLINK_TEST(allowed_stream_settings_pass)
 ORBISLINK_TEST(invalid_json_does_not_break_the_settings)
 {
 	bool ok = true;
-	const Settings settings = Settings::fromJson("{ lixo", &ok);
+	const Settings settings = Settings::fromJson("{ garbage", &ok);
 	CHECK(!ok);
 	CHECK_EQ(settings.ftpPort, static_cast<uint16_t>(2121));
 }
@@ -119,15 +119,15 @@ ORBISLINK_TEST(logs_carry_no_sensitive_data)
 {
 	// §8/§9: no Account ID or registration keys in the exported logs.
 	const std::string redacted =
-		redactSensitive(R"({"psn_account_id":"1234567890","rp_key":"abcdef","title":"Jogo"})");
+		redactSensitive(R"({"psn_account_id":"1234567890","rp_key":"abcdef","title":"Game"})");
 	CHECK(redacted.find("1234567890") == std::string::npos);
 	CHECK(redacted.find("abcdef") == std::string::npos);
-	CHECK(redacted.find("[REDIGIDO]") != std::string::npos);
-	CHECK(redacted.find("Jogo") != std::string::npos);
+	CHECK(redacted.find("[REDACTED]") != std::string::npos);
+	CHECK(redacted.find("Game") != std::string::npos);
 
-	const std::string plain = redactSensitive("account_id=AABBCCDD e password=segredo");
+	const std::string plain = redactSensitive("account_id=AABBCCDD and password=secret");
 	CHECK(plain.find("AABBCCDD") == std::string::npos);
-	CHECK(plain.find("segredo") == std::string::npos);
+	CHECK(plain.find("secret") == std::string::npos);
 }
 
 ORBISLINK_TEST(wizard_only_appears_the_first_time)
@@ -154,14 +154,14 @@ ORBISLINK_TEST(wizard_only_appears_the_first_time)
 // keep looking for versions there.
 ORBISLINK_TEST(update_repository_follows_the_build)
 {
-	const std::string fresh = "novo/OrbisLink";
-	const std::string old = "antigo/repo";
+	const std::string fresh = "new/OrbisLink";
+	const std::string old = "old/repo";
 	// File from before the rule: it does not say what the default was.
 	CHECK_EQ(resolveUpdateRepository(old, nullptr, fresh), fresh);
 	// Stored equal to the default at the time: nobody chose it.
 	CHECK_EQ(resolveUpdateRepository(old, &old, fresh), fresh);
 	// Written by hand (different from the default at the time): it stays.
-	const std::string other = "outra/copia";
+	const std::string other = "other/copy";
 	CHECK_EQ(resolveUpdateRepository(other, &old, fresh), other);
 	// Empty is never valid.
 	CHECK_EQ(resolveUpdateRepository("", &old, fresh), fresh);
@@ -185,20 +185,20 @@ ORBISLINK_TEST(console_list)
 {
 	// Settings from before the list: the console in use becomes the first.
 	const Settings oldOnes =
-		Settings::fromJson(R"({"console_name":"Sala","console_address":"10.0.0.5"})");
+		Settings::fromJson(R"({"console_name":"Living room","console_address":"10.0.0.5"})");
 	CHECK_EQ(oldOnes.consoles.size(), static_cast<size_t>(1));
 	CHECK_EQ(oldOnes.consoles[0].address, std::string("10.0.0.5"));
-	CHECK_EQ(oldOnes.consoles[0].name, std::string("Sala"));
+	CHECK_EQ(oldOnes.consoles[0].name, std::string("Living room"));
 
 	// Two consoles, round trip, with no duplicates or empty addresses.
 	Settings settings;
-	settings.consoleName = "Sala";
+	settings.consoleName = "Living room";
 	settings.consoleAddress = "10.0.0.5";
-	settings.consoles = { { "Sala", "10.0.0.5" }, { "Quarto", "10.0.0.9" },
-		{ "Repetida", "10.0.0.9" }, { "Vazia", " " } };
+	settings.consoles = { { "Living room", "10.0.0.5" }, { "Bedroom", "10.0.0.9" },
+		{ "Repeated", "10.0.0.9" }, { "Empty", " " } };
 	const Settings loaded = Settings::fromJson(settings.toJson());
 	CHECK_EQ(loaded.consoles.size(), static_cast<size_t>(2));
-	CHECK_EQ(loaded.consoles[1].name, std::string("Quarto"));
+	CHECK_EQ(loaded.consoles[1].name, std::string("Bedroom"));
 
 	// With no console set, the list stays empty.
 	CHECK(Settings::fromJson("{}").consoles.empty());
@@ -206,7 +206,7 @@ ORBISLINK_TEST(console_list)
 	// The type is stored; a value other than ps4/ps5 counts as
 	// unknown.
 	Settings withType;
-	withType.consoles = { { "Quarto", "10.0.0.9", "ps5" } };
+	withType.consoles = { { "Bedroom", "10.0.0.9", "ps5" } };
 	CHECK_EQ(Settings::fromJson(withType.toJson()).consoles[0].type, std::string("ps5"));
 	const Settings odd = Settings::fromJson(
 		R"({"consoles":[{"name":"X","address":"10.0.0.7","type":"xbox"}]})");

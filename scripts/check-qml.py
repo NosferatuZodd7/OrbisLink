@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Apanha a classe de erro que já apareceu três vezes nesta aplicação.
+"""Catches a class of bug that tests cannot see.
 
-Um Dialog, Popup ou Menu do QtQuick.Controls.Basic sem "background" próprio
-é desenhado a BRANCO. Como o resto da aplicação é escura, o texto por cima
-leva cores claras do tema — e o resultado é uma janela branca com o texto
-invisível. Aconteceu no diálogo de apagar, no mapa do teclado e no pedido
-do PIN da consola, e das três vezes só se descobriu com alguém a usar a
-aplicação e a mandar uma fotografia.
+A QtQuick.Controls.Basic Dialog, Popup or Menu without its own "background"
+is drawn WHITE. Since the rest of the application is dark, the text on top
+takes the theme's light colours — and the result is a white window with
+invisible text.
 
-Não se apanha com testes: o QML carrega, não há erro nenhum, e a janela
-abre. Apanha-se lendo o ficheiro, que é o que isto faz.
+Tests do not catch it: the QML loads, there is no error at all, and the
+window opens. It is caught by reading the file, which is what this does.
 
-Também recusa Theme.onStage dentro de um diálogo: essa cor é branca de
-propósito, para escrever por cima do vídeo, e não tem nada que fazer sobre
-uma superfície de vidro.
+It also refuses Theme.onStage inside a dialog: that colour is white on
+purpose, for writing over the video, and has no business on a glass
+surface.
 """
 import pathlib
 import re
@@ -24,28 +22,28 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 KINDS = ("Dialog", "Popup", "Menu")
 
 
-def blocks(message, kind):
-    """Devolve (linha, corpo) de cada bloco `Tipo {` … `}` equilibrado."""
-    for m in re.finditer(r"(?<![A-Za-z_.])" + kind + r"\s*\{", message):
+def blocks(text, kind):
+    """Returns (line, body) for each balanced `Kind {` … `}` block."""
+    for m in re.finditer(r"(?<![A-Za-z_.])" + kind + r"\s*\{", text):
         # An "Overlay.modal: Rectangle" or a "property var x: Dialog"
         # does not open one of these blocks; the regex above already excludes them by the dot.
         start = m.end() - 1
         level = 0
-        for i in range(start, len(message)):
-            if message[i] == "{":
+        for i in range(start, len(text)):
+            if text[i] == "{":
                 level += 1
-            elif message[i] == "}":
+            elif text[i] == "}":
                 level -= 1
                 if level == 0:
-                    yield message[: m.start()].count("\n") + 1, message[start : i + 1]
+                    yield text[: m.start()].count("\n") + 1, text[start : i + 1]
                     break
 
 
 def no_nesting(body):
-    """O corpo sem os blocos de Dialog/Popup/Menu lá dentro.
+    """The body without the Dialog/Popup/Menu blocks inside it.
 
-    Sem isto, um diálogo sem background passaria por ter um filho que o
-    tem — que é exactamente o caso que interessa apanhar.
+    Without this, a dialog without a background would pass because a child
+    has one — which is exactly the case worth catching.
     """
     for kind in KINDS:
         for _, inner in list(blocks(body[1:], kind)):
@@ -56,29 +54,29 @@ def no_nesting(body):
 def main():
     problems = []
     for file in sorted((ROOT / "qml").rglob("*.qml")):
-        message = file.read_text(encoding="utf-8")
+        text = file.read_text(encoding="utf-8")
         for kind in KINDS:
-            for line, body in blocks(message, kind):
+            for line, body in blocks(text, kind):
                 own = no_nesting(body)
                 name = f"{file.relative_to(ROOT)}:{line} ({kind})"
                 if not re.search(r"^\s*background\s*:", own, re.M):
                     problems.append(
-                        f"{name} não define background — "
-                        f"o estilo Basic pinta-o de branco e o texto do tema desaparece"
+                        f"{name} does not define a background — "
+                        f"the Basic style paints it white and the theme's text disappears"
                     )
                 if "Theme.onStage" in own:
                     problems.append(
-                        f"{name} usa Theme.onStage, que é branco e serve para "
-                        f"escrever por cima do vídeo, não dentro de um diálogo"
+                        f"{name} uses Theme.onStage, which is white and meant for "
+                        f"writing over the video, not inside a dialog"
                     )
 
     if problems:
-        print("QML: encontrei superfícies que iam sair brancas:\n", file=sys.stderr)
+        print("QML: found surfaces that would come out white:\n", file=sys.stderr)
         for p in problems:
             print(f"  {p}", file=sys.stderr)
         return 1
 
-    print("QML: todos os diálogos, popups e menus têm fundo próprio.")
+    print("QML: every dialog, popup and menu has its own background.")
     return 0
 
 

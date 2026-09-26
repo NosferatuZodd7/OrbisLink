@@ -15,11 +15,11 @@ BUILD="${ORBISLINK_BUILD_DIR:-$REPO/build}"
 GUI="$BUILD/orbislink-gui"
 DISPLAY_NUM="${ORBISLINK_DISPLAY:-:97}"
 WORK="$(mktemp -d)"
-CONSOLE="$WORK/consola"
+CONSOLE="$WORK/console"
 CONFIG="$WORK/config"
 
-[ -x "$GUI" ] || { echo "Falta $GUI — compila primeiro (cmake --build build)." >&2; exit 1; }
-command -v Xvfb >/dev/null || { echo "Falta o Xvfb (apt install xvfb)." >&2; exit 1; }
+[ -x "$GUI" ] || { echo "$GUI is missing — build first (cmake --build build)." >&2; exit 1; }
+command -v Xvfb >/dev/null || { echo "Xvfb is missing (apt install xvfb)." >&2; exit 1; }
 
 mkdir -p "$OUT" "$CONSOLE/data/pkg" "$CONSOLE/data/GoldHEN" "$CONFIG/orbislink"
 
@@ -30,7 +30,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "==> pkg de demonstração"
+echo "==> demo pkgs"
 python3 "$REPO/tools/mock-console/make_test_pkg.py" "$WORK/jogo.pkg" \
 	--title "Kingdom of Orbis" --content-id "UP0001-CUSA12345_00-KINGDOMORBIS0001" \
 	--category gd --padding 6000000 >/dev/null
@@ -38,7 +38,7 @@ python3 "$REPO/tools/mock-console/make_test_pkg.py" "$WORK/patch.pkg" \
 	--title "Kingdom of Orbis" --content-id "UP0001-CUSA12345_00-KINGDOMORBIS0001" \
 	--category gp --app-version "01.08" --padding 2500000 >/dev/null
 python3 "$REPO/tools/mock-console/make_test_pkg.py" "$WORK/dlc.pkg" \
-	--title "Kingdom of Orbis - Pacote Sombrio" \
+	--title "Kingdom of Orbis - Shadow Pack" \
 	--content-id "UP0001-CUSA12345_00-KINGDOMDLC000001" --category ac --padding 1500000 >/dev/null
 python3 "$REPO/tools/mock-console/make_test_pkg.py" "$CONSOLE/data/pkg/Homebrew-Player.pkg" \
 	--title "Homebrew Player" --content-id "UP0001-CUSA00001_00-HOMEBREWPLAYER01" \
@@ -48,11 +48,11 @@ python3 "$REPO/tools/mock-console/make_test_pkg.py" "$CONSOLE/data/pkg/Retro-Lau
 	--padding 2400000 >/dev/null
 echo "config" > "$CONSOLE/data/GoldHEN/config.ini"
 
-echo "==> Xvfb em $DISPLAY_NUM"
+echo "==> Xvfb on $DISPLAY_NUM"
 Xvfb "$DISPLAY_NUM" -screen 0 1400x900x24 >/dev/null 2>&1 &
 XVFB_PID=$!
 
-echo "==> consola falsa"
+echo "==> fake console"
 # Port 987 is Remote Play discovery's real one; if there are no
 # privileges to open it, the fake console carries on without it.
 python3 "$REPO/tools/mock-console/mock_console.py" --ftp-port 2121 --api-port 12800 \
@@ -61,12 +61,12 @@ MOCK_PID=$!
 sleep 2
 
 cat > "$CONFIG/orbislink/settings.json" <<JSON
-{"console_address":"127.0.0.1","console_name":"PS4 da sala","ftp_port":2121,
+{"console_address":"127.0.0.1","console_name":"Living room PS4","ftp_port":2121,
  "installer_port":12800,"http_bind_address":"127.0.0.1","http_port":8765,
  "restrict_to_console_ip":true,"check_already_installed":false,
  "ftp_upload_directory":"/data/pkg/","default_mode":"direct","debug_logging":false,
  "first_run_done":true,
- "consoles":[{"name":"PS4 da sala","address":"127.0.0.1"},{"name":"PS5 do quarto","address":"192.0.2.10"}],
+ "consoles":[{"name":"Living room PS4","address":"127.0.0.1"},{"name":"Bedroom PS5","address":"192.0.2.10"}],
  "stream_account_id":"782riWdFIwE="}
 JSON
 
@@ -75,19 +75,19 @@ shot() {
 	rm -f "$CONFIG/orbislink/queue.json"
 	# The full output is kept: when the screenshot fails, what matters
 	# is what the application said, not a bare "failed".
-	local registo="$WORK/gui-$name.log"
+	local output="$WORK/gui-$name.log"
 	DISPLAY="$DISPLAY_NUM" XDG_CONFIG_HOME="$CONFIG" QT_QPA_PLATFORM=xcb \
-		"$GUI" --screenshot "$OUT/$name" "$@" > "$registo" 2>&1 || true
-	grep -iE "captura|warning: n" "$registo" || true
+		"$GUI" --screenshot "$OUT/$name" "$@" > "$output" 2>&1 || true
+	grep -iE "screenshot|warning: n" "$output" || true
 	if [ ! -s "$OUT/$name" ]; then
-		echo "Falhou a captura $name. O que a aplicação disse:" >&2
-		sed 's/^/    | /' "$registo" >&2
+		echo "Screenshot $name failed. What the application said:" >&2
+		sed 's/^/    | /' "$output" >&2
 		exit 1
 	fi
 	echo "    $OUT/$name"
 }
 
-echo "==> capturas"
+echo "==> screenshots"
 shot 01-queue.png --screenshot-delay 8000 \
 	--enqueue "$WORK/jogo.pkg" --enqueue "$WORK/patch.pkg" --enqueue "$WORK/dlc.pkg"
 shot 02-drop-overlay.png --screenshot-delay 2500 --demo-overlay
@@ -114,4 +114,4 @@ with open(sys.argv[1], "w") as f:
 PY
 shot 11-remote-play-light.png --screenshot-delay 3500
 
-echo "Capturas prontas em $OUT"
+echo "Screenshots ready in $OUT"

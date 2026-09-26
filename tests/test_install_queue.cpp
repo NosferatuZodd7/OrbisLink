@@ -48,7 +48,7 @@ public:
 		{
 			InstallerResult result;
 			result.errorCode = static_cast<uint32_t>(failWithCode.load());
-			result.message = "erro simulado";
+			result.message = "simulated error";
 			return result;
 		}
 		lastUrls = urls;
@@ -57,14 +57,14 @@ public:
 		if(handle)
 		{
 			handle->taskId = 42;
-			handle->title = "Título da consola";
+			handle->title = "Console title";
 		}
 		return InstallerResult::success();
 	}
 
 	InstallerResult installFromReferenceJson(const std::string &, InstallTaskHandle *) override
 	{
-		return InstallerResult::failure("não usado");
+		return InstallerResult::failure("not used");
 	}
 
 	InstallerResult isExists(const std::string &, bool *exists, int64_t *size) override
@@ -98,7 +98,7 @@ public:
 
 	InstallerResult findTask(const std::string &, TaskSubType, int *) override
 	{
-		return InstallerResult::failure("não usado");
+		return InstallerResult::failure("not used");
 	}
 	InstallerResult startTask(int) override { return InstallerResult::success(); }
 	InstallerResult stopTask(int) override { ++stopCalls; return InstallerResult::success(); }
@@ -170,9 +170,9 @@ InstallQueue::Tuning fastTuning()
 
 ORBISLINK_TEST(orders_game_patch_dlc_of_the_same_title_id)
 {
-	PkgFile dlc("ordem-dlc.pkg", dlcOptions("CUSA00001", "Jogo A"));
-	PkgFile patch("ordem-patch.pkg", patchOptions("CUSA00001", "Jogo A"));
-	PkgFile game("ordem-jogo.pkg", gameOptions("CUSA00001", "Jogo A"));
+	PkgFile dlc("order-dlc.pkg", dlcOptions("CUSA00001", "Game A"));
+	PkgFile patch("order-patch.pkg", patchOptions("CUSA00001", "Game A"));
+	PkgFile game("order-game.pkg", gameOptions("CUSA00001", "Game A"));
 
 	InstallQueue queue(InstallQueue::Dependencies {}, Settings {});
 	std::vector<std::string> rejected;
@@ -189,9 +189,9 @@ ORBISLINK_TEST(orders_game_patch_dlc_of_the_same_title_id)
 
 ORBISLINK_TEST(keeps_order_across_different_titles)
 {
-	PkgFile patchB("ordem2-patchb.pkg", patchOptions("CUSA00002", "Jogo B"));
-	PkgFile gameA("ordem2-jogoa.pkg", gameOptions("CUSA00001", "Jogo A"));
-	PkgFile gameB("ordem2-jogob.pkg", gameOptions("CUSA00002", "Jogo B"));
+	PkgFile patchB("order2-patchb.pkg", patchOptions("CUSA00002", "Game B"));
+	PkgFile gameA("order2-gamea.pkg", gameOptions("CUSA00001", "Game A"));
+	PkgFile gameB("order2-gameb.pkg", gameOptions("CUSA00002", "Game B"));
 
 	InstallQueue queue(InstallQueue::Dependencies {}, Settings {});
 	queue.enqueue({ patchB.path, gameA.path, gameB.path }, TransferMode::DirectInstall);
@@ -208,7 +208,7 @@ ORBISLINK_TEST(refuses_invalid_files)
 {
 	PkgOptions broken;
 	broken.validMagic = false;
-	const std::string path = writeTempFile("invalido.pkg", buildPkg(broken));
+	const std::string path = writeTempFile("invalid.pkg", buildPkg(broken));
 
 	InstallQueue queue(InstallQueue::Dependencies {}, Settings {});
 	std::vector<std::string> rejected;
@@ -221,7 +221,7 @@ ORBISLINK_TEST(refuses_invalid_files)
 
 ORBISLINK_TEST(direct_install_end_to_end)
 {
-	PkgFile game("fluxo-jogo.pkg", gameOptions("CUSA00010", "Jogo Fluxo"));
+	PkgFile game("flow-game.pkg", gameOptions("CUSA00010", "Flow Game"));
 
 	LocalHttpServer server;
 	LocalHttpServer::Config config;
@@ -258,7 +258,7 @@ ORBISLINK_TEST(direct_install_end_to_end)
 	QueueTask task;
 	CHECK(queue.task(id, &task));
 	CHECK(task.state == TaskState::Completed);
-	CHECK_EQ(task.title, std::string("Título da consola"));
+	CHECK_EQ(task.title, std::string("Console title"));
 	CHECK_EQ(task.doneBytes, task.totalBytes);
 	CHECK(notifications.load() > 0);
 	CHECK_EQ(installer.installCalls.load(), 1);
@@ -272,7 +272,7 @@ ORBISLINK_TEST(direct_install_end_to_end)
 
 ORBISLINK_TEST(detects_that_the_console_cannot_reach_the_pc)
 {
-	PkgFile game("parado-jogo.pkg", gameOptions("CUSA00011", "Jogo Parado"));
+	PkgFile game("stalled-game.pkg", gameOptions("CUSA00011", "Stalled Game"));
 
 	LocalHttpServer server;
 	LocalHttpServer::Config config;
@@ -310,7 +310,7 @@ ORBISLINK_TEST(detects_that_the_console_cannot_reach_the_pc)
 
 ORBISLINK_TEST(pauses_the_queue_when_the_installer_goes_down)
 {
-	PkgFile game("queda-jogo.pkg", gameOptions("CUSA00012", "Jogo Queda"));
+	PkgFile game("outage-game.pkg", gameOptions("CUSA00012", "Outage Game"));
 
 	LocalHttpServer server;
 	LocalHttpServer::Config config;
@@ -353,7 +353,7 @@ ORBISLINK_TEST(pauses_the_queue_when_the_installer_goes_down)
 
 ORBISLINK_TEST(skips_installed_title_when_the_policy_says_so)
 {
-	PkgFile game("existente-jogo.pkg", gameOptions("CUSA00013", "Jogo Existente"));
+	PkgFile game("existing-game.pkg", gameOptions("CUSA00013", "Existing Game"));
 
 	LocalHttpServer server;
 	LocalHttpServer::Config config;
@@ -392,8 +392,8 @@ ORBISLINK_TEST(skips_installed_title_when_the_policy_says_so)
 
 ORBISLINK_TEST(persistence_restores_interrupted_tasks_as_pending)
 {
-	PkgFile game("persist-jogo.pkg", gameOptions("CUSA00014", "Jogo Persistido"));
-	PkgFile patch("persist-patch.pkg", patchOptions("CUSA00014", "Jogo Persistido"));
+	PkgFile game("persist-game.pkg", gameOptions("CUSA00014", "Persisted Game"));
+	PkgFile patch("persist-patch.pkg", patchOptions("CUSA00014", "Persisted Game"));
 
 	InstallQueue original(InstallQueue::Dependencies {}, Settings {});
 	original.enqueue({ game.path, patch.path }, TransferMode::DirectInstall);
@@ -405,7 +405,7 @@ ORBISLINK_TEST(persistence_restores_interrupted_tasks_as_pending)
 	const auto tasks = restored.tasks();
 	CHECK_EQ(tasks.size(), static_cast<size_t>(2));
 	CHECK(tasks[0].state == TaskState::Pending);
-	CHECK_EQ(tasks[0].title, std::string("Jogo Persistido"));
+	CHECK_EQ(tasks[0].title, std::string("Persisted Game"));
 	CHECK(tasks[0].category == PkgCategory::Game);
 	CHECK_EQ(tasks[0].totalBytes, fileSize(game.path));
 	std::remove(path.c_str());
@@ -413,8 +413,8 @@ ORBISLINK_TEST(persistence_restores_interrupted_tasks_as_pending)
 
 ORBISLINK_TEST(reorder_cancel_and_retry)
 {
-	PkgFile a("mover-a.pkg", gameOptions("CUSA00021", "Jogo A"));
-	PkgFile b("mover-b.pkg", gameOptions("CUSA00022", "Jogo B"));
+	PkgFile a("move-a.pkg", gameOptions("CUSA00021", "Game A"));
+	PkgFile b("move-b.pkg", gameOptions("CUSA00022", "Game B"));
 
 	InstallQueue queue(InstallQueue::Dependencies {}, Settings {});
 	const auto ids = queue.enqueue({ a.path, b.path }, TransferMode::DirectInstall);

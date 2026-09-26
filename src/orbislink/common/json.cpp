@@ -394,7 +394,7 @@ private:
 				continue;
 			}
 			if(pos_ >= text_.size())
-				return fail("escape truncado");
+				return fail("truncated escape");
 			char e = text_[pos_++];
 			switch(e)
 			{
@@ -408,7 +408,7 @@ private:
 				case 't': out.push_back('\t'); break;
 				case 'u': {
 					if(pos_ + 4 > text_.size())
-						return fail("escape \\u truncado");
+						return fail("truncated \\u escape");
 					unsigned code = 0;
 					for(int i = 0; i < 4; ++i)
 					{
@@ -423,7 +423,7 @@ private:
 					appendUtf8(out, code);
 					break;
 				}
-				default: return fail("escape desconhecido");
+				default: return fail("unknown escape");
 			}
 		}
 		return fail("unterminated string");
@@ -491,7 +491,7 @@ private:
 				break;
 		}
 		if(pos_ == start)
-			return fail("valor inesperado");
+			return fail("unexpected value");
 		std::string token = text_.substr(start, pos_ - start);
 		try
 		{

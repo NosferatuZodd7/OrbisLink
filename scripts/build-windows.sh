@@ -39,7 +39,7 @@ CURL_PREFIX="$WORK/curl-install"
 DIST="$REPO/dist"
 STAGE="$DIST/windows"
 
-need() { command -v "$1" >/dev/null || { echo "Falta o comando '$1'." >&2; exit 1; }; }
+need() { command -v "$1" >/dev/null || { echo "The '$1' command is missing." >&2; exit 1; }; }
 need x86_64-w64-mingw32-g++
 need cmake
 need git
@@ -47,7 +47,7 @@ need git
 GENERATOR=(-G "Unix Makefiles")
 if command -v ninja >/dev/null; then GENERATOR=(-G Ninja); fi
 
-echo "==> 1/4 libcurl estático para mingw-w64 ($CURL_TAG)"
+echo "==> 1/4 static libcurl for mingw-w64 ($CURL_TAG)"
 if [ ! -f "$CURL_PREFIX/lib/libcurl.a" ]; then
 	if [ ! -d "$WORK/curl-src" ]; then
 		git clone --depth 1 --branch "$CURL_TAG" https://github.com/curl/curl "$WORK/curl-src"
@@ -66,7 +66,7 @@ if [ ! -f "$CURL_PREFIX/lib/libcurl.a" ]; then
 	cmake --build "$WORK/curl-build"
 	cmake --install "$WORK/curl-build"
 else
-	echo "    (já compilado em $CURL_PREFIX)"
+	echo "    (already built in $CURL_PREFIX)"
 fi
 
 echo "==> 2/4 orbislink-cli.exe"
@@ -77,14 +77,14 @@ cmake -S "$REPO" -B "$WORK/orbislink" "${GENERATOR[@]}" \
 	-DORBISLINK_BUILD_TESTS="${ORBISLINK_WINDOWS_TESTS:-OFF}" \
 	-DORBISLINK_VERSION_NAME="$VERSION" \
 	-DORBISLINK_REPOSITORY="${ORBISLINK_REPOSITORY:-}" \
-	`# Este build só faz a linha de comandos, que não tem Remote Play. A` \
-	`# interface gráfica (essa sim com stream) vem compilada do job de MSVC.` \
+	`# This build only makes the command line, which has no Remote Play. The` \
+	`# graphical interface (the one with streaming) comes built from the MSVC job.` \
 	-DORBISLINK_ENABLE_STREAM=OFF \
 	-DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++"
 cmake --build "$WORK/orbislink"
 x86_64-w64-mingw32-strip "$WORK/orbislink/orbislink-cli.exe"
 
-echo "==> 3/4 pasta de distribuição"
+echo "==> 3/4 distribution folder"
 rm -rf "$STAGE"
 mkdir -p "$STAGE"
 cp "$WORK/orbislink/orbislink-cli.exe" "$STAGE/"
@@ -109,7 +109,7 @@ sed 's/$/\r/' "$REPO/packaging/windows/diagnostics.bat" > "$STAGE/diagnostics.ba
 # which runs on another machine), it goes into the installer and the zip.
 GUI_DEFINE=()
 if [ -n "${ORBISLINK_GUI_DIR:-}" ] && [ -d "$ORBISLINK_GUI_DIR" ]; then
-	echo "    a incluir a interface gráfica de $ORBISLINK_GUI_DIR"
+	echo "    including the graphical interface from $ORBISLINK_GUI_DIR"
 	mkdir -p "$STAGE/gui"
 	cp -r "$ORBISLINK_GUI_DIR"/. "$STAGE/gui/"
 	GUI_DEFINE=("-DINCLUDE_GUI=1")
@@ -134,9 +134,9 @@ if command -v makensis >/dev/null; then
 		"$REPO/packaging/windows/orbislink.nsi"
 	echo "    dist/OrbisLink-$VERSION-setup.exe"
 else
-	echo "    makensis não encontrado: instalador não gerado (apt install nsis)."
+	echo "    makensis not found: installer not generated (apt install nsis)."
 fi
 
 echo
-echo "Pronto. Conteúdo de dist/:"
+echo "Done. Contents of dist/:"
 ls -lh "$DIST" | tail -n +2

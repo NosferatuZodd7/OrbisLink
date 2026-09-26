@@ -9,12 +9,12 @@ using orbislink::Json;
 ORBISLINK_TEST(parse_simple_object)
 {
 	std::string error;
-	const Json json = Json::parse(R"({"status":"success","task_id":7,"title":"Jogo"})", &error);
+	const Json json = Json::parse(R"({"status":"success","task_id":7,"title":"Game"})", &error);
 	CHECK(error.empty());
 	CHECK(json.isObject());
 	CHECK_EQ(json["status"].toString(), std::string("success"));
 	CHECK_EQ(json["task_id"].toInt(), 7);
-	CHECK_EQ(json["title"].toString(), std::string("Jogo"));
+	CHECK_EQ(json["title"].toString(), std::string("Game"));
 }
 
 ORBISLINK_TEST(accepts_installer_hexadecimal)
@@ -52,8 +52,8 @@ ORBISLINK_TEST(exists_comes_as_a_string)
 
 ORBISLINK_TEST(escapes_and_unicode)
 {
-	const Json json = Json::parse(R"({"title":"Jogo \"raro\"ç\n"})");
-	CHECK_EQ(json["title"].toString(), std::string("Jogo \"raro\"\xc3\xa7\n"));
+	const Json json = Json::parse(R"({"title":"Game \"rare\"ç\n"})");
+	CHECK_EQ(json["title"].toString(), std::string("Game \"rare\"\xc3\xa7\n"));
 	const std::string dumped = Json::fromString("a\"b\\c\n").dump();
 	CHECK_EQ(dumped, std::string("\"a\\\"b\\\\c\\n\""));
 }
@@ -75,11 +75,11 @@ ORBISLINK_TEST(arrays_and_round_trip)
 ORBISLINK_TEST(invalid_input_does_not_crash)
 {
 	std::string error;
-	const Json json = Json::parse("{ isto nao e json", &error);
+	const Json json = Json::parse("{ this is not json", &error);
 	CHECK(json.isNull());
 	CHECK(!error.empty());
 	// Accessing missing keys returns default values.
-	CHECK_EQ(json["seja_o_que_for"].toInt(-1), -1);
+	CHECK_EQ(json["whatever"].toInt(-1), -1);
 	CHECK_EQ(json.at(3).toString("empty"), std::string("empty"));
 }
 

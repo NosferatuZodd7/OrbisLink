@@ -108,7 +108,7 @@ InstallerResult RpiClient::call(const std::string &path, const std::string &json
 		result.message = json["error"].toString();
 	else
 		result.message = QT_TRANSLATE_NOOP("Messages", "The remote installer rejected the request.");
-	logError("Instalador remoto: " + path + " -> " + result.message);
+	logError("Remote installer: " + path + " -> " + result.message);
 	return result;
 }
 

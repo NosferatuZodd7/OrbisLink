@@ -100,7 +100,7 @@ struct PkgOptions
 		{ "APP_VER", "01.00" },
 		{ "CATEGORY", "gd" },
 		{ "CONTENT_ID", "UP0001-CUSA12345_00-ORBISLINKTEST001" },
-		{ "TITLE", "Jogo de Teste" },
+		{ "TITLE", "Test Game" },
 		{ "TITLE_ID", "CUSA12345" },
 		{ "VERSION", "01.00" },
 	};

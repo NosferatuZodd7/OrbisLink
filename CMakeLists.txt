@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(ORBISLINK_VERSION_NAME "${PROJECT_VERSION}" CACHE STRING
-	"Versão mostrada pela aplicação e escrita no registo")
+	"Version shown by the application and written to the log")
 
 # Where the application fetches updates from, as "owner/name".
 #
@@ -19,13 +19,13 @@ set(ORBISLINK_VERSION_NAME "${PROJECT_VERSION}" CACHE STRING
 # Without this set, the update check says it is not configured, instead
 # of hitting a repository that is not its own.
 set(ORBISLINK_REPOSITORY "" CACHE STRING
-	"Repositório GitHub \"dono/nome\" de onde vêm as actualizações")
+	"GitHub repository \"owner/name\" the updates come from")
 
-option(ORBISLINK_BUILD_TESTS "Compilar os testes do núcleo" ON)
-option(ORBISLINK_BUILD_GUI "Compilar a interface gráfica (precisa de Qt 6)" ON)
-option(ORBISLINK_BUILD_CLI "Compilar a ferramenta de linha de comandos" ON)
-option(ORBISLINK_WARNINGS_AS_ERRORS "Tratar avisos como erros" OFF)
-option(ORBISLINK_ENABLE_STREAM "Compilar o Remote Play (precisa do submódulo chiaki-ng)" ON)
+option(ORBISLINK_BUILD_TESTS "Build the core tests" ON)
+option(ORBISLINK_BUILD_GUI "Build the graphical interface (needs Qt 6)" ON)
+option(ORBISLINK_BUILD_CLI "Build the command-line tool" ON)
+option(ORBISLINK_WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
+option(ORBISLINK_ENABLE_STREAM "Build Remote Play (needs the chiaki-ng submodule)" ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(CURL REQUIRED)
@@ -179,9 +179,9 @@ if(ORBISLINK_BUILD_GUI)
 					target_include_directories(orbislink-gui PRIVATE ${SDL2_INCLUDE_DIRS})
 					target_link_libraries(orbislink-gui PRIVATE ${SDL2_LIBRARIES})
 				endif()
-				message(STATUS "OrbisLink: comando físico activado (SDL2)")
+				message(STATUS "OrbisLink: physical controller enabled (SDL2)")
 			else()
-				message(STATUS "OrbisLink: SDL2 não encontrado — só o teclado faz de comando")
+				message(STATUS "OrbisLink: SDL2 not found — only the keyboard acts as the controller")
 			endif()
 		endif()
 		set_target_properties(orbislink-gui PROPERTIES WIN32_EXECUTABLE ON MACOSX_BUNDLE ON)
@@ -199,9 +199,9 @@ if(ORBISLINK_BUILD_GUI)
 				VERBATIM)
 		endif()
 
-		message(STATUS "OrbisLink: interface gráfica activada (Qt ${Qt6_VERSION})")
+		message(STATUS "OrbisLink: graphical interface enabled (Qt ${Qt6_VERSION})")
 	else()
-		message(STATUS "OrbisLink: Qt 6 não encontrado — só o núcleo e a CLI são compilados")
+		message(STATUS "OrbisLink: Qt 6 not found — only the core and the CLI are built")
 	endif()
 endif()
 

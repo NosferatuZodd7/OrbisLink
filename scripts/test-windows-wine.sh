@@ -21,7 +21,7 @@ if [ -z "$WINE" ]; then
 		if [ -x "$candidate" ]; then WINE="$candidate"; break; fi
 	done
 fi
-[ -n "$WINE" ] || { echo "Wine não encontrado (apt install wine64)." >&2; exit 1; }
+[ -n "$WINE" ] || { echo "Wine not found (apt install wine64)." >&2; exit 1; }
 
 export WINEPREFIX="${WINEPREFIX:-$WORK/wineprefix}"
 export WINEDEBUG="${WINEDEBUG:--all}"
@@ -29,8 +29,8 @@ export WINEDEBUG="${WINEDEBUG:--all}"
 shopt -s nullglob
 executables=("$TESTS_DIR"/*.exe)
 if [ ${#executables[@]} -eq 0 ]; then
-	echo "Não há testes em $TESTS_DIR." >&2
-	echo "Compila-os com: ORBISLINK_WINDOWS_TESTS=ON ./scripts/build-windows.sh" >&2
+	echo "There are no tests in $TESTS_DIR." >&2
+	echo "Build them with: ORBISLINK_WINDOWS_TESTS=ON ./scripts/build-windows.sh" >&2
 	exit 1
 fi
 
@@ -41,14 +41,14 @@ for executable in "${executables[@]}"; do
 	if output="$("$WINE" "$executable" 2>/dev/null)"; then
 		echo "${output##*$'\n'}"
 	else
-		echo "FALHOU"
+		echo "FAILED"
 		echo "$output"
 		failures=$((failures + 1))
 	fi
 done
 
 if [ "$failures" -ne 0 ]; then
-	echo "$failures executável(is) de teste falharam." >&2
+	echo "$failures test executable(s) failed." >&2
 	exit 1
 fi
-echo "Todos os testes de Windows passaram sob Wine."
+echo "All Windows tests passed under Wine."

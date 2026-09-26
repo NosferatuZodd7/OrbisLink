@@ -113,7 +113,7 @@ int downloadProgress(void *userdata, curl_off_t total, curl_off_t done, curl_off
 
 HttpResponse HttpClient::fetch(const std::string &url, const FetchOptions &options) const
 {
-	logDebug("HTTP GET (externo) " + url);
+	logDebug("HTTP GET (external) " + url);
 	ensureCurlInitialised();
 	HttpResponse response;
 
@@ -218,7 +218,7 @@ HttpClient::DownloadResult HttpClient::download(const std::string &url,
 	result.bytes = state.written;
 	if(state.cancelled)
 	{
-		result.error = "cancelado";
+		result.error = "cancelled";
 		std::remove(destinationPath.c_str());
 		return result;
 	}
@@ -230,7 +230,7 @@ HttpClient::DownloadResult HttpClient::download(const std::string &url,
 	}
 	if(result.status >= 400)
 	{
-		result.error = "o servidor respondeu " + std::to_string(result.status);
+		result.error = "the server answered " + std::to_string(result.status);
 		std::remove(destinationPath.c_str());
 		return result;
 	}

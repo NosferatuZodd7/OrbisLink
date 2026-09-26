@@ -35,26 +35,26 @@ FONT = TTFont(REPO / "third-party" / "fugaz-one" / "FugazOne-Regular.ttf")
 GLYPHS = FONT.getGlyphSet()
 MAP = FONT.getBestCmap()
 
-BOLD = 16           # thickness of the extra outline, in font units
-SLANT = 6.0       # degrees beyond the font's own italic
-TRACKING = 60          # letter spacing, already accounting for the bold
+BOLD = 16            # thickness of the extra outline, in font units
+SLANT = 6.0          # degrees beyond the font's own italic
+TRACKING = 60        # letter spacing, already accounting for the bold
 MARGIN = 40
 
 LINE_GAP = 820       # between the two lines of "Unknown PlayStation"
 
 
 def wordmark(number, narrow=False, tone="#000000"):
-    """Devolve (svg, largura, altura) de "PS4", "PS5" ou, com numero=None,
-    "Unknown PlayStation" em duas linhas (para quando não se sabe o tipo da
-    consola)."""
+    """Returns (svg, width, height) for "PS4", "PS5" or, with number=None,
+    "Unknown PlayStation" on two lines (for when the console type is not
+    known)."""
     lines = ["PS" + str(number)] if number else ["Unknown", "PlayStation"]
     sx = 0.84 if narrow else 1.0
     slant = math.tan(math.radians(SLANT))
     path = SVGPathPen(GLYPHS)
     limits = BoundsPen(GLYPHS)
-    for n, message in enumerate(lines):
+    for n, text in enumerate(lines):
         # Each line centred: first the width, then the drawing.
-        names = [MAP[ord(letter)] for letter in message]
+        names = [MAP[ord(letter)] for letter in text]
         total = sum(GLYPHS[name].width + TRACKING for name in names) * sx
         x, base = -total / 2, n * LINE_GAP
         for name in names:
@@ -82,22 +82,22 @@ def png(svg, destination, span):
 
 
 def sheet(destination):
-    """A folha de apresentação: 2×2, preto sobre branco, muito espaço."""
+    """The presentation sheet: 2×2, black on white, plenty of room."""
     cell_w, cell_h, margin = 900, 420, 120
     pieces = []
-    for line, narrow in enumerate([False, True]):
+    for row, narrow in enumerate([False, True]):
         for column, number in enumerate([4, 5]):
             svg, w, h = wordmark(number, narrow)
-            scaleFactor = 420 / w
-            x = margin + column * cell_w + (cell_w - w * scaleFactor) / 2
-            y = margin + line * cell_h + (cell_h - h * scaleFactor) / 2 - 24
+            scale = 420 / w
+            x = margin + column * cell_w + (cell_w - w * scale) / 2
+            y = margin + row * cell_h + (cell_h - h * scale) / 2 - 24
             # Each wordmark goes in as a nested <svg>, with its own viewBox.
             pieces.append(svg.replace(
                 f'width="{w:.0f}" height="{h:.0f}"',
-                f'x="{x:.1f}" y="{y:.1f}" width="{w * scaleFactor:.1f}" height="{h * scaleFactor:.1f}"', 1))
+                f'x="{x:.1f}" y="{y:.1f}" width="{w * scale:.1f}" height="{h * scale:.1f}"', 1))
             caption = f"PS{number} — {'Fugaz One narrow' if narrow else 'Fugaz One'}"
             pieces.append(f'<text x="{margin + column * cell_w + cell_w / 2}" '
-                         f'y="{margin + line * cell_h + cell_h - 70}" text-anchor="middle" '
+                         f'y="{margin + row * cell_h + cell_h - 70}" text-anchor="middle" '
                          f'font-family="sans-serif" font-size="20" fill="#9AA0A6">{caption}</text>')
     total_w, total_h = 2 * margin + 2 * cell_w, 2 * margin + 2 * cell_h
     svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{total_w}" height="{total_h}">'
@@ -108,7 +108,7 @@ def sheet(destination):
 def main():
     ps4_width, ps4_height = wordmark(4)[1:]
     for number in (4, 5, None):
-        name = f"ps{number}" if number else "desconhecida"
+        name = f"ps{number}" if number else "unknown"
         svg, w, h = wordmark(number)
         # About three times the width it appears at in the app, for scaled
         # displays. The unknown one's text, on two lines, goes at the same
@@ -116,10 +116,10 @@ def main():
         span = round(720 * w / ps4_width * (ps4_height / h if not number else 1))
         if number:
             (ICONS / f"wordmark-{name}.svg").write_text(svg + "\n")
-        png(wordmark(number, tone="#000000")[0], ICONS / f"wordmark-{name}-preto.png", span)
-        png(wordmark(number, tone="#FFFFFF")[0], ICONS / f"wordmark-{name}-branco.png", span)
+        png(wordmark(number, tone="#000000")[0], ICONS / f"wordmark-{name}-black.png", span)
+        png(wordmark(number, tone="#FFFFFF")[0], ICONS / f"wordmark-{name}-white.png", span)
         print(ICONS / f"wordmark-{name}")
-    if len(sys.argv) > 2 and sys.argv[1] == "--folha":
+    if len(sys.argv) > 2 and sys.argv[1] == "--sheet":
         sheet(sys.argv[2])
         print(sys.argv[2])
 
