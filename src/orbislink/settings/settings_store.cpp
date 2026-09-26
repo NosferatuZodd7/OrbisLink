@@ -230,7 +230,7 @@ void normaliseConsoles(Settings &settings)
 			}
 		}
 		if(!found)
-			clean.insert(clean.begin(), { settings.consoleName, current, std::string() });
+			clean.insert(clean.begin(), { settings.consoleName, current, std::string(), std::string() });
 	}
 	settings.consoles = clean;
 }
