@@ -128,18 +128,26 @@ jobs:
           modules: 'qtmultimedia'
           cache: true
       # Sem cache, compilar estes pacotes leva mais de dez minutos em cada
-      # execução. A chave inclui a lista, para bastar mudá-la para a cache
-      # ser refeita.
+      # execução. A chave inclui a versão do vcpkg da imagem do runner: se ela
+      # mudar, o que está na cache já não serve e é refeito. Mudar a lista de
+      # pacotes pede um "-vN" novo no fim.
       # Restaurar e guardar em passos separados de propósito: o
       # actions/cache só guarda quando o job passa, e um job que falha
-      # obrigaria a recompilar o OpenSSL e o SDL2 — vinte minutos — em cada
-      # tentativa.
+      # depois das dependências obrigaria a recompilar o OpenSSL e o SDL2 —
+      # vinte minutos — em cada tentativa. Mas só se guarda depois de o
+      # vcpkg acabar bem: uma execução cancelada a meio guardaria uma pasta
+      # incompleta, e uma chave já usada nunca mais é regravada.
+      - name: Chave da cache do vcpkg
+        id: chave-vcpkg
+        run: |
+          $versao = git -C "${env:VCPKG_INSTALLATION_ROOT}" rev-parse --short HEAD
+          "chave=vcpkg-x64-windows-$versao-v3" >> $env:GITHUB_OUTPUT
       - name: Restaurar a cache do vcpkg
         id: cache-vcpkg
         uses: actions/cache/restore@v4
         with:
           path: C:\vcpkg\installed
-          key: vcpkg-x64-windows-chiaki-deps-v2
+          key: ${{ steps.chave-vcpkg.outputs.chave }}
       - name: Instalar dependências (vcpkg)
         run: |
           # O curl é do OrbisLink; o resto é o que o chiaki-lib precisa.
@@ -150,11 +158,12 @@ jobs:
             miniupnpc:x64-windows libevent:x64-windows openssl:x64-windows sdl2:x64-windows `
             protobuf:x64-windows pkgconf:x64-windows
       - name: Guardar a cache do vcpkg
-        if: always() && steps.cache-vcpkg.outputs.cache-hit != 'true'
+        # Sem always(): só corre se o vcpkg acabou bem e nada foi cancelado.
+        if: steps.cache-vcpkg.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: C:\vcpkg\installed
-          key: vcpkg-x64-windows-chiaki-deps-v2
+          key: ${{ steps.chave-vcpkg.outputs.chave }}
       - name: Instalar o FFmpeg (compilação LGPL já feita)
         run: |
           # LGPL e não GPL: é o que se pode distribuir com o resto sem
