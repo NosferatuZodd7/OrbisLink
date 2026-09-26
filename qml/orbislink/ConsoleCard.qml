@@ -7,7 +7,7 @@
 // não estiver registado, procura outra vez se não respondeu, e cancela se
 // estiver a ligar. O que vai acontecer está escrito no botão de baixo.
 //
-// O desenho é de 360×280 e escala-se inteiro (`fator`) quando há várias
+// O desenho é de 360×330 e escala-se inteiro (`fator`) quando há várias
 // consolas lado a lado: assim as proporções nunca mudam. Sem QtQuick.Effects
 // (o Qt 6.4 das capturas não o tem), o vidro, o brilho e a sombra são camadas
 // e gradientes desenhados aqui.
@@ -90,7 +90,7 @@ Item {
     }
 
     implicitWidth: 360 * fator
-    implicitHeight: 280 * fator
+    implicitHeight: 330 * fator
     width: implicitWidth
     height: implicitHeight
 
@@ -101,7 +101,7 @@ Item {
     Item {
         id: desenho
         width: 360
-        height: 280
+        height: 330
         scale: caixa.fator
         transformOrigin: Item.TopLeft
 
@@ -130,7 +130,8 @@ Item {
                 color: "transparent"
                 border.width: 3
                 border.color: Theme.cardGlow
-                opacity: caixa.pronta ? (0.22 - index * 0.07) * brilho.nivel : 0
+                opacity: caixa.ativa && caixa.disponivel
+                         ? (0.22 - index * 0.07) * (caixa.pronta ? brilho.nivel : 0.7) : 0
                 Behavior on opacity { NumberAnimation { duration: Theme.cardEase } }
             }
         }
@@ -149,8 +150,11 @@ Item {
             id: fundo
             anchors.fill: parent
             radius: 30
-            border.width: 1
-            border.color: area.containsMouse && caixa.accao.length > 0 ? Theme.cardGlow : Theme.cardEdge
+            border.width: caixa.ativa && caixa.disponivel ? 1.5 : 1
+            border.color: area.containsMouse && caixa.accao.length > 0 ? Theme.cardGlow
+                        : caixa.ativa && caixa.disponivel ? Qt.rgba(Theme.cardGlow.r, Theme.cardGlow.g,
+                                                                    Theme.cardGlow.b, 0.75)
+                        : Theme.cardEdge
             Behavior on border.color { ColorAnimation { duration: Theme.cardEase } }
             gradient: Gradient {
                 GradientStop { position: 0.0; color: Theme.cardTop }
@@ -288,7 +292,7 @@ Item {
         // ── Centro: PS4/PS5 em traço fino, a linha azul, o nome e o IP.
         Column {
             x: 0
-            y: 44
+            y: 58
             width: parent.width
             spacing: 0
 
@@ -343,17 +347,27 @@ Item {
 
             Item { width: 1; height: 6 }
 
-            // A linha azul fina por baixo do logótipo.
+            Item { width: 1; height: 8 }
+
+            // A linha fina por baixo do logótipo: azul na consola em uso,
+            // cinzenta nas outras.
             Rectangle {
+                id: divisor
                 anchors.horizontalCenter: parent.horizontalCenter
-                width: 56
-                height: 2
-                radius: 1
-                color: Theme.cardBlue
-                opacity: 0.8
+                width: 118
+                height: 3
+                radius: 1.5
+                readonly property color cor: caixa.ativa ? Theme.cardBlue : Theme.cardTextMuted
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: Qt.rgba(divisor.cor.r, divisor.cor.g, divisor.cor.b, 0.35) }
+                    GradientStop { position: 0.5; color: divisor.cor }
+                    GradientStop { position: 1.0; color: Qt.rgba(divisor.cor.r, divisor.cor.g, divisor.cor.b, 0.35) }
+                }
+                opacity: caixa.ativa ? 1.0 : 0.6
             }
 
-            Item { width: 1; height: 12 }
+            Item { width: 1; height: 22 }
 
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -371,7 +385,7 @@ Item {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 visible: caixa.endereco.length > 0
-                text: (caixa.ps5 ? "PS5" : "PS4") + "  •  " + caixa.endereco
+                text: caixa.endereco
                 color: Theme.cardTextMuted
                 font.pixelSize: 14
             }
@@ -382,9 +396,9 @@ Item {
             id: botao
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: 22
+            anchors.bottomMargin: 24
             width: parent.width * 0.82
-            height: 46
+            height: 58
             radius: height / 2
             clip: true
             readonly property real alfa: area.containsMouse && caixa.accao.length > 0 ? 1.4 : 1.0
@@ -403,44 +417,46 @@ Item {
                                   Theme.claro ? 0.10 : 0.28)
             Behavior on color { ColorAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
 
-            Row {
-                anchors.centerIn: parent
-                spacing: 12
-
-                Rectangle {
-                    id: ponto
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 12; height: 12; radius: 6
-                    color: caixa.corEstado
-                    SequentialAnimation on opacity {
-                        running: caixa.aLigar || caixa.aVerificar
-                        loops: Animation.Infinite
-                        onStopped: ponto.opacity = 1
-                        NumberAnimation { to: 0.25; duration: 500 }
-                        NumberAnimation { to: 1.0; duration: 500 }
-                    }
+            // O ponto à esquerda, o texto (até duas linhas) e o chevron à
+            // direita, na cor do estado.
+            Rectangle {
+                id: ponto
+                x: 24
+                anchors.verticalCenter: parent.verticalCenter
+                width: 14; height: 14; radius: 7
+                color: caixa.corEstado
+                SequentialAnimation on opacity {
+                    running: caixa.aLigar || caixa.aVerificar
+                    loops: Animation.Infinite
+                    onStopped: ponto.opacity = 1
+                    NumberAnimation { to: 0.25; duration: 500 }
+                    NumberAnimation { to: 1.0; duration: 500 }
                 }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    // Um texto que não caiba encolhe a letra, em vez de
-                    // ficar cortado a meio.
-                    width: Math.min(implicitWidth, botao.width - 80)
-                    height: 22
-                    fontSizeMode: Text.HorizontalFit
-                    minimumPixelSize: 11
-                    verticalAlignment: Text.AlignVCenter
-                    text: caixa.estadoTexto
-                    color: Theme.cardText
-                    font.pixelSize: 15
-                    font.weight: Font.Medium
-                }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: caixa.accao.length > 0
-                    text: "›"
-                    color: Theme.claro ? Theme.cardTextMuted : Theme.cardGlow
-                    font.pixelSize: 22
-                }
+            }
+            Text {
+                anchors.left: ponto.right
+                anchors.leftMargin: 16
+                anchors.right: chevron.left
+                anchors.rightMargin: 10
+                anchors.verticalCenter: parent.verticalCenter
+                wrapMode: Text.WordWrap
+                maximumLineCount: 2
+                elide: Text.ElideRight
+                lineHeight: 0.95
+                text: caixa.estadoTexto
+                color: Theme.cardText
+                font.pixelSize: 15
+                font.weight: Font.Medium
+            }
+            Text {
+                id: chevron
+                anchors.right: parent.right
+                anchors.rightMargin: 20
+                anchors.verticalCenter: parent.verticalCenter
+                visible: caixa.accao.length > 0
+                text: "›"
+                color: caixa.corEstado
+                font.pixelSize: 28
             }
 
             // A procurar: um brilho que corre ao longo do fundo do botão.
