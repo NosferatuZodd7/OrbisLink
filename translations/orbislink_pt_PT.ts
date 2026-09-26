@@ -219,7 +219,7 @@
         <translation>Tirar esta consola da lista</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="380"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="347"/>
         <source>Consola</source>
         <translation>Consola</translation>
     </message>
