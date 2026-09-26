@@ -280,7 +280,9 @@ estão — são de outras pessoas e a licença obriga a preservá-los.
 
 As wordmarks PS4/PS5 da caixa da consola são escritas em
 [Fugaz One](https://fonts.google.com/specimen/Fugaz+One), de LatinoType,
-sob a SIL Open Font License 1.1 (ver [`third-party/fugaz-one`](third-party/fugaz-one)).
+e o texto da consola desconhecida em [Fredoka](https://fonts.google.com/specimen/Fredoka),
+ambas sob a SIL Open Font License 1.1 (ver [`third-party/fugaz-one`](third-party/fugaz-one)
+e [`third-party/fredoka`](third-party/fredoka)).
 
 Créditos das fontes consultadas para a implementação do protocolo:
 [chiaki-ng](https://github.com/streetpea/chiaki-ng),
