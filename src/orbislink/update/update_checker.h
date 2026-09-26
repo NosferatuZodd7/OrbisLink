@@ -14,11 +14,11 @@ struct ReleaseInfo
 {
 	std::string tag;        // "v0.1.8"
 	std::string name;       // release title
-	std::string notes;      // corpo em markdown
+	std::string notes;      // body in markdown
 	std::string pageUrl;    // release page, to open in the browser
 	bool prerelease = false;
 
-	// O ficheiro a descarregar para esta plataforma, se existir.
+	// The file to download for this platform, if there is one.
 	std::string assetName;
 	std::string assetUrl;
 	int64_t assetSize = 0;

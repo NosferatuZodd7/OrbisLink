@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// A fila entre o descodificador e a placa de som. O que se testa aqui é a
-// contabilidade: quanto entrou, quanto saiu, e quanto ficou pelo caminho.
-// É isso que o diagnóstico usa para dizer em que troço é que o som morre,
-// e um contador errado manda-nos procurar avaria no sítio errado.
+// The queue between the decoder and the sound card. What is tested here is
+// the accounting: how much went in, how much came out, and how much was lost
+// on the way. That is what the diagnostics use to say at which stretch the
+// sound dies, and a wrong counter sends us looking for the fault in the wrong place.
 #include "orbislink/qt/audio_output.h"
 #include "test_support.h"
 
@@ -49,9 +49,9 @@ ORBISLINK_TEST(take_nao_inventa_bytes_que_nao_tem)
 	fila.push(dados.data(), 64);
 
 	std::vector<char> destino(500, 0x7f);
-	// Ao contrário do modo em que a placa puxa, aqui não se enche o resto
-	// com silêncio: quem escreve é a aplicação, e escrever silêncio que não
-	// existe só serve para encher o buffer da placa com nada.
+	// Unlike the mode where the card pulls, here the rest is not padded with
+	// silence: the application does the writing, and writing silence that
+	// does not exist only fills the card's buffer with nothing.
 	CHECK_EQ(fila.take(destino.data(), 500), 64);
 	CHECK_EQ(destino[64], 0x7f);
 	CHECK_EQ(fila.take(destino.data(), 500), 0);
@@ -64,8 +64,8 @@ ORBISLINK_TEST(leitura_enche_o_resto_com_silencio)
 	const std::vector<char> dados = bloco(10, 'c');
 	fila.push(dados.data(), 10);
 
-	// No modo em que a placa puxa, devolver menos do que ela pediu põe o
-	// QAudioSink a dormir. Por isso o resto vai a zeros.
+	// In the mode where the card pulls, returning less than it asked for puts
+	// QAudioSink to sleep. So the rest is zero-filled.
 	std::vector<char> destino(100, 0x5a);
 	CHECK_EQ(fila.read(destino.data(), 100), 100);
 	CHECK_EQ(destino[9], 'c');
@@ -84,14 +84,14 @@ ORBISLINK_TEST(fila_deita_fora_o_mais_antigo_quando_enche)
 	fila.push(velho.data(), 80);
 	fila.push(novo.data(), 80);
 
-	// Atrasar o som é pior do que lhe dar um salto: fica o mais recente.
+	// Delaying the sound is worse than making it skip: the most recent stays.
 	CHECK_EQ(fila.queuedBytes(), 100);
 	std::vector<char> destino(100, 0);
 	CHECK_EQ(fila.take(destino.data(), 100), 100);
 	CHECK_EQ(destino[0], 'v');
 	CHECK_EQ(destino[99], 'n');
-	// O contador de entrada conta tudo o que chegou, mesmo o que se deitou
-	// fora: é assim que se vê que o descodificador estava a entregar.
+	// The input counter counts everything that arrived, even what was thrown
+	// away: that is how you see the decoder was delivering.
 	CHECK_EQ(fila.pushedBytes(), 160);
 }
 
@@ -102,8 +102,8 @@ ORBISLINK_TEST(cada_push_avisa_que_chegou_alguma_coisa)
 	int avisos = 0;
 	QObject::connect(&fila, &QIODevice::readyRead, &fila, [&avisos]() { ++avisos; });
 
-	// Sem este aviso há backends de áudio do Qt que nunca chegam a puxar
-	// uma única amostra, e o stream fica mudo sem erro nenhum.
+	// Without this signal some Qt audio backends never pull a single
+	// sample, and the stream stays silent with no error at all.
 	const std::vector<char> dados = bloco(16, 'd');
 	fila.push(dados.data(), 16);
 	fila.push(dados.data(), 16);

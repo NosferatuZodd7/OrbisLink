@@ -62,7 +62,7 @@ ORBISLINK_TEST(valores_por_omissao_seguem_a_especificacao)
 
 ORBISLINK_TEST(definicoes_de_stream_fora_do_admissivel_sao_corrigidas)
 {
-	// Um ficheiro editado à mão não pode pedir o que a consola não conhece.
+	// A hand-edited file cannot ask for what the console does not know.
 	bool ok = false;
 	const Settings settings = Settings::fromJson(
 		R"({"stream_resolution":999,"stream_fps":144,"stream_bitrate_kbps":-5,"theme":"neon"})",
@@ -117,7 +117,7 @@ ORBISLINK_TEST(guardar_e_ler_do_disco)
 
 ORBISLINK_TEST(logs_nao_levam_dados_sensiveis)
 {
-	// §8/§9: nada de Account ID nem chaves de registo nos logs exportados.
+	// §8/§9: no Account ID or registration keys in the exported logs.
 	const std::string redacted =
 		redactSensitive(R"({"psn_account_id":"1234567890","rp_key":"abcdef","title":"Jogo"})");
 	CHECK(redacted.find("1234567890") == std::string::npos);
@@ -132,8 +132,8 @@ ORBISLINK_TEST(logs_nao_levam_dados_sensiveis)
 
 ORBISLINK_TEST(assistente_so_aparece_a_primeira_vez)
 {
-	// Por omissão o assistente tem de aparecer; depois de correr uma vez,
-	// nunca mais — e isso tem de sobreviver a guardar e reler.
+	// By default the wizard must appear; after running once, never
+	// again — and that has to survive saving and reloading.
 	Settings settings;
 	CHECK(!settings.firstRunDone);
 
@@ -143,29 +143,29 @@ ORBISLINK_TEST(assistente_so_aparece_a_primeira_vez)
 	CHECK(ok);
 	CHECK(relido.firstRunDone);
 
-	// Um ficheiro antigo, sem o campo, continua a pedir o assistente.
+	// An old file, without the field, still asks for the wizard.
 	const Settings antigo = Settings::fromJson(R"({"console_address":"10.0.0.5"})");
 	CHECK(!antigo.firstRunDone);
 }
 
 
-// Se o projecto mudar de repositório, quem tem a versão antiga fica com o
-// repositório antigo gravado nas definições, e a app nova não pode
-// continuar a procurar versões lá.
+// If the project moves to another repository, whoever has the old version
+// has the old repository stored in the settings, and the new app cannot
+// keep looking for versions there.
 ORBISLINK_TEST(repositorio_de_actualizacoes_segue_a_compilacao)
 {
 	const std::string novo = "novo/OrbisLink";
 	const std::string antigo = "antigo/repo";
-	// Ficheiro de antes da regra: não diz qual era a omissão.
+	// File from before the rule: it does not say what the default was.
 	CHECK_EQ(resolveUpdateRepository(antigo, nullptr, novo), novo);
-	// Gravado igual à omissão de então: ninguém o escolheu.
+	// Stored equal to the default at the time: nobody chose it.
 	CHECK_EQ(resolveUpdateRepository(antigo, &antigo, novo), novo);
-	// Escrito à mão (diferente da omissão de então): fica.
+	// Written by hand (different from the default at the time): it stays.
 	const std::string outro = "outra/copia";
 	CHECK_EQ(resolveUpdateRepository(outro, &antigo, novo), outro);
-	// Vazio nunca serve.
+	// Empty is never valid.
 	CHECK_EQ(resolveUpdateRepository("", &antigo, novo), novo);
-	// Compilação local, sem repositório: não há com que substituir.
+	// Local build, without a repository: nothing to replace it with.
 	CHECK_EQ(resolveUpdateRepository(antigo, nullptr, ""), antigo);
 }
 
@@ -177,20 +177,20 @@ ORBISLINK_TEST(teclas_do_teclado_ficam_gravadas)
 	const Settings lidas = Settings::fromJson(settings.toJson());
 	CHECK_EQ(lidas.keyboardBindings.size(), static_cast<size_t>(2));
 	CHECK_EQ(lidas.keyboardBindings.at("cross"), 32);
-	// Sem nada gravado, fica vazio: vale o mapa por omissão.
+	// With nothing stored, it stays empty: the default map applies.
 	CHECK(Settings::fromJson("{}").keyboardBindings.empty());
 }
 
 ORBISLINK_TEST(lista_de_consolas)
 {
-	// Definições de antes da lista: a consola em uso passa a ser a primeira.
+	// Settings from before the list: the console in use becomes the first.
 	const Settings antigas =
 		Settings::fromJson(R"({"console_name":"Sala","console_address":"10.0.0.5"})");
 	CHECK_EQ(antigas.consoles.size(), static_cast<size_t>(1));
 	CHECK_EQ(antigas.consoles[0].address, std::string("10.0.0.5"));
 	CHECK_EQ(antigas.consoles[0].name, std::string("Sala"));
 
-	// Duas consolas, ida e volta, sem repetidos nem endereços vazios.
+	// Two consoles, round trip, with no duplicates or empty addresses.
 	Settings settings;
 	settings.consoleName = "Sala";
 	settings.consoleAddress = "10.0.0.5";
@@ -200,11 +200,11 @@ ORBISLINK_TEST(lista_de_consolas)
 	CHECK_EQ(lidas.consoles.size(), static_cast<size_t>(2));
 	CHECK_EQ(lidas.consoles[1].name, std::string("Quarto"));
 
-	// Sem nenhuma consola definida, a lista fica vazia.
+	// With no console set, the list stays empty.
 	CHECK(Settings::fromJson("{}").consoles.empty());
 
-	// O tipo fica gravado; um valor que não seja ps4/ps5 conta como
-	// desconhecido.
+	// The type is stored; a value other than ps4/ps5 counts as
+	// unknown.
 	Settings comTipo;
 	comTipo.consoles = { { "Quarto", "10.0.0.9", "ps5" } };
 	CHECK_EQ(Settings::fromJson(comTipo.toJson()).consoles[0].type, std::string("ps5"));
@@ -212,15 +212,15 @@ ORBISLINK_TEST(lista_de_consolas)
 		R"({"consoles":[{"name":"X","address":"10.0.0.7","type":"xbox"}]})");
 	CHECK(estranho.consoles[0].type.empty());
 
-	// Cada consola guarda o seu Account ID: a PS4 e a PS5 da mesma conta
-	// podem precisar dele com os bytes por ordens diferentes.
+	// Each console keeps its own Account ID: the PS4 and PS5 of the same
+	// account may need it with the bytes in different orders.
 	Settings duas;
 	duas.consoles = { { "PS4", "10.0.0.3", "ps4", "CAcGBQQDAgE=" },
 		{ "PS5", "10.0.0.4", "ps5", "AQIDBAUGBwg=" } };
 	const Settings relidas = Settings::fromJson(duas.toJson());
 	CHECK_EQ(relidas.consoles[0].accountId, std::string("CAcGBQQDAgE="));
 	CHECK_EQ(relidas.consoles[1].accountId, std::string("AQIDBAUGBwg="));
-	// Sem Account ID não fica nada gravado, e ler devolve vazio.
+	// Without an Account ID nothing is stored, and reading returns empty.
 	CHECK(Settings::fromJson(comTipo.toJson()).consoles[0].accountId.empty());
 }
 

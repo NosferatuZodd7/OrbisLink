@@ -945,7 +945,7 @@ bool InstallQueue::fromJson(const std::string &text)
 		QueueTask task = taskFromJson(item);
 		if(task.id.empty() || task.localPath.empty())
 			continue;
-		// Tarefas interrompidas voltam como QT_TRANSLATE_NOOP("Messages", "Pending") (§5.6).
+		// Interrupted tasks come back as QT_TRANSLATE_NOOP("Messages", "Pending") (§5.6).
 		if(!task.isTerminal())
 		{
 			task.state = TaskState::Pending;

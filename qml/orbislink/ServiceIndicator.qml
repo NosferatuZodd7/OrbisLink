@@ -16,7 +16,7 @@ Item {
         NumberAnimation { duration: Theme.fast; easing.type: Theme.easeSpring; easing.overshoot: 1.1 }
     }
 
-    // Cápsula de vidro, com um halo da cor do estado quando há problema.
+    // Glass capsule, with a halo in the state colour when there is a problem.
     Rectangle {
         anchors.fill: parent
         anchors.margins: -4
@@ -55,7 +55,7 @@ Item {
             width: 8; height: 8; radius: 4
             anchors.verticalCenter: parent.verticalCenter
             color: Theme.stateColor(root.state_)
-            // Um ponto aceso tem halo; é o que o distingue de um pixel.
+            // A lit dot has a halo; that is what tells it apart from a pixel.
             Rectangle {
                 anchors.centerIn: parent
                 width: 16; height: 16; radius: 8

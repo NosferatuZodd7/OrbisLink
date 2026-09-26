@@ -21,9 +21,9 @@ public:
 
 	static std::string defaultPath();
 
-	// Devolve as credenciais do host-id pedido, ou valid=false.
+	// Returns the credentials for the requested host-id, or valid=false.
 	StreamCredentials load(const std::string &hostId) const;
-	// Todas as consolas registadas.
+	// All registered consoles.
 	std::vector<StreamCredentials> all() const;
 	bool save(const StreamCredentials &credentials);
 	bool forget(const std::string &hostId);

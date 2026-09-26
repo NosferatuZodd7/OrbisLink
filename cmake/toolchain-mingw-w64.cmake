@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# Toolchain para produzir binários Windows x64 a partir de Linux (mingw-w64).
+# Toolchain to produce Windows x64 binaries from Linux (mingw-w64).
 set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_PROCESSOR x86_64)
 

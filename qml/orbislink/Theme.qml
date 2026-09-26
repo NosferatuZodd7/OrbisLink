@@ -1,54 +1,54 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// As cores, as formas e o movimento da aplicação, num sítio só.
+// The application's colours, shapes and motion, in one place.
 //
-// A linguagem é "liquid glass": superfícies translúcidas sobrepostas, uma
-// aresta de luz em cima, sombras difusas, cantos largos e movimento com
-// física. A profundidade vem de camadas, não de linhas — por isso quase não
-// há separadores nesta interface.
+// The language is "liquid glass": stacked translucent surfaces, an edge
+// of light at the top, soft shadows, wide corners and motion with
+// physics. Depth comes from layers, not lines — which is why there are
+// almost no separators in this interface.
 //
-// É um singleton e não um .js porque os temas trocam em tempo de execução:
-// mudando estas propriedades, tudo o que lhes está ligado redesenha-se.
+// It is a singleton and not a .js because themes switch at runtime:
+// changing these properties redraws everything bound to them.
 pragma Singleton
 import QtQuick
 
 QtObject {
     id: tema
 
-    // "escuro", "vidro" ou "claro". O "vidro" é o escuro com mais
-    // transparência; mantém-se o nome por causa das definições já gravadas.
+    // "dark", "glass" or "light". "glass" is the dark one with more
+    // transparency.
     property string nome: "escuro"
     readonly property bool claro: nome === "claro"
 
-    // ── Fundo
-    // Um preto profundo, não neutro: leva um toque de azul para o vidro
-    // por cima ter de onde tirar cor.
+    // ── Background
+    // A deep black, not neutral: it carries a touch of blue so the glass
+    // on top has somewhere to take colour from.
     property color background: "#07070A"
     property color backgroundDeep: "#050507"
 
-    // ── Superfícies de vidro
-    // "panel" é a cor base; o que se desenha é o panelFill, que já leva a
-    // transparência do tema.
+    // ── Glass surfaces
+    // "panel" is the base colour; what gets drawn is panelFill, which already
+    // carries the theme's transparency.
     property color panel: "#16161C"
     property color panelAlt: "#1D1D25"
     property real panelOpacity: 0.55
-    // A aresta de luz no topo de cada superfície, que é o que faz o vidro
-    // parecer curvo em vez de chapado.
+    // The edge of light at the top of each surface, which is what makes the
+    // glass look curved instead of flat.
     property real glassHighlight: 0.08
-    // A moldura de 1px que separa o vidro do que está por trás.
+    // The 1px frame separating the glass from what is behind.
     property real glassBorder: 0.12
 
-    // ── Diálogos
-    // Um modal não é uma superfície de fundo: tem de se ler sem o que está
-    // por trás a atravessá-lo. O vidro serve para painéis, não para uma
-    // caixa que pede uma decisão.
+    // ── Dialogs
+    // A modal is not a background surface: it has to read without what is
+    // behind showing through. Glass is for panels, not for a box asking
+    // for a decision.
     property real dialogOpacity: 0.97
 
     // ── Texto
     property color text: "#FFFFFF"
     property color textMuted: "#FFFFFF"
     property real textMutedOpacity: 0.62
-    // A cor já com a opacidade aplicada, para quem só quer pintar.
+    // The colour with the opacity already applied, for whoever just wants to paint.
     readonly property color textSecondary: Qt.rgba(textMuted.r, textMuted.g, textMuted.b,
                                                    textMutedOpacity)
 
@@ -60,70 +60,70 @@ QtObject {
     property color warn: "#FFD60A"
     property color error: "#FF453A"
 
-    // Compatibilidade: há código que pinta bordas com "border".
+    // Compatibility: some code paints borders with "border".
     readonly property color border: Qt.rgba(1, 1, 1, glassBorder)
 
-    // ── Forma
-    // Cantos largos e contínuos. 28 nos cartões, 20 nos controlos, cápsula
-    // na navegação.
+    // ── Shape
+    // Wide, continuous corners. 28 on cards, 20 on controls, capsule
+    // for navigation.
     property int radius: 28
     property int radiusControl: 20
     property int radiusSmall: 14
     property int spacing: 16
-    // Margens generosas: o ar é metade do desenho.
+    // Generous margins: air is half the design.
     property int gutter: 28
     property int padding: 24
-    // Dentro dos diálogos. Onde o canto é curvo, um texto à distância do
-    // raio já está dentro da curva, e isso lê-se como descuido. Por isso a
-    // margem é o raio mais uma folga que se veja, e não o raio à tangente.
+    // Inside dialogs. Where the corner is curved, text at the radius's
+    // distance is already inside the curve, and that reads as sloppy. So the
+    // margin is the radius plus visible slack, not the radius at the tangent.
     readonly property int dialogMargin: radius + 8
-    // Dentro das caixas de aviso e de conversão, que já estão elas próprias
-    // encostadas à margem de cima.
+    // Inside the notice and conversion boxes, which are themselves already
+    // up against the top margin.
     readonly property int dialogInner: 18
-    // Alturas do cabeçalho e do rodapé. O título está centrado na altura,
-    // portanto é isto que decide a folga por cima dele — e é o canto de
-    // cima que a torna visível.
+    // Header and footer heights. The title is vertically centred, so this
+    // is what decides the room above it — and the top corner is what makes
+    // it visible.
     readonly property int dialogHeader: 68
     readonly property int dialogFooter: 74
 
-    // ── Movimento
-    // Tudo o que se mexe usa estes números, para a interface inteira ter a
-    // mesma física em vez de cada peça inventar a sua.
+    // ── Motion
+    // Everything that moves uses these numbers, so the whole interface has
+    // the same physics instead of each piece inventing its own.
     readonly property int fast: 180
     readonly property int normal: 260
     readonly property int slow: 380
     readonly property int easeOut: Easing.OutCubic
-    // O "spring" do Qt sem molas: um OutBack contido chega para dar a
-    // sensação de peso sem o exagero de um salto.
+    // Qt's "spring" without springs: a restrained OutBack is enough to give
+    // a sense of weight without the exaggeration of a bounce.
     readonly property int easeSpring: Easing.OutBack
     readonly property real hoverScale: 1.02
     readonly property real pressScale: 0.985
 
-    // ── Texto desenhado por cima do vídeo
-    // A área do stream é sempre escura, independentemente do tema, por isso
-    // o texto por cima dela é sempre claro.
+    // ── Text drawn over the video
+    // The stream area is always dark, regardless of the theme, so the
+    // text over it is always light.
     readonly property color onStage: "#FFFFFF"
     readonly property color onStageMuted: Qt.rgba(1, 1, 1, 0.65)
 
-    // ── O palco parado, sem imagem da consola
-    // Aí já não há vídeo a ditar o escuro: o palco segue o tema, com o
-    // fundo de cada um (o preto com a grelha verde, o branco com a
-    // ciano). Só quando a imagem chega é que volta ao preto e ao onStage.
-    // O branco é branco puro de propósito: a imagem clara tem fundo branco,
-    // e num palco tingido ver-se-ia a faixa onde ela acaba.
+    // ── The idle stage, with no picture from the console
+    // There is no video dictating darkness there: the stage follows the theme,
+    // with each one's background (black with the green grid, white with the
+    // cyan one). Only when the picture arrives does it go back to black and onStage.
+    // The white is pure white on purpose: the light image has a white
+    // background, and on a tinted stage the strip where it ends would show.
     readonly property url stageBackdrop: claro ? "qrc:/icons/backdrop-light.png"
                                                : "qrc:/icons/backdrop.png"
-    // Ciano claro sobre branco quase não se vê com a opacidade que chega
-    // ao verde sobre preto; por isso cada tema tem a sua.
+    // Light cyan on white is barely visible at the opacity that works for
+    // green on black; so each theme has its own.
     readonly property real stageBackdropOpacity: claro ? 0.45 : 0.15
     readonly property color stageIdle: claro ? "#FFFFFF" : "#000000"
     readonly property color stageGrid: claro ? "#C9D3E3" : "#1B2130"
     readonly property color onIdleStage: claro ? text : onStage
     readonly property color onIdleStageMuted: claro ? textSecondary : onStageMuted
 
-    // ── Caixa da consola
-    // Azul-marinho quase preto nos temas escuros, branco gelo no claro. A cor
-    // só aparece nos indicadores de estado.
+    // ── Console card
+    // Near-black navy on the dark themes, icy white on the light one. Colour
+    // only appears in the state indicators.
     readonly property color cardTop: claro ? "#FFFFFF" : "#071426"
     readonly property color cardBottom: claro ? "#EEF4FC" : "#0A1E3A"
     readonly property color cardText: claro ? "#0F172A" : "#FFFFFF"
@@ -138,7 +138,7 @@ QtObject {
     readonly property color cardRed: "#E5484D"
     readonly property int cardEase: 250
 
-    // ── As cores que as superfícies usam de facto
+    // ── The colours the surfaces actually use
     readonly property color panelFill: Qt.rgba(panel.r, panel.g, panel.b, panelOpacity)
     readonly property color panelAltFill: Qt.rgba(panelAlt.r, panelAlt.g, panelAlt.b,
                                                   panelOpacity)
@@ -147,14 +147,14 @@ QtObject {
     readonly property color accentFill: Qt.rgba(accent.r, accent.g, accent.b, accentSoftOpacity)
     readonly property color shadow: Qt.rgba(0, 0, 0, claro ? 0.10 : 0.45)
     readonly property color dialogFill: Qt.rgba(panel.r, panel.g, panel.b, dialogOpacity)
-    // O escurecimento por trás de um modal: é o que diz que o resto da
-    // aplicação está à espera.
+    // The dimming behind a modal: it is what says the rest of the
+    // application is waiting.
     readonly property color scrim: Qt.rgba(0, 0, 0, claro ? 0.32 : 0.58)
 
     function aplicar(qual) {
         nome = qual === "vidro" || qual === "claro" ? qual : "escuro"
         if (nome === "claro") {
-            // Branco gelo, superfícies de vidro branco, texto quase preto.
+            // Icy white, white glass surfaces, near-black text.
             background = "#F6F7FB"
             backgroundDeep = "#EDEFF5"
             panel = "#FFFFFF"
@@ -175,7 +175,7 @@ QtObject {
             radius = 28
             radiusControl = 20
         } else if (nome === "vidro") {
-            // O mesmo escuro, mas com mais do que está por trás a passar.
+            // The same dark, but with more of what is behind showing through.
             background = "#050507"
             backgroundDeep = "#030304"
             panel = "#14141B"

@@ -15,11 +15,11 @@ ORBISLINK_TEST(le_listagem_estilo_unix)
 		"-rw-r--r--   1 root  root       512 Mar 15 12:35 nota.txt\r\n";
 	const auto entries = FtpClient::parseListing(listing, "/data");
 	CHECK_EQ(entries.size(), static_cast<size_t>(3));
-	// Pastas primeiro, depois ficheiros por ordem alfabética.
+	// Folders first, then files in alphabetical order.
 	CHECK_EQ(entries[0].name, std::string("pkg"));
 	CHECK(entries[0].isDirectory);
 	CHECK_EQ(entries[0].path, std::string("/data/pkg"));
-	CHECK_EQ(entries[1].name, std::string("jogo grande.pkg")); // nome com espaços
+	CHECK_EQ(entries[1].name, std::string("jogo grande.pkg")); // name with spaces
 	CHECK_EQ(entries[1].size, 5368709120ll);                   // > 4 GB
 	CHECK(!entries[1].isDirectory);
 	CHECK_EQ(entries[2].name, std::string("nota.txt"));

@@ -46,8 +46,8 @@ public:
 	void stop();
 	bool active() const { return active_; }
 
-	// O nome do dispositivo em uso, para a interface poder dizer de onde
-	// vem o som.
+	// The name of the device in use, so the interface can say where the
+	// sound comes from.
 	QString deviceName() const { return deviceName_; }
 
 	static constexpr int kRate = 48000;

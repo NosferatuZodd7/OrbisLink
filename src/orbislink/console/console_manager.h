@@ -44,7 +44,7 @@ struct ProbeResult
 	bool ftpOk = false;
 	bool installerOk = false;
 	std::string ftpDetail;       // banner do FTP (ex.: "220 GoldHEN FTP")
-	std::string installerDetail; // resposta (ou erro) do instalador remoto
+	std::string installerDetail; // reply (or error) from the remote installer
 	bool anyOk() const { return ftpOk || installerOk; }
 	bool allOk() const { return ftpOk && installerOk; }
 };
@@ -54,7 +54,7 @@ struct ProbeResult
 ProbeResult probeConsoleServices(const std::string &address, uint16_t ftpPort,
 	uint16_t installerPort, int timeoutMs = 2000);
 
-// Estado do Remote Play tal como o chiaki-ng o reporta.
+// Remote Play state as chiaki-ng reports it.
 enum class RemotePlayState { Unknown, Ready, Standby, Offline };
 
 // Console profile and periodic service checks.

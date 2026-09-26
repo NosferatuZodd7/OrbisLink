@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// O teclado como comando: as teclas por omissão, a troca quando uma tecla
-// já está ocupada, e as teclas que não se podem dar a nenhuma acção.
+// Keyboard as controller: the default keys, the swap when a key is
+// already taken, and the keys that cannot be given to any action.
 #include "orbislink/qt/input_map.h"
 #include "test_support.h"
 
@@ -16,7 +16,7 @@ ORBISLINK_TEST(teclas_por_omissao_sao_as_do_chiaki)
 	KeyboardMap mapa;
 	CHECK(mapa.press(Qt::Key_Return));
 	CHECK(mapa.state().buttons & CHIAKI_CONTROLLER_BUTTON_CROSS);
-	// O Enter do teclado numérico é o mesmo Enter.
+	// The keypad Enter is the same Enter.
 	CHECK(mapa.release(Qt::Key_Enter));
 	CHECK(mapa.empty());
 	CHECK(mapa.press(Qt::Key_W));
@@ -27,10 +27,10 @@ ORBISLINK_TEST(teclas_por_omissao_sao_as_do_chiaki)
 ORBISLINK_TEST(tecla_ocupada_troca_com_a_outra_accao)
 {
 	KeyboardMap::Bindings teclas = KeyboardMap::defaults();
-	// O Espaço passa a ser a cruz; o Enter fica livre.
+	// Space becomes cross; Enter is freed.
 	CHECK(KeyboardMap::rebind(teclas, "cross", Qt::Key_Space));
 	CHECK_EQ(teclas["cross"], static_cast<int>(Qt::Key_Space));
-	// O P é do botão PS: dá-lo à cruz troca-os.
+	// P belongs to the PS button: giving it to cross swaps them.
 	CHECK(KeyboardMap::rebind(teclas, "cross", Qt::Key_P));
 	CHECK_EQ(teclas["cross"], static_cast<int>(Qt::Key_P));
 	CHECK_EQ(teclas["ps"], static_cast<int>(Qt::Key_Space));
@@ -40,7 +40,7 @@ ORBISLINK_TEST(tecla_ocupada_troca_com_a_outra_accao)
 	CHECK(mapa.press(Qt::Key_P));
 	CHECK(mapa.state().buttons & CHIAKI_CONTROLLER_BUTTON_CROSS);
 	CHECK(!(mapa.state().buttons & CHIAKI_CONTROLLER_BUTTON_PS));
-	// O Enter já não faz nada.
+	// Enter no longer does anything.
 	CHECK(!mapa.press(Qt::Key_Return));
 }
 
@@ -55,8 +55,8 @@ ORBISLINK_TEST(esc_e_f11_nao_se_dao_a_ninguem)
 
 ORBISLINK_TEST(definicoes_editadas_a_mao_nao_deixam_teclas_repetidas)
 {
-	// Duas acções na mesma tecla, uma acção desconhecida e o Esc: fica um
-	// mapa válido, com cada tecla numa só acção.
+	// Two actions on the same key, an unknown action and Esc: the result is a
+	// valid map, with each key on a single action.
 	KeyboardMap mapa;
 	mapa.setBindings({ { "cross", Qt::Key_Q }, { "circle", Qt::Key_Q },
 		{ "inventada", Qt::Key_Z }, { "square", Qt::Key_Escape } });

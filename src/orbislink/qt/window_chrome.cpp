@@ -177,7 +177,7 @@ void WindowChrome::applyTheme(const QColor &caption, const QColor &text, const Q
 		}
 	}
 
-	// A moldura da janela acompanha, quando o sistema deixa.
+	// The window frame follows, when the system allows.
 	const DWORD corMoldura = toColorRef(border);
 	trySet(hwnd, kBorderColor, &corMoldura, sizeof(corMoldura));
 

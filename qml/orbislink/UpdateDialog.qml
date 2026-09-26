@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// "Há uma versão nova." Mostra qual, o que mudou, e dá um botão para
-// instalar. Nada acontece sozinho: a descarga só começa a pedido, e o
-// instalador só abre depois de o SHA-256 bater.
+// "There is a new version." Shows which, what changed, and gives a button
+// to install. Nothing happens by itself: the download only starts on
+// request, and the installer only opens after the SHA-256 matches.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -19,9 +19,9 @@ Dialog {
     readonly property bool aDescarregar: app.updateState === "downloading"
     readonly property bool pronto: app.updateState === "ready"
 
-    // Um modal quase opaco: com a transparência dos painéis, o que está por
-    // trás ver-se-ia através da caixa, e uma caixa que pede uma decisão não
-    // pode ser uma janela.
+    // A nearly opaque modal: with the panels' transparency, what is behind
+    // would show through the box, and a box asking for a decision must not
+    // be a window.
     Overlay.modal: Rectangle { color: Theme.scrim }
 
     background: Rectangle {
@@ -89,8 +89,8 @@ Dialog {
     contentItem: ColumnLayout {
         spacing: 10
 
-        // O que mudou. O corpo do lançamento vem em markdown; mostra-se como
-        // texto, que é honesto e não finge formatação que não há.
+        // What changed. The release body comes in markdown; it is shown as
+        // text, which is honest and does not fake formatting that is not there.
         Rectangle {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin

@@ -13,12 +13,12 @@ namespace orbislink {
 struct FtpEntry
 {
 	std::string name;
-	std::string path;          // caminho absoluto na consola
+	std::string path;          // absolute path on the console
 	int64_t size = 0;
 	bool isDirectory = false;
 	bool isSymlink = false;
-	std::string permissions;   // "drwxr-xr-x", quando o servidor o indica
-	std::string modified;      // texto cru da data, tal como vem do LIST
+	std::string permissions;   // "drwxr-xr-x", when the server gives it
+	std::string modified;      // raw date text, as it comes from LIST
 	std::string rawLine;
 };
 
@@ -68,7 +68,7 @@ public:
 	void setConfig(const Config &config);
 	Config config() const;
 
-	// Verifica se o servidor responde (usado pelo ConsoleManager).
+	// Checks whether the server answers (used by ConsoleManager).
 	bool probe(std::string *detail = nullptr);
 
 	FtpResult list(const std::string &remoteDir, std::vector<FtpEntry> *entries);
@@ -90,12 +90,12 @@ public:
 	static bool isProtectedPath(const std::string &remotePath);
 	bool isWriteAllowed(const std::string &remotePath) const;
 
-	// Atalhos sugeridos no FtpBrowser.
+	// Shortcuts suggested in FtpBrowser.
 	static std::vector<std::string> shortcutPaths();
 
 	std::string urlFor(const std::string &remotePath) const;
 
-	// Exposto para testes: parser tolerante da resposta ao LIST.
+	// Exposed for tests: lenient parser of the LIST reply.
 	static std::vector<FtpEntry> parseListing(const std::string &listing, const std::string &baseDir);
 
 private:

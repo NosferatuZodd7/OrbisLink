@@ -48,7 +48,7 @@ class FtpSession(threading.Thread):
         self.rename_from: str | None = None
         self.rest_offset = 0
 
-    # -- utilitários -------------------------------------------------
+    # -- utilities ---------------------------------------------------
     def send(self, line: str) -> None:
         self.conn.sendall((line + "\r\n").encode("utf-8", "replace"))
 
@@ -355,7 +355,7 @@ def read_pkg_title(url: str) -> tuple[str, str]:
                 raw = sfo[value_table + value_offset:value_table + value_offset + value_size]
                 values[key] = raw.split(b"\0")[0].decode("utf-8", "replace")
             return (values.get("TITLE", ""), values.get("TITLE_ID", ""))
-    except Exception:  # noqa: BLE001 - o título é só cosmético
+    except Exception:  # noqa: BLE001 - the title is only cosmetic
         pass
     return ("", "")
 
@@ -400,8 +400,8 @@ class InstallerState:
         destination = os.path.join(self.download_dir, f"task{task['id']}.pkg")
         try:
             for url in task["urls"]:
-                # HEAD para saber o tamanho, como a consola faz antes de puxar
-                # as partes do pkg.
+                # HEAD to learn the size, as the console does before pulling
+                # the parts of the pkg.
                 head = urllib.request.Request(url, method="HEAD")
                 with urllib.request.urlopen(head, timeout=10) as response:
                     total = int(response.headers.get("Content-Length", "0"))
@@ -436,7 +436,7 @@ class InstallerState:
             with self.lock:
                 self.installed[task.get("title_id") or "CUSA00000"] = task["length"]
                 task["path"] = destination
-        except Exception as error:  # noqa: BLE001 - a consola só devolve um código
+        except Exception as error:  # noqa: BLE001 - the console only returns a code
             with self.lock:
                 task["error"] = 0x80020005  # ORBIS_KERNEL_ERROR_EIO
                 task["message"] = str(error)
@@ -459,7 +459,7 @@ class InstallerApiHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
     def _fail(self, code: int) -> None:
-        # Formato real: hexadecimal sem aspas (não é JSON válido de propósito).
+        # Real format: hexadecimal without quotes (deliberately not valid JSON).
         self._reply('{ "status": "fail", "error_code": 0x%08X }' % code)
 
     def do_GET(self) -> None:  # noqa: N802

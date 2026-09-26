@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// As credenciais do Remote Play são o que autentica este PC na consola.
-// Se forem mal guardadas ou mal lidas, o sintoma na consola é "sessão
-// recusada" sem mais explicação — por isso vale a pena testá-las aqui.
+// The Remote Play credentials are what authenticates this PC on the console.
+// If they are stored or read wrongly, the symptom on the console is "session
+// refused" with no further explanation — so they are worth testing here.
 
 #include "orbislink/stream/credentials.h"
 #include "test_support.h"
@@ -53,7 +53,7 @@ ORBISLINK_TEST(hexadecimal_recusa_o_que_nao_e_hexadecimal)
 	unsigned char destino[4] {};
 	// Comprimento errado.
 	CHECK(!hexToBytes("00FF", destino, sizeof(destino)));
-	// Caracteres que não são dígitos hexadecimais.
+	// Characters that are not hexadecimal digits.
 	CHECK(!hexToBytes("00ZZ80FF", destino, sizeof(destino)));
 }
 
@@ -62,14 +62,14 @@ ORBISLINK_TEST(account_id_tem_de_ser_base64_de_oito_bytes)
 	unsigned char id[8] {};
 	std::string erro;
 
-	// Oito bytes em base64.
+	// Eight bytes in base64.
 	CHECK(decodeAccountId("AQIDBAUGBwg=", id, &erro));
 	CHECK(erro.empty());
 	CHECK_EQ(int(id[0]), 1);
 	CHECK_EQ(int(id[7]), 8);
 
-	// Vazio, texto que não é base64, e base64 com o tamanho errado: os três
-	// têm de ser recusados com uma explicação.
+	// Empty, text that is not base64, and base64 of the wrong size: all three
+	// must be refused with an explanation.
 	for(const char *mau : { "", "isto não é base64", "AQID" })
 	{
 		erro.clear();
@@ -101,8 +101,8 @@ ORBISLINK_TEST(uma_ps5_guardada_sem_a_marca_continua_a_ser_ps5)
 	const std::string caminho = ficheiroTemporario();
 	CredentialStore store(caminho);
 
-	// O que ficava gravado depois de registar uma PS5: alvo de PS5, mas o
-	// "ps5" a falso. Sem corrigir, a sessão falava o protocolo do PS4.
+	// What was stored after registering a PS5: a PS5 target, but "ps5"
+	// false. Uncorrected, the session spoke the PS4 protocol.
 	StreamCredentials ps5 = exemplo("0A1B2C3D4E5F", "PS5 do quarto");
 	ps5.target = 1000100;
 	ps5.ps5 = false;
@@ -129,7 +129,7 @@ ORBISLINK_TEST(guarda_varias_consolas_sem_as_confundir)
 	CHECK_EQ(store.all().size(), size_t(2));
 	CHECK_EQ(store.load("AABBCCDDEEFF").registKey, std::string("1a2b3c4d"));
 	CHECK_EQ(store.load("112233445566").registKey, std::string("ffffffff"));
-	// Uma consola desconhecida não devolve a de outra pessoa.
+	// An unknown console does not return someone else's.
 	CHECK(!store.load("999999999999").valid);
 
 	std::remove(caminho.c_str());
@@ -162,7 +162,7 @@ ORBISLINK_TEST(esquecer_apaga_so_a_consola_pedida)
 	CHECK(store.forget("AABBCCDDEEFF"));
 	CHECK(!store.load("AABBCCDDEEFF").valid);
 	CHECK(store.load("112233445566").valid);
-	// Esquecer o que já não lá está não é um erro silencioso: devolve false.
+	// Forgetting what is no longer there is not a silent error: it returns false.
 	CHECK(!store.forget("AABBCCDDEEFF"));
 
 	std::remove(caminho.c_str());
@@ -171,8 +171,8 @@ ORBISLINK_TEST(esquecer_apaga_so_a_consola_pedida)
 ORBISLINK_TEST(a_credencial_para_acordar_sai_da_chave_de_registo)
 {
 	StreamCredentials c = exemplo("AABBCCDDEEFF", "Sala");
-	// A chave é lida como número hexadecimal, que é o que o pacote de
-	// wakeup leva (chiaki_discovery_wakeup, campo user_credential).
+	// The key is read as a hexadecimal number, which is what the wakeup
+	// packet carries (chiaki_discovery_wakeup, user_credential field).
 	CHECK_EQ(c.wakeupCredential(), uint64_t(0x1a2b3c4d));
 
 	c.registKey.clear();

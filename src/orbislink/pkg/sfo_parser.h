@@ -15,8 +15,8 @@ namespace orbislink {
 //   index 0x10 per entry: key_offset u16(0x00), format u16(0x02),
 //                         size u32(0x04), max_size u32(0x08), value_offset u32(0x0C)
 enum class SfoFormat : uint16_t {
-	StringSpecial = 0x0004, // UTF-8 sem terminador
-	String = 0x0204,        // UTF-8 terminada em NUL
+	StringSpecial = 0x0004, // UTF-8 without terminator
+	String = 0x0204,        // NUL-terminated UTF-8
 	Uint32 = 0x0404,
 };
 

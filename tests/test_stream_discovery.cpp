@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Descoberta de consolas sem ter uma PS4 à mão: um servidor UDP responde
-// exactamente como a consola responde ao pedido SRCH (uma resposta no
-// formato HTTP, ver lib/src/discovery.c do chiaki-ng), e verifica-se que o
-// que sai do StreamDiscovery é o que lá estava.
+// Console discovery without a PS4 at hand: a UDP server answers exactly
+// as the console answers the SRCH request (an HTTP-format reply, see
+// chiaki-ng's lib/src/discovery.c), and it is checked that what comes out
+// of StreamDiscovery is what was there.
 
 #include "orbislink/net/socket_compat.h"
 #include "orbislink/stream/discovery.h"
@@ -19,7 +19,7 @@ using namespace orbislink;
 
 namespace {
 
-// Consola falsa: escuta em UDP e responde a quem lhe perguntar.
+// Fake console: listens on UDP and answers whoever asks.
 class FakeConsole
 {
 public:
@@ -52,7 +52,7 @@ public:
 	{
 		if(!running_.exchange(false))
 			return;
-		// Acorda o recvfrom com um datagrama para si própria.
+		// Wakes recvfrom with a datagram to itself.
 		socket_t waker = socket(AF_INET, SOCK_DGRAM, 0);
 		if(waker != ORBISLINK_INVALID_SOCKET)
 		{
@@ -100,7 +100,7 @@ private:
 	std::string lastRequest_;
 };
 
-// Resposta de uma consola ligada, com um jogo a correr.
+// Reply from a console that is on, with a game running.
 const char *kPronta =
 	"HTTP/1.1 200 Ok\r\n"
 	"host-id:1122334455AA\r\n"
@@ -112,7 +112,7 @@ const char *kPronta =
 	"running-app-name:Bloodborne\r\n"
 	"running-app-titleid:CUSA00207\r\n";
 
-// Consola em repouso: mesmo formato, código 620.
+// Console in rest mode: same format, code 620.
 const char *kEmRepouso =
 	"HTTP/1.1 620 Server Standby\r\n"
 	"host-id:1122334455AA\r\n"
@@ -140,8 +140,8 @@ ORBISLINK_TEST(le_uma_consola_pronta)
 	CHECK_EQ(info.runningAppName, std::string("Bloodborne"));
 	CHECK_EQ(info.runningAppTitleId, std::string("CUSA00207"));
 	CHECK_EQ(int(info.requestPort), 997);
-	// O alvo tem de sair da versão de sistema, senão o chiaki fala o
-	// protocolo errado com a consola.
+	// The target has to come from the system version, otherwise chiaki
+	// speaks the wrong protocol to the console.
 	CHECK(info.target != 0);
 }
 
@@ -163,7 +163,7 @@ ORBISLINK_TEST(envia_um_pedido_de_procura)
 	CHECK(console.start());
 	StreamDiscovery::probe("127.0.0.1", 2000, console.port());
 
-	// O que a consola recebeu tem de ser mesmo um SRCH do protocolo do PS4.
+	// What the console received must really be a PS4-protocol SRCH.
 	const std::string pedido = console.lastRequest();
 	CHECK(pedido.find("SRCH") != std::string::npos);
 	CHECK(pedido.find("device-discovery-protocol-version:00020020") != std::string::npos);
@@ -187,8 +187,8 @@ ORBISLINK_TEST(verificacao_periodica_nao_mexe_na_tentativa)
 	FakeConsole console(kPronta);
 	CHECK(console.start());
 
-	// Uma tentativa a meio: a verificação periódica das outras consolas
-	// não pode fechar este passo nem acrescentar os seus.
+	// An attempt in progress: the periodic check of the other consoles
+	// must not close this step nor add its own.
 	StreamTrace::instance().begin("192.0.2.1");
 	StreamTrace::instance().step("primeiro fotograma");
 	const HostInfo info = StreamDiscovery::peek("127.0.0.1", 2000, console.port());

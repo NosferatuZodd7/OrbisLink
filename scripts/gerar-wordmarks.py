@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# As wordmarks da caixa da consola, escritas em Fugaz One (third-party/fugaz-one,
-# SIL Open Font License 1.1). Os contornos das letras passam a caminhos SVG,
-# por isso a app não precisa da fonte instalada.
+# The console card wordmarks, written in Fugaz One (third-party/fugaz-one,
+# SIL Open Font License 1.1). The letter outlines become SVG paths, so the
+# app does not need the font installed.
 #
-# A Fugaz One só existe num peso; o negrito vem de um contorno da mesma cor
-# à volta de cada letra, e o itálico é reforçado com uma inclinação extra.
+# Fugaz One only comes in one weight; the bold comes from an outline of the
+# same colour around each letter, and the italic is strengthened with extra slant.
 #
-# Gera:
-#   src/icons/wordmark-ps4.svg, wordmark-ps5.svg      (preto, a referência)
-#   src/icons/wordmark-ps{4,5}-{preto,branco}.png     (os que a app usa)
-#   src/icons/wordmark-desconhecida-{preto,branco}.png ("Unknown PlayStation",
-#                                                     para quando não se sabe o
-#                                                     tipo da consola)
-#   e, com --folha <ficheiro.png>, a folha de apresentação 2×2 com as
-#   variantes normal e estreita.
+# Generates:
+#   src/icons/wordmark-ps4.svg, wordmark-ps5.svg   (black, the reference)
+#   src/icons/wordmark-ps{4,5}-{black,white}.png   (the ones the app uses)
+#   src/icons/wordmark-unknown-{black,white}.png   ("Unknown PlayStation",
+#                                                  for when the console type
+#                                                  is not known)
+#   and, with --sheet <file.png>, the 2×2 presentation sheet with the
+#   normal and narrow variants.
 #
-# Precisa do fontTools (pip install fonttools) e do rsvg-convert
+# Needs fontTools (pip install fonttools) and rsvg-convert
 # (apt install librsvg2-bin).
 import math
 import pathlib
@@ -35,12 +35,12 @@ FONTE = TTFont(REPO / "third-party" / "fugaz-one" / "FugazOne-Regular.ttf")
 GLIFOS = FONTE.getGlyphSet()
 MAPA = FONTE.getBestCmap()
 
-NEGRITO = 16           # espessura do contorno extra, em unidades da fonte
-INCLINACAO = 6.0       # graus a mais do que o itálico da própria fonte
-TRACKING = 60          # espaço entre letras, já a contar com o negrito
+NEGRITO = 16           # thickness of the extra outline, in font units
+INCLINACAO = 6.0       # degrees beyond the font's own italic
+TRACKING = 60          # letter spacing, already accounting for the bold
 MARGEM = 40
 
-ENTRELINHA = 820       # entre as duas linhas do "Unknown PlayStation"
+ENTRELINHA = 820       # between the two lines of "Unknown PlayStation"
 
 
 def wordmark(numero, estreita=False, cor="#000000"):
@@ -53,13 +53,13 @@ def wordmark(numero, estreita=False, cor="#000000"):
     caminho = SVGPathPen(GLIFOS)
     limites = BoundsPen(GLIFOS)
     for n, texto in enumerate(linhas):
-        # Cada linha centrada: primeiro a largura, depois o desenho.
+        # Each line centred: first the width, then the drawing.
         nomes = [MAPA[ord(letra)] for letra in texto]
         total = sum(GLIFOS[nome].width + TRACKING for nome in nomes) * sx
         x, base = -total / 2, n * ENTRELINHA
         for nome in nomes:
-            # A fonte tem o y para cima e o SVG para baixo; o termo do meio
-            # inclina o topo para a direita.
+            # The font has y pointing up and SVG down; the middle term
+            # slants the top to the right.
             matriz = (sx, 0, inclina, -1, x, base)
             GLIFOS[nome].draw(TransformPen(caminho, matriz))
             GLIFOS[nome].draw(TransformPen(limites, matriz))
@@ -91,7 +91,7 @@ def folha(destino):
             escala = 420 / w
             x = margem + coluna * celula_w + (celula_w - w * escala) / 2
             y = margem + linha * celula_h + (celula_h - h * escala) / 2 - 24
-            # Cada wordmark entra como um <svg> aninhado, com a sua viewBox.
+            # Each wordmark goes in as a nested <svg>, with its own viewBox.
             pecas.append(svg.replace(
                 f'width="{w:.0f}" height="{h:.0f}"',
                 f'x="{x:.1f}" y="{y:.1f}" width="{w * escala:.1f}" height="{h * escala:.1f}"', 1))
@@ -110,9 +110,9 @@ def main():
     for numero in (4, 5, None):
         nome = f"ps{numero}" if numero else "desconhecida"
         svg, w, h = wordmark(numero)
-        # Umas três vezes a largura a que aparece na app, para ecrãs com
-        # ampliação. O texto da desconhecida, com duas linhas, vai à mesma
-        # altura que os outros.
+        # About three times the width it appears at in the app, for scaled
+        # displays. The unknown one's text, on two lines, goes at the same
+        # height as the others.
         largura = round(720 * w / largura_ps4 * (altura_ps4 / h if not numero else 1))
         if numero:
             (ICONS / f"wordmark-{nome}.svg").write_text(svg + "\n")

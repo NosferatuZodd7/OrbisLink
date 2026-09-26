@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// orbislink-gui — janela principal do OrbisLink (Qt 6 / QML).
+// orbislink-gui — OrbisLink's main window (Qt 6 / QML).
 
 #include "orbislink/common/log.h"
 #include "orbislink/qt/app_controller.h"
@@ -289,7 +289,7 @@ int main(int argc, char **argv)
 		auto *chrome = new WindowChrome(window, window);
 		engine.rootContext()->setContextProperty(QStringLiteral("chrome"), chrome);
 		QMetaObject::invokeMethod(window, "aplicarTema", Qt::QueuedConnection);
-		// Quando o primeiro fotograma aparece, o arranque correu bem.
+		// When the first frame appears, startup went well.
 		QObject::connect(window, &QQuickWindow::frameSwapped, &app, [drawn]() {
 			drawn->storeRelaxed(1);
 			startup::markLaunchSucceeded();

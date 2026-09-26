@@ -8,14 +8,14 @@ import QtQuick.Layouts
 Item {
     id: root
 
-    // Última pasta escolhida em "Transferir para…".
+    // Last folder chosen in "Download to…".
     property url lastDestination
 
-    // Lista quando o separador aparece pela primeira vez.
+    // Lists when the tab appears for the first time.
     onVisibleChanged: if (visible && app.files.count === 0 && !app.ftpBusy) app.ftpRefresh()
     Component.onCompleted: if (visible && app.files.count === 0) app.ftpRefresh()
 
-    // Só para as capturas de ecrã: abre o menu na primeira linha.
+    // Screenshots only: opens the menu on the first row.
     Timer {
         running: typeof demoMenu !== "undefined" && demoMenu
         interval: 2200
@@ -100,12 +100,12 @@ Item {
                     width: files.width
                     height: 32
 
-                    // Preenchido assim que o ficheiro estiver na cache local:
-                    // é o que permite arrastá-lo para fora da janela.
+                    // Filled in as soon as the file is in the local cache:
+                    // that is what allows dragging it out of the window.
                     property string localUrl: model.isDirectory
                         ? "" : app.cachedFileUrl(model.path, model.size)
                     property bool preparing: false
-                    // Expostos para o modo de demonstração das capturas.
+                    // Exposed for the screenshots' demo mode.
                     readonly property string rowPath: model.path
                     readonly property string rowName: model.name
                     readonly property bool rowIsDirectory: model.isDirectory
@@ -126,15 +126,15 @@ Item {
                         }
                     }
 
-                    // O arrastar para fora entrega um ficheiro local ao
-                    // sistema; por isso o proxy só existe depois da cópia.
+                    // Dragging out hands a local file to the system; that
+                    // is why the proxy only exists after the copy.
                     Item {
                         id: dragProxy
                         Drag.active: dragArea.drag.active
                         Drag.dragType: Drag.Automatic
                         Drag.supportedActions: Qt.CopyAction
                         Drag.mimeData: ({ "text/uri-list": row.localUrl })
-                        // Sem imagem, o cursor arrasta um nada invisível.
+                        // Without an image, the cursor drags an invisible nothing.
                         Drag.imageSource: "qrc:/icons/logo.png"
                     }
 
@@ -168,8 +168,8 @@ Item {
                                 cursorShape: row.localUrl.length > 0 ? Qt.OpenHandCursor : Qt.ArrowCursor
                                 drag.target: row.localUrl.length > 0 ? dragProxy : null
                                 drag.threshold: 10
-                                // Senão a lista rouba o gesto e trata-o como
-                                // rolar em vez de arrastar o ficheiro.
+                                // Otherwise the list steals the gesture and treats
+                                // it as scrolling instead of dragging the file.
                                 preventStealing: row.localUrl.length > 0
 
                                 onClicked: (mouse) => {
@@ -183,8 +183,8 @@ Item {
                                         app.ftpDownload(model.path, model.name, "")
                                 }
                                 onPressAndHold: rowMenu.popupFor(model.path, model.name, model.isDirectory, model.size, model.sizeText, row)
-                                // Arrastar um ficheiro que ainda não está no PC
-                                // começa por o trazer; quando chegar, arrasta-se.
+                                // Dragging a file that is not on the PC yet starts
+                                // by fetching it; when it arrives, it is dragged.
                                 onPositionChanged: {
                                     if (!pressed || model.isDirectory || row.localUrl.length > 0)
                                         return
@@ -231,7 +231,7 @@ Item {
             }
         }
 
-        // Transferência em curso (da consola para o PC).
+        // Transfer in progress (from the console to the PC).
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
@@ -286,7 +286,7 @@ Item {
         }
     }
 
-    // O que se pode fazer com o que está por baixo do cursor.
+    // What can be done with what is under the cursor.
     Menu {
         id: rowMenu
         property string targetPath: ""
@@ -306,8 +306,8 @@ Item {
             popup()
         }
 
-        // Folga em cima e em baixo para que o realce da primeira e da
-        // última linha nunca chegue aos cantos arredondados.
+        // Room above and below so the highlight of the first and last
+        // rows never reaches the rounded corners.
         topPadding: 8
         bottomPadding: 8
 
@@ -319,8 +319,8 @@ Item {
             radius: Theme.radiusSmall
         }
 
-        // Cabeçalho com o nome e o tamanho, para não haver dúvidas sobre
-        // em que ficheiro o menu está a agir.
+        // Header with the name and size, so there is no doubt about which
+        // file the menu is acting on.
         Rectangle {
             implicitHeight: 50
             implicitWidth: rowMenu.width
@@ -349,8 +349,8 @@ Item {
         }
 
         MenuSeparator {
-            // A linha também respira: sem margens iria de aresta a aresta
-            // e cortaria o menu ao meio.
+            // The separator breathes too: without margins it would run edge
+            // to edge and cut the menu in half.
             padding: 6
             leftPadding: 16
             rightPadding: 16
@@ -402,8 +402,8 @@ Item {
         }
 
         MenuSeparator {
-            // A linha também respira: sem margens iria de aresta a aresta
-            // e cortaria o menu ao meio.
+            // The separator breathes too: without margins it would run edge
+            // to edge and cut the menu in half.
             padding: 6
             leftPadding: 16
             rightPadding: 16
@@ -470,7 +470,7 @@ Item {
         onAccepted: app.ftpRename(targetPath, nameInput.text)
     }
 
-    // Operações destrutivas exigem confirmação (§5.5).
+    // Destructive operations require confirmation (§5.5).
     Dialog {
         id: confirmDelete
         property string targetPath: ""
@@ -478,8 +478,8 @@ Item {
         property string targetName: ""
         parent: Overlay.overlay
         anchors.centerIn: parent
-        // Largura fixa: sem isto o diálogo mede-se pelo texto e o texto
-        // mede-se pelo diálogo, e o Qt avisa do ciclo.
+        // Fixed width: without it the dialog sizes itself by the text and the
+        // text by the dialog, and Qt warns about the loop.
         width: 400
         modal: true
         padding: 0
@@ -491,8 +491,8 @@ Item {
             visible = true
         }
 
-        // Sem isto o diálogo usaria o estilo Basic: fundo branco com o texto
-        // do tema por cima — no tema escuro, claro sobre branco, ilegível.
+        // Without this the dialog would use the Basic style: white background
+        // with the theme's text on top — on the dark theme, light on white, unreadable.
         Overlay.modal: Rectangle { color: Theme.scrim }
 
         background: Rectangle {

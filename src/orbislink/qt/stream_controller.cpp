@@ -772,7 +772,7 @@ void StreamController::oneClickPoll()
 					return;
 				if(!info.found)
 				{
-					// A meio do arranque ela pode deixar de responder um pouco.
+					// Midway through booting it may stop answering for a bit.
 					wakeTimer_->start();
 					return;
 				}

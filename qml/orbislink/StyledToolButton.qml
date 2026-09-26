@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// O botão pequeno das barras e das listas. Redondo, sem moldura até o rato
-// lá chegar — a navegação tem de desaparecer quando não se precisa dela.
+// The small button of bars and lists. Round, with no frame until the mouse
+// gets there — navigation has to disappear when it is not needed.
 import QtQuick
 import QtQuick.Controls.Basic
 

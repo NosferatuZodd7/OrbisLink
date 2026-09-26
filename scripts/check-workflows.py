@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Verificação grosseira dos blocos de PowerShell dos workflows: chaves,
-# parêntesis e aspas equilibrados, e nenhum "$var:" — que o PowerShell lê
-# como qualificador de âmbito.
+# Rough check of the workflows' PowerShell blocks: balanced braces,
+# parentheses and quotes, and no "$var:" — which PowerShell reads
+# as a scope qualifier.
 #
-# Não substitui um interpretador; apanha a classe de erro que só se
-# descobre cinco minutos depois, num runner de Windows.
+# It does not replace an interpreter; it catches the class of error that is
+# only found five minutes later, on a Windows runner.
 import re
 import sys
 
@@ -23,7 +23,7 @@ def main() -> int:
                 script = passo.get('run')
                 if not script:
                     continue
-                # Só os blocos de PowerShell: os de bash têm outras regras.
+                # Only the PowerShell blocks: the bash ones have other rules.
                 if 'Write-Host' not in script and 'Test-Path' not in script:
                     continue
                 etiqueta = f"{caminho}:{nome_job}:{passo.get('name', '(sem nome)')}"

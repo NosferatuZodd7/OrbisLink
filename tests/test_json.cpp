@@ -19,7 +19,7 @@ ORBISLINK_TEST(parse_objeto_simples)
 
 ORBISLINK_TEST(aceita_hexadecimal_do_instalador)
 {
-	// Resposta real de /api/get_task_progress: números em hexadecimal sem aspas.
+	// Real /api/get_task_progress reply: hexadecimal numbers without quotes.
 	const std::string body =
 		R"({ "status": "success", "bits": 0x1, "error": 0, "length": 0x40000000, )"
 		R"("transferred": 0x200, "length_total": 0x40000000, "transferred_total": 0x200, )"
@@ -78,7 +78,7 @@ ORBISLINK_TEST(entrada_invalida_nao_rebenta)
 	const Json json = Json::parse("{ isto nao e json", &error);
 	CHECK(json.isNull());
 	CHECK(!error.empty());
-	// Acessos a chaves inexistentes devolvem valores por omissão.
+	// Accessing missing keys returns default values.
 	CHECK_EQ(json["seja_o_que_for"].toInt(-1), -1);
 	CHECK_EQ(json.at(3).toString("vazio"), std::string("vazio"));
 }

@@ -10,7 +10,7 @@ namespace orbislink {
 struct LocalInterface
 {
 	std::string name;
-	std::string address; // IPv4 em texto
+	std::string address; // IPv4 as text
 	std::string netmask;
 	bool loopback = false;
 };

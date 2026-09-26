@@ -25,7 +25,7 @@ public:
 	struct Action
 	{
 		const char *id;   // the name stored in the settings, e.g. "cross"
-		uint32_t button;  // CHIAKI_CONTROLLER_BUTTON_*, ou 0 se for um eixo
+		uint32_t button;  // CHIAKI_CONTROLLER_BUTTON_*, or 0 for an axis
 		int defaultKey;   // Qt::Key
 	};
 	static const std::vector<Action> &actions();

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Corre os testes do OrbisLink compilados para Windows, sob Wine, a partir de
-# Linux. Valida os caminhos de código específicos do Windows (Winsock,
-# GetAdaptersAddresses, o servidor HTTP) sem precisar de uma máquina Windows.
+# Runs the OrbisLink tests built for Windows, under Wine, from
+# Linux. Validates the Windows-specific code paths (Winsock,
+# GetAdaptersAddresses, the HTTP server) without needing a Windows machine.
 #
 #   sudo apt install mingw-w64 wine64 cmake ninja-build
 #   ORBISLINK_WINDOWS_TESTS=ON ./scripts/build-windows.sh

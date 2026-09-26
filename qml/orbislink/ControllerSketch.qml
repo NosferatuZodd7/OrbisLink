@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// O comando da PS4 do mapa das teclas. A parte em "destaque" acende-se —
-// é o que liga uma tecla do desenho do teclado ao botão que ela faz.
+// The PS4 controller of the key map. The "highlighted" part lights up —
+// that is what links a key on the keyboard drawing to the button it presses.
 //
-// A imagem (src/icons/dualshock.svg, desenhada para o OrbisLink) tem os
-// botões, o touchpad, o PS e os analógicos recortados
-// (transparentes). Por isso o destaque pinta-se POR BAIXO dela: a cor
-// enche o recorte e o contorno do comando fica nítido por cima, sem
-// precisar de máscaras nem de QtQuick.Effects (que o Qt 6.4 das capturas
-// não tem). Os símbolos △ ◯ ✕ ▢ também são recortes, e é assim que
-// aparecem nas suas cores.
+// The image (src/icons/dualshock.svg, drawn for OrbisLink) has the
+// buttons, touchpad, PS button and sticks cut out
+// (transparent). So the highlight is painted UNDER it: the colour
+// fills the cut-out and the controller outline stays sharp on top, without
+// needing masks or QtQuick.Effects (which the screenshots' Qt 6.4
+// lacks). The △ ◯ ✕ ▢ symbols are cut-outs too, and that is how they
+// appear in their colours.
 //
-// Duas imagens: o corpo claro nos temas escuros (um comando preto sobre
-// fundo preto desapareceria) e o corpo escuro no tema claro.
+// Two images: the light body on the dark themes (a black controller on a
+// black background would disappear) and the dark body on the light theme.
 //
-// As posições estão em unidades do SVG (1590×988) e são as mesmas que lá
-// estão: mudar uma num sítio obriga a mudá-la no outro.
+// Positions are in SVG units (1590×988) and match the ones in the file:
+// changing one in one place means changing it in the other.
 import QtQuick
 
 Item {
     id: comando
 
     // "cross", "circle", "square", "triangle", "l1", "l2", "r1", "r2",
-    // "lstick", "rstick", "dpad", "options", "share", "touchpad", "ps" ou "".
+    // "lstick", "rstick", "dpad", "options", "share", "touchpad", "ps" or "".
     property string destaque: ""
 
     readonly property color corCruz: "#7CB2E8"
@@ -30,8 +30,8 @@ Item {
     readonly property color corQuadrado: "#E88BD6"
     readonly property color corTriangulo: "#40E0B0"
 
-    // A imagem e, por cima dela, a faixa dos ombros (L1/L2/R1/R2 não se
-    // vêem de frente, vão como etiquetas).
+    // The image and, on top of it, the shoulder strip (L1/L2/R1/R2 cannot
+    // be seen from the front, so they go as labels).
     readonly property real larguraImagem: 1590
     readonly property real alturaImagem: 988
     readonly property real alturaOmbros: 210
@@ -44,9 +44,9 @@ Item {
     implicitWidth: 240
     implicitHeight: Math.round(240 * alturaTotal / larguraImagem)
 
-    // As zonas recortadas da imagem, e a cor com que ficam em repouso.
-    // Os botões da direita e o PS são círculos; o touchpad e o
-    // Share/Options são rectângulos arredondados.
+    // The cut-out zones of the image, and their colour at rest.
+    // The right-hand buttons and the PS button are circles; the touchpad and
+    // Share/Options are rounded rectangles.
     readonly property var zonas: ({
         "triangle": { c: [1286, 163, 50], cor: corTriangulo },
         "circle":   { c: [1404, 278, 50], cor: corCirculo },
@@ -85,7 +85,7 @@ Item {
                             zona.r[4], zona.r[4])
     }
 
-    // Por baixo: as cores dos símbolos, e o recorte aceso.
+    // Underneath: the symbol colours, and the lit cut-out.
     Canvas {
         id: baixo
         anchors.fill: parent
@@ -116,9 +116,9 @@ Item {
         mipmap: true
     }
 
-    // Por cima: um anel à volta do que está aceso (um recorte pequeno,
-    // como o símbolo de um botão, sozinho não chama o olho) e as etiquetas
-    // dos ombros.
+    // On top: a ring around what is lit (a small cut-out, like a button
+    // symbol, does not catch the eye on its own) and the shoulder
+    // labels.
     Canvas {
         id: cima
         anchors.fill: parent
@@ -136,7 +136,7 @@ Item {
                 ctx.stroke()
             }
 
-            // L2 por cima de L1, como no comando: o gatilho fica atrás.
+            // L2 above L1, as on the controller: the trigger sits behind.
             var ombros = [
                 ["l2", "L2", 215, 0], ["l1", "L1", 185, 100],
                 ["r2", "R2", 1195, 0], ["r1", "R1", 1165, 100]

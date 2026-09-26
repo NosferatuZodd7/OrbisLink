@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Os três temas como ícones na barra de cima, ao lado das definições.
-// Um clique muda logo, sem abrir as definições, e o tema activo vê-se
-// aceso.
+// The three themes as icons in the top bar, next to the settings.
+// One click switches right away, without opening the settings, and the
+// active theme is shown lit.
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -47,8 +47,8 @@ Rectangle {
                     NumberAnimation { duration: Theme.fast; easing.type: Theme.easeSpring; easing.overshoot: 1.1 }
                 }
 
-                // O Main.qml aplica o tema quando as definições mudam; aqui
-                // só se grava.
+                // Main.qml applies the theme when the settings change; here
+                // it is only saved.
                 onClicked: app.setTheme(modelData.nome)
 
                 background: Rectangle {

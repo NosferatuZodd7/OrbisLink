@@ -60,8 +60,8 @@ class Runner:
         return condition
 
     def run(self, *arguments: str, expect: int | None = 0) -> subprocess.CompletedProcess:
-        # encoding explícito: em Windows o Python decodificaria a saída em
-        # cp1252 e rebentaria nos acentos e nos indicadores 🟢/🔴.
+        # explicit encoding: on Windows Python would decode the output as
+        # cp1252 and choke on accents and the 🟢/🔴 indicators.
         result = subprocess.run([self.cli, *arguments], capture_output=True, text=True,
                                 encoding="utf-8", errors="replace", timeout=180,
                                 env=child_env())
@@ -73,7 +73,7 @@ class Runner:
 
 
 def main() -> int:
-    # A própria saída deste script leva acentos e emojis.
+    # This script's own output carries accents and emojis.
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except (AttributeError, ValueError):
@@ -89,7 +89,7 @@ def main() -> int:
     console_root = os.path.join(workspace, "consola")
     os.makedirs(console_root)
 
-    # pkg sintético com ~3 MB, suficiente para vários pedidos Range.
+    # synthetic ~3 MB pkg, enough for several Range requests.
     pkg_path = os.path.join(workspace, "jogo de teste.pkg")
     with open(pkg_path, "wb") as handle:
         handle.write(make_test_pkg.build_pkg("UP0001-CUSA12345_00-ORBISLINKTEST001",
@@ -114,7 +114,7 @@ def main() -> int:
         common = ["--host", "127.0.0.1", "--ftp-port", str(info["ftp_port"]),
                   "--installer-port", str(info["api_port"])]
 
-        # 1. Verificação de serviços
+        # 1. Service check
         services = runner.run("services", *common)
         runner.check(services.returncode == 0, "services devolve sucesso")
         runner.check("🟢" in services.stdout, "services mostra pelo menos um serviço disponível")
@@ -125,7 +125,7 @@ def main() -> int:
         runner.check("CUSA12345" in inspect.stdout, "inspect lê o TITLE_ID")
         runner.check("Jogo de Teste" in inspect.stdout, "inspect lê o título")
 
-        # 3. Instalação direta ponta a ponta
+        # 3. Direct install end to end
         install = runner.run("install", *common, "--http-port", str(http_port),
                              "--bind", "127.0.0.1", "--timeout", "120", pkg_path)
         runner.check(install.returncode == 0, "install termina com sucesso")
@@ -163,14 +163,14 @@ def main() -> int:
         runner.check(remove.returncode == 0 and not os.path.exists(uploaded),
                      "ftp-rm apaga o ficheiro")
 
-        # 5. Enviar por FTP e instalar a seguir, numa só passagem
+        # 5. Upload via FTP and install afterwards, in a single pass
         antes = len(os.listdir(downloads))
         duplo = runner.run("install", *common, "--ftp", "--install-after-upload",
                            "--http-port", str(http_port), "--bind", "127.0.0.1",
                            "--timeout", "120", pkg_path)
         runner.check(duplo.returncode == 0, "install --ftp --install-after-upload termina bem")
-        # O nome remoto vem do ficheiro local, com os espaços trocados por
-        # underscores (a fila higieniza o nome antes de o enviar).
+        # The remote name comes from the local file, with spaces replaced by
+        # underscores (the queue sanitises the name before uploading it).
         enviado = os.path.join(console_root, "data", "pkg", "jogo_de_teste.pkg")
         runner.check(os.path.exists(enviado) and digest(enviado) == pkg_digest,
                      "o pkg fica guardado na consola depois do envio")
@@ -179,7 +179,7 @@ def main() -> int:
         if os.path.exists(enviado):
             os.remove(enviado)
 
-        # 6. O mesmo, mas apagando a cópia da consola no fim
+        # 6. The same, but deleting the copy on the console at the end
         antes = len(os.listdir(downloads))
         limpo = runner.run("install", *common, "--ftp", "--install-after-upload",
                            "--delete-after-install", "--http-port", str(http_port),
@@ -189,7 +189,7 @@ def main() -> int:
         runner.check(not os.path.exists(enviado),
                      "e a cópia enviada já não está na consola")
 
-        # 7. Zona protegida continua bloqueada sem modo avançado
+        # 7. Protected area stays blocked without advanced mode
         blocked = runner.run("ftp-mkdir", *common, "/system/teste", expect=1)
         runner.check(blocked.returncode != 0 and "Protected system area" in blocked.stderr,
                      "escrever em /system é recusado sem Modo avançado")

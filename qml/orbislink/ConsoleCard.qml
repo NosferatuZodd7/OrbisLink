@@ -1,43 +1,43 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// A consola encontrada na rede, numa caixa que se clica.
+// The console found on the network, in a card you click.
 //
-// Um clique liga: a app pergunta à consola como está, acorda-a se estiver em
-// repouso, espera que fique pronta e liga — ou abre o registo, se este PC
-// ainda não estiver registado nela. Enquanto isso decorre, outro clique
-// cancela. O que se está a passar está escrito no botão de baixo.
+// One click connects: the app asks the console how it is, wakes it if it is
+// in rest mode, waits for it to be ready and connects — or opens registration,
+// if this PC is not registered on it yet. While that is going on, another
+// click cancels. What is happening is written on the bottom button.
 //
-// O desenho é de 360×330 e escala-se inteiro (`fator`) quando há várias
-// consolas lado a lado: assim as proporções nunca mudam. Sem QtQuick.Effects
-// (o Qt 6.4 das capturas não o tem), o vidro, o brilho e a sombra são camadas
-// e gradientes desenhados aqui.
+// The design is 360×330 and scales as a whole (`scaleFactor`) when there are
+// several consoles side by side: that way the proportions never change.
+// Without QtQuick.Effects (the screenshots' Qt 6.4 lacks it), the glass,
+// glow and shadow are layers and gradients drawn here.
 //
-// A consola de tipo desconhecido tem outra caixa, ao estilo de um desenho
-// animado: cor lisa, contorno grosso e uma sombra dura deslocada, sem vidro,
-// ondas nem brilho.
+// A console of unknown type gets a different card, in a cartoon style:
+// flat colour, thick outline and a hard offset shadow, with no glass,
+// waves or glow.
 import QtQuick
 import QtQuick.Controls.Basic
 
 Item {
     id: caixa
 
-    // "ready", "standby", "offline" ou "unknown", como vem do stream.
+    // "ready", "standby", "offline" or "unknown", as it comes from the stream.
     property string estado: "unknown"
     property bool registada: false
     property bool aLigar: false
     property bool aProcurar: false
-    // O passo da ligação de um só clique: "", "checking" ou "waking".
+    // The one-click connection step: "", "checking" or "waking".
     property string etapa: ""
-    property bool disponivel: true   // falso numa compilação sem Remote Play
-    // "ps4", "ps5", ou vazio quando a consola nunca respondeu — e aí não se
-    // inventa um número: aparece "Unknown PlayStation", numa caixa de
-    // desenho mais simples, para não passar por uma consola conhecida.
+    property bool disponivel: true   // false in a build without Remote Play
+    // "ps4", "ps5", or empty when the console never answered — and then no
+    // number is made up: "Unknown PlayStation" appears, on a simpler card,
+    // so it does not pass for a known console.
     property string tipo: ""
     readonly property bool conhecida: tipo === "ps4" || tipo === "ps5"
     property string nome: ""
     property string endereco: ""
-    // Falso para as outras consolas da lista: aí o clique escolhe-a (passa a
-    // ser a consola em uso), e no canto há um ✕ para a tirar da lista.
+    // False for the other consoles in the list: there the click selects it
+    // (it becomes the console in use), and the corner has a ✕ to remove it.
     property bool ativa: true
     property real fator: 1.0
 
@@ -47,7 +47,7 @@ Item {
     signal escolher()
     signal remover()
 
-    // O ✕ pede um segundo clique antes de remover.
+    // The ✕ asks for a second click before removing.
     property bool confirmarRemocao: false
     Timer {
         running: caixa.confirmarRemocao
@@ -55,7 +55,7 @@ Item {
         onTriggered: caixa.confirmarRemocao = false
     }
 
-    // O que o clique faz agora.
+    // What the click does now.
     readonly property string accao: {
         if (!disponivel) return ""
         if (!ativa) return "choose"
@@ -98,14 +98,14 @@ Item {
     width: implicitWidth
     height: implicitHeight
 
-    // O rato por cima de uma caixa que faz alguma coisa ao clicar.
+    // The mouse over a card that does something when clicked.
     readonly property bool sobre: area.containsMouse && accao.length > 0
 
-    // Sem resposta, a caixa inteira recua um pouco.
+    // With no action, the whole card fades back a little.
     opacity: apagada && !area.containsMouse ? 0.9 : 1.0
     Behavior on opacity { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
 
-    // Com o rato por cima cresce um pouco e sobe; ao carregar, afunda.
+    // With the mouse over it, it grows a little and lifts; when pressed, it sinks.
     scale: area.pressed && sobre ? Theme.pressScale : (sobre ? 1.03 : 1.0)
     Behavior on scale { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
     transform: Translate {
@@ -120,7 +120,7 @@ Item {
         scale: caixa.fator
         transformOrigin: Item.TopLeft
 
-        // ── Sombra suave: três camadas a alargar e a desaparecer.
+        // ── Soft shadow: three layers widening and fading.
         Repeater {
             model: caixa.conhecida ? 3 : 0
             Rectangle {
@@ -136,8 +136,8 @@ Item {
             }
         }
 
-        // ── Brilho azul à volta, só com o rato por cima: parada, a caixa
-        // fica discreta.
+        // ── Blue glow around it, only with the mouse over it: at rest, the
+        // card stays discreet.
         Repeater {
             model: caixa.conhecida ? 3 : 0
             Rectangle {
@@ -152,7 +152,7 @@ Item {
             }
         }
 
-        // ── Cartoon: a sombra dura, a mesma forma deslocada e sem desfoque.
+        // ── Cartoon: the hard shadow, the same shape offset and without blur.
         Rectangle {
             visible: !caixa.conhecida
             x: area.pressed ? 3 : caixa.sobre ? 10 : 7
@@ -183,8 +183,8 @@ Item {
             }
             clip: true
 
-            // Curvas largas e o gradiente radial atrás do logótipo, mais um
-            // ruído quase invisível para o azul não ficar chapado.
+            // Wide curves and the radial gradient behind the logo, plus an
+            // almost invisible noise so the blue does not look flat.
             Canvas {
                 id: ondas
                 anchors.fill: parent
@@ -222,7 +222,7 @@ Item {
                     ctx.closePath()
                     ctx.fill()
 
-                    // Ruído a 2–3%: pontos soltos, sempre os mesmos.
+                    // Noise at 2–3%: scattered dots, always the same ones.
                     var semente = 7
                     function aleatorio() {
                         semente = (semente * 16807) % 2147483647
@@ -234,7 +234,7 @@ Item {
                 }
             }
 
-            // Cartoon: a cor lisa por cima do gradiente, dentro do contorno.
+            // Cartoon: the flat colour over the gradient, inside the outline.
             Rectangle {
                 visible: !caixa.conhecida
                 anchors.fill: parent
@@ -243,7 +243,7 @@ Item {
                 color: Theme.cardTop
             }
 
-            // A aresta de luz em cima.
+            // The edge of light at the top.
             Rectangle {
                 visible: caixa.conhecida
                 anchors.left: parent.left
@@ -273,8 +273,8 @@ Item {
             }
         }
 
-        // ── Topo: o símbolo da app à esquerda, e à direita o registo (a
-        // "ligação" entre este PC e a consola) ou, nas outras consolas, o ✕.
+        // ── Top: the app symbol on the left, and on the right the registration
+        // (the "link" between this PC and the console) or, on other consoles, the ✕.
         Image {
             x: 24
             y: 22
@@ -318,16 +318,16 @@ Item {
             }
         }
 
-        // ── Centro: PS4/PS5 em traço fino, a linha azul, o nome e o IP.
+        // ── Centre: PS4/PS5 in a thin stroke, the blue line, the name and the IP.
         Column {
             x: 0
             y: 58
             width: parent.width
             spacing: 0
 
-            // A wordmark PS4/PS5 (ou "Unknown PlayStation", quando o tipo não
-            // se sabe), gerada por scripts/gerar-wordmarks.py: branca nos
-            // temas escuros, preta no claro.
+            // The PS4/PS5 wordmark (or "Unknown PlayStation", when the type is
+            // not known), generated by scripts/gerar-wordmarks.py: white on the
+            // dark themes, black on the light one.
             Image {
                 id: letras
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -345,8 +345,8 @@ Item {
 
             Item { width: 1; height: 8 }
 
-            // A linha fina por baixo do logótipo: azul na consola em uso,
-            // cinzenta nas outras.
+            // The thin line under the logo: blue on the console in use,
+            // grey on the others.
             Rectangle {
                 id: divisor
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -387,7 +387,7 @@ Item {
             }
         }
 
-        // ── Rodapé: o botão com o estado e o que o clique faz.
+        // ── Footer: the button with the state and what the click does.
         Rectangle {
             id: botao
             anchors.horizontalCenter: parent.horizontalCenter
@@ -408,7 +408,7 @@ Item {
                     return Qt.rgba(c.r, c.g, c.b, (Theme.claro ? 0.10 : 0.16) * alfa)
                 return Qt.rgba(c.r, c.g, c.b, (Theme.claro ? 0.10 : 0.20) * alfa)
             }
-            // Na caixa cartoon, contorno grosso na cor do estado.
+            // On the cartoon card, a thick outline in the state colour.
             border.width: caixa.conhecida ? 1 : 3
             border.color: caixa.conhecida
                           ? Qt.rgba(caixa.corEstado.r, caixa.corEstado.g, caixa.corEstado.b,
@@ -416,8 +416,8 @@ Item {
                           : caixa.corEstado
             Behavior on color { ColorAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
 
-            // O ponto à esquerda, o texto (até duas linhas) e o chevron à
-            // direita, na cor do estado.
+            // The dot on the left, the text (up to two lines) and the chevron
+            // on the right, in the state's colour.
             Rectangle {
                 id: ponto
                 x: 24
@@ -458,7 +458,7 @@ Item {
                 font.pixelSize: 28
             }
 
-            // A procurar: um brilho que corre ao longo do fundo do botão.
+            // Searching: a shine running along the bottom of the button.
             Rectangle {
                 id: brilhoBarra
                 visible: caixa.aVerificar

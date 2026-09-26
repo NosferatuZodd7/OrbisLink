@@ -6,7 +6,7 @@ import QtQuick.Layouts
 
 Dialog {
     id: dialog
-    // A consola em uso é uma PS5: a porta FTP que se edita é a dela.
+    // The console in use is a PS5: the FTP port being edited is its own.
     property bool consolaPs5: false
     modal: true
     parent: Overlay.overlay
@@ -15,9 +15,9 @@ Dialog {
     height: Math.min(parent ? parent.height - 80 : 620, 660)
     padding: 0
 
-    // Um modal quase opaco: com a transparência dos painéis, o que está por
-    // trás ver-se-ia através da caixa, e uma caixa que pede uma decisão não
-    // pode ser uma janela.
+    // A nearly opaque modal: with the panels' transparency, what is behind
+    // would show through the box, and a box asking for a decision must not
+    // be a window.
     Overlay.modal: Rectangle { color: Theme.scrim }
 
     background: Rectangle {
@@ -28,8 +28,8 @@ Dialog {
 
     property var values: ({})
 
-    // O assistente de primeira utilização vive no Main.qml; daqui só se
-    // pede que volte a aparecer.
+    // The first-run wizard lives in Main.qml; from here we only ask for it
+    // to appear again.
     signal abrirAssistente()
 
     function resolucaoParaIndice(resolucao) {
@@ -42,8 +42,8 @@ Dialog {
         return idioma === "pt_PT" || idioma === "pt" ? 1 : 0
     }
 
-    // Verificação automática do endereço: "idle", "checking", "ok",
-    // "partial" (só um dos serviços responde) ou "fail".
+    // Automatic address check: "idle", "checking", "ok",
+    // "partial" (only one of the services answers) or "fail".
     property string probeState: "idle"
     property string probeDetail: ""
     property bool probeFtpOk: false
@@ -75,8 +75,8 @@ Dialog {
         return qsTr("Type the console's IP address — it is checked on its own.")
     }
 
-    // Só vale a pena ligar quando o endereço está inteiro: um IPv4 completo
-    // (senão verificava-se "192.168.1." a cada tecla) ou um nome de máquina.
+    // Only worth connecting when the address is complete: a full IPv4
+    // (otherwise "192.168.1." would be checked on every key) or a host name.
     function addressLooksComplete(text) {
         var value = (text || "").trim()
         if (value.length === 0)
@@ -107,7 +107,7 @@ Dialog {
 
     Timer {
         id: probeTimer
-        // Espera que se pare de escrever antes de ir à rede.
+        // Waits for typing to stop before going to the network.
         interval: 600
         repeat: false
         onTriggered: app.probeConsole(addressField.text.trim(),
@@ -118,7 +118,7 @@ Dialog {
     Connections {
         target: app
         function onConsoleProbed(address, ftpOk, installerOk, detail) {
-            // Uma resposta de um endereço que já não é o escrito não conta.
+            // A reply for an address that is no longer the typed one does not count.
             if (address !== addressField.text.trim())
                 return
             dialog.probeFtpOk = ftpOk
@@ -279,7 +279,7 @@ Dialog {
                 }
 
                 Text {
-                    // A porta é a da consola em uso: a PS5 com etaHEN usa outra.
+                    // The port is the console in use's: a PS5 with etaHEN uses another.
                     text: dialog.consolaPs5 ? qsTr("FTP port (PS5)") : qsTr("FTP port")
                     color: Theme.textMuted
                     font.pixelSize: 12
@@ -298,7 +298,7 @@ Dialog {
                 }
             }
 
-            // Resultado da verificação automática, sem botão nenhum.
+            // Result of the automatic check, with no button at all.
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
@@ -485,10 +485,10 @@ Dialog {
                     StyledCombo {
                         id: resolucaoBox
                         Layout.fillWidth: true
-                        // O 1080p só existe em PS4 Pro e em PS5. Numa PS4
-                        // normal o pedido é baixado para 720p pela própria
-                        // consola, e a etiqueta diz isso em vez de deixar
-                        // a pessoa a pensar que a definição não faz nada.
+                        // 1080p only exists on PS4 Pro and PS5. On a regular
+                        // PS4 the request is lowered to 720p by the console
+                        // itself, and the label says so instead of leaving
+                        // the person thinking the setting does nothing.
                         model: [qsTr("1080p — PS4 Pro and PS5 only"), qsTr("720p — balanced"),
                                 qsTr("540p"), qsTr("360p — weak network")]
                     }
@@ -527,9 +527,9 @@ Dialog {
                     Layout.alignment: Qt.AlignTop
                     Layout.topMargin: 8
                 }
-                // Aceita hexadecimal, decimal ou base64, e mostra as três
-                // por baixo. A consola só entende base64, mas isso é
-                // problema nosso e não de quem o está a copiar de um ecrã.
+                // Accepts hexadecimal, decimal or base64, and shows all three
+                // below. The console only understands base64, but that is our
+                // problem, not that of whoever is copying it off a screen.
                 AccountIdField {
                     id: accountField
                     Layout.fillWidth: true
@@ -629,10 +629,10 @@ Dialog {
                     enabled: app.updateState !== "checking"
                              && app.updateState !== "downloading"
                     onClicked: {
-                        // Guardar primeiro: senão verificava-se o repositório
-                        // antigo, não o que está escrito no campo. Só estes
-                        // três valores, e sem fechar: o resultado aparece
-                        // aqui ao lado, e quem carregou quer vê-lo.
+                        // Save first: otherwise the old repository would be
+                        // checked, not the one typed in the field. Only these
+                        // three values, and without closing: the result shows
+                        // up right here, and whoever pressed wants to see it.
                         app.saveUpdateSettings(updatesBox.checked,
                                                updateRepoField.text.trim(),
                                                updateChannelBox.currentIndex === 1

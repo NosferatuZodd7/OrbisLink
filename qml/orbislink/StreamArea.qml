@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Área central da janela: o vídeo do Remote Play, e o que se pode fazer
-// antes de o haver (registar o PC na consola, acordá-la, ligar).
+// The window's central area: the Remote Play video, and what can be done
+// before there is any (register the PC on the console, wake it, connect).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -10,9 +10,9 @@ import QtQuick.Layouts
 Item {
     id: root
 
-    // O palco do vídeo flutua como o resto: margens, cantos largos e uma
-    // moldura de vidro. Em ecrã inteiro tudo isso desaparece — aí a
-    // imagem é que manda.
+    // The video stage floats like everything else: margins, wide corners and
+    // a glass frame. In full screen all of that goes away — there the
+    // picture rules.
     readonly property bool solto: typeof window !== "undefined" && window
                                   && window.streamFullscreen
 
@@ -24,7 +24,7 @@ Item {
         anchors.bottomMargin: root.solto ? 0 : Theme.gutter
         anchors.rightMargin: root.solto ? 0 : 6
         radius: root.solto ? 0 : Theme.radius
-        // Preto sempre que há (ou vai haver) imagem; parado, segue o tema.
+        // Black whenever there is (or will be) a picture; idle, it follows the theme.
         color: root.streaming ? "#000000" : Theme.stageIdle
         Behavior on color { ColorAnimation { duration: Theme.normal } }
         border.width: root.solto ? 0 : 1
@@ -35,20 +35,20 @@ Item {
         Behavior on radius { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
     }
 
-    // Testa o próprio objecto e não só a bandeira: ao fechar a janela o
-    // controlador morre antes das bindings, e sem isto o registo enche-se
-    // de "Cannot read property of null".
+    // Tests the object itself and not just the flag: when closing the window
+    // the controller dies before the bindings, and without this the log fills
+    // up with "Cannot read property of null".
     readonly property bool built: typeof stream !== "undefined" && stream !== null
     readonly property bool streaming: built && stream.streaming
     readonly property string consoleState: built ? stream.consoleState : "unknown"
     readonly property bool registered: built && stream.registered
     readonly property string sessionState: built ? stream.sessionState : "idle"
 
-    // ───────────────────────────── vídeo
+    // ───────────────────────────── video
     //
-    // Carregado à parte porque é o único sítio com "import QtMultimedia":
-    // onde esse módulo não existir, esta parte falha sozinha e o resto da
-    // janela abre na mesma.
+    // Loaded separately because it is the only place with "import QtMultimedia":
+    // where that module does not exist, this part fails on its own and the rest
+    // of the window opens anyway.
     Loader {
         id: videoLoader
         anchors.fill: palco
@@ -78,7 +78,7 @@ Item {
         }
     }
 
-    // ───────────────────────────── fundo, quando não há imagem
+    // ───────────────────────────── background, when there is no picture
     Image {
         anchors.fill: palco
         anchors.margins: 1
@@ -96,7 +96,7 @@ Item {
         anchors.margins: 1
         visible: !root.streaming
         opacity: 0.25
-        // O Canvas não se redesenha sozinho quando a cor muda.
+        // The Canvas does not repaint by itself when the colour changes.
         readonly property color cor: Theme.stageGrid
         onCorChanged: requestPaint()
         onPaint: {
@@ -113,25 +113,25 @@ Item {
         }
     }
 
-    // A consola numa caixa ao centro: um clique liga, acorda, regista ou
-    // procura, conforme o estado. Por baixo, só a explicação que o estado
-    // pedir (o PIN do registo, o motivo de uma falha, o jogo a correr).
+    // The console on a card in the centre: one click connects, wakes,
+    // registers or searches, depending on the state. Below, only the
+    // explanation the state calls for (the registration PIN, the reason for a failure, the game running).
     Column {
         anchors.centerIn: palco
         spacing: 18
         visible: !root.streaming
 
-        // As consolas guardadas lado a lado, e a caixa para juntar mais uma.
-        // A que está em uso é a de sempre; as outras mostram o estado delas
-        // e um clique passa a usá-las.
+        // The saved consoles side by side, and the card to add one more.
+        // The one in use is the usual one; the others show their state and
+        // a click switches to them.
         Row {
             id: filaConsolas
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 18
             readonly property var lista: app.consoles
-            // Um pouco abaixo do tamanho do desenho, para não dominarem o
-            // palco; e encolhem juntas, sem mudar de proporções, quando não
-            // cabem.
+            // A little below the drawing's size, so they do not dominate the
+            // stage; and they shrink together, without changing proportions,
+            // when they do not fit.
             readonly property real fator: Math.max(0.42, Math.min(0.72,
                 (palco.width - 60 - spacing * lista.length) / (360 * lista.length + 250)))
 
@@ -150,8 +150,8 @@ Item {
                     estado: modelData.active ? root.consoleState
                           : (outra ? outra.state : "unknown")
                     registada: modelData.active ? root.registered : (outra ? outra.registered : false)
-                    // O que a consola disse agora, se respondeu; senão, o que
-                    // ficou guardado da última vez que respondeu.
+                    // What the console said just now, if it answered; otherwise,
+                    // what was stored the last time it answered.
                     tipo: {
                         var respondeu = modelData.active
                             ? (root.consoleState === "ready" || root.consoleState === "standby")
@@ -173,8 +173,8 @@ Item {
                             stream.stopStream()
                     }
                     onEditar: registerDialog.open()
-                    // Outra consola: passa a ser a consola em uso e liga já,
-                    // no mesmo clique.
+                    // Another console: it becomes the console in use and connects
+                    // right away, in the same click.
                     onEscolher: {
                         app.selectConsole(modelData.address)
                         stream.connectOneClick()
@@ -220,10 +220,10 @@ Item {
         }
     }
 
-    // ───────────────────────────── barra durante o stream
+    // ───────────────────────────── bar during the stream
     //
-    // Flutua sobre a imagem, em cápsula de vidro, e aparece com um fade
-    // em vez de saltar para o ecrã.
+    // Floats over the picture, in a glass capsule, and fades in
+    // instead of jumping onto the screen.
     Rectangle {
         id: barraStream
         anchors.top: palco.top
@@ -258,9 +258,9 @@ Item {
             id: streamRow
             anchors.centerIn: parent
             spacing: 12
-            // O que está mesmo a chegar: o tamanho da imagem e os fps
-            // contados. Não é o que foi pedido nas definições — a consola
-            // pode mandar menos e não avisar.
+            // What is really arriving: the picture size and the counted fps.
+            // Not what was asked in the settings — the console may send less
+            // without saying.
             Text {
                 text: {
                     if (!root.built || stream.frameWidth <= 0)
@@ -306,8 +306,8 @@ Item {
                 color: Theme.onStageMuted
                 font.pixelSize: 10
             }
-            // O microfone tem de se ver. Quando está a captar, o botão fica
-            // aceso — ninguém pode estar a ser ouvido sem dar por isso.
+            // The microphone must be visible. While it is capturing, the button
+            // stays lit — nobody can be heard without noticing.
             StyledButton {
                 readonly property string micEstado: root.built ? stream.microphoneState
                                                                : "off"
@@ -327,7 +327,7 @@ Item {
                     else
                         stream.setMicrophoneMuted(micEstado === "talking")
                 }
-                // Botão direito desliga de vez, em vez de só calar.
+                // Right click turns it off entirely, instead of just muting.
                 MouseArea {
                     anchors.fill: parent
                     acceptedButtons: Qt.RightButton
@@ -359,11 +359,11 @@ Item {
     HoverHandler { id: streamHover }
     MouseArea { id: streamBar; anchors.fill: palco; hoverEnabled: true; acceptedButtons: Qt.NoButton }
 
-    // Mapa do teclado, porque ninguém adivinha que V é o triângulo.
+    // Keyboard map, because nobody guesses that V is the triangle.
     //
-    // ATENÇÃO: um Dialog sem "background" próprio usa o do estilo Basic, que
-    // é branco, e o texto do tema por cima é claro. Por isso tem fundo
-    // próprio, como todos os diálogos (o scripts/check-qml.py verifica).
+    // NOTE: a Dialog without its own "background" uses the Basic style's,
+    // which is white, and the theme's text on top is light. So it has its own
+    // background, like every dialog (scripts/check-qml.py checks this).
     Dialog {
         id: keysDialog
         parent: Overlay.overlay
@@ -372,8 +372,8 @@ Item {
         height: Math.min(parent ? parent.height - 60 : 680, 680)
         modal: true
         padding: 0
-        // À espera de uma tecla nova, o Esc cancela a escolha e não fecha a
-        // janela.
+        // While waiting for a new key, Esc cancels the choice and does not
+        // close the window.
         closePolicy: keyboardMap.escolhida.length > 0
                      ? Popup.NoAutoClose : Popup.CloseOnEscape | Popup.CloseOnPressOutside
         onClosed: keyboardMap.editando = false
@@ -473,9 +473,9 @@ Item {
                     }
                 }
 
-                // Os dois ao centro, um por cima do outro, e a explicação numa
-                // caixa por baixo: o olho desce da tecla para o botão e dele
-                // para o texto.
+                // Both in the centre, one above the other, and the explanation
+                // in a box below: the eye goes down from the key to the button
+                // and from it to the text.
                 KeyboardMap {
                     id: keyboardMap
                     Layout.alignment: Qt.AlignHCenter
@@ -493,8 +493,8 @@ Item {
                 Rectangle {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.preferredWidth: Math.min(parent.width, 520)
-                    // Altura fixa para duas linhas: a caixa não pode saltar
-                    // de tamanho cada vez que o rato passa de tecla em tecla.
+                    // Fixed height for two lines: the box must not jump in size
+                    // every time the mouse moves from key to key.
                     Layout.preferredHeight: 56
                     radius: Theme.radiusSmall
                     readonly property bool cheia: keyboardMap.texto.length > 0
@@ -530,12 +530,12 @@ Item {
         }
     }
 
-    // Só para as capturas de ecrã.
+    // Screenshots only.
     Timer {
         running: typeof demoKeys !== "undefined" && demoKeys
         interval: 1500
-        // Como se o rato estivesse em cima do P: a captura mostra a ligação
-        // entre a tecla e o botão aceso no comando.
+        // As if the mouse were over P: the screenshot shows the link between
+        // the key and the lit button on the controller.
         onTriggered: {
             keysDialog.open()
             keyboardMap.destaqueRato = "ps"
@@ -543,8 +543,8 @@ Item {
         }
     }
 
-    // As outras consolas da lista: pergunta-se como estão de tempos a tempos,
-    // enquanto não há sessão (a que está em uso já é vigiada pelo stream).
+    // The other consoles in the list: ask how they are from time to time,
+    // while there is no session (the one in use is already watched by the stream).
     Timer {
         running: root.built && !root.streaming && app.consoles.length > 1
         interval: 8000
@@ -562,16 +562,16 @@ Item {
 
     AddConsoleDialog { id: addConsoleDialog }
 
-    // Cada consola que responde fica com o tipo guardado (PS4 ou PS5), para
-    // a caixa o mostrar mesmo quando ela estiver desligada.
+    // Each console that answers gets its type stored (PS4 or PS5), so
+    // the card shows it even when the console is off.
     Connections {
         target: root.built ? stream : null
         function onConsoleChanged() {
             if (root.consoleState === "ready" || root.consoleState === "standby")
                 app.rememberConsoleType(app.consoleAddress, stream.consolePs5)
         }
-        // Ligar com um clique encontrou a consola por registar: abre-se o
-        // registo em vez de uma mensagem a mandar abri-lo.
+        // One-click connect found the console unregistered: registration is
+        // opened instead of a message telling you to open it.
         function onRegistrationNeeded() { registerDialog.open() }
                 function onConsoleStatesChanged() {
             var estados = stream.consoleStates
@@ -583,19 +583,19 @@ Item {
         }
     }
 
-    // ───────────────────────────── registo
+    // ───────────────────────────── registration
     StreamRegisterDialog { id: registerDialog }
 
-    // Só para as capturas de ecrã.
+    // Screenshots only.
     Timer {
         running: typeof demoRegister !== "undefined" && demoRegister
         interval: 1500
         onTriggered: registerDialog.open()
     }
 
-    // O PIN que a consola pede para iniciar sessão na conta — não é o do
-    // registo. Tem fundo próprio pela mesma razão do mapa das teclas: num
-    // diálogo que bloqueia a ligação, ilegível é pior do que feio.
+    // The PIN the console asks for to sign in to the account — not the
+    // registration one. It has its own background for the same reason as the
+    // key map: in a dialog blocking the connection, unreadable is worse than ugly.
     Dialog {
         id: loginPinDialog
         property bool incorrect: false

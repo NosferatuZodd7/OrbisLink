@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #pragma once
 
-// Construtores de PARAM.SFO e de .pkg sintéticos, para testar o PkgInspector
-// sem precisar de ficheiros reais (que não podem ser distribuídos).
+// Builders for synthetic PARAM.SFO and .pkg files, to test PkgInspector
+// without real files (which cannot be distributed).
 
 #include <cstdint>
 #include <cstdio>
@@ -37,7 +37,7 @@ inline void putBE64(std::vector<uint8_t> &buffer, size_t offset, uint64_t value)
 		buffer[offset + i] = static_cast<uint8_t>((value >> (8 * (7 - i))) & 0xFF);
 }
 
-// PARAM.SFO com entradas do tipo string (formato 0x0204).
+// PARAM.SFO with string-type entries (format 0x0204).
 inline std::vector<uint8_t> buildSfo(const std::vector<std::pair<std::string, std::string>> &entries)
 {
 	const size_t headerSize = 0x14;
@@ -78,7 +78,7 @@ inline std::vector<uint8_t> buildSfo(const std::vector<std::pair<std::string, st
 	{
 		const size_t base = headerSize + i * 0x10;
 		putLE16(sfo, base + 0x00, static_cast<uint16_t>(keyOffsets[i]));
-		putLE16(sfo, base + 0x02, 0x0204); // string terminada em NUL
+		putLE16(sfo, base + 0x02, 0x0204); // NUL-terminated string
 		putLE32(sfo, base + 0x04, valueSizes[i]);
 		putLE32(sfo, base + 0x08, valueSizes[i]);
 		putLE32(sfo, base + 0x0C, valueOffsets[i]);
@@ -106,12 +106,12 @@ struct PkgOptions
 	};
 };
 
-// Gera um .pkg mínimo mas estruturalmente correto.
+// Generates a minimal but structurally correct .pkg.
 inline std::vector<uint8_t> buildPkg(const PkgOptions &options)
 {
 	const std::vector<uint8_t> sfo = options.includeSfo ? buildSfo(options.sfoEntries)
 													   : std::vector<uint8_t>();
-	// PNG de 1x1 suficiente para o teste (só se verifica que os bytes batem certo).
+	// A 1x1 PNG is enough for the test (it only checks that the bytes match).
 	const std::vector<uint8_t> icon = { 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0x01, 0x02 };
 
 	std::vector<std::pair<uint32_t, std::vector<uint8_t>>> entries;
@@ -159,7 +159,7 @@ inline std::vector<uint8_t> buildPkg(const PkgOptions &options)
 	}
 
 	pkg.insert(pkg.end(), payload.begin(), payload.end());
-	// Enchimento para o ficheiro ter um tamanho plausível.
+	// Padding so the file has a plausible size.
 	pkg.resize(pkg.size() + 1024, 0xAB);
 	putBE64(pkg, 0x430, static_cast<uint64_t>(pkg.size()));
 	return pkg;

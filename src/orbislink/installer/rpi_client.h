@@ -22,7 +22,7 @@ public:
 		std::string host;
 		uint16_t port = 12800;
 		int timeoutMs = 10000; // §5.4
-		int maxAttempts = 3;   // 3 tentativas com backoff 1 s, 2 s, 4 s
+		int maxAttempts = 3;   // 3 attempts with 1 s, 2 s, 4 s backoff
 		int backoffBaseMs = 1000;
 	};
 

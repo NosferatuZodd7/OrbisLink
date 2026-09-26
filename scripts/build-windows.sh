@@ -1,27 +1,27 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Produz o executável Windows x64 do OrbisLink e o instalador, a partir de
-# Linux, com mingw-w64 + NSIS. Não precisa de Windows nem de MSVC.
+# Produces the OrbisLink Windows x64 executable and the installer, from
+# Linux, with mingw-w64 + NSIS. Needs neither Windows nor MSVC.
 #
 #   sudo apt install mingw-w64 nsis cmake ninja-build git zip
 #   ./scripts/build-windows.sh
 #
-# ORBISLINK_WINDOWS_TESTS=ON compila também os testes como .exe (úteis para
-# os correr sob Wine — ver scripts/test-windows-wine.sh).
+# ORBISLINK_WINDOWS_TESTS=ON also builds the tests as .exe (useful to
+# run them under Wine — see scripts/test-windows-wine.sh).
 #
-# Resultado em dist/:
-#   orbislink-cli.exe                     executável autónomo (sem DLLs extra)
-#   OrbisLink-<versão>-windows-x64.zip    versão portátil
-#   OrbisLink-<versão>-setup.exe          instalador
+# Output in dist/:
+#   orbislink-cli.exe                     standalone executable (no extra DLLs)
+#   OrbisLink-<version>-windows-x64.zip   portable version
+#   OrbisLink-<version>-setup.exe         installer
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="${ORBISLINK_VERSION:-0.1.0}"
 VERSION="${VERSION#v}"   # "v1.2.3" -> "1.2.3"
 
-# O VIProductVersion do Windows tem de ser X.X.X.X só com números; a versão
-# visível pode ser "1.2.3-dev". Extrai-se a parte numérica e completa-se.
+# Windows' VIProductVersion must be X.X.X.X with numbers only; the visible
+# version may be "1.2.3-dev". The numeric part is extracted and padded.
 version_numeric() {
 	local numeric
 	numeric="$(printf '%s' "$1" | grep -oE '^[0-9]+(\.[0-9]+)*' || true)"
@@ -52,7 +52,7 @@ if [ ! -f "$CURL_PREFIX/lib/libcurl.a" ]; then
 	if [ ! -d "$WORK/curl-src" ]; then
 		git clone --depth 1 --branch "$CURL_TAG" https://github.com/curl/curl "$WORK/curl-src"
 	fi
-	# Sem OpenSSL: o Schannel do próprio Windows chega e evita dependências.
+	# No OpenSSL: Windows' own Schannel is enough and avoids dependencies.
 	cmake -S "$WORK/curl-src" -B "$WORK/curl-build" "${GENERATOR[@]}" \
 		-DCMAKE_TOOLCHAIN_FILE="$REPO/cmake/toolchain-mingw-w64.cmake" \
 		-DCMAKE_BUILD_TYPE=Release \
@@ -88,25 +88,25 @@ echo "==> 3/4 pasta de distribuição"
 rm -rf "$STAGE"
 mkdir -p "$STAGE"
 cp "$WORK/orbislink/orbislink-cli.exe" "$STAGE/"
-# Ícone da aplicação: usado pelo instalador, pelos atalhos e pela entrada em
-# "Aplicações instaladas".
+# Application icon: used by the installer, the shortcuts and the entry in
+# "Installed apps".
 cp "$REPO/src/icons/orbisDDM.ico" "$STAGE/orbislink.ico"
-# Ficheiros de texto em CRLF, para abrirem bem no Bloco de Notas.
+# Text files in CRLF, so they open properly in Notepad.
 sed 's/$/\r/' "$REPO/LICENSE" > "$STAGE/LICENSE.txt"
-# O endereço do projecto vem de fora (ORBISLINK_REPO_URL); no CI é o
-# repositório onde a compilação correu. Quando não vem, a linha do
-# código-fonte desaparece em vez de ficar meia escrita.
+# The project address comes from outside (ORBISLINK_REPO_URL); in CI it is the
+# repository the build ran in. When it is missing, the source code line
+# disappears instead of being left half written.
 if [ -n "${ORBISLINK_REPO_URL:-}" ]; then
 	sed "s/@VERSION@/$VERSION/g; s|@REPO_URL@|${ORBISLINK_REPO_URL}|g" \
 		"$REPO/packaging/windows/README.txt"
 else
 	sed "s/@VERSION@/$VERSION/g; /@REPO_URL@/d" "$REPO/packaging/windows/README.txt"
 fi | sed 's/$/\r/' > "$STAGE/README.txt"
-# Os .bat precisam mesmo de CRLF.
+# The .bat files really need CRLF.
 sed 's/$/\r/' "$REPO/packaging/windows/diagnostics.bat" > "$STAGE/diagnostics.bat"
 
-# Se houver uma interface gráfica já compilada (vem do job de Qt+MSVC, que
-# corre noutra máquina), entra no instalador e no zip.
+# If there is an already built graphical interface (from the Qt+MSVC job,
+# which runs on another machine), it goes into the installer and the zip.
 GUI_DEFINE=()
 if [ -n "${ORBISLINK_GUI_DIR:-}" ] && [ -d "$ORBISLINK_GUI_DIR" ]; then
 	echo "    a incluir a interface gráfica de $ORBISLINK_GUI_DIR"

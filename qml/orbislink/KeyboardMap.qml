@@ -1,34 +1,34 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// O mapa do teclado desenhado como um teclado: cada tecla que faz alguma
-// coisa mostra a letra dela e, dentro da própria tecla, o botão da
-// PlayStation que faz (o P leva o "PS", o V leva o △…). As outras teclas
-// ficam apagadas, só para o desenho se reconhecer como um teclado.
+// The keyboard map drawn as a keyboard: each key that does something shows
+// its letter and, inside the key itself, the PlayStation button it presses
+// (P carries "PS", V carries △…). The other keys are dimmed, just so the
+// drawing is recognisable as a keyboard.
 //
-// As teclas vêm do stream (stream.keyBindings), por isso o desenho mostra
-// sempre o mapa em uso. Em modo de edição, clicar numa tecla escolhe a
-// acção dela; a seguir, carregar numa tecla do teclado (ou clicar noutra
-// do desenho) muda-a para lá.
+// The keys come from the stream (stream.keyBindings), so the drawing always
+// shows the map in use. In edit mode, clicking a key picks its action;
+// then pressing a key on the keyboard (or clicking another one on the
+// drawing) moves it there.
 import QtQuick
 import QtQuick.Controls.Basic
 
 Item {
     id: mapa
 
-    // O botão por baixo do rato, para o desenho do comando o acender.
+    // The button under the mouse, for the controller drawing to light up.
     property string destaque: escolhida.length > 0 ? acoes[escolhida].alvo : destaqueRato
     property string destaqueRato: ""
     property string descricao: ""
 
     property bool editando: false
-    // A acção à espera de uma tecla nova ("" quando nenhuma).
+    // The action waiting for a new key ("" when none).
     property string escolhida: ""
     property string aviso: ""
 
     readonly property bool temStream: typeof stream !== "undefined" && stream !== null
     readonly property var ligacoes: temStream ? stream.keyBindings : ({})
 
-    // tecla → acção, ao contrário do que vem do stream.
+    // key → action, the reverse of what comes from the stream.
     readonly property var porTecla: {
         var inverso = {}
         for (var acao in ligacoes)
@@ -36,7 +36,7 @@ Item {
         return inverso
     }
 
-    // O texto da caixa por baixo do comando.
+    // The text of the box under the controller.
     readonly property string texto: {
         if (escolhida.length > 0)
             return qsTr("Changing %1: press the new key, or click a key in the drawing. Esc "
@@ -51,8 +51,8 @@ Item {
     readonly property color corQuadrado: "#E88BD6"
     readonly property color corTriangulo: "#40E0B0"
 
-    // O que cada acção mostra dentro da tecla. "alvo" é a parte do comando
-    // que se acende; "tipo" diz como se desenha o sinal.
+    // What each action shows inside the key. "target" is the part of the
+    // controller that lights up; "kind" says how the sign is drawn.
     readonly property var acoes: ({
         "cross":        { sinal: "✕", tipo: "simbolo", cor: corCruz, alvo: "cross", nome: qsTr("Cross") },
         "circle":       { sinal: "◯", tipo: "simbolo", cor: corCirculo, alvo: "circle", nome: qsTr("Circle") },
@@ -82,8 +82,8 @@ Item {
         "ps":           { sinal: "PS", tipo: "ps", alvo: "ps", nome: qsTr("PS button") }
     })
 
-    // As teclas, em unidades de uma tecla: [rótulo, código, x, linha, largura].
-    // Um teclado a sério, reduzido às cinco filas que interessam e às setas.
+    // The keys, in units of one key: [label, code, x, row, width].
+    // A real keyboard, reduced to the five rows that matter and the arrows.
     readonly property var teclas: [
         ["Esc", Qt.Key_Escape, 0, 0, 1],
         ["1", Qt.Key_1, 1.5, 0, 1], ["2", Qt.Key_2, 2.5, 0, 1], ["3", Qt.Key_3, 3.5, 0, 1],
@@ -110,8 +110,8 @@ Item {
         ["←", Qt.Key_Left, 14, 4, 1], ["↓", Qt.Key_Down, 15, 4, 1], ["→", Qt.Key_Right, 16, 4, 1]
     ]
 
-    // Acções cujas teclas não estão no desenho (F1, teclado numérico…):
-    // ficam escritas por baixo, para nenhuma acção desaparecer do mapa.
+    // Actions whose keys are not on the drawing (F1, numeric keypad…):
+    // they are written below, so no action disappears from the map.
     readonly property string foraDoDesenho: {
         var desenhadas = {}
         for (var i = 0; i < teclas.length; ++i)
@@ -126,7 +126,7 @@ Item {
         return linhas.join("   ·   ")
     }
 
-    // 17 unidades de largura; cada unidade encolhe se a janela for estreita.
+    // 17 units wide; each unit shrinks if the window is narrow.
     readonly property real unidade: Math.min(40, width / 17)
     readonly property real folga: Math.max(3, unidade * 0.1)
 
@@ -153,8 +153,8 @@ Item {
     onEditandoChanged: { escolhida = ""; aviso = "" }
     onEscolhidaChanged: if (escolhida.length > 0) forceActiveFocus()
 
-    // A tecla nova vem daqui. Aceita-se o evento para o diálogo não o usar
-    // (o Enter não carrega num botão, o Esc não fecha a janela).
+    // The new key comes from here. The event is accepted so the dialog does
+    // not use it (Enter does not press a button, Esc does not close the window).
     Keys.onPressed: function (event) {
         if (!editando || escolhida.length === 0)
             return
@@ -181,8 +181,8 @@ Item {
                 : (acao.length > 0 ? mapa.acoes[acao] : undefined)
             readonly property bool util: funcao !== undefined
             readonly property bool escolhidaAqui: acao.length > 0 && mapa.escolhida === acao
-            // Em edição, qualquer tecla do desenho responde ao rato: é um
-            // destino possível para a acção escolhida.
+            // In edit mode, any key on the drawing responds to the mouse: it is
+            // a possible destination for the chosen action.
             readonly property bool sobre: area.containsMouse
                                           && (util || (mapa.editando && mapa.escolhida.length > 0))
 
@@ -192,9 +192,9 @@ Item {
             height: mapa.unidade - mapa.folga
             radius: Math.round(mapa.unidade * 0.2)
 
-            // No claro o painel é branco, como o diálogo: as teclas úteis
-            // levam um cinzento-gelo e uma aresta escura, senão seriam as
-            // apagadas a ver-se.
+            // On the light theme the panel is white, like the dialog: the useful
+            // keys get an icy grey and a dark edge, otherwise the dimmed ones
+            // would be the ones standing out.
             color: escolhidaAqui || sobre ? Theme.accentFill
                  : !util ? "transparent"
                  : Theme.claro ? "#EEF1F6"
@@ -209,7 +209,7 @@ Item {
             Behavior on scale { NumberAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
             Behavior on color { ColorAnimation { duration: Theme.fast } }
 
-            // A tecla à espera pisca devagar, para se ver qual está a mudar.
+            // The key waiting blinks slowly, to show which one is changing.
             SequentialAnimation on opacity {
                 running: tecla.escolhidaAqui
                 loops: Animation.Infinite
@@ -218,7 +218,7 @@ Item {
                 NumberAnimation { to: 1.0; duration: 520; easing.type: Easing.InOutSine }
             }
 
-            // A tecla como está impressa no teclado: em cima, à esquerda.
+            // The key as printed on the keyboard: top left.
             Text {
                 x: 5
                 y: 3
@@ -229,8 +229,8 @@ Item {
                 font.bold: tecla.util
             }
 
-            // E o botão da PlayStation, dentro da mesma tecla, em baixo à
-            // direita. É isto que se procura quando se olha para o mapa.
+            // And the PlayStation button, inside the same key, bottom
+            // right. This is what you look for when looking at the map.
             Rectangle {
                 visible: tecla.util
                 anchors.right: parent.right

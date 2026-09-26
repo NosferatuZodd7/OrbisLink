@@ -19,8 +19,8 @@ namespace orbislink {
 struct ServedFileStats
 {
 	std::string token;
-	std::string name;    // nome sanitizado que aparece no URL
-	std::string path;    // caminho local real (nunca exposto)
+	std::string name;    // sanitised name that appears in the URL
+	std::string path;    // real local path (never exposed)
 	int64_t size = 0;
 	int64_t bytesSent = 0;
 	int64_t requestCount = 0;
@@ -43,8 +43,8 @@ public:
 		std::string bindAddress;       // empty = 127.0.0.1 (never 0.0.0.0 by default)
 		uint16_t port = 8765;
 		bool autoSelectPort = true;    // se a porta estiver ocupada, procura outra
-		std::string allowedClient;     // IP da consola; vazio = qualquer origem
-		bool allowLoopback = true;     // aceita 127.0.0.1 mesmo com allowedClient definido
+		std::string allowedClient;     // console IP; empty = any origin
+		bool allowLoopback = true;     // accepts 127.0.0.1 even with allowedClient set
 		size_t chunkSize = 1024 * 1024; // 1 MB
 		int backlog = 16;
 	};

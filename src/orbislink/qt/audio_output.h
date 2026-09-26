@@ -72,7 +72,7 @@ public:
 	explicit AudioOutput(QObject *parent = nullptr);
 	~AudioOutput() override;
 
-	// Chamado quando a consola anuncia o formato (thread do chiaki).
+	// Called when the console announces the format (chiaki's thread).
 	void configure(unsigned int channels, unsigned int rate);
 	// PCM intercalado, `samples` por canal (thread do chiaki).
 	void write(const int16_t *pcm, size_t samples);
@@ -81,9 +81,9 @@ public:
 	bool muted() const { return muted_; }
 	void setMuted(bool muted);
 
-	// Para a interface poder dizer o que se passa com o som em vez de
-	// deixar a pessoa a olhar para um stream mudo: "parado", "a-tocar",
-	// "sem-dispositivo" ou "erro".
+	// So the interface can say what is going on with the sound instead of
+	// leaving the person staring at a silent stream: "stopped", "playing",
+	// "no-device" or "error".
 	QString state() const;
 	QString deviceName() const;
 	// How many samples have been handed to the card. Zero with the session
@@ -110,8 +110,8 @@ private:
 	mutable QMutex mutex_;
 	PcmQueue queue_;
 	std::unique_ptr<QAudioSink> sink_;
-	QAudioFormat format_;      // o que a consola manda
-	QAudioFormat deviceFormat_; // o que a placa aceita (pode ser diferente)
+	QAudioFormat format_;      // what the console sends
+	QAudioFormat deviceFormat_; // what the card accepts (may differ)
 	PcmConverter converter_;
 	QTimer *watchdog_ = nullptr;
 	// We write into the QIODevice QAudioSink returns, instead of waiting

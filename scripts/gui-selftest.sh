@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Testes da interface que precisam de uma janela a sério: arranca a consola
-# falsa e o Xvfb e corre as auto-verificações do orbislink-gui.
+# Interface tests that need a real window: starts the fake console
+# and Xvfb and runs orbislink-gui's self-checks.
 #
 #   sudo apt install xvfb
 #   ./scripts/gui-selftest.sh

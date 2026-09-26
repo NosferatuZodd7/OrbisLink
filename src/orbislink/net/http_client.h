@@ -10,10 +10,10 @@ namespace orbislink {
 
 struct HttpResponse
 {
-	bool transportOk = false; // houve resposta HTTP (mesmo que 4xx/5xx)
+	bool transportOk = false; // there was an HTTP reply (even if 4xx/5xx)
 	long status = 0;
 	std::string body;
-	std::string error; // mensagem do libcurl quando transportOk == false
+	std::string error; // libcurl's message when transportOk == false
 };
 
 // Minimal HTTP client on top of libcurl, used by RpiClient and the service

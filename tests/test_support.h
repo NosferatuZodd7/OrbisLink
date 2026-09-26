@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #pragma once
 
-// Arnês de testes mínimo: sem dependências externas, para o CI ser trivial.
+// Minimal test harness: no external dependencies, so CI stays trivial.
 
 #include "orbislink/common/log.h"
 
@@ -50,7 +50,7 @@ inline void failCheck(const std::string &expression, const char *file, int line,
 
 inline int runAll()
 {
-	// Os testes silenciam o log por omissão; ORBISLINK_TEST_VERBOSE=1 volta a ligá-lo.
+	// Tests silence the log by default; ORBISLINK_TEST_VERBOSE=1 turns it back on.
 	if(std::getenv("ORBISLINK_TEST_VERBOSE") == nullptr)
 		orbislink::Logger::instance().setLevel(orbislink::LogLevel::Off);
 
