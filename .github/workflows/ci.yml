@@ -29,7 +29,7 @@ jobs:
           sudo apt-get install -y cmake ninja-build libcurl4-openssl-dev \
             libopus-dev libjson-c-dev libminiupnpc-dev libevent-dev libssl-dev \
             libavcodec-dev libavutil-dev libavformat-dev protobuf-compiler python3-protobuf
-      - name: Configurar
+      - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DORBISLINK_WARNINGS_AS_ERRORS=ON -DORBISLINK_ENABLE_STREAM=ON
       - name: Build
         run: cmake --build build
@@ -183,7 +183,7 @@ jobs:
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
-      - name: Localizar o clang-cl
+      - name: Locate clang-cl
         run: |
           $clang = Get-Command clang-cl.exe -ErrorAction SilentlyContinue
           if (-not $clang) {
@@ -225,7 +225,7 @@ jobs:
           "PROTOC_EXE=$($protoc.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           # And on the PATH, for whoever looks it up by name instead of asking CMake.
           $protoc.Directory.FullName | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-      - name: Configurar
+      - name: Configure
         run: |
           cmake -S . -B build -G Ninja `
             -DCMAKE_BUILD_TYPE=RelWithDebInfo `
@@ -311,7 +311,7 @@ jobs:
           }
           Write-Host "Multimedia plugins:"
           $multimediaDlls | Select-Object -ExpandProperty Name
-      - name: Garantir o runtime do MSVC
+      - name: Ensure the MSVC runtime
         run: |
           # NOTE: the runners have more than one version of the redistributable
           # installed. Picking any one (Select-Object -First 1) may bring the
@@ -414,7 +414,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y mingw-w64 nsis cmake ninja-build zip
-      - name: Cache do libcurl para mingw
+      - name: libcurl cache for mingw
         uses: actions/cache@v4
         with:
           path: build-windows/curl-install
@@ -454,7 +454,7 @@ jobs:
       - name: Install libcurl (vcpkg)
         run: |
           & "${env:VCPKG_INSTALLATION_ROOT}\vcpkg.exe" install curl:x64-windows
-      - name: Configurar
+      - name: Configure
         run: |
           cmake -S . -B build -A x64 `
             -DCMAKE_TOOLCHAIN_FILE="${env:VCPKG_INSTALLATION_ROOT}/scripts/buildsystems/vcpkg.cmake" `

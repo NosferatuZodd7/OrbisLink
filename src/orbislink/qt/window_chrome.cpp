@@ -22,7 +22,7 @@ QString g_summary = QStringLiteral("the title bar is the system's (nothing to ad
 // purpose: old headers do not have them all, and the build should not
 // depend on the SDK version installed on the runner.
 constexpr DWORD kUseImmersiveDarkMode = 20;
-constexpr DWORD kUseImmersiveDarkModeLegacy = 19; // Windows 10 1809 a 1903
+constexpr DWORD kUseImmersiveDarkModeLegacy = 19; // Windows 10 1809 to 1903
 constexpr DWORD kBorderColor = 34;
 constexpr DWORD kCaptionColor = 35;
 constexpr DWORD kTextColor = 36;
@@ -122,9 +122,9 @@ void WindowChrome::applyTheme(const QColor &caption, const QColor &text, const Q
 
 	// The dark bar is the base of everything else: even when the colour is
 	// chosen, this is what decides the colour of the minimise and close buttons.
-	const BOOL dark = dark ? TRUE : FALSE;
-	if(!trySet(hwnd, kUseImmersiveDarkMode, &dark, sizeof(dark)))
-		trySet(hwnd, kUseImmersiveDarkModeLegacy, &dark, sizeof(dark));
+	const BOOL darkFlag = dark ? TRUE : FALSE;
+	if(!trySet(hwnd, kUseImmersiveDarkMode, &darkFlag, sizeof(darkFlag)))
+		trySet(hwnd, kUseImmersiveDarkModeLegacy, &darkFlag, sizeof(darkFlag));
 
 	QString achieved;
 
