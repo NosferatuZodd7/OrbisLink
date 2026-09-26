@@ -1,0 +1,3 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Ícone do executável em Windows (o que o Explorador mostra).
+IDI_ICON1 ICON "orbisDDM.ico"

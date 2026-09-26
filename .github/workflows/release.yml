@@ -1,0 +1,648 @@
+name: Release
+
+# Duas maneiras de publicar:
+#
+# * Versão estável — uma tag v* empurrada, ou "Run workflow" com a versão
+#   (ex.: v1.0.0). A tag é criada no fim, no commit que foi compilado.
+#
+# * Compilação de testes — cada push para o ramo beta. Sai como pré-release
+#   vX.Y.Z-dev.N (N é o número desta execução, sempre a subir), e é isso que
+#   a app vê no canal "Testes (builds da branch)": quem está nesse canal
+#   recebe cada push sem ninguém ter de publicar nada à mão. Pelo semver,
+#   1.0.1-dev.5 vem antes de 1.0.1, portanto quem está numa dev recebe a
+#   estável quando ela sair, e quem está na estável nunca é empurrado para
+#   uma dev.
+#   Também se pede à mão: "Run workflow" com o campo da versão vazio.
+#
+# Só é possível porque o repositório é público: Actions ilimitado nos
+# runners normais. Num privado, isto gastaria a quota num dia.
+on:
+  push:
+    # Dois ramos: main é o oficial (as estáveis publicam-se de lá, à mão);
+    # beta é onde se experimenta, e cada push lá vira uma compilação de
+    # testes. Pushes para main não publicam nada sozinhos.
+    branches: ["beta"]
+    tags: ["v*"]
+    # Mexer só na documentação não muda o programa: não vale uma versão.
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versão estável a publicar (ex.: v1.0.0). Vazio: compilação de testes do ramo escolhido."
+        required: false
+        default: ""
+
+# Dois pushes seguidos no mesmo ramo: a compilação do primeiro já não
+# interessa a ninguém, e a do segundo inclui-o. As estáveis nunca se
+# cancelam — cada uma é pedida de propósito.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref_type == 'branch' }}
+
+# Publicar uma Release é escrever no repositório. Declarado aqui, o
+# workflow não depende da definição por omissão do repositório
+# (Settings > Actions > Workflow permissions): com ela em "read", o
+# trabalho de publicar levaria um 403 "Resource not accessible by
+# integration" depois de compilar tudo.
+permissions:
+  contents: write
+
+jobs:
+  # Decide o número desta compilação; todos os outros trabalhos o recebem
+  # daqui.
+  #
+  # Estável: a versão vive em dois sítios, na tag e no project() do CMake.
+  # Quando divergem, ninguém dá por isso — o instalador sai com o número
+  # certo porque o CI passa -DORBISLINK_VERSION_NAME, e quem compila a
+  # partir do código-fonte fica com o número velho. Por isso recusa-se.
+  #
+  # Testes: a versão do CMakeLists com -dev.N. Se essa versão já tiver sido
+  # publicada como estável, a dev seria "anterior" a ela e ninguém a
+  # receberia — então passa para o patch seguinte e avisa.
+  versao:
+    name: Que versão é esta?
+    runs-on: ubuntu-latest
+    outputs:
+      versao: ${{ steps.decidir.outputs.versao }}
+      testes: ${{ steps.decidir.outputs.testes }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decidir
+        id: decidir
+        env:
+          VERSAO_PEDIDA: ${{ inputs.version || github.ref_name }}
+          VERSAO_INDICADA: ${{ inputs.version }}
+        run: |
+          cmake_versao=$(sed -n 's/^project(OrbisLink VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          if [ -z "$cmake_versao" ]; then
+            echo "::error::Não consegui ler a versão do CMakeLists.txt."
+            exit 1
+          fi
+          testes_a_mao=false
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ -z "$VERSAO_INDICADA" ]; then
+            testes_a_mao=true
+          fi
+          if { [ "$GITHUB_EVENT_NAME" = "push" ] && [ "$GITHUB_REF_TYPE" = "branch" ]; } \
+            || [ "$testes_a_mao" = true ]; then
+            base="$cmake_versao"
+            if git ls-remote --exit-code --tags origin "refs/tags/v$base" >/dev/null; then
+              IFS=. read -r maior menor patch <<< "$base"
+              base="$maior.$menor.$((patch + 1))"
+              echo "::warning::A v$cmake_versao já está publicada; esta compilação de testes sai como $base-dev.$GITHUB_RUN_NUMBER. Sobe o project() do CMakeLists.txt para a versão que vier a seguir."
+            fi
+            versao="v$base-dev.$GITHUB_RUN_NUMBER"
+            testes=true
+          else
+            tag="${VERSAO_PEDIDA#v}"
+            echo "tag=$tag  CMakeLists=$cmake_versao"
+            if [ "$tag" != "$cmake_versao" ]; then
+              echo "::error::A tag diz $tag e o CMakeLists.txt diz $cmake_versao. Corrige o project(OrbisLink VERSION ...) antes de publicar."
+              exit 1
+            fi
+            versao="v$tag"
+            testes=false
+          fi
+          echo "Versão: $versao (testes: $testes)"
+          echo "versao=$versao" >> "$GITHUB_OUTPUT"
+          echo "testes=$testes" >> "$GITHUB_OUTPUT"
+
+  windows-gui:
+    needs: versao
+    name: Windows x64 — interface gráfica (Qt 6 + MSVC)
+    runs-on: windows-latest
+    env:
+      ORBISLINK_RELEASE_VERSION: ${{ needs.versao.outputs.versao }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # O Remote Play vem do submódulo chiaki-ng.
+          submodules: recursive
+      - name: Instalar o Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.1'
+          arch: 'win64_msvc2022_64'
+          # O vídeo do Remote Play usa o VideoOutput do QtMultimedia.
+          modules: 'qtmultimedia'
+          cache: true
+      # Sem cache, compilar estes pacotes leva mais de dez minutos em cada
+      # execução. A chave inclui a lista, para bastar mudá-la para a cache
+      # ser refeita.
+      # Restaurar e guardar em passos separados de propósito: o
+      # actions/cache só guarda quando o job passa, e um job que falha
+      # obrigaria a recompilar o OpenSSL e o SDL2 — vinte minutos — em cada
+      # tentativa.
+      - name: Restaurar a cache do vcpkg
+        id: cache-vcpkg
+        uses: actions/cache/restore@v4
+        with:
+          path: C:\vcpkg\installed
+          key: vcpkg-x64-windows-chiaki-deps-v2
+      - name: Instalar dependências (vcpkg)
+        run: |
+          # O curl é do OrbisLink; o resto é o que o chiaki-lib precisa.
+          # O FFmpeg não vem daqui: compilá-lo no vcpkg leva mais de vinte
+          # minutos em cada execução.
+          & "${env:VCPKG_INSTALLATION_ROOT}\vcpkg.exe" install `
+            curl:x64-windows opus:x64-windows json-c:x64-windows `
+            miniupnpc:x64-windows libevent:x64-windows openssl:x64-windows sdl2:x64-windows `
+            protobuf:x64-windows pkgconf:x64-windows
+      - name: Guardar a cache do vcpkg
+        if: always() && steps.cache-vcpkg.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: C:\vcpkg\installed
+          key: vcpkg-x64-windows-chiaki-deps-v2
+      - name: Instalar o FFmpeg (compilação LGPL já feita)
+        run: |
+          # LGPL e não GPL: é o que se pode distribuir com o resto sem
+          # arrastar obrigações adicionais para quem usa o pacote.
+          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-lgpl-shared.zip"
+          Invoke-WebRequest -Uri $url -OutFile ffmpeg.zip
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-dist
+          $raiz = (Get-ChildItem ffmpeg-dist -Directory | Select-Object -First 1).FullName
+          "FFMPEG_ROOT=$raiz" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "FFmpeg em $raiz"
+          Get-ChildItem "$raiz/bin" -Filter *.dll | Select-Object Name | Format-Table
+      - name: Preparar o pkg-config para o chiaki-lib
+        run: |
+          # O chiaki-lib procura o json-c, o miniupnpc e o libevent por
+          # pkg-config. Em Windows não há nenhum no sistema; o do vcpkg
+          # chama-se pkgconf.exe, e é preciso dizer ao CMake onde está e
+          # onde ficam os .pc que o vcpkg gerou.
+          $pkgconf = Get-ChildItem "${env:VCPKG_INSTALLATION_ROOT}/installed/x64-windows" `
+            -Recurse -Filter pkgconf.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $pkgconf) {
+            throw "Não encontrei o pkgconf.exe no vcpkg. Sem ele o chiaki-lib não configura."
+          }
+          Write-Host "pkgconf em $($pkgconf.FullName)"
+          "PKG_CONFIG_EXE=$($pkgconf.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $pc = "${env:VCPKG_INSTALLATION_ROOT}/installed/x64-windows/lib/pkgconfig"
+          if (-not (Test-Path $pc)) { throw "Não encontrei os ficheiros .pc em $pc" }
+          Get-ChildItem $pc -Filter *.pc | Select-Object Name | Format-Table
+          "PKG_CONFIG_PATH=$pc" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      # O chiaki-lib é C e usa arrays de tamanho variável e
+      # __attribute__((aligned)) — nenhum dos dois existe no compilador C da
+      # Microsoft. O próprio chiaki-ng compila com clang-cl por esta razão.
+      # Aqui só o C passa pelo clang-cl; o C++ (o nosso código e o Qt)
+      # continua no MSVC, que é o que já funciona e o que se distribui. Os
+      # dois geram objectos compatíveis, por isso ligam-se sem problema.
+      - name: Preparar o ambiente do MSVC (para o gerador Ninja)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Localizar o clang-cl
+        run: |
+          $clang = Get-Command clang-cl.exe -ErrorAction SilentlyContinue
+          if (-not $clang) {
+            $candidato = "C:\Program Files\LLVM\bin\clang-cl.exe"
+            if (Test-Path $candidato) { $clang = Get-Item $candidato }
+          }
+          if (-not $clang) {
+            throw "Não encontrei o clang-cl. Sem ele o chiaki-lib não compila em Windows."
+          }
+          $caminho = if ($clang.Source) { $clang.Source } else { $clang.FullName }
+          Write-Host "clang-cl em $caminho"
+          & $caminho --version
+          "CLANG_CL=$caminho" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Preparar o gerador de protocolo (protoc + nanopb)
+        run: |
+          # O chiaki gera o código do protocolo a partir de um .proto, com o
+          # gerador do nanopb — um script de Python que procura o módulo
+          # grpc_tools e só depois um protoc no PATH. O grpcio-tools traz um
+          # protoc dentro de si, já casado com a versão do protobuf que
+          # instala; dar o caminho ao CMake não basta.
+          # O ninja vem por aqui porque o do Visual Studio não fica no PATH.
+          python -m pip install --quiet grpcio-tools ninja
+          python -c "import grpc_tools.protoc; print('grpc_tools ok')"
+          python -c "import google.protobuf; print('protobuf', google.protobuf.__version__)"
+          ninja --version
+          $protoc = Get-ChildItem "${env:VCPKG_INSTALLATION_ROOT}/installed/x64-windows" `
+            -Recurse -Filter protoc.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $protoc) {
+            throw "Não encontrei o protoc.exe no vcpkg. Sem ele o Remote Play não compila."
+          }
+          Write-Host "protoc em $($protoc.FullName)"
+          "PROTOC_EXE=$($protoc.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          $protoc.Directory.FullName | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+      - name: Configurar
+        run: |
+          cmake -S . -B build -G Ninja `
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo `
+            -DCMAKE_C_COMPILER="${env:CLANG_CL}" `
+            -DCMAKE_CXX_COMPILER="${env:CLANG_CL}" `
+            -DCMAKE_TOOLCHAIN_FILE="${env:VCPKG_INSTALLATION_ROOT}/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows `
+            -DORBISLINK_ENABLE_STREAM=ON `
+            -DFFMPEG_ROOT="${env:FFMPEG_ROOT}" `
+            -DPROTOC="${env:PROTOC_EXE}" `
+            -DPKG_CONFIG_EXECUTABLE="${env:PKG_CONFIG_EXE}" `
+            -DORBISLINK_BUILD_TESTS=OFF `
+            -DORBISLINK_VERSION_NAME="${env:ORBISLINK_RELEASE_VERSION}" `
+            -DORBISLINK_REPOSITORY="${env:GITHUB_REPOSITORY}" 
+      - name: Compilar
+        run: cmake --build build
+      - name: Juntar executáveis e DLLs
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/gui | Out-Null
+          # Tudo o que ficou ao lado do .exe: as DLLs do vcpkg (libcurl e
+          # companhia) são copiadas para lá pelo próprio build.
+          Copy-Item build/*.exe dist/gui/
+          Copy-Item build/*.dll dist/gui/ -ErrorAction SilentlyContinue
+          # As DLLs do FFmpeg não passam pelo TARGET_RUNTIME_DLLS do CMake
+          # (o FindFFMPEG do chiaki cria alvos importados sem localização da
+          # DLL), por isso vão daqui à mão.
+          if ($env:FFMPEG_ROOT) {
+            Copy-Item "$env:FFMPEG_ROOT/bin/*.dll" dist/gui/ -Force
+          }
+          # Qt (plugins, QML) e o runtime do MSVC (MSVCP140, VCRUNTIME140...).
+          & "${env:QT_ROOT_DIR}\bin\windeployqt.exe" --qmldir qml/orbislink `
+            --release --no-translations --compiler-runtime dist/gui/orbislink-gui.exe
+
+          # O que o windeployqt deixou de facto, para nao se andar a
+          # adivinhar quando faltar alguma coisa.
+          Write-Host "--- pastas em dist/gui ---"
+          Get-ChildItem dist/gui -Directory | Select-Object -ExpandProperty Name
+          if (Test-Path dist/gui/plugins) {
+            Write-Host "--- plugins ---"
+            Get-ChildItem dist/gui/plugins -Directory | Select-Object -ExpandProperty Name
+          }
+
+          # O windeployqt varre os .qml a procura de imports, mas o
+          # resultado nao e garantido: o QtMultimedia esta num ficheiro que
+          # so e carregado por um Loader, e pode nao vir. Sem o modulo
+          # QML o VideoOutput nao existe e o Remote Play fica sem imagem.
+          #
+          # Em vez de depender do qmlimportscanner, copia-se o que falta da
+          # propria instalacao do Qt. O caminho onde o windeployqt os poe
+          # muda entre versoes, por isso aceitam-se os dois.
+          foreach ($modulo in @('QtMultimedia')) {
+            $jaLa = (Test-Path "dist/gui/$modulo") -or (Test-Path "dist/gui/qml/$modulo")
+            if ($jaLa) {
+              Write-Host "Modulo QML ${modulo}: ja estava."
+              continue
+            }
+            $origem = "${env:QT_ROOT_DIR}/qml/$modulo"
+            if (-not (Test-Path $origem)) {
+              throw "Nao encontrei o modulo QML ${modulo} em ${origem}. O Qt foi instalado sem o qtmultimedia?"
+            }
+            Copy-Item $origem dist/gui/ -Recurse -Force
+            Write-Host "Modulo QML ${modulo}: copiado a mao de $origem"
+          }
+
+          # Os plugins do backend de multimedia vem pelo mesmo caminho. Sem
+          # eles nao ha QAudioSink nenhum: a imagem continua a aparecer
+          # (essa e empurrada a mao para um QVideoSink) e o jogo fica mudo,
+          # sem erro nenhum. Por isso verifica-se que a pasta tem DLLs, e nao
+          # so que existe: uma pasta vazia daria um instalador sem som.
+          $destinoMultimedia = "dist/gui/multimedia"
+          $jaTem = (Get-ChildItem $destinoMultimedia -Filter *.dll -Recurse -ErrorAction SilentlyContinue | Measure-Object).Count
+          if ($jaTem -eq 0) {
+            $pluginsMultimedia = "${env:QT_ROOT_DIR}/plugins/multimedia"
+            if (-not (Test-Path $pluginsMultimedia)) {
+              throw "Nao encontrei os plugins de multimedia em ${pluginsMultimedia}. O Qt foi instalado sem o qtmultimedia?"
+            }
+            if (Test-Path $destinoMultimedia) { Remove-Item $destinoMultimedia -Recurse -Force }
+            Copy-Item $pluginsMultimedia dist/gui/ -Recurse -Force
+            Write-Host "Plugins de multimedia: copiados a mao."
+          }
+          $dllsMultimedia = Get-ChildItem $destinoMultimedia -Filter *.dll -Recurse -ErrorAction SilentlyContinue
+          if (-not $dllsMultimedia) {
+            throw "A pasta ${destinoMultimedia} ficou sem plugins nenhuns. O Remote Play sairia sem som."
+          }
+          Write-Host "Plugins de multimedia:"
+          $dllsMultimedia | Select-Object -ExpandProperty Name
+      - name: Garantir o runtime do MSVC
+        run: |
+          # ATENÇÃO: nos runners há mais do que uma versão do redistribuível
+          # instalada. Apanhar uma qualquer (Select-Object -First 1) pode trazer a
+          # do Visual Studio 2019 (14.29) por cima da do 2022 que a aplicação
+          # precisa, e isso dá uma violação de acesso dentro do MSVCP140.dll ainda
+          # antes de a janela aparecer. Por isso escolhe-se sempre a mais recente,
+          # e o conjunto todo vem da mesma pasta, para as três DLLs nunca serem de
+          # versões diferentes.
+          $candidatos = Get-ChildItem -Path "C:\Program Files\Microsoft Visual Studio" `
+            -Recurse -Filter "VCRUNTIME140.dll" -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match 'x64\\Microsoft\.VC\d+\.CRT' }
+          if (-not $candidatos) { throw "Não encontrei o redistribuível do MSVC no runner." }
+          # O FileVersion de algumas destas DLLs traz texto a seguir aos
+          # números ("14.29.30157.0 built by: cloudtest"), e isso rebenta a
+          # conversão para [version]. Fica-se só com os números.
+          function VersaoDoTexto([string]$bruto) {
+            if ($bruto -match '^\s*(\d+(\.\d+){1,3})') { return [version]$Matches[1] }
+            return [version]"0.0"
+          }
+          $maisRecente = $candidatos |
+            Sort-Object { VersaoDoTexto $_.VersionInfo.FileVersion } -Descending |
+            Select-Object -First 1
+          Write-Host "Runtime escolhido: $($maisRecente.DirectoryName) ($($maisRecente.VersionInfo.FileVersion))"
+          foreach ($dll in @('MSVCP140.dll','VCRUNTIME140.dll','VCRUNTIME140_1.dll')) {
+            $origem = Join-Path $maisRecente.DirectoryName $dll
+            if (Test-Path $origem) { Copy-Item $origem dist/gui/ -Force }
+          }
+      - name: Verificar que não falta nenhuma DLL
+        run: |
+          # Um pacote sem o runtime do MSVC ou sem o libcurl compila e empacota
+          # sem erro, e só rebenta na máquina de quem o instala.
+          $required = @('orbislink-gui.exe','Qt6Core.dll','Qt6Quick.dll','Qt6Qml.dll',
+                        'libcurl.dll','MSVCP140.dll','VCRUNTIME140.dll','VCRUNTIME140_1.dll',
+                        'Qt6Multimedia.dll')
+          $missing = $required | Where-Object { -not (Test-Path "dist/gui/$_") }
+          Get-ChildItem dist/gui | Select-Object Name, Length | Format-Table -AutoSize
+          if ($missing) { throw "Faltam ficheiros no pacote: $($missing -join ', ')" }
+          if (-not (Test-Path "dist/gui/platforms/qwindows.dll")) {
+            throw "Falta o plugin de plataforma platforms/qwindows.dll"
+          }
+          # Sem o módulo QML do QtMultimedia o VideoOutput não existe e a
+          # janela do Remote Play fica preta sem dizer porquê. O sítio onde
+          # ele aterra muda entre versões do windeployqt, por isso valem os
+          # dois — o que não vale é não estar em nenhum.
+          if (-not ((Test-Path "dist/gui/QtMultimedia") -or (Test-Path "dist/gui/qml/QtMultimedia"))) {
+            throw "Falta a pasta QML QtMultimedia (nem o windeployqt nem a cópia à mão a trouxeram)"
+          }
+          # O número de versão do FFmpeg muda a cada compilação, por isso
+          # procura-se pelo padrão em vez de um nome fixo.
+          if (-not (Test-Path "dist/gui/SDL2.dll")) {
+            throw "Falta o SDL2.dll: o comando físico não funcionaria."
+          }
+          foreach ($lib in @('avcodec','avutil','avformat')) {
+            if (-not (Get-ChildItem dist/gui -Filter "$lib-*.dll")) {
+              # As chaves não são decoração: um nome de variável seguido de
+              # dois pontos é lido pelo PowerShell como um qualificador de
+              # âmbito, e o script nem chega a correr.
+              throw "Falta a DLL do ${lib}: o Remote Play não arrancaria."
+            }
+          }
+          # As três DLLs do runtime têm de ser da mesma versão e não podem ser
+          # mais antigas que o compilador que gerou o executável.
+          function VersaoDoTexto([string]$bruto) {
+            if ($bruto -match '^\s*(\d+(\.\d+){1,3})') { return [version]$Matches[1] }
+            return [version]"0.0"
+          }
+          $versoes = @{}
+          foreach ($dll in @('MSVCP140.dll','VCRUNTIME140.dll','VCRUNTIME140_1.dll')) {
+            $versao = VersaoDoTexto (Get-Item "dist/gui/$dll").VersionInfo.FileVersion
+            $versoes[$dll] = $versao.ToString()
+            Write-Host "$dll -> $versao"
+          }
+          $distintas = @($versoes.Values | Select-Object -Unique)
+          if ($distintas.Count -ne 1) {
+            throw "Runtime do MSVC misturado: $($versoes | Out-String)"
+          }
+          $minima = [version]"14.30"
+          $atual = [version]$distintas[0]
+          if ($atual -lt $minima) {
+            throw "Runtime do MSVC demasiado antigo ($atual). A aplicação é compilada com o Visual Studio 2022 e precisa de 14.30 ou superior."
+          }
+          Write-Host "Pacote completo (runtime $atual)."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: orbislink-gui-windows-x64
+          path: dist/gui
+
+  windows:
+    name: Windows x64 (mingw-w64 + NSIS)
+    runs-on: ubuntu-latest
+    needs: [versao, windows-gui]
+    env:
+      ORBISLINK_RELEASE_VERSION: ${{ needs.versao.outputs.versao }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trazer a interface gráfica compilada no job anterior
+        uses: actions/download-artifact@v4
+        with:
+          name: orbislink-gui-windows-x64
+          path: gui-payload
+      - name: Instalar ferramentas
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64 nsis cmake ninja-build zip
+      - name: Cache do libcurl para mingw
+        uses: actions/cache@v4
+        with:
+          path: build-windows/curl-install
+          key: curl-mingw-8_11_1-${{ runner.os }}
+      - name: Compilar e empacotar (CLI + interface + instalador)
+        run: ORBISLINK_GUI_DIR="$PWD/gui-payload" ./scripts/build-windows.sh
+        env:
+          ORBISLINK_VERSION: ${{ env.ORBISLINK_RELEASE_VERSION }}
+          # O repositório onde isto está a correr, não um nome escrito no
+          # código: uma bifurcação aponta para si própria sem editar nada.
+          ORBISLINK_REPOSITORY: ${{ github.repository }}
+          ORBISLINK_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+      - name: Verificar que o executável não depende de DLLs extra
+        run: |
+          deps=$(x86_64-w64-mingw32-objdump -p dist/windows/orbislink-cli.exe \
+            | grep "DLL Name" | awk '{print tolower($3)}' | sort -u)
+          echo "$deps"
+          for dll in $deps; do
+            case "$dll" in
+              kernel32.dll|msvcrt.dll|ws2_32.dll|advapi32.dll|crypt32.dll|bcrypt.dll|iphlpapi.dll|user32.dll|shell32.dll|ole32.dll|shlwapi.dll) ;;
+              *) echo "DLL inesperada: $dll" >&2; exit 1 ;;
+            esac
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: orbislink-windows-x64
+          path: |
+            dist/*.exe
+            dist/*.zip
+
+  linux:
+    name: Linux x86-64
+    needs: versao
+    runs-on: ubuntu-latest
+    env:
+      ORBISLINK_RELEASE_VERSION: ${{ needs.versao.outputs.versao }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Instalar dependências
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libcurl4-openssl-dev
+      - name: Compilar, testar e empacotar
+        run: ./scripts/build-linux.sh
+        env:
+          ORBISLINK_VERSION: ${{ env.ORBISLINK_RELEASE_VERSION }}
+          ORBISLINK_REPOSITORY: ${{ github.repository }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: orbislink-linux-x86_64
+          path: dist/*.tar.gz
+
+  release:
+    name: Publicar Release
+    needs: [versao, windows, linux]
+    runs-on: ubuntu-latest
+    env:
+      ORBISLINK_RELEASE_VERSION: ${{ needs.versao.outputs.versao }}
+    permissions:
+      contents: write
+    steps:
+      # Só os pacotes prontos. O artefacto da interface é uma pasta com
+      # centenas de DLLs do Qt — essa já vai dentro do instalador e do zip.
+      - uses: actions/download-artifact@v4
+        with:
+          name: orbislink-windows-x64
+          path: artefactos
+      - uses: actions/download-artifact@v4
+        with:
+          name: orbislink-linux-x86_64
+          path: artefactos
+      - run: ls -lh artefactos
+      # Um .sha256 por ficheiro. É isto que a app usa para confirmar o que
+      # descarregou antes de correr o instalador: sem ele, a única garantia
+      # é o HTTPS, e a app diz no registo que não pôde verificar.
+      - name: Publicar os SHA-256 ao lado dos ficheiros
+        run: |
+          cd artefactos
+          for ficheiro in *.exe *.zip *.tar.gz; do
+            [ -e "$ficheiro" ] || continue
+            sha256sum "$ficheiro" > "$ficheiro.sha256"
+          done
+          ls -lh
+          cat *.sha256
+      - name: Publicar a compilação de testes
+        if: needs.versao.outputs.testes == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.ORBISLINK_RELEASE_VERSION }}
+          target_commitish: ${{ github.sha }}
+          name: OrbisLink ${{ env.ORBISLINK_RELEASE_VERSION }} (testes)
+          prerelease: true
+          # Uma dev nunca passa a ser "a última" na página do repositório:
+          # quem chega de fora tem de ver a estável.
+          make_latest: false
+          files: |
+            artefactos/*.exe
+            artefactos/*.zip
+            artefactos/*.tar.gz
+            artefactos/*.sha256
+          body: |
+            ## Compilação de testes ${{ env.ORBISLINK_RELEASE_VERSION }}
+
+            Feita automaticamente a partir do commit `${{ github.sha }}`.
+
+            Chega à aplicação no canal **Testes (builds da branch)**
+            (Definições → Actualizações). Não passou por mais ninguém —
+            se algo correr mal, o canal **Estável** volta à última versão
+            final quando ela for mais recente do que esta.
+      # Só as últimas compilações de testes interessam; sem isto a página de
+      # releases encher-se-ia de uma por push. Apaga-se também qualquer uma
+      # cujo commit já não esteja no histórico deste ramo (depois de o
+      # histórico ser reescrito, por exemplo). As estáveis nunca se apagam.
+      - name: Histórico, para saber que compilações ainda lhe pertencem
+        if: needs.versao.outputs.testes == 'true'
+        uses: actions/checkout@v4
+        with:
+          path: historico
+          fetch-depth: 0
+      - name: Apagar compilações de testes antigas
+        if: needs.versao.outputs.testes == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mantidas=0
+          gh release list -R "$GITHUB_REPOSITORY" --limit 200 \
+              --json tagName,isPrerelease \
+              --jq '.[] | select(.isPrerelease) | .tagName' \
+            | grep -E -- '-dev\.[0-9]+$' \
+            | sort -t. -k4,4nr \
+            | while read -r tag; do
+                commit=$(git -C historico rev-list -n1 "refs/tags/$tag" 2>/dev/null || true)
+                if [ -n "$commit" ] \
+                  && git -C historico merge-base --is-ancestor "$commit" "$GITHUB_SHA" \
+                  && [ "$mantidas" -lt 5 ]; then
+                  mantidas=$((mantidas + 1))
+                  echo "Fica $tag"
+                  continue
+                fi
+                echo "A apagar $tag"
+                gh release delete "$tag" -R "$GITHUB_REPOSITORY" --cleanup-tag --yes
+              done
+      # Uma estável substitui as compilações de testes da mesma versão ou
+      # anteriores (as do ramo beta que já vão à frente ficam). Se a própria
+      # versão já estiver publicada, é substituída: a tag passa a apontar
+      # para o commit agora compilado.
+      - name: Arrumar antes de publicar a versão estável
+        if: needs.versao.outputs.testes != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          estavel="${ORBISLINK_RELEASE_VERSION#v}"
+          gh release list -R "$GITHUB_REPOSITORY" --limit 200 \
+              --json tagName,isPrerelease \
+              --jq '.[] | select(.isPrerelease) | .tagName' \
+            | grep -E -- '-dev\.[0-9]+$' \
+            | while read -r tag; do
+                base="${tag#v}"
+                base="${base%%-*}"
+                maior=$(printf '%s\n%s\n' "$base" "$estavel" | sort -V | tail -n1)
+                if [ "$maior" = "$estavel" ]; then
+                  echo "A apagar $tag"
+                  gh release delete "$tag" -R "$GITHUB_REPOSITORY" --cleanup-tag --yes
+                else
+                  echo "Fica $tag"
+                fi
+              done
+          if gh release view "$ORBISLINK_RELEASE_VERSION" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "A substituir $ORBISLINK_RELEASE_VERSION"
+            gh release delete "$ORBISLINK_RELEASE_VERSION" -R "$GITHUB_REPOSITORY" --cleanup-tag --yes
+          fi
+      - name: Publicar a versão estável
+        if: needs.versao.outputs.testes != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.ORBISLINK_RELEASE_VERSION }}
+          # Sem isto a action cria a tag no ramo por omissão do repositório,
+          # e não no commit que foi de facto compilado: os binários ficam
+          # certos mas o código-fonte da Release aponta para outro sítio.
+          target_commitish: ${{ github.sha }}
+          name: OrbisLink ${{ env.ORBISLINK_RELEASE_VERSION }}
+          files: |
+            artefactos/*.exe
+            artefactos/*.zip
+            artefactos/*.tar.gz
+            artefactos/*.sha256
+          generate_release_notes: true
+          body: |
+            ## OrbisLink ${{ env.ORBISLINK_RELEASE_VERSION }}
+
+            **Windows:** `OrbisLink-*-setup.exe` (instalador, com a interface
+            gráfica e a linha de comandos) ou `OrbisLink-*-windows-x64.zip`
+            (portátil, sem instalar).
+
+            **Linux:** `orbislink-*-linux-x86_64.tar.gz`.
+
+            O instalador cria a regra de firewall que permite à consola
+            descarregar os pkg do PC — sem ela a instalação fica em 0 bytes.
+
+            **Remote Play:** descobre a consola, regista este PC (PIN de 8
+            dígitos + Account ID da PSN), acorda-a se estiver em repouso, e
+            liga com vídeo e som. Vídeo descodificado na placa gráfica, com
+            recuo automático para o processador. Comando por SDL com
+            vibração, teclado (o botão "Teclas" mostra o mapa), rato a fazer
+            de touchpad, e ecrã inteiro com F11. A resolução, os fps e o
+            bitrate escolhem-se nas definições.
+
+            **Microfone:** desligado por omissão. O botão fica vermelho
+            enquanto está a captar e diz de que dispositivo vem, e fecha
+            com a sessão — ninguém pode estar a ser ouvido sem dar por
+            isso. Clique esquerdo cala, clique direito desliga.
+
+            Falta o Remote Play pela PSN: por enquanto só rede local.
+
+            **Se o som não sair:** exporta o diagnóstico (Ctrl+L, depois
+            "Guardar relatório"). Ele diz, troço a troço, em que ponto do
+            caminho é que o som se perde.
+
+            **Verificação de actualizações:** nas definições. Lê os
+            lançamentos deste repositório, confirma o SHA-256 e instala num
+            clique. No canal "Testes" recebe também a compilação de cada
+            push, antes de haver versão final.
+
+            **Diagnóstico:** Ctrl+L abre o registo ao vivo, com um botão
+            para guardar o relatório no ambiente de trabalho. É o que se
+            anexa a um pedido de ajuda para se perceber o que falhou.

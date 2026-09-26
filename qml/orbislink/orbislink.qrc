@@ -1,0 +1,33 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<RCC>
+    <qresource prefix="/qml">
+        <file alias="Main.qml">Main.qml</file>
+        <file alias="StreamArea.qml">StreamArea.qml</file>
+        <file alias="StreamRegisterDialog.qml">StreamRegisterDialog.qml</file>
+        <file alias="StreamVideo.qml">StreamVideo.qml</file>
+        <file alias="DropOverlay.qml">DropOverlay.qml</file>
+        <file alias="DropZone.qml">DropZone.qml</file>
+        <file alias="TransferPanel.qml">TransferPanel.qml</file>
+        <file alias="FtpBrowser.qml">FtpBrowser.qml</file>
+        <file alias="SettingsDialog.qml">SettingsDialog.qml</file>
+        <file alias="FirstRunWizard.qml">FirstRunWizard.qml</file>
+        <file alias="DiagnosticsDialog.qml">DiagnosticsDialog.qml</file>
+        <file alias="UpdateDialog.qml">UpdateDialog.qml</file>
+        <file alias="ServiceIndicator.qml">ServiceIndicator.qml</file>
+        <file alias="AccountIdField.qml">AccountIdField.qml</file>
+        <file alias="StyledField.qml">StyledField.qml</file>
+        <file alias="StyledCheck.qml">StyledCheck.qml</file>
+        <file alias="StyledCombo.qml">StyledCombo.qml</file>
+        <file alias="StyledTab.qml">StyledTab.qml</file>
+        <file alias="StyledButton.qml">StyledButton.qml</file>
+        <file alias="StyledToolButton.qml">StyledToolButton.qml</file>
+        <file alias="ThemeSwitcher.qml">ThemeSwitcher.qml</file>
+        <file alias="KeyboardMap.qml">KeyboardMap.qml</file>
+        <file alias="ControllerSketch.qml">ControllerSketch.qml</file>
+        <file alias="StyledMenuItem.qml">StyledMenuItem.qml</file>
+        <file alias="Theme.qml">Theme.qml</file>
+        <file alias="GlassSurface.qml">GlassSurface.qml</file>
+        <file alias="GlassBackground.qml">GlassBackground.qml</file>
+        <file alias="qmldir">qmldir</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,7 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<RCC>
+    <qresource prefix="/i18n">
+        <file alias="orbislink_pt_PT.qm">orbislink_pt_PT.qm</file>
+        <file alias="orbislink_en.qm">orbislink_en.qm</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,134 @@
+OrbisLink @VERSION@ — instalação de pkg e FTP para PS4 com GoldHEN
+==================================================================
+
+O QUE ESTA VERSAO INCLUI
+
+Duas coisas:
+
+  "OrbisLink" — a janela: Remote Play, instalar pkg arrastando para a
+  janela, e um explorador do FTP da consola de onde se podem trazer
+  ficheiros para o PC (arrastando para fora, ou pelo menu de cada
+  ficheiro).
+
+  "orbislink-cli.exe" — a mesma coisa em linha de comandos, para quem
+  prefere, e para automatizar.
+
+ANTES DE COMECAR, NA CONSOLA
+
+1. GoldHEN carregado (o servidor FTP fica na porta 2121).
+2. Remote Package Installer aberto e EM PRIMEIRO PLANO enquanto envias
+   comandos. Depois de a instalacao arrancar ja o podes minimizar.
+3. PC e consola na mesma rede.
+
+REMOTE PLAY
+
+Na consola: Definicoes > Definicoes de Ligacao do Remote Play > Ativar, e
+depois "Adicionar Dispositivo", que mostra um PIN de 8 digitos.
+
+No OrbisLink: "Registar consola", o PIN e o Account ID da PSN (o valor em
+base64, o mesmo que o chiaki-ng pede). O PIN dura poucos minutos; se
+falhar, pede outro na consola.
+
+Depois disso liga-se sem PIN. Se a consola estiver em repouso, o botao
+"Acordar consola" trata disso.
+
+Durante o stream o teclado faz de comando — o botao "Teclas" mostra o
+mapa. Esc termina a sessao. Um comando a serio (DualShock por USB ou
+Bluetooth) ainda nao esta feito.
+
+O Remote Play usa as portas 987/UDP, 9295/TCP e 9296-9297/UDP. Sao ligacoes
+de saida do PC para a consola: a firewall do Windows nao costuma estorvar.
+
+COMO USAR A LINHA DE COMANDOS
+
+Abre o Menu Iniciar > OrbisLink > "OrbisLink (linha de comandos)".
+Nos exemplos, troca 192.168.1.42 pelo IP da tua consola.
+
+  Ver se os servicos respondem:
+    orbislink-cli.exe services --host 192.168.1.42
+
+  Ver o que ha dentro de um pkg:
+    orbislink-cli.exe inspect "D:\jogos\Jogo.pkg"
+
+  Instalar (o PC serve o ficheiro, a consola descarrega e instala):
+    orbislink-cli.exe install --host 192.168.1.42 "D:\jogos\Jogo.pkg"
+
+  Varios de uma vez (a ordem jogo > patch > DLC e automatica):
+    orbislink-cli.exe install --host 192.168.1.42 "Jogo.pkg" "Patch.pkg" "DLC.pkg"
+
+  FTP:
+    orbislink-cli.exe ftp-ls  --host 192.168.1.42 /data/pkg
+    orbislink-cli.exe ftp-put --host 192.168.1.42 "D:\jogos\Jogo.pkg" /data/pkg/Jogo.pkg
+    orbislink-cli.exe ftp-get --host 192.168.1.42 /data/pkg/Jogo.pkg "D:\Jogo.pkg"
+
+  Lista completa de comandos:
+    orbislink-cli.exe --help
+
+SE A JANELA NAO ABRIR
+
+Em maquinas sem aceleracao grafica - Windows Sandbox, maquinas virtuais,
+ambiente de trabalho remoto - o Qt nao consegue criar o contexto de
+desenho e a janela nao chega a aparecer.
+
+O OrbisLink deteta isso sozinho: se um arranque nao chegar a desenhar
+nada, o arranque seguinte passa automaticamente a desenho por software.
+Ou seja, basta abrir uma segunda vez.
+
+Para nao esperar, usa o atalho:
+  Menu Iniciar > OrbisLink > "OrbisLink (modo compativel)"
+
+ou, na linha de comandos:
+  orbislink-gui.exe --software
+
+Seja qual for o caso, fica sempre registo do que aconteceu em:
+  %APPDATA%\OrbisLink\orbislink-gui.log
+
+Se pedires ajuda, envia esse ficheiro: diz exatamente onde parou.
+
+SE O ARRASTAR E LARGAR NAO FUNCIONAR
+
+Se o cursor mostrar o sinal de proibido e nao aparecer o painel a
+perguntar "Larga para...", o OrbisLink esta a correr como administrador.
+
+O Windows nao deixa arrastar ficheiros do Explorador - que corre sem
+privilegios elevados - para uma janela que os tem. Bloqueia as mensagens
+sem dizer nada a ninguem, e por isso parece que a funcionalidade
+desapareceu.
+
+Fecha o OrbisLink e abre-o pelo atalho normal (ambiente de trabalho ou
+menu Iniciar). Nao o abras com "Executar como administrador", e nao
+precisas: o OrbisLink nao pede privilegios nenhuns para funcionar.
+
+O OrbisLink avisa quando isto acontece, e o diagnostico traz uma linha
+"Privilegios" que o confirma.
+
+FIREWALL
+
+A consola descarrega os pkg de um servidor que corre no teu PC. Se o
+Windows bloquear as ligacoes de entrada, a instalacao fica em 0 bytes e o
+OrbisLink avisa "A consola nao conseguiu descarregar do PC".
+
+O instalador cria uma regra de firewall para o OrbisLink em redes
+privadas. Se a desativaste, ou se a rede esta marcada como publica,
+autoriza a aplicacao quando o Windows perguntar, ou cria a regra a mao.
+
+ONDE FICAM OS FICHEIROS
+
+  Definicoes e registos:  %APPDATA%\OrbisLink
+  Registo da interface:   %APPDATA%\OrbisLink\orbislink-gui.log
+  Programa:               a pasta onde instalaste (por omissao
+                          C:\Program Files\OrbisLink)
+
+O registo (log) nunca guarda o PSN Account ID nem chaves de registo.
+
+AMBITO DE USO
+
+Para consolas tuas, com homebrew e copias de jogos que possuis
+legalmente. A aplicacao nao inclui, nao descarrega, nao indexa nem sugere
+fontes de conteudo, e nao faz jailbreak: a consola tem de ja ter o GoldHEN
+a correr.
+
+LICENCA
+
+AGPL-3.0-or-later. Ver LICENSE.txt.
+Codigo-fonte: @REPO_URL@

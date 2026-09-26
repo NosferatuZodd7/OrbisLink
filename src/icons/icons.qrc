@@ -1,0 +1,11 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="logo.png">logoorbis.png</file>
+        <file alias="mark.png">orbisDDM.png</file>
+        <file alias="backdrop.png">orbisDDMWallpaper.png</file>
+        <file alias="backdrop-light.png">orbisDDMWallpaperWhite.png</file>
+        <file alias="dualshock-dark.png">dualshock-corpo-escuro.png</file>
+        <file alias="dualshock-light.png">dualshock-corpo-claro.png</file>
+    </qresource>
+</RCC>
