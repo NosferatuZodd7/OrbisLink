@@ -2,10 +2,10 @@
 //
 // A consola encontrada na rede, numa caixa que se clica.
 //
-// Um clique faz o que faz sentido no estado em que ela está: liga se estiver
-// pronta, acorda-a se estiver em repouso, abre o registo se este PC ainda
-// não estiver registado, procura outra vez se não respondeu, e cancela se
-// estiver a ligar. O que vai acontecer está escrito no botão de baixo.
+// Um clique liga: a app pergunta à consola como está, acorda-a se estiver em
+// repouso, espera que fique pronta e liga — ou abre o registo, se este PC
+// ainda não estiver registado nela. Enquanto isso decorre, outro clique
+// cancela. O que se está a passar está escrito no botão de baixo.
 //
 // O desenho é de 360×330 e escala-se inteiro (`fator`) quando há várias
 // consolas lado a lado: assim as proporções nunca mudam. Sem QtQuick.Effects
@@ -26,6 +26,8 @@ Item {
     property bool registada: false
     property bool aLigar: false
     property bool aProcurar: false
+    // O passo da ligação de um só clique: "", "checking" ou "waking".
+    property string etapa: ""
     property bool disponivel: true   // falso numa compilação sem Remote Play
     // "ps4", "ps5", ou vazio quando a consola nunca respondeu — e aí não se
     // inventa um número: aparece "Unknown PlayStation", numa caixa de
@@ -40,9 +42,6 @@ Item {
     property real fator: 1.0
 
     signal ligar()
-    signal acordar()
-    signal registar()
-    signal procurar()
     signal cancelar()
     signal editar()
     signal escolher()
@@ -60,14 +59,12 @@ Item {
     readonly property string accao: {
         if (!disponivel) return ""
         if (!ativa) return "escolher"
-        if (aLigar) return "cancelar"
-        if (estado === "offline" || estado === "unknown") return "procurar"
-        if (!registada) return "registar"
-        if (estado === "standby") return "acordar"
+        if (aLigar || etapa.length > 0) return "cancelar"
         return "ligar"
     }
     readonly property bool apagada: !disponivel || estado === "offline"
-    readonly property bool aVerificar: aProcurar || (estado === "unknown" && disponivel)
+    readonly property bool aVerificar: aProcurar || etapa.length > 0
+                                       || (estado === "unknown" && disponivel)
 
     readonly property color corEstado: !disponivel ? Theme.cardTextMuted
                                      : aVerificar ? Theme.cardGlow
@@ -80,20 +77,20 @@ Item {
         if (!disponivel) return qsTr("Remote Play não incluído nesta versão")
         if (confirmarRemocao) return qsTr("Clica outra vez no ✕ para remover")
         if (!ativa) {
-            if (estado === "ready") return qsTr("Pronta — clica para usar")
-            if (estado === "standby") return qsTr("Em repouso — clica para usar")
-            if (estado === "offline") return qsTr("Não responde — clica para usar")
-            return qsTr("A verificar — clica para usar")
+            if (estado === "ready") return qsTr("Pronta — clica para ligar")
+            if (estado === "standby") return qsTr("Em repouso — clica para acordar e ligar")
+            if (estado === "offline") return qsTr("Não responde — clica para tentar ligar")
+            return qsTr("A verificar — clica para ligar")
         }
         if (aLigar) return qsTr("A ligar… — clica para cancelar")
+        if (etapa === "waking") return qsTr("A acordar a consola… — clica para cancelar")
+        if (etapa === "checking") return qsTr("A verificar a consola… — clica para cancelar")
         if (aProcurar) return qsTr("A procurar a consola…")
-        switch (accao) {
-        case "procurar": return estado === "offline" ? qsTr("Não responde — clica para procurar")
-                                                     : qsTr("Clica para procurar a consola")
-        case "registar": return qsTr("Por registar — clica para registar")
-        case "acordar": return qsTr("Em repouso — clica para acordar")
-        default: return qsTr("Pronta — clica para ligar")
-        }
+        if (estado === "offline") return qsTr("Não responde — clica para tentar ligar")
+        if (estado === "unknown") return qsTr("Clica para ligar")
+        if (!registada) return qsTr("Por registar — clica para registar")
+        if (estado === "standby") return qsTr("Em repouso — clica para acordar e ligar")
+        return qsTr("Pronta — clica para ligar")
     }
 
     implicitWidth: 360 * fator
@@ -270,9 +267,6 @@ Item {
             onClicked: {
                 switch (caixa.accao) {
                 case "ligar": caixa.ligar(); break
-                case "acordar": caixa.acordar(); break
-                case "registar": caixa.registar(); break
-                case "procurar": caixa.procurar(); break
                 case "cancelar": caixa.cancelar(); break
                 case "escolher": caixa.escolher(); break
                 }

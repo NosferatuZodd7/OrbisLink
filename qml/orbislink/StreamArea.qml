@@ -164,13 +164,21 @@ Item {
                     }
                     aLigar: modelData.active && root.sessionState === "connecting"
                     aProcurar: modelData.active && root.built && stream.searching
-                    onLigar: stream.startStream()
-                    onAcordar: stream.wakeUp()
-                    onRegistar: registerDialog.open()
-                    onProcurar: stream.refreshConsole()
-                    onCancelar: stream.stopStream()
+                    etapa: modelData.active && root.built ? stream.connectStage : ""
+                    onLigar: stream.connectOneClick()
+                    onCancelar: {
+                        if (stream.connectStage.length > 0)
+                            stream.cancelOneClick()
+                        else
+                            stream.stopStream()
+                    }
                     onEditar: registerDialog.open()
-                    onEscolher: app.selectConsole(modelData.address)
+                    // Outra consola: passa a ser a consola em uso e liga já,
+                    // no mesmo clique.
+                    onEscolher: {
+                        app.selectConsole(modelData.address)
+                        stream.connectOneClick()
+                    }
                     onRemover: app.removeConsole(modelData.address)
                 }
             }
@@ -200,8 +208,11 @@ Item {
                     return qsTr("Confirma o IP nas definições e que a consola está ligada "
                                 + "na mesma rede.")
                 if (!root.registered && root.consoleState !== "unknown")
-                    return qsTr("Na consola: Definições → Definições de Ligação do Remote Play "
-                                + "→ Adicionar Dispositivo. Aparece um PIN de 8 dígitos.")
+                    return stream.consolePs5
+                        ? qsTr("Na PS5: Definições → Sistema → Remote Play → Associar "
+                               + "dispositivo. Aparece um PIN de 8 dígitos.")
+                        : qsTr("Na consola: Definições → Definições de Ligação do Remote Play "
+                               + "→ Adicionar Dispositivo. Aparece um PIN de 8 dígitos.")
                 if (stream.runningApp.length > 0)
                     return qsTr("A correr: %1").arg(stream.runningApp)
                 return ""
@@ -560,7 +571,10 @@ Item {
             if (root.consoleState === "ready" || root.consoleState === "standby")
                 app.rememberConsoleType(app.consoleAddress, stream.consolePs5)
         }
-        function onConsoleStatesChanged() {
+        // Ligar com um clique encontrou a consola por registar: abre-se o
+        // registo em vez de uma mensagem a mandar abri-lo.
+        function onRegistrationNeeded() { registerDialog.open() }
+                function onConsoleStatesChanged() {
             var estados = stream.consoleStates
             for (var endereco in estados) {
                 var e = estados[endereco]

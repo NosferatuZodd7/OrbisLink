@@ -204,6 +204,7 @@ void StreamController::setAddress(const QString &address)
 	if(address_ == address)
 		return;
 	address_ = address;
+	cancelOneClick();
 	// O que se sabia era da consola anterior: o nome, o estado, o tipo e a
 	// chave de registo. Mantê-lo até a nova responder fazia a caixa da
 	// nova mostrar os dados da antiga (e guardá-los como se fossem dela).
@@ -656,6 +657,142 @@ void StreamController::startStream()
 		emit sessionChanged();
 		emit notify(tr("Remote Play"), sessionDetail_, true);
 	}
+}
+
+void StreamController::setConnectStage(const QString &stage)
+{
+	if(connectStage_ == stage)
+		return;
+	connectStage_ = stage;
+	emit connectStageChanged();
+}
+
+void StreamController::connectOneClick()
+{
+	if(streaming_ || sessionState_ == QLatin1String("connecting") || !connectStage_.isEmpty())
+		return;
+	if(address_.isEmpty())
+	{
+		emit notify(tr("Remote Play"),
+			tr("Falta o endereço IP da consola. Define-o nas definições."), true);
+		return;
+	}
+	// Cada clique é uma corrida própria: uma resposta de uma corrida
+	// cancelada, ou de outra consola, já não decide nada.
+	const quint64 corrida = ++oneClickRun_;
+	setConnectStage(QStringLiteral("checking"));
+	const std::string address = address_.toStdString();
+	std::thread([this, address, corrida]() {
+		const HostInfo info = StreamDiscovery::probe(address, 1500);
+		QMetaObject::invokeMethod(
+			this,
+			[this, info, address, corrida]() {
+				if(corrida != oneClickRun_ || address != address_.toStdString())
+					return;
+				applyHost(info);
+				oneClickDecide(info);
+			},
+			Qt::QueuedConnection);
+	}).detach();
+}
+
+void StreamController::oneClickDecide(const HostInfo &info)
+{
+	if(!info.found)
+	{
+		setConnectStage(QString());
+		emit notify(tr("Ligar"),
+			tr("A consola em %1 não respondeu. Confirma que está ligada (ou em repouso), "
+			   "na mesma rede e com o Remote Play activado.").arg(address_),
+			true);
+		return;
+	}
+	if(!credentials_.valid)
+	{
+		setConnectStage(QString());
+		emit registrationNeeded();
+		return;
+	}
+	if(info.state == HostState::Standby)
+	{
+		// Acorda-se uma vez e depois pergunta-se de dois em dois segundos,
+		// até ela dizer que está pronta.
+		if(connectStage_ != QLatin1String("waking"))
+		{
+			setConnectStage(QStringLiteral("waking"));
+			wakeAttempts_ = 0;
+			const std::string address = address_.toStdString();
+			const uint64_t credential = credentials_.wakeupCredential();
+			const bool ps5 = credentials_.ps5;
+			std::thread([address, credential, ps5]() {
+				StreamDiscovery::wakeup(address, credential, ps5, nullptr);
+			}).detach();
+		}
+		if(!wakeTimer_)
+		{
+			wakeTimer_ = new QTimer(this);
+			wakeTimer_->setSingleShot(true);
+			wakeTimer_->setInterval(2000);
+			connect(wakeTimer_, &QTimer::timeout, this, &StreamController::oneClickPoll);
+		}
+		wakeTimer_->start();
+		return;
+	}
+	if(info.state != HostState::Ready)
+	{
+		setConnectStage(QString());
+		emit notify(tr("Ligar"), tr("A consola respondeu, mas não disse se está pronta. "
+									"Tenta outra vez daqui a pouco."), true);
+		return;
+	}
+	setConnectStage(QString());
+	startStream();
+}
+
+void StreamController::oneClickPoll()
+{
+	if(connectStage_ != QLatin1String("waking"))
+		return;
+	// Uma consola demora uns vinte segundos a acordar; ao fim de um minuto
+	// já não vai acordar sozinha.
+	if(++wakeAttempts_ > 30)
+	{
+		setConnectStage(QString());
+		emit notify(tr("Ligar"),
+			tr("A consola não acordou. Confirma nas definições dela que pode ser ligada "
+			   "pela rede (Ficar ligado à Internet / Permitir ligar pela rede)."),
+			true);
+		return;
+	}
+	const quint64 corrida = oneClickRun_;
+	const std::string address = address_.toStdString();
+	std::thread([this, address, corrida]() {
+		const HostInfo info = StreamDiscovery::peek(address, 1500);
+		QMetaObject::invokeMethod(
+			this,
+			[this, info, address, corrida]() {
+				if(corrida != oneClickRun_ || address != address_.toStdString()
+					|| connectStage_ != QLatin1String("waking"))
+					return;
+				if(!info.found)
+				{
+					// A meio do arranque ela pode deixar de responder um pouco.
+					wakeTimer_->start();
+					return;
+				}
+				applyHost(info);
+				oneClickDecide(info);
+			},
+			Qt::QueuedConnection);
+	}).detach();
+}
+
+void StreamController::cancelOneClick()
+{
+	++oneClickRun_;
+	if(wakeTimer_)
+		wakeTimer_->stop();
+	setConnectStage(QString());
 }
 
 void StreamController::stopStream()
