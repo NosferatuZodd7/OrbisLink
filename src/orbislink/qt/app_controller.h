@@ -80,6 +80,8 @@ public:
 	QString installerHint() const;
 	bool canInstallDirectly() const;
 	bool canUseFtp() const;
+	// A consola em uso é uma PS5 (pelo tipo que ficou guardado).
+	bool activeIsPs5() const;
 	bool queuePaused() const;
 	QString pauseReason() const;
 	QString statusMessage() const { return statusMessage_; }
