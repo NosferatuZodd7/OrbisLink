@@ -129,8 +129,10 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 18
             readonly property var lista: app.consoles
-            // Encolhem juntas, sem mudar de proporções, quando não cabem.
-            readonly property real fator: Math.max(0.42, Math.min(1.0,
+            // Um pouco abaixo do tamanho do desenho, para não dominarem o
+            // palco; e encolhem juntas, sem mudar de proporções, quando não
+            // cabem.
+            readonly property real fator: Math.max(0.42, Math.min(0.72,
                 (palco.width - 60 - spacing * lista.length) / (360 * lista.length + 250)))
 
             Repeater {

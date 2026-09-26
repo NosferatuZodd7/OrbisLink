@@ -14,8 +14,14 @@ Item {
     implicitWidth: 250
     implicitHeight: 330
 
-    scale: area.pressed ? Theme.pressScale : (area.containsMouse ? Theme.hoverScale : 1.0)
+    // O mesmo movimento das caixas das consolas: cresce e sobe com o rato
+    // por cima, afunda ao carregar.
+    scale: area.pressed ? Theme.pressScale : (area.containsMouse ? 1.03 : 1.0)
     Behavior on scale { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
+    transform: Translate {
+        y: area.containsMouse && !area.pressed ? -4 : 0
+        Behavior on y { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
+    }
 
     Rectangle {
         anchors.fill: parent
