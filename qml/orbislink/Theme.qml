@@ -131,7 +131,7 @@ QtObject {
     readonly property color cardEdge: claro ? Qt.rgba(15 / 255, 23 / 255, 42 / 255, 0.08)
                                             : Qt.rgba(45 / 255, 140 / 255, 1, 0.28)
     readonly property color cardWave: claro ? Qt.rgba(0, 112 / 255, 243 / 255, 0.07)
-                                            : Qt.rgba(45 / 255, 140 / 255, 1, 0.12)
+                                            : Qt.rgba(45 / 255, 140 / 255, 1, 0.07)
     readonly property color cardBlue: "#0070F3"
     readonly property color cardGlow: "#2D8CFF"
     readonly property color cardAmber: "#F5A524"
