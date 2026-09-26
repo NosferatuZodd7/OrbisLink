@@ -131,7 +131,7 @@ Item {
             readonly property var lista: app.consoles
             // Encolhem juntas, sem mudar de proporções, quando não cabem.
             readonly property real fator: Math.max(0.42, Math.min(1.0,
-                (palco.width - 60 - spacing * lista.length) / (360 * lista.length + 180)))
+                (palco.width - 60 - spacing * lista.length) / (360 * lista.length + 250)))
 
             Repeater {
                 model: filaConsolas.lista
@@ -164,8 +164,8 @@ Item {
             }
 
             AddConsoleCard {
-                width: 180 * filaConsolas.fator
-                height: 280 * filaConsolas.fator
+                width: 250 * filaConsolas.fator
+                height: 330 * filaConsolas.fator
                 onAdicionar: addConsoleDialog.open()
             }
         }
