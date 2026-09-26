@@ -39,6 +39,7 @@ std::string Settings::toJson() const
 		Json entrada = Json::makeObject();
 		entrada.set("name", Json::fromString(consola.name));
 		entrada.set("address", Json::fromString(consola.address));
+		entrada.set("type", Json::fromString(consola.type));
 		lista.push(entrada);
 	}
 	root.set("consoles", lista);
@@ -98,8 +99,11 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 		{
 			if(!entrada.isObject())
 				continue;
+			std::string tipo = entrada["type"].toString();
+			if(tipo != "ps4" && tipo != "ps5")
+				tipo.clear();
 			settings.consoles.push_back(
-				{ entrada["name"].toString(), entrada["address"].toString() });
+				{ entrada["name"].toString(), entrada["address"].toString(), tipo });
 		}
 	}
 	normaliseConsoles(settings);
@@ -189,7 +193,7 @@ void normaliseConsoles(Settings &settings)
 		const std::string endereco = trim(consola.address);
 		if(endereco.empty() || ja(endereco))
 			continue;
-		limpa.push_back({ consola.name, endereco });
+		limpa.push_back({ consola.name, endereco, consola.type });
 	}
 	const std::string ativa = trim(settings.consoleAddress);
 	if(!ativa.empty())
@@ -206,7 +210,7 @@ void normaliseConsoles(Settings &settings)
 			}
 		}
 		if(!encontrada)
-			limpa.insert(limpa.begin(), { settings.consoleName, ativa });
+			limpa.insert(limpa.begin(), { settings.consoleName, ativa, std::string() });
 	}
 	settings.consoles = limpa;
 }

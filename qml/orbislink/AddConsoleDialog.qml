@@ -22,8 +22,8 @@ Dialog {
         return false
     }
 
-    function adicionar(nome, endereco) {
-        app.addConsole(nome, endereco)
+    function adicionar(nome, endereco, tipo) {
+        app.addConsole(nome, endereco, tipo || "")
         dialog.close()
     }
 
@@ -180,7 +180,8 @@ Dialog {
                         primary: !linha.naLista
                         implicitHeight: 32
                         larguraMinima: 100
-                        onClicked: dialog.adicionar(modelData.name, modelData.address)
+                        onClicked: dialog.adicionar(modelData.name, modelData.address,
+                                                    modelData.ps5 ? "ps5" : "ps4")
                     }
                 }
             }

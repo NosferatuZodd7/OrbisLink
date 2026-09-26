@@ -202,6 +202,15 @@ ORBISLINK_TEST(lista_de_consolas)
 
 	// Sem nenhuma consola definida, a lista fica vazia.
 	CHECK(Settings::fromJson("{}").consoles.empty());
+
+	// O tipo fica gravado; um valor que não seja ps4/ps5 conta como
+	// desconhecido.
+	Settings comTipo;
+	comTipo.consoles = { { "Quarto", "10.0.0.9", "ps5" } };
+	CHECK_EQ(Settings::fromJson(comTipo.toJson()).consoles[0].type, std::string("ps5"));
+	const Settings estranho = Settings::fromJson(
+		R"({"consoles":[{"name":"X","address":"10.0.0.7","type":"xbox"}]})");
+	CHECK(estranho.consoles[0].type.empty());
 }
 
 TEST_MAIN()
