@@ -298,54 +298,21 @@ Item {
             width: parent.width
             spacing: 0
 
-            Canvas {
+            // A wordmark PS4/PS5 (ou só "PS", quando o tipo não se sabe),
+            // gerada por scripts/gerar-wordmarks.py: branca nos temas
+            // escuros, preta no claro.
+            Image {
                 id: letras
                 anchors.horizontalCenter: parent.horizontalCenter
-                width: 200
-                height: 58
-                readonly property color cor: Theme.cardText
-                readonly property string tipo: caixa.tipo
-                onCorChanged: requestPaint()
-                onTipoChanged: requestPaint()
-                onPaint: {
-                    var ctx = getContext("2d")
-                    ctx.reset()
-                    var t = 4           // traço fino: o "Light" do logótipo
-                    var a = 44, l = 46, e = 16
-                    var y0 = 7, y1 = y0 + a, ym = y0 + a / 2
-                    var letrasN = tipo.length > 0 ? 3 : 2
-                    var x = (width - (letrasN * l + (letrasN - 1) * e)) / 2
-                    ctx.strokeStyle = cor
-                    ctx.lineWidth = t
-                    ctx.lineJoin = "round"
-                    ctx.lineCap = "round"
-                    function linha(pontos, raio) {
-                        ctx.beginPath()
-                        ctx.moveTo(pontos[0][0], pontos[0][1])
-                        for (var i = 1; i < pontos.length - 1; ++i)
-                            ctx.arcTo(pontos[i][0], pontos[i][1],
-                                      pontos[i + 1][0], pontos[i + 1][1], raio || 0.01)
-                        var ultimo = pontos[pontos.length - 1]
-                        ctx.lineTo(ultimo[0], ultimo[1])
-                        ctx.stroke()
-                    }
-                    linha([[x, y1], [x, y0], [x + l, y0], [x + l, ym], [x + 8, ym]], 12)
-                    x += l + e
-                    linha([[x + l, y0], [x, y0], [x, ym], [x + l, ym], [x + l, y1], [x, y1]], 12)
-                    x += l + e
-                    if (tipo === "ps4") {
-                        linha([[x + l - 8, y0], [x, ym + 8], [x + l, ym + 8]])
-                        linha([[x + l - 8, y0], [x + l - 8, y1]])
-                    } else if (tipo === "ps5") {
-                        linha([[x + l, y0], [x, y0], [x, ym], [x + l - 12, ym]])
-                        ctx.beginPath()
-                        ctx.moveTo(x + l - 12, ym)
-                        ctx.arcTo(x + l, ym, x + l, y1, 12)
-                        ctx.arcTo(x + l, y1, x, y1, 12)
-                        ctx.lineTo(x, y1)
-                        ctx.stroke()
-                    }
-                }
+                readonly property string nome: caixa.tipo === "ps4" ? "ps4"
+                                             : caixa.tipo === "ps5" ? "ps5" : "ps"
+                source: "qrc:/icons/wordmark-" + nome + (Theme.claro ? "-preto" : "-branco") + ".png"
+                sourceSize.height: 186
+                height: 62
+                width: implicitWidth / 3
+                fillMode: Image.PreserveAspectFit
+                smooth: true
+                mipmap: true
             }
 
             Item { width: 1; height: 6 }
