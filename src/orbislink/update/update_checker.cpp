@@ -7,6 +7,7 @@
 #include "orbislink/net/http_client.h"
 
 #include <cctype>
+#include <map>
 
 namespace orbislink {
 
@@ -104,6 +105,10 @@ std::vector<ReleaseInfo> UpdateChecker::parseReleases(const std::string &json,
 		info.pageUrl = entrada["html_url"].toString();
 		info.prerelease = entrada["prerelease"].toLooseBool(false);
 
+		// Cada ficheiro publicado tem o seu "<nome>.sha256" ao lado; o que
+		// interessa é o do ficheiro que se vai descarregar, e não um
+		// qualquer (o do zip não serve para verificar o instalador).
+		std::map<std::string, std::string> hashes;
 		const Json &anexos = entrada["assets"];
 		for(size_t i = 0; i < anexos.size(); ++i)
 		{
@@ -111,10 +116,9 @@ std::vector<ReleaseInfo> UpdateChecker::parseReleases(const std::string &json,
 			const std::string nome = anexo["name"].toString();
 			if(nome.empty())
 				continue;
-			// O ficheiro dos hashes, publicado ao lado do instalador.
 			if(endsWith(toLower(nome), ".sha256"))
 			{
-				info.assetSha256Url = anexo["browser_download_url"].toString();
+				hashes[toLower(nome)] = anexo["browser_download_url"].toString();
 				continue;
 			}
 			if(assetSuffix.empty() || !endsWith(toLower(nome), toLower(assetSuffix)))
@@ -122,6 +126,12 @@ std::vector<ReleaseInfo> UpdateChecker::parseReleases(const std::string &json,
 			info.assetName = nome;
 			info.assetUrl = anexo["browser_download_url"].toString();
 			info.assetSize = anexo["size"].toInt(0);
+		}
+		if(!info.assetName.empty())
+		{
+			const auto hash = hashes.find(toLower(info.assetName) + ".sha256");
+			if(hash != hashes.end())
+				info.assetSha256Url = hash->second;
 		}
 		info.assetSha256 = sha256FromNotes(info.notes, info.assetName);
 		releases.push_back(info);

@@ -646,3 +646,21 @@ jobs:
             **Diagnóstico:** Ctrl+L abre o registo ao vivo, com um botão
             para guardar o relatório no ambiente de trabalho. É o que se
             anexa a um pedido de ajuda para se perceber o que falhou.
+      # Os hashes também nas notas, uma linha por ficheiro. A app procura lá
+      # primeiro a linha com o nome do ficheiro que descarrega; o anexo
+      # .sha256 fica como alternativa.
+      - name: Juntar os SHA-256 às notas
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$ORBISLINK_RELEASE_VERSION" -R "$GITHUB_REPOSITORY" \
+            --json body --jq .body > notas.md
+          {
+            printf '\n\n### SHA-256\n\n'
+            for ficheiro in artefactos/*.exe artefactos/*.zip artefactos/*.tar.gz; do
+              [ -e "$ficheiro" ] || continue
+              printf '`%s`  %s\n\n' "$(cut -d' ' -f1 "$ficheiro.sha256")" "$(basename "$ficheiro")"
+            done
+          } >> notas.md
+          cat notas.md
+          gh release edit "$ORBISLINK_RELEASE_VERSION" -R "$GITHUB_REPOSITORY" --notes-file notas.md
