@@ -121,6 +121,23 @@ QtObject {
     readonly property color onIdleStage: claro ? text : onStage
     readonly property color onIdleStageMuted: claro ? textSecondary : onStageMuted
 
+    // ── Caixa da consola
+    // Azul-marinho quase preto nos temas escuros, branco gelo no claro. A cor
+    // só aparece nos indicadores de estado.
+    readonly property color cardTop: claro ? "#FFFFFF" : "#071426"
+    readonly property color cardBottom: claro ? "#EEF4FC" : "#0A1E3A"
+    readonly property color cardText: claro ? "#0F172A" : "#FFFFFF"
+    readonly property color cardTextMuted: claro ? "#5B6B82" : "#A8B3C7"
+    readonly property color cardEdge: claro ? Qt.rgba(15 / 255, 23 / 255, 42 / 255, 0.08)
+                                            : Qt.rgba(45 / 255, 140 / 255, 1, 0.28)
+    readonly property color cardWave: claro ? Qt.rgba(0, 112 / 255, 243 / 255, 0.07)
+                                            : Qt.rgba(45 / 255, 140 / 255, 1, 0.12)
+    readonly property color cardBlue: "#0070F3"
+    readonly property color cardGlow: "#2D8CFF"
+    readonly property color cardAmber: "#F5A524"
+    readonly property color cardRed: "#E5484D"
+    readonly property int cardEase: 250
+
     // ── As cores que as superfícies usam de facto
     readonly property color panelFill: Qt.rgba(panel.r, panel.g, panel.b, panelOpacity)
     readonly property color panelAltFill: Qt.rgba(panelAlt.r, panelAlt.g, panelAlt.b,

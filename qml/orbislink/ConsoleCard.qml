@@ -5,15 +5,16 @@
 // Um clique faz o que faz sentido no estado em que ela está: liga se estiver
 // pronta, acorda-a se estiver em repouso, abre o registo se este PC ainda
 // não estiver registado, procura outra vez se não respondeu, e cancela se
-// estiver a ligar. O que vai acontecer está escrito na própria caixa.
+// estiver a ligar. O que vai acontecer está escrito no botão de baixo.
 //
-// A consola aparece como "PS4" ou "PS5", em letras desenhadas aqui na cor do
-// texto do tema, com uma linha por baixo na cor do estado: azul pronta,
-// laranja em repouso, vermelho quando não responde.
+// O desenho é de 360×280 e escala-se inteiro (`fator`) quando há várias
+// consolas lado a lado: assim as proporções nunca mudam. Sem QtQuick.Effects
+// (o Qt 6.4 das capturas não o tem), o vidro, o brilho e a sombra são camadas
+// e gradientes desenhados aqui.
 import QtQuick
 import QtQuick.Controls.Basic
 
-Rectangle {
+Item {
     id: caixa
 
     // "ready", "standby", "offline" ou "unknown", como vem do stream.
@@ -25,6 +26,10 @@ Rectangle {
     property bool ps5: false
     property string nome: ""
     property string endereco: ""
+    // Falso para as outras consolas da lista: aí o clique escolhe-a (passa a
+    // ser a consola em uso), e no canto há um ✕ para a tirar da lista.
+    property bool ativa: true
+    property real fator: 1.0
 
     signal ligar()
     signal acordar()
@@ -32,13 +37,9 @@ Rectangle {
     signal procurar()
     signal cancelar()
     signal editar()
-    // Só nas consolas que não estão em uso.
     signal escolher()
     signal remover()
 
-    // Falso para as outras consolas da lista: aí o clique escolhe-a (passa a
-    // ser a consola em uso), e no canto há um ✕ para a tirar da lista.
-    property bool ativa: true
     // O ✕ pede um segundo clique antes de remover.
     property bool confirmarRemocao: false
     Timer {
@@ -59,274 +60,410 @@ Rectangle {
     }
     readonly property bool pronta: ativa && accao === "ligar"
     readonly property bool apagada: !disponivel || estado === "offline"
+    readonly property bool aVerificar: aProcurar || (estado === "unknown" && disponivel)
 
-    readonly property color corLuz: !disponivel ? Theme.textSecondary
-                                  : estado === "ready" ? Theme.accent
-                                  : estado === "standby" ? "#FF9F0A"
-                                  : estado === "offline" ? Theme.error
-                                  : Theme.textSecondary
+    readonly property color corEstado: !disponivel ? Theme.cardTextMuted
+                                     : aVerificar ? Theme.cardGlow
+                                     : estado === "ready" ? Theme.cardBlue
+                                     : estado === "standby" ? Theme.cardAmber
+                                     : estado === "offline" ? Theme.cardRed
+                                     : Theme.cardTextMuted
 
     readonly property string estadoTexto: {
         if (!disponivel) return qsTr("Remote Play não incluído nesta versão")
-        if (confirmarRemocao) return qsTr("Clica outra vez no ✕ para a tirar da lista")
+        if (confirmarRemocao) return qsTr("Clica outra vez no ✕ para remover")
         if (!ativa) {
-            if (estado === "ready") return qsTr("Pronta — clica para usar esta")
-            if (estado === "standby") return qsTr("Em repouso — clica para usar esta")
-            if (estado === "offline") return qsTr("Não responde — clica para usar esta")
-            return qsTr("A verificar… — clica para usar esta")
+            if (estado === "ready") return qsTr("Pronta — clica para usar")
+            if (estado === "standby") return qsTr("Em repouso — clica para usar")
+            if (estado === "offline") return qsTr("Não responde — clica para usar")
+            return qsTr("A verificar — clica para usar")
         }
         if (aLigar) return qsTr("A ligar… — clica para cancelar")
-        if (aProcurar) return qsTr("A procurar…")
+        if (aProcurar) return qsTr("A procurar a consola…")
         switch (accao) {
         case "procurar": return estado === "offline" ? qsTr("Não responde — clica para procurar")
                                                      : qsTr("Clica para procurar a consola")
-        case "registar": return qsTr("Por registar — clica para registar este PC")
+        case "registar": return qsTr("Por registar — clica para registar")
         case "acordar": return qsTr("Em repouso — clica para acordar")
         default: return qsTr("Pronta — clica para ligar")
         }
     }
 
-    implicitWidth: 320
-    implicitHeight: 250
-    radius: Theme.radius
-    // Quase opaca: por trás está a grelha e a imagem do palco, e o nome da
-    // consola tem de se ler por cima delas.
-    color: Qt.rgba(area.containsMouse && accao.length > 0 ? Theme.panelAlt.r : Theme.panel.r,
-                   area.containsMouse && accao.length > 0 ? Theme.panelAlt.g : Theme.panel.g,
-                   area.containsMouse && accao.length > 0 ? Theme.panelAlt.b : Theme.panel.b,
-                   0.92)
-    border.width: 1
-    // No claro a caixa é branca sobre o palco branco: a aresta escura é o
-    // que a separa dele.
-    border.color: area.containsMouse && accao.length > 0 ? Theme.accent
-                : Theme.claro ? Qt.rgba(0, 0, 0, 0.14) : Theme.glassEdge
-    opacity: apagada && !area.containsMouse ? 0.6 : 1.0
-    scale: area.pressed ? Theme.pressScale : (area.containsMouse && accao.length > 0 ? Theme.hoverScale : 1.0)
+    implicitWidth: 360 * fator
+    implicitHeight: 280 * fator
+    width: implicitWidth
+    height: implicitHeight
 
-    Behavior on scale { NumberAnimation { duration: Theme.fast; easing.type: Theme.easeSpring; easing.overshoot: 1.1 } }
-    Behavior on opacity { NumberAnimation { duration: Theme.normal } }
-    Behavior on color { ColorAnimation { duration: Theme.fast } }
-    Behavior on border.color { ColorAnimation { duration: Theme.fast } }
+    // Sem resposta, a caixa inteira recua um pouco.
+    opacity: apagada && !area.containsMouse ? 0.9 : 1.0
+    Behavior on opacity { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
 
-    // Pronta a ligar, a aresta respira devagar na cor de destaque: é o
-    // sítio onde se carrega.
-    Rectangle {
-        anchors.fill: parent
-        anchors.margins: -4
-        radius: parent.radius + 4
-        color: "transparent"
-        border.width: 2
-        border.color: Theme.accent
-        opacity: 0
-        visible: caixa.pronta
-        SequentialAnimation on opacity {
+    Item {
+        id: desenho
+        width: 360
+        height: 280
+        scale: caixa.fator
+        transformOrigin: Item.TopLeft
+
+        // ── Sombra suave: três camadas a alargar e a desaparecer.
+        Repeater {
+            model: 3
+            Rectangle {
+                anchors.fill: fundo
+                anchors.margins: -(index + 1) * 4
+                anchors.topMargin: -(index + 1) * 2
+                anchors.bottomMargin: -(index + 1) * 6
+                radius: fundo.radius + (index + 1) * 4
+                color: "transparent"
+                border.width: 4
+                border.color: Qt.rgba(0, 0, 0, Theme.claro ? 0.035 - index * 0.01 : 0.12 - index * 0.035)
+            }
+        }
+
+        // ── Brilho azul à volta quando está pronta a ligar.
+        Repeater {
+            model: 3
+            Rectangle {
+                anchors.fill: fundo
+                anchors.margins: -(index + 1) * 3
+                radius: fundo.radius + (index + 1) * 3
+                color: "transparent"
+                border.width: 3
+                border.color: Theme.cardGlow
+                opacity: caixa.pronta ? (0.22 - index * 0.07) * brilho.nivel : 0
+                Behavior on opacity { NumberAnimation { duration: Theme.cardEase } }
+            }
+        }
+        QtObject {
+            id: brilho
+            property real nivel: 1.0
+        }
+        SequentialAnimation {
             running: caixa.pronta && caixa.visible
             loops: Animation.Infinite
-            NumberAnimation { to: 0.55; duration: 1400; easing.type: Easing.InOutSine }
-            NumberAnimation { to: 0.0; duration: 1400; easing.type: Easing.InOutSine }
-        }
-    }
-
-    // A aresta de luz em cima, como nas outras superfícies de vidro.
-    Rectangle {
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: 1
-        height: parent.height / 2
-        radius: parent.radius
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: Theme.glassSheen }
-            GradientStop { position: 1.0; color: "transparent" }
-        }
-    }
-
-    MouseArea {
-        id: area
-        anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: caixa.accao.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
-        onClicked: {
-            switch (caixa.accao) {
-            case "ligar": caixa.ligar(); break
-            case "acordar": caixa.acordar(); break
-            case "registar": caixa.registar(); break
-            case "procurar": caixa.procurar(); break
-            case "cancelar": caixa.cancelar(); break
-            case "escolher": caixa.escolher(); break
-            }
-        }
-    }
-
-    // Os dois extras, pequenos e nos cantos: procurar outra vez e mudar o
-    // registo. O clique principal é a caixa inteira.
-    StyledToolButton {
-        anchors.left: parent.left
-        anchors.top: parent.top
-        anchors.margins: 10
-        implicitWidth: 32
-        implicitHeight: 32
-        visible: caixa.disponivel && caixa.ativa
-        enabled: !caixa.aProcurar
-        text: "⟳"
-        ToolTip.visible: hovered
-        ToolTip.text: qsTr("Procurar a consola outra vez")
-        onClicked: caixa.procurar()
-    }
-    StyledToolButton {
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: 10
-        implicitWidth: 32
-        implicitHeight: 32
-        visible: caixa.disponivel && caixa.ativa && caixa.estado !== "offline"
-        text: "✎"
-        ToolTip.visible: hovered
-        ToolTip.text: caixa.registada ? qsTr("Registar este PC outra vez")
-                                      : qsTr("Registar este PC na consola")
-        onClicked: caixa.editar()
-    }
-    StyledToolButton {
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: 10
-        implicitWidth: 32
-        implicitHeight: 32
-        visible: !caixa.ativa
-        danger: caixa.confirmarRemocao
-        text: "✕"
-        ToolTip.visible: hovered
-        ToolTip.text: qsTr("Tirar esta consola da lista")
-        onClicked: {
-            if (caixa.confirmarRemocao)
-                caixa.remover()
-            else
-                caixa.confirmarRemocao = true
-        }
-    }
-
-    Column {
-        anchors.centerIn: parent
-        anchors.verticalCenterOffset: 6
-        spacing: 10
-
-        // "PS4" ou "PS5" em letras desenhadas aqui: traço fino, largo e
-        // geométrico, na cor do texto do tema. Por baixo, uma linha fina na
-        // cor do estado.
-        Canvas {
-            id: desenho
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: 176
-            height: 78
-            readonly property color corLetras: Theme.text
-            readonly property color corLuz: caixa.corLuz
-            readonly property bool ps5: caixa.ps5
-            onCorLetrasChanged: requestPaint()
-            onCorLuzChanged: requestPaint()
-            onPs5Changed: requestPaint()
-            onPaint: {
-                var ctx = getContext("2d")
-                ctx.reset()
-                var t = 6          // espessura do traço
-                var a = 46         // altura das letras
-                var l = 40         // largura de cada letra
-                var e = 16         // espaço entre letras
-                var y0 = 6, y1 = y0 + a, ym = y0 + a / 2
-                var x = (width - (3 * l + 2 * e)) / 2
-                ctx.strokeStyle = corLetras
-                ctx.lineWidth = t
-                ctx.lineJoin = "round"
-                ctx.lineCap = "round"
-                // Uma linha pelos pontos, com os cantos arredondados em `raio`.
-                function linha(pontos, raio) {
-                    ctx.beginPath()
-                    ctx.moveTo(pontos[0][0], pontos[0][1])
-                    for (var i = 1; i < pontos.length - 1; ++i)
-                        ctx.arcTo(pontos[i][0], pontos[i][1],
-                                  pontos[i + 1][0], pontos[i + 1][1], raio || 0.01)
-                    var ultimo = pontos[pontos.length - 1]
-                    ctx.lineTo(ultimo[0], ultimo[1])
-                    ctx.stroke()
-                }
-                // P
-                linha([[x, y1], [x, y0], [x + l, y0], [x + l, ym], [x + 8, ym]], 12)
-                x += l + e
-                // S
-                linha([[x + l, y0], [x, y0], [x, ym], [x + l, ym], [x + l, y1], [x, y1]], 12)
-                x += l + e
-                if (!ps5) {
-                    // 4
-                    linha([[x + l - 8, y0], [x, ym + 8], [x + l, ym + 8]])
-                    linha([[x + l - 8, y0], [x + l - 8, y1]])
-                } else {
-                    // 5: o mesmo percurso do S, mas de cantos vivos e com a
-                    // barriga redonda, que é o que o distingue.
-                    linha([[x + l, y0], [x, y0], [x, ym], [x + l - 12, ym]])
-                    ctx.beginPath()
-                    ctx.moveTo(x + l - 12, ym)
-                    ctx.arcTo(x + l, ym, x + l, y1, 12)
-                    ctx.arcTo(x + l, y1, x, y1, 12)
-                    ctx.lineTo(x, y1)
-                    ctx.stroke()
-                }
-                // A linha do estado.
-                ctx.strokeStyle = corLuz
-                ctx.lineWidth = 3
-                linha([[width / 2 - 34, y1 + 16], [width / 2 + 34, y1 + 16]])
-            }
+            NumberAnimation { target: brilho; property: "nivel"; to: 0.45; duration: 1600; easing.type: Easing.InOutSine }
+            NumberAnimation { target: brilho; property: "nivel"; to: 1.0; duration: 1600; easing.type: Easing.InOutSine }
         }
 
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: caixa.nome.length > 0 ? caixa.nome : qsTr("Consola")
-            color: Theme.text
-            font.pixelSize: 17
-            font.bold: true
-        }
-
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            visible: caixa.endereco.length > 0
-            text: caixa.endereco
-            color: Theme.textSecondary
-            font.pixelSize: 11
-        }
-
-        // O estado, e o que o clique vai fazer.
         Rectangle {
+            id: fundo
+            anchors.fill: parent
+            radius: 30
+            border.width: 1
+            border.color: area.containsMouse && caixa.accao.length > 0 ? Theme.cardGlow : Theme.cardEdge
+            Behavior on border.color { ColorAnimation { duration: Theme.cardEase } }
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Theme.cardTop }
+                GradientStop { position: 1.0; color: Theme.cardBottom }
+            }
+            clip: true
+
+            // Curvas largas e o gradiente radial atrás do logótipo, mais um
+            // ruído quase invisível para o azul não ficar chapado.
+            Canvas {
+                id: ondas
+                anchors.fill: parent
+                readonly property color corOnda: Theme.cardWave
+                readonly property color corLuz: caixa.corEstado
+                readonly property bool claro: Theme.claro
+                onCorOndaChanged: requestPaint()
+                onCorLuzChanged: requestPaint()
+                onClaroChanged: requestPaint()
+                onPaint: {
+                    var ctx = getContext("2d")
+                    ctx.reset()
+                    var w = width, h = height
+
+                    var halo = ctx.createRadialGradient(w / 2, 92, 4, w / 2, 92, 150)
+                    halo.addColorStop(0, Qt.rgba(corLuz.r, corLuz.g, corLuz.b, claro ? 0.10 : 0.20))
+                    halo.addColorStop(1, Qt.rgba(corLuz.r, corLuz.g, corLuz.b, 0))
+                    ctx.fillStyle = halo
+                    ctx.fillRect(0, 0, w, h)
+
+                    ctx.fillStyle = corOnda
+                    ctx.beginPath()
+                    ctx.moveTo(0, h * 0.42)
+                    ctx.bezierCurveTo(w * 0.30, h * 0.66, w * 0.62, h * 0.72, w, h * 0.46)
+                    ctx.lineTo(w, h * 0.58)
+                    ctx.bezierCurveTo(w * 0.62, h * 0.84, w * 0.30, h * 0.80, 0, h * 0.54)
+                    ctx.closePath()
+                    ctx.fill()
+                    ctx.beginPath()
+                    ctx.moveTo(0, h * 0.30)
+                    ctx.bezierCurveTo(w * 0.35, h * 0.52, w * 0.70, h * 0.58, w, h * 0.34)
+                    ctx.lineTo(w, h * 0.37)
+                    ctx.bezierCurveTo(w * 0.70, h * 0.62, w * 0.35, h * 0.56, 0, h * 0.33)
+                    ctx.closePath()
+                    ctx.fill()
+
+                    // Ruído a 2–3%: pontos soltos, sempre os mesmos.
+                    var semente = 7
+                    function aleatorio() {
+                        semente = (semente * 16807) % 2147483647
+                        return semente / 2147483647
+                    }
+                    ctx.fillStyle = claro ? "rgba(15,23,42,0.035)" : "rgba(255,255,255,0.03)"
+                    for (var i = 0; i < 900; ++i)
+                        ctx.fillRect(aleatorio() * w, aleatorio() * h, 1, 1)
+                }
+            }
+
+            // A aresta de luz em cima.
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 1
+                height: 90
+                radius: parent.radius
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.claro ? 0.7 : 0.06) }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+            }
+        }
+
+        MouseArea {
+            id: area
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: caixa.accao.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: {
+                switch (caixa.accao) {
+                case "ligar": caixa.ligar(); break
+                case "acordar": caixa.acordar(); break
+                case "registar": caixa.registar(); break
+                case "procurar": caixa.procurar(); break
+                case "cancelar": caixa.cancelar(); break
+                case "escolher": caixa.escolher(); break
+                }
+            }
+        }
+
+        // ── Topo: o símbolo da app à esquerda, e à direita o registo (a
+        // "ligação" entre este PC e a consola) ou, nas outras consolas, o ✕.
+        Image {
+            x: 24
+            y: 22
+            width: 22
+            height: 22
+            source: "qrc:/icons/mark.png"
+            sourceSize.width: 44
+            sourceSize.height: 44
+            opacity: 0.55
+        }
+
+        StyledToolButton {
+            x: parent.width - width - 16
+            y: 14
+            implicitWidth: 36
+            implicitHeight: 36
+            visible: caixa.disponivel && caixa.ativa
+            opacity: 0.7
+            text: "🔗"
+            ToolTip.visible: hovered
+            ToolTip.text: caixa.registada ? qsTr("Registar este PC outra vez")
+                                          : qsTr("Registar este PC na consola")
+            onClicked: caixa.editar()
+        }
+        StyledToolButton {
+            x: parent.width - width - 16
+            y: 14
+            implicitWidth: 36
+            implicitHeight: 36
+            visible: !caixa.ativa
+            danger: caixa.confirmarRemocao
+            opacity: 0.7
+            text: "✕"
+            ToolTip.visible: hovered
+            ToolTip.text: qsTr("Tirar esta consola da lista")
+            onClicked: {
+                if (caixa.confirmarRemocao)
+                    caixa.remover()
+                else
+                    caixa.confirmarRemocao = true
+            }
+        }
+
+        // ── Centro: PS4/PS5 em traço fino, a linha azul, o nome e o IP.
+        Column {
+            x: 0
+            y: 44
+            width: parent.width
+            spacing: 0
+
+            Canvas {
+                id: letras
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: 200
+                height: 58
+                readonly property color cor: Theme.cardText
+                readonly property bool ps5: caixa.ps5
+                onCorChanged: requestPaint()
+                onPs5Changed: requestPaint()
+                onPaint: {
+                    var ctx = getContext("2d")
+                    ctx.reset()
+                    var t = 4           // traço fino: o "Light" do logótipo
+                    var a = 44, l = 46, e = 16
+                    var y0 = 7, y1 = y0 + a, ym = y0 + a / 2
+                    var x = (width - (3 * l + 2 * e)) / 2
+                    ctx.strokeStyle = cor
+                    ctx.lineWidth = t
+                    ctx.lineJoin = "round"
+                    ctx.lineCap = "round"
+                    function linha(pontos, raio) {
+                        ctx.beginPath()
+                        ctx.moveTo(pontos[0][0], pontos[0][1])
+                        for (var i = 1; i < pontos.length - 1; ++i)
+                            ctx.arcTo(pontos[i][0], pontos[i][1],
+                                      pontos[i + 1][0], pontos[i + 1][1], raio || 0.01)
+                        var ultimo = pontos[pontos.length - 1]
+                        ctx.lineTo(ultimo[0], ultimo[1])
+                        ctx.stroke()
+                    }
+                    linha([[x, y1], [x, y0], [x + l, y0], [x + l, ym], [x + 8, ym]], 12)
+                    x += l + e
+                    linha([[x + l, y0], [x, y0], [x, ym], [x + l, ym], [x + l, y1], [x, y1]], 12)
+                    x += l + e
+                    if (!ps5) {
+                        linha([[x + l - 8, y0], [x, ym + 8], [x + l, ym + 8]])
+                        linha([[x + l - 8, y0], [x + l - 8, y1]])
+                    } else {
+                        linha([[x + l, y0], [x, y0], [x, ym], [x + l - 12, ym]])
+                        ctx.beginPath()
+                        ctx.moveTo(x + l - 12, ym)
+                        ctx.arcTo(x + l, ym, x + l, y1, 12)
+                        ctx.arcTo(x + l, y1, x, y1, 12)
+                        ctx.lineTo(x, y1)
+                        ctx.stroke()
+                    }
+                }
+            }
+
+            Item { width: 1; height: 6 }
+
+            // A linha azul fina por baixo do logótipo.
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: 56
+                height: 2
+                radius: 1
+                color: Theme.cardBlue
+                opacity: 0.8
+            }
+
+            Item { width: 1; height: 12 }
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: parent.width - 48
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
+                text: caixa.nome.length > 0 ? caixa.nome : qsTr("Consola")
+                color: Theme.cardText
+                font.pixelSize: 26
+                font.weight: Font.DemiBold
+            }
+
+            Item { width: 1; height: 2 }
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                visible: caixa.endereco.length > 0
+                text: (caixa.ps5 ? "PS5" : "PS4") + "  •  " + caixa.endereco
+                color: Theme.cardTextMuted
+                font.pixelSize: 14
+            }
+        }
+
+        // ── Rodapé: o botão com o estado e o que o clique faz.
+        Rectangle {
+            id: botao
             anchors.horizontalCenter: parent.horizontalCenter
-            implicitWidth: linhaEstado.implicitWidth + 24
-            implicitHeight: Math.max(28, linhaEstado.implicitHeight + 10)
-            radius: Math.min(height / 2, 14)
-            color: Qt.rgba(caixa.corLuz.r, caixa.corLuz.g, caixa.corLuz.b, 0.14)
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 22
+            width: parent.width * 0.82
+            height: 46
+            radius: height / 2
+            clip: true
+            readonly property real alfa: area.containsMouse && caixa.accao.length > 0 ? 1.4 : 1.0
+            color: {
+                var c = caixa.corEstado
+                if (!caixa.disponivel)
+                    return Qt.rgba(c.r, c.g, c.b, 0.12)
+                if (caixa.estado === "standby" && !caixa.aVerificar)
+                    return Qt.rgba(c.r, c.g, c.b, (Theme.claro ? 0.13 : 0.16) * alfa)
+                if (caixa.estado === "offline" && !caixa.aVerificar)
+                    return Qt.rgba(c.r, c.g, c.b, (Theme.claro ? 0.10 : 0.16) * alfa)
+                return Qt.rgba(c.r, c.g, c.b, (Theme.claro ? 0.10 : 0.20) * alfa)
+            }
+            border.width: 1
+            border.color: Qt.rgba(caixa.corEstado.r, caixa.corEstado.g, caixa.corEstado.b,
+                                  Theme.claro ? 0.10 : 0.28)
+            Behavior on color { ColorAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
+
             Row {
-                id: linhaEstado
                 anchors.centerIn: parent
-                spacing: 8
+                spacing: 12
+
                 Rectangle {
                     id: ponto
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 8; height: 8; radius: 4
-                    color: caixa.corLuz
+                    width: 12; height: 12; radius: 6
+                    color: caixa.corEstado
                     SequentialAnimation on opacity {
-                        running: caixa.aLigar || caixa.aProcurar
+                        running: caixa.aLigar || caixa.aVerificar
                         loops: Animation.Infinite
                         onStopped: ponto.opacity = 1
-                        NumberAnimation { to: 0.2; duration: 450 }
-                        NumberAnimation { to: 1.0; duration: 450 }
+                        NumberAnimation { to: 0.25; duration: 500 }
+                        NumberAnimation { to: 1.0; duration: 500 }
                     }
                 }
                 Text {
-                    id: textoEstado
                     anchors.verticalCenter: parent.verticalCenter
-                    // Numa caixa estreita parte em duas linhas em vez de
-                    // sair para fora dela.
-                    width: Math.min(implicitWidth, caixa.width - 68)
-                    wrapMode: Text.WordWrap
-                    horizontalAlignment: Text.AlignHCenter
+                    // Um texto que não caiba encolhe a letra, em vez de
+                    // ficar cortado a meio.
+                    width: Math.min(implicitWidth, botao.width - 80)
+                    height: 22
+                    fontSizeMode: Text.HorizontalFit
+                    minimumPixelSize: 11
+                    verticalAlignment: Text.AlignVCenter
                     text: caixa.estadoTexto
-                    color: Theme.text
-                    font.pixelSize: 12
+                    color: Theme.cardText
+                    font.pixelSize: 15
+                    font.weight: Font.Medium
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: caixa.accao.length > 0
+                    text: "›"
+                    color: Theme.claro ? Theme.cardTextMuted : Theme.cardGlow
+                    font.pixelSize: 22
+                }
+            }
+
+            // A procurar: um brilho que corre ao longo do fundo do botão.
+            Rectangle {
+                id: brilhoBarra
+                visible: caixa.aVerificar
+                anchors.bottom: parent.bottom
+                height: 2
+                width: parent.width * 0.35
+                radius: 1
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 0.5; color: Theme.cardGlow }
+                    GradientStop { position: 1.0; color: "transparent" }
+                }
+                NumberAnimation on x {
+                    running: caixa.aVerificar
+                    loops: Animation.Infinite
+                    from: -brilhoBarra.width
+                    to: botao.width
+                    duration: 1300
+                    easing.type: Easing.InOutQuad
                 }
             }
         }
