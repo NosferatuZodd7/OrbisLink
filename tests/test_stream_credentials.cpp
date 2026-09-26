@@ -96,6 +96,26 @@ ORBISLINK_TEST(guarda_e_le_uma_consola)
 	std::remove(caminho.c_str());
 }
 
+ORBISLINK_TEST(uma_ps5_guardada_sem_a_marca_continua_a_ser_ps5)
+{
+	const std::string caminho = ficheiroTemporario();
+	CredentialStore store(caminho);
+
+	// O que ficava gravado depois de registar uma PS5: alvo de PS5, mas o
+	// "ps5" a falso. Sem corrigir, a sessão falava o protocolo do PS4.
+	StreamCredentials ps5 = exemplo("5C843C2E94E4", "PS5 do quarto");
+	ps5.target = 1000100;
+	ps5.ps5 = false;
+	CHECK(store.save(ps5));
+
+	CHECK(store.load("5C843C2E94E4").ps5);
+	CHECK(!store.load("5C843C2E94E4").nickname.empty());
+	CHECK(store.save(exemplo("AABBCCDDEEFF", "PS4 da sala")));
+	CHECK(!store.load("AABBCCDDEEFF").ps5);
+
+	std::remove(caminho.c_str());
+}
+
 ORBISLINK_TEST(guarda_varias_consolas_sem_as_confundir)
 {
 	const std::string caminho = ficheiroTemporario();
