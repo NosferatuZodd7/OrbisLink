@@ -48,6 +48,7 @@ StreamCredentials fromChiaki(const ChiakiRegisteredHost *host)
 	credentials.rpKeyHex = bytesToHex(host->rp_key, sizeof(host->rp_key));
 	credentials.rpKeyType = host->rp_key_type;
 	credentials.target = static_cast<int>(host->target);
+	credentials.ps5 = chiaki_target_is_ps5(host->target);
 	credentials.hostId = bytesToHex(host->server_mac, sizeof(host->server_mac));
 	credentials.valid = !credentials.registKey.empty();
 	return credentials;
