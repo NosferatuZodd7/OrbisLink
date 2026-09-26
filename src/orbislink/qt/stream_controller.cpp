@@ -227,7 +227,12 @@ void StreamController::applySettings(const Settings &settings)
 	rumbleEnabled_ = settings.streamRumble;
 	touchpadFromMouse_ = settings.streamTouchpadFromMouse;
 	gamepad_.setRumbleEnabled(rumbleEnabled_);
+	// O Account ID que a consola em uso já aceitou; se ainda não aceitou
+	// nenhum, o último que alguma aceitou.
 	accountId_ = QString::fromStdString(settings.streamAccountId);
+	for(const ConsoleEntry &consola : settings.consoles)
+		if(consola.address == settings.consoleAddress && !consola.accountId.empty())
+			accountId_ = QString::fromStdString(consola.accountId);
 	keyboard_.setBindings(settings.keyboardBindings);
 	emit settingsApplied();
 	emit keyBindingsChanged();

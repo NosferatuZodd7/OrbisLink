@@ -82,6 +82,9 @@ public:
 	bool canUseFtp() const;
 	// A consola em uso é uma PS5 (pelo tipo que ficou guardado).
 	bool activeIsPs5() const;
+	// O Account ID da consola em uso, ou o último aceite se ela ainda não
+	// tiver nenhum.
+	std::string activeAccountId() const;
 	bool queuePaused() const;
 	QString pauseReason() const;
 	QString statusMessage() const { return statusMessage_; }

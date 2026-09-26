@@ -211,6 +211,17 @@ ORBISLINK_TEST(lista_de_consolas)
 	const Settings estranho = Settings::fromJson(
 		R"({"consoles":[{"name":"X","address":"10.0.0.7","type":"xbox"}]})");
 	CHECK(estranho.consoles[0].type.empty());
+
+	// Cada consola guarda o seu Account ID: a PS4 e a PS5 da mesma conta
+	// podem precisar dele com os bytes por ordens diferentes.
+	Settings duas;
+	duas.consoles = { { "PS4", "10.0.0.3", "ps4", "CAcGBQQDAgE=" },
+		{ "PS5", "10.0.0.4", "ps5", "AQIDBAUGBwg=" } };
+	const Settings relidas = Settings::fromJson(duas.toJson());
+	CHECK_EQ(relidas.consoles[0].accountId, std::string("CAcGBQQDAgE="));
+	CHECK_EQ(relidas.consoles[1].accountId, std::string("AQIDBAUGBwg="));
+	// Sem Account ID não fica nada gravado, e ler devolve vazio.
+	CHECK(Settings::fromJson(comTipo.toJson()).consoles[0].accountId.empty());
 }
 
 TEST_MAIN()
