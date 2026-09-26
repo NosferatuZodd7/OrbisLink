@@ -6,6 +6,8 @@ import QtQuick.Layouts
 
 Dialog {
     id: dialog
+    // A consola em uso é uma PS5: a porta FTP que se edita é a dela.
+    property bool consolaPs5: false
     modal: true
     parent: Overlay.overlay
     anchors.centerIn: parent
@@ -108,7 +110,7 @@ Dialog {
         interval: 600
         repeat: false
         onTriggered: app.probeConsole(addressField.text.trim(),
-            parseInt(ftpPortField.text) || 2121,
+            parseInt(ftpPortField.text) || (dialog.consolaPs5 ? 1337 : 2121),
             parseInt(installerPortField.text) || 12800)
     }
 
@@ -133,6 +135,7 @@ Dialog {
         nameField.text = values.consoleName
         addressField.text = values.consoleAddress
         ftpPortField.text = values.ftpPort
+        consolaPs5 = values.consoleIsPs5 === true
         installerPortField.text = values.installerPort
         httpPortField.text = values.httpPort
         restrictBox.checked = values.restrictToConsoleIp
@@ -161,7 +164,7 @@ Dialog {
         app.applySettings({
             "consoleName": nameField.text,
             "consoleAddress": addressField.text,
-            "ftpPort": parseInt(ftpPortField.text) || 2121,
+            "ftpPort": parseInt(ftpPortField.text) || (dialog.consolaPs5 ? 1337 : 2121),
             "installerPort": parseInt(installerPortField.text) || 12800,
             "httpPort": parseInt(httpPortField.text) || 8765,
             "restrictToConsoleIp": restrictBox.checked,
@@ -274,7 +277,12 @@ Dialog {
                     onTextChanged: dialog.scheduleProbe()
                 }
 
-                Text { text: qsTr("Porta FTP"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text {
+                    // A porta é a da consola em uso: a PS5 com etaHEN usa outra.
+                    text: dialog.consolaPs5 ? qsTr("Porta FTP (PS5)") : qsTr("Porta FTP")
+                    color: Theme.textMuted
+                    font.pixelSize: 12
+                }
                 StyledField {
                     id: ftpPortField
                     Layout.fillWidth: true

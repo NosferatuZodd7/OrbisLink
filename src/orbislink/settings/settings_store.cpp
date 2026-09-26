@@ -46,6 +46,7 @@ std::string Settings::toJson() const
 	}
 	root.set("consoles", lista);
 	root.set("ftp_port", Json::fromInt(ftpPort));
+	root.set("ftp_port_ps5", Json::fromInt(ftpPortPs5));
 	root.set("installer_port", Json::fromInt(installerPort));
 	root.set("default_mode", Json::fromString(transferModeName(defaultMode)));
 	root.set("ftp_upload_directory", Json::fromString(ftpUploadDirectory));
@@ -110,6 +111,7 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	}
 	normaliseConsoles(settings);
 	settings.ftpPort = static_cast<uint16_t>(root["ftp_port"].toInt(settings.ftpPort));
+	settings.ftpPortPs5 = static_cast<uint16_t>(root["ftp_port_ps5"].toInt(settings.ftpPortPs5));
 	settings.installerPort = static_cast<uint16_t>(root["installer_port"].toInt(settings.installerPort));
 	settings.defaultMode = transferModeFromName(root["default_mode"].toString(), settings.defaultMode);
 	settings.ftpUploadDirectory = root["ftp_upload_directory"].toString(settings.ftpUploadDirectory);

@@ -39,6 +39,9 @@ struct Settings
 	std::string consoleAddress;
 	std::vector<ConsoleEntry> consoles;
 	uint16_t ftpPort = 2121;
+	// A PS5 com jailbreak (etaHEN) tem o FTP noutra porta; guarda-se à parte
+	// para quem tem as duas consolas não andar a trocar a porta.
+	uint16_t ftpPortPs5 = 1337;
 	uint16_t installerPort = 12800;
 
 	// Instalação

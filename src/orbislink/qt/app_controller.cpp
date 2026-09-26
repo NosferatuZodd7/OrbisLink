@@ -113,7 +113,10 @@ void AppController::rebuildBackends()
 		httpServer_->stop();
 
 	qInfo("Serviços: gestor da consola");
-	console_ = std::make_unique<ConsoleManager>(settings_);
+	// Os serviços falam com a consola em uso, na porta FTP dela.
+	Settings efetivas = settings_;
+	efetivas.ftpPort = activeFtpPort();
+	console_ = std::make_unique<ConsoleManager>(efetivas);
 	// O gestor novo nasce sem saber do Remote Play; devolve-se-lhe o que já
 	// se sabia, senão o indicador apaga-se a meio de uma sessão.
 	if(!lastRemotePlayState_.isEmpty())
@@ -175,7 +178,7 @@ void AppController::rebuildBackends()
 
 	FtpClient::Config ftpConfig;
 	ftpConfig.host = settings_.consoleAddress;
-	ftpConfig.port = settings_.ftpPort;
+	ftpConfig.port = activeFtpPort();
 	ftpConfig.maxConnections = settings_.ftpMaxConnections;
 	ftpConfig.advancedMode = settings_.ftpAdvancedMode;
 	ftp_ = std::make_unique<FtpClient>(ftpConfig);
@@ -186,7 +189,7 @@ void AppController::rebuildBackends()
 	deps.ftp = ftp_.get();
 	deps.console = console_.get();
 	qInfo("Serviços: fila de instalação");
-	queue_ = std::make_unique<InstallQueue>(deps, settings_);
+	queue_ = std::make_unique<InstallQueue>(deps, efetivas);
 	queue_->load(SettingsStore::defaultQueuePath());
 	queue_->setListener([this](const QueueTask &task) {
 		const bool terminal = task.isTerminal();
@@ -336,38 +339,49 @@ bool AppController::activeIsPs5() const
 	return false;
 }
 
-// O FTP e o instalador são do GoldHEN, que só existe na PS4. Com uma PS5 não
-// estão "em baixo": não existem, e um indicador vermelho mandava procurar
-// um problema que não há.
+uint16_t AppController::activeFtpPort() const
+{
+	return activeIsPs5() ? settings_.ftpPortPs5 : settings_.ftpPort;
+}
+
+// Numa PS5, o FTP e o instalador só existem com um jailbreak (o etaHEN tem
+// os dois, desligados por omissão). Quando respondem usam-se como na PS4;
+// quando não respondem não estão "avariados" — o mais certo é não existirem —
+// e o indicador fica cinzento a explicar o que faz falta.
 QString AppController::ftpState() const
 {
-	return activeIsPs5() ? QStringLiteral("not-applicable") : stateName(status_.ftp.state);
+	if(activeIsPs5() && status_.ftp.state == ServiceState::Unavailable)
+		return QStringLiteral("not-applicable");
+	return stateName(status_.ftp.state);
 }
 QString AppController::ftpHint() const
 {
-	if(activeIsPs5())
-		return tr("O FTP é do GoldHEN, que só existe na PS4. A PS5 não tem FTP.");
+	if(activeIsPs5() && status_.ftp.state != ServiceState::Available)
+		return tr("Na PS5, o FTP só existe com um jailbreak. No etaHEN liga-se com FTP=1 "
+				  "no config.ini e fica na porta %1 (muda-a nas definições se for outra).")
+			.arg(activeFtpPort());
 	return status_.ftp.state == ServiceState::Available
 		? QString::fromStdString(status_.ftp.detail)
 		: translateMessage(status_.ftp.hint);
 }
 QString AppController::installerState() const
 {
-	return activeIsPs5() ? QStringLiteral("not-applicable") : stateName(status_.installer.state);
+	if(activeIsPs5() && status_.installer.state == ServiceState::Unavailable)
+		return QStringLiteral("not-applicable");
+	return stateName(status_.installer.state);
 }
 QString AppController::installerHint() const
 {
-	if(activeIsPs5())
-		return tr("Instalar .pkg é só na PS4 (com o GoldHEN). A PS5 não instala pacotes daqui.");
+	if(activeIsPs5() && status_.installer.state != ServiceState::Available)
+		return tr("Na PS5, instalar pacotes só com um jailbreak que tenha um instalador na "
+				  "porta %1 — no etaHEN, o DPI v2 (DPI_v2=1 no config.ini).")
+			.arg(settings_.installerPort);
 	return status_.installer.state == ServiceState::Available
 		? QString::fromStdString(status_.installer.detail)
 		: translateMessage(status_.installer.hint);
 }
-bool AppController::canInstallDirectly() const
-{
-	return !activeIsPs5() && status_.canInstallDirectly();
-}
-bool AppController::canUseFtp() const { return !activeIsPs5() && status_.canUseFtp(); }
+bool AppController::canInstallDirectly() const { return status_.canInstallDirectly(); }
+bool AppController::canUseFtp() const { return status_.canUseFtp(); }
 bool AppController::queuePaused() const { return queue_ && queue_->paused(); }
 QString AppController::pauseReason() const
 {
@@ -478,12 +492,9 @@ void AppController::addPaths(const QStringList &paths, int mode)
 {
 	if(!queue_)
 		return;
-	if(activeIsPs5())
+	if(activeIsPs5() && !status_.canInstallDirectly() && !status_.canUseFtp())
 	{
-		emit notify(tr("Instalar"),
-			tr("A consola em uso é uma PS5, e instalar .pkg é só na PS4 (com o GoldHEN). "
-			   "Escolhe a PS4 no palco e larga os ficheiros outra vez."),
-			true);
+		emit notify(tr("Instalar"), installerHint(), true);
 		return;
 	}
 	const TransferMode transferMode = mode == 1 ? TransferMode::FtpUpload : TransferMode::DirectInstall;
@@ -589,11 +600,6 @@ bool AppController::ftpReady(const QString &operacao)
 			tr("O FTP não está ligado. Confirma o IP da consola e que o servidor FTP do "
 			   "GoldHEN está a correr."),
 			true);
-		return false;
-	}
-	if(activeIsPs5())
-	{
-		emit notify(operacao, ftpHint(), true);
 		return false;
 	}
 	if(ftpBusy_)
@@ -1367,7 +1373,9 @@ QVariantMap AppController::settingsMap() const
 	QVariantMap map;
 	map[QStringLiteral("consoleName")] = QString::fromStdString(settings_.consoleName);
 	map[QStringLiteral("consoleAddress")] = QString::fromStdString(settings_.consoleAddress);
-	map[QStringLiteral("ftpPort")] = settings_.ftpPort;
+	// A porta FTP que se mostra e edita é a da consola em uso.
+	map[QStringLiteral("ftpPort")] = activeFtpPort();
+	map[QStringLiteral("consoleIsPs5")] = activeIsPs5();
 	map[QStringLiteral("installerPort")] = settings_.installerPort;
 	map[QStringLiteral("httpPort")] = settings_.httpPort;
 	map[QStringLiteral("httpBindAddress")] = QString::fromStdString(settings_.httpBindAddress);
@@ -1431,7 +1439,10 @@ void AppController::applySettings(const QVariantMap &values)
 		}
 	}
 	normaliseConsoles(settings_);
-	settings_.ftpPort = static_cast<uint16_t>(intOr("ftpPort", settings_.ftpPort));
+	if(activeIsPs5())
+		settings_.ftpPortPs5 = static_cast<uint16_t>(intOr("ftpPort", settings_.ftpPortPs5));
+	else
+		settings_.ftpPort = static_cast<uint16_t>(intOr("ftpPort", settings_.ftpPort));
 	settings_.installerPort = static_cast<uint16_t>(intOr("installerPort", settings_.installerPort));
 	settings_.httpPort = static_cast<uint16_t>(intOr("httpPort", settings_.httpPort));
 	settings_.httpBindAddress = stringOr("httpBindAddress", settings_.httpBindAddress);
