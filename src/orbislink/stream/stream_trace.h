@@ -9,10 +9,8 @@ namespace orbislink {
 
 // Diário de uma tentativa de Remote Play.
 //
-// Isto existe por uma razão concreta: o Remote Play nunca correu contra uma
-// consola verdadeira. Quando falhar — e há-de falhar — o que faz falta não
-// é "não deu", é saber em que passo parou, quanto tempo demorou até lá e o
-// que a consola respondeu.
+// Quando uma ligação falha, o que faz falta não é "não deu", é saber em que
+// passo parou, quanto tempo demorou até lá e o que a consola respondeu.
 //
 // Cada passo fica registado com o instante em que começou e acabou. No fim,
 // summary() dá um texto que se pode colar numa mensagem.

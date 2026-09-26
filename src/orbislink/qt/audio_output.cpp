@@ -156,6 +156,7 @@ void AudioOutput::configure(unsigned int channels, unsigned int rate)
 		format_.setChannelCount(static_cast<int>(channels));
 		format_.setSampleFormat(QAudioFormat::Int16);
 		configured_ = true;
+		terminada_ = false;
 		samplesPlayed_ = 0;
 		framesReceived_ = 0;
 		underruns_ = 0;
@@ -348,7 +349,7 @@ QString AudioOutput::pipelineSummary() const
 	// saber onde é que o caudal chega a zero.
 	QStringList linhas;
 	linhas << QStringLiteral("  1. consola anunciou   %1")
-			.arg(configured_ ? QStringLiteral("%1 Hz, %2 canais")
+			.arg(configured_ || terminada_ ? QStringLiteral("%1 Hz, %2 canais")
 						.arg(format_.sampleRate())
 						.arg(format_.channelCount())
 					: QStringLiteral("(nada — o cabeçalho de áudio não chegou)"));
@@ -373,7 +374,12 @@ QString AudioOutput::pipelineSummary() const
 
 	// A conclusão, escrita à mão, porque é a única parte que alguém lê.
 	QString veredicto;
-	if(!configured_)
+	if(terminada_)
+		veredicto = framesReceived_ > 0
+			? QStringLiteral("a sessão terminou; o som chegou e foi tocado (%1 tramas) — "
+							 "os números acima são dessa sessão").arg(framesReceived_)
+			: QStringLiteral("a sessão terminou sem chegar som nenhum");
+	else if(!configured_)
 		veredicto = QStringLiteral("a consola nunca anunciou o formato de áudio");
 	else if(queue_.pushedBytes() == 0)
 		veredicto = QStringLiteral("o descodificador não entregou uma única trama");
@@ -443,6 +449,9 @@ void AudioOutput::stop()
 		morto = std::move(sink_);
 		pushTarget_ = nullptr;
 		pushMode_ = false;
+		// Os números da sessão ficam para o diagnóstico; só se marca que
+		// acabou, para não parecer que o som nunca chegou.
+		terminada_ = configured_;
 		configured_ = false;
 	}
 	if(morto)
