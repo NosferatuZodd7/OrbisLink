@@ -334,12 +334,19 @@ ApplicationWindow {
         }
     }
     DiagnosticsDialog { id: diagnosticsDialog }
+    UploadConflictDialog { id: uploadConflictDialog }
     FirstRunWizard { id: firstRunWizard }
     UpdateDialog { id: updateDialog }
 
     Connections {
         target: app
         function onUpdateAvailable(version) { updateDialog.open() }
+        function onUploadConflicts(conflicts) { uploadConflictDialog.begin(conflicts) }
+        // Files were queued: show where they can be followed.
+        function onShowPanel(which) {
+            window.panelVisible = true
+            tabs.currentIndex = which === "files" ? 1 : 0
+        }
     }
 
     // Only for screenshots and for the full-screen test.

@@ -48,6 +48,9 @@ class AppController : public QObject
 	Q_PROPERTY(QString httpServerAddress READ httpServerAddress NOTIFY statusChanged)
 	Q_PROPERTY(QString ftpPath READ ftpPath NOTIFY ftpPathChanged)
 	Q_PROPERTY(bool ftpBusy READ ftpBusy NOTIFY ftpBusyChanged)
+	// The FTP uploads not finished yet, for the file list to show them where
+	// they are going: [{name, directory, percent, sending}].
+	Q_PROPERTY(QVariantList ftpUploads READ ftpUploads NOTIFY ftpUploadsChanged)
 	Q_PROPERTY(bool downloadActive READ downloadActive NOTIFY downloadChanged)
 	Q_PROPERTY(QString downloadName READ downloadName NOTIFY downloadChanged)
 	Q_PROPERTY(double downloadProgress READ downloadProgress NOTIFY downloadChanged)
@@ -97,6 +100,7 @@ public:
 	QString httpServerAddress() const;
 	QString ftpPath() const { return ftpPath_; }
 	bool ftpBusy() const { return ftpBusy_; }
+	QVariantList ftpUploads() const { return ftpUploads_; }
 	bool downloadActive() const { return downloadActive_; }
 	QString downloadName() const { return downloadName_; }
 	double downloadProgress() const { return downloadProgress_; }
@@ -121,6 +125,10 @@ public:
 	// Dropping files: mode 0 = direct install, 1 = FTP upload.
 	Q_INVOKABLE void dropUrls(const QList<QUrl> &urls, int mode);
 	Q_INVOKABLE void addPaths(const QStringList &paths, int mode);
+	// The answer to uploadConflicts: one {index, action, name} per file that
+	// was already on the console; action is "overwrite", "rename" (to name)
+	// or "skip". The other files of the drop go as they were.
+	Q_INVOKABLE void resolveUploadConflicts(const QVariantList &decisions);
 	Q_INVOKABLE void checkServicesNow();
 	// The Remote Play state comes from chiaki (StreamController), not from
 	// the periodic check: this is how it reaches the status bar indicator.
@@ -254,6 +262,14 @@ signals:
 	void statusMessageChanged();
 	void ftpPathChanged();
 	void ftpBusyChanged();
+	void ftpUploadsChanged();
+	// Some of the files dropped for FTP already exist in the upload folder:
+	// [{index, name, localSize, remoteSize, suggestion}]. The window asks
+	// what to do and answers with resolveUploadConflicts.
+	void uploadConflicts(const QVariantList &conflicts);
+	// Files were queued: the panel shows where they can be followed —
+	// "queue" for installs, "files" for FTP uploads.
+	void showPanel(const QString &which);
 	void notify(const QString &title, const QString &message, bool error);
 	void consoleProbed(const QString &address, bool ftpOk, bool installerOk,
 		const QString &detail);
@@ -276,6 +292,12 @@ private:
 	void setFtpBusy(bool busy);
 	static QStringList collectPkgFiles(const QStringList &paths);
 	void registerIcons(const QStringList &paths, const QStringList &taskIds);
+	void enqueueFiles(const QStringList &files, TransferMode mode,
+		const std::vector<std::string> &remoteNames = {});
+	// Lists the upload folder and, for the files already there, asks first.
+	void checkUploadConflicts(const QStringList &files);
+	void refreshFtpListing(bool announce);
+	QString uploadDirectory() const;
 
 	Settings settings_;
 	SettingsStore store_;
@@ -292,6 +314,9 @@ private:
 	QString statusMessage_;
 	QString ftpPath_ = QStringLiteral("/data/pkg/");
 	bool ftpBusy_ = false;
+	QVariantList ftpUploads_;
+	// The FTP drop waiting for an answer about the names already taken.
+	QStringList pendingUploads_;
 	// Only the most recent check matters: earlier ones are discarded when
 	// they arrive, so the result never contradicts what is on screen.
 	std::atomic<uint64_t> probeGeneration_ { 0 };

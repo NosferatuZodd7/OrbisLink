@@ -31,6 +31,8 @@
 #include <thread>
 
 #include <algorithm>
+#include <map>
+#include <set>
 
 namespace orbislink {
 
@@ -196,13 +198,25 @@ void AppController::rebuildBackends()
 		const QString title = QString::fromStdString(task.title);
 		const QString message = translateMessage(task.message);
 		const bool failed = task.state == TaskState::Error;
+		// An upload that reached the console: the folder it went into.
+		QString landedIn;
+		if(task.mode == TransferMode::FtpUpload && task.state == TaskState::Completed)
+		{
+			const std::string &path = task.remotePath;
+			landedIn = QString::fromStdString(path.substr(0, path.find_last_of('/') + 1));
+		}
 		QMetaObject::invokeMethod(
 			this,
-			[this, terminal, title, message, failed]() {
+			[this, terminal, title, message, failed, landedIn]() {
 				refreshQueueModel();
 				emit queueStateChanged();
 				if(terminal)
 					emit notify(title, message, failed);
+				// The file list shows it without anyone pressing refresh.
+				if(!landedIn.isEmpty()
+					&& normalizeRemotePath(landedIn.toStdString())
+						== normalizeRemotePath(ftpPath_.toStdString()))
+					refreshFtpListing(false);
 			},
 			Qt::QueuedConnection);
 	});
@@ -614,6 +628,36 @@ void AppController::refreshQueueModel()
 	for(size_t i = 0; i < history.size() && i < historyShown; ++i)
 		combined.push_back(history[i]);
 	queueModel_.applySnapshot(combined);
+
+	// The uploads still on their way, for the file list.
+	QVariantList uploads;
+	for(const QueueTask &task : queue_->tasks())
+	{
+		if(task.mode != TransferMode::FtpUpload || task.isTerminal())
+			continue;
+		QVariantMap item;
+		item[QStringLiteral("name")] = QString::fromStdString(
+			sanitizeFileName(task.remoteName.empty() ? task.localPath : task.remoteName));
+		item[QStringLiteral("directory")] = task.remotePath.empty()
+			? uploadDirectory()
+			: QString::fromStdString(normalizeRemotePath(
+				task.remotePath.substr(0, task.remotePath.find_last_of('/') + 1)));
+		item[QStringLiteral("percent")] = task.totalBytes > 0
+			? 100.0 * static_cast<double>(task.doneBytes) / static_cast<double>(task.totalBytes) : 0.0;
+		item[QStringLiteral("sending")] = task.state == TaskState::Sending;
+		uploads << item;
+	}
+	if(uploads != ftpUploads_)
+	{
+		ftpUploads_ = uploads;
+		emit ftpUploadsChanged();
+	}
+}
+
+QString AppController::uploadDirectory() const
+{
+	return QString::fromStdString(normalizeRemotePath(
+		settings_.ftpUploadDirectory.empty() ? std::string("/data/pkg/") : settings_.ftpUploadDirectory));
 }
 
 QStringList AppController::collectPkgFiles(const QStringList &paths)
@@ -704,8 +748,28 @@ void AppController::addPaths(const QStringList &paths, int mode)
 	if(nativePaths.empty())
 		return;
 
+	// Going over FTP: first see what is already in the upload folder.
+	if(transferMode == TransferMode::FtpUpload && ftp_)
+	{
+		checkUploadConflicts(accepted);
+		return;
+	}
+	enqueueFiles(accepted, transferMode);
+}
+
+void AppController::enqueueFiles(const QStringList &files, TransferMode transferMode,
+	const std::vector<std::string> &remoteNames)
+{
+	if(!queue_ || files.isEmpty())
+		return;
+	std::vector<std::string> nativePaths;
+	for(const QString &file : files)
+		nativePaths.push_back(file.toStdString());
+	const QStringList &accepted = files;
+
 	std::vector<std::string> rejected;
-	const std::vector<std::string> ids = queue_->enqueue(nativePaths, transferMode, &rejected);
+	const std::vector<std::string> ids = queue_->enqueue(nativePaths, transferMode, &rejected,
+		remoteNames.empty() ? nullptr : &remoteNames);
 
 	QStringList taskIds;
 	for(const std::string &id : ids)
@@ -717,6 +781,148 @@ void AppController::addPaths(const QStringList &paths, int mode)
 		setStatusMessage(translateMessage(rejected.front()));
 	else
 		setStatusMessage(tr("%n file(s) queued.", "", static_cast<int>(ids.size())));
+	if(ids.empty())
+		return;
+
+	// Show where they can be followed: the queue for installs; for uploads,
+	// the file list in the folder they are going to.
+	if(transferMode == TransferMode::FtpUpload)
+	{
+		const QString directory = uploadDirectory();
+		if(normalizeRemotePath(ftpPath_.toStdString()) != directory.toStdString())
+			ftpNavigate(directory);
+		emit showPanel(QStringLiteral("files"));
+	}
+	else
+	{
+		emit showPanel(QStringLiteral("queue"));
+	}
+}
+
+namespace {
+
+// "name.pkg" → "name-1.pkg", "name-2.pkg"… the first one not taken.
+std::string freeName(const std::string &name, const std::set<std::string> &taken)
+{
+	const size_t dot = name.find_last_of('.');
+	const std::string stem = dot == std::string::npos || dot == 0 ? name : name.substr(0, dot);
+	const std::string extension = dot == std::string::npos || dot == 0 ? std::string() : name.substr(dot);
+	for(int n = 1; n < 10000; ++n)
+	{
+		const std::string candidate = stem + "-" + std::to_string(n) + extension;
+		if(!taken.count(candidate))
+			return candidate;
+	}
+	return stem + "-" + randomToken(4) + extension;
+}
+
+} // namespace
+
+void AppController::checkUploadConflicts(const QStringList &files)
+{
+	const std::string directory = uploadDirectory().toStdString();
+	setStatusMessage(tr("Checking what is already on the console…"));
+	std::thread([this, files, directory]() {
+		std::vector<FtpEntry> entries;
+		const FtpResult result = ftp_->list(directory, &entries);
+		QMetaObject::invokeMethod(
+			this,
+			[this, files, entries, result]() {
+				// Without a listing there is nothing to compare with: the files
+				// go as they always did (the upload itself will report a problem).
+				if(!result.ok)
+				{
+					enqueueFiles(files, TransferMode::FtpUpload);
+					return;
+				}
+				std::set<std::string> taken;
+				std::map<std::string, int64_t> sizes;
+				for(const FtpEntry &entry : entries)
+				{
+					taken.insert(entry.name);
+					sizes[entry.name] = entry.size;
+				}
+				// Uploads still in the queue for this folder will land there too.
+				const QString directory = uploadDirectory();
+				for(const QVariant &value : ftpUploads_)
+				{
+					const QVariantMap upload = value.toMap();
+					if(upload.value(QStringLiteral("directory")).toString() != directory)
+						continue;
+					const std::string name = upload.value(QStringLiteral("name")).toString().toStdString();
+					if(!taken.count(name))
+					{
+						taken.insert(name);
+						sizes[name] = -1;
+					}
+				}
+				QVariantList conflicts;
+				std::set<std::string> suggested = taken;
+				for(int i = 0; i < files.size(); ++i)
+				{
+					const std::string name = sanitizeFileName(files[i].toStdString());
+					if(!taken.count(name))
+						continue;
+					const std::string suggestion = freeName(name, suggested);
+					suggested.insert(suggestion);
+					QVariantMap item;
+					item[QStringLiteral("index")] = i;
+					item[QStringLiteral("name")] = QString::fromStdString(name);
+					item[QStringLiteral("localSize")] = QString::fromStdString(humanBytes(QFileInfo(files[i]).size()));
+					// -1: not there yet, but already queued to go there.
+					item[QStringLiteral("remoteSize")] = sizes[name] < 0
+						? tr("queued") : QString::fromStdString(humanBytes(sizes[name]));
+					item[QStringLiteral("suggestion")] = QString::fromStdString(suggestion);
+					conflicts << item;
+				}
+				if(conflicts.isEmpty())
+				{
+					enqueueFiles(files, TransferMode::FtpUpload);
+					return;
+				}
+				pendingUploads_ = files;
+				setStatusMessage(tr("%n file(s) already on the console.", "",
+					static_cast<int>(conflicts.size())));
+				emit uploadConflicts(conflicts);
+			},
+			Qt::QueuedConnection);
+	}).detach();
+}
+
+void AppController::resolveUploadConflicts(const QVariantList &decisions)
+{
+	const QStringList files = pendingUploads_;
+	pendingUploads_.clear();
+	std::map<int, QVariantMap> byIndex;
+	for(const QVariant &value : decisions)
+	{
+		const QVariantMap decision = value.toMap();
+		byIndex[decision.value(QStringLiteral("index")).toInt()] = decision;
+	}
+	QStringList chosen;
+	std::vector<std::string> remoteNames;
+	for(int i = 0; i < files.size(); ++i)
+	{
+		const auto found = byIndex.find(i);
+		std::string remoteName;
+		if(found != byIndex.end())
+		{
+			const QString action = found->second.value(QStringLiteral("action")).toString();
+			if(action == QLatin1String("skip"))
+				continue;
+			if(action == QLatin1String("rename"))
+				remoteName = sanitizeFileName(
+					found->second.value(QStringLiteral("name")).toString().trimmed().toStdString());
+		}
+		chosen << files[i];
+		remoteNames.push_back(remoteName);
+	}
+	if(chosen.isEmpty())
+	{
+		setStatusMessage(tr("Nothing was sent: every file was skipped."));
+		return;
+	}
+	enqueueFiles(chosen, TransferMode::FtpUpload, remoteNames);
 }
 
 void AppController::checkServicesNow()
@@ -813,23 +1019,33 @@ void AppController::ftpUp()
 
 void AppController::ftpRefresh()
 {
+	refreshFtpListing(true);
+}
+
+void AppController::refreshFtpListing(bool announce)
+{
 	// Refresh is the only one that does not complain: it happens by itself
 	// after other operations, and a notice for each one would be noise.
 	if(!ftp_ || ftpBusy_)
 		return;
 	setFtpBusy(true);
 	const std::string path = ftpPath_.toStdString();
-	std::thread([this, path]() {
+	std::thread([this, path, announce]() {
 		std::vector<FtpEntry> entries;
 		const FtpResult result = ftp_->list(path, &entries);
 		const QString error = translateMessage(result.message);
 		QMetaObject::invokeMethod(
 			this,
-			[this, entries, result, error]() {
+			[this, entries, result, error, announce]() {
 				if(result.ok)
 				{
 					ftpModel_.setEntries(entries);
-					setStatusMessage(tr("%1: %2 entries").arg(ftpPath_).arg(entries.size()));
+					if(announce)
+						setStatusMessage(tr("%1: %2 entries").arg(ftpPath_).arg(entries.size()));
+				}
+				else if(!announce)
+				{
+					// A refresh nobody asked for keeps what was on screen.
 				}
 				else
 				{
