@@ -91,12 +91,13 @@ ColumnLayout {
     // The actions live here and not in the rows: changing the list rebuilds
     // the rows, and a handler whose row has just been destroyed stops
     // halfway (the edit form would stay open, empty).
-    function saveEdit(oldAddress, name, address, accountId) {
+    function saveEdit(oldAddress, name, address, accountId, startMode) {
         var target = address.trim()
         if (!app.updateConsole(oldAddress, name, target))
             return
         editing = ""
         app.setConsoleAccount(target, accountId)
+        app.setConsoleStartMode(target, startMode)
     }
 
     function confirmForget(key, hostId) {
@@ -273,9 +274,12 @@ ColumnLayout {
                             }
                         }
                         Text {
-                            text: row.modelData.accountLabel.length > 0
-                                  ? qsTr("Account ID: %1").arg(row.modelData.accountLabel)
-                                  : qsTr("No Account ID chosen")
+                            text: (row.modelData.accountLabel.length > 0
+                                   ? qsTr("Account ID: %1").arg(row.modelData.accountLabel)
+                                   : qsTr("No Account ID chosen"))
+                                  + "  ·  "
+                                  + (row.modelData.startMode === "ftp" ? qsTr("Starts with FTP")
+                                                                       : qsTr("Starts with Remote Play"))
                             color: Theme.textSecondary
                             font.pixelSize: 12
                             elide: Text.ElideRight
@@ -314,6 +318,7 @@ ColumnLayout {
                             nameEdit.text = row.modelData.name
                             addressEdit.text = row.modelData.address
                             accountBox.currentIndex = manager.accountIndex(row.modelData.accountId)
+                            startBox.currentIndex = row.modelData.startMode === "ftp" ? 1 : 0
                             manager.editing = row.modelData.address
                         }
                     }
@@ -370,6 +375,14 @@ ColumnLayout {
                         model: manager.accountChoices.map(function (a) { return a.label })
                     }
 
+                    // What a click on the console's card starts.
+                    Text { text: qsTr("Start with"); color: Theme.textMuted; font.pixelSize: 12 }
+                    StyledCombo {
+                        id: startBox
+                        Layout.fillWidth: true
+                        model: [qsTr("Remote Play (with FTP and the installer)"), qsTr("FTP only")]
+                    }
+
                     Item { implicitWidth: 1 }
                     RowLayout {
                         Layout.fillWidth: true
@@ -384,7 +397,8 @@ ColumnLayout {
                             primary: true
                             minimumWidth: 90
                             onClicked: manager.saveEdit(row.modelData.address, nameEdit.text, addressEdit.text,
-                                manager.accountChoices[accountBox.currentIndex].accountId)
+                                manager.accountChoices[accountBox.currentIndex].accountId,
+                                startBox.currentIndex === 1 ? "ftp" : "remoteplay")
                         }
                     }
                 }

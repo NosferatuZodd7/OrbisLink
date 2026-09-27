@@ -17,6 +17,12 @@ Item {
         app.selectConsole(address)
         stream.connectOneClick()
     }
+    // FTP only: the console becomes the one in use (if it was not) and the
+    // file browser opens on it.
+    function openFtp(address) {
+        app.selectConsole(address)
+        app.openFiles()
+    }
 
     // The video stage floats like everything else: margins, wide corners and
     // a glass frame. In full screen all of that goes away — there the
@@ -118,6 +124,7 @@ Item {
                     readonly property var other: root.built && !modelData.active
                                                  ? stream.consoleStates[modelData.address] : undefined
                     current: modelData.active
+                    startMode: modelData.startMode
                     available: root.built
                     address: modelData.address
                     name: modelData.active && root.built && stream.consoleName.length > 0
@@ -152,6 +159,7 @@ Item {
                     // right away, in the same click (see chooseAndConnect).
                     onChoose: root.chooseAndConnect(modelData.address)
                     onRemove: app.removeConsole(modelData.address)
+                    onOpenFtp: root.openFtp(modelData.address)
                 }
             }
 

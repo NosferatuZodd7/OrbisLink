@@ -233,6 +233,17 @@ ORBISLINK_TEST(console_list)
 	withHost.consoles = { entry };
 	CHECK_EQ(Settings::fromJson(withHost.toJson()).consoles[0].hostId, std::string("AABBCCDDEEFF"));
 	CHECK(Settings::fromJson(withType.toJson()).consoles[0].hostId.empty());
+
+	// The preferred start: FTP is kept; Remote Play is the default and
+	// reads back as empty.
+	Settings withStart;
+	ConsoleEntry ftpOnly;
+	ftpOnly.name = "PS4";
+	ftpOnly.address = "10.0.0.3";
+	ftpOnly.startMode = "ftp";
+	withStart.consoles = { ftpOnly };
+	CHECK_EQ(Settings::fromJson(withStart.toJson()).consoles[0].startMode, std::string("ftp"));
+	CHECK(Settings::fromJson(withType.toJson()).consoles[0].startMode.empty());
 }
 
 ORBISLINK_TEST(saved_account_ids_round_trip_and_include_those_in_use)

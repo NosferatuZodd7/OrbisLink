@@ -44,6 +44,8 @@ std::string Settings::toJson() const
 			input.set("account_id", Json::fromString(console.accountId));
 		if(!console.hostId.empty())
 			input.set("host_id", Json::fromString(console.hostId));
+		if(console.startMode == "ftp")
+			input.set("start_mode", Json::fromString(console.startMode));
 		items.push(input);
 	}
 	root.set("consoles", items);
@@ -122,6 +124,7 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 			entry.type = kind;
 			entry.accountId = input["account_id"].toString();
 			entry.hostId = input["host_id"].toString();
+			entry.startMode = input["start_mode"].toString() == "ftp" ? "ftp" : "";
 			settings.consoles.push_back(entry);
 		}
 	}

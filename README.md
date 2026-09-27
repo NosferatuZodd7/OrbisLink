@@ -100,6 +100,12 @@ forget this PC's Remote Play registration on it (the next connection then asks
 for a new PIN). Registrations left behind by consoles no longer in the list
 appear at the end, so they can be forgotten too.
 
+Each console card has two buttons: **Remote Play** (the stream, with FTP and
+the installer alongside) and **FTP** (only the file browser, as an alternative
+to FileZilla — no jailbreak needed for Remote Play, no Remote Play needed for
+FTP). A click elsewhere on the card starts the console's preferred one, chosen
+when adding it or in Consoles → Edit → Start with.
+
 Settings → **Account IDs (PSID)** keeps the PSN Account IDs saved on this PC,
 each under a username so they are easy to tell apart. They can be added,
 edited and removed there, and each console picks the one it registers with

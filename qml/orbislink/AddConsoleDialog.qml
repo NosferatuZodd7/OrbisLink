@@ -27,7 +27,8 @@ Dialog {
     property bool selectAfterAdd: true
 
     function add(name, address, kind) {
-        app.addConsole(name, address, kind || "", selectAfterAdd)
+        app.addConsole(name, address, kind || "", selectAfterAdd,
+                       startBox.currentIndex === 1 ? "ftp" : "remoteplay")
         dialog.close()
     }
 
@@ -51,6 +52,7 @@ Dialog {
     onOpened: {
         consoleNameField.text = ""
         addressInput.text = ""
+        startBox.currentIndex = 0
         if (hasStream)
             stream.scanNetwork()
     }
@@ -81,6 +83,33 @@ Dialog {
         spacing: 14
 
         Item { Layout.preferredHeight: Theme.dialogInner - 14 }
+
+        // What a click on the new console's card will start, whichever way it
+        // is added below.
+        RowLayout {
+            Layout.leftMargin: Theme.dialogMargin
+            Layout.rightMargin: Theme.dialogMargin
+            spacing: 12
+            Text {
+                text: qsTr("Start with")
+                color: Theme.textSecondary
+                font.weight: Font.DemiBold
+                font.pixelSize: 12
+            }
+            StyledCombo {
+                id: startBox
+                Layout.fillWidth: true
+                model: [qsTr("Remote Play (with FTP and the installer)"), qsTr("FTP only")]
+            }
+        }
+
+        Rectangle {
+            Layout.leftMargin: Theme.dialogMargin
+            Layout.rightMargin: Theme.dialogMargin
+            Layout.fillWidth: true
+            height: 1
+            color: Theme.border
+        }
 
         // ── On the network
         RowLayout {

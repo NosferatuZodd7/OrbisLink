@@ -242,6 +242,8 @@ QVariantList AppController::consoles() const
 		input[QStringLiteral("active")] = console.address == settings_.consoleAddress;
 		input[QStringLiteral("type")] = QString::fromStdString(console.type);
 		input[QStringLiteral("hostId")] = QString::fromStdString(console.hostId);
+		input[QStringLiteral("startMode")] = console.startMode == "ftp"
+			? QStringLiteral("ftp") : QStringLiteral("remoteplay");
 		input[QStringLiteral("accountId")] = QString::fromStdString(console.accountId);
 		QString accountLabel;
 		for(const SavedAccount &account : settings_.accounts)
@@ -443,7 +445,7 @@ bool AppController::updateConsole(const QString &oldAddress, const QString &name
 }
 
 void AppController::addConsole(const QString &name, const QString &address, const QString &type,
-	bool select)
+	bool select, const QString &startMode)
 {
 	const std::string trimmedAddress = address.trimmed().toStdString();
 	if(trimmedAddress.empty())
@@ -462,6 +464,7 @@ void AppController::addConsole(const QString &name, const QString &address, cons
 		entry.name = entryName;
 		entry.address = trimmedAddress;
 		entry.type = kind;
+		entry.startMode = startMode == QStringLiteral("ftp") ? "ftp" : "";
 		settings_.consoles.push_back(entry);
 	}
 	if(select)
@@ -470,6 +473,30 @@ void AppController::addConsole(const QString &name, const QString &address, cons
 	// changed anyway.
 	store_.save(settings_);
 	emit settingsChanged();
+}
+
+void AppController::setConsoleStartMode(const QString &address, const QString &startMode)
+{
+	const std::string trimmedAddress = address.trimmed().toStdString();
+	const std::string mode = startMode == QStringLiteral("ftp") ? "ftp" : "";
+	for(ConsoleEntry &console : settings_.consoles)
+	{
+		if(console.address != trimmedAddress || console.startMode == mode)
+			continue;
+		console.startMode = mode;
+		store_.save(settings_);
+		emit settingsChanged();
+		return;
+	}
+}
+
+void AppController::openFiles()
+{
+	emit showPanel(QStringLiteral("files"));
+	// Always listed again: after switching console, what is on screen may
+	// be the previous console's folder. If FTP does not answer, the listing
+	// says so.
+	ftpNavigate(uploadDirectory());
 }
 
 void AppController::removeConsole(const QString &address)

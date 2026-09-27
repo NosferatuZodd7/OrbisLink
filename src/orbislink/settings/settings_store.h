@@ -32,6 +32,10 @@ struct ConsoleEntry
 	// ties the entry to its Remote Play registration on this PC; empty until
 	// the console has answered once.
 	std::string hostId;
+	// What a click on its card starts: "remoteplay" (Remote Play, with FTP
+	// and the installer alongside) or "ftp" (only the file browser, as an
+	// alternative to FileZilla). Empty means "remoteplay".
+	std::string startMode;
 };
 
 // A PSN Account ID saved under a name of the user's choosing, so it can be
