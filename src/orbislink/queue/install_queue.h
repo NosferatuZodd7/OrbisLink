@@ -49,7 +49,10 @@ struct QueueTask
 
 	int consoleTaskId = -1;
 	std::string httpToken;
-	std::string remotePath; // destino no FTP (modo B)
+	std::string remotePath; // where it goes on the console (FTP upload)
+	// The file name to give it on the console; empty keeps the local name.
+	// Set when the name was already taken there and the person chose another.
+	std::string remoteName;
 	// File to delete from the console when this task succeeds. Only set
 	// by "upload and install" with "delete afterwards" enabled.
 	std::string cleanupRemotePath;
@@ -103,8 +106,10 @@ public:
 
 	// Validates and appends. Orders the batch as game → patch → DLC within the
 	// same TITLE_ID. `rejected` receives "file: reason" for each refusal.
+	// remoteNames, when given, has one entry per path (empty: the local name).
 	std::vector<std::string> enqueue(const std::vector<std::string> &paths, TransferMode mode,
-		std::vector<std::string> *rejected = nullptr);
+		std::vector<std::string> *rejected = nullptr,
+		const std::vector<std::string> *remoteNames = nullptr);
 	std::string enqueueOne(const std::string &path, TransferMode mode, std::string *error = nullptr);
 
 	void start();

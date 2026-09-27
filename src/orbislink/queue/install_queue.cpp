@@ -81,6 +81,7 @@ Json taskToJson(const QueueTask &task)
 	json.set("total_bytes", Json::fromInt(task.totalBytes));
 	json.set("done_bytes", Json::fromInt(task.doneBytes));
 	json.set("remote_path", Json::fromString(task.remotePath));
+	json.set("remote_name", Json::fromString(task.remoteName));
 	json.set("cleanup_remote_path", Json::fromString(task.cleanupRemotePath));
 	json.set("message", Json::fromString(task.message));
 	json.set("error_code", Json::fromInt(static_cast<int64_t>(task.errorCode)));
@@ -106,6 +107,7 @@ QueueTask taskFromJson(const Json &json)
 	task.totalBytes = json["total_bytes"].toInt();
 	task.doneBytes = json["done_bytes"].toInt();
 	task.remotePath = json["remote_path"].toString();
+	task.remoteName = json["remote_name"].toString();
 	task.cleanupRemotePath = json["cleanup_remote_path"].toString();
 	task.message = json["message"].toString();
 	task.errorCode = static_cast<uint32_t>(json["error_code"].toInt());
@@ -206,14 +208,16 @@ std::string InstallQueue::enqueueOne(const std::string &path, TransferMode mode,
 }
 
 std::vector<std::string> InstallQueue::enqueue(const std::vector<std::string> &paths,
-	TransferMode mode, std::vector<std::string> *rejected)
+	TransferMode mode, std::vector<std::string> *rejected,
+	const std::vector<std::string> *remoteNames)
 {
 	PkgInspector inspector;
 	std::vector<QueueTask> batch;
 	std::vector<std::string> ids;
 
-	for(const std::string &path : paths)
+	for(size_t index = 0; index < paths.size(); ++index)
 	{
+		const std::string &path = paths[index];
 		const PkgInfo info = inspector.inspect(path);
 		if(!info.valid)
 		{
@@ -229,6 +233,8 @@ std::vector<std::string> InstallQueue::enqueue(const std::vector<std::string> &p
 		task.id = randomToken(8);
 		task.localPath = path;
 		task.mode = mode;
+		if(remoteNames && index < remoteNames->size())
+			task.remoteName = (*remoteNames)[index];
 		task.state = TaskState::Pending;
 		task.title = info.displayTitle();
 		task.titleId = info.titleId;
@@ -838,7 +844,8 @@ void InstallQueue::runFtpUpload(QueueTask task)
 		task.totalBytes = info.fileSize;
 
 	std::string directory = cfg.ftpUploadDirectory.empty() ? "/data/pkg/" : cfg.ftpUploadDirectory;
-	task.remotePath = normalizeRemotePath(directory + "/" + sanitizeFileName(task.localPath));
+	task.remotePath = normalizeRemotePath(directory + "/"
+		+ sanitizeFileName(task.remoteName.empty() ? task.localPath : task.remoteName));
 
 	task.state = TaskState::Sending;
 	updateTask(task);

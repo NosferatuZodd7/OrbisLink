@@ -9,6 +9,25 @@ Item {
     id: root
 
     // Last folder chosen in "Download to…".
+    // The uploads going into the folder on screen: they show in the list
+    // right away, faded, with a thin progress bar, and become normal rows
+    // once they arrive (the list refreshes itself then).
+    readonly property string shownDirectory: {
+        var path = app.ftpPath
+        while (path.length > 1 && path.charAt(path.length - 1) === "/")
+            path = path.substring(0, path.length - 1)
+        return path
+    }
+    readonly property var uploadsHere: app.ftpUploads.filter(function (upload) {
+        return upload.directory === root.shownDirectory
+    })
+    function beingUploaded(name) {
+        for (var i = 0; i < uploadsHere.length; ++i)
+            if (uploadsHere[i].name === name)
+                return true
+        return false
+    }
+
     property url lastDestination
 
     // Lists when the tab appears for the first time.
@@ -99,10 +118,72 @@ Item {
                 model: app.files
                 ScrollBar.vertical: ScrollBar { }
 
+                header: Column {
+                    width: files.width
+                    Repeater {
+                        model: root.uploadsHere
+                        Item {
+                            required property var modelData
+                            width: files.width
+                            height: 40
+                            // Faded until it has arrived.
+                            opacity: 0.55
+
+                            Icon {
+                                id: uploadGlyph
+                                x: 12
+                                y: 8
+                                name: "upload"
+                                size: 15
+                                color: Theme.accent
+                            }
+                            Text {
+                                anchors.left: uploadGlyph.right
+                                anchors.leftMargin: 8
+                                anchors.right: uploadPercent.left
+                                anchors.rightMargin: 8
+                                y: 7
+                                text: modelData.name
+                                color: Theme.text
+                                font.pixelSize: 12
+                                elide: Text.ElideMiddle
+                            }
+                            Text {
+                                id: uploadPercent
+                                anchors.right: parent.right
+                                anchors.rightMargin: 12
+                                y: 8
+                                text: modelData.sending ? Math.floor(modelData.percent) + "%" : qsTr("queued")
+                                color: Theme.textSecondary
+                                font.pixelSize: 11
+                            }
+                            // The thin bar under the name.
+                            Rectangle {
+                                x: 35
+                                y: 28
+                                width: parent.width - 47
+                                height: 3
+                                radius: 1.5
+                                color: Theme.controlFill
+                                Rectangle {
+                                    width: parent.width * Math.max(0, Math.min(1, modelData.percent / 100))
+                                    height: parent.height
+                                    radius: parent.radius
+                                    color: Theme.accent
+                                    Behavior on width { NumberAnimation { duration: 200 } }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 delegate: ItemDelegate {
                     id: row
                     width: files.width
-                    height: 32
+                    // A file being replaced shows only once, as the upload above.
+                    readonly property bool replaced: root.beingUploaded(model.name)
+                    visible: !replaced
+                    height: replaced ? 0 : 32
 
                     // Filled in as soon as the file is in the local cache:
                     // that is what allows dragging it out of the window.
@@ -482,10 +563,9 @@ Item {
         property string targetPath: ""
         parent: Overlay.overlay
         anchors.centerIn: parent
-        width: 380
+        width: 440
         modal: true
-        title: qsTr("Rename")
-        standardButtons: Dialog.Ok | Dialog.Cancel
+        padding: 0
 
         function open(path, name) {
             targetPath = path
@@ -495,22 +575,61 @@ Item {
             nameInput.selectAll()
         }
 
-        contentItem: TextField {
-            id: nameInput
-            color: Theme.text
-            font.pixelSize: 12
-            selectByMouse: true
-            background: Rectangle {
-                color: Theme.panelAltFill
-                border.color: nameInput.activeFocus ? Theme.accent : Theme.border
-                radius: 6
-            }
+        function confirm() {
+            if (nameInput.text.trim().length === 0)
+                return
+            app.ftpRename(targetPath, nameInput.text.trim())
+            close()
         }
 
-        onAccepted: app.ftpRename(targetPath, nameInput.text)
+        Overlay.modal: Rectangle { color: Theme.scrim }
+
+        background: Rectangle {
+            color: Theme.dialogFill
+            border.color: Theme.border
+            radius: Theme.radiusDialog
+        }
+
+        header: DialogHeader {
+            title: qsTr("Rename")
+            dialog: renameDialog
+        }
+
+        contentItem: StyledField {
+            id: nameInput
+            leftInset: Theme.dialogMargin
+            rightInset: Theme.dialogMargin
+            leftPadding: Theme.dialogMargin + 14
+            rightPadding: Theme.dialogMargin + 14
+            onAccepted: renameDialog.confirm()
+        }
+
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                spacing: 10
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("Cancel")
+                    minimumWidth: 100
+                    onClicked: renameDialog.close()
+                }
+                StyledButton {
+                    text: qsTr("Rename")
+                    primary: true
+                    minimumWidth: 110
+                    enabled: nameInput.text.trim().length > 0
+                    onClicked: renameDialog.confirm()
+                }
+            }
+        }
     }
 
-    // Destructive operations require confirmation (§5.5).
+    // Deleting on the console always asks first.
     Dialog {
         id: confirmDelete
         property string targetPath: ""
@@ -520,7 +639,7 @@ Item {
         anchors.centerIn: parent
         // Fixed width: without it the dialog sizes itself by the text and the
         // text by the dialog, and Qt warns about the loop.
-        width: 400
+        width: 460
         modal: true
         padding: 0
 
@@ -538,7 +657,7 @@ Item {
         background: Rectangle {
             color: Theme.dialogFill
             border.color: Theme.border
-            radius: Theme.radius
+            radius: Theme.radiusDialog
         }
 
         header: DialogHeader {
@@ -546,35 +665,74 @@ Item {
             dialog: confirmDelete
         }
 
-        contentItem: Text {
-            leftPadding: 18
-            rightPadding: 18
-            topPadding: 14
-            bottomPadding: 14
-            text: confirmDelete.targetIsDirectory
-                ? qsTr("Delete \"%1\" and everything inside it? There is no undo.")
-                    .arg(confirmDelete.targetName)
-                : qsTr("Delete \"%1\"? There is no undo.").arg(confirmDelete.targetName)
-            color: Theme.text
-            font.pixelSize: 12
-            wrapMode: Text.WordWrap
+        contentItem: RowLayout {
+            spacing: 16
+
+            // The trash can in a soft red circle: what is about to happen.
+            Rectangle {
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.alignment: Qt.AlignTop
+                Layout.topMargin: 10
+                implicitWidth: 44
+                implicitHeight: 44
+                radius: 22
+                color: Theme.alpha(Theme.error, 0.14)
+                Icon {
+                    anchors.centerIn: parent
+                    name: "trash"
+                    size: 20
+                    color: Theme.error
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.rightMargin: Theme.dialogMargin
+                Layout.topMargin: 8
+                Layout.bottomMargin: 8
+                spacing: 6
+                Text {
+                    Layout.fillWidth: true
+                    text: confirmDelete.targetName
+                    color: Theme.text
+                    font.pixelSize: 14
+                    font.weight: Font.DemiBold
+                    wrapMode: Text.WrapAnywhere
+                    maximumLineCount: 3
+                    elide: Text.ElideMiddle
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: confirmDelete.targetIsDirectory
+                        ? qsTr("The folder and everything inside it are deleted from the console. "
+                               + "This cannot be undone.")
+                        : qsTr("The file is deleted from the console. This cannot be undone.")
+                    color: Theme.textSecondary
+                    font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                }
+            }
         }
 
-        footer: Rectangle {
-            implicitHeight: 56
-            color: "transparent"
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
             RowLayout {
                 anchors.fill: parent
-                anchors.margins: 12
-                spacing: 8
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                spacing: 10
                 Item { Layout.fillWidth: true }
                 StyledButton {
                     text: qsTr("Cancel")
+                    minimumWidth: 100
                     onClicked: confirmDelete.close()
                 }
                 StyledButton {
                     text: qsTr("Delete")
+                    iconName: "trash"
                     danger: true
+                    solid: true
                     minimumWidth: 110
                     onClicked: {
                         app.ftpDelete(confirmDelete.targetPath, confirmDelete.targetIsDirectory)

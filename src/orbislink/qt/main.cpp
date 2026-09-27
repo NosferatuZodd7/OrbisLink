@@ -122,6 +122,7 @@ int main(int argc, char **argv)
 	bool printDiagnostics = false;
 	bool selfTestDrag = false;
 	QStringList enqueuePaths;
+	QStringList uploadPaths;
 	const QStringList arguments = app.arguments();
 	for(int i = 1; i < arguments.size(); ++i)
 	{
@@ -158,6 +159,8 @@ int main(int argc, char **argv)
 			selfTestDrag = true;
 		else if(argument == QStringLiteral("--enqueue") && i + 1 < arguments.size())
 			enqueuePaths << arguments[++i];
+		else if(argument == QStringLiteral("--enqueue-ftp") && i + 1 < arguments.size())
+			uploadPaths << arguments[++i];
 	}
 
 	// Translations. The source language is English; Portuguese is chosen in
@@ -211,6 +214,11 @@ int main(int argc, char **argv)
 	}
 	if(!enqueuePaths.isEmpty())
 		controller->addPaths(enqueuePaths, 0);
+	// The same as dropping on "Send over FTP", after the window is up (the
+	// question about names already taken needs it).
+	if(!uploadPaths.isEmpty())
+		QTimer::singleShot(1500, controller.get(),
+			[&controller, uploadPaths]() { controller->addPaths(uploadPaths, 1); });
 
 	// Important notices also go to the system, so they arrive with the
 	// window minimised. Where there is no notification area, this does
