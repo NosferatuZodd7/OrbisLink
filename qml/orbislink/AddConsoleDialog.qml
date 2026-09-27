@@ -90,23 +90,28 @@ Dialog {
             Text {
                 Layout.fillWidth: true
                 text: qsTr("On the network")
-                color: Theme.accent
-                font.bold: true
+                color: Theme.textSecondary
+                font.weight: Font.DemiBold
                 font.pixelSize: 12
-            }
-            BusyIndicator {
-                running: dialog.searching
-                visible: dialog.searching
-                implicitWidth: 20
-                implicitHeight: 20
             }
             StyledButton {
                 visible: dialog.hasStream
                 enabled: !dialog.searching
+                chip: true
+                iconName: dialog.searching ? "loader" : "refresh"
                 text: dialog.searching ? qsTr("Searching…") : qsTr("Search again")
-                implicitHeight: 30
-                font.pixelSize: 11
                 onClicked: stream.scanNetwork()
+            }
+        }
+
+        // While the search runs and nothing has answered yet: the shape of the
+        // rows about to appear, with a shine running across them.
+        Repeater {
+            model: dialog.searching && dialog.found.length === 0 ? 2 : 0
+            SkeletonRow {
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                Layout.fillWidth: true
             }
         }
 
@@ -134,44 +139,52 @@ Dialog {
                 Layout.leftMargin: Theme.dialogMargin
                 Layout.rightMargin: Theme.dialogMargin
                 Layout.fillWidth: true
-                implicitHeight: 52
-                radius: Theme.radiusSmall
-                color: Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b,
-                               Theme.light ? 1.0 : 0.6)
-                border.color: Theme.light ? Qt.rgba(0, 0, 0, 0.12) : Theme.glassEdge
+                implicitHeight: 60
+                radius: 14
+                color: Theme.panelAltFill
+                border.color: Theme.glassEdge
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.leftMargin: 14
-                    anchors.rightMargin: 10
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
                     spacing: 12
-                    Text {
-                        text: modelData.ps5 ? "PS5" : "PS4"
-                        color: Theme.text
-                        font.pixelSize: 15
-                        font.bold: true
-                        font.letterSpacing: 1
+                    Rectangle {
+                        implicitWidth: 46
+                        implicitHeight: 34
+                        radius: 10
+                        color: Theme.controlFill
+                        border.color: Theme.border
+                        Text {
+                            anchors.centerIn: parent
+                            text: modelData.ps5 ? "PS5" : "PS4"
+                            color: Theme.text
+                            font.pixelSize: 12
+                            font.weight: Font.Bold
+                        }
                     }
                     Column {
                         Layout.fillWidth: true
                         Text {
                             text: modelData.name.length > 0 ? modelData.name : modelData.address
                             color: Theme.text
-                            font.pixelSize: 13
+                            font.pixelSize: 14
+                            font.weight: Font.DemiBold
                         }
                         Text {
                             text: modelData.address + "  ·  "
                                   + (modelData.state === "standby" ? qsTr("in rest mode")
                                                                    : qsTr("ready"))
                             color: Theme.textSecondary
-                            font.pixelSize: 11
+                            font.pixelSize: 12
                         }
                     }
                     StyledButton {
                         text: line.listed ? qsTr("Already added") : qsTr("Add")
+                        iconName: line.listed ? "check" : "plus"
                         enabled: !line.listed
                         primary: !line.listed
-                        implicitHeight: 32
+                        implicitHeight: 36
                         minimumWidth: 100
                         onClicked: dialog.add(modelData.name, modelData.address,
                                                     modelData.ps5 ? "ps5" : "ps4")
@@ -193,8 +206,8 @@ Dialog {
         Text {
             Layout.leftMargin: Theme.dialogMargin
             text: qsTr("By hand")
-            color: Theme.accent
-            font.bold: true
+            color: Theme.textSecondary
+            font.weight: Font.DemiBold
             font.pixelSize: 12
         }
 

@@ -88,6 +88,8 @@ Button {
                 name: button.iconName
                 size: button.chip ? 14 : 16
                 color: button.textColor
+                // The waiting icon turns on its own.
+                spinning: button.iconName === "loader"
             }
             Text {
                 id: keyLabel

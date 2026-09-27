@@ -259,14 +259,15 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
 
-            // The controller in use; green when one is connected.
+            // The controls: the controller (green when one is connected) and the
+            // keyboard, in one button that opens the key map.
             HudButton {
                 iconName: "gamepad"
-                tone: root.built && stream.gamepadName.length > 0 ? Theme.ok : Theme.onStageMuted
+                secondIconName: "keyboard"
+                tone: root.built && stream.gamepadName.length > 0 ? Theme.ok : Theme.onStage
                 tip: root.built && stream.gamepadName.length > 0
-                     ? qsTr("Controller connected: %1. The keyboard works too:").arg(stream.gamepadName)
-                     : qsTr("No controller connected — plug one in over USB and it is "
-                            + "picked up on its own. Meanwhile, the keyboard:")
+                     ? qsTr("Controller: %1. Click for the keyboard map.").arg(stream.gamepadName)
+                     : qsTr("No controller connected. Click for the keyboard map.")
                 onClicked: keysDialog.open()
             }
 
@@ -338,11 +339,6 @@ Item {
                 onRightClicked: stream.setMicrophoneEnabled(false)
             }
             HudButton {
-                iconName: "keyboard"
-                tip: qsTr("Keys")
-                onClicked: keysDialog.open()
-            }
-            HudButton {
                 iconName: window.streamFullscreen ? "minimize" : "maximize"
                 tip: window.streamFullscreen ? qsTr("Leave full screen") : qsTr("Full screen")
                 onClicked: window.setStreamFullscreen(!window.streamFullscreen)
@@ -389,7 +385,7 @@ Item {
         }
 
         header: DialogHeader {
-            title: qsTr("The keyboard as a controller")
+            title: qsTr("Keyboard map")
             dialog: keysDialog
         }
 
@@ -471,8 +467,8 @@ Item {
 
                 ControllerSketch {
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredWidth: 236
-                    Layout.preferredHeight: 178
+                    Layout.preferredWidth: 300
+                    Layout.preferredHeight: 226
                     highlight: keyboardMap.highlight
                 }
 

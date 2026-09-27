@@ -9,6 +9,10 @@ Rectangle {
     id: button
 
     property string iconName: ""
+    // A second icon next to the first, for a button that stands for two
+    // things at once (the controller and the keyboard).
+    property string secondIconName: ""
+    property color secondTone: Theme.onStage
     property string tip: ""
     property color tone: Theme.onStage
     // Lit in red while something is live (the microphone capturing).
@@ -17,7 +21,7 @@ Rectangle {
     signal clicked()
     signal rightClicked()
 
-    implicitWidth: 36
+    implicitWidth: secondIconName.length > 0 ? 62 : 36
     implicitHeight: 36
     radius: 10
     color: lit ? Theme.alpha(Theme.error, 0.85)
@@ -28,11 +32,20 @@ Rectangle {
     border.color: Theme.hudEdge
     Behavior on color { ColorAnimation { duration: Theme.fast } }
 
-    Icon {
+    Row {
         anchors.centerIn: parent
-        name: button.iconName
-        size: 18
-        color: button.lit ? "#FFFFFF" : button.tone
+        spacing: 8
+        Icon {
+            name: button.iconName
+            size: 18
+            color: button.lit ? "#FFFFFF" : button.tone
+        }
+        Icon {
+            visible: button.secondIconName.length > 0
+            name: button.secondIconName
+            size: 18
+            color: button.lit ? "#FFFFFF" : button.secondTone
+        }
     }
 
     MouseArea {

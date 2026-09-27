@@ -32,6 +32,7 @@
         <file alias="StyledMenuItem.qml">StyledMenuItem.qml</file>
         <file alias="Theme.qml">Theme.qml</file>
         <file alias="Icon.qml">Icon.qml</file>
+        <file alias="SkeletonRow.qml">SkeletonRow.qml</file>
         <file alias="DialogHeader.qml">DialogHeader.qml</file>
         <file alias="HudButton.qml">HudButton.qml</file>
         <file alias="Icons.js">Icons.js</file>
