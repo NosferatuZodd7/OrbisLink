@@ -102,6 +102,18 @@ Dialog {
                 model: [qsTr("Remote Play (with FTP and the installer)"), qsTr("FTP only")]
             }
         }
+        Text {
+            visible: startBox.currentIndex === 1
+            Layout.leftMargin: Theme.dialogMargin
+            Layout.rightMargin: Theme.dialogMargin
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            text: qsTr("FTP only works on a console with an FTP server running (a jailbreak: "
+                       + "GoldHEN on the PS4, etaHEN on the PS5). Without it, the console starts "
+                       + "with Remote Play.")
+            color: Theme.textSecondary
+            font.pixelSize: 11
+        }
 
         Rectangle {
             Layout.leftMargin: Theme.dialogMargin

@@ -36,9 +36,13 @@ Item {
     property string address: ""
     // False for the other consoles in the list.
     property bool current: true
+    // Whether the console answers on FTP. Without it (a PS5 with no
+    // jailbreak, a PS4 without GoldHEN's FTP) there is no FTP button, and
+    // the card always starts Remote Play.
+    property bool ftpAvailable: false
     // What a click on the card starts: "remoteplay" or "ftp".
     property string startMode: "remoteplay"
-    readonly property bool prefersFtp: startMode === "ftp"
+    readonly property bool prefersFtp: startMode === "ftp" && ftpAvailable
 
     signal connect()
     signal cancel()
@@ -359,7 +363,8 @@ Item {
         // Remote Play: connects (or wakes, or registers); on the console
         // being connected, cancels.
         StyledButton {
-            width: buttons.half
+            // Alone, it takes the whole width.
+            width: card.ftpAvailable ? buttons.half : buttons.width
             leftPadding: 10
             rightPadding: 10
             readonly property bool cancelling: card.current && card.busy
@@ -374,6 +379,7 @@ Item {
         }
         // FTP: only the file browser.
         StyledButton {
+            visible: card.ftpAvailable
             width: buttons.half
             leftPadding: 10
             rightPadding: 10

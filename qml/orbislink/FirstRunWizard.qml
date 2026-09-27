@@ -268,7 +268,10 @@ Dialog {
                 StyledCombo {
                     id: startWizardBox
                     Layout.fillWidth: true
+                    // Only once the check above found FTP answering.
+                    enabled: wizard.probeFtpOk
                     model: [qsTr("Remote Play (with FTP and the installer)"), qsTr("FTP only")]
+                    onEnabledChanged: if (!enabled) currentIndex = 0
                 }
             }
             RowLayout {

@@ -104,7 +104,10 @@ Each console card has two buttons: **Remote Play** (the stream, with FTP and
 the installer alongside) and **FTP** (only the file browser, as an alternative
 to FileZilla — no jailbreak needed for Remote Play, no Remote Play needed for
 FTP). A click elsewhere on the card starts the console's preferred one, chosen
-when adding it or in Consoles → Edit → Start with.
+when adding it or in Consoles → Edit → Start with. The FTP button only appears
+when the console answers on FTP (a jailbreak: GoldHEN on the PS4, etaHEN on the
+PS5); without it the card has Remote Play alone, and the preferred start stays
+on Remote Play.
 
 Settings → **Account IDs (PSID)** keeps the PSN Account IDs saved on this PC,
 each under a username so they are easy to tell apart. They can be added,
