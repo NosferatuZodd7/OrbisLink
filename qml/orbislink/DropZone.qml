@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Uma das duas opções da sobreposição. Não tem DropArea própria: quem
-// recebe o arrasto é o DropArea único da janela, que decide pela posição
-// do cursor qual das zonas está a ser apontada (ver DropOverlay.qml).
+// One of the two options of the overlay. It has no DropArea of its own: the
+// drag is received by the window's single DropArea, which decides from the
+// cursor position which zone is being pointed at (see DropOverlay.qml).
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts

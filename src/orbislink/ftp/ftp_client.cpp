@@ -2,6 +2,7 @@
 #include "orbislink/ftp/ftp_client.h"
 
 #include "orbislink/common/log.h"
+#include "orbislink/common/tr.h"
 #include "orbislink/common/util.h"
 
 #include <algorithm>
@@ -67,7 +68,7 @@ int progressCallback(void *userdata, curl_off_t dlTotal, curl_off_t dlNow, curl_
 	if(state->cancel && state->cancel->load())
 	{
 		state->cancelled = true;
-		return 1; // aborta a transferência
+		return 1; // aborts the transfer
 	}
 	const int64_t done = ulNow > 0 ? static_cast<int64_t>(ulNow) : static_cast<int64_t>(dlNow);
 	int64_t total = ulTotal > 0 ? static_cast<int64_t>(ulTotal) : static_cast<int64_t>(dlTotal);
@@ -81,8 +82,8 @@ int progressCallback(void *userdata, curl_off_t dlTotal, curl_off_t dlNow, curl_
 	return 0;
 }
 
-// Ordem dos campos do LIST estilo Unix:
-// drwxr-xr-x  2 user group  4096 Jan 01 00:00 nome com espaços
+// Field order of a Unix-style LIST:
+// drwxr-xr-x  2 user group  4096 Jan 01 00:00 name with spaces
 bool parseUnixLine(const std::string &line, FtpEntry *entry)
 {
 	if(line.size() < 10)
@@ -120,8 +121,8 @@ bool parseUnixLine(const std::string &line, FtpEntry *entry)
 	return true;
 }
 
-// Formato MS-DOS, caso algum servidor o use:
-// 01-01-70  00:00AM       <DIR>          nome
+// MS-DOS format, in case some server uses it:
+// 01-01-70  00:00AM       <DIR>          name
 bool parseDosLine(const std::string &line, FtpEntry *entry)
 {
 	std::istringstream stream(line);
@@ -260,7 +261,7 @@ std::vector<FtpEntry> FtpClient::parseListing(const std::string &listing, const 
 		FtpEntry entry;
 		if(!parseUnixLine(line, &entry) && !parseDosLine(line, &entry))
 		{
-			// Servidor exótico: aceita a linha como nome simples em vez de a perder.
+			// Unusual server: takes the line as a plain name instead of losing it.
 			entry = FtpEntry();
 			entry.name = trim(line);
 			if(entry.name.empty())
@@ -290,7 +291,7 @@ FtpResult FtpClient::withRetries(const std::string &what, const std::function<Ft
 		if(attempt > 0)
 		{
 			const int delayMs = 500 * (1 << (attempt - 1));
-			logWarning("FTP: " + what + " falhou (" + result.message + "); nova tentativa em "
+			logWarning("FTP: " + what + " failed (" + result.message + "); retrying in "
 				+ std::to_string(delayMs) + " ms.");
 			std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
 		}
@@ -299,13 +300,13 @@ FtpResult FtpClient::withRetries(const std::string &what, const std::function<Ft
 			break;
 	}
 	if(!result.ok && !result.cancelled)
-		logError("FTP: " + what + " falhou: " + result.message);
+		logError("FTP: " + what + " failed: " + result.message);
 	return result;
 }
 
 namespace {
 
-// Configuração comum a todas as operações.
+// Setup shared by every operation.
 void applyCommonOptions(CURL *curl, const FtpClient::Config &cfg, char *errorBuffer)
 {
 	curl_easy_setopt(curl, CURLOPT_USERNAME, cfg.user.c_str());
@@ -325,8 +326,8 @@ void applyCommonOptions(CURL *curl, const FtpClient::Config &cfg, char *errorBuf
 bool FtpClient::probe(std::string *detail)
 {
 	const Config cfg = config();
-	// O ConsoleManager confirma o "220" com um probe TCP; aqui confirma-se o
-	// login anónimo com um PWD.
+	// ConsoleManager confirms the "220" with a TCP probe; here the anonymous
+	// login is confirmed with a PWD.
 	ensureCurl();
 	CURL *curl = curl_easy_init();
 	if(!curl)
@@ -350,12 +351,12 @@ bool FtpClient::probe(std::string *detail)
 FtpResult FtpClient::list(const std::string &remoteDir, std::vector<FtpEntry> *entries)
 {
 	const std::string dir = normalizeRemotePath(remoteDir);
-	return withRetries("listar " + dir, [&]() -> FtpResult {
+	return withRetries("list " + dir, [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
 		CURL *curl = curl_easy_init();
 		if(!curl)
-			return FtpResult::failure("não foi possível inicializar o libcurl");
+			return FtpResult::failure("could not initialise libcurl");
 
 		char errorBuffer[CURL_ERROR_SIZE] = { 0 };
 		std::string listing;
@@ -367,7 +368,7 @@ FtpResult FtpClient::list(const std::string &remoteDir, std::vector<FtpEntry> *e
 		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, appendToString);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &listing);
-		// Pede o LIST completo (não apenas nomes), para obter tipo e tamanho.
+		// Asks for the full LIST (not just names), to get type and size.
 		curl_easy_setopt(curl, CURLOPT_DIRLISTONLY, 0L);
 
 		const CURLcode code = curl_easy_perform(curl);
@@ -383,12 +384,12 @@ FtpResult FtpClient::list(const std::string &remoteDir, std::vector<FtpEntry> *e
 FtpResult FtpClient::remoteSize(const std::string &remotePath, int64_t *size)
 {
 	const std::string path = normalizeRemotePath(remotePath);
-	return withRetries("obter tamanho de " + path, [&]() -> FtpResult {
+	return withRetries("get size of " + path, [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
 		CURL *curl = curl_easy_init();
 		if(!curl)
-			return FtpResult::failure("não foi possível inicializar o libcurl");
+			return FtpResult::failure("could not initialise libcurl");
 
 		char errorBuffer[CURL_ERROR_SIZE] = { 0 };
 		applyCommonOptions(curl, cfg, errorBuffer);
@@ -414,12 +415,13 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 {
 	const std::string path = normalizeRemotePath(remotePath);
 	if(!isWriteAllowed(path))
-		return FtpResult::failure("Zona protegida do sistema: ativa o Modo avançado nas definições.");
+		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
+			"mode in the settings."));
 	const int64_t localSize = fileSize(localPath);
 	if(localSize < 0)
-		return FtpResult::failure("Ficheiro local inacessível: " + localPath);
+		return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Messages", "Local file not accessible")) + ": " + localPath);
 
-	// Retoma: só faz sentido se o servidor já tiver parte do ficheiro.
+	// Resume: only makes sense if the server already has part of the file.
 	int64_t alreadyThere = 0;
 	if(resume)
 	{
@@ -428,18 +430,18 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 			alreadyThere = remote;
 	}
 
-	return withRetries("enviar " + baseName(localPath), [&]() -> FtpResult {
+	return withRetries("upload " + baseName(localPath), [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
 		std::ifstream input(localPath, std::ios::binary);
 		if(!input)
-			return FtpResult::failure("Não foi possível abrir " + localPath);
+			return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Messages", "Could not open the file")) + ": " + localPath);
 		if(alreadyThere > 0)
 			input.seekg(static_cast<std::streamoff>(alreadyThere), std::ios::beg);
 
 		CURL *curl = curl_easy_init();
 		if(!curl)
-			return FtpResult::failure("não foi possível inicializar o libcurl");
+			return FtpResult::failure("could not initialise libcurl");
 
 		char errorBuffer[CURL_ERROR_SIZE] = { 0 };
 		ProgressState state;
@@ -460,7 +462,7 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 		curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &state);
 		if(alreadyThere > 0)
 		{
-			// APPE a partir do que já lá está (o servidor tem de o suportar).
+			// APPE from what is already there (the server has to support it).
 			curl_easy_setopt(curl, CURLOPT_APPEND, 1L);
 			curl_easy_setopt(curl, CURLOPT_RESUME_FROM_LARGE, static_cast<curl_off_t>(alreadyThere));
 		}
@@ -471,7 +473,7 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 		{
 			FtpResult result;
 			result.cancelled = true;
-			result.message = "Operação cancelada.";
+			result.message = QT_TRANSLATE_NOOP("Messages", "Operation cancelled.");
 			return result;
 		}
 		if(code != CURLE_OK)
@@ -488,17 +490,17 @@ FtpResult FtpClient::download(const std::string &remotePath, const std::string &
 	if(existing < 0)
 		existing = 0;
 
-	return withRetries("descarregar " + baseName(path), [&]() -> FtpResult {
+	return withRetries("download " + baseName(path), [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
 		std::ofstream output(localPath,
 			std::ios::binary | (existing > 0 ? std::ios::app : std::ios::trunc));
 		if(!output)
-			return FtpResult::failure("Não foi possível escrever em " + localPath);
+			return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Messages", "Could not write to the file")) + ": " + localPath);
 
 		CURL *curl = curl_easy_init();
 		if(!curl)
-			return FtpResult::failure("não foi possível inicializar o libcurl");
+			return FtpResult::failure("could not initialise libcurl");
 
 		char errorBuffer[CURL_ERROR_SIZE] = { 0 };
 		ProgressState state;
@@ -522,7 +524,7 @@ FtpResult FtpClient::download(const std::string &remotePath, const std::string &
 		{
 			FtpResult result;
 			result.cancelled = true;
-			result.message = "Operação cancelada.";
+			result.message = QT_TRANSLATE_NOOP("Messages", "Operation cancelled.");
 			return result;
 		}
 		if(code != CURLE_OK)
@@ -538,7 +540,7 @@ FtpResult runQuoteCommands(const FtpClient::Config &cfg, const std::string &host
 {
 	CURL *curl = curl_easy_init();
 	if(!curl)
-		return FtpResult::failure("não foi possível inicializar o libcurl");
+		return FtpResult::failure("could not initialise libcurl");
 
 	char errorBuffer[CURL_ERROR_SIZE] = { 0 };
 	struct curl_slist *list = nullptr;
@@ -565,8 +567,9 @@ FtpResult FtpClient::makeDirectory(const std::string &remotePath)
 {
 	const std::string path = normalizeRemotePath(remotePath);
 	if(!isWriteAllowed(path))
-		return FtpResult::failure("Zona protegida do sistema: ativa o Modo avançado nas definições.");
-	return withRetries("criar pasta " + path, [&]() -> FtpResult {
+		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
+			"mode in the settings."));
+	return withRetries("create folder " + path, [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
 		return runQuoteCommands(cfg, cfg.host, { "MKD " + path },
@@ -578,8 +581,9 @@ FtpResult FtpClient::removeFile(const std::string &remotePath)
 {
 	const std::string path = normalizeRemotePath(remotePath);
 	if(!isWriteAllowed(path))
-		return FtpResult::failure("Zona protegida do sistema: ativa o Modo avançado nas definições.");
-	return withRetries("apagar " + path, [&]() -> FtpResult {
+		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
+			"mode in the settings."));
+	return withRetries("delete " + path, [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
 		return runQuoteCommands(cfg, cfg.host, { "DELE " + path },
@@ -591,8 +595,9 @@ FtpResult FtpClient::removeDirectory(const std::string &remotePath)
 {
 	const std::string path = normalizeRemotePath(remotePath);
 	if(!isWriteAllowed(path))
-		return FtpResult::failure("Zona protegida do sistema: ativa o Modo avançado nas definições.");
-	return withRetries("apagar pasta " + path, [&]() -> FtpResult {
+		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
+			"mode in the settings."));
+	return withRetries("delete folder " + path, [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
 		return runQuoteCommands(cfg, cfg.host, { "RMD " + path },
@@ -605,8 +610,9 @@ FtpResult FtpClient::rename(const std::string &fromPath, const std::string &toPa
 	const std::string from = normalizeRemotePath(fromPath);
 	const std::string to = normalizeRemotePath(toPath);
 	if(!isWriteAllowed(from) || !isWriteAllowed(to))
-		return FtpResult::failure("Zona protegida do sistema: ativa o Modo avançado nas definições.");
-	return withRetries("mudar nome de " + from, [&]() -> FtpResult {
+		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
+			"mode in the settings."));
+	return withRetries("rename " + from, [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
 		return runQuoteCommands(cfg, cfg.host, { "RNFR " + from, "RNTO " + to },

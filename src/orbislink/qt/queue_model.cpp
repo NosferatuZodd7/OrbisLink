@@ -2,6 +2,7 @@
 #include "orbislink/qt/queue_model.h"
 
 #include "orbislink/common/util.h"
+#include "orbislink/qt/translate_message.h"
 
 namespace orbislink {
 
@@ -88,9 +89,9 @@ void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
 		row.id = QString::fromStdString(task.id);
 		row.title = QString::fromStdString(task.title);
 		row.titleId = QString::fromStdString(task.titleId);
-		row.category = QString::fromUtf8(pkgCategoryLabelPt(task.category));
+		row.category = translateMessage(pkgCategoryLabel(task.category));
 		row.state = QString::fromUtf8(taskStateName(task.state));
-		row.stateLabel = QString::fromUtf8(taskStateLabelPt(task.state));
+		row.stateLabel = translateMessage(taskStateLabel(task.state));
 		row.percent = task.percent();
 		row.sizeText = QString::fromStdString(humanBytes(task.totalBytes));
 		row.speedText = task.bytesPerSecond > 1.0
@@ -99,9 +100,10 @@ void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
 		row.etaText = task.etaSeconds > 0
 			? QString::fromStdString(humanDuration(task.etaSeconds))
 			: QStringLiteral("—");
-		row.message = QString::fromStdString(task.message);
-		row.mode = task.mode == TransferMode::DirectInstall ? QStringLiteral("Instalação direta")
-															: QStringLiteral("Envio por FTP");
+		row.message = translateMessage(task.message);
+		row.mode = task.mode == TransferMode::DirectInstall
+			? QCoreApplication::translate("QueueModel", "Direct install")
+			: QCoreApplication::translate("QueueModel", "FTP upload");
 		row.active = task.state == TaskState::Installing || task.state == TaskState::Sending
 			|| task.state == TaskState::Validating;
 		row.bytesPerSecond = row.active ? task.bytesPerSecond : 0.0;

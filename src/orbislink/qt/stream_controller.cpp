@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "orbislink/qt/stream_controller.h"
 
+#include "orbislink/qt/translate_message.h"
 #include "orbislink/stream/account_id.h"
+#include "orbislink/common/util.h"
 
+#include <QKeySequence>
 #include <QTimer>
 
 #include "orbislink/common/log.h"
@@ -14,18 +17,18 @@ namespace orbislink {
 
 namespace {
 
-// O mesmo Account ID nas três formas, para o QML poder mostrar as outras
-// duas enquanto se escreve numa delas.
+// The same Account ID in the three forms, so QML can show the other
+// two while one of them is being typed.
 QVariantMap formsFromAccountId(const AccountId &id)
 {
-	QVariantMap mapa;
-	mapa[QStringLiteral("valid")] = id.valid;
-	mapa[QStringLiteral("base64")] = QString::fromStdString(id.base64);
-	mapa[QStringLiteral("hex")] = QString::fromStdString(id.hex);
-	mapa[QStringLiteral("decimal")] = QString::fromStdString(id.decimal);
-	mapa[QStringLiteral("format")] = QString::fromStdString(id.format);
-	mapa[QStringLiteral("error")] = QString::fromStdString(id.error);
-	return mapa;
+	QVariantMap keyMap;
+	keyMap[QStringLiteral("valid")] = id.valid;
+	keyMap[QStringLiteral("base64")] = QString::fromStdString(id.base64);
+	keyMap[QStringLiteral("hex")] = QString::fromStdString(id.hex);
+	keyMap[QStringLiteral("decimal")] = QString::fromStdString(id.decimal);
+	keyMap[QStringLiteral("format")] = QString::fromStdString(id.format);
+	keyMap[QStringLiteral("error")] = translateMessage(id.error);
+	return keyMap;
 }
 
 } // namespace
@@ -63,26 +66,26 @@ StreamController::StreamController(QObject *parent)
 	  registration_(std::make_unique<StreamRegistration>()),
 	  session_(std::make_unique<StreamSession>())
 {
-	// Cada trama captada segue para o codificador do chiaki. A captura
-	// corre na thread da interface (o QAudioSource avisa por sinal), e a
-	// sessão protege-se com o seu próprio mutex.
+	// Every captured frame goes to chiaki's encoder. Capture runs on the
+	// interface thread (QAudioSource signals), and the session protects
+	// itself with its own mutex.
 	microphone_.setFrameCallback([this](const int16_t *pcm, size_t samples) {
 		session_->sendMicrophoneFrame(pcm, samples);
 	});
 
 	session_->setStateCallback([this](SessionState state, const std::string &detail) {
 		const QString slug = sessionStateSlug(state);
-		const QString texto = QString::fromStdString(detail);
+		const QString message = translateMessage(detail);
 		QMetaObject::invokeMethod(
 			this,
-			[this, slug, texto, state]() {
+			[this, slug, message, state]() {
 				sessionState_ = slug;
-				sessionDetail_ = texto;
+				sessionDetail_ = message;
 				streaming_ = state == SessionState::Connected;
 				if(streaming_)
 				{
 					gamepad_.start();
-					hardwareDecoder_ = session_->usingHardwareDecoder();
+					hardwareDecoder_ = lastHardwareDecoder_ = session_->usingHardwareDecoder();
 					lastFrameCount_ = video_.framesDelivered();
 					measuredFps_ = 0;
 					if(fpsTimer_)
@@ -106,7 +109,7 @@ StreamController::StreamController(QObject *parent)
 				}
 				emit sessionChanged();
 				if(state == SessionState::Failed)
-					emit notify(tr("Remote Play"), texto, true);
+					emit notify(tr("Remote Play"), message, true);
 			},
 			Qt::QueuedConnection);
 	});
@@ -119,15 +122,15 @@ StreamController::StreamController(QObject *parent)
 			Qt::QueuedConnection);
 	});
 
-	// Uma falha do som não pode ficar só numa linha do registo: avisa-se.
-	connect(&audio_, &AudioOutput::failed, this, [this](const QString &razao) {
+	// An audio failure must not stay as just a line in the log: notify.
+	connect(&audio_, &AudioOutput::failed, this, [this](const QString &reason) {
 		emit audioChanged();
-		emit notify(tr("Som"),
-			tr("%1 O vídeo continua; o som do jogo não vai ouvir-se.").arg(razao), true);
+		emit notify(tr("Sound"),
+			tr("%1 The video carries on; you will not hear the game.").arg(reason), true);
 	});
-	connect(&audio_, &AudioOutput::started, this, [this](const QString &dispositivo) {
+	connect(&audio_, &AudioOutput::started, this, [this](const QString &device) {
 		emit audioChanged();
-		logInfo("Som do Remote Play por " + dispositivo.toStdString());
+		logInfo("Remote Play sound through " + device.toStdString());
 	});
 
 	session_->setAudioCallbacks(
@@ -140,7 +143,7 @@ StreamController::StreamController(QObject *parent)
 			Qt::QueuedConnection);
 	});
 
-	// O comando físico só é lido durante a sessão.
+	// The physical controller is only read during the session.
 	connect(&gamepad_, &Gamepad::stateChanged, this,
 		[this](const StreamSession::ControllerState &state) {
 			if(streaming_)
@@ -149,44 +152,43 @@ StreamController::StreamController(QObject *parent)
 	connect(&gamepad_, &Gamepad::connectedChanged, this, &StreamController::gamepadChanged);
 
 	connect(&video_, &VideoBridge::firstFrame, this, [this](int width, int height) {
-		frameWidth_ = width;
-		frameHeight_ = height;
+		frameWidth_ = lastFrameWidth_ = width;
+		frameHeight_ = lastFrameHeight_ = height;
 		emit videoChanged();
 
-		// A consola pode mandar menos do que lhe foi pedido e não avisar
-		// ninguém. Uma PS4 que não seja Pro não faz 1080p: o chiaki baixa
-		// o pedido sozinho (video_profile_auto_downgrade) e o stream sai a
-		// 720p. Sem isto, quem escolheu 1080p fica a olhar para a mesma
-		// imagem de sempre a pensar que a definição não serve para nada.
+		// The console may send less than it was asked for without telling
+		// anyone. A non-Pro PS4 does not do 1080p: chiaki lowers the request
+		// by itself (video_profile_auto_downgrade) and the stream comes out
+		// at 720p. Without this, whoever chose 1080p is left looking at the
+		// same picture as always thinking the setting is useless.
 		if(height > 0 && resolution_ > 0 && height < resolution_)
 		{
-			const QString recebido = tr("%1×%2").arg(width).arg(height);
+			const QString received = tr("%1×%2").arg(width).arg(height);
 			if(resolution_ == 1080 && height == 720)
 			{
 				emit notify(tr("Remote Play"),
-					tr("Pediste 1080p e a consola está a enviar %1. O Remote Play de uma "
-					   "PS4 que não seja Pro não passa de 720p, e o pedido é baixado "
-					   "automaticamente.").arg(recebido),
+					tr("You asked for 1080p and the console is sending %1. Remote Play on a PS4 that is not a "
+						"Pro does not go above 720p, and the request is downgraded automatically.").arg(received),
 					false);
 			}
 			else
 			{
 				emit notify(tr("Remote Play"),
-					tr("Pediste %1p e a consola está a enviar %2.")
-						.arg(resolution_).arg(recebido),
+					tr("You asked for %1p and the console is sending %2.")
+						.arg(resolution_).arg(received),
 					false);
 			}
 		}
 	});
 
-	// Os fps medidos, uma vez por segundo. É a única forma honesta de
-	// responder a "isto está mesmo a 60?": contar o que chega ao ecrã.
+	// Measured fps, once per second. It is the only honest way to answer
+	// "is this really at 60?": count what reaches the screen.
 	fpsTimer_ = new QTimer(this);
 	fpsTimer_->setInterval(1000);
 	connect(fpsTimer_, &QTimer::timeout, this, [this]() {
-		const qint64 agora = video_.framesDelivered();
-		measuredFps_ = static_cast<int>(agora - lastFrameCount_);
-		lastFrameCount_ = agora;
+		const qint64 now = video_.framesDelivered();
+		measuredFps_ = static_cast<int>(now - lastFrameCount_);
+		lastFrameCount_ = now;
 		emit videoChanged();
 	});
 }
@@ -202,9 +204,19 @@ void StreamController::setAddress(const QString &address)
 	if(address_ == address)
 		return;
 	address_ = address;
-	loadCredentials();
-	emit registrationChanged();
-	refreshConsole();
+	cancelOneClick();
+	// What was known belonged to the previous console: the name, state, type
+	// and registration key. Keeping it until the new one answered made the
+	// new one's card show the old one's data (and store it as its own).
+	HostInfo fresh;
+	fresh.address = address.toStdString();
+	applyHost(fresh);
+	consoleState_ = QStringLiteral("unknown");
+	emit consoleChanged();
+	// No notice: the card already shows what the console answered, and an
+	// error notification just for choosing a console that is off looked
+	// like something had gone wrong.
+	probe(false);
 }
 
 void StreamController::applySettings(const Settings &settings)
@@ -217,8 +229,51 @@ void StreamController::applySettings(const Settings &settings)
 	rumbleEnabled_ = settings.streamRumble;
 	touchpadFromMouse_ = settings.streamTouchpadFromMouse;
 	gamepad_.setRumbleEnabled(rumbleEnabled_);
+	// The Account ID the console in use already accepted; if it has not
+	// accepted any yet, the last one any console accepted.
 	accountId_ = QString::fromStdString(settings.streamAccountId);
+	for(const ConsoleEntry &console : settings.consoles)
+		if(console.address == settings.consoleAddress && !console.accountId.empty())
+			accountId_ = QString::fromStdString(console.accountId);
+	keyboard_.setBindings(settings.keyboardBindings);
 	emit settingsApplied();
+	emit keyBindingsChanged();
+}
+
+QVariantMap StreamController::keyBindings() const
+{
+	QVariantMap keyMap;
+	for(const auto &pair : keyboard_.bindings())
+		keyMap.insert(QString::fromStdString(pair.first), pair.second);
+	return keyMap;
+}
+
+bool StreamController::setKeyBinding(const QString &action, int key)
+{
+	KeyboardMap::Bindings fresh = keyboard_.bindings();
+	if(!KeyboardMap::rebind(fresh, action.toStdString(), key))
+		return false;
+	emit keyBindingsEdited(fresh);
+	return true;
+}
+
+void StreamController::resetKeyBindings() { emit keyBindingsEdited({}); }
+
+QString StreamController::keyName(int key) const
+{
+	switch(key)
+	{
+	// QKeySequence spells these out in full; they fit better like this
+	// on the keyboard drawing.
+		case Qt::Key_Return: return QStringLiteral("Enter");
+		case Qt::Key_Backspace: return QStringLiteral("⌫");
+		case Qt::Key_Up: return QStringLiteral("↑");
+		case Qt::Key_Down: return QStringLiteral("↓");
+		case Qt::Key_Left: return QStringLiteral("←");
+		case Qt::Key_Right: return QStringLiteral("→");
+		case Qt::Key_Space: return tr("Space");
+		default: return QKeySequence(key).toString(QKeySequence::NativeText);
+	}
 }
 
 void StreamController::loadCredentials()
@@ -237,16 +292,84 @@ void StreamController::applyHost(const HostInfo &info)
 	emit registrationChanged();
 }
 
-void StreamController::refreshConsole()
+QVariantMap StreamController::describeHost(const HostInfo &info)
 {
-	// Diz sempre alguma coisa: quando falta o endereço e quando acaba. Um
-	// "Procurar" calado parece não fazer nada.
+	QVariantMap status;
+	status[QStringLiteral("state")] = info.found ? stateName(info.state) : QStringLiteral("offline");
+	status[QStringLiteral("name")] = QString::fromStdString(info.name);
+	status[QStringLiteral("address")] = QString::fromStdString(info.address);
+	status[QStringLiteral("ps5")] = info.ps5;
+	status[QStringLiteral("registered")] = info.found && store_.load(info.id).valid;
+	status[QStringLiteral("hostId")] = QString::fromStdString(info.id);
+	return status;
+}
+
+void StreamController::probeConsoles(const QStringList &addresses)
+{
+	if(probing_ || addresses.isEmpty())
+		return;
+	probing_ = true;
+	std::vector<std::string> items;
+	for(const QString &address : addresses)
+		items.push_back(address.toStdString());
+	std::thread([this, items]() {
+		std::vector<HostInfo> replies;
+		for(const std::string &address : items)
+		{
+			HostInfo info = StreamDiscovery::peek(address, 1200);
+			info.address = address;
+			replies.push_back(info);
+		}
+		QMetaObject::invokeMethod(
+			this,
+			[this, replies]() {
+				probing_ = false;
+				for(const HostInfo &info : replies)
+					consoleStates_[QString::fromStdString(info.address)] = describeHost(info);
+				emit consoleStatesChanged();
+			},
+			Qt::QueuedConnection);
+	}).detach();
+}
+
+void StreamController::scanNetwork()
+{
+	if(scanning_)
+		return;
+	scanning_ = true;
+	scanResults_.clear();
+	emit scanChanged();
+	std::thread([this]() {
+		const std::vector<HostInfo> found = StreamDiscovery::scan(2500);
+		QMetaObject::invokeMethod(
+			this,
+			[this, found]() {
+				scanning_ = false;
+				scanResults_.clear();
+				for(const HostInfo &info : found)
+					scanResults_.append(describeHost(info));
+				emit scanChanged();
+			},
+			Qt::QueuedConnection);
+	}).detach();
+}
+
+void StreamController::refreshConsole() { probe(true); }
+
+void StreamController::probe(bool reportResult)
+{
+	// Always say something: when the address is missing and when it ends. A
+	// silent check looks like it does nothing.
 	if(address_.isEmpty())
 	{
-		emit notify(tr("Procurar"),
-			tr("Falta o endereço IP da consola. Define-o nas definições."), true);
+		if(reportResult)
+			emit notify(tr("Search"),
+				tr("The console IP address is missing. Set it in the settings."), true);
 		return;
 	}
+	// A check requested while one is already running is not lost: the
+	// running one reports at the end instead.
+	notifyWhenDone_ = notifyWhenDone_ || reportResult;
 	if(searching_)
 		return;
 	searching_ = true;
@@ -257,26 +380,38 @@ void StreamController::refreshConsole()
 		const HostInfo info = StreamDiscovery::probe(address, 1500);
 		QMetaObject::invokeMethod(
 			this,
-			[this, info]() {
+			[this, info, address]() {
 				searching_ = false;
+				const bool announce = notifyWhenDone_;
+				notifyWhenDone_ = false;
+				// Meanwhile another console was selected: this reply no longer
+				// belongs to it. Ask the new one.
+				if(address != address_.toStdString())
+				{
+					emit consoleChanged();
+					probe(announce);
+					return;
+				}
 				applyHost(info);
+				if(!announce)
+					return;
 				if(!info.found)
 				{
-					emit notify(tr("Procurar"),
-						tr("A consola em %1 não respondeu. Está ligada, na mesma rede, e com "
-						   "o Remote Play activado?").arg(address_),
+					emit notify(tr("Search"),
+						tr("The console at %1 did not answer. Is it on, on the same network, and with Remote Play "
+							"enabled?").arg(address_),
 						true);
 					return;
 				}
-				const QString nome = QString::fromStdString(info.name);
+				const QString name = QString::fromStdString(info.name);
 				if(consoleState() == QLatin1String("standby"))
-					emit notify(tr("Procurar"),
-						tr("%1 encontrada, em repouso. Usa \"Acordar consola\".")
-							.arg(nome.isEmpty() ? address_ : nome),
+					emit notify(tr("Search"),
+						tr("%1 found, in rest mode. Click its box to wake it.")
+							.arg(name.isEmpty() ? address_ : name),
 						false);
 				else
-					emit notify(tr("Procurar"),
-						tr("%1 encontrada e pronta.").arg(nome.isEmpty() ? address_ : nome),
+					emit notify(tr("Search"),
+						tr("%1 found and ready.").arg(name.isEmpty() ? address_ : name),
 						false);
 			},
 			Qt::QueuedConnection);
@@ -288,24 +423,25 @@ void StreamController::wakeUp()
 	if(!credentials_.valid)
 	{
 		emit notify(tr("Remote Play"),
-			tr("Regista primeiro a consola: sem a chave de registo ela ignora o pedido."), true);
+			tr("Register the console first: without the registration key it ignores the request."), true);
 		return;
 	}
 	const std::string address = address_.toStdString();
 	const uint64_t credential = credentials_.wakeupCredential();
 	const bool ps5 = credentials_.ps5;
 	std::thread([this, address, credential, ps5]() {
-		std::string erro;
-		const bool ok = StreamDiscovery::wakeup(address, credential, ps5, &erro);
-		const QString mensagem = ok
-			? tr("Pedido enviado. A consola demora alguns segundos a acordar.")
-			: QString::fromStdString(erro);
+		std::string err;
+		const bool ok = StreamDiscovery::wakeup(address, credential, ps5, &err);
+		const QString message = ok
+			? tr("Request sent. The console takes a few seconds to wake up.")
+			: translateMessage(err);
 		QMetaObject::invokeMethod(
 			this,
-			[this, ok, mensagem]() {
-				emit notify(tr("Acordar consola"), mensagem, !ok);
+			[this, ok, message]() {
+				emit notify(tr("Wake the console"), message, !ok);
+				// No notice: just woken, it is normal not to answer yet.
 				if(ok)
-					refreshConsole();
+					probe(false);
 			},
 			Qt::QueuedConnection);
 	}).detach();
@@ -313,39 +449,45 @@ void StreamController::wakeUp()
 
 QString StreamController::videoSummary() const
 {
-	QString texto;
-	texto += QStringLiteral("  pedido       %1p, %2 fps%3\n")
+	QString message;
+	message += QStringLiteral("  requested    %1p, %2 fps%3\n")
 		.arg(resolution_)
 		.arg(fps_)
 		.arg(bitrateKbps_ > 0 ? QStringLiteral(", %1 kbps").arg(bitrateKbps_)
-							  : QStringLiteral(", bitrate automático"));
+							  : QStringLiteral(", automatic bitrate"));
 	if(frameWidth_ > 0)
 	{
-		texto += QStringLiteral("  a chegar     %1×%2, %3 fps medidos\n")
+		message += QStringLiteral("  arriving     %1×%2, %3 fps measured\n")
 			.arg(frameWidth_).arg(frameHeight_).arg(measuredFps_);
 		if(frameHeight_ < resolution_)
-			texto += QStringLiteral("  => a consola baixou a resolução; uma PS4 que não "
-									"seja Pro não passa de 720p\n");
+			message += QStringLiteral("  => the console lowered the resolution; a PS4 that is "
+									"not a Pro does not go above 720p\n");
+	}
+	else if(lastFrameWidth_ > 0)
+	{
+		message += QStringLiteral("  arriving     (no session now; the last one was %1×%2)\n")
+			.arg(lastFrameWidth_).arg(lastFrameHeight_);
 	}
 	else
 	{
-		texto += QStringLiteral("  a chegar     (nenhum fotograma ainda)\n");
+		message += QStringLiteral("  arriving     (no frame yet)\n");
 	}
-	texto += QStringLiteral("  descodificação %1\n")
-		.arg(hardwareDecoder_ ? QStringLiteral("placa gráfica")
-							  : QStringLiteral("processador"));
-	return texto;
+	message += QStringLiteral("  decoding     %1\n")
+		.arg(hardwareDecoder_ || (!streaming_ && lastHardwareDecoder_)
+			? QStringLiteral("graphics card")
+			: QStringLiteral("processor"));
+	return message;
 }
 
-QVariantMap StreamController::accountIdForms(const QString &texto) const
+QVariantMap StreamController::accountIdForms(const QString &message) const
 {
-	return formsFromAccountId(parseAccountId(texto.toStdString()));
+	return formsFromAccountId(parseAccountId(message.toStdString()));
 }
 
-QVariantMap StreamController::accountIdReversed(const QString &texto) const
+QVariantMap StreamController::accountIdReversed(const QString &message) const
 {
-	const AccountId lido = parseAccountId(texto.toStdString());
-	return formsFromAccountId(lido.valid ? reverseAccountIdBytes(lido) : lido);
+	const AccountId parsed = parseAccountId(message.toStdString());
+	return formsFromAccountId(parsed.valid ? reverseAccountIdBytes(parsed) : parsed);
 }
 
 void StreamController::registerConsole(const QString &pin, const QString &accountIdBase64)
@@ -354,13 +496,13 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 		return;
 	if(address_.isEmpty())
 	{
-		emit notify(tr("Registo"), tr("Define primeiro o endereço IP da consola."), true);
+		emit notify(tr("Registration"), tr("Set the console's IP address first."), true);
 		return;
 	}
 
-	// Sem descoberta não se sabe o alvo — e sem alvo o chiaki fala o
-	// protocolo errado. Se ainda não se perguntou, pergunta-se fora da
-	// thread da UI e volta-se aqui.
+	// Without discovery the target is unknown — and without a target chiaki
+	// speaks the wrong protocol. If nobody asked yet, ask off the UI
+	// thread and come back here.
 	if(!host_.found)
 	{
 		const std::string address = address_.toStdString();
@@ -377,9 +519,8 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 					applyHost(info);
 					if(!info.found)
 					{
-						emit notify(tr("Registo"),
-							tr("A consola não respondeu. Confirma o IP e que está ligada "
-							   "(não em repouso)."),
+						emit notify(tr("Registration"),
+							tr("The console did not answer. Check the IP, and that it is on (not in rest mode)."),
 							true);
 						return;
 					}
@@ -390,74 +531,72 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 		return;
 	}
 
-	// O que vem daqui pode estar em hexadecimal, em decimal ou já em
-	// base64: converte-se aqui, para nenhum caminho da interface conseguir
-	// mandar para a consola uma forma que ela não entende.
-	const AccountId conta = parseAccountId(accountIdBase64.toStdString());
-	if(!conta.valid)
+	// What comes in here may be hexadecimal, decimal or already base64: it
+	// is converted here, so no path in the interface can send the console
+	// a form it does not understand.
+	const AccountId account = parseAccountId(accountIdBase64.toStdString());
+	if(!account.valid)
 	{
-		emit notify(tr("Registo"), QString::fromStdString(conta.error), true);
+		emit notify(tr("Registration"), translateMessage(account.error), true);
 		return;
 	}
 
 	StreamRegistration::Request request;
 	request.address = address_.toStdString();
-	request.accountIdBase64 = conta.base64;
+	request.accountIdBase64 = account.base64;
 	request.pin = pin.trimmed().toUInt();
 	request.target = host_.target;
 	request.ps5 = host_.ps5;
 
 	if(request.target == 0)
 	{
-		emit notify(tr("Registo"),
-			tr("A consola respondeu mas não disse a versão de sistema. "
-			   "Tenta \"Procurar\" outra vez."),
+		emit notify(tr("Registration"),
+			tr("The console answered but did not report its system version. Click its box to search again."),
 			true);
 		return;
 	}
 
-	std::string erro;
-	// Guarda-se sempre em base64, seja qual for a forma em que foi escrito:
-	// é a única que a consola aceita, e assim não há duas coisas guardadas
-	// com o mesmo nome.
-	const QString accountParaGuardar = QString::fromStdString(conta.base64);
+	std::string err;
+	// Always stored in base64, whatever form it was typed in: it is the
+	// only one the console accepts, and this way there are not two things
+	// stored under the same name.
+	const QString accountToSave = QString::fromStdString(account.base64);
 	const bool started = registration_->start(
 		request,
-		[this, accountParaGuardar](bool ok, StreamCredentials credentials, std::string error) {
-			const QString mensagem = QString::fromStdString(error);
+		[this, accountToSave](bool ok, StreamCredentials credentials, std::string error) {
+			const QString message = translateMessage(error);
 			QMetaObject::invokeMethod(
 				this,
-				[this, ok, credentials, mensagem, accountParaGuardar]() {
+				[this, ok, credentials, message, accountToSave]() {
 					registering_ = false;
 					if(ok)
 					{
 						credentials_ = credentials;
 						store_.save(credentials);
-						// Guardado só depois de a consola o aceitar: um ID
-						// errado não fica a estorvar a próxima tentativa.
-						if(!accountParaGuardar.isEmpty())
+						// Stored only after the console accepts it: a wrong
+						// ID does not get in the way of the next attempt.
+						if(!accountToSave.isEmpty())
 						{
-							accountId_ = accountParaGuardar;
-							emit accountIdAccepted(accountParaGuardar);
+							accountId_ = accountToSave;
+							emit accountIdAccepted(accountToSave);
 							emit settingsApplied();
 						}
-						emit notify(tr("Registo"),
-							tr("Consola registada. O Account ID fica guardado — da próxima "
-							   "só precisas do PIN."), false);
+						emit notify(tr("Registration"),
+							tr("Console registered. The Account ID is saved — next time you only need the PIN."), false);
 					}
 					else
 					{
-						emit notify(tr("Registo"), mensagem, true);
+						emit notify(tr("Registration"), message, true);
 					}
 					emit registrationChanged();
 				},
 				Qt::QueuedConnection);
 		},
-		&erro);
+		&err);
 
 	if(!started)
 	{
-		emit notify(tr("Registo"), QString::fromStdString(erro), true);
+		emit notify(tr("Registration"), translateMessage(err), true);
 		return;
 	}
 	registering_ = true;
@@ -475,35 +614,57 @@ void StreamController::forgetConsole()
 {
 	if(!credentials_.valid)
 		return;
-	store_.forget(credentials_.hostId);
-	credentials_ = {};
+	forgetRegistration(QString::fromStdString(credentials_.hostId));
+}
+
+QVariantList StreamController::registrations() const
+{
+	QVariantList items;
+	for(const StreamCredentials &credentials : store_.all())
+	{
+		QVariantMap entry;
+		entry[QStringLiteral("hostId")] = QString::fromStdString(credentials.hostId);
+		entry[QStringLiteral("name")] = QString::fromStdString(credentials.nickname);
+		entry[QStringLiteral("ps5")] = credentials.ps5;
+		items.append(entry);
+	}
+	return items;
+}
+
+void StreamController::forgetRegistration(const QString &hostId)
+{
+	const std::string id = hostId.toStdString();
+	if(id.empty() || !store_.forget(id))
+		return;
+	if(iequals(credentials_.hostId, id))
+		credentials_ = {};
 	emit registrationChanged();
-	emit notify(tr("Remote Play"), tr("Registo apagado deste PC."), false);
+	emit notify(tr("Remote Play"), tr("Registration removed from this PC."), false);
 }
 
 void StreamController::startStream()
 {
 	if(streaming_)
 	{
-		emit notify(tr("Remote Play"), tr("A sessão já está a decorrer."), false);
+		emit notify(tr("Remote Play"), tr("The session is already running."), false);
 		return;
 	}
 	if(address_.isEmpty())
 	{
 		emit notify(tr("Remote Play"),
-			tr("Falta o endereço IP da consola. Define-o nas definições."), true);
+			tr("The console IP address is missing. Set it in the settings."), true);
 		return;
 	}
 	if(!credentials_.valid)
 	{
 		emit notify(tr("Remote Play"),
-			tr("Regista primeiro a consola: carrega em \"Registar consola\"."), true);
+			tr("Register the console first: click its box and follow the steps."), true);
 		return;
 	}
-	// Dizer que se está a ligar antes de bloquear a pensar: o clique tem de
-	// ter resposta imediata.
+	// Say it is connecting before blocking to think: the click must get
+	// an immediate response.
 	sessionState_ = QStringLiteral("connecting");
-	sessionDetail_ = tr("A ligar a %1…").arg(address_);
+	sessionDetail_ = tr("Connecting to %1…").arg(address_);
 	emit sessionChanged();
 
 	StreamSession::Config config;
@@ -514,26 +675,162 @@ void StreamController::startStream()
 	config.settings.bitrateKbps = static_cast<unsigned int>(bitrateKbps_);
 	config.settings.hardwareDecoder = wantHardware_;
 
-	std::string erro;
-	if(!session_->start(config, &erro))
+	std::string err;
+	if(!session_->start(config, &err))
 	{
 		sessionState_ = QStringLiteral("failed");
-		sessionDetail_ = QString::fromStdString(erro);
+		sessionDetail_ = translateMessage(err);
 		emit sessionChanged();
 		emit notify(tr("Remote Play"), sessionDetail_, true);
 	}
 }
 
+void StreamController::setConnectStage(const QString &stage)
+{
+	if(connectStage_ == stage)
+		return;
+	connectStage_ = stage;
+	emit connectStageChanged();
+}
+
+void StreamController::connectOneClick()
+{
+	if(streaming_ || sessionState_ == QLatin1String("connecting") || !connectStage_.isEmpty())
+		return;
+	if(address_.isEmpty())
+	{
+		emit notify(tr("Remote Play"),
+			tr("The console IP address is missing. Set it in the settings."), true);
+		return;
+	}
+	// Each click is its own run: a reply from a cancelled run, or from
+	// another console, no longer decides anything.
+	const quint64 run = ++oneClickRun_;
+	setConnectStage(QStringLiteral("checking"));
+	const std::string address = address_.toStdString();
+	std::thread([this, address, run]() {
+		const HostInfo info = StreamDiscovery::probe(address, 1500);
+		QMetaObject::invokeMethod(
+			this,
+			[this, info, address, run]() {
+				if(run != oneClickRun_ || address != address_.toStdString())
+					return;
+				applyHost(info);
+				oneClickDecide(info);
+			},
+			Qt::QueuedConnection);
+	}).detach();
+}
+
+void StreamController::oneClickDecide(const HostInfo &info)
+{
+	if(!info.found)
+	{
+		setConnectStage(QString());
+		emit notify(tr("Connect"),
+			tr("The console at %1 did not respond. Check that it is on (or in rest mode), on the same "
+				"network, with Remote Play enabled.").arg(address_),
+			true);
+		return;
+	}
+	if(!credentials_.valid)
+	{
+		setConnectStage(QString());
+		emit registrationNeeded();
+		return;
+	}
+	if(info.state == HostState::Standby)
+	{
+		// Wake it once and then ask every two seconds, until it says it
+		// is ready.
+		if(connectStage_ != QLatin1String("waking"))
+		{
+			setConnectStage(QStringLiteral("waking"));
+			wakeAttempts_ = 0;
+			const std::string address = address_.toStdString();
+			const uint64_t credential = credentials_.wakeupCredential();
+			const bool ps5 = credentials_.ps5;
+			std::thread([address, credential, ps5]() {
+				StreamDiscovery::wakeup(address, credential, ps5, nullptr);
+			}).detach();
+		}
+		if(!wakeTimer_)
+		{
+			wakeTimer_ = new QTimer(this);
+			wakeTimer_->setSingleShot(true);
+			wakeTimer_->setInterval(2000);
+			connect(wakeTimer_, &QTimer::timeout, this, &StreamController::oneClickPoll);
+		}
+		wakeTimer_->start();
+		return;
+	}
+	if(info.state != HostState::Ready)
+	{
+		setConnectStage(QString());
+		emit notify(tr("Connect"), tr("The console answered but did not say whether it is ready. Try "
+			"again in a moment."), true);
+		return;
+	}
+	setConnectStage(QString());
+	startStream();
+}
+
+void StreamController::oneClickPoll()
+{
+	if(connectStage_ != QLatin1String("waking"))
+		return;
+	// A console takes about twenty seconds to wake up; after a minute it
+	// is not going to wake up by itself.
+	if(++wakeAttempts_ > 30)
+	{
+		setConnectStage(QString());
+		emit notify(tr("Connect"),
+			tr("The console did not wake up. Check in its settings that it can be turned on over the "
+				"network (Stay Connected to the Internet / Enable Turning On from Network)."),
+			true);
+		return;
+	}
+	const quint64 run = oneClickRun_;
+	const std::string address = address_.toStdString();
+	std::thread([this, address, run]() {
+		const HostInfo info = StreamDiscovery::peek(address, 1500);
+		QMetaObject::invokeMethod(
+			this,
+			[this, info, address, run]() {
+				if(run != oneClickRun_ || address != address_.toStdString()
+					|| connectStage_ != QLatin1String("waking"))
+					return;
+				if(!info.found)
+				{
+					// Midway through booting it may stop answering for a bit.
+					wakeTimer_->start();
+					return;
+				}
+				applyHost(info);
+				oneClickDecide(info);
+			},
+			Qt::QueuedConnection);
+	}).detach();
+}
+
+void StreamController::cancelOneClick()
+{
+	++oneClickRun_;
+	if(wakeTimer_)
+		wakeTimer_->stop();
+	setConnectStage(QString());
+}
+
 void StreamController::stopStream()
 {
-	// O microfone não sobrevive à sessão: se ficasse aberto, a luz do
-	// microfone ficaria acesa sem nada do outro lado.
+	// The microphone does not outlive the session: if it stayed open, the
+	// microphone light would stay on with nothing on the other end.
 	microphone_.stop();
 	session_->stopMicrophone();
 	emit microphoneChanged();
 
-	// O stop do chiaki espera pelas threads dele; fora da thread da UI para
-	// a janela não congelar.
+	// chiaki's stop waits for its threads; off the UI thread so the
+	// window does not freeze.
 	std::thread([this]() { session_->stop(); }).detach();
 }
 
@@ -548,9 +845,9 @@ void StreamController::setMuted(bool muted)
 QString StreamController::microphoneState() const
 {
 	if(!microphone_.active() || !session_->microphoneActive())
-		return QStringLiteral("desligado");
-	return session_->microphoneMuted() ? QStringLiteral("em-silencio")
-									   : QStringLiteral("a-falar");
+		return QStringLiteral("off");
+	return session_->microphoneMuted() ? QStringLiteral("muted")
+									   : QStringLiteral("talking");
 }
 
 void StreamController::setMicrophoneEnabled(bool enabled)
@@ -565,30 +862,30 @@ void StreamController::setMicrophoneEnabled(bool enabled)
 
 	if(!streaming_)
 	{
-		emit notify(tr("Microfone"), tr("Liga primeiro o Remote Play."), true);
+		emit notify(tr("Microphone"), tr("Start Remote Play first."), true);
 		return;
 	}
 
-	// A consola primeiro: se ela recusar, não vale a pena abrir o
-	// microfone da máquina e deixar a luz acesa sem se enviar nada.
-	std::string erro;
-	if(!session_->startMicrophone(&erro))
+	// The console first: if it refuses, there is no point opening the
+	// machine's microphone and leaving the light on without sending anything.
+	std::string err;
+	if(!session_->startMicrophone(&err))
 	{
-		emit notify(tr("Microfone"),
-			tr("A consola não aceitou o microfone: %1").arg(QString::fromStdString(erro)), true);
+		emit notify(tr("Microphone"),
+			tr("The console did not accept the microphone: %1").arg(translateMessage(err)), true);
 		return;
 	}
 
-	QString erroCaptura;
-	if(!microphone_.start(&erroCaptura))
+	QString captureError;
+	if(!microphone_.start(&captureError))
 	{
 		session_->stopMicrophone();
-		emit notify(tr("Microfone"), erroCaptura, true);
+		emit notify(tr("Microphone"), captureError, true);
 		emit microphoneChanged();
 		return;
 	}
-	emit notify(tr("Microfone"),
-		tr("A falar para a consola (%1).").arg(microphone_.deviceName()), false);
+	emit notify(tr("Microphone"),
+		tr("Talking to the console (%1).").arg(microphone_.deviceName()), false);
 	emit microphoneChanged();
 }
 
@@ -622,8 +919,8 @@ bool StreamController::keyReleased(int key)
 
 void StreamController::releaseAllKeys()
 {
-	// Ao perder o foco larga-se tudo: senão uma tecla fica presa e o
-	// personagem continua a andar sozinho do outro lado.
+	// On losing focus release everything: otherwise a key stays stuck and
+	// the character keeps walking by itself on the other side.
 	if(keyboard_.empty())
 		return;
 	keyboard_.clear();
@@ -634,13 +931,13 @@ void StreamController::releaseAllKeys()
 
 namespace {
 
-uint16_t paraTouchpad(double normalizado, uint16_t maximo)
+uint16_t toTouchpad(double normalised, uint16_t maximum)
 {
-	if(normalizado < 0.0)
-		normalizado = 0.0;
-	if(normalizado > 1.0)
-		normalizado = 1.0;
-	return static_cast<uint16_t>(normalizado * maximo);
+	if(normalised < 0.0)
+		normalised = 0.0;
+	if(normalised > 1.0)
+		normalised = 1.0;
+	return static_cast<uint16_t>(normalised * maximum);
 }
 
 } // namespace
@@ -649,16 +946,16 @@ void StreamController::touchBegin(double x, double y)
 {
 	if(!streaming_ || !touchpadFromMouse_ || touchId_ >= 0)
 		return;
-	touchId_ = session_->startTouch(paraTouchpad(x, StreamSession::kTouchpadWidth),
-		paraTouchpad(y, StreamSession::kTouchpadHeight));
+	touchId_ = session_->startTouch(toTouchpad(x, StreamSession::kTouchpadWidth),
+		toTouchpad(y, StreamSession::kTouchpadHeight));
 }
 
 void StreamController::touchMove(double x, double y)
 {
 	if(!streaming_ || touchId_ < 0)
 		return;
-	session_->moveTouch(touchId_, paraTouchpad(x, StreamSession::kTouchpadWidth),
-		paraTouchpad(y, StreamSession::kTouchpadHeight));
+	session_->moveTouch(touchId_, toTouchpad(x, StreamSession::kTouchpadWidth),
+		toTouchpad(y, StreamSession::kTouchpadHeight));
 }
 
 void StreamController::touchEnd()

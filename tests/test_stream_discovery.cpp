@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Descoberta de consolas sem ter uma PS4 à mão: um servidor UDP responde
-// exactamente como a consola responde ao pedido SRCH (uma resposta no
-// formato HTTP, ver lib/src/discovery.c do chiaki-ng), e verifica-se que o
-// que sai do StreamDiscovery é o que lá estava.
+// Console discovery without a PS4 at hand: a UDP server answers exactly
+// as the console answers the SRCH request (an HTTP-format reply, see
+// chiaki-ng's lib/src/discovery.c), and it is checked that what comes out
+// of StreamDiscovery is what was there.
 
 #include "orbislink/net/socket_compat.h"
 #include "orbislink/stream/discovery.h"
+#include "orbislink/stream/stream_trace.h"
 #include "test_support.h"
 
 #include <atomic>
@@ -18,7 +19,7 @@ using namespace orbislink;
 
 namespace {
 
-// Consola falsa: escuta em UDP e responde a quem lhe perguntar.
+// Fake console: listens on UDP and answers whoever asks.
 class FakeConsole
 {
 public:
@@ -51,7 +52,7 @@ public:
 	{
 		if(!running_.exchange(false))
 			return;
-		// Acorda o recvfrom com um datagrama para si própria.
+		// Wakes recvfrom with a datagram to itself.
 		socket_t waker = socket(AF_INET, SOCK_DGRAM, 0);
 		if(waker != ORBISLINK_INVALID_SOCKET)
 		{
@@ -59,8 +60,8 @@ public:
 			addr.sin_family = AF_INET;
 			addr.sin_port = htons(port_);
 			inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
-			const char nada = 0;
-			sendto(waker, &nada, 1, 0, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr));
+			const char nothing = 0;
+			sendto(waker, &nothing, 1, 0, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr));
 			closeSocketHandle(waker);
 		}
 		if(thread_.joinable())
@@ -99,33 +100,33 @@ private:
 	std::string lastRequest_;
 };
 
-// Resposta de uma consola ligada, com um jogo a correr.
-const char *kPronta =
+// Reply from a console that is on, with a game running.
+const char *kReady =
 	"HTTP/1.1 200 Ok\r\n"
 	"host-id:1122334455AA\r\n"
 	"host-type:PS4\r\n"
-	"host-name:PS4 da sala\r\n"
+	"host-name:Living room PS4\r\n"
 	"host-request-port:997\r\n"
 	"device-discovery-protocol-version:00020020\r\n"
 	"system-version:09000000\r\n"
 	"running-app-name:Bloodborne\r\n"
 	"running-app-titleid:CUSA00207\r\n";
 
-// Consola em repouso: mesmo formato, código 620.
-const char *kEmRepouso =
+// Console in rest mode: same format, code 620.
+const char *kStandby =
 	"HTTP/1.1 620 Server Standby\r\n"
 	"host-id:1122334455AA\r\n"
 	"host-type:PS4\r\n"
-	"host-name:PS4 da sala\r\n"
+	"host-name:Living room PS4\r\n"
 	"host-request-port:997\r\n"
 	"device-discovery-protocol-version:00020020\r\n"
 	"system-version:09000000\r\n";
 
 } // namespace
 
-ORBISLINK_TEST(le_uma_consola_pronta)
+ORBISLINK_TEST(reads_a_ready_console)
 {
-	FakeConsole console(kPronta);
+	FakeConsole console(kReady);
 	CHECK(console.start());
 
 	const HostInfo info = StreamDiscovery::probe("127.0.0.1", 2000, console.port());
@@ -133,20 +134,20 @@ ORBISLINK_TEST(le_uma_consola_pronta)
 	CHECK(info.found);
 	CHECK(info.state == HostState::Ready);
 	CHECK(!info.ps5);
-	CHECK_EQ(info.name, std::string("PS4 da sala"));
+	CHECK_EQ(info.name, std::string("Living room PS4"));
 	CHECK_EQ(info.id, std::string("1122334455AA"));
 	CHECK_EQ(info.systemVersion, std::string("09000000"));
 	CHECK_EQ(info.runningAppName, std::string("Bloodborne"));
 	CHECK_EQ(info.runningAppTitleId, std::string("CUSA00207"));
 	CHECK_EQ(int(info.requestPort), 997);
-	// O alvo tem de sair da versão de sistema, senão o chiaki fala o
-	// protocolo errado com a consola.
+	// The target has to come from the system version, otherwise chiaki
+	// speaks the wrong protocol to the console.
 	CHECK(info.target != 0);
 }
 
-ORBISLINK_TEST(distingue_consola_em_repouso)
+ORBISLINK_TEST(tells_apart_a_console_in_rest_mode)
 {
-	FakeConsole console(kEmRepouso);
+	FakeConsole console(kStandby);
 	CHECK(console.start());
 
 	const HostInfo info = StreamDiscovery::probe("127.0.0.1", 2000, console.port());
@@ -156,36 +157,55 @@ ORBISLINK_TEST(distingue_consola_em_repouso)
 	CHECK(info.runningAppName.empty());
 }
 
-ORBISLINK_TEST(envia_um_pedido_de_procura)
+ORBISLINK_TEST(sends_a_search_request)
 {
-	FakeConsole console(kPronta);
+	FakeConsole console(kReady);
 	CHECK(console.start());
 	StreamDiscovery::probe("127.0.0.1", 2000, console.port());
 
-	// O que a consola recebeu tem de ser mesmo um SRCH do protocolo do PS4.
-	const std::string pedido = console.lastRequest();
-	CHECK(pedido.find("SRCH") != std::string::npos);
-	CHECK(pedido.find("device-discovery-protocol-version:00020020") != std::string::npos);
+	// What the console received must really be a PS4-protocol SRCH.
+	const std::string request = console.lastRequest();
+	CHECK(request.find("SRCH") != std::string::npos);
+	CHECK(request.find("device-discovery-protocol-version:00020020") != std::string::npos);
 }
 
-ORBISLINK_TEST(sem_ninguem_a_responder_nao_inventa_consola)
+ORBISLINK_TEST(with_nobody_answering_no_console_is_invented)
 {
-	FakeConsole console(kPronta);
+	FakeConsole console(kReady);
 	CHECK(console.start());
-	const uint16_t porta = console.port();
+	const uint16_t port = console.port();
 	console.stop();
 
-	const HostInfo info = StreamDiscovery::probe("127.0.0.1", 600, porta);
+	const HostInfo info = StreamDiscovery::probe("127.0.0.1", 600, port);
 
 	CHECK(!info.found);
 	CHECK(info.state == HostState::Unknown);
 }
 
-ORBISLINK_TEST(acordar_sem_credencial_recusa_em_vez_de_enviar_lixo)
+ORBISLINK_TEST(periodic_check_does_not_touch_the_attempt)
 {
-	std::string erro;
-	CHECK(!StreamDiscovery::wakeup("127.0.0.1", 0, false, &erro));
-	CHECK(!erro.empty());
+	FakeConsole console(kReady);
+	CHECK(console.start());
+
+	// An attempt in progress: the periodic check of the other consoles
+	// must not close this step nor add its own.
+	StreamTrace::instance().begin("192.0.2.1");
+	StreamTrace::instance().step("first frame");
+	const HostInfo info = StreamDiscovery::peek("127.0.0.1", 2000, console.port());
+
+	CHECK(info.found);
+	const auto steps = StreamTrace::instance().steps();
+	CHECK_EQ(steps.size(), std::size_t(1));
+	CHECK_EQ(steps.front().name, std::string("first frame"));
+	CHECK(steps.front().result == StreamTrace::Result::Running);
+	StreamTrace::instance().end();
+}
+
+ORBISLINK_TEST(wakeup_without_credential_refuses_instead_of_sending_garbage)
+{
+	std::string err;
+	CHECK(!StreamDiscovery::wakeup("127.0.0.1", 0, false, &err));
+	CHECK(!err.empty());
 }
 
 TEST_MAIN()

@@ -16,8 +16,8 @@ const char *logLevelName(LogLevel level)
 	{
 		case LogLevel::Debug: return "DEBUG";
 		case LogLevel::Info: return "INFO";
-		case LogLevel::Warning: return "AVISO";
-		case LogLevel::Error: return "ERRO";
+		case LogLevel::Warning: return "WARNING";
+		case LogLevel::Error: return "ERROR";
 		case LogLevel::Off: return "OFF";
 	}
 	return "?";
@@ -155,10 +155,10 @@ void logError(const std::string &message) { Logger::instance().log(LogLevel::Err
 
 std::string redactSensitive(const std::string &text)
 {
-	// Construído uma vez e dentro de um try: se a biblioteca de expressões
-	// regulares desta plataforma recusar o padrão, perde-se a redação mas não
-	// se perde a aplicação. (Sem isto, um regex_error aqui mataria o processo
-	// em silêncio na primeira mensagem escrita.)
+	// Built once and inside a try: if this platform's regular expression
+	// library refuses the pattern, redaction is lost but the app is not.
+	// (Without this, a regex_error here would silently kill the process on
+	// the first message written.)
 	static bool available = true;
 	if(!available)
 		return text;
@@ -167,7 +167,7 @@ std::string redactSensitive(const std::string &text)
 		std::vector<std::regex> compiled;
 		try
 		{
-			// Chaves/segredos em pares chave=valor ou JSON.
+			// Keys/secrets in key=value pairs or JSON.
 			compiled.emplace_back(
 				R"((?:"?)(account_?id|psn_?account_?id|rp_?key|rp_?regist_?key|regist_?key|morning|apssid|ap_?bssid|ap_?key|ap_?name|user_?credential|password|token)("?\s*[:=]\s*)("?)([^",}\s]+))",
 				std::regex::icase);
@@ -184,7 +184,7 @@ std::string redactSensitive(const std::string &text)
 	{
 		std::string out = text;
 		for(const auto &re : patterns)
-			out = std::regex_replace(out, re, "$1$2$3[REDIGIDO]");
+			out = std::regex_replace(out, re, "$1$2$3[REDACTED]");
 		return out;
 	}
 	catch(const std::exception &)

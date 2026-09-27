@@ -240,7 +240,7 @@ public:
 	{
 		skipWhitespace();
 		if(pos_ >= text_.size())
-			return fail("fim inesperado do documento");
+			return fail("unexpected end of document");
 		char c = text_[pos_];
 		switch(c)
 		{
@@ -260,7 +260,7 @@ public:
 					out = Json::fromBool(true);
 					return true;
 				}
-				return fail("literal inválido");
+				return fail("invalid literal");
 			case 'f':
 				if(text_.compare(pos_, 5, "false") == 0)
 				{
@@ -268,7 +268,7 @@ public:
 					out = Json::fromBool(false);
 					return true;
 				}
-				return fail("literal inválido");
+				return fail("invalid literal");
 			case 'n':
 				if(text_.compare(pos_, 4, "null") == 0)
 				{
@@ -276,7 +276,7 @@ public:
 					out = Json();
 					return true;
 				}
-				return fail("literal inválido");
+				return fail("invalid literal");
 			default: return parseNumber(out);
 		}
 	}
@@ -299,7 +299,7 @@ private:
 	bool fail(const std::string &msg)
 	{
 		if(error_.empty())
-			error_ = msg + " (posição " + std::to_string(pos_) + ")";
+			error_ = msg + " (position " + std::to_string(pos_) + ")";
 		return false;
 	}
 
@@ -318,12 +318,12 @@ private:
 			skipWhitespace();
 			std::string key;
 			if(pos_ >= text_.size() || text_[pos_] != '"')
-				return fail("esperava-se uma chave entre aspas");
+				return fail("expected a quoted key");
 			if(!parseString(key))
 				return false;
 			skipWhitespace();
 			if(pos_ >= text_.size() || text_[pos_] != ':')
-				return fail("esperava-se ':'");
+				return fail("expected ':'");
 			++pos_;
 			Json value;
 			if(!parseValue(value))
@@ -331,7 +331,7 @@ private:
 			out.set(key, std::move(value));
 			skipWhitespace();
 			if(pos_ >= text_.size())
-				return fail("objeto não terminado");
+				return fail("unterminated object");
 			if(text_[pos_] == ',')
 			{
 				++pos_;
@@ -342,7 +342,7 @@ private:
 				++pos_;
 				return true;
 			}
-			return fail("esperava-se ',' ou '}'");
+			return fail("expected ',' or '}'");
 		}
 	}
 
@@ -364,7 +364,7 @@ private:
 			out.push(std::move(value));
 			skipWhitespace();
 			if(pos_ >= text_.size())
-				return fail("lista não terminada");
+				return fail("unterminated array");
 			if(text_[pos_] == ',')
 			{
 				++pos_;
@@ -375,7 +375,7 @@ private:
 				++pos_;
 				return true;
 			}
-			return fail("esperava-se ',' ou ']'");
+			return fail("expected ',' or ']'");
 		}
 	}
 
@@ -394,7 +394,7 @@ private:
 				continue;
 			}
 			if(pos_ >= text_.size())
-				return fail("escape truncado");
+				return fail("truncated escape");
 			char e = text_[pos_++];
 			switch(e)
 			{
@@ -408,7 +408,7 @@ private:
 				case 't': out.push_back('\t'); break;
 				case 'u': {
 					if(pos_ + 4 > text_.size())
-						return fail("escape \\u truncado");
+						return fail("truncated \\u escape");
 					unsigned code = 0;
 					for(int i = 0; i < 4; ++i)
 					{
@@ -417,16 +417,16 @@ private:
 						if(h >= '0' && h <= '9') code |= static_cast<unsigned>(h - '0');
 						else if(h >= 'a' && h <= 'f') code |= static_cast<unsigned>(h - 'a' + 10);
 						else if(h >= 'A' && h <= 'F') code |= static_cast<unsigned>(h - 'A' + 10);
-						else return fail("escape \\u inválido");
+						else return fail("invalid \\u escape");
 					}
 					pos_ += 4;
 					appendUtf8(out, code);
 					break;
 				}
-				default: return fail("escape desconhecido");
+				default: return fail("unknown escape");
 			}
 		}
-		return fail("string não terminada");
+		return fail("unterminated string");
 	}
 
 	static void appendUtf8(std::string &out, unsigned code)
@@ -455,7 +455,7 @@ private:
 			negative = text_[pos_] == '-';
 			++pos_;
 		}
-		// Extensão: hexadecimal (o instalador da consola devolve 0x...).
+		// Extension: hexadecimal (the console's installer returns 0x...).
 		if(pos_ + 1 < text_.size() && text_[pos_] == '0'
 			&& (text_[pos_ + 1] == 'x' || text_[pos_ + 1] == 'X'))
 		{
@@ -471,7 +471,7 @@ private:
 				else value |= static_cast<uint64_t>(h - 'A' + 10);
 			}
 			if(pos_ == digitsStart)
-				return fail("número hexadecimal sem dígitos");
+				return fail("hexadecimal number without digits");
 			int64_t signedValue = static_cast<int64_t>(value);
 			out = Json::fromInt(negative ? -signedValue : signedValue);
 			return true;
@@ -491,7 +491,7 @@ private:
 				break;
 		}
 		if(pos_ == start)
-			return fail("valor inesperado");
+			return fail("unexpected value");
 		std::string token = text_.substr(start, pos_ - start);
 		try
 		{
@@ -502,7 +502,7 @@ private:
 		}
 		catch(...)
 		{
-			return fail("número inválido");
+			return fail("invalid number");
 		}
 		return true;
 	}

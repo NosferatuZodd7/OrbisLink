@@ -58,7 +58,7 @@ std::string socketErrorString(int error)
 	FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM
 			| FORMAT_MESSAGE_IGNORE_INSERTS,
 		nullptr, static_cast<DWORD>(error), 0, reinterpret_cast<LPSTR>(&buffer), 0, nullptr);
-	std::string message = buffer ? buffer : "erro desconhecido";
+	std::string message = buffer ? buffer : "unknown error";
 	if(buffer)
 		LocalFree(buffer);
 	while(!message.empty() && (message.back() == '\n' || message.back() == '\r'))

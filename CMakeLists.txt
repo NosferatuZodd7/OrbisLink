@@ -1,54 +1,54 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 cmake_minimum_required(VERSION 3.16)
-project(OrbisLink VERSION 1.0.0 LANGUAGES C CXX)
+project(OrbisLink VERSION 1.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(ORBISLINK_VERSION_NAME "${PROJECT_VERSION}" CACHE STRING
-	"Versão mostrada pela aplicação e escrita no registo")
+	"Version shown by the application and written to the log")
 
-# De onde a aplicação vai buscar as actualizações, no formato "dono/nome".
+# Where the application fetches updates from, as "owner/name".
 #
-# Fica vazio de propósito. O CI passa -DORBISLINK_REPOSITORY com o
-# repositório onde a compilação está a correr, portanto quem bifurcar este
-# projecto fica automaticamente a apontar para a sua própria cópia, sem
-# editar uma linha — e não há nome nenhum escrito no código.
+# It is empty on purpose. CI passes -DORBISLINK_REPOSITORY with the
+# repository the build is running in, so whoever forks this project
+# automatically points at their own copy, without editing a line — and
+# no name is written in the code.
 #
-# Sem isto definido, a verificação de actualizações diz que não está
-# configurada, em vez de ir bater a um repositório que não é o dela.
+# Without this set, the update check says it is not configured, instead
+# of hitting a repository that is not its own.
 set(ORBISLINK_REPOSITORY "" CACHE STRING
-	"Repositório GitHub \"dono/nome\" de onde vêm as actualizações")
+	"GitHub repository \"owner/name\" the updates come from")
 
-option(ORBISLINK_BUILD_TESTS "Compilar os testes do núcleo" ON)
-option(ORBISLINK_BUILD_GUI "Compilar a interface gráfica (precisa de Qt 6)" ON)
-option(ORBISLINK_BUILD_CLI "Compilar a ferramenta de linha de comandos" ON)
-option(ORBISLINK_WARNINGS_AS_ERRORS "Tratar avisos como erros" OFF)
-option(ORBISLINK_ENABLE_STREAM "Compilar o Remote Play (precisa do submódulo chiaki-ng)" ON)
+option(ORBISLINK_BUILD_TESTS "Build the core tests" ON)
+option(ORBISLINK_BUILD_GUI "Build the graphical interface (needs Qt 6)" ON)
+option(ORBISLINK_BUILD_CLI "Build the command-line tool" ON)
+option(ORBISLINK_WARNINGS_AS_ERRORS "Treat warnings as errors" OFF)
+option(ORBISLINK_ENABLE_STREAM "Build Remote Play (needs the chiaki-ng submodule)" ON)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(CURL REQUIRED)
 find_package(Threads REQUIRED)
 
 if(WIN32)
-	# Os recursos (.rc) levam o ícone da aplicação para dentro do executável.
+	# The resources (.rc) put the application icon inside the executable.
 	enable_language(RC)
-	# NOMINMAX é obrigatório: <windows.h> define macros min/max que partem
-	# std::min/std::max. WIN32_LEAN_AND_MEAN corta cabeçalhos desnecessários e
-	# _WIN32_WINNT fixa o mínimo em Windows 7 (GetAdaptersAddresses e afins).
+	# NOMINMAX is required: <windows.h> defines min/max macros that break
+	# std::min/std::max. WIN32_LEAN_AND_MEAN trims unneeded headers and
+	# _WIN32_WINNT sets the minimum at Windows 7 (GetAdaptersAddresses and co.).
 	add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0601 WINVER=0x0601)
 endif()
 
 if(MSVC)
-	# Sem /utf-8 o MSVC lê os literais em português na codepage do sistema e
-	# as mensagens saem trocadas (e os testes falham a comparar strings).
+	# Without /utf-8 MSVC reads non-ASCII literals in the system codepage and
+	# the messages come out garbled (and the tests fail comparing strings).
 	add_compile_options(/utf-8)
 	add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif()
 
-# O Remote Play vive numa biblioteca à parte: o núcleo, a CLI e os testes
-# continuam a compilar sem o chiaki e sem o FFmpeg.
+# Remote Play lives in a separate library: the core, the CLI and the tests
+# still build without chiaki and without FFmpeg.
 if(ORBISLINK_ENABLE_STREAM)
 	include(ChiakiLib)
 endif()
@@ -129,11 +129,11 @@ endif()
 if(ORBISLINK_BUILD_GUI)
 	set(ORBISLINK_QT_COMPONENTS Core Gui Qml Quick QuickControls2)
 	if(ORBISLINK_ENABLE_STREAM)
-		# O vídeo do Remote Play entra pelo VideoOutput do QML: é o Qt que
-		# converte o YUV na placa gráfica, em vez de o fazermos no processador.
-		# Só o módulo Multimedia é preciso para compilar; o VideoOutput vem do
-		# plugin em tempo de execução (qml6-module-qtmultimedia em Debian/
-		# Ubuntu, tratado pelo windeployqt em Windows).
+		# The Remote Play video goes through QML's VideoOutput: Qt converts
+		# the YUV on the GPU, instead of us doing it on the CPU.
+		# Only the Multimedia module is needed to build; VideoOutput comes from
+		# the plugin at runtime (qml6-module-qtmultimedia on Debian/
+		# Ubuntu, handled by windeployqt on Windows).
 		list(APPEND ORBISLINK_QT_COMPONENTS Multimedia)
 	endif()
 	find_package(Qt6 6.2 COMPONENTS ${ORBISLINK_QT_COMPONENTS} QUIET)
@@ -168,8 +168,8 @@ if(ORBISLINK_BUILD_GUI)
 		if(ORBISLINK_ENABLE_STREAM)
 			target_link_libraries(orbislink-gui PRIVATE orbislink_stream Qt6::Multimedia)
 			target_compile_definitions(orbislink-gui PRIVATE ORBISLINK_HAS_STREAM=1)
-			# O comando físico entra pelo SDL. É opcional: sem ele a aplicação
-			# compila e o teclado continua a fazer de comando.
+			# The physical controller comes in through SDL. It is optional: without
+			# it the application builds and the keyboard still acts as the controller.
 			find_package(SDL2 QUIET)
 			if(SDL2_FOUND)
 				target_compile_definitions(orbislink-gui PRIVATE ORBISLINK_HAS_GAMEPAD=1)
@@ -179,17 +179,17 @@ if(ORBISLINK_BUILD_GUI)
 					target_include_directories(orbislink-gui PRIVATE ${SDL2_INCLUDE_DIRS})
 					target_link_libraries(orbislink-gui PRIVATE ${SDL2_LIBRARIES})
 				endif()
-				message(STATUS "OrbisLink: comando físico activado (SDL2)")
+				message(STATUS "OrbisLink: physical controller enabled (SDL2)")
 			else()
-				message(STATUS "OrbisLink: SDL2 não encontrado — só o teclado faz de comando")
+				message(STATUS "OrbisLink: SDL2 not found — only the keyboard acts as the controller")
 			endif()
 		endif()
 		set_target_properties(orbislink-gui PROPERTIES WIN32_EXECUTABLE ON MACOSX_BUNDLE ON)
 
-		# Em Windows, põe ao lado do .exe as DLLs de que ele depende (libcurl e
-		# companhia, vindas do vcpkg). Sem isto o programa arranca e morre logo
-		# com "libcurl.dll não foi encontrado". O runtime do MSVC é tratado à
-		# parte, pelo windeployqt --compiler-runtime.
+		# On Windows, puts the DLLs it depends on (libcurl and co., from vcpkg)
+		# next to the .exe. Without this the program starts and dies at once
+		# with "libcurl.dll was not found". The MSVC runtime is handled
+		# separately, by windeployqt --compiler-runtime.
 		if(WIN32 AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.21)
 			add_custom_command(TARGET orbislink-gui POST_BUILD
 				COMMAND ${CMAKE_COMMAND} -E
@@ -199,9 +199,9 @@ if(ORBISLINK_BUILD_GUI)
 				VERBATIM)
 		endif()
 
-		message(STATUS "OrbisLink: interface gráfica activada (Qt ${Qt6_VERSION})")
+		message(STATUS "OrbisLink: graphical interface enabled (Qt ${Qt6_VERSION})")
 	else()
-		message(STATUS "OrbisLink: Qt 6 não encontrado — só o núcleo e a CLI são compilados")
+		message(STATUS "OrbisLink: Qt 6 not found — only the core and the CLI are built")
 	endif()
 endif()
 

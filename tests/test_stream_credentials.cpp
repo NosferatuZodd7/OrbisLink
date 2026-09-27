@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// As credenciais do Remote Play são o que autentica este PC na consola.
-// Se forem mal guardadas ou mal lidas, o sintoma na consola é "sessão
-// recusada" sem mais explicação — por isso vale a pena testá-las aqui.
+// The Remote Play credentials are what authenticates this PC on the console.
+// If they are stored or read wrongly, the symptom on the console is "session
+// refused" with no further explanation — so they are worth testing here.
 
 #include "orbislink/stream/credentials.h"
 #include "test_support.h"
@@ -14,17 +14,17 @@ using namespace orbislink;
 
 namespace {
 
-std::string ficheiroTemporario()
+std::string tempFile()
 {
-	static int contador = 0;
-	return std::string(".orbislink-test-credenciais-") + std::to_string(++contador) + ".json";
+	static int counter = 0;
+	return std::string(".orbislink-test-credentials-") + std::to_string(++counter) + ".json";
 }
 
-StreamCredentials exemplo(const std::string &hostId, const std::string &nome)
+StreamCredentials sample(const std::string &hostId, const std::string &name)
 {
 	StreamCredentials c;
 	c.valid = true;
-	c.nickname = nome;
+	c.nickname = name;
 	c.hostId = hostId;
 	c.registKey = "1a2b3c4d";
 	c.rpKeyHex = "000102030405060708090A0B0C0D0E0F";
@@ -36,144 +36,164 @@ StreamCredentials exemplo(const std::string &hostId, const std::string &nome)
 
 } // namespace
 
-ORBISLINK_TEST(hexadecimal_ida_e_volta)
+ORBISLINK_TEST(hexadecimal_round_trip)
 {
 	const unsigned char original[4] = { 0x00, 0x7F, 0x80, 0xFF };
 	const std::string hex = bytesToHex(original, sizeof(original));
 	CHECK_EQ(hex, std::string("007F80FF"));
 
-	unsigned char devolta[4] {};
-	CHECK(hexToBytes(hex, devolta, sizeof(devolta)));
+	unsigned char roundTrip[4] {};
+	CHECK(hexToBytes(hex, roundTrip, sizeof(roundTrip)));
 	for(size_t i = 0; i < sizeof(original); ++i)
-		CHECK_EQ(int(devolta[i]), int(original[i]));
+		CHECK_EQ(int(roundTrip[i]), int(original[i]));
 }
 
-ORBISLINK_TEST(hexadecimal_recusa_o_que_nao_e_hexadecimal)
+ORBISLINK_TEST(hexadecimal_refuses_what_is_not_hexadecimal)
 {
-	unsigned char destino[4] {};
+	unsigned char destination[4] {};
 	// Comprimento errado.
-	CHECK(!hexToBytes("00FF", destino, sizeof(destino)));
-	// Caracteres que não são dígitos hexadecimais.
-	CHECK(!hexToBytes("00ZZ80FF", destino, sizeof(destino)));
+	CHECK(!hexToBytes("00FF", destination, sizeof(destination)));
+	// Characters that are not hexadecimal digits.
+	CHECK(!hexToBytes("00ZZ80FF", destination, sizeof(destination)));
 }
 
-ORBISLINK_TEST(account_id_tem_de_ser_base64_de_oito_bytes)
+ORBISLINK_TEST(account_id_must_be_base64_of_eight_bytes)
 {
 	unsigned char id[8] {};
-	std::string erro;
+	std::string err;
 
-	// Oito bytes em base64.
-	CHECK(decodeAccountId("AQIDBAUGBwg=", id, &erro));
-	CHECK(erro.empty());
+	// Eight bytes in base64.
+	CHECK(decodeAccountId("AQIDBAUGBwg=", id, &err));
+	CHECK(err.empty());
 	CHECK_EQ(int(id[0]), 1);
 	CHECK_EQ(int(id[7]), 8);
 
-	// Vazio, texto que não é base64, e base64 com o tamanho errado: os três
-	// têm de ser recusados com uma explicação.
-	for(const char *mau : { "", "isto não é base64", "AQID" })
+	// Empty, text that is not base64, and base64 of the wrong size: all three
+	// must be refused with an explanation.
+	for(const char *bad : { "", "this is not base64", "AQID" })
 	{
-		erro.clear();
-		CHECK(!decodeAccountId(mau, id, &erro));
-		CHECK(!erro.empty());
+		err.clear();
+		CHECK(!decodeAccountId(bad, id, &err));
+		CHECK(!err.empty());
 	}
 }
 
-ORBISLINK_TEST(guarda_e_le_uma_consola)
+ORBISLINK_TEST(saves_and_reads_a_console)
 {
-	const std::string caminho = ficheiroTemporario();
-	CredentialStore store(caminho);
+	const std::string path = tempFile();
+	CredentialStore store(path);
 
-	CHECK(store.save(exemplo("AABBCCDDEEFF", "PS4 da sala")));
+	CHECK(store.save(sample("AABBCCDDEEFF", "Living room PS4")));
 
-	const StreamCredentials lida = store.load("AABBCCDDEEFF");
-	CHECK(lida.valid);
-	CHECK_EQ(lida.nickname, std::string("PS4 da sala"));
-	CHECK_EQ(lida.registKey, std::string("1a2b3c4d"));
-	CHECK_EQ(lida.rpKeyHex, std::string("000102030405060708090A0B0C0D0E0F"));
-	CHECK_EQ(int(lida.rpKeyType), 2);
-	CHECK_EQ(lida.target, 1000);
+	const StreamCredentials loaded = store.load("AABBCCDDEEFF");
+	CHECK(loaded.valid);
+	CHECK_EQ(loaded.nickname, std::string("Living room PS4"));
+	CHECK_EQ(loaded.registKey, std::string("1a2b3c4d"));
+	CHECK_EQ(loaded.rpKeyHex, std::string("000102030405060708090A0B0C0D0E0F"));
+	CHECK_EQ(int(loaded.rpKeyType), 2);
+	CHECK_EQ(loaded.target, 1000);
 
-	std::remove(caminho.c_str());
+	std::remove(path.c_str());
 }
 
-ORBISLINK_TEST(guarda_varias_consolas_sem_as_confundir)
+ORBISLINK_TEST(a_ps5_stored_without_the_flag_stays_a_ps5)
 {
-	const std::string caminho = ficheiroTemporario();
-	CredentialStore store(caminho);
+	const std::string path = tempFile();
+	CredentialStore store(path);
 
-	CHECK(store.save(exemplo("AABBCCDDEEFF", "Sala")));
-	StreamCredentials segunda = exemplo("112233445566", "Quarto");
-	segunda.registKey = "ffffffff";
-	CHECK(store.save(segunda));
+	// What was stored after registering a PS5: a PS5 target, but "ps5"
+	// false. Uncorrected, the session spoke the PS4 protocol.
+	StreamCredentials ps5 = sample("0A1B2C3D4E5F", "Bedroom PS5");
+	ps5.target = 1000100;
+	ps5.ps5 = false;
+	CHECK(store.save(ps5));
+
+	CHECK(store.load("0A1B2C3D4E5F").ps5);
+	CHECK(!store.load("0A1B2C3D4E5F").nickname.empty());
+	CHECK(store.save(sample("AABBCCDDEEFF", "Living room PS4")));
+	CHECK(!store.load("AABBCCDDEEFF").ps5);
+
+	std::remove(path.c_str());
+}
+
+ORBISLINK_TEST(saves_several_consoles_without_mixing_them_up)
+{
+	const std::string path = tempFile();
+	CredentialStore store(path);
+
+	CHECK(store.save(sample("AABBCCDDEEFF", "Living room")));
+	StreamCredentials second = sample("112233445566", "Bedroom");
+	second.registKey = "ffffffff";
+	CHECK(store.save(second));
 
 	CHECK_EQ(store.all().size(), size_t(2));
 	CHECK_EQ(store.load("AABBCCDDEEFF").registKey, std::string("1a2b3c4d"));
 	CHECK_EQ(store.load("112233445566").registKey, std::string("ffffffff"));
-	// Uma consola desconhecida não devolve a de outra pessoa.
+	// An unknown console does not return someone else's.
 	CHECK(!store.load("999999999999").valid);
 
-	std::remove(caminho.c_str());
+	std::remove(path.c_str());
 }
 
-ORBISLINK_TEST(voltar_a_registar_substitui_em_vez_de_duplicar)
+ORBISLINK_TEST(registering_again_replaces_instead_of_duplicating)
 {
-	const std::string caminho = ficheiroTemporario();
-	CredentialStore store(caminho);
+	const std::string path = tempFile();
+	CredentialStore store(path);
 
-	CHECK(store.save(exemplo("AABBCCDDEEFF", "Nome antigo")));
-	StreamCredentials nova = exemplo("AABBCCDDEEFF", "Nome novo");
-	nova.registKey = "deadbeef";
-	CHECK(store.save(nova));
+	CHECK(store.save(sample("AABBCCDDEEFF", "Old name")));
+	StreamCredentials fresh = sample("AABBCCDDEEFF", "New name");
+	fresh.registKey = "deadbeef";
+	CHECK(store.save(fresh));
 
 	CHECK_EQ(store.all().size(), size_t(1));
 	CHECK_EQ(store.load("AABBCCDDEEFF").registKey, std::string("deadbeef"));
-	CHECK_EQ(store.load("AABBCCDDEEFF").nickname, std::string("Nome novo"));
+	CHECK_EQ(store.load("AABBCCDDEEFF").nickname, std::string("New name"));
 
-	std::remove(caminho.c_str());
+	std::remove(path.c_str());
 }
 
-ORBISLINK_TEST(esquecer_apaga_so_a_consola_pedida)
+ORBISLINK_TEST(forget_deletes_only_the_requested_console)
 {
-	const std::string caminho = ficheiroTemporario();
-	CredentialStore store(caminho);
-	store.save(exemplo("AABBCCDDEEFF", "Sala"));
-	store.save(exemplo("112233445566", "Quarto"));
+	const std::string path = tempFile();
+	CredentialStore store(path);
+	store.save(sample("AABBCCDDEEFF", "Living room"));
+	store.save(sample("112233445566", "Bedroom"));
 
 	CHECK(store.forget("AABBCCDDEEFF"));
 	CHECK(!store.load("AABBCCDDEEFF").valid);
 	CHECK(store.load("112233445566").valid);
-	// Esquecer o que já não lá está não é um erro silencioso: devolve false.
+	// Forgetting what is no longer there is not a silent error: it returns false.
 	CHECK(!store.forget("AABBCCDDEEFF"));
 
-	std::remove(caminho.c_str());
+	std::remove(path.c_str());
 }
 
-ORBISLINK_TEST(a_credencial_para_acordar_sai_da_chave_de_registo)
+ORBISLINK_TEST(wakeup_credential_comes_from_the_registration_key)
 {
-	StreamCredentials c = exemplo("AABBCCDDEEFF", "Sala");
-	// A chave é lida como número hexadecimal, que é o que o pacote de
-	// wakeup leva (chiaki_discovery_wakeup, campo user_credential).
+	StreamCredentials c = sample("AABBCCDDEEFF", "Living room");
+	// The key is read as a hexadecimal number, which is what the wakeup
+	// packet carries (chiaki_discovery_wakeup, user_credential field).
 	CHECK_EQ(c.wakeupCredential(), uint64_t(0x1a2b3c4d));
 
 	c.registKey.clear();
 	CHECK_EQ(c.wakeupCredential(), uint64_t(0));
 }
 
-ORBISLINK_TEST(um_ficheiro_estragado_nao_deita_a_aplicacao_abaixo)
+ORBISLINK_TEST(a_broken_file_does_not_bring_the_app_down)
 {
-	const std::string caminho = ficheiroTemporario();
+	const std::string path = tempFile();
 	{
-		FILE *f = std::fopen(caminho.c_str(), "wb");
+		FILE *f = std::fopen(path.c_str(), "wb");
 		CHECK(f != nullptr);
-		std::fputs("isto não é json {{{", f);
+		std::fputs("this is not json {{{", f);
 		std::fclose(f);
 	}
 
-	CredentialStore store(caminho);
+	CredentialStore store(path);
 	CHECK(store.all().empty());
 	CHECK(!store.load("AABBCCDDEEFF").valid);
 
-	std::remove(caminho.c_str());
+	std::remove(path.c_str());
 }
 
 TEST_MAIN()

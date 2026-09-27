@@ -3,10 +3,12 @@
 
 #include "orbislink/common/json.h"
 #include "orbislink/common/log.h"
+#include "orbislink/common/tr.h"
 #include "orbislink/common/util.h"
 #include "orbislink/settings/settings_store.h"
 
 #include <chiaki/base64.h>
+#include <chiaki/common.h>
 
 #include <cstdio>
 #include <fstream>
@@ -61,7 +63,7 @@ bool decodeAccountId(const std::string &base64, unsigned char out[8], std::strin
 	if(trimmed.empty())
 	{
 		if(error)
-			*error = "Falta o Account ID da PSN.";
+			*error = QT_TRANSLATE_NOOP("Messages", "The PSN Account ID is missing.");
 		return false;
 	}
 	size_t size = 8;
@@ -70,8 +72,8 @@ bool decodeAccountId(const std::string &base64, unsigned char out[8], std::strin
 	if(result != CHIAKI_ERR_SUCCESS || size != 8)
 	{
 		if(error)
-			*error = "O Account ID não é válido: tem de ser o valor em base64, "
-					 "com 8 bytes (por exemplo \"AbCdEfGhIjK=\").";
+			*error = QT_TRANSLATE_NOOP("Messages", "The Account ID is not valid: it must be the base64 "
+				"value, 8 bytes long (for example \"AbCdEfGhIjK=\").");
 		return false;
 	}
 	return true;
@@ -81,7 +83,13 @@ CredentialStore::CredentialStore(std::string path) : path_(std::move(path)) {}
 
 std::string CredentialStore::defaultPath()
 {
-	return joinPath(SettingsStore::defaultDirectory(), "consolas-registadas.json");
+	const std::string directory = SettingsStore::defaultDirectory();
+	const std::string path = joinPath(directory, "registered-consoles.json");
+	// Older versions used a Portuguese file name; carry it over once.
+	const std::string legacy = joinPath(directory, "consolas-registadas.json");
+	if(!std::ifstream(path) && std::ifstream(legacy))
+		std::rename(legacy.c_str(), path.c_str());
+	return path;
 }
 
 std::vector<StreamCredentials> CredentialStore::all() const
@@ -93,12 +101,12 @@ std::vector<StreamCredentials> CredentialStore::all() const
 	std::ostringstream buffer;
 	buffer << file.rdbuf();
 
-	std::string erro;
-	const Json root = Json::parse(buffer.str(), &erro);
+	std::string err;
+	const Json root = Json::parse(buffer.str(), &err);
 	if(!root.isArray())
 	{
-		if(!erro.empty())
-			logWarning("Credenciais do Remote Play ilegíveis: " + erro);
+		if(!err.empty())
+			logWarning("Unreadable Remote Play credentials: " + err);
 		return out;
 	}
 
@@ -111,7 +119,10 @@ std::vector<StreamCredentials> CredentialStore::all() const
 		credentials.rpKeyHex = entry["rp_key"].toString();
 		credentials.rpKeyType = static_cast<uint32_t>(entry["rp_key_type"].toInt());
 		credentials.target = static_cast<int>(entry["target"].toInt());
-		credentials.ps5 = entry["ps5"].toBool();
+		// The target already says whether it is a PS5; the stored "ps5" may
+		// come from a version that always saved it as false after registration.
+		credentials.ps5 = entry["ps5"].toBool()
+			|| chiaki_target_is_ps5(static_cast<ChiakiTarget>(credentials.target));
 		credentials.valid = !credentials.registKey.empty() && !credentials.rpKeyHex.empty();
 		if(credentials.valid)
 			out.push_back(credentials);
@@ -121,16 +132,16 @@ std::vector<StreamCredentials> CredentialStore::all() const
 
 StreamCredentials CredentialStore::load(const std::string &hostId) const
 {
-	const std::vector<StreamCredentials> todas = all();
-	for(const StreamCredentials &credentials : todas)
+	const std::vector<StreamCredentials> stored = all();
+	for(const StreamCredentials &credentials : stored)
 	{
 		if(iequals(credentials.hostId, hostId))
 			return credentials;
 	}
-	// Sem host-id (a consola pode não ter respondido à descoberta) usa-se a
-	// única registada, se houver só uma.
-	if(hostId.empty() && todas.size() == 1)
-		return todas.front();
+	// Without a host-id (the console may not have answered discovery) the
+	// only registered one is used, if there is exactly one.
+	if(hostId.empty() && stored.size() == 1)
+		return stored.front();
 	return {};
 }
 
@@ -139,22 +150,22 @@ bool CredentialStore::save(const StreamCredentials &credentials)
 	if(credentials.registKey.empty() || credentials.rpKeyHex.empty())
 		return false;
 
-	std::vector<StreamCredentials> todas = all();
-	bool substituída = false;
-	for(StreamCredentials &existente : todas)
+	std::vector<StreamCredentials> stored = all();
+	bool replaced = false;
+	for(StreamCredentials &existing : stored)
 	{
-		if(iequals(existente.hostId, credentials.hostId))
+		if(iequals(existing.hostId, credentials.hostId))
 		{
-			existente = credentials;
-			substituída = true;
+			existing = credentials;
+			replaced = true;
 			break;
 		}
 	}
-	if(!substituída)
-		todas.push_back(credentials);
+	if(!replaced)
+		stored.push_back(credentials);
 
 	Json root = Json::makeArray();
-	for(const StreamCredentials &c : todas)
+	for(const StreamCredentials &c : stored)
 	{
 		Json entry = Json::makeObject();
 		entry.set("nickname", Json::fromString(c.nickname));
@@ -171,7 +182,7 @@ bool CredentialStore::save(const StreamCredentials &credentials)
 	std::ofstream file(path_, std::ios::binary | std::ios::trunc);
 	if(!file)
 	{
-		logError("Não consegui guardar as credenciais do Remote Play em " + path_);
+		logError("Could not save the Remote Play credentials to " + path_);
 		return false;
 	}
 	file << root.dump() << "\n";
@@ -180,21 +191,21 @@ bool CredentialStore::save(const StreamCredentials &credentials)
 
 bool CredentialStore::forget(const std::string &hostId)
 {
-	std::vector<StreamCredentials> todas = all();
-	const size_t antes = todas.size();
-	for(size_t i = 0; i < todas.size();)
+	std::vector<StreamCredentials> stored = all();
+	const size_t before = stored.size();
+	for(size_t i = 0; i < stored.size();)
 	{
-		if(iequals(todas[i].hostId, hostId))
-			todas.erase(todas.begin() + static_cast<long>(i));
+		if(iequals(stored[i].hostId, hostId))
+			stored.erase(stored.begin() + static_cast<long>(i));
 		else
 			++i;
 	}
-	if(todas.size() == antes)
+	if(stored.size() == before)
 		return false;
 
-	// Reescreve o ficheiro sem a consola esquecida.
+	// Rewrites the file without the forgotten console.
 	std::remove(path_.c_str());
-	for(const StreamCredentials &c : todas)
+	for(const StreamCredentials &c : stored)
 		save(c);
 	return true;
 }

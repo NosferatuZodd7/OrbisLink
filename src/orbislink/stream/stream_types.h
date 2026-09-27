@@ -6,44 +6,44 @@
 
 namespace orbislink {
 
-// Estado da consola tal como responde ao pedido de descoberta (porta
-// 987/UDP no PS4 — ver docs/validacao.md).
+// Console state as it answers the discovery request (port
+// 987/UDP on the PS4 — see docs/validation.md).
 enum class HostState { Unknown, Ready, Standby };
 
 const char *hostStateName(HostState state);
 
-// O que a consola diz sobre si própria quando responde à descoberta.
+// What the console says about itself when it answers discovery.
 struct HostInfo
 {
 	bool found = false;
 	HostState state = HostState::Unknown;
 	bool ps5 = false;
 	std::string address;
-	std::string name;           // nome que o utilizador deu à consola
-	std::string id;             // host-id, o MAC sem separadores
+	std::string name;           // name the user gave the console
+	std::string id;             // host-id, the MAC without separators
 	std::string systemVersion;  // ex.: "09000000"
 	std::string runningAppName;
 	std::string runningAppTitleId;
 	uint16_t requestPort = 0;
-	// Valor de ChiakiTarget correspondente à versão de sistema: é o que
-	// diz ao chiaki que protocolo falar.
+	// ChiakiTarget value matching the system version: it tells chiaki
+	// which protocol to speak.
 	int target = 0;
 };
 
-// O que fica guardado depois de registar a consola. Sem isto não há
-// sessão: a chave de registo e a "morning" são o que autentica o PC.
+// What is stored after registering the console. Without it there is no
+// session: the registration key and the "morning" are what authenticate the PC.
 struct StreamCredentials
 {
 	bool valid = false;
 	std::string nickname;
-	std::string hostId;       // MAC em hexadecimal, para casar com a descoberta
+	std::string hostId;       // MAC in hexadecimal, to match with discovery
 	std::string registKey;    // rp_regist_key, texto
-	std::string rpKeyHex;     // rp_key (16 bytes) em hexadecimal
+	std::string rpKeyHex;     // rp_key (16 bytes) in hexadecimal
 	uint32_t rpKeyType = 0;
 	int target = 0;
 	bool ps5 = false;
-	// Credencial de 64 bits usada para acordar a consola em repouso: é a
-	// própria chave de registo lida como hexadecimal.
+	// 64-bit credential used to wake a console in rest mode: it is the
+	// registration key itself read as hexadecimal.
 	uint64_t wakeupCredential() const;
 };
 

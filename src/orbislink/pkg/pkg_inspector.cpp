@@ -3,6 +3,7 @@
 
 #include "orbislink/common/bytes.h"
 #include "orbislink/common/log.h"
+#include "orbislink/common/tr.h"
 #include "orbislink/common/util.h"
 #include "orbislink/pkg/sfo_parser.h"
 
@@ -13,9 +14,9 @@ namespace orbislink {
 
 namespace {
 
-// Offsets do cabeçalho PKG (big-endian), confirmados em
+// PKG header offsets (big-endian), confirmed in
 // flatz/ps4_remote_pkg_installer/pkg.h.
-constexpr size_t kHeaderReadSize = 0x1000; // chega para todos os campos até 0x430
+constexpr size_t kHeaderReadSize = 0x1000; // enough for every field up to 0x430
 constexpr size_t kOffMagic = 0x00;
 constexpr size_t kOffEntryCount = 0x10;
 constexpr size_t kOffEntryTableOffset = 0x18;
@@ -55,18 +56,18 @@ const char *pkgCategoryCode(PkgCategory category)
 	return "";
 }
 
-const char *pkgCategoryLabelPt(PkgCategory category)
+const char *pkgCategoryLabel(PkgCategory category)
 {
 	switch(category)
 	{
-		case PkgCategory::Game: return "Jogo";
-		case PkgCategory::Patch: return "Patch";
-		case PkgCategory::Dlc: return "DLC";
-		case PkgCategory::Theme: return "Tema";
-		case PkgCategory::DeltaPatch: return "Patch delta";
+		case PkgCategory::Game: return QT_TRANSLATE_NOOP("Messages", "Game");
+		case PkgCategory::Patch: return QT_TRANSLATE_NOOP("Messages", "Patch");
+		case PkgCategory::Dlc: return QT_TRANSLATE_NOOP("Messages", "DLC");
+		case PkgCategory::Theme: return QT_TRANSLATE_NOOP("Messages", "Theme");
+		case PkgCategory::DeltaPatch: return QT_TRANSLATE_NOOP("Messages", "Delta patch");
 		case PkgCategory::Unknown: break;
 	}
-	return "Desconhecido";
+	return QT_TRANSLATE_NOOP("Messages", "Unknown");
 }
 
 int pkgCategoryInstallOrder(PkgCategory category)
@@ -95,7 +96,7 @@ std::string PkgInfo::displayTitle() const
 		return titleId;
 	if(!path.empty())
 		return baseName(path);
-	return "(sem título)";
+	return "(untitled)";
 }
 
 bool PkgInspector::hasPkgMagic(const std::string &path)
@@ -118,20 +119,20 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 	const int64_t size = fileSize(path);
 	if(size < 0)
 	{
-		info.error = "Não foi possível ler o ficheiro.";
+		info.error = QT_TRANSLATE_NOOP("Messages", "Could not read the file.");
 		return info;
 	}
 	info.fileSize = size;
 	if(size < kMinPkgSize)
 	{
-		info.error = "Não é um pkg PS4 válido (ficheiro demasiado pequeno).";
+		info.error = QT_TRANSLATE_NOOP("Messages", "Not a valid PS4 pkg (file too small).");
 		return info;
 	}
 
 	std::ifstream file(path, std::ios::binary);
 	if(!file)
 	{
-		info.error = "Não foi possível abrir o ficheiro.";
+		info.error = QT_TRANSLATE_NOOP("Messages", "Could not open the file.");
 		return info;
 	}
 
@@ -140,14 +141,14 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 		size < static_cast<int64_t>(kHeaderReadSize) ? size : static_cast<int64_t>(kHeaderReadSize));
 	if(!readAt(file, 0, header.data(), headerBytes))
 	{
-		info.error = "Não foi possível ler o cabeçalho do pkg.";
+		info.error = QT_TRANSLATE_NOOP("Messages", "Could not read the pkg header.");
 		return info;
 	}
 
 	if(!(header[kOffMagic] == 0x7F && header[kOffMagic + 1] == 'C' && header[kOffMagic + 2] == 'N'
 		   && header[kOffMagic + 3] == 'T'))
 	{
-		info.error = "Não é um pkg PS4 válido.";
+		info.error = QT_TRANSLATE_NOOP("Messages", "Not a valid PS4 pkg.");
 		return info;
 	}
 
@@ -172,21 +173,21 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 
 	if(entryCount == 0 || entryCount > kMaxEntryCount)
 	{
-		info.error = "Tabela de entradas do pkg inválida.";
+		info.error = QT_TRANSLATE_NOOP("Messages", "Invalid pkg entry table.");
 		return info;
 	}
 	const int64_t tableEnd = static_cast<int64_t>(entryTableOffset)
 		+ static_cast<int64_t>(entryCount) * static_cast<int64_t>(kTableEntrySize);
 	if(tableEnd > size)
 	{
-		info.error = "Tabela de entradas do pkg fora dos limites do ficheiro.";
+		info.error = QT_TRANSLATE_NOOP("Messages", "The pkg entry table is outside the file.");
 		return info;
 	}
 
 	std::vector<uint8_t> table(static_cast<size_t>(entryCount) * kTableEntrySize);
 	if(!readAt(file, entryTableOffset, table.data(), table.size()))
 	{
-		info.error = "Não foi possível ler a tabela de entradas do pkg.";
+		info.error = QT_TRANSLATE_NOOP("Messages", "Could not read the pkg entry table.");
 		return info;
 	}
 
@@ -209,7 +210,7 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 		}
 	}
 
-	// Metadados em falta não invalidam o pkg (§5.2): fica "(sem título)".
+	// Missing metadata does not invalidate the pkg (§5.2): it becomes "(untitled)".
 	if(sfoOffset >= 0 && sfoSize > 0 && sfoOffset + sfoSize <= size
 		&& static_cast<size_t>(sfoSize) <= options_.maxSfoBytes)
 	{
@@ -230,7 +231,7 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 					info.contentId = sfoContentId;
 			}
 			else
-				logDebug("PARAM.SFO de " + baseName(path) + " ilegível: " + sfoError);
+				logDebug("PARAM.SFO of " + baseName(path) + " unreadable: " + sfoError);
 		}
 	}
 
@@ -242,7 +243,7 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 			info.iconPng = std::move(icon);
 	}
 
-	// Classificação: o cabeçalho manda, o CATEGORY do SFO desempata.
+	// Classification: the header decides, the SFO CATEGORY breaks ties.
 	switch(info.contentType)
 	{
 		case kContentTypeGd:

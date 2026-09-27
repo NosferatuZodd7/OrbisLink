@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Uma linha do menu de contexto.
+// A row of the context menu.
 //
-// O realce não ocupa a largura toda: fica encolhido dos lados e com cantos
-// próprios. Assim nunca toca nas arestas arredondadas do menu — que é o
-// que faria o realce parecer um rectângulo colado por cima do vidro em vez
-// de fazer parte dele.
+// The highlight does not take the full width: it is inset at the sides and
+// has its own corners. That way it never touches the menu's rounded edges —
+// which is what would make the highlight look like a rectangle stuck on top
+// of the glass instead of part of it.
 import QtQuick
 import QtQuick.Controls.Basic
 

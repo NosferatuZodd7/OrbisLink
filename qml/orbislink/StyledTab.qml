@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Separador com indicador em cápsula de vidro, que desliza de um para o
-// outro em vez de saltar. Sem sublinhado: a separação faz-se por
-// profundidade, não por linhas.
+// Tab with a glass capsule indicator that slides from one to the other
+// instead of jumping. No underline: separation comes from depth,
+// not lines.
 import QtQuick
 import QtQuick.Controls.Basic
 

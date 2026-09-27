@@ -13,15 +13,15 @@ ApplicationWindow {
     title: qsTr("OrbisLink — %1").arg(app.consoleName)
 
     property bool panelVisible: true
-    // Ecrã inteiro para o stream: esconde a barra de cima e o painel
-    // lateral, e a janela passa a ocupar o ecrã todo.
+    // Full screen for the stream: hides the top bar and the side panel,
+    // and the window takes up the whole screen.
     property bool streamFullscreen: false
 
-    function setStreamFullscreen(activo) {
-        if (streamFullscreen === activo)
+    function setStreamFullscreen(isActive) {
+        if (streamFullscreen === isActive)
             return
-        streamFullscreen = activo
-        window.visibility = activo ? Window.FullScreen : Window.Windowed
+        streamFullscreen = isActive
+        window.visibility = isActive ? Window.FullScreen : Window.Windowed
     }
 
     // F9 abre/fecha o painel lateral (§5.7).
@@ -33,20 +33,20 @@ ApplicationWindow {
         sequence: "Ctrl+,"
         onActivated: settingsDialog.loadValues(), settingsDialog.open()
     }
-    // O registo à distância de um atalho: quando alguma coisa corre mal, é
-    // o primeiro sítio onde olhar.
+    // The log one shortcut away: when something goes wrong, it is the
+    // first place to look.
     Shortcut {
         sequence: "Ctrl+L"
         onActivated: diagnosticsDialog.open()
     }
-    // F11 entra e sai de ecrã inteiro; Esc só sai (dentro do stream, o Esc
-    // termina a sessão — ver StreamVideo.qml).
+    // F11 enters and leaves full screen; Esc only leaves (inside the stream,
+    // Esc ends the session — see StreamVideo.qml).
     Shortcut {
         sequence: "F11"
         onActivated: window.setStreamFullscreen(!window.streamFullscreen)
     }
 
-    // O fundo de onde o vidro tira a luz.
+    // The background the glass takes its light from.
     GlassBackground { anchors.fill: parent }
 
     ColumnLayout {
@@ -56,12 +56,12 @@ ApplicationWindow {
         // ───────────────────────────── barra superior
         Item {
             Layout.fillWidth: true
-            // Em ecrã inteiro só interessa a imagem.
+            // In full screen only the picture matters.
             visible: !window.streamFullscreen
             implicitHeight: visible ? 76 : 0
 
-            // Barra flutuante: não toca nas arestas da janela e não tem
-            // linha por baixo — a separação faz-se por profundidade.
+            // Floating bar: it does not touch the window edges and has no
+            // line underneath — separation comes from depth.
             Rectangle {
                 anchors.fill: parent
                 anchors.leftMargin: Theme.gutter
@@ -109,7 +109,7 @@ ApplicationWindow {
                     }
                     Text {
                         text: app.consoleAddress.length > 0 ? app.consoleAddress
-                                                            : qsTr("sem endereço definido")
+                                                            : qsTr("no address set")
                         color: Theme.textSecondary
                         font.pixelSize: 11
                         font.letterSpacing: -0.1
@@ -129,7 +129,7 @@ ApplicationWindow {
                     hint: app.ftpHint
                 }
                 ServiceIndicator {
-                    label: qsTr("Instalador")
+                    label: qsTr("Installer")
                     state_: app.installerState
                     hint: app.installerHint
                 }
@@ -137,26 +137,26 @@ ApplicationWindow {
                 StyledToolButton {
                     text: "⟳"
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Verificar serviços agora")
+                    ToolTip.text: qsTr("Check the services now")
                     onClicked: app.checkServicesNow()
                 }
                 StyledToolButton {
                     text: "☰"
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Painel lateral (F9)")
+                    ToolTip.text: qsTr("Side panel (F9)")
                     onClicked: window.panelVisible = !window.panelVisible
                 }
                 StyledToolButton {
                     text: "📋"
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Registo e diagnóstico (Ctrl+L)")
+                    ToolTip.text: qsTr("Log and diagnostics (Ctrl+L)")
                     onClicked: diagnosticsDialog.open()
                 }
                 ThemeSwitcher {}
                 StyledToolButton {
                     text: "⚙"
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Definições (Ctrl+,)")
+                    ToolTip.text: qsTr("Settings (Ctrl+,)")
                     onClicked: { settingsDialog.loadValues(); settingsDialog.open() }
                 }
             }
@@ -214,10 +214,10 @@ ApplicationWindow {
                         background: Rectangle { color: "transparent" }
 
                         StyledTab {
-                            text: app.queue.count > 0 ? qsTr("Fila (%1)").arg(app.queue.count)
-                                                      : qsTr("Fila")
+                            text: app.queue.count > 0 ? qsTr("Queue (%1)").arg(app.queue.count)
+                                                      : qsTr("Queue")
                         }
-                        StyledTab { text: qsTr("Ficheiros (FTP)") }
+                        StyledTab { text: qsTr("Files (FTP)") }
                     }
 
                     StackLayout {
@@ -253,7 +253,7 @@ ApplicationWindow {
                     elide: Text.ElideRight
                 }
                 Text {
-                    text: qsTr("HTTP local: %1").arg(app.httpServerAddress)
+                    text: qsTr("Local HTTP: %1").arg(app.httpServerAddress)
                     color: Theme.textSecondary
                     font.pixelSize: 11
                 }
@@ -266,16 +266,16 @@ ApplicationWindow {
         }
     }
 
-    // Arrastar sobre a janela mostra a sobreposição. É o único DropArea da
-    // aplicação: ter mais um por zona parecia natural mas não funciona —
-    // este fica com o arrasto agarrado e as zonas nunca o veem.
+    // Dragging over the window shows the overlay. It is the application's
+    // only DropArea: having one more per zone seemed natural but does not
+    // work — this one keeps hold of the drag and the zones never see it.
     DropArea {
         anchors.fill: parent
         onEntered: function(drag) {
-            // Registado antes de qualquer decisão: se isto nunca aparecer
-            // no diagnóstico, é porque o Windows não entregou o evento, e
-            // aí o problema não está aqui.
-            app.noteDrag("entrou", drag.hasUrls)
+            // Logged before any decision: if this never shows up in the
+            // diagnostics, Windows did not deliver the event, and then the
+            // problem is not here.
+            app.noteDrag("entered", drag.hasUrls)
             if (!drag.hasUrls) {
                 drag.accepted = false
                 return
@@ -286,7 +286,7 @@ ApplicationWindow {
         onPositionChanged: function(drag) { overlay.movePointer(drag.x, drag.y) }
         onExited: overlay.hide()
         onDropped: function(drop) {
-            app.noteDrag("largado", drop.hasUrls)
+            app.noteDrag("dropped", drop.hasUrls)
             if (drop.hasUrls && overlay.dropAt(drop.x, drop.y, drop.urls))
                 drop.accept()
             else
@@ -296,16 +296,16 @@ ApplicationWindow {
 
     DropOverlay {
         id: overlay
-        // Usado pelo teste automático de arrastar (--selftest-drag).
+        // Used by the automatic drag test (--selftest-drag).
         objectName: "dropOverlay"
         active: demoOverlay
     }
 
     SettingsDialog {
         id: settingsDialog
-        onAbrirAssistente: {
+        onOpenWizard: {
             settingsDialog.close()
-            firstRunWizard.comecar()
+            firstRunWizard.begin()
         }
     }
     DiagnosticsDialog { id: diagnosticsDialog }
@@ -317,15 +317,15 @@ ApplicationWindow {
         function onUpdateAvailable(version) { updateDialog.open() }
     }
 
-    // Só para as capturas de ecrã e para o teste do ecrã inteiro.
+    // Only for screenshots and for the full-screen test.
     Timer {
         running: typeof demoFullscreen !== "undefined" && demoFullscreen
         interval: 1200
         onTriggered: {
             window.setStreamFullscreen(true)
-            console.log("DIAG ecrã inteiro: visibility=" + window.visibility
-                        + " esperado=" + Window.FullScreen
-                        + " barra=" + window.streamFullscreen)
+            console.log("DIAG full screen: visibility=" + window.visibility
+                        + " expected=" + Window.FullScreen
+                        + " bar=" + window.streamFullscreen)
         }
     }
 
@@ -335,62 +335,62 @@ ApplicationWindow {
         onTriggered: diagnosticsDialog.open()
     }
 
-    // Só para a captura de ecrã: mostra o diálogo de actualização sem
-    // precisar de um lançamento novo publicado.
+    // Screenshot only: shows the update dialog without needing a new
+    // published release.
     Timer {
         running: typeof demoUpdate !== "undefined" && demoUpdate
         interval: 1500
         onTriggered: { app.loadDemoUpdate(); updateDialog.open() }
     }
 
-    // O tema vem das definições e muda em tempo real.
-    function aplicarTema() {
+    // The theme comes from the settings and changes in real time.
+    function applyTheme() {
         if (typeof demoTheme !== "undefined" && demoTheme.length > 0) {
-            Theme.aplicar(demoTheme)
-            aplicarMolduraDoSistema()
+            Theme.apply(demoTheme)
+            applySystemFrame()
             return
         }
-        var valores = app.settingsMap()
-        Theme.aplicar(valores.theme)
-        aplicarMolduraDoSistema()
+        var values = app.settingsMap()
+        Theme.apply(values.theme)
+        applySystemFrame()
     }
 
-    // A barra de título e a moldura são desenhadas pelo sistema, não por
-    // nós, e no Windows vêm brancas por omissão. Isto pede-lhe que acompanhe
-    // o tema — e, onde o sistema saiba fazê-lo, que use o seu próprio
-    // material translúcido.
-    function aplicarMolduraDoSistema() {
+    // The title bar and frame are drawn by the system, not by us, and on
+    // Windows they are white by default. This asks it to follow the theme —
+    // and, where the system knows how, to use its own translucent
+    // material.
+    function applySystemFrame() {
         if (typeof chrome === "undefined" || !chrome)
             return
-        // A barra encosta ao fundo da janela, não à barra flutuante: o que
-        // se quer é que pareça a mesma superfície.
-        var moldura = Theme.claro ? Qt.darker(Theme.background, 1.10)
+        // The bar sits against the bottom of the window, not the floating
+        // bar: the point is for it to look like the same surface.
+        var frame = Theme.light ? Qt.darker(Theme.background, 1.10)
                                   : Qt.lighter(Theme.background, 2.2)
-        chrome.applyTheme(Theme.background, Theme.text, moldura,
-                          !Theme.claro, Theme.nome === "vidro")
+        chrome.applyTheme(Theme.background, Theme.text, frame,
+                          !Theme.light, Theme.name === "glass")
     }
 
     Connections {
         target: app
-        function onSettingsChanged() { window.aplicarTema() }
+        function onSettingsChanged() { window.applyTheme() }
     }
 
     Component.onCompleted: {
-        aplicarTema()
+        applyTheme()
         if (typeof demoSettings !== "undefined" && demoSettings) {
             settingsDialog.loadValues()
             settingsDialog.open()
             return
         }
         if (typeof demoWizard !== "undefined" && demoWizard) {
-            firstRunWizard.comecar()
+            firstRunWizard.begin()
             return
         }
-        // Primeira abertura: em vez de uma janela vazia com tudo vermelho,
-        // três passos. A flag fica guardada no `guardar()` do assistente.
-        var valores = app.settingsMap()
-        if (!valores.firstRunDone)
-            firstRunWizard.comecar()
+        // First launch: instead of an empty window with everything red,
+        // three steps. The flag is stored in the wizard's `save()`.
+        var values = app.settingsMap()
+        if (!values.firstRunDone)
+            firstRunWizard.begin()
     }
 
     Connections {
@@ -400,9 +400,8 @@ ApplicationWindow {
         }
     }
 
-    // Notificação simples dentro da janela (a do sistema chega na Fase 5).
-    // Aviso flutuante em vidro. Entra de baixo com escala, como um painel
-    // que sobe, em vez de aparecer do nada.
+    // Floating glass notice inside the window. It comes in from below with
+    // a scale, like a panel rising, instead of appearing out of nowhere.
     Item {
         id: toast
         anchors.horizontalCenter: parent.horizontalCenter
@@ -431,7 +430,7 @@ ApplicationWindow {
             NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut }
         }
 
-        // Halo da cor do estado, por baixo do vidro.
+        // Halo in the state colour, under the glass.
         Rectangle {
             anchors.fill: parent
             anchors.margins: -6
@@ -447,7 +446,7 @@ ApplicationWindow {
             anchors.fill: parent
             radius: height / 2
             color: Qt.rgba(Theme.panel.r, Theme.panel.g, Theme.panel.b,
-                           Theme.claro ? 0.88 : 0.82)
+                           Theme.light ? 0.88 : 0.82)
             border.width: 1
             border.color: toast.isError
                 ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.5)

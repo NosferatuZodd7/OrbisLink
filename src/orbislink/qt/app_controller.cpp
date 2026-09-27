@@ -3,6 +3,7 @@
 
 #include "orbislink/qt/diagnostics.h"
 #ifdef ORBISLINK_HAS_STREAM
+#include "orbislink/qt/translate_message.h"
 #include "orbislink/stream/chiaki_log_bridge.h"
 #endif
 
@@ -29,6 +30,8 @@
 #include <QUrl>
 #include <thread>
 
+#include <algorithm>
+
 namespace orbislink {
 
 namespace {
@@ -50,38 +53,38 @@ QString stateName(ServiceState state)
 AppController::AppController(QObject *parent)
 	: QObject(parent), store_(SettingsStore::defaultSettingsPath())
 {
-	// Marcas em cada passo: se isto falhar numa máquina, o registo diz em
-	// que passo parou.
-	qInfo("Arranque: pasta de dados");
+	// Markers at each step: if this fails on some machine, the log says
+	// which step it stopped at.
+	qInfo("Startup: data folder");
 	SettingsStore::ensureDirectory(SettingsStore::defaultDirectory());
-	qInfo("Arranque: a ler definições");
+	qInfo("Startup: reading settings");
 	store_.load(&settings_);
-	qInfo("Arranque: a calcular o caminho do registo");
+	qInfo("Startup: working out the log path");
 	const std::string coreLogPath = SettingsStore::defaultLogPath();
-	qInfo("Arranque: registo do núcleo em %s", coreLogPath.c_str());
+	qInfo("Startup: core log at %s", coreLogPath.c_str());
 	Logger::instance().setLevel(settings_.debugLogging ? LogLevel::Debug : LogLevel::Info);
-	qInfo("Arranque: nível de registo definido");
-	// A escrita para a consola não serve numa aplicação de janela; o
-	// ficheiro chega.
+	qInfo("Startup: log level set");
+	// Writing to the console is useless in a windowed application; the
+	// file is enough.
 	Logger::instance().setConsoleOutput(false);
-	qInfo("Arranque: a abrir o ficheiro de registo");
+	qInfo("Startup: opening the log file");
 	if(!Logger::instance().setFile(coreLogPath))
-		qWarning("Não foi possível abrir %s", coreLogPath.c_str());
-	qInfo("Arranque: ficheiro de registo aberto");
+		qWarning("Could not open %s", coreLogPath.c_str());
+	qInfo("Startup: log file open");
 
-	// Tudo o que for escrito no registo passa também para a janela de
-	// diagnóstico. A mensagem que chega aqui já vem mascarada.
+	// Everything written to the log also goes to the diagnostics window.
+	// The message arriving here is already masked.
 	Logger::instance().setSink([this](LogLevel level, const std::string &message) {
-		const QString nivel = QString::fromLatin1(logLevelName(level));
-		const QString texto = QString::fromStdString(message);
+		const QString levelName = QString::fromLatin1(logLevelName(level));
+		const QString lineText = QString::fromStdString(message);
 		QMetaObject::invokeMethod(
-			this, [this, nivel, texto]() { emit logLine(nivel, texto); },
+			this, [this, levelName, lineText]() { emit logLine(levelName, lineText); },
 			Qt::QueuedConnection);
 	});
 
-	qInfo("Arranque: a preparar os serviços");
+	qInfo("Startup: preparing the services");
 	rebuildBackends();
-	qInfo("Arranque: serviços prontos");
+	qInfo("Startup: services ready");
 	if(!settings_.ftpUploadDirectory.empty())
 		ftpPath_ = QString::fromStdString(settings_.ftpUploadDirectory);
 }
@@ -109,16 +112,19 @@ void AppController::rebuildBackends()
 	if(httpServer_)
 		httpServer_->stop();
 
-	qInfo("Serviços: gestor da consola");
-	console_ = std::make_unique<ConsoleManager>(settings_);
-	// O gestor novo nasce sem saber do Remote Play; devolve-se-lhe o que já
-	// se sabia, senão o indicador apaga-se a meio de uma sessão.
+	qInfo("Services: console manager");
+	// The services talk to the console in use, on its FTP port.
+	Settings effective = settings_;
+	effective.ftpPort = activeFtpPort();
+	console_ = std::make_unique<ConsoleManager>(effective);
+	// The new manager is born knowing nothing about Remote Play; give it
+	// what was already known, otherwise the indicator goes blank mid-session.
 	if(!lastRemotePlayState_.isEmpty())
 	{
-		const QString estado = lastRemotePlayState_;
-		const QString detalhe = lastRemotePlayDetail_;
-		QTimer::singleShot(0, this, [this, estado, detalhe]() {
-			reportRemotePlayState(estado, detalhe);
+		const QString stateCopy = lastRemotePlayState_;
+		const QString detailCopy = lastRemotePlayDetail_;
+		QTimer::singleShot(0, this, [this, stateCopy, detailCopy]() {
+			reportRemotePlayState(stateCopy, detailCopy);
 		});
 	}
 	console_->setListener([this](const ConsoleStatus &status) {
@@ -131,25 +137,25 @@ void AppController::rebuildBackends()
 			Qt::QueuedConnection);
 	});
 
-	qInfo("Serviços: servidor HTTP local");
+	qInfo("Services: local HTTP server");
 	httpServer_ = std::make_unique<LocalHttpServer>();
 	LocalHttpServer::Config httpConfig;
 	if(settings_.httpBindAddress.empty())
 	{
-		// Percorre as interfaces de rede do sistema. Se isto falhar, o
-		// servidor fica no endereço local em vez de deitar tudo abaixo.
-		qInfo("Serviços: a procurar a interface de rede");
+		// Walks the system's network interfaces. If this fails, the server
+		// stays on the local address instead of bringing everything down.
+		qInfo("Services: looking for the network interface");
 		try
 		{
 			httpConfig.bindAddress = localAddressForConsole(settings_.consoleAddress);
 		}
 		catch(const std::exception &error)
 		{
-			qWarning("Não foi possível listar as interfaces de rede: %s", error.what());
+			qWarning("Could not list the network interfaces: %s", error.what());
 		}
 		catch(...)
 		{
-			qWarning("Não foi possível listar as interfaces de rede.");
+			qWarning("Could not list the network interfaces.");
 		}
 	}
 	else
@@ -158,13 +164,13 @@ void AppController::rebuildBackends()
 		httpConfig.bindAddress = "127.0.0.1";
 	httpConfig.port = settings_.httpPort;
 	httpConfig.allowedClient = settings_.restrictToConsoleIp ? settings_.consoleAddress : std::string();
-	qInfo("Serviços: a ligar o servidor HTTP em %s:%u", httpConfig.bindAddress.c_str(),
+	qInfo("Services: starting the HTTP server on %s:%u", httpConfig.bindAddress.c_str(),
 		static_cast<unsigned>(httpConfig.port));
 	std::string httpError;
 	if(!httpServer_->start(httpConfig, &httpError))
-		setStatusMessage(tr("Servidor HTTP local não arrancou: %1").arg(QString::fromStdString(httpError)));
+		setStatusMessage(tr("The local HTTP server did not start: %1").arg(QString::fromStdString(httpError)));
 
-	qInfo("Serviços: instalador remoto e FTP");
+	qInfo("Services: remote installer and FTP");
 	RpiClient::Config rpiConfig;
 	rpiConfig.host = settings_.consoleAddress;
 	rpiConfig.port = settings_.installerPort;
@@ -172,7 +178,7 @@ void AppController::rebuildBackends()
 
 	FtpClient::Config ftpConfig;
 	ftpConfig.host = settings_.consoleAddress;
-	ftpConfig.port = settings_.ftpPort;
+	ftpConfig.port = activeFtpPort();
 	ftpConfig.maxConnections = settings_.ftpMaxConnections;
 	ftpConfig.advancedMode = settings_.ftpAdvancedMode;
 	ftp_ = std::make_unique<FtpClient>(ftpConfig);
@@ -182,13 +188,13 @@ void AppController::rebuildBackends()
 	deps.installer = installer_.get();
 	deps.ftp = ftp_.get();
 	deps.console = console_.get();
-	qInfo("Serviços: fila de instalação");
-	queue_ = std::make_unique<InstallQueue>(deps, settings_);
+	qInfo("Services: install queue");
+	queue_ = std::make_unique<InstallQueue>(deps, effective);
 	queue_->load(SettingsStore::defaultQueuePath());
 	queue_->setListener([this](const QueueTask &task) {
 		const bool terminal = task.isTerminal();
 		const QString title = QString::fromStdString(task.title);
-		const QString message = QString::fromStdString(task.message);
+		const QString message = translateMessage(task.message);
 		const bool failed = task.state == TaskState::Error;
 		QMetaObject::invokeMethod(
 			this,
@@ -203,13 +209,286 @@ void AppController::rebuildBackends()
 	queue_->start();
 	refreshQueueModel();
 
-	qInfo("Serviços: verificação periódica");
+	qInfo("Services: periodic check");
 	console_->start(10);
 	emit settingsChanged();
 	emit statusChanged();
 }
 
 QString AppController::consoleName() const { return QString::fromStdString(settings_.consoleName); }
+
+QVariantList AppController::consoles() const
+{
+	QVariantList items;
+	for(const ConsoleEntry &console : settings_.consoles)
+	{
+		QVariantMap input;
+		input[QStringLiteral("name")] = QString::fromStdString(console.name);
+		input[QStringLiteral("address")] = QString::fromStdString(console.address);
+		input[QStringLiteral("active")] = console.address == settings_.consoleAddress;
+		input[QStringLiteral("type")] = QString::fromStdString(console.type);
+		input[QStringLiteral("hostId")] = QString::fromStdString(console.hostId);
+		input[QStringLiteral("accountId")] = QString::fromStdString(console.accountId);
+		QString accountLabel;
+		for(const SavedAccount &account : settings_.accounts)
+			if(account.accountId == console.accountId)
+				accountLabel = QString::fromStdString(account.label);
+		input[QStringLiteral("accountLabel")] = accountLabel;
+		items.append(input);
+	}
+	return items;
+}
+
+QVariantList AppController::accounts() const
+{
+	QVariantList items;
+	for(const SavedAccount &account : settings_.accounts)
+	{
+		QStringList usedBy;
+		for(const ConsoleEntry &console : settings_.consoles)
+			if(console.accountId == account.accountId)
+				usedBy << QString::fromStdString(console.name);
+		QVariantMap entry;
+		entry[QStringLiteral("label")] = QString::fromStdString(account.label);
+		entry[QStringLiteral("accountId")] = QString::fromStdString(account.accountId);
+		entry[QStringLiteral("usedBy")] = usedBy;
+		items.append(entry);
+	}
+	return items;
+}
+
+bool AppController::saveAccount(const QString &oldAccountId, const QString &label, const QString &accountId)
+{
+	const std::string from = trim(oldAccountId.toStdString());
+	const std::string id = trim(accountId.toStdString());
+	std::string name = trim(label.toStdString());
+	if(id.empty())
+	{
+		setStatusMessage(tr("The Account ID is empty or not valid."));
+		return false;
+	}
+	SavedAccount *target = nullptr;
+	for(SavedAccount &account : settings_.accounts)
+	{
+		if(!from.empty() && account.accountId == from)
+			target = &account;
+		else if(account.accountId == id)
+		{
+			setStatusMessage(tr("That Account ID is already saved as \"%1\".")
+				.arg(QString::fromStdString(account.label)));
+			return false;
+		}
+	}
+	if(name.empty())
+		name = tr("PSN account %1").arg(settings_.accounts.size() + (target ? 0 : 1)).toStdString();
+	if(target)
+	{
+		target->label = name;
+		target->accountId = id;
+		// Consoles using the old ID follow the edit.
+		for(ConsoleEntry &console : settings_.consoles)
+			if(console.accountId == from)
+				console.accountId = id;
+		if(settings_.streamAccountId == from)
+			settings_.streamAccountId = id;
+	}
+	else
+	{
+		SavedAccount account;
+		account.label = name;
+		account.accountId = id;
+		settings_.accounts.push_back(account);
+	}
+	store_.save(settings_);
+	emit settingsChanged();
+	setStatusMessage(tr("Account ID \"%1\" saved.").arg(QString::fromStdString(name)));
+	return true;
+}
+
+void AppController::removeAccount(const QString &accountId)
+{
+	const std::string id = trim(accountId.toStdString());
+	auto &items = settings_.accounts;
+	const auto before = items.size();
+	items.erase(std::remove_if(items.begin(), items.end(),
+					[&id](const SavedAccount &a) { return a.accountId == id; }),
+		items.end());
+	if(items.size() == before)
+		return;
+	for(ConsoleEntry &console : settings_.consoles)
+		if(console.accountId == id)
+			console.accountId.clear();
+	if(settings_.streamAccountId == id)
+		settings_.streamAccountId.clear();
+	store_.save(settings_);
+	emit settingsChanged();
+}
+
+void AppController::setConsoleAccount(const QString &address, const QString &accountId)
+{
+	const std::string target = address.trimmed().toStdString();
+	const std::string id = trim(accountId.toStdString());
+	for(ConsoleEntry &console : settings_.consoles)
+	{
+		if(console.address != target || console.accountId == id)
+			continue;
+		console.accountId = id;
+		store_.save(settings_);
+		emit settingsChanged();
+		return;
+	}
+}
+
+void AppController::selectConsole(const QString &address)
+{
+	const std::string trimmedAddress = address.trimmed().toStdString();
+	if(trimmedAddress == settings_.consoleAddress)
+		return;
+	for(const ConsoleEntry &console : settings_.consoles)
+	{
+		if(console.address != trimmedAddress)
+			continue;
+		settings_.consoleName = console.name;
+		settings_.consoleAddress = console.address;
+		store_.save(settings_);
+		// FTP, the installer and the HTTP server now talk to it.
+		rebuildBackends();
+		setStatusMessage(tr("Using %1 (%2).").arg(QString::fromStdString(console.name),
+			QString::fromStdString(console.address)));
+		return;
+	}
+}
+
+void AppController::rememberConsoleType(const QString &address, bool ps5, const QString &hostId)
+{
+	const std::string trimmedAddress = address.trimmed().toStdString();
+	const std::string kind = ps5 ? "ps5" : "ps4";
+	const std::string id = hostId.trimmed().toStdString();
+	for(ConsoleEntry &console : settings_.consoles)
+	{
+		if(console.address != trimmedAddress)
+			continue;
+		if(console.type == kind && (id.empty() || console.hostId == id))
+			return;
+		console.type = kind;
+		if(!id.empty())
+			console.hostId = id;
+		store_.save(settings_);
+		emit settingsChanged();
+		emit statusChanged();
+		return;
+	}
+}
+
+bool AppController::updateConsole(const QString &oldAddress, const QString &name, const QString &address)
+{
+	const std::string from = oldAddress.trimmed().toStdString();
+	const std::string to = address.trimmed().toStdString();
+	const std::string newName = name.trimmed().toStdString();
+	if(to.empty())
+	{
+		setStatusMessage(tr("The IP address cannot be empty."));
+		return false;
+	}
+	ConsoleEntry *target = nullptr;
+	for(ConsoleEntry &console : settings_.consoles)
+	{
+		if(console.address == from)
+			target = &console;
+		else if(console.address == to)
+		{
+			setStatusMessage(tr("Another console in the list already uses %1.").arg(address.trimmed()));
+			return false;
+		}
+	}
+	if(!target)
+		return false;
+	const bool addressChanged = target->address != to;
+	target->name = newName.empty() ? to : newName;
+	target->address = to;
+	// A new address may be a different console: what was learned about
+	// the old one (type, host-id) no longer applies.
+	if(addressChanged)
+	{
+		target->type.clear();
+		target->hostId.clear();
+	}
+	const bool active = from == settings_.consoleAddress;
+	if(active)
+	{
+		settings_.consoleName = target->name;
+		settings_.consoleAddress = target->address;
+	}
+	store_.save(settings_);
+	if(active && addressChanged)
+		rebuildBackends();
+	emit settingsChanged();
+	emit statusChanged();
+	setStatusMessage(tr("Console %1 saved.").arg(QString::fromStdString(target->name)));
+	return true;
+}
+
+void AppController::addConsole(const QString &name, const QString &address, const QString &type,
+	bool select)
+{
+	const std::string trimmedAddress = address.trimmed().toStdString();
+	if(trimmedAddress.empty())
+		return;
+	bool alreadyListed = false;
+	for(const ConsoleEntry &console : settings_.consoles)
+		alreadyListed = alreadyListed || console.address == trimmedAddress;
+	if(!alreadyListed)
+	{
+		std::string entryName = name.trimmed().toStdString();
+		if(entryName.empty())
+			entryName = trimmedAddress;
+		const std::string kind = type == QStringLiteral("ps5") ? "ps5"
+			: type == QStringLiteral("ps4") ? "ps4" : "";
+		ConsoleEntry entry;
+		entry.name = entryName;
+		entry.address = trimmedAddress;
+		entry.type = kind;
+		settings_.consoles.push_back(entry);
+	}
+	if(select)
+		selectConsole(address);
+	// selectConsole() does nothing if it was already in use; the list
+	// changed anyway.
+	store_.save(settings_);
+	emit settingsChanged();
+}
+
+void AppController::removeConsole(const QString &address)
+{
+	const std::string trimmedAddress = address.trimmed().toStdString();
+	if(trimmedAddress == settings_.consoleAddress)
+	{
+		// The console in use can go too, as long as another one takes its
+		// place: the services always need somewhere to point.
+		const ConsoleEntry *next = nullptr;
+		for(const ConsoleEntry &console : settings_.consoles)
+			if(console.address != trimmedAddress)
+			{
+				next = &console;
+				break;
+			}
+		if(!next)
+		{
+			setStatusMessage(tr("This is the only console in the list: add another one before removing it."));
+			return;
+		}
+		selectConsole(QString::fromStdString(next->address));
+	}
+	auto &items = settings_.consoles;
+	const auto before = items.size();
+	items.erase(std::remove_if(items.begin(), items.end(),
+					[&trimmedAddress](const ConsoleEntry &c) { return c.address == trimmedAddress; }),
+		items.end());
+	if(items.size() == before)
+		return;
+	store_.save(settings_);
+	emit settingsChanged();
+}
 
 QString AppController::consoleAddress() const
 {
@@ -219,26 +498,69 @@ QString AppController::consoleAddress() const
 QString AppController::remotePlayState() const { return stateName(status_.remotePlay.state); }
 QString AppController::remotePlayHint() const
 {
-	// Qualquer reconstrução dos serviços repõe o estado em Unknown; sem isto,
-	// o indicador diria "Remote Play não integrado" a meio de uma sessão a
-	// correr. O estado verdadeiro vem do StreamController.
+	// Any rebuild of the services resets the state to Unknown; without this,
+	// the indicator would say "Remote Play not built in" in the middle of a
+	// running session. The real state comes from StreamController.
 	if(status_.remotePlay.state == ServiceState::Unknown)
-		return tr("Ainda não perguntei à consola. Carrega em Procurar.");
-	return QString::fromStdString(status_.remotePlay.hint);
+		return tr("I have not asked the console yet. Click its box to search.");
+	return translateMessage(status_.remotePlay.hint);
 }
-QString AppController::ftpState() const { return stateName(status_.ftp.state); }
+std::string AppController::activeAccountId() const
+{
+	for(const ConsoleEntry &console : settings_.consoles)
+		if(console.address == settings_.consoleAddress && !console.accountId.empty())
+			return console.accountId;
+	return settings_.streamAccountId;
+}
+
+bool AppController::activeIsPs5() const
+{
+	for(const ConsoleEntry &console : settings_.consoles)
+		if(console.address == settings_.consoleAddress)
+			return console.type == "ps5";
+	return false;
+}
+
+uint16_t AppController::activeFtpPort() const
+{
+	return activeIsPs5() ? settings_.ftpPortPs5 : settings_.ftpPort;
+}
+
+// On a PS5, FTP and the installer only exist with a jailbreak (etaHEN has
+// both, off by default). When they answer they are used as on the PS4;
+// when they do not, they are not "broken" — most likely they do not exist —
+// and the indicator stays grey explaining what is missing.
+QString AppController::ftpState() const
+{
+	if(activeIsPs5() && status_.ftp.state == ServiceState::Unavailable)
+		return QStringLiteral("not-applicable");
+	return stateName(status_.ftp.state);
+}
 QString AppController::ftpHint() const
 {
+	if(activeIsPs5() && status_.ftp.state != ServiceState::Available)
+		return tr("On the PS5, FTP only exists with a jailbreak. In etaHEN turn it on with FTP=1 in "
+			"config.ini; it listens on port %1 (change it in the settings if yours differs).")
+			.arg(activeFtpPort());
 	return status_.ftp.state == ServiceState::Available
 		? QString::fromStdString(status_.ftp.detail)
-		: QString::fromStdString(status_.ftp.hint);
+		: translateMessage(status_.ftp.hint);
 }
-QString AppController::installerState() const { return stateName(status_.installer.state); }
+QString AppController::installerState() const
+{
+	if(activeIsPs5() && status_.installer.state == ServiceState::Unavailable)
+		return QStringLiteral("not-applicable");
+	return stateName(status_.installer.state);
+}
 QString AppController::installerHint() const
 {
+	if(activeIsPs5() && status_.installer.state != ServiceState::Available)
+		return tr("On the PS5, installing packages needs a jailbreak with an installer on port %1 — in "
+			"etaHEN, DPI v2 (DPI_v2=1 in config.ini).")
+			.arg(settings_.installerPort);
 	return status_.installer.state == ServiceState::Available
 		? QString::fromStdString(status_.installer.detail)
-		: QString::fromStdString(status_.installer.hint);
+		: translateMessage(status_.installer.hint);
 }
 bool AppController::canInstallDirectly() const { return status_.canInstallDirectly(); }
 bool AppController::canUseFtp() const { return status_.canUseFtp(); }
@@ -251,7 +573,7 @@ QString AppController::pauseReason() const
 QString AppController::httpServerAddress() const
 {
 	if(!httpServer_ || !httpServer_->running())
-		return tr("parado");
+		return tr("stopped");
 	return QStringLiteral("http://%1:%2")
 		.arg(QString::fromStdString(httpServer_->bindAddress()))
 		.arg(httpServer_->port());
@@ -285,7 +607,7 @@ void AppController::refreshQueueModel()
 {
 	if(!queue_)
 		return;
-	// Primeiro as tarefas por fazer/a decorrer, depois o histórico recente.
+	// Pending/running tasks first, then the recent history.
 	std::vector<QueueTask> combined = queue_->tasks();
 	const std::vector<QueueTask> history = queue_->history();
 	const size_t historyShown = 20;
@@ -302,7 +624,7 @@ QStringList AppController::collectPkgFiles(const QStringList &paths)
 		const QFileInfo info(path);
 		if(info.isDir())
 		{
-			// Pasta largada: procura .pkg recursivamente (§5.7).
+			// Dropped folder: look for .pkg recursively (§5.7).
 			QDirIterator it(path, QStringList { QStringLiteral("*.pkg") }, QDir::Files,
 				QDirIterator::Subdirectories);
 			while(it.hasNext())
@@ -328,7 +650,7 @@ void AppController::dropUrls(const QList<QUrl> &urls, int mode)
 
 void AppController::registerIcons(const QStringList &paths, const QStringList &taskIds)
 {
-	// Extrai o ICON0.PNG numa thread de trabalho: é leitura de disco.
+	// Extracts ICON0.PNG on a worker thread: it is disk reading.
 	std::thread([this, paths, taskIds]() {
 		PkgInspector inspector;
 		for(int i = 0; i < paths.size() && i < taskIds.size(); ++i)
@@ -352,11 +674,16 @@ void AppController::addPaths(const QStringList &paths, int mode)
 {
 	if(!queue_)
 		return;
+	if(activeIsPs5() && !status_.canInstallDirectly() && !status_.canUseFtp())
+	{
+		emit notify(tr("Install"), installerHint(), true);
+		return;
+	}
 	const TransferMode transferMode = mode == 1 ? TransferMode::FtpUpload : TransferMode::DirectInstall;
 	const QStringList files = collectPkgFiles(paths);
 	if(files.isEmpty())
 	{
-		setStatusMessage(tr("Nenhum ficheiro utilizável foi largado."));
+		setStatusMessage(tr("None of the dropped files can be used."));
 		return;
 	}
 
@@ -367,7 +694,7 @@ void AppController::addPaths(const QStringList &paths, int mode)
 		if(transferMode == TransferMode::DirectInstall
 			&& QFileInfo(file).suffix().toLower() != QStringLiteral("pkg"))
 		{
-			setStatusMessage(tr("%1 não é um .pkg — só é aceite na zona de FTP.")
+			setStatusMessage(tr("%1 is not a .pkg — only the FTP zone takes it.")
 					.arg(QFileInfo(file).fileName()));
 			continue;
 		}
@@ -387,9 +714,9 @@ void AppController::addPaths(const QStringList &paths, int mode)
 
 	refreshQueueModel();
 	if(!rejected.empty())
-		setStatusMessage(QString::fromStdString(rejected.front()));
+		setStatusMessage(translateMessage(rejected.front()));
 	else
-		setStatusMessage(tr("%n ficheiro(s) na fila.", "", static_cast<int>(ids.size())));
+		setStatusMessage(tr("%n file(s) queued.", "", static_cast<int>(ids.size())));
 }
 
 void AppController::checkServicesNow()
@@ -433,7 +760,7 @@ void AppController::pauseQueue()
 {
 	if(!queue_)
 		return;
-	queue_->pause(tr("Pausado pelo utilizador.").toStdString());
+	queue_->pause(tr("Paused by you.").toStdString());
 	emit queueStateChanged();
 }
 
@@ -445,28 +772,27 @@ void AppController::resumeQueue()
 	emit queueStateChanged();
 }
 
-bool AppController::ftpReady(const QString &operacao)
+bool AppController::ftpReady(const QString &operation)
 {
-	// Cada operação diz sempre porque é que não pode avançar: um botão que
-	// não faz nada e não diz nada parece partido.
+	// Every operation always says why it cannot go ahead: a button that
+	// does nothing and says nothing looks broken.
 	if(!ftp_)
 	{
-		emit notify(operacao,
-			tr("O FTP não está ligado. Confirma o IP da consola e que o servidor FTP do "
-			   "GoldHEN está a correr."),
+		emit notify(operation,
+			tr("FTP is not connected. Check the console IP and that the GoldHEN FTP server is running."),
 			true);
 		return false;
 	}
 	if(ftpBusy_)
 	{
-		emit notify(operacao, tr("O FTP está ocupado com outra operação. Espera que acabe."),
+		emit notify(operation, tr("FTP is busy with another operation. Wait for it to finish."),
 			true);
 		return false;
 	}
 	if(status_.ftp.state == ServiceState::Unavailable)
 	{
-		emit notify(operacao,
-			tr("A consola não responde no FTP: %1").arg(QString::fromStdString(status_.ftp.hint)),
+		emit notify(operation,
+			tr("The console is not answering on FTP: %1").arg(translateMessage(status_.ftp.hint)),
 			true);
 		return false;
 	}
@@ -487,8 +813,8 @@ void AppController::ftpUp()
 
 void AppController::ftpRefresh()
 {
-	// A actualização é a única que não se queixa: acontece sozinha depois
-	// de outras operações, e um aviso a cada uma seria ruído.
+	// Refresh is the only one that does not complain: it happens by itself
+	// after other operations, and a notice for each one would be noise.
 	if(!ftp_ || ftpBusy_)
 		return;
 	setFtpBusy(true);
@@ -496,21 +822,21 @@ void AppController::ftpRefresh()
 	std::thread([this, path]() {
 		std::vector<FtpEntry> entries;
 		const FtpResult result = ftp_->list(path, &entries);
-		const QString error = QString::fromStdString(result.message);
+		const QString error = translateMessage(result.message);
 		QMetaObject::invokeMethod(
 			this,
 			[this, entries, result, error]() {
 				if(result.ok)
 				{
 					ftpModel_.setEntries(entries);
-					setStatusMessage(tr("%1: %2 entradas").arg(ftpPath_).arg(entries.size()));
+					setStatusMessage(tr("%1: %2 entries").arg(ftpPath_).arg(entries.size()));
 				}
 				else
 				{
 					ftpModel_.clear();
 					setStatusMessage(tr("FTP: %1").arg(error));
 					emit notify(tr("FTP"),
-						tr("Não consegui listar %1: %2").arg(ftpPath_).arg(error), true);
+						tr("I could not list %1: %2").arg(ftpPath_).arg(error), true);
 				}
 				setFtpBusy(false);
 			},
@@ -520,22 +846,22 @@ void AppController::ftpRefresh()
 
 void AppController::ftpDelete(const QString &path, bool isDirectory)
 {
-	if(!ftpReady(tr("Apagar")))
+	if(!ftpReady(tr("Delete")))
 		return;
 	setFtpBusy(true);
 	const std::string target = path.toStdString();
 	std::thread([this, target, isDirectory]() {
 		const FtpResult result = isDirectory ? ftp_->removeDirectory(target) : ftp_->removeFile(target);
-		const QString message = QString::fromStdString(result.message);
+		const QString message = translateMessage(result.message);
 		const bool ok = result.ok;
 		QMetaObject::invokeMethod(
 			this,
 			[this, ok, message]() {
 				setFtpBusy(false);
-				setStatusMessage(ok ? tr("Apagado.") : tr("FTP: %1").arg(message));
-				// Apagar é destrutivo: confirma-se sempre, deu ou não deu.
-				emit notify(tr("Apagar"),
-					ok ? tr("Apagado da consola.") : tr("Não consegui apagar: %1").arg(message),
+				setStatusMessage(ok ? tr("Deleted.") : tr("FTP: %1").arg(message));
+				// Deleting is destructive: always confirm, whether it worked or not.
+				emit notify(tr("Delete"),
+					ok ? tr("Deleted from the console.") : tr("I could not delete it: %1").arg(message),
 					!ok);
 				if(ok)
 					ftpRefresh();
@@ -548,25 +874,25 @@ void AppController::ftpMakeDirectory(const QString &name)
 {
 	if(name.trimmed().isEmpty())
 	{
-		emit notify(tr("Criar pasta"), tr("Escreve primeiro o nome da pasta."), true);
+		emit notify(tr("Create folder"), tr("Type the folder name first."), true);
 		return;
 	}
-	if(!ftpReady(tr("Criar pasta")))
+	if(!ftpReady(tr("Create folder")))
 		return;
 	setFtpBusy(true);
 	const std::string target =
 		normalizeRemotePath((ftpPath_ + "/" + name.trimmed()).toStdString());
 	std::thread([this, target]() {
 		const FtpResult result = ftp_->makeDirectory(target);
-		const QString message = QString::fromStdString(result.message);
+		const QString message = translateMessage(result.message);
 		const bool ok = result.ok;
 		QMetaObject::invokeMethod(
 			this,
 			[this, ok, message]() {
 				setFtpBusy(false);
-				setStatusMessage(ok ? tr("Pasta criada.") : tr("FTP: %1").arg(message));
-				emit notify(tr("Criar pasta"),
-					ok ? tr("Pasta criada.") : tr("Não consegui criar a pasta: %1").arg(message),
+				setStatusMessage(ok ? tr("Folder created.") : tr("FTP: %1").arg(message));
+				emit notify(tr("Create folder"),
+					ok ? tr("Folder created.") : tr("I could not create the folder: %1").arg(message),
 					!ok);
 				if(ok)
 					ftpRefresh();
@@ -580,34 +906,34 @@ void AppController::ftpRename(const QString &path, const QString &newName)
 	const QString trimmed = newName.trimmed();
 	if(trimmed.isEmpty() || path.isEmpty())
 	{
-		emit notify(tr("Mudar o nome"), tr("Escreve o nome novo."), true);
+		emit notify(tr("Rename"), tr("Type the new name."), true);
 		return;
 	}
-	// O nome novo fica na mesma pasta: não se muda um ficheiro de sítio por
-	// engano ao escrever uma barra.
+	// The new name stays in the same folder: a file is not moved by
+	// mistake when typing a slash.
 	if(trimmed.contains(QLatin1Char('/')) || trimmed.contains(QLatin1Char('\\')))
 	{
-		setStatusMessage(tr("O nome não pode conter barras."));
-		emit notify(tr("Mudar o nome"), tr("O nome não pode conter barras."), true);
+		setStatusMessage(tr("The name cannot contain slashes."));
+		emit notify(tr("Rename"), tr("The name cannot contain slashes."), true);
 		return;
 	}
-	if(!ftpReady(tr("Mudar o nome")))
+	if(!ftpReady(tr("Rename")))
 		return;
 	const std::string from = path.toStdString();
 	const std::string to = normalizeRemotePath(from + "/../" + trimmed.toStdString());
 	setFtpBusy(true);
 	std::thread([this, from, to]() {
 		const FtpResult result = ftp_->rename(from, to);
-		const QString message = QString::fromStdString(result.message);
+		const QString message = translateMessage(result.message);
 		const bool ok = result.ok;
 		QMetaObject::invokeMethod(
 			this,
 			[this, ok, message]() {
 				setFtpBusy(false);
-				setStatusMessage(ok ? tr("Nome mudado.") : tr("FTP: %1").arg(message));
+				setStatusMessage(ok ? tr("Renamed.") : tr("FTP: %1").arg(message));
 				if(!ok)
-					emit notify(tr("Mudar o nome"),
-						tr("Não consegui mudar o nome: %1").arg(message), true);
+					emit notify(tr("Rename"),
+						tr("I could not rename it: %1").arg(message), true);
 				if(ok)
 					ftpRefresh();
 			},
@@ -619,7 +945,7 @@ QString AppController::uniqueLocalPath(const QString &wanted)
 {
 	if(!QFileInfo::exists(wanted))
 		return wanted;
-	// Não se apaga o que já lá está: "jogo.pkg" passa a "jogo (2).pkg".
+	// What is already there is not overwritten: "game.pkg" becomes "game (2).pkg".
 	const QFileInfo info(wanted);
 	const QString dir = info.path();
 	const QString base = info.completeBaseName();
@@ -655,8 +981,8 @@ QString AppController::cachePathFor(const QString &remotePath)
 	const QString name = QString::fromStdString(baseName(remotePath.toStdString()));
 	if(name.isEmpty())
 		return {};
-	// Uma subpasta por caminho remoto: dois ficheiros com o mesmo nome em
-	// pastas diferentes da consola não podem partilhar a cópia local.
+	// One subfolder per remote path: two files with the same name in
+	// different folders on the console cannot share the local copy.
 	const QString parent = QString::fromStdString(
 		normalizeRemotePath(remotePath.toStdString() + "/.."));
 	const QByteArray digest =
@@ -670,8 +996,8 @@ QString AppController::cachedFileUrl(const QString &remotePath, qint64 size) con
 	if(cached.isEmpty())
 		return {};
 	const QFileInfo info(cached);
-	// Só serve se estiver inteiro: um tamanho diferente é uma transferência
-	// interrompida e não deve ser entregue ao explorador de ficheiros.
+	// Only usable if complete: a different size is an interrupted transfer
+	// and must not be handed to the file manager.
 	if(!info.exists() || (size > 0 && info.size() != size))
 		return {};
 	return QUrl::fromLocalFile(info.absoluteFilePath()).toString();
@@ -709,16 +1035,16 @@ void AppController::startDownload(const QString &remotePath, const QString &name
 {
 	if(downloadActive_)
 	{
-		setStatusMessage(tr("Já há uma transferência a decorrer."));
-		emit notify(tr("Trazer para o PC"),
-			tr("Já há uma transferência a decorrer (%1). Espera que acabe.").arg(downloadName_),
+		setStatusMessage(tr("A download is already running."));
+		emit notify(tr("Bring to the PC"),
+			tr("A transfer is already running (%1). Wait for it to finish.").arg(downloadName_),
 			true);
 		return;
 	}
 	if(!ftp_)
 	{
-		emit notify(tr("Trazer para o PC"),
-			tr("O FTP não está ligado. Confirma o IP da consola e o servidor FTP do GoldHEN."),
+		emit notify(tr("Bring to the PC"),
+			tr("FTP is not connected. Check the console IP and the GoldHEN FTP server."),
 			true);
 		return;
 	}
@@ -728,7 +1054,7 @@ void AppController::startDownload(const QString &remotePath, const QString &name
 	downloadName_ = name;
 	downloadProgress_ = 0.0;
 	emit downloadChanged();
-	setStatusMessage(tr("A transferir %1…").arg(name));
+	setStatusMessage(tr("Downloading %1…").arg(name));
 
 	const std::string remote = remotePath.toStdString();
 	const std::string local = localPath.toStdString();
@@ -739,8 +1065,8 @@ void AppController::startDownload(const QString &remotePath, const QString &name
 			[this, &lastReported](int64_t done, int64_t total) {
 				if(downloadCancel_.load())
 					return false;
-				// A UI só é acordada a cada ponto percentual: numa
-				// transferência de gigabytes isto é chamado milhares de vezes.
+				// The UI is only woken on each percentage point: in a
+				// gigabyte transfer this is called thousands of times.
 				const int64_t percent = total > 0 ? (done * 100) / total : 0;
 				if(percent != lastReported)
 				{
@@ -759,7 +1085,7 @@ void AppController::startDownload(const QString &remotePath, const QString &name
 
 		const bool ok = result.ok;
 		const bool cancelled = result.cancelled || downloadCancel_.load();
-		const QString message = QString::fromStdString(result.message);
+		const QString message = translateMessage(result.message);
 		QMetaObject::invokeMethod(
 			this,
 			[this, ok, cancelled, message, name, remotePath, localPath, forDrag]() {
@@ -769,26 +1095,26 @@ void AppController::startDownload(const QString &remotePath, const QString &name
 				if(cancelled)
 				{
 					QFile::remove(localPath);
-					setStatusMessage(tr("Transferência cancelada."));
+					setStatusMessage(tr("Download cancelled."));
 					return;
 				}
 				if(!ok)
 				{
 					QFile::remove(localPath);
 					setStatusMessage(tr("FTP: %1").arg(message));
-					emit notify(tr("Transferência falhou"), message, true);
+					emit notify(tr("Download failed"), message, true);
 					return;
 				}
 				if(forDrag)
 				{
-					setStatusMessage(tr("%1 pronto para arrastar.").arg(name));
+					setStatusMessage(tr("%1 is ready to drag.").arg(name));
 					emit dragFileReady(remotePath, QUrl::fromLocalFile(localPath).toString());
 				}
 				else
 				{
-					setStatusMessage(tr("%1 guardado em %2").arg(name, QFileInfo(localPath).path()));
-					emit notify(tr("Transferência concluída"),
-						tr("%1 guardado em %2").arg(name, QFileInfo(localPath).path()), false);
+					setStatusMessage(tr("%1 saved to %2").arg(name, QFileInfo(localPath).path()));
+					emit notify(tr("Download finished"),
+						tr("%1 saved to %2").arg(name, QFileInfo(localPath).path()), false);
 				}
 			},
 			Qt::QueuedConnection);
@@ -799,9 +1125,9 @@ void AppController::cancelDownload()
 {
 	if(!downloadActive_)
 		return;
-	// Basta a callback de progresso devolver false: aborta só esta
-	// transferência. FtpClient::cancel() é para o cliente inteiro e mataria
-	// também um envio da fila a decorrer ao mesmo tempo.
+	// It is enough for the progress callback to return false: it aborts
+	// only this transfer. FtpClient::cancel() is for the whole client and
+	// would also kill a queue upload running at the same time.
 	downloadCancel_.store(true);
 }
 
@@ -829,39 +1155,39 @@ void AppController::setFtpUploadDirectory(const QString &path)
 	store_.save(settings_);
 	rebuildBackends();
 	emit settingsChanged();
-	setStatusMessage(tr("Envios por FTP passam a ir para %1")
+	setStatusMessage(tr("FTP uploads will now go to %1")
 			.arg(QString::fromStdString(settings_.ftpUploadDirectory)));
 }
 
-void AppController::noteDrag(const QString &evento, bool comFicheiros)
+void AppController::noteDrag(const QString &eventName, bool withFiles)
 {
-	if(evento == QLatin1String("entrou"))
+	if(eventName == QLatin1String("entered"))
 	{
-		++dragsVistos_;
-		if(!comFicheiros)
-			++dragsRecusados_;
-		logInfo("Arrastar: entrou na janela"
-			+ std::string(comFicheiros ? " (com ficheiros)" : " — SEM ficheiros, recusado"));
+		++dragsSeen_;
+		if(!withFiles)
+			++dragsRefused_;
+		logInfo("Drag: entered the window"
+			+ std::string(withFiles ? " (with files)" : " — NO files, refused"));
 	}
-	else if(evento == QLatin1String("largado"))
+	else if(eventName == QLatin1String("dropped"))
 	{
-		++dragsLargados_;
-		logInfo("Arrastar: largado na janela.");
+		++dragsDropped_;
+		logInfo("Drag: dropped on the window.");
 	}
 }
 
 QString AppController::dragSummary() const
 {
-	if(dragsVistos_ == 0)
+	if(dragsSeen_ == 0)
 	{
-		return QStringLiteral("nenhum arrasto chegou à janela nesta sessão. Se tentaste "
-							  "arrastar e não resultou, o Windows não entregou o evento — a "
-							  "causa mais comum é a aplicação estar a correr como "
-							  "administrador (ver a linha \"Privilégios\" acima).");
+		return QStringLiteral("no drag reached the window in this session. If you tried "
+							  "dragging and it did not work, Windows did not deliver the "
+							  "event — the most common cause is the app running as "
+							  "administrator (see the \"Privileges\" line above).");
 	}
-	return QStringLiteral("%1 arrasto(s) vistos, %2 largado(s), %3 recusado(s) por não "
-						  "trazerem ficheiros.")
-		.arg(dragsVistos_).arg(dragsLargados_).arg(dragsRecusados_);
+	return QStringLiteral("%1 drag(s) seen, %2 dropped, %3 refused for not carrying "
+						  "files.")
+		.arg(dragsSeen_).arg(dragsDropped_).arg(dragsRefused_);
 }
 
 void AppController::setAudioProbe(std::function<QString()> probe)
@@ -886,10 +1212,10 @@ QString AppController::videoProbe() const
 
 void AppController::reportRemotePlayState(const QString &state, const QString &detail)
 {
-	// Guardado para sobreviver a um rebuildBackends(): o ConsoleManager é
-	// criado de novo e não sabe nada do Remote Play, que é vigiado por
-	// outro caminho. Sem isto o indicador apagar-se-ia sozinho de vez
-	// em quando, a meio de uma sessão.
+	// Kept to survive a rebuildBackends(): the ConsoleManager is created
+	// anew and knows nothing about Remote Play, which is watched through
+	// another path. Without this the indicator would go blank by itself
+	// now and then, in the middle of a session.
 	lastRemotePlayState_ = state;
 	lastRemotePlayDetail_ = detail;
 	if(!console_)
@@ -915,7 +1241,7 @@ void AppController::probeConsole(const QString &address, int ftpPort, int instal
 	const uint64_t generation = ++probeGeneration_;
 
 	std::thread([this, address, host, ftp, rpi, generation]() {
-		// Tempo curto: isto corre enquanto se escreve, não pode arrastar-se.
+		// Short timeout: this runs while typing, it must not drag on.
 		const ProbeResult probe = probeConsoleServices(host, ftp, rpi, 1200);
 		if(generation != probeGeneration_.load())
 			return;
@@ -934,10 +1260,24 @@ void AppController::probeConsole(const QString &address, int ftpPort, int instal
 
 void AppController::rememberAccountId(const QString &accountId)
 {
-	const std::string valor = trim(accountId.toStdString());
-	if(settings_.streamAccountId == valor)
+	// Stored on the console in use (the one that just accepted it) and as
+	// the last used, which is what shows up when registering a new console.
+	const std::string trimmedId = trim(accountId.toStdString());
+	bool changed = settings_.streamAccountId != trimmedId;
+	settings_.streamAccountId = trimmedId;
+	for(ConsoleEntry &console : settings_.consoles)
+	{
+		if(console.address != settings_.consoleAddress || console.accountId == trimmedId)
+			continue;
+		console.accountId = trimmedId;
+		changed = true;
+	}
+	// An ID the console just accepted goes into the saved list too.
+	const size_t savedBefore = settings_.accounts.size();
+	normaliseAccounts(settings_);
+	changed = changed || settings_.accounts.size() != savedBefore;
+	if(!changed)
 		return;
-	settings_.streamAccountId = valor;
 	store_.save(settings_);
 	emit settingsChanged();
 }
@@ -945,11 +1285,11 @@ void AppController::rememberAccountId(const QString &accountId)
 QStringList AppController::recentLog(int lines) const
 {
 	QStringList out;
-	const std::vector<std::string> linhas =
+	const std::vector<std::string> tail =
 		Logger::instance().recent(lines > 0 ? static_cast<size_t>(lines) : 0);
-	out.reserve(static_cast<int>(linhas.size()));
-	for(const std::string &linha : linhas)
-		out << QString::fromStdString(linha);
+	out.reserve(static_cast<int>(tail.size()));
+	for(const std::string &line : tail)
+		out << QString::fromStdString(line);
 	return out;
 }
 
@@ -960,23 +1300,23 @@ QString AppController::diagnosticsReport() const
 
 QString AppController::exportDiagnostics(const QString &directory)
 {
-	QString erro;
-	const QString caminho = Diagnostics::write(this, directory, &erro);
-	if(caminho.isEmpty())
+	QString err;
+	const QString savedPath = Diagnostics::write(this, directory, &err);
+	if(savedPath.isEmpty())
 	{
-		setStatusMessage(tr("Não consegui escrever o diagnóstico: %1").arg(erro));
-		emit notify(tr("Diagnóstico"), erro, true);
+		setStatusMessage(tr("Could not write the diagnostics file: %1").arg(err));
+		emit notify(tr("Diagnostics"), err, true);
 		return {};
 	}
-	setStatusMessage(tr("Diagnóstico guardado em %1").arg(caminho));
-	emit notify(tr("Diagnóstico"), tr("Guardado em %1").arg(caminho), false);
-	return caminho;
+	setStatusMessage(tr("Diagnostics saved to %1").arg(savedPath));
+	emit notify(tr("Diagnostics"), tr("Saved to %1").arg(savedPath), false);
+	return savedPath;
 }
 
 void AppController::copyDiagnosticsToClipboard()
 {
 	copyToClipboard(diagnosticsReport());
-	setStatusMessage(tr("Diagnóstico copiado."));
+	setStatusMessage(tr("Diagnostics copied."));
 }
 
 QString AppController::logFilePath() const
@@ -988,21 +1328,21 @@ void AppController::setStreamVerbose(bool verbose)
 {
 	streamVerbose_ = verbose;
 #ifdef ORBISLINK_HAS_STREAM
-	// O registo detalhado do chiaki é muito falador; só se liga quando
-	// alguém está mesmo a diagnosticar.
+	// chiaki's verbose log is very chatty; it is only enabled when
+	// someone is actually diagnosing.
 	setChiakiVerbose(verbose);
 #endif
 	Logger::instance().setLevel(verbose || settings_.debugLogging ? LogLevel::Debug
 																  : LogLevel::Info);
-	// Com o registo detalhado ligado, guardam-se mais linhas em memória:
-	// o handshake do Remote Play sozinho enche as 500 do costume.
+	// With verbose logging on, more lines are kept in memory: the Remote
+	// Play handshake alone fills the usual 500.
 	Logger::instance().setRecentCapacity(verbose ? 4000 : 500);
-	logInfo(verbose ? "Registo detalhado do Remote Play ligado."
-					: "Registo detalhado do Remote Play desligado.");
+	logInfo(verbose ? "Detailed Remote Play log on."
+					: "Detailed Remote Play log off.");
 }
 
 
-// ───────────────────────────────── actualizações
+// ───────────────────────────────── updates
 
 void AppController::setUpdateState(const QString &state, const QString &message)
 {
@@ -1022,7 +1362,7 @@ void AppController::checkForUpdatesNow(bool silentWhenUpToDate)
 	config.currentVersion = version().toStdString();
 	config.assetSuffix = platformAssetSuffix();
 
-	setUpdateState(QStringLiteral("a-verificar"), tr("A procurar versões novas…"));
+	setUpdateState(QStringLiteral("checking"), tr("Looking for new versions…"));
 
 	std::thread([this, config, silentWhenUpToDate]() {
 		const UpdateCheckResult result = UpdateChecker(config).check();
@@ -1030,21 +1370,21 @@ void AppController::checkForUpdatesNow(bool silentWhenUpToDate)
 			this,
 			[this, result, silentWhenUpToDate]() {
 				updateBusy_.store(false);
-				const QString mensagem = QString::fromStdString(result.message);
+				const QString text = translateMessage(result.message);
 				if(!result.ok)
 				{
-					setUpdateState(QStringLiteral("erro"), mensagem);
+					setUpdateState(QStringLiteral("error"), text);
 					if(!silentWhenUpToDate)
-						emit notify(tr("Actualizações"), mensagem, true);
+						emit notify(tr("Updates"), text, true);
 					return;
 				}
 				if(!result.updateAvailable)
 				{
 					updateVersion_.clear();
 					updateAssetUrl_.clear();
-					setUpdateState(QStringLiteral("sem-novidades"), mensagem);
+					setUpdateState(QStringLiteral("up-to-date"), text);
 					if(!silentWhenUpToDate)
-						emit notify(tr("Actualizações"), mensagem, false);
+						emit notify(tr("Updates"), text, false);
 					return;
 				}
 				updateVersion_ = QString::fromStdString(result.release.version().toString());
@@ -1056,7 +1396,7 @@ void AppController::checkForUpdatesNow(bool silentWhenUpToDate)
 				updateAssetSha256Url_ = QString::fromStdString(result.release.assetSha256Url);
 				updateAssetSize_ = result.release.assetSize;
 				updateProgress_ = 0.0;
-				setUpdateState(QStringLiteral("disponivel"), mensagem);
+				setUpdateState(QStringLiteral("available"), text);
 				emit updateAvailable(updateVersion_);
 			},
 			Qt::QueuedConnection);
@@ -1071,22 +1411,22 @@ void AppController::openUpdatePage() const
 
 void AppController::dismissUpdate()
 {
-	// Não esquece que há uma versão nova — só deixa de a mostrar à frente.
-	setUpdateState(QStringLiteral("disponivel"), updateMessage_);
+	// It does not forget there is a new version — it just stops showing it up front.
+	setUpdateState(QStringLiteral("available"), updateMessage_);
 }
 
 void AppController::loadDemoUpdate()
 {
-	static const char *exemplo = R"([{
+	static const char *sample = R"([{
 	  "tag_name": "v0.1.9",
 	  "name": "v0.1.9",
-	  "body": "Remote Play confirmado numa PS4 real.\n\n- Descodificacao por hardware em Windows\n- Ecra inteiro com F11\n- Vibracao no comando\n- Assistente de primeira utilizacao\n\nOrbisLink-0.1.9-setup.exe\n",
-	  "html_url": "https://github.com/exemplo/orbislink/releases/tag/v0.1.9",
+	  "body": "Remote Play confirmed on a real PS4.\n\n- Hardware decoding on Windows\n- Full screen with F11\n- Controller rumble\n- First-run wizard\n\nOrbisLink-0.1.9-setup.exe\n",
+	  "html_url": "https://github.com/example/orbislink/releases/tag/v0.1.9",
 	  "draft": false, "prerelease": false,
 	  "assets": [{ "name": "OrbisLink-0.1.9-setup.exe",
 	    "browser_download_url": "https://exemplo/OrbisLink-0.1.9-setup.exe", "size": 48234496 }]
 	}])";
-	const auto releases = UpdateChecker::parseReleases(exemplo, "-setup.exe");
+	const auto releases = UpdateChecker::parseReleases(sample, "-setup.exe");
 	if(releases.empty())
 		return;
 	const ReleaseInfo &info = releases.front();
@@ -1096,117 +1436,116 @@ void AppController::loadDemoUpdate()
 	updateAssetUrl_ = QString::fromStdString(info.assetUrl);
 	updateAssetName_ = QString::fromStdString(info.assetName);
 	updateAssetSize_ = info.assetSize;
-	setUpdateState(QStringLiteral("disponivel"),
-		tr("Há uma versão nova: %1.").arg(updateVersion_));
+	setUpdateState(QStringLiteral("available"),
+		tr("There is a new version: %1.").arg(updateVersion_));
 }
 
 void AppController::installUpdate()
 {
 	if(updateAssetUrl_.isEmpty())
 	{
-		// Sem instalador para esta plataforma, o melhor que se pode fazer é
-		// levar lá a pessoa.
+		// Without an installer for this platform, the best that can be done
+		// is to take the person there.
 		openUpdatePage();
 		return;
 	}
 	if(updateBusy_.exchange(true))
 		return;
 
-	const QString destino = QDir(QDir::tempPath()).filePath(
+	const QString destination = QDir(QDir::tempPath()).filePath(
 		updateAssetName_.isEmpty() ? QStringLiteral("orbislink-update.exe") : updateAssetName_);
 	const QString url = updateAssetUrl_;
 	const QString shaUrl = updateAssetSha256Url_;
-	const QString shaEsperado = updateAssetSha256_;
+	const QString expectedSha = updateAssetSha256_;
 
 	updateProgress_ = 0.0;
-	setUpdateState(QStringLiteral("a-descarregar"), tr("A descarregar %1…").arg(updateAssetName_));
+	setUpdateState(QStringLiteral("downloading"), tr("Downloading %1…").arg(updateAssetName_));
 
-	std::thread([this, url, destino, shaUrl, shaEsperado]() {
+	std::thread([this, url, destination, shaUrl, expectedSha]() {
 		HttpClient client(20000);
 
-		// O hash pode vir num anexo à parte. Vai-se buscar antes de
-		// descarregar 80 MB, para não se descobrir no fim que não há nada
-		// com que comparar.
-		std::string esperado = shaEsperado.toStdString();
-		if(esperado.empty() && !shaUrl.isEmpty())
+		// The hash may come in a separate asset. It is fetched before
+		// downloading 80 MB, so as not to find out at the end that there is
+		// nothing to compare against.
+		std::string expected = expectedSha.toStdString();
+		if(expected.empty() && !shaUrl.isEmpty())
 		{
 			HttpClient::FetchOptions options;
-			const HttpResponse resposta = client.fetch(shaUrl.toStdString(), options);
-			if(resposta.transportOk && resposta.status >= 200 && resposta.status < 300)
+			const HttpResponse reply = client.fetch(shaUrl.toStdString(), options);
+			if(reply.transportOk && reply.status >= 200 && reply.status < 300)
 			{
-				// Formato do sha256sum: "<hash>  <nome>".
-				const std::string corpo = trim(resposta.body);
-				const size_t espaco = corpo.find_first_of(" \t");
-				const std::string primeiro =
-					espaco == std::string::npos ? corpo : corpo.substr(0, espaco);
-				if(primeiro.size() == 64)
-					esperado = toLower(primeiro);
+				// sha256sum format: "<hash>  <name>".
+				const std::string body = trim(reply.body);
+				const size_t space = body.find_first_of(" \t");
+				const std::string firstWord =
+					space == std::string::npos ? body : body.substr(0, space);
+				if(firstWord.size() == 64)
+					expected = toLower(firstWord);
 			}
 		}
 
-		const auto resultado = client.download(
-			url.toStdString(), destino.toStdString(),
-			[this](int64_t feito, int64_t total) {
-				const double fraccao = total > 0
-					? static_cast<double>(feito) / static_cast<double>(total)
+		const auto outcome = client.download(
+			url.toStdString(), destination.toStdString(),
+			[this](int64_t received, int64_t total) {
+				const double fraction = total > 0
+					? static_cast<double>(received) / static_cast<double>(total)
 					: 0.0;
 				QMetaObject::invokeMethod(
 					this,
-					[this, fraccao]() {
-						updateProgress_ = fraccao;
+					[this, fraction]() {
+						updateProgress_ = fraction;
 						emit updateChanged();
 					},
 					Qt::QueuedConnection);
 				return true;
 			});
 
-		QString erro;
-		if(!resultado.ok)
-			erro = tr("A descarga falhou: %1").arg(QString::fromStdString(resultado.error));
-		else if(!esperado.empty())
+		QString err;
+		if(!outcome.ok)
+			err = tr("The download failed: %1").arg(translateMessage(outcome.error));
+		else if(!expected.empty())
 		{
-			const std::string obtido = sha256File(destino.toStdString());
-			if(obtido != esperado)
+			const std::string actual = sha256File(destination.toStdString());
+			if(actual != expected)
 			{
-				erro = tr("O ficheiro descarregado não corresponde ao SHA-256 publicado. "
-						  "Não vou instalá-lo.");
-				logError("SHA-256 do update não bate: esperado " + esperado + ", obtido " + obtido);
-				QFile::remove(destino);
+				err = tr("The downloaded file does not match the published SHA-256. I will not install it.");
+				logError("Update SHA-256 does not match: expected " + expected + ", got " + actual);
+				QFile::remove(destination);
 			}
 		}
 
 		QMetaObject::invokeMethod(
 			this,
-			[this, destino, erro, esperado]() {
+			[this, destination, err, expected]() {
 				updateBusy_.store(false);
-				if(!erro.isEmpty())
+				if(!err.isEmpty())
 				{
-					setUpdateState(QStringLiteral("erro"), erro);
-					emit notify(tr("Actualização"), erro, true);
+					setUpdateState(QStringLiteral("error"), err);
+					emit notify(tr("Update"), err, true);
 					return;
 				}
-				if(esperado.empty())
+				if(expected.empty())
 				{
-					// Dizer isto é o mínimo: sem hash publicado, a única
-					// garantia é o HTTPS.
-					logWarning("O lançamento não publicou SHA-256; só o HTTPS garantiu o "
-							   "ficheiro.");
+					// Saying this is the minimum: without a published hash,
+					// the only guarantee is HTTPS.
+					logWarning("The release did not publish a SHA-256; only HTTPS vouched for "
+							   "the file.");
 				}
-				setUpdateState(QStringLiteral("pronto"),
-					tr("Descarregado. O instalador vai abrir e a aplicação fecha-se."));
+				setUpdateState(QStringLiteral("ready"),
+					tr("Downloaded. The installer will open and the app will close."));
 				emit updateChanged();
 
-				// O instalador não pode substituir um executável a correr,
-				// por isso arranca-se e sai-se. O UAC aparece aqui, porque o
-				// instalador pede elevação — não há como o evitar sem
-				// mudar para uma instalação por utilizador.
-				if(!QProcess::startDetached(destino, QStringList()))
+				// The installer cannot replace a running executable, so it
+				// is launched and the app quits. UAC appears here, because
+				// the installer asks for elevation — there is no avoiding it
+				// without switching to a per-user install.
+				if(!QProcess::startDetached(destination, QStringList()))
 				{
-					setUpdateState(QStringLiteral("erro"),
-						tr("Não consegui abrir o instalador em %1.").arg(destino));
+					setUpdateState(QStringLiteral("error"),
+						tr("I could not open the installer at %1.").arg(destination));
 					return;
 				}
-				logInfo("Instalador de actualização lançado; a fechar a aplicação.");
+				logInfo("Update installer launched; closing the app.");
 				QTimer::singleShot(500, qApp, &QCoreApplication::quit);
 			},
 			Qt::QueuedConnection);
@@ -1218,7 +1557,9 @@ QVariantMap AppController::settingsMap() const
 	QVariantMap map;
 	map[QStringLiteral("consoleName")] = QString::fromStdString(settings_.consoleName);
 	map[QStringLiteral("consoleAddress")] = QString::fromStdString(settings_.consoleAddress);
-	map[QStringLiteral("ftpPort")] = settings_.ftpPort;
+	// The FTP port shown and edited is the one of the console in use.
+	map[QStringLiteral("ftpPort")] = activeFtpPort();
+	map[QStringLiteral("consoleIsPs5")] = activeIsPs5();
 	map[QStringLiteral("installerPort")] = settings_.installerPort;
 	map[QStringLiteral("httpPort")] = settings_.httpPort;
 	map[QStringLiteral("httpBindAddress")] = QString::fromStdString(settings_.httpBindAddress);
@@ -1240,7 +1581,9 @@ QVariantMap AppController::settingsMap() const
 	map[QStringLiteral("streamFullscreenOnConnect")] = settings_.streamFullscreenOnConnect;
 	map[QStringLiteral("streamRumble")] = settings_.streamRumble;
 	map[QStringLiteral("streamTouchpadFromMouse")] = settings_.streamTouchpadFromMouse;
-	map[QStringLiteral("streamAccountId")] = QString::fromStdString(settings_.streamAccountId);
+	// The settings show the one for the console in use, which is what goes
+	// to it on the next registration.
+	map[QStringLiteral("streamAccountId")] = QString::fromStdString(activeAccountId());
 	map[QStringLiteral("firstRunDone")] = settings_.firstRunDone;
 	map[QStringLiteral("checkForUpdates")] = settings_.checkForUpdates;
 	map[QStringLiteral("updateRepository")] = QString::fromStdString(settings_.updateRepository);
@@ -1266,9 +1609,24 @@ void AppController::applySettings(const QVariantMap &values)
 			: fallback;
 	};
 
+	// Changing the name or IP in the settings edits the console in use, and
+	// does not add another to the list: its entry takes the new values.
+	const std::string oldAddress = settings_.consoleAddress;
 	settings_.consoleName = stringOr("consoleName", settings_.consoleName);
 	settings_.consoleAddress = stringOr("consoleAddress", settings_.consoleAddress);
-	settings_.ftpPort = static_cast<uint16_t>(intOr("ftpPort", settings_.ftpPort));
+	for(ConsoleEntry &console : settings_.consoles)
+	{
+		if(console.address == oldAddress)
+		{
+			console.address = trim(settings_.consoleAddress);
+			console.name = settings_.consoleName;
+		}
+	}
+	normaliseConsoles(settings_);
+	if(activeIsPs5())
+		settings_.ftpPortPs5 = static_cast<uint16_t>(intOr("ftpPort", settings_.ftpPortPs5));
+	else
+		settings_.ftpPort = static_cast<uint16_t>(intOr("ftpPort", settings_.ftpPort));
 	settings_.installerPort = static_cast<uint16_t>(intOr("installerPort", settings_.installerPort));
 	settings_.httpPort = static_cast<uint16_t>(intOr("httpPort", settings_.httpPort));
 	settings_.httpBindAddress = stringOr("httpBindAddress", settings_.httpBindAddress);
@@ -1294,7 +1652,18 @@ void AppController::applySettings(const QVariantMap &values)
 	settings_.streamRumble = boolOr("streamRumble", settings_.streamRumble);
 	settings_.streamTouchpadFromMouse =
 		boolOr("streamTouchpadFromMouse", settings_.streamTouchpadFromMouse);
-	settings_.streamAccountId = stringOr("streamAccountId", settings_.streamAccountId);
+	{
+		const std::string before = activeAccountId();
+		const std::string after = trim(stringOr("streamAccountId", before));
+		if(after != before)
+		{
+			settings_.streamAccountId = after;
+			for(ConsoleEntry &console : settings_.consoles)
+				if(console.address == settings_.consoleAddress)
+					console.accountId = after;
+		}
+	}
+	normaliseAccounts(settings_);
 	settings_.debugLogging = boolOr("debugLogging", settings_.debugLogging);
 	settings_.language = stringOr("language", settings_.language);
 	settings_.firstRunDone = boolOr("firstRunDone", settings_.firstRunDone);
@@ -1305,17 +1674,24 @@ void AppController::applySettings(const QVariantMap &values)
 	store_.save(settings_);
 	Logger::instance().setLevel(settings_.debugLogging ? LogLevel::Debug : LogLevel::Info);
 	rebuildBackends();
-	setStatusMessage(tr("Definições guardadas."));
+	setStatusMessage(tr("Settings saved."));
 }
 
 void AppController::setTheme(const QString &theme)
 {
-	const std::string nome = theme.toStdString();
-	if(nome != "escuro" && nome != "vidro" && nome != "claro")
+	const std::string themeName = theme.toStdString();
+	if(themeName != "dark" && themeName != "glass" && themeName != "light")
 		return;
-	if(settings_.theme == nome)
+	if(settings_.theme == themeName)
 		return;
-	settings_.theme = nome;
+	settings_.theme = themeName;
+	store_.save(settings_);
+	emit settingsChanged();
+}
+
+void AppController::saveKeyBindings(const std::map<std::string, int> &bindings)
+{
+	settings_.keyboardBindings = bindings;
 	store_.save(settings_);
 	emit settingsChanged();
 }
@@ -1325,7 +1701,7 @@ void AppController::saveUpdateSettings(bool checkForUpdates, const QString &repo
 {
 	settings_.checkForUpdates = checkForUpdates;
 	settings_.updateRepository = repository.trimmed().toStdString();
-	settings_.updateChannel = channel == QStringLiteral("testes") ? "testes" : "estavel";
+	settings_.updateChannel = channel == QStringLiteral("testing") ? "testing" : "stable";
 	store_.save(settings_);
 }
 

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// "Há uma versão nova." Mostra qual, o que mudou, e dá um botão para
-// instalar. Nada acontece sozinho: a descarga só começa a pedido, e o
-// instalador só abre depois de o SHA-256 bater.
+// "There is a new version." Shows which, what changed, and gives a button
+// to install. Nothing happens by itself: the download only starts on
+// request, and the installer only opens after the SHA-256 matches.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -16,12 +16,12 @@ Dialog {
     modal: true
     padding: 0
 
-    readonly property bool aDescarregar: app.updateState === "a-descarregar"
-    readonly property bool pronto: app.updateState === "pronto"
+    readonly property bool downloading: app.updateState === "downloading"
+    readonly property bool isReady: app.updateState === "ready"
 
-    // Um modal quase opaco: com a transparência dos painéis, o que está por
-    // trás ver-se-ia através da caixa, e uma caixa que pede uma decisão não
-    // pode ser uma janela.
+    // A nearly opaque modal: with the panels' transparency, what is behind
+    // would show through the box, and a box asking for a decision must not
+    // be a window.
     Overlay.modal: Rectangle { color: Theme.scrim }
 
     background: Rectangle {
@@ -40,14 +40,14 @@ Dialog {
             spacing: 10
             Text {
                 Layout.fillWidth: true
-                text: qsTr("Versão %1 disponível").arg(app.updateVersion)
+                text: qsTr("Version %1 available").arg(app.updateVersion)
                 color: Theme.text
                 font.pixelSize: 16
                 font.bold: true
                 elide: Text.ElideRight
             }
             Text {
-                text: qsTr("tens a %1").arg(app.version)
+                text: qsTr("you have %1").arg(app.version)
                 color: Theme.textMuted
                 font.pixelSize: 11
             }
@@ -66,21 +66,21 @@ Dialog {
             anchors.rightMargin: Theme.dialogMargin
             spacing: 8
             StyledButton {
-                text: qsTr("Ver no GitHub")
+                text: qsTr("View on GitHub")
                 enabled: app.updatePageUrl.length > 0
                 onClicked: app.openUpdatePage()
             }
             Item { Layout.fillWidth: true }
             StyledButton {
-                text: qsTr("Mais tarde")
-                enabled: !dialog.aDescarregar && !dialog.pronto
+                text: qsTr("Later")
+                enabled: !dialog.downloading && !dialog.isReady
                 onClicked: { app.dismissUpdate(); dialog.close() }
             }
             StyledButton {
-                text: app.updateCanInstall ? qsTr("Instalar agora") : qsTr("Abrir a página")
+                text: app.updateCanInstall ? qsTr("Install now") : qsTr("Open the page")
                 primary: true
-                larguraMinima: 140
-                enabled: !dialog.aDescarregar && !dialog.pronto
+                minimumWidth: 140
+                enabled: !dialog.downloading && !dialog.isReady
                 onClicked: app.installUpdate()
             }
         }
@@ -89,8 +89,8 @@ Dialog {
     contentItem: ColumnLayout {
         spacing: 10
 
-        // O que mudou. O corpo do lançamento vem em markdown; mostra-se como
-        // texto, que é honesto e não finge formatação que não há.
+        // What changed. The release body comes in markdown; it is shown as
+        // text, which is honest and does not fake formatting that is not there.
         Rectangle {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
@@ -107,7 +107,7 @@ Dialog {
                 clip: true
                 TextArea {
                     text: app.updateNotes.length > 0 ? app.updateNotes
-                                                     : qsTr("Este lançamento não trouxe notas.")
+                                                     : qsTr("This release came with no notes.")
                     readOnly: true
                     wrapMode: Text.WordWrap
                     color: Theme.text
@@ -124,18 +124,18 @@ Dialog {
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
             spacing: 4
-            visible: dialog.aDescarregar || dialog.pronto || app.updateState === "erro"
+            visible: dialog.downloading || dialog.isReady || app.updateState === "error"
 
             Text {
                 Layout.fillWidth: true
                 text: app.updateMessage
-                color: app.updateState === "erro" ? Theme.error : Theme.textMuted
+                color: app.updateState === "error" ? Theme.error : Theme.textMuted
                 font.pixelSize: 11
                 wrapMode: Text.WordWrap
             }
             Rectangle {
                 Layout.fillWidth: true
-                visible: dialog.aDescarregar
+                visible: dialog.downloading
                 height: 4
                 radius: 2
                 color: Theme.border
@@ -157,8 +157,8 @@ Dialog {
             color: Theme.textMuted
             font.pixelSize: 11
             visible: app.updateCanInstall
-            text: qsTr("O instalador abre e a aplicação fecha-se. O Windows vai pedir "
-                       + "autorização — o instalador escreve no Program Files.")
+            text: qsTr("The installer opens and the app closes. Windows will ask for permission "
+                       + "— the installer writes to Program Files.")
         }
     }
 }

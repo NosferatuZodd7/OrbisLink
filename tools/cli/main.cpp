@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// orbislink-cli — acesso ao núcleo do OrbisLink sem interface gráfica.
-// Serve para desenvolvimento, diagnóstico e para os testes de integração
-// contra a consola falsa (tools/mock-console).
+// orbislink-cli — access to the OrbisLink core without a graphical interface.
+// Used for development, diagnostics and the integration tests against the
+// mock console (tools/mock-console).
 
 #include "orbislink/common/log.h"
 #include "orbislink/common/util.h"
@@ -74,33 +74,33 @@ void printUsage()
 {
 	std::cout << R"(OrbisLink CLI
 
-Uso: orbislink-cli <comando> [opções]
+Usage: orbislink-cli <command> [options]
 
-Comandos:
-  inspect <ficheiro.pkg...>            Mostra os metadados dos pkg.
-  services --host <ip>                 Verifica FTP (2121) e instalador (12800).
-  serve --host <ip> <ficheiro.pkg>     Serve um pkg e imprime o URL (não instala).
-  install --host <ip> <ficheiro...>    Instalação direta: serve e instala pela fila.
-                                       Com --ftp envia por FTP em vez de instalar;
-                                       junta --install-after-upload para fazer as duas.
-  ftp-ls --host <ip> [caminho]         Lista uma pasta da consola.
-  ftp-put --host <ip> <local> [remoto] Envia um ficheiro por FTP.
-  ftp-get --host <ip> <remoto> <local> Descarrega um ficheiro por FTP.
-  ftp-rm --host <ip> <remoto>          Apaga um ficheiro na consola.
-  ftp-mkdir --host <ip> <remoto>       Cria uma pasta na consola.
+Commands:
+  inspect <file.pkg...>                Shows the pkg metadata.
+  services --host <ip>                 Checks FTP (2121) and the installer (12800).
+  serve --host <ip> <file.pkg>         Serves a pkg and prints the URL (does not install).
+  install --host <ip> <file...>        Direct install: serves and installs through the queue.
+                                       With --ftp it uploads over FTP instead of installing;
+                                       add --install-after-upload to do both.
+  ftp-ls --host <ip> [path]            Lists a folder on the console.
+  ftp-put --host <ip> <local> [remote] Uploads a file over FTP.
+  ftp-get --host <ip> <remote> <local> Downloads a file over FTP.
+  ftp-rm --host <ip> <remote>          Deletes a file on the console.
+  ftp-mkdir --host <ip> <remote>       Creates a folder on the console.
 
-Opções comuns:
-  --ftp-port <n>        (por omissão 2121)
-  --installer-port <n>  (por omissão 12800)
-  --http-port <n>       (por omissão 8765)
-  --bind <ip>           Interface do servidor HTTP local (por omissão, a da consola)
-  --remote-dir <path>   Pasta de destino no FTP (por omissão /data/pkg/)
-  --timeout <segundos>  Tempo máximo à espera da instalação (por omissão 600)
-  --debug               Log detalhado
-  --advanced            Permite escrever nas zonas protegidas do sistema
-  --ftp                 No "install": envia por FTP em vez de instalar
-  --install-after-upload  Depois do envio por FTP, instala a partir do PC
-  --delete-after-install  E apaga da consola a cópia enviada
+Common options:
+  --ftp-port <n>        (default 2121)
+  --installer-port <n>  (default 12800)
+  --http-port <n>       (default 8765)
+  --bind <ip>           Local HTTP server interface (default: the one facing the console)
+  --remote-dir <path>   Destination folder on FTP (default /data/pkg/)
+  --timeout <seconds>   Maximum wait for the installation (default 600)
+  --debug               Detailed log
+  --advanced            Allows writing to the protected system areas
+  --ftp                 For "install": upload over FTP instead of installing
+  --install-after-upload  After the FTP upload, install from the PC
+  --delete-after-install  And delete the uploaded copy from the console
 )";
 }
 
@@ -144,7 +144,7 @@ int commandInspect(const Options &options)
 {
 	if(options.positional.empty())
 	{
-		std::cerr << "Indica pelo menos um ficheiro .pkg.\n";
+		std::cerr << "Give at least one .pkg file.\n";
 		return 2;
 	}
 	PkgInspector inspector;
@@ -155,18 +155,18 @@ int commandInspect(const Options &options)
 		std::cout << baseName(path) << "\n";
 		if(!info.valid)
 		{
-			std::cout << "  ERRO: " << info.error << "\n";
+			std::cout << "  ERROR: " << info.error << "\n";
 			++failures;
 			continue;
 		}
-		std::cout << "  Título      : " << info.displayTitle() << "\n"
-				  << "  TITLE_ID    : " << (info.titleId.empty() ? "(desconhecido)" : info.titleId) << "\n"
+		std::cout << "  Title       : " << info.displayTitle() << "\n"
+				  << "  TITLE_ID    : " << (info.titleId.empty() ? "(unknown)" : info.titleId) << "\n"
 				  << "  CONTENT_ID  : " << info.contentId << "\n"
-				  << "  Tipo        : " << pkgCategoryLabelPt(info.kind) << " ("
+				  << "  Type        : " << pkgCategoryLabel(info.kind) << " ("
 				  << (info.category.empty() ? pkgCategoryCode(info.kind) : info.category) << ")\n"
-				  << "  Versão      : " << (info.appVersion.empty() ? "-" : info.appVersion) << "\n"
-				  << "  Tamanho     : " << humanBytes(info.fileSize) << "\n"
-				  << "  Ícone       : " << (info.iconPng.empty() ? "não" : humanBytes(static_cast<int64_t>(info.iconPng.size())))
+				  << "  Version     : " << (info.appVersion.empty() ? "-" : info.appVersion) << "\n"
+				  << "  Size        : " << humanBytes(info.fileSize) << "\n"
+				  << "  Icon        : " << (info.iconPng.empty() ? "no" : humanBytes(static_cast<int64_t>(info.iconPng.size())))
 				  << "\n";
 	}
 	return failures == 0 ? 0 : 1;
@@ -177,14 +177,14 @@ int commandServices(const Options &options)
 	const Settings settings = settingsFromOptions(options);
 	if(settings.consoleAddress.empty())
 	{
-		std::cerr << "Falta --host.\n";
+		std::cerr << "Missing --host.\n";
 		return 2;
 	}
 	ConsoleManager manager(settings);
 	const ConsoleStatus status = manager.checkNow();
 	std::cout << serviceStateSymbol(status.ftp.state) << " FTP " << settings.ftpPort << " — "
 			  << (status.ftp.detail.empty() ? status.ftp.hint : status.ftp.detail) << "\n"
-			  << serviceStateSymbol(status.installer.state) << " Instalador "
+			  << serviceStateSymbol(status.installer.state) << " Installer "
 			  << settings.installerPort << " — "
 			  << (status.installer.detail.empty() ? status.installer.hint : status.installer.detail)
 			  << "\n";
@@ -206,7 +206,7 @@ int commandServe(const Options &options)
 	const Settings settings = settingsFromOptions(options);
 	if(options.positional.empty())
 	{
-		std::cerr << "Indica o ficheiro a servir.\n";
+		std::cerr << "Give the file to serve.\n";
 		return 2;
 	}
 	LocalHttpServer server;
@@ -217,7 +217,7 @@ int commandServe(const Options &options)
 	std::string error;
 	if(!server.start(config, &error))
 	{
-		std::cerr << "Não foi possível arrancar o servidor HTTP: " << error << "\n";
+		std::cerr << "Could not start the HTTP server: " << error << "\n";
 		return 1;
 	}
 	for(const std::string &path : options.positional)
@@ -225,12 +225,12 @@ int commandServe(const Options &options)
 		const std::string token = server.registerFile(path, baseName(path));
 		if(token.empty())
 		{
-			std::cerr << "Ficheiro inacessível: " << path << "\n";
+			std::cerr << "File not accessible: " << path << "\n";
 			continue;
 		}
 		std::cout << server.urlForToken(token) << "\n";
 	}
-	std::cout << "Ctrl+C para parar.\n";
+	std::cout << "Ctrl+C to stop.\n";
 	const int seconds = options.getInt("timeout", 3600);
 	std::this_thread::sleep_for(std::chrono::seconds(seconds));
 	server.stop();
@@ -242,7 +242,7 @@ int commandInstall(const Options &options)
 	const Settings settings = settingsFromOptions(options);
 	if(settings.consoleAddress.empty() || options.positional.empty())
 	{
-		std::cerr << "Uso: orbislink-cli install --host <ip> <ficheiro.pkg...>\n";
+		std::cerr << "Usage: orbislink-cli install --host <ip> <file.pkg...>\n";
 		return 2;
 	}
 
@@ -254,7 +254,7 @@ int commandInstall(const Options &options)
 	std::string error;
 	if(!server.start(httpConfig, &error))
 	{
-		std::cerr << "Não foi possível arrancar o servidor HTTP local: " << error << "\n";
+		std::cerr << "Could not start the local HTTP server: " << error << "\n";
 		return 1;
 	}
 
@@ -264,16 +264,16 @@ int commandInstall(const Options &options)
 	RpiClient installer(rpiConfig);
 
 	FtpClient ftp(ftpConfigFrom(settings));
-	const bool porFtp = options.has("ftp");
+	const bool byFtp = options.has("ftp");
 
-	// Um envio só por FTP não precisa do instalador; com
-	// --install-after-upload precisa, porque instala a seguir.
-	if(!porFtp || settings.installAfterUpload)
+	// An FTP-only upload does not need the installer; with
+	// --install-after-upload it does, because it installs afterwards.
+	if(!byFtp || settings.installAfterUpload)
 	{
 		std::string detail;
 		if(!installer.probe(&detail))
 		{
-			std::cerr << "Instalador remoto indisponível. Abre o Remote Package Installer na consola. ("
+			std::cerr << "Remote installer unavailable. Open Remote Package Installer on the console. ("
 					  << detail << ")\n";
 			server.stop();
 			return 1;
@@ -283,15 +283,15 @@ int commandInstall(const Options &options)
 	InstallQueue::Dependencies deps;
 	deps.httpServer = &server;
 	deps.installer = &installer;
-	if(porFtp)
+	if(byFtp)
 		deps.ftp = &ftp;
 	InstallQueue queue(deps, settings);
 
 	std::vector<std::string> rejected;
 	const auto ids = queue.enqueue(options.positional,
-		porFtp ? TransferMode::FtpUpload : TransferMode::DirectInstall, &rejected);
+		byFtp ? TransferMode::FtpUpload : TransferMode::DirectInstall, &rejected);
 	for(const std::string &reason : rejected)
-		std::cerr << "Recusado — " << reason << "\n";
+		std::cerr << "Rejected — " << reason << "\n";
 	if(ids.empty())
 	{
 		server.stop();
@@ -301,7 +301,7 @@ int commandInstall(const Options &options)
 	queue.setListener([](const QueueTask &task) {
 		std::cout << "\r" << std::left << std::setw(28)
 				  << (task.title.size() > 26 ? task.title.substr(0, 26) : task.title) << " "
-				  << std::setw(12) << taskStateLabelPt(task.state) << " " << progressBar(task.percent())
+				  << std::setw(12) << taskStateLabel(task.state) << " " << progressBar(task.percent())
 				  << "      " << std::flush;
 		if(task.isTerminal())
 			std::cout << "\n" << (task.message.empty() ? "" : "  " + task.message + "\n") << std::flush;
@@ -333,7 +333,7 @@ int commandInstall(const Options &options)
 	}
 	if(timedOut)
 	{
-		std::cerr << "Tempo esgotado à espera da instalação.\n";
+		std::cerr << "Timed out waiting for the installation.\n";
 		return 1;
 	}
 	return failures == 0 ? 0 : 1;
@@ -344,7 +344,7 @@ int commandFtp(const std::string &command, const Options &options)
 	const Settings settings = settingsFromOptions(options);
 	if(settings.consoleAddress.empty())
 	{
-		std::cerr << "Falta --host.\n";
+		std::cerr << "Missing --host.\n";
 		return 2;
 	}
 	FtpClient client(ftpConfigFrom(settings));
@@ -372,7 +372,7 @@ int commandFtp(const std::string &command, const Options &options)
 	{
 		if(options.positional.empty())
 		{
-			std::cerr << "Uso: ftp-put --host <ip> <local> [remoto]\n";
+			std::cerr << "Usage: ftp-put --host <ip> <local> [remote]\n";
 			return 2;
 		}
 		const std::string local = options.positional[0];
@@ -393,7 +393,7 @@ int commandFtp(const std::string &command, const Options &options)
 			std::cerr << "FTP: " << result.message << "\n";
 			return 1;
 		}
-		std::cout << "Enviado para " << remote << "\n";
+		std::cout << "Uploaded to " << remote << "\n";
 		return 0;
 	}
 
@@ -401,7 +401,7 @@ int commandFtp(const std::string &command, const Options &options)
 	{
 		if(options.positional.size() < 2)
 		{
-			std::cerr << "Uso: ftp-get --host <ip> <remoto> <local>\n";
+			std::cerr << "Usage: ftp-get --host <ip> <remote> <local>\n";
 			return 2;
 		}
 		const FtpResult result = client.download(options.positional[0], options.positional[1],
@@ -423,7 +423,7 @@ int commandFtp(const std::string &command, const Options &options)
 	{
 		if(options.positional.empty())
 		{
-			std::cerr << "Indica o caminho remoto.\n";
+			std::cerr << "Give the remote path.\n";
 			return 2;
 		}
 		const FtpResult result = command == "ftp-rm" ? client.removeFile(options.positional[0])
@@ -470,7 +470,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
-	std::cerr << "Comando desconhecido: " << command << "\n";
+	std::cerr << "Unknown command: " << command << "\n";
 	printUsage();
 	return 2;
 }

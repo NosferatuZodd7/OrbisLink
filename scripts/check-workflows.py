@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Verificação grosseira dos blocos de PowerShell dos workflows: chaves,
-# parêntesis e aspas equilibrados, e nenhum "$var:" — que o PowerShell lê
-# como qualificador de âmbito.
+# Rough check of the workflows' PowerShell blocks: balanced braces,
+# parentheses and quotes, and no "$var:" — which PowerShell reads
+# as a scope qualifier.
 #
-# Não substitui um interpretador; apanha a classe de erro que só se
-# descobre cinco minutos depois, num runner de Windows.
+# It does not replace an interpreter; it catches the class of error that is
+# only found five minutes later, on a Windows runner.
 import re
 import sys
 
@@ -14,41 +14,41 @@ import yaml
 
 
 def main() -> int:
-    problemas = []
-    for caminho in sys.argv[1:] or ['.github/workflows/ci.yml',
+    problems = []
+    for path in sys.argv[1:] or ['.github/workflows/ci.yml',
                                     '.github/workflows/release.yml']:
-        doc = yaml.safe_load(open(caminho))
-        for nome_job, job in doc['jobs'].items():
-            for passo in job.get('steps', []):
-                script = passo.get('run')
+        doc = yaml.safe_load(open(path))
+        for job_name, job in doc['jobs'].items():
+            for step in job.get('steps', []):
+                script = step.get('run')
                 if not script:
                     continue
-                # Só os blocos de PowerShell: os de bash têm outras regras.
+                # Only the PowerShell blocks: the bash ones have other rules.
                 if 'Write-Host' not in script and 'Test-Path' not in script:
                     continue
-                etiqueta = f"{caminho}:{nome_job}:{passo.get('name', '(sem nome)')}"
-                linhas = [l for l in script.split('\n')
+                tag = f"{path}:{job_name}:{step.get('name', '(no name)')}"
+                lines = [l for l in script.split('\n')
                           if not l.strip().startswith('#')]
-                corpo = '\n'.join(linhas)
-                for abre, fecha, tipo in (('{', '}', 'chaves'),
-                                          ('(', ')', 'parêntesis')):
-                    if corpo.count(abre) != corpo.count(fecha):
-                        problemas.append(
-                            f"{etiqueta}: {tipo} desequilibrados "
-                            f"({corpo.count(abre)} vs {corpo.count(fecha)})")
-                for l in linhas:
+                body = '\n'.join(lines)
+                for opening, closing, kind in (('{', '}', 'braces'),
+                                          ('(', ')', 'parentheses')):
+                    if body.count(opening) != body.count(closing):
+                        problems.append(
+                            f"{tag}: unbalanced {kind} "
+                            f"({body.count(opening)} vs {body.count(closing)})")
+                for l in lines:
                     if l.count('"') % 2:
-                        problemas.append(
-                            f"{etiqueta}: aspas ímpares em: {l.strip()[:70]}")
-                for m in re.finditer(r'\$[A-Za-z_][A-Za-z0-9_]*:', corpo):
+                        problems.append(
+                            f"{tag}: odd number of quotes in: {l.strip()[:70]}")
+                for m in re.finditer(r'\$[A-Za-z_][A-Za-z0-9_]*:', body):
                     if not m.group(0).startswith('$env:'):
-                        problemas.append(
-                            f"{etiqueta}: {m.group(0)} é lido como qualificador "
-                            f"de âmbito; usa ${{...}}")
-    if problemas:
-        print('\n'.join(problemas))
+                        problems.append(
+                            f"{tag}: {m.group(0)} is read as a scope "
+                            f"qualifier; use ${{...}}")
+    if problems:
+        print('\n'.join(problems))
         return 1
-    print('Workflows: PowerShell equilibrado e sem qualificadores por engano.')
+    print('Workflows: PowerShell balanced and with no accidental qualifiers.')
     return 0
 
 

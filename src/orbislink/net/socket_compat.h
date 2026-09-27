@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #pragma once
 
-// Camada fina sobre os sockets BSD/Winsock para o resto do núcleo não ter
-// #ifdef espalhados. Windows é a plataforma prioritária (§1), Linux/macOS
-// usam os mesmos caminhos POSIX.
+// Thin layer over BSD sockets/Winsock so the rest of the core has no
+// scattered #ifdefs. Windows is the main platform (§1); Linux/macOS use the
+// same POSIX paths.
 
 #ifdef _WIN32
 #	ifndef WIN32_LEAN_AND_MEAN
@@ -34,7 +34,7 @@ using socket_t = int;
 
 namespace orbislink {
 
-// Inicializa o Winsock uma única vez (no-op fora do Windows).
+// Initialises Winsock only once (no-op outside Windows).
 void initSocketsOnce();
 
 void closeSocketHandle(socket_t sock);

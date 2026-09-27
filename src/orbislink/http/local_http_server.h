@@ -15,36 +15,36 @@
 
 namespace orbislink {
 
-// Estado de um ficheiro exposto à consola.
+// State of a file exposed to the console.
 struct ServedFileStats
 {
 	std::string token;
-	std::string name;    // nome sanitizado que aparece no URL
-	std::string path;    // caminho local real (nunca exposto)
+	std::string name;    // sanitised name that appears in the URL
+	std::string path;    // real local path (never exposed)
 	int64_t size = 0;
 	int64_t bytesSent = 0;
 	int64_t requestCount = 0;
 	int64_t registeredAtMs = 0;
-	int64_t firstByteAtMs = -1; // -1 = a consola ainda não descarregou nada
+	int64_t firstByteAtMs = -1; // -1 = the console has not downloaded anything yet
 	int64_t lastActivityMs = -1;
 };
 
-// Servidor HTTP local que serve os pkg à consola (§5.3).
+// Local HTTP server that serves the pkg files to the console (§5.3).
 //
-// Regras implementadas: suporte obrigatório a Range/206, GET e HEAD,
-// ficheiros > 4 GB (int64 em todo o lado), leitura por blocos, várias ligações
-// em simultâneo, bind a uma interface concreta, URLs com token aleatório e
-// restrição opcional ao IP da consola.
+// Rules implemented: mandatory Range/206 support, GET and HEAD, files > 4 GB
+// (int64 everywhere), reading in blocks, several simultaneous connections,
+// binding to a specific interface, URLs with a random token and an optional
+// restriction to the console's IP.
 class LocalHttpServer
 {
 public:
 	struct Config
 	{
-		std::string bindAddress;       // vazio = 127.0.0.1 (nunca 0.0.0.0 por omissão)
+		std::string bindAddress;       // empty = 127.0.0.1 (never 0.0.0.0 by default)
 		uint16_t port = 8765;
 		bool autoSelectPort = true;    // se a porta estiver ocupada, procura outra
-		std::string allowedClient;     // IP da consola; vazio = qualquer origem
-		bool allowLoopback = true;     // aceita 127.0.0.1 mesmo com allowedClient definido
+		std::string allowedClient;     // console IP; empty = any origin
+		bool allowLoopback = true;     // accepts 127.0.0.1 even with allowedClient set
 		size_t chunkSize = 1024 * 1024; // 1 MB
 		int backlog = 16;
 	};
@@ -61,8 +61,8 @@ public:
 	uint16_t port() const;
 	std::string bindAddress() const;
 
-	// Regista um ficheiro e devolve o token; string vazia se o ficheiro não
-	// existir. O token deixa de ser válido em unregisterFile()/clearFiles().
+	// Registers a file and returns the token; an empty string if the file does
+	// not exist. The token stops being valid at unregisterFile()/clearFiles().
 	std::string registerFile(const std::string &path, const std::string &displayName = std::string());
 	bool unregisterFile(const std::string &token);
 	void clearFiles();

@@ -27,13 +27,13 @@ struct SessionSettings
 	// Presets do chiaki: 360p, 540p, 720p, 1080p.
 	int resolution = 720;
 	int fps = 60;
-	// 0 = deixa o chiaki escolher pelo preset.
+	// 0 = let chiaki choose by the preset.
 	unsigned int bitrateKbps = 0;
 	bool hardwareDecoder = true;
 };
 
-// Uma sessão de Remote Play. Corre nas threads do chiaki; os avisos saem
-// por callbacks que podem vir de qualquer thread.
+// A Remote Play session. It runs on chiaki's threads; notifications come
+// out through callbacks that may come from any thread.
 class StreamSession
 {
 public:
@@ -44,18 +44,18 @@ public:
 		SessionSettings settings;
 	};
 
-	// Um fotograma descodificado. O AVFrame pertence ao descodificador e só
-	// é válido durante a chamada — quem o quiser guardar tem de o copiar ou
-	// referenciar (av_frame_ref).
+	// A decoded frame. The AVFrame belongs to the decoder and is only valid
+	// during the call — whoever wants to keep it must copy or reference it
+	// (av_frame_ref).
 	using FrameCallback = std::function<void(AVFrame *frame)>;
 	using StateCallback = std::function<void(SessionState state, const std::string &detail)>;
-	// A consola pede o PIN de início de sessão (quando o utilizador tem PIN
-	// definido na conta). Responder com setLoginPin().
+	// The console asks for the login PIN (when the user has a PIN set on
+	// the account). Answer with setLoginPin().
 	using LoginPinCallback = std::function<void(bool incorrect)>;
-	// A consola pede vibração. 0-255 em cada motor.
+	// The console asks for rumble. 0-255 per motor.
 	using RumbleCallback = std::function<void(uint8_t left, uint8_t right)>;
-	// Áudio já descodificado: PCM 16 bits intercalado. `samples` é o número
-	// de amostras por canal.
+	// Already decoded audio: interleaved 16-bit PCM. `samples` is the number
+	// of samples per channel.
 	using AudioSettingsCallback = std::function<void(unsigned int channels, unsigned int rate)>;
 	using AudioCallback = std::function<void(const int16_t *pcm, size_t samples)>;
 
@@ -75,9 +75,9 @@ public:
 
 	void setLoginPin(const std::string &pin);
 
-	// Estado do comando enviado à consola. Os botões são a máscara do
-	// chiaki (ChiakiControllerButton); os eixos vão de -32768 a 32767 e os
-	// gatilhos de 0 a 255.
+	// Controller state sent to the console. The buttons are chiaki's mask
+	// (ChiakiControllerButton); the axes range from -32768 to 32767 and the
+	// triggers from 0 to 255.
 	struct ControllerState
 	{
 		uint32_t buttons = 0;
@@ -88,51 +88,51 @@ public:
 		int16_t rightX = 0;
 		int16_t rightY = 0;
 	};
-	// Só envia quando alguma coisa muda: a consola não precisa de repetição.
+	// Only sends when something changes: the console does not need repetition.
 	void sendController(const ControllerState &state);
 
-	// Touchpad. As coordenadas são as do touchpad do comando: 1920x942.
-	// Devolve o id do toque, ou -1 se não houver espaço.
+	// Touchpad. The coordinates are those of the controller's touchpad: 1920x942.
+	// Returns the touch id, or -1 if there is no room.
 	int startTouch(uint16_t x, uint16_t y);
 	void moveTouch(int id, uint16_t x, uint16_t y);
 	void stopTouch(int id);
 	static constexpr uint16_t kTouchpadWidth = 1920;
 	static constexpr uint16_t kTouchpadHeight = 942;
 
-	// ── Microfone (o som deste PC para a consola)
+	// ── Microphone (this PC's sound to the console)
 	//
-	// Desligado por omissão e nunca ligado sozinho. Uma aplicação que abre
-	// o microfone sem se ver é outra coisa que não um Remote Play, por isso
-	// isto só arranca a pedido e a interface tem de o mostrar enquanto
-	// estiver a captar.
+	// Off by default and never turned on by itself. An application that opens
+	// the microphone without being seen is something other than Remote Play,
+	// so this only starts on request and the interface has to show it while
+	// it is capturing.
 	//
-	// O formato não é escolha nossa: é o que a consola espera e o que o
-	// chiaki codifica — 48 kHz, 2 canais, 16 bits, 480 amostras por trama
-	// (10 ms). Ver chiaki_audio_header_set() em streamsession.cpp do
-	// chiaki-ng.
+	// The format is not our choice: it is what the console expects and what
+	// chiaki encodes — 48 kHz, 2 channels, 16 bits, 480 samples per frame
+	// (10 ms). See chiaki_audio_header_set() in chiaki-ng's
+	// streamsession.cpp.
 	static constexpr unsigned int kMicrophoneRate = 48000;
 	static constexpr unsigned int kMicrophoneChannels = 2;
 	static constexpr unsigned int kMicrophoneFrameSamples = 480;
 
-	// Avisa a consola de que vamos falar e prepara o codificador.
+	// Tells the console we are going to talk and prepares the encoder.
 	bool startMicrophone(std::string *error = nullptr);
 	void stopMicrophone();
-	// Continua ligado, mas deixa de enviar. É o que a consola espera de um
-	// "mute" — desligar a sério obrigaria a nova ligação.
+	// Stays on, but stops sending. This is what the console expects from a
+	// "mute" — really turning it off would require a new connection.
 	void setMicrophoneMuted(bool muted);
 	bool microphoneActive() const;
 	bool microphoneMuted() const;
-	// Uma trama de PCM intercalado, com exactamente kMicrophoneFrameSamples
-	// amostras por canal. Chamado pela captura, fora da thread do chiaki.
+	// One frame of interleaved PCM, with exactly kMicrophoneFrameSamples
+	// samples per channel. Called by the capture, off chiaki's thread.
 	void sendMicrophoneFrame(const int16_t *pcm, size_t samplesPerChannel);
 
-	// Dimensões do último fotograma recebido (0 antes do primeiro).
+	// Dimensions of the last frame received (0 before the first).
 	int frameWidth() const;
 	int frameHeight() const;
-	// Fotogramas entregues desde o arranque — serve para a UI saber que há
-	// imagem mesmo antes de a desenhar.
+	// Frames delivered since start — lets the UI know there is a picture
+	// even before drawing it.
 	uint64_t framesDecoded() const;
-	// Verdadeiro quando o vídeo está a ser descodificado pela placa gráfica.
+	// True when the video is being decoded on the GPU.
 	bool usingHardwareDecoder() const;
 
 	struct Impl;

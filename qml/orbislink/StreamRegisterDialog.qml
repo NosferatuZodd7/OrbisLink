@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Registar este PC na consola. Sem isto não há Remote Play: a consola só
-// aceita sessões de dispositivos que ela própria autorizou.
+// Registering this PC on the console. Without it there is no Remote Play:
+// the console only accepts sessions from devices it has authorised itself.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -10,8 +10,8 @@ import QtQuick.Layouts
 Dialog {
     id: dialog
 
-    // Ver a nota em StreamArea.qml: ao fechar a janela o controlador some
-    // antes das bindings.
+    // See the note in StreamArea.qml: when closing the window the controller
+    // goes away before the bindings.
     readonly property bool ready: typeof stream !== "undefined" && stream !== null
     readonly property bool busy: ready && stream.registering
     parent: Overlay.overlay
@@ -20,9 +20,9 @@ Dialog {
     modal: true
     padding: 0
 
-    // Um modal quase opaco: com a transparência dos painéis, o que está por
-    // trás ver-se-ia através da caixa, e uma caixa que pede uma decisão não
-    // pode ser uma janela.
+    // A nearly opaque modal: with the panels' transparency, what is behind
+    // would show through the box, and a box asking for a decision must not
+    // be a window.
     Overlay.modal: Rectangle { color: Theme.scrim }
 
     background: Rectangle {
@@ -33,6 +33,7 @@ Dialog {
 
     onOpened: {
         pinField.text = ""
+        savedBox.currentIndex = 0
         pinField.forceActiveFocus()
     }
 
@@ -43,7 +44,7 @@ Dialog {
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             anchors.leftMargin: Theme.dialogMargin
-            text: qsTr("Registar este PC na consola")
+            text: qsTr("Register this PC on the console")
             color: Theme.text
             font.pixelSize: 15
             font.bold: true
@@ -69,22 +70,22 @@ Dialog {
             }
             Text {
                 visible: dialog.busy
-                text: qsTr("A falar com a consola…")
+                text: qsTr("Talking to the console…")
                 color: Theme.textMuted
                 font.pixelSize: 11
             }
             Item { Layout.fillWidth: true }
             StyledButton {
-                text: qsTr("Fechar")
-                larguraMinima: 100
+                text: qsTr("Close")
+                minimumWidth: 100
                 onClicked: dialog.close()
             }
             StyledButton {
-                text: qsTr("Registar")
-                larguraMinima: 110
-                // Só activo quando o Account ID já dá um valor válido: um
-                // botão que se pode carregar e falha na consola é pior do
-                // que um botão apagado.
+                text: qsTr("Register")
+                minimumWidth: 110
+                // Only enabled once the Account ID gives a valid value: a
+                // button that can be pressed and fails on the console is worse
+                // than a greyed-out button.
                 enabled: pinField.text.length >= 8 && accountField.ok
                          && dialog.ready && !dialog.busy
                 primary: true
@@ -96,8 +97,8 @@ Dialog {
     contentItem: ColumnLayout {
         spacing: 12
 
-        // Passo a passo, porque isto falha sempre pelo mesmo: PIN expirado
-        // ou Account ID trocado.
+        // Step by step, because this always fails for the same reasons: an
+        // expired PIN or a swapped Account ID.
         Rectangle {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
@@ -106,10 +107,10 @@ Dialog {
             color: Theme.panelAltFill
             border.color: Theme.border
             radius: 8
-            implicitHeight: passos.implicitHeight + 28
+            implicitHeight: steps.implicitHeight + 28
 
             ColumnLayout {
-                id: passos
+                id: steps
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
@@ -122,16 +123,19 @@ Dialog {
                     wrapMode: Text.WordWrap
                     color: Theme.text
                     font.pixelSize: 12
-                    text: qsTr("Na consola: Definições → Definições de Ligação do Remote Play "
-                               + "→ Adicionar Dispositivo.")
+                    text: (typeof stream !== "undefined" && stream && stream.consolePs5)
+                          ? qsTr("On the PS5: Settings → System → Remote Play → Link Device, "
+                                 + "signed in with the account you will use.")
+                          : qsTr("On the console: Settings → Remote Play Connection Settings → "
+                                 + "Add Device.")
                 }
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     color: Theme.textMuted
                     font.pixelSize: 11
-                    text: qsTr("O PIN de 8 dígitos que aparece dura poucos minutos. Se falhar, "
-                               + "pede outro na consola.")
+                    text: qsTr("The 8-digit PIN it shows lasts only a few minutes. If it fails, "
+                               + "ask the console for another.")
                 }
             }
         }
@@ -154,6 +158,24 @@ Dialog {
                 validator: RegularExpressionValidator { regularExpression: /[0-9]{0,8}/ }
             }
 
+            // A saved Account ID fills the field below in one click.
+            Text {
+                visible: app.accounts.length > 0
+                text: qsTr("Saved Account ID")
+                color: Theme.textMuted
+                font.pixelSize: 12
+            }
+            StyledCombo {
+                id: savedBox
+                visible: app.accounts.length > 0
+                Layout.fillWidth: true
+                model: [qsTr("Choose…")].concat(app.accounts.map(function (a) { return a.label }))
+                onActivated: function (index) {
+                    if (index > 0)
+                        accountField.text = app.accounts[index - 1].accountId
+                }
+            }
+
             Text {
                 text: qsTr("Account ID (PSN)")
                 color: Theme.textMuted
@@ -164,11 +186,11 @@ Dialog {
             AccountIdField {
                 id: accountField
                 Layout.fillWidth: true
-                // Vem preenchido com o último que a consola aceitou. O PIN
-                // muda de cada vez; o Account ID não.
+                // Pre-filled with the last one the console accepted. The PIN
+                // changes every time; the Account ID does not.
                 //
-                // O guarda não é por preciosismo: num build sem Remote Play
-                // o "stream" não existe e a ligação rebentaria com
+                // The guard is not fussiness: in a build without Remote Play
+                // "stream" does not exist and the binding would blow up with
                 // "Cannot read property of null".
                 text: (typeof stream !== "undefined" && stream) ? stream.savedAccountId : ""
             }
@@ -182,10 +204,10 @@ Dialog {
             wrapMode: Text.WordWrap
             color: Theme.textMuted
             font.pixelSize: 11
-            text: qsTr("O Account ID é um número de 64 bits da conta PSN que usa a consola "
-                       + "— não é o nome de utilizador. Cola-o como o tiveres: em "
-                       + "hexadecimal, em decimal ou já em base64. A consola só aceita a "
-                       + "forma em base64, e essa conversão passa a ser feita aqui.")
+            text: qsTr("The Account ID is a 64-bit number belonging to the PSN account that uses "
+                       + "the console — it is not the username. Paste it however you have it: "
+                       + "hexadecimal, decimal or already in base64. The console only accepts the "
+                       + "base64 form, and that conversion now happens here.")
         }
     }
 }

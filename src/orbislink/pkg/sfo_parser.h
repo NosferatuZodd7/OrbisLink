@@ -8,15 +8,15 @@
 
 namespace orbislink {
 
-// PARAM.SFO (little-endian). Layout confirmado em
+// PARAM.SFO (little-endian). Layout confirmed in
 // flatz/ps4_remote_pkg_installer/sfo.c:
-//   cabeçalho 0x14: magic "\0PSF"(0x00), version(0x04), key_table_offset(0x08),
-//                   value_table_offset(0x0C), entry_count(0x10)
-//   índice 0x10 por entrada: key_offset u16(0x00), format u16(0x02),
-//                            size u32(0x04), max_size u32(0x08), value_offset u32(0x0C)
+//   header 0x14: magic "\0PSF"(0x00), version(0x04), key_table_offset(0x08),
+//                value_table_offset(0x0C), entry_count(0x10)
+//   index 0x10 per entry: key_offset u16(0x00), format u16(0x02),
+//                         size u32(0x04), max_size u32(0x08), value_offset u32(0x0C)
 enum class SfoFormat : uint16_t {
-	StringSpecial = 0x0004, // UTF-8 sem terminador
-	String = 0x0204,        // UTF-8 terminada em NUL
+	StringSpecial = 0x0004, // UTF-8 without terminator
+	String = 0x0204,        // NUL-terminated UTF-8
 	Uint32 = 0x0404,
 };
 
@@ -33,7 +33,7 @@ struct SfoEntry
 class Sfo
 {
 public:
-	// Devolve false e preenche `error` se os dados não forem um PARAM.SFO válido.
+	// Returns false and fills in `error` if the data is not a valid PARAM.SFO.
 	bool parse(const uint8_t *data, size_t size, std::string *error = nullptr);
 	bool parse(const std::vector<uint8_t> &data, std::string *error = nullptr)
 	{
