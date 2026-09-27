@@ -17,6 +17,10 @@ CheckBox {
     // A setting row takes the whole width, so every switch lines up on the right.
     Layout.fillWidth: true
 
+    HoverHandler {
+        cursorShape: control.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+    }
+
     indicator: Rectangle {
         implicitWidth: 40
         implicitHeight: 24

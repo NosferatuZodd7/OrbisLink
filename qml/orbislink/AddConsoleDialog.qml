@@ -62,23 +62,8 @@ Dialog {
         dialog: dialog
     }
 
-    footer: Rectangle {
-        implicitHeight: Theme.dialogFooter
-        color: "transparent"
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: Theme.dialogInner
-            anchors.leftMargin: Theme.dialogMargin
-            anchors.rightMargin: Theme.dialogMargin
-            Item { Layout.fillWidth: true }
-            StyledButton {
-                text: qsTr("Close")
-                minimumWidth: 100
-                onClicked: dialog.close()
-            }
-        }
-    }
-
+    // No button row at the bottom: the ✕ in the header closes it, and each
+    // way of adding has its own button.
     contentItem: ColumnLayout {
         spacing: 14
 
@@ -255,7 +240,7 @@ Dialog {
         RowLayout {
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
-            Layout.bottomMargin: Theme.dialogInner
+            Layout.bottomMargin: Theme.dialogMargin
             spacing: 10
             StyledField {
                 id: consoleNameField

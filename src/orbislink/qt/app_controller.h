@@ -332,6 +332,9 @@ private:
 	bool ftpBusy_ = false;
 	QVariantList ftpUploads_;
 	QVariantMap ftpReachable_;
+	// The console whose files the list shows: when the console in use
+	// changes, the previous one's listing must not stay on screen.
+	std::string listedConsole_;
 	bool probingFtp_ = false;
 	// The FTP drop waiting for an answer about the names already taken.
 	QStringList pendingUploads_;

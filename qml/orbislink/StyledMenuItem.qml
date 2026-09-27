@@ -18,6 +18,10 @@ MenuItem {
                                 : control.danger ? Theme.error
                                 : Theme.text
 
+    HoverHandler {
+        cursorShape: control.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+    }
+
     contentItem: Row {
         leftPadding: 16
         rightPadding: 16

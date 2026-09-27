@@ -27,6 +27,10 @@ ToolButton {
                                 : active ? Theme.accent
                                 : hovered ? Theme.text : Theme.textSecondary
 
+    HoverHandler {
+        cursorShape: button.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+    }
+
     background: Rectangle {
         radius: 10
         color: button.active ? Theme.accentFill

@@ -14,19 +14,34 @@ Item {
 
     // The same motion as the console cards: lifts with the mouse over it,
     // sinks when pressed.
-    scale: area.pressed ? Theme.pressScale : 1.0
+    scale: area.pressed ? Theme.pressScale : area.containsMouse ? 1.02 : 1.0
     Behavior on scale { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
     transform: Translate {
-        y: area.containsMouse && !area.pressed ? -4 : 0
+        y: area.containsMouse && !area.pressed ? -6 : 0
         Behavior on y { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
     }
 
     Rectangle {
         anchors.fill: parent
         radius: Theme.radius
-        color: area.containsMouse ? Theme.alpha(Theme.accent, Theme.light ? 0.06 : 0.08)
+        color: area.containsMouse ? Theme.alpha(Theme.accent, Theme.light ? 0.10 : 0.14)
                                   : Theme.alpha(Theme.panel, Theme.light ? 0.5 : 0.25)
         Behavior on color { ColorAnimation { duration: Theme.cardEase } }
+    }
+
+    // A soft glow around it with the mouse over it, like the console cards.
+    Repeater {
+        model: 3
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: -(index + 1) * 3
+            radius: Theme.radius + (index + 1) * 3
+            color: "transparent"
+            border.width: 3
+            border.color: Theme.alpha(Theme.accent, 0.16 - index * 0.045)
+            opacity: area.containsMouse ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: Theme.cardEase } }
+        }
     }
 
     // The dashed border, drawn dash by dash along the rounded outline

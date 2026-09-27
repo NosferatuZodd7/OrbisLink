@@ -11,6 +11,10 @@ ComboBox {
     // Locked choices look it.
     opacity: enabled ? 1.0 : 0.5
 
+    HoverHandler {
+        cursorShape: control.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+    }
+
     background: Rectangle {
         radius: Theme.radiusField
         color: Theme.light ? "#FFFFFF" : (control.hovered ? Theme.controlHover : Theme.controlFill)
