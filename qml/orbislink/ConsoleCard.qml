@@ -43,6 +43,8 @@ Item {
     // What a click on the card starts: "remoteplay" or "ftp".
     property string startMode: "remoteplay"
     readonly property bool prefersFtp: startMode === "ftp" && ftpAvailable
+    // The card's colour: green when the console answers on FTP, blue otherwise.
+    readonly property color tone: ftpAvailable ? Theme.ok : Theme.accent
 
     signal connect()
     signal cancel()
@@ -147,7 +149,7 @@ Item {
             color: "transparent"
             border.width: 3
             border.color: card.current && card.available
-                ? Theme.alpha(Theme.accent, (Theme.light ? 0.10 : 0.14) - index * 0.04)
+                ? Theme.alpha(card.tone, (Theme.light ? 0.10 : 0.14) - index * 0.04)
                 : Qt.rgba(0, 0, 0, Theme.light ? 0.025 - index * 0.008 : 0.10 - index * 0.03)
         }
     }
@@ -157,15 +159,18 @@ Item {
         anchors.fill: parent
         radius: Theme.radius
         border.width: card.current && card.available ? 2 : 1
-        border.color: card.current && card.available ? Theme.accent
-                    : card.hover ? Theme.alpha(Theme.accent, 0.6)
+        border.color: card.current && card.available ? card.tone
+                    : card.hover ? Theme.alpha(card.tone, 0.6)
+                    : card.ftpAvailable ? Theme.alpha(Theme.ok, 0.35)
                     : Theme.cardEdge
         Behavior on border.color { ColorAnimation { duration: Theme.cardEase } }
         gradient: Gradient {
             GradientStop { position: 0.0; color: Theme.cardTop }
             GradientStop {
                 position: 1.0
-                color: card.current && card.available ? Theme.cardActiveBottom : Theme.cardBottom
+                color: card.ftpAvailable
+                       ? (card.current ? Theme.cardFtpActiveBottom : Theme.cardFtpBottom)
+                       : (card.current && card.available ? Theme.cardActiveBottom : Theme.cardBottom)
             }
         }
 

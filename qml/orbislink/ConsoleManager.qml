@@ -215,8 +215,12 @@ ColumnLayout {
             Layout.fillWidth: true
             implicitHeight: content.implicitHeight + 28
             radius: 16
-            color: Theme.panelAltFill
-            border.color: modelData.active ? Theme.accent : Theme.border
+            // Green tone for a console that answers on FTP, as on its card.
+            readonly property bool ftpHere: manager.ftpOk(modelData)
+            color: ftpHere ? Qt.tint(Theme.panelAltFill, Theme.alpha(Theme.ok, Theme.light ? 0.08 : 0.10))
+                           : Theme.panelAltFill
+            border.color: modelData.active ? (ftpHere ? Theme.ok : Theme.accent)
+                        : ftpHere ? Theme.alpha(Theme.ok, 0.35) : Theme.border
             border.width: 1
 
             ColumnLayout {
