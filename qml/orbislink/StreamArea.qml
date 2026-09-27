@@ -10,6 +10,14 @@ import QtQuick.Layouts
 Item {
     id: root
 
+    // Here and not in the card: choosing a console rebuilds the list of
+    // cards, and a handler whose card has just been destroyed stops halfway,
+    // so the connection would only start on a second click.
+    function chooseAndConnect(address) {
+        app.selectConsole(address)
+        stream.connectOneClick()
+    }
+
     // The video stage floats like everything else: margins, wide corners and
     // a glass frame. In full screen all of that goes away — there the
     // picture rules.
@@ -174,11 +182,8 @@ Item {
                     }
                     onEdit: registerDialog.open()
                     // Another console: it becomes the console in use and connects
-                    // right away, in the same click.
-                    onChoose: {
-                        app.selectConsole(modelData.address)
-                        stream.connectOneClick()
-                    }
+                    // right away, in the same click (see chooseAndConnect).
+                    onChoose: root.chooseAndConnect(modelData.address)
                     onRemove: app.removeConsole(modelData.address)
                 }
             }
