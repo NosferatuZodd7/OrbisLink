@@ -19,6 +19,14 @@ ColumnLayout {
 
     readonly property bool hasStream: typeof stream !== "undefined" && stream !== null
     readonly property var registrations: hasStream ? stream.registrations : []
+    // A Remote Play session is running (or starting) on the console in use.
+    // Until it ends, that console stays the one in use: switching would move
+    // FTP and the installer to another console while the picture still comes
+    // from this one.
+    readonly property bool sessionActive: hasStream
+        && (stream.streaming || stream.sessionState === "connecting")
+    readonly property string sessionLock: qsTr("End the Remote Play session first: it is running on "
+                                               + "the console in use.")
 
     // The address of the row being edited ("" when none), and the one
     // waiting for a second click to confirm a removal or a forget.
@@ -143,6 +151,40 @@ ColumnLayout {
         }
     }
 
+    // While a session runs, say why the console in use cannot change.
+    Rectangle {
+        visible: manager.sessionActive
+        Layout.fillWidth: true
+        implicitHeight: lockRow.implicitHeight + 20
+        radius: 12
+        color: Theme.alpha(Theme.warn, 0.12)
+        border.color: Theme.alpha(Theme.warn, 0.35)
+        Row {
+            id: lockRow
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
+            spacing: 10
+            Icon {
+                anchors.verticalCenter: parent.verticalCenter
+                name: "info"
+                size: 16
+                color: Theme.warn
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - 26
+                wrapMode: Text.WordWrap
+                text: qsTr("A Remote Play session is running. The console in use cannot be switched, "
+                           + "edited or removed until it ends.")
+                color: Theme.text
+                font.pixelSize: 12
+            }
+        }
+    }
+
     Text {
         Layout.fillWidth: true
         text: qsTr("Every console saved on this PC. The one in use is the one FTP, the installer and "
@@ -254,13 +296,20 @@ ColumnLayout {
 
                     StyledButton {
                         visible: !row.modelData.active
+                        enabled: !manager.sessionActive
                         text: qsTr("Use")
                         minimumWidth: 64
+                        ToolTip.visible: hovered && manager.sessionActive
+                        ToolTip.text: manager.sessionLock
                         onClicked: app.selectConsole(row.modelData.address)
                     }
                     StyledButton {
+                        readonly property bool locked: row.modelData.active && manager.sessionActive
+                        enabled: !locked
                         text: qsTr("Edit")
                         minimumWidth: 64
+                        ToolTip.visible: hovered && locked
+                        ToolTip.text: manager.sessionLock
                         onClicked: {
                             nameEdit.text = row.modelData.name
                             addressEdit.text = row.modelData.address
@@ -270,6 +319,7 @@ ColumnLayout {
                     }
                     StyledButton {
                         visible: row.registration !== null
+                        enabled: !(row.modelData.active && manager.sessionActive)
                         danger: manager.isConfirming(row.modelData.address, "forget")
                         text: manager.isConfirming(row.modelData.address, "forget")
                               ? qsTr("Confirm?") : qsTr("Forget registration")
@@ -280,13 +330,15 @@ ColumnLayout {
                         onClicked: manager.confirmForget(row.modelData.address, row.registration.hostId)
                     }
                     StyledButton {
+                        readonly property bool locked: row.modelData.active && manager.sessionActive
                         danger: true
-                        enabled: app.consoles.length > 1
+                        enabled: app.consoles.length > 1 && !locked
                         text: manager.isConfirming(row.modelData.address, "remove")
                               ? qsTr("Confirm?") : qsTr("Remove")
                         minimumWidth: 70
                         ToolTip.visible: hovered
-                        ToolTip.text: app.consoles.length > 1
+                        ToolTip.text: locked ? manager.sessionLock
+                            : app.consoles.length > 1
                             ? qsTr("Removes it from the list. The Remote Play registration stays until you forget it.")
                             : qsTr("The only console in the list cannot be removed.")
                         onClicked: manager.confirmRemove(row.modelData.address)

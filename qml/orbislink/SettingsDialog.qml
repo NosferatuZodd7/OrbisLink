@@ -30,6 +30,12 @@ Dialog {
     // use, 3 Remote Play, 4 General.
     property int section: 0
 
+    // While a Remote Play session runs, the IP of the console in use stays as
+    // it is: changing it would point FTP and the installer somewhere else
+    // while the picture still comes from this console.
+    readonly property bool sessionActive: typeof stream !== "undefined" && stream !== null
+        && (stream.streaming || stream.sessionState === "connecting")
+
     property var values: ({})
 
     // The first-run wizard lives in Main.qml; from here we only ask for it
@@ -445,6 +451,11 @@ Dialog {
                         StyledField {
                             id: addressField
                             Layout.fillWidth: true
+                            enabled: !dialog.sessionActive
+                            ToolTip.visible: dialog.sessionActive && addressHover.hovered
+                            ToolTip.text: qsTr("End the Remote Play session first: it is running on "
+                                               + "the console in use.")
+                            HoverHandler { id: addressHover }
                             placeholderText: "192.168.1.42"
                             onTextChanged: dialog.scheduleProbe()
                         }
