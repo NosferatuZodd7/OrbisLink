@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #pragma once
 
-// Arnês de testes mínimo: sem dependências externas, para o CI ser trivial.
+// Minimal test harness: no external dependencies, so CI stays trivial.
 
 #include "orbislink/common/log.h"
 
@@ -50,7 +50,7 @@ inline void failCheck(const std::string &expression, const char *file, int line,
 
 inline int runAll()
 {
-	// Os testes silenciam o log por omissão; ORBISLINK_TEST_VERBOSE=1 volta a ligá-lo.
+	// Tests silence the log by default; ORBISLINK_TEST_VERBOSE=1 turns it back on.
 	if(std::getenv("ORBISLINK_TEST_VERBOSE") == nullptr)
 		orbislink::Logger::instance().setLevel(orbislink::LogLevel::Off);
 
@@ -64,17 +64,17 @@ inline int runAll()
 		}
 		catch(const Failure &failure)
 		{
-			std::cout << "[FALHA] " << test.name << "\n        " << failure.message << std::endl;
+			std::cout << "[FAIL] " << test.name << "\n        " << failure.message << std::endl;
 			++failures;
 		}
 		catch(const std::exception &error)
 		{
-			std::cout << "[FALHA] " << test.name << "\n        exceção: " << error.what() << std::endl;
+			std::cout << "[FAIL] " << test.name << "\n        exception: " << error.what() << std::endl;
 			++failures;
 		}
 	}
-	std::cout << (failures == 0 ? "Todos os testes passaram" : std::to_string(failures) + " teste(s) falharam")
-			  << " (" << registry().size() << " no total)" << std::endl;
+	std::cout << (failures == 0 ? "All tests passed" : std::to_string(failures) + " test(s) failed")
+			  << " (" << registry().size() << " in total)" << std::endl;
 	return failures == 0 ? 0 : 1;
 }
 
@@ -100,7 +100,7 @@ inline int runAll()
 		if(!(actualValue == expectedValue))                                                       \
 		{                                                                                         \
 			std::ostringstream detail;                                                            \
-			detail << "obtido=" << actualValue << " esperado=" << expectedValue;                  \
+			detail << "got=" << actualValue << " expected=" << expectedValue;                  \
 			orbislink_test::failCheck(#actual " == " #expected, __FILE__, __LINE__, detail.str());\
 		}                                                                                         \
 	} while(false)

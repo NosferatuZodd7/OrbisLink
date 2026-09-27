@@ -39,7 +39,7 @@ HttpResponse perform(const std::string &url, const std::string *body,
 	CURL *curl = curl_easy_init();
 	if(!curl)
 	{
-		response.error = "não foi possível inicializar o libcurl";
+		response.error = "could not initialise libcurl";
 		return response;
 	}
 
@@ -104,7 +104,7 @@ int downloadProgress(void *userdata, curl_off_t total, curl_off_t done, curl_off
 	if(!(*state->progress)(static_cast<int64_t>(done), static_cast<int64_t>(total)))
 	{
 		state->cancelled = true;
-		return 1; // não-zero aborta a transferência
+		return 1; // non-zero aborts the transfer
 	}
 	return 0;
 }
@@ -113,14 +113,14 @@ int downloadProgress(void *userdata, curl_off_t total, curl_off_t done, curl_off
 
 HttpResponse HttpClient::fetch(const std::string &url, const FetchOptions &options) const
 {
-	logDebug("HTTP GET (externo) " + url);
+	logDebug("HTTP GET (external) " + url);
 	ensureCurlInitialised();
 	HttpResponse response;
 
 	CURL *curl = curl_easy_init();
 	if(!curl)
 	{
-		response.error = "não foi possível inicializar o libcurl";
+		response.error = "could not initialise libcurl";
 		return response;
 	}
 
@@ -139,8 +139,8 @@ HttpResponse HttpClient::fetch(const std::string &url, const FetchOptions &optio
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, "OrbisLink");
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, options.followRedirects ? 1L : 0L);
 	curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 5L);
-	// A verificação do certificado fica como está por omissão, ligada: isto
-	// vai à internet, ao contrário do resto do cliente.
+	// Certificate verification stays at its default, on: this goes to the
+	// internet, unlike the rest of the client.
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
 
@@ -163,7 +163,7 @@ HttpClient::DownloadResult HttpClient::download(const std::string &url,
 	const std::string &destinationPath,
 	const std::function<bool(int64_t done, int64_t total)> &progress) const
 {
-	logInfo("A descarregar " + url + " para " + destinationPath);
+	logInfo("Downloading " + url + " to " + destinationPath);
 	ensureCurlInitialised();
 	DownloadResult result;
 
@@ -177,7 +177,7 @@ HttpClient::DownloadResult HttpClient::download(const std::string &url,
 #endif
 	if(!state.file)
 	{
-		result.error = "não foi possível escrever em " + destinationPath;
+		result.error = "could not write to " + destinationPath;
 		return result;
 	}
 
@@ -185,7 +185,7 @@ HttpClient::DownloadResult HttpClient::download(const std::string &url,
 	if(!curl)
 	{
 		std::fclose(state.file);
-		result.error = "não foi possível inicializar o libcurl";
+		result.error = "could not initialise libcurl";
 		return result;
 	}
 
@@ -197,8 +197,8 @@ HttpClient::DownloadResult HttpClient::download(const std::string &url,
 	curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, downloadProgress);
 	curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &state);
 	curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-	// Sem TIMEOUT total: um instalador de 80 MB numa ligação fraca demora o
-	// que demorar. O que se vigia é a ligação parar de todo.
+	// No total TIMEOUT: an 80 MB installer on a weak connection takes as long
+	// as it takes. What is watched is the connection stopping altogether.
 	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, static_cast<long>(timeoutMs_));
 	curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1L);
 	curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 60L);
@@ -218,7 +218,7 @@ HttpClient::DownloadResult HttpClient::download(const std::string &url,
 	result.bytes = state.written;
 	if(state.cancelled)
 	{
-		result.error = "cancelado";
+		result.error = "cancelled";
 		std::remove(destinationPath.c_str());
 		return result;
 	}
@@ -230,7 +230,7 @@ HttpClient::DownloadResult HttpClient::download(const std::string &url,
 	}
 	if(result.status >= 400)
 	{
-		result.error = "o servidor respondeu " + std::to_string(result.status);
+		result.error = "the server answered " + std::to_string(result.status);
 		std::remove(destinationPath.c_str());
 		return result;
 	}

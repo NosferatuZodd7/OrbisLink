@@ -2,6 +2,7 @@
 #include "orbislink/stream/discovery.h"
 
 #include "orbislink/common/log.h"
+#include "orbislink/common/tr.h"
 #include "orbislink/stream/chiaki_log_bridge.h"
 #include "orbislink/stream/stream_trace.h"
 
@@ -10,6 +11,7 @@
 
 #include <cstring>
 #include <mutex>
+#include <optional>
 
 #ifdef _WIN32
 #include <ws2tcpip.h>
@@ -53,33 +55,33 @@ HostInfo fromChiaki(ChiakiDiscoveryHost *host)
 	return info;
 }
 
-// O callback do chiaki corre na thread da descoberta; guarda-se o que
-// chegar aqui, protegido.
-struct Colheita
+// chiaki's callback runs on the discovery thread; whatever arrives here
+// is stored, under a lock.
+struct Harvest
 {
 	std::mutex mutex;
 	std::vector<HostInfo> hosts;
-	bool único = false;
+	bool single = false;
 };
 
-void colher(ChiakiDiscoveryHost *host, void *user)
+void collect(ChiakiDiscoveryHost *host, void *user)
 {
-	auto *colheita = static_cast<Colheita *>(user);
-	std::lock_guard<std::mutex> lock(colheita->mutex);
+	auto *harvest = static_cast<Harvest *>(user);
+	std::lock_guard<std::mutex> lock(harvest->mutex);
 	HostInfo info = fromChiaki(host);
-	for(HostInfo &existente : colheita->hosts)
+	for(HostInfo &existing : harvest->hosts)
 	{
-		// A mesma consola responde a mais do que um pedido.
-		if(existente.id == info.id && !info.id.empty())
+		// The same console answers more than one request.
+		if(existing.id == info.id && !info.id.empty())
 		{
-			existente = info;
+			existing = info;
 			return;
 		}
 	}
-	colheita->hosts.push_back(info);
+	harvest->hosts.push_back(info);
 }
 
-// Resolve um endereço para sockaddr. Devolve false se não for possível.
+// Resolves an address to a sockaddr. Returns false if that is not possible.
 bool resolve(const std::string &address, struct sockaddr_storage *out, socklen_t *outLen)
 {
 	struct addrinfo hints {};
@@ -112,43 +114,50 @@ void setPort(struct sockaddr_storage *addr, uint16_t port)
 		reinterpret_cast<struct sockaddr_in6 *>(addr)->sin6_port = htons(port);
 }
 
-} // namespace
-
-HostInfo StreamDiscovery::probe(const std::string &address, int timeoutMs, uint16_t ps4Port)
+// The query to the console, with or without an entry in the attempt trace.
+HostInfo ask(const std::string &address, int timeoutMs, uint16_t ps4Port, bool trace)
 {
-	HostInfo vazio;
-	vazio.address = address;
+	HostInfo empty;
+	empty.address = address;
 	if(address.empty())
-		return vazio;
+		return empty;
 
-	StreamTrace::instance().addressIfUnset(address);
-	StreamStep passo("descoberta", address);
+	std::optional<StreamStep> step;
+	if(trace)
+	{
+		StreamTrace::instance().addressIfUnset(address);
+		step.emplace("discovery", address);
+	}
+	auto failed = [&step](const std::string &detail) {
+		if(step)
+			step->fail(detail);
+	};
 
 	struct sockaddr_storage addr {};
 	socklen_t addrLen = 0;
 	if(!resolve(address, &addr, &addrLen))
 	{
-		passo.fail("não consegui resolver o endereço \"" + address + "\"");
-		return vazio;
+		failed("could not resolve the address \"" + address + "\"");
+		return empty;
 	}
 
 	ChiakiDiscovery discovery {};
 	if(chiaki_discovery_init(&discovery, chiakiLog(), addr.ss_family) != CHIAKI_ERR_SUCCESS)
 	{
-		passo.fail("não consegui abrir o socket de descoberta (portas 9303-9319 ocupadas?)");
-		return vazio;
+		failed("could not open the discovery socket (ports 9303-9319 in use?)");
+		return empty;
 	}
 
-	Colheita colheita;
+	Harvest harvest;
 	ChiakiDiscoveryThread thread {};
-	if(chiaki_discovery_thread_start_oneshot(&thread, &discovery, colher, &colheita)
+	if(chiaki_discovery_thread_start_oneshot(&thread, &discovery, collect, &harvest)
 		!= CHIAKI_ERR_SUCCESS)
 	{
 		chiaki_discovery_fini(&discovery);
-		return vazio;
+		return empty;
 	}
 
-	// Pergunta-se nos dois protocolos: a mesma função serve PS4 e PS5.
+	// Ask in both protocols: the same function serves PS4 and PS5.
 	ChiakiDiscoveryPacket packet {};
 	packet.cmd = CHIAKI_DISCOVERY_CMD_SRCH;
 	packet.protocol_version = const_cast<char *>(CHIAKI_DISCOVERY_PROTOCOL_VERSION_PS4);
@@ -163,28 +172,41 @@ HostInfo StreamDiscovery::probe(const std::string &address, int timeoutMs, uint1
 			addrLen);
 	}
 
-	// O thread do chiaki só termina sozinho quando recebe resposta; se
-	// passar o tempo, pára-se à força.
+	// chiaki's thread only ends by itself when it gets a reply; if the
+	// time runs out, it is stopped by force.
 	const ChiakiErrorCode joined = chiaki_thread_timedjoin(&thread.thread, nullptr,
 		static_cast<uint64_t>(timeoutMs > 0 ? timeoutMs : 2000));
 	if(joined != CHIAKI_ERR_SUCCESS)
 		chiaki_discovery_thread_stop(&thread);
 	chiaki_discovery_fini(&discovery);
 
-	std::lock_guard<std::mutex> lock(colheita.mutex);
-	if(colheita.hosts.empty())
+	std::lock_guard<std::mutex> lock(harvest.mutex);
+	if(harvest.hosts.empty())
 	{
-		passo.fail("a consola não respondeu em " + std::to_string(timeoutMs)
-			+ " ms (Remote Play desligado nas definições da consola? IP errado? "
-			  "outra rede?)");
-		return vazio;
+		failed("the console did not answer within " + std::to_string(timeoutMs)
+			+ " ms (Remote Play turned off in the console settings? wrong IP? "
+			  "another network?)");
+		return empty;
 	}
-	HostInfo info = colheita.hosts.front();
+	HostInfo info = harvest.hosts.front();
 	if(info.address.empty())
 		info.address = address;
-	passo.ok(std::string(hostStateName(info.state)) + ", " + info.name + ", sistema "
-		+ info.systemVersion + ", alvo " + std::to_string(info.target));
+	if(step)
+		step->ok(std::string(hostStateName(info.state)) + ", " + info.name + ", system "
+			+ info.systemVersion + ", target " + std::to_string(info.target));
 	return info;
+}
+
+} // namespace
+
+HostInfo StreamDiscovery::probe(const std::string &address, int timeoutMs, uint16_t ps4Port)
+{
+	return ask(address, timeoutMs, ps4Port, true);
+}
+
+HostInfo StreamDiscovery::peek(const std::string &address, int timeoutMs, uint16_t ps4Port)
+{
+	return ask(address, timeoutMs, ps4Port, false);
 }
 
 std::vector<HostInfo> StreamDiscovery::scan(int timeoutMs)
@@ -193,9 +215,9 @@ std::vector<HostInfo> StreamDiscovery::scan(int timeoutMs)
 	if(chiaki_discovery_init(&discovery, chiakiLog(), AF_INET) != CHIAKI_ERR_SUCCESS)
 		return {};
 
-	Colheita colheita;
+	Harvest harvest;
 	ChiakiDiscoveryThread thread {};
-	if(chiaki_discovery_thread_start(&thread, &discovery, colher, &colheita) != CHIAKI_ERR_SUCCESS)
+	if(chiaki_discovery_thread_start(&thread, &discovery, collect, &harvest) != CHIAKI_ERR_SUCCESS)
 	{
 		chiaki_discovery_fini(&discovery);
 		return {};
@@ -217,15 +239,15 @@ std::vector<HostInfo> StreamDiscovery::scan(int timeoutMs)
 	chiaki_discovery_send(&discovery, &packet, reinterpret_cast<struct sockaddr *>(&broadcast),
 		sizeof(broadcast));
 
-	// Aqui não se espera pelo fim do thread: ele fica à escuta. Dá-se tempo
-	// às consolas para responderem e depois pára-se.
+	// Here the thread is not awaited: it stays listening. Give the consoles
+	// time to answer and then stop.
 	chiaki_thread_timedjoin(&thread.thread, nullptr,
 		static_cast<uint64_t>(timeoutMs > 0 ? timeoutMs : 3000));
 	chiaki_discovery_thread_stop(&thread);
 	chiaki_discovery_fini(&discovery);
 
-	std::lock_guard<std::mutex> lock(colheita.mutex);
-	return colheita.hosts;
+	std::lock_guard<std::mutex> lock(harvest.mutex);
+	return harvest.hosts;
 }
 
 bool StreamDiscovery::wakeup(const std::string &address, uint64_t credential, bool ps5,
@@ -234,7 +256,8 @@ bool StreamDiscovery::wakeup(const std::string &address, uint64_t credential, bo
 	if(address.empty() || credential == 0)
 	{
 		if(error)
-			*error = "Falta o endereço ou a consola ainda não foi registada.";
+			*error = QT_TRANSLATE_NOOP("Messages", "The address is missing or the console has not been "
+				"registered yet.");
 		return false;
 	}
 	const ChiakiErrorCode result =
@@ -245,7 +268,7 @@ bool StreamDiscovery::wakeup(const std::string &address, uint64_t credential, bo
 			*error = chiaki_error_string(result);
 		return false;
 	}
-	logInfo("Remote Play: pedido de acordar enviado para " + address);
+	logInfo("Remote Play: wake-up request sent to " + address);
 	return true;
 }
 

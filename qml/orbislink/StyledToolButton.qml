@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// O botão pequeno das barras e das listas. Redondo, sem moldura até o rato
-// lá chegar — a navegação tem de desaparecer quando não se precisa dela.
+// The small button of bars and lists. Round, with no frame until the mouse
+// gets there — navigation has to disappear when it is not needed.
 import QtQuick
 import QtQuick.Controls.Basic
 
 ToolButton {
-    id: botao
+    id: button
 
     property bool danger: false
 
@@ -21,22 +21,22 @@ ToolButton {
 
     background: Rectangle {
         radius: width / 2
-        color: botao.down
+        color: button.down
             ? Theme.accentFill
-            : (botao.hovered
+            : (button.hovered
                 ? Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b, 0.55)
                 : "transparent")
-        border.width: botao.hovered ? 1 : 0
+        border.width: button.hovered ? 1 : 0
         border.color: Theme.glassEdge
         Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
     }
 
     contentItem: Text {
-        text: botao.text
-        font: botao.font
-        color: !botao.enabled ? Theme.textSecondary
-             : botao.danger ? Theme.error
-             : botao.hovered ? Theme.text : Theme.textSecondary
+        text: button.text
+        font: button.font
+        color: !button.enabled ? Theme.textSecondary
+             : button.danger ? Theme.error
+             : button.hovered ? Theme.text : Theme.textSecondary
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         Behavior on color { ColorAnimation { duration: Theme.fast } }

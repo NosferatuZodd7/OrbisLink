@@ -17,7 +17,7 @@ using namespace orbislink_test;
 
 namespace {
 
-// Instalador falso: implementa IInstallerBackend para testar a fila sem PS4.
+// Fake installer: implements IInstallerBackend to test the queue without a PS4.
 class FakeInstaller : public IInstallerBackend
 {
 public:
@@ -36,19 +36,19 @@ public:
 	bool probe(std::string *detail) override
 	{
 		if(detail)
-			*detail = available.load() ? "ok" : "sem resposta";
+			*detail = available.load() ? "ok" : "no reply";
 		return available.load();
 	}
 
 	InstallerResult installDirect(const std::vector<std::string> &urls, InstallTaskHandle *handle) override
 	{
 		if(!available.load())
-			return InstallerResult::failure("Instalador remoto indisponível. Abre o Remote Package Installer na consola.");
+			return InstallerResult::failure("Remote installer unavailable. Open Remote Package Installer on the console.");
 		if(failWithCode.load() != 0)
 		{
 			InstallerResult result;
 			result.errorCode = static_cast<uint32_t>(failWithCode.load());
-			result.message = "erro simulado";
+			result.message = "simulated error";
 			return result;
 		}
 		lastUrls = urls;
@@ -57,14 +57,14 @@ public:
 		if(handle)
 		{
 			handle->taskId = 42;
-			handle->title = "Título da consola";
+			handle->title = "Console title";
 		}
 		return InstallerResult::success();
 	}
 
 	InstallerResult installFromReferenceJson(const std::string &, InstallTaskHandle *) override
 	{
-		return InstallerResult::failure("não usado");
+		return InstallerResult::failure("not used");
 	}
 
 	InstallerResult isExists(const std::string &, bool *exists, int64_t *size) override
@@ -79,7 +79,7 @@ public:
 	InstallerResult taskProgress(int, TaskProgress *progress) override
 	{
 		if(!available.load())
-			return InstallerResult::failure("Instalador remoto indisponível. Abre o Remote Package Installer na consola.");
+			return InstallerResult::failure("Remote installer unavailable. Open Remote Package Installer on the console.");
 		const int64_t total = totalBytes.load();
 		int64_t done = transferred.load() + stepBytes.load();
 		if(done > total)
@@ -98,7 +98,7 @@ public:
 
 	InstallerResult findTask(const std::string &, TaskSubType, int *) override
 	{
-		return InstallerResult::failure("não usado");
+		return InstallerResult::failure("not used");
 	}
 	InstallerResult startTask(int) override { return InstallerResult::success(); }
 	InstallerResult stopTask(int) override { ++stopCalls; return InstallerResult::success(); }
@@ -168,15 +168,15 @@ InstallQueue::Tuning fastTuning()
 
 } // namespace
 
-ORBISLINK_TEST(ordena_jogo_patch_dlc_do_mesmo_title_id)
+ORBISLINK_TEST(orders_game_patch_dlc_of_the_same_title_id)
 {
-	PkgFile dlc("ordem-dlc.pkg", dlcOptions("CUSA00001", "Jogo A"));
-	PkgFile patch("ordem-patch.pkg", patchOptions("CUSA00001", "Jogo A"));
-	PkgFile game("ordem-jogo.pkg", gameOptions("CUSA00001", "Jogo A"));
+	PkgFile dlc("order-dlc.pkg", dlcOptions("CUSA00001", "Game A"));
+	PkgFile patch("order-patch.pkg", patchOptions("CUSA00001", "Game A"));
+	PkgFile game("order-game.pkg", gameOptions("CUSA00001", "Game A"));
 
 	InstallQueue queue(InstallQueue::Dependencies {}, Settings {});
 	std::vector<std::string> rejected;
-	// Largados fora de ordem, de propósito.
+	// Dropped out of order, on purpose.
 	queue.enqueue({ dlc.path, patch.path, game.path }, TransferMode::DirectInstall, &rejected);
 	CHECK(rejected.empty());
 
@@ -187,11 +187,11 @@ ORBISLINK_TEST(ordena_jogo_patch_dlc_do_mesmo_title_id)
 	CHECK(tasks[2].category == PkgCategory::Dlc);
 }
 
-ORBISLINK_TEST(mantem_ordem_entre_titulos_diferentes)
+ORBISLINK_TEST(keeps_order_across_different_titles)
 {
-	PkgFile patchB("ordem2-patchb.pkg", patchOptions("CUSA00002", "Jogo B"));
-	PkgFile gameA("ordem2-jogoa.pkg", gameOptions("CUSA00001", "Jogo A"));
-	PkgFile gameB("ordem2-jogob.pkg", gameOptions("CUSA00002", "Jogo B"));
+	PkgFile patchB("order2-patchb.pkg", patchOptions("CUSA00002", "Game B"));
+	PkgFile gameA("order2-gamea.pkg", gameOptions("CUSA00001", "Game A"));
+	PkgFile gameB("order2-gameb.pkg", gameOptions("CUSA00002", "Game B"));
 
 	InstallQueue queue(InstallQueue::Dependencies {}, Settings {});
 	queue.enqueue({ patchB.path, gameA.path, gameB.path }, TransferMode::DirectInstall);
@@ -199,29 +199,29 @@ ORBISLINK_TEST(mantem_ordem_entre_titulos_diferentes)
 	const auto tasks = queue.tasks();
 	CHECK_EQ(tasks.size(), static_cast<size_t>(3));
 	CHECK_EQ(tasks[0].titleId, std::string("CUSA00002"));
-	CHECK(tasks[0].category == PkgCategory::Game); // o jogo passa à frente do patch
+	CHECK(tasks[0].category == PkgCategory::Game); // the game goes ahead of the patch
 	CHECK_EQ(tasks[1].titleId, std::string("CUSA00002"));
 	CHECK_EQ(tasks[2].titleId, std::string("CUSA00001"));
 }
 
-ORBISLINK_TEST(recusa_ficheiros_invalidos)
+ORBISLINK_TEST(refuses_invalid_files)
 {
 	PkgOptions broken;
 	broken.validMagic = false;
-	const std::string path = writeTempFile("invalido.pkg", buildPkg(broken));
+	const std::string path = writeTempFile("invalid.pkg", buildPkg(broken));
 
 	InstallQueue queue(InstallQueue::Dependencies {}, Settings {});
 	std::vector<std::string> rejected;
 	const auto ids = queue.enqueue({ path }, TransferMode::DirectInstall, &rejected);
 	CHECK(ids.empty());
 	CHECK_EQ(rejected.size(), static_cast<size_t>(1));
-	CHECK(rejected[0].find("pkg PS4 válido") != std::string::npos);
+	CHECK(rejected[0].find("valid PS4 pkg") != std::string::npos);
 	removeTempFile(path);
 }
 
-ORBISLINK_TEST(instalacao_direta_do_principio_ao_fim)
+ORBISLINK_TEST(direct_install_end_to_end)
 {
-	PkgFile game("fluxo-jogo.pkg", gameOptions("CUSA00010", "Jogo Fluxo"));
+	PkgFile game("flow-game.pkg", gameOptions("CUSA00010", "Flow Game"));
 
 	LocalHttpServer server;
 	LocalHttpServer::Config config;
@@ -258,21 +258,21 @@ ORBISLINK_TEST(instalacao_direta_do_principio_ao_fim)
 	QueueTask task;
 	CHECK(queue.task(id, &task));
 	CHECK(task.state == TaskState::Completed);
-	CHECK_EQ(task.title, std::string("Título da consola"));
+	CHECK_EQ(task.title, std::string("Console title"));
 	CHECK_EQ(task.doneBytes, task.totalBytes);
 	CHECK(notifications.load() > 0);
 	CHECK_EQ(installer.installCalls.load(), 1);
-	// O URL enviado à consola aponta para o token do servidor local.
+	// The URL sent to the console points at the local server's token.
 	CHECK_EQ(installer.lastUrls.size(), static_cast<size_t>(1));
 	CHECK(installer.lastUrls[0].find("/f/") != std::string::npos);
-	// O token é removido quando a tarefa acaba.
+	// The token is removed when the task finishes.
 	CHECK(server.allStats().empty());
 	server.stop();
 }
 
-ORBISLINK_TEST(deteta_que_a_consola_nao_alcanca_o_pc)
+ORBISLINK_TEST(detects_that_the_console_cannot_reach_the_pc)
 {
-	PkgFile game("parado-jogo.pkg", gameOptions("CUSA00011", "Jogo Parado"));
+	PkgFile game("stalled-game.pkg", gameOptions("CUSA00011", "Stalled Game"));
 
 	LocalHttpServer server;
 	LocalHttpServer::Config config;
@@ -283,7 +283,7 @@ ORBISLINK_TEST(deteta_que_a_consola_nao_alcanca_o_pc)
 
 	FakeInstaller installer;
 	installer.totalBytes.store(fileSize(game.path));
-	installer.stepBytes.store(0); // a consola nunca descarrega nada
+	installer.stepBytes.store(0); // the console never downloads anything
 
 	InstallQueue::Dependencies deps;
 	deps.httpServer = &server;
@@ -303,14 +303,14 @@ ORBISLINK_TEST(deteta_que_a_consola_nao_alcanca_o_pc)
 
 	QueueTask task;
 	CHECK(queue.task(id, &task));
-	CHECK(task.message.find("não conseguiu descarregar do PC") != std::string::npos);
+	CHECK(task.message.find("could not download from the PC") != std::string::npos);
 	CHECK(installer.stopCalls.load() > 0);
 	server.stop();
 }
 
-ORBISLINK_TEST(pausa_a_fila_quando_o_instalador_cai)
+ORBISLINK_TEST(pauses_the_queue_when_the_installer_goes_down)
 {
-	PkgFile game("queda-jogo.pkg", gameOptions("CUSA00012", "Jogo Queda"));
+	PkgFile game("outage-game.pkg", gameOptions("CUSA00012", "Outage Game"));
 
 	LocalHttpServer server;
 	LocalHttpServer::Config config;
@@ -320,7 +320,7 @@ ORBISLINK_TEST(pausa_a_fila_quando_o_instalador_cai)
 	CHECK(server.start(config, nullptr));
 
 	FakeInstaller installer;
-	installer.available.store(false); // consola adormeceu
+	installer.available.store(false); // console went to sleep
 	installer.totalBytes.store(fileSize(game.path));
 
 	InstallQueue::Dependencies deps;
@@ -336,11 +336,11 @@ ORBISLINK_TEST(pausa_a_fila_quando_o_instalador_cai)
 	CHECK(waitFor([&]() { return queue.paused(); }));
 	QueueTask task;
 	CHECK(queue.task(id, &task));
-	// A tarefa volta a "Pendente" e a fila fica em pausa (§6.3).
+	// The task goes back to "Pending" and the queue is paused (§6.3).
 	CHECK(task.state == TaskState::Pending);
 	CHECK(!queue.pauseReason().empty());
 
-	// Quando o serviço volta, a fila retoma e a tarefa acaba.
+	// When the service comes back, the queue resumes and the task finishes.
 	installer.available.store(true);
 	queue.resume();
 	CHECK(waitFor([&]() {
@@ -351,9 +351,9 @@ ORBISLINK_TEST(pausa_a_fila_quando_o_instalador_cai)
 	server.stop();
 }
 
-ORBISLINK_TEST(salta_titulo_ja_instalado_quando_a_politica_o_diz)
+ORBISLINK_TEST(skips_installed_title_when_the_policy_says_so)
 {
-	PkgFile game("existente-jogo.pkg", gameOptions("CUSA00013", "Jogo Existente"));
+	PkgFile game("existing-game.pkg", gameOptions("CUSA00013", "Existing Game"));
 
 	LocalHttpServer server;
 	LocalHttpServer::Config config;
@@ -385,15 +385,15 @@ ORBISLINK_TEST(salta_titulo_ja_instalado_quando_a_politica_o_diz)
 
 	QueueTask task;
 	CHECK(queue.task(id, &task));
-	CHECK(task.message.find("Já existe na consola") != std::string::npos);
+	CHECK(task.message.find("Already on the console") != std::string::npos);
 	CHECK_EQ(installer.installCalls.load(), 0);
 	server.stop();
 }
 
-ORBISLINK_TEST(persistencia_repoe_tarefas_interrompidas_como_pendentes)
+ORBISLINK_TEST(persistence_restores_interrupted_tasks_as_pending)
 {
-	PkgFile game("persist-jogo.pkg", gameOptions("CUSA00014", "Jogo Persistido"));
-	PkgFile patch("persist-patch.pkg", patchOptions("CUSA00014", "Jogo Persistido"));
+	PkgFile game("persist-game.pkg", gameOptions("CUSA00014", "Persisted Game"));
+	PkgFile patch("persist-patch.pkg", patchOptions("CUSA00014", "Persisted Game"));
 
 	InstallQueue original(InstallQueue::Dependencies {}, Settings {});
 	original.enqueue({ game.path, patch.path }, TransferMode::DirectInstall);
@@ -405,16 +405,16 @@ ORBISLINK_TEST(persistencia_repoe_tarefas_interrompidas_como_pendentes)
 	const auto tasks = restored.tasks();
 	CHECK_EQ(tasks.size(), static_cast<size_t>(2));
 	CHECK(tasks[0].state == TaskState::Pending);
-	CHECK_EQ(tasks[0].title, std::string("Jogo Persistido"));
+	CHECK_EQ(tasks[0].title, std::string("Persisted Game"));
 	CHECK(tasks[0].category == PkgCategory::Game);
 	CHECK_EQ(tasks[0].totalBytes, fileSize(game.path));
 	std::remove(path.c_str());
 }
 
-ORBISLINK_TEST(reordenar_cancelar_e_repetir)
+ORBISLINK_TEST(reorder_cancel_and_retry)
 {
-	PkgFile a("mover-a.pkg", gameOptions("CUSA00021", "Jogo A"));
-	PkgFile b("mover-b.pkg", gameOptions("CUSA00022", "Jogo B"));
+	PkgFile a("move-a.pkg", gameOptions("CUSA00021", "Game A"));
+	PkgFile b("move-b.pkg", gameOptions("CUSA00022", "Game B"));
 
 	InstallQueue queue(InstallQueue::Dependencies {}, Settings {});
 	const auto ids = queue.enqueue({ a.path, b.path }, TransferMode::DirectInstall);

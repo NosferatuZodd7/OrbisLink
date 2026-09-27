@@ -33,7 +33,22 @@ std::string Settings::toJson() const
 	Json root = Json::makeObject();
 	root.set("console_name", Json::fromString(consoleName));
 	root.set("console_address", Json::fromString(consoleAddress));
+	Json items = Json::makeArray();
+	for(const ConsoleEntry &console : consoles)
+	{
+		Json input = Json::makeObject();
+		input.set("name", Json::fromString(console.name));
+		input.set("address", Json::fromString(console.address));
+		input.set("type", Json::fromString(console.type));
+		if(!console.accountId.empty())
+			input.set("account_id", Json::fromString(console.accountId));
+		if(!console.hostId.empty())
+			input.set("host_id", Json::fromString(console.hostId));
+		items.push(input);
+	}
+	root.set("consoles", items);
 	root.set("ftp_port", Json::fromInt(ftpPort));
+	root.set("ftp_port_ps5", Json::fromInt(ftpPortPs5));
 	root.set("installer_port", Json::fromInt(installerPort));
 	root.set("default_mode", Json::fromString(transferModeName(defaultMode)));
 	root.set("ftp_upload_directory", Json::fromString(ftpUploadDirectory));
@@ -54,6 +69,19 @@ std::string Settings::toJson() const
 	root.set("stream_rumble", Json::fromBool(streamRumble));
 	root.set("stream_touchpad_from_mouse", Json::fromBool(streamTouchpadFromMouse));
 	root.set("stream_account_id", Json::fromString(streamAccountId));
+	Json savedAccounts = Json::makeArray();
+	for(const SavedAccount &account : accounts)
+	{
+		Json input = Json::makeObject();
+		input.set("label", Json::fromString(account.label));
+		input.set("account_id", Json::fromString(account.accountId));
+		savedAccounts.push(std::move(input));
+	}
+	root.set("accounts", savedAccounts);
+	Json keys = Json::makeObject();
+	for(const auto &pair : keyboardBindings)
+		keys.set(pair.first, Json::fromInt(pair.second));
+	root.set("keyboard_bindings", keys);
 	root.set("theme", Json::fromString(theme));
 	root.set("language", Json::fromString(language));
 	root.set("debug_logging", Json::fromBool(debugLogging));
@@ -79,7 +107,27 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 
 	settings.consoleName = root["console_name"].toString(settings.consoleName);
 	settings.consoleAddress = root["console_address"].toString(settings.consoleAddress);
+	if(root["consoles"].isArray())
+	{
+		for(const Json &input : root["consoles"].items())
+		{
+			if(!input.isObject())
+				continue;
+			std::string kind = input["type"].toString();
+			if(kind != "ps4" && kind != "ps5")
+				kind.clear();
+			ConsoleEntry entry;
+			entry.name = input["name"].toString();
+			entry.address = input["address"].toString();
+			entry.type = kind;
+			entry.accountId = input["account_id"].toString();
+			entry.hostId = input["host_id"].toString();
+			settings.consoles.push_back(entry);
+		}
+	}
+	normaliseConsoles(settings);
 	settings.ftpPort = static_cast<uint16_t>(root["ftp_port"].toInt(settings.ftpPort));
+	settings.ftpPortPs5 = static_cast<uint16_t>(root["ftp_port_ps5"].toInt(settings.ftpPortPs5));
 	settings.installerPort = static_cast<uint16_t>(root["installer_port"].toInt(settings.installerPort));
 	settings.defaultMode = transferModeFromName(root["default_mode"].toString(), settings.defaultMode);
 	settings.ftpUploadDirectory = root["ftp_upload_directory"].toString(settings.ftpUploadDirectory);
@@ -107,17 +155,40 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.streamTouchpadFromMouse =
 		root["stream_touchpad_from_mouse"].toLooseBool(settings.streamTouchpadFromMouse);
 	settings.streamAccountId = root["stream_account_id"].toString(settings.streamAccountId);
+	if(root["accounts"].isArray())
+	{
+		for(const Json &input : root["accounts"].items())
+		{
+			SavedAccount account;
+			account.label = input["label"].toString();
+			account.accountId = input["account_id"].toString();
+			settings.accounts.push_back(account);
+		}
+	}
+	normaliseAccounts(settings);
+	if(root["keyboard_bindings"].isObject())
+	{
+		for(const auto &pair : root["keyboard_bindings"].members())
+		{
+			if(pair.second.isNumber())
+				settings.keyboardBindings[pair.first] = static_cast<int>(pair.second.toInt());
+		}
+	}
 	settings.theme = root["theme"].toString(settings.theme);
 	settings.language = root["language"].toString(settings.language);
+	// English is the default for everyone; "auto" (following the system) was
+	// the old default and becomes English too.
+	if(settings.language != "pt_PT")
+		settings.language = "en";
 	settings.debugLogging = root["debug_logging"].toLooseBool(settings.debugLogging);
 	settings.checkForUpdates = root["check_for_updates"].toLooseBool(settings.checkForUpdates);
 	settings.firstRunDone = root["first_run_done"].toLooseBool(settings.firstRunDone);
 	{
-		const std::string gravado = root["update_repository"].toString(settings.updateRepository);
-		const bool temOmissao = root["update_repository_default"].isString();
-		const std::string omissaoGravada = root["update_repository_default"].toString();
-		settings.updateRepository = resolveUpdateRepository(gravado,
-			temOmissao ? &omissaoGravada : nullptr, ORBISLINK_REPOSITORY_STRING);
+		const std::string stored = root["update_repository"].toString(settings.updateRepository);
+		const bool hasDefault = root["update_repository_default"].isString();
+		const std::string savedDefault = root["update_repository_default"].toString();
+		settings.updateRepository = resolveUpdateRepository(stored,
+			hasDefault ? &savedDefault : nullptr, ORBISLINK_REPOSITORY_STRING);
 	}
 	settings.updateChannel = root["update_channel"].toString(settings.updateChannel);
 
@@ -125,8 +196,8 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 		settings.ftpMaxConnections = 1;
 	if(settings.ftpMaxConnections > 2)
 		settings.ftpMaxConnections = 2;
-	// Um ficheiro editado à mão não pode pedir o que a consola não conhece:
-	// o chiaki só aceita estes quatro presets de resolução e dois de cadência.
+	// A hand-edited file cannot ask for what the console does not know:
+	// chiaki only accepts these four resolution presets and two frame rates.
 	if(settings.streamResolution != 360 && settings.streamResolution != 540
 		&& settings.streamResolution != 720 && settings.streamResolution != 1080)
 		settings.streamResolution = 720;
@@ -134,20 +205,99 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 		settings.streamFps = 60;
 	if(settings.streamBitrateKbps < 0)
 		settings.streamBitrateKbps = 0;
-	if(settings.theme != "escuro" && settings.theme != "vidro" && settings.theme != "claro")
-		settings.theme = "escuro";
-	if(settings.updateChannel != "estavel" && settings.updateChannel != "testes")
-		settings.updateChannel = "estavel";
+	// "escuro"/"vidro"/"claro" are the names older versions saved.
+	if(settings.theme == "escuro")
+		settings.theme = "dark";
+	else if(settings.theme == "vidro")
+		settings.theme = "glass";
+	else if(settings.theme == "claro")
+		settings.theme = "light";
+	if(settings.theme != "dark" && settings.theme != "glass" && settings.theme != "light")
+		settings.theme = "dark";
+	// "estavel"/"testes" are the names older versions saved.
+	if(settings.updateChannel == "testes")
+		settings.updateChannel = "testing";
+	if(settings.updateChannel != "stable" && settings.updateChannel != "testing")
+		settings.updateChannel = "stable";
 	if(ok)
 		*ok = true;
 	return settings;
 }
 
+void normaliseConsoles(Settings &settings)
+{
+	std::vector<ConsoleEntry> clean;
+	auto alreadyHas = [&clean](const std::string &address) {
+		for(const ConsoleEntry &c : clean)
+			if(c.address == address)
+				return true;
+		return false;
+	};
+	for(const ConsoleEntry &console : settings.consoles)
+	{
+		const std::string address = trim(console.address);
+		if(address.empty() || alreadyHas(address))
+			continue;
+		ConsoleEntry copy = console;
+		copy.address = address;
+		clean.push_back(copy);
+	}
+	const std::string current = trim(settings.consoleAddress);
+	if(!current.empty())
+	{
+		bool found = false;
+		for(ConsoleEntry &c : clean)
+		{
+			if(c.address == current)
+			{
+				// The name of the console in use is the one in the settings:
+				// that is the one edited in the settings dialog.
+				c.name = settings.consoleName;
+				found = true;
+			}
+		}
+		if(!found)
+		{
+			ConsoleEntry entry;
+			entry.name = settings.consoleName;
+			entry.address = current;
+			clean.insert(clean.begin(), entry);
+		}
+	}
+	settings.consoles = clean;
+}
+
+void normaliseAccounts(Settings &settings)
+{
+	std::vector<SavedAccount> clean;
+	auto find = [&clean](const std::string &id) -> SavedAccount * {
+		for(SavedAccount &account : clean)
+			if(account.accountId == id)
+				return &account;
+		return nullptr;
+	};
+	auto add = [&](const std::string &rawId, const std::string &label) {
+		const std::string id = trim(rawId);
+		if(id.empty() || find(id))
+			return;
+		SavedAccount account;
+		account.accountId = id;
+		account.label = trim(label).empty() ? "PSN account " + std::to_string(clean.size() + 1) : trim(label);
+		clean.push_back(account);
+	};
+	for(const SavedAccount &account : settings.accounts)
+		add(account.accountId, account.label);
+	for(const ConsoleEntry &console : settings.consoles)
+		add(console.accountId, console.name);
+	add(settings.streamAccountId, std::string());
+	settings.accounts = clean;
+}
+
 std::string resolveUpdateRepository(const std::string &stored, const std::string *storedDefault,
 	const std::string &compiledDefault)
 {
-	// Uma compilação local não sabe de repositório nenhum: não tem com que
-	// substituir, fica o que estava.
+	// A local build knows of no repository: it has nothing to replace
+	// it with, so the stored value stays.
 	if(compiledDefault.empty())
 		return stored;
 	if(!storedDefault || stored == *storedDefault || stored.empty())
@@ -167,7 +317,7 @@ bool SettingsStore::load(Settings *settings) const
 	const Settings parsed = Settings::fromJson(text, &ok);
 	if(!ok)
 	{
-		logWarning("Definições ilegíveis em " + path_ + "; a usar os valores por omissão.");
+		logWarning("Unreadable settings in " + path_ + "; using the defaults.");
 		return false;
 	}
 	if(settings)
@@ -183,7 +333,7 @@ bool SettingsStore::save(const Settings &settings) const
 	std::ofstream file(path_, std::ios::binary | std::ios::trunc);
 	if(!file)
 	{
-		logError("Não foi possível guardar as definições em " + path_);
+		logError("Could not save the settings to " + path_);
 		return false;
 	}
 	file << settings.toJson();

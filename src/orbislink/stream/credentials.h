@@ -8,12 +8,12 @@
 
 namespace orbislink {
 
-// Guarda o que o registo devolveu. Fica num ficheiro à parte das
-// definições porque é material sensível: a chave de registo e a rp_key
-// autenticam este PC na consola.
+// Stores what registration returned. It lives in a file separate from the
+// settings because it is sensitive material: the registration key and the
+// rp_key authenticate this PC on the console.
 //
-// O ficheiro nunca aparece no diagnóstico exportado e os valores são
-// mascarados no registo (ver redactSensitive).
+// The file never appears in the exported diagnostics and the values are
+// masked in the log (see redactSensitive).
 class CredentialStore
 {
 public:
@@ -21,9 +21,9 @@ public:
 
 	static std::string defaultPath();
 
-	// Devolve as credenciais do host-id pedido, ou valid=false.
+	// Returns the credentials for the requested host-id, or valid=false.
 	StreamCredentials load(const std::string &hostId) const;
-	// Todas as consolas registadas.
+	// All registered consoles.
 	std::vector<StreamCredentials> all() const;
 	bool save(const StreamCredentials &credentials);
 	bool forget(const std::string &hostId);
@@ -34,10 +34,10 @@ private:
 	std::string path_;
 };
 
-// Conversões usadas pelo registo e pela sessão.
+// Conversions used by registration and by the session.
 std::string bytesToHex(const unsigned char *data, size_t size);
 bool hexToBytes(const std::string &hex, unsigned char *out, size_t size);
-// O Account ID da PSN é dado pelo utilizador em base64 (8 bytes).
+// The PSN Account ID is given by the user in base64 (8 bytes).
 bool decodeAccountId(const std::string &base64, unsigned char out[8], std::string *error);
 
 } // namespace orbislink

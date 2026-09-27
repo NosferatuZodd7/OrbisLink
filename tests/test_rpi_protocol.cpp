@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Verifica o formato dos pedidos e das respostas da API do Remote Package
-// Installer sem precisar da consola: o servidor falso responde exatamente
-// como o server.c do instalador (incluindo os números em hexadecimal).
+// Checks the format of the Remote Package Installer API requests and replies
+// without needing the console: the fake server answers exactly like the
+// installer's server.c (including the hexadecimal numbers).
 
 #include "orbislink/common/json.h"
 #include "orbislink/installer/error_codes.h"
@@ -22,8 +22,8 @@ using namespace orbislink;
 
 namespace {
 
-// Servidor HTTP mínimo que responde a POSTs com uma resposta fixa e guarda o
-// último pedido recebido.
+// Minimal HTTP server that answers POSTs with a fixed reply and keeps the
+// last request received.
 class FakeInstallerServer
 {
 public:
@@ -58,7 +58,7 @@ public:
 	{
 		if(!running_.exchange(false))
 			return;
-		// Acorda o accept() com uma ligação a si próprio antes de fechar.
+		// Wakes accept() with a connection to itself before closing.
 		socket_t waker = socket(AF_INET, SOCK_STREAM, 0);
 		if(waker != ORBISLINK_INVALID_SOCKET)
 		{
@@ -154,35 +154,35 @@ RpiClient makeClient(uint16_t port)
 
 } // namespace
 
-ORBISLINK_TEST(install_envia_o_corpo_esperado)
+ORBISLINK_TEST(install_sends_the_expected_body)
 {
 	FakeInstallerServer server;
 	CHECK(server.start());
-	server.setResponse(R"({ "status": "success", "task_id": 7, "title": "Jogo" })");
+	server.setResponse(R"({ "status": "success", "task_id": 7, "title": "Game" })");
 
 	RpiClient client = makeClient(server.port());
 	InstallTaskHandle handle;
 	const InstallerResult result =
-		client.installDirect({ "http://192.168.1.2:8765/f/abc/jogo.pkg" }, &handle);
+		client.installDirect({ "http://192.168.1.2:8765/f/abc/game.pkg" }, &handle);
 
 	CHECK(result.ok);
 	CHECK_EQ(handle.taskId, 7);
-	CHECK_EQ(handle.title, std::string("Jogo"));
+	CHECK_EQ(handle.title, std::string("Game"));
 	CHECK_EQ(server.lastPath(), std::string("/api/install"));
 
 	const Json sent = Json::parse(server.lastBody());
 	CHECK_EQ(sent["type"].toString(), std::string("direct"));
 	CHECK_EQ(sent["packages"].size(), static_cast<size_t>(1));
 	CHECK_EQ(sent["packages"].at(0).toString(),
-		std::string("http://192.168.1.2:8765/f/abc/jogo.pkg"));
+		std::string("http://192.168.1.2:8765/f/abc/game.pkg"));
 	server.stop();
 }
 
-ORBISLINK_TEST(erro_da_consola_e_traduzido)
+ORBISLINK_TEST(console_error_is_translated)
 {
 	FakeInstallerServer server;
 	CHECK(server.start());
-	// Formato real: hexadecimal sem aspas, campo "error_code".
+	// Real format: hexadecimal without quotes, "error_code" field.
 	server.setResponse(R"({ "status": "fail", "error_code": 0x8002001C })");
 
 	RpiClient client = makeClient(server.port());
@@ -191,12 +191,12 @@ ORBISLINK_TEST(erro_da_consola_e_traduzido)
 
 	CHECK(!result.ok);
 	CHECK_EQ(result.errorCode, 0x8002001Cu);
-	CHECK(result.message.find("Espaço insuficiente") != std::string::npos);
+	CHECK(result.message.find("Not enough space") != std::string::npos);
 	CHECK(isOutOfSpaceError(result.errorCode));
 	server.stop();
 }
 
-ORBISLINK_TEST(codigo_desconhecido_aparece_em_hexadecimal)
+ORBISLINK_TEST(unknown_code_shows_in_hexadecimal)
 {
 	FakeInstallerServer server;
 	CHECK(server.start());
@@ -210,7 +210,7 @@ ORBISLINK_TEST(codigo_desconhecido_aparece_em_hexadecimal)
 	server.stop();
 }
 
-ORBISLINK_TEST(is_exists_le_booleano_em_texto)
+ORBISLINK_TEST(is_exists_reads_boolean_text)
 {
 	FakeInstallerServer server;
 	CHECK(server.start());
@@ -227,7 +227,7 @@ ORBISLINK_TEST(is_exists_le_booleano_em_texto)
 	server.stop();
 }
 
-ORBISLINK_TEST(progresso_le_campos_hexadecimais)
+ORBISLINK_TEST(progress_reads_hexadecimal_fields)
 {
 	FakeInstallerServer server;
 	CHECK(server.start());
@@ -251,7 +251,7 @@ ORBISLINK_TEST(progresso_le_campos_hexadecimais)
 	server.stop();
 }
 
-ORBISLINK_TEST(find_task_usa_sub_type)
+ORBISLINK_TEST(find_task_uses_sub_type)
 {
 	FakeInstallerServer server;
 	CHECK(server.start());
@@ -268,7 +268,7 @@ ORBISLINK_TEST(find_task_usa_sub_type)
 	server.stop();
 }
 
-ORBISLINK_TEST(comandos_de_tarefa_usam_os_endpoints_certos)
+ORBISLINK_TEST(task_commands_use_the_right_endpoints)
 {
 	FakeInstallerServer server;
 	CHECK(server.start());
@@ -289,18 +289,18 @@ ORBISLINK_TEST(comandos_de_tarefa_usam_os_endpoints_certos)
 	server.stop();
 }
 
-ORBISLINK_TEST(sem_servidor_a_mensagem_e_a_do_requisito)
+ORBISLINK_TEST(without_server_the_message_is_the_requirement)
 {
-	// Porta fechada: deve dar a mensagem de §7 para a porta 12800.
+	// Closed port: must give the §7 message for port 12800.
 	RpiClient::Config config;
 	config.host = "127.0.0.1";
-	config.port = 1; // nada à escuta
+	config.port = 1; // nothing listening
 	config.timeoutMs = 500;
 	config.maxAttempts = 1;
 	RpiClient client(config);
 	const InstallerResult result = client.isExists("CUSA12345", nullptr, nullptr);
 	CHECK(!result.ok);
-	CHECK(result.message.find("Instalador remoto indisponível") != std::string::npos);
+	CHECK(result.message.find("Remote installer unavailable") != std::string::npos);
 	CHECK(!client.probe(nullptr));
 }
 

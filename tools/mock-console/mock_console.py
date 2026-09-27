@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Consola falsa para testar o OrbisLink sem uma PS4.
+"""Fake console for testing OrbisLink without a PS4.
 
-Levanta dois serviços que imitam o que uma PS4 com GoldHEN expõe:
+Starts two services that imitate what a PS4 with GoldHEN exposes:
 
-* servidor FTP anónimo (por omissão na porta 2121), com PASV/EPSV;
-* API HTTP do Remote Package Installer (por omissão na porta 12800), que
-  descarrega mesmo o pkg do servidor HTTP do OrbisLink usando pedidos Range,
-  tal como a consola faz.
+* anonymous FTP server (port 2121 by default), with PASV/EPSV;
+* the Remote Package Installer HTTP API (port 12800 by default), which
+  really downloads the pkg from OrbisLink's HTTP server using Range requests,
+  just as the console does.
 
-As respostas replicam as do instalador original (flatz), incluindo as
-particularidades que não são JSON válido: números em hexadecimal sem aspas
-e o campo "exists" como texto.
+The replies copy those of the original installer (flatz), including the
+quirks that are not valid JSON: hexadecimal numbers without quotes and the
+"exists" field as text.
 
-Uso:
+Usage:
     python3 mock_console.py [--ftp-port 2121] [--api-port 12800]
-                            [--root PASTA] [--print-ports]
+                            [--root FOLDER] [--print-ports]
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ import urllib.request
 # ---------------------------------------------------------------- FTP
 
 class FtpSession(threading.Thread):
-    """Uma ligação de controlo FTP."""
+    """One FTP control connection."""
 
     def __init__(self, conn: socket.socket, root: str) -> None:
         super().__init__(daemon=True)
@@ -48,7 +48,7 @@ class FtpSession(threading.Thread):
         self.rename_from: str | None = None
         self.rest_offset = 0
 
-    # -- utilitários -------------------------------------------------
+    # -- utilities ---------------------------------------------------
     def send(self, line: str) -> None:
         self.conn.sendall((line + "\r\n").encode("utf-8", "replace"))
 
@@ -68,13 +68,13 @@ class FtpSession(threading.Thread):
 
     def open_data(self) -> socket.socket | None:
         if not self.data_listener:
-            self.send("425 Sem ligação de dados")
+            self.send("425 No data connection")
             return None
         self.data_listener.settimeout(15)
         try:
             data, _ = self.data_listener.accept()
         except OSError:
-            self.send("425 Falha na ligação de dados")
+            self.send("425 Data connection failed")
             return None
         finally:
             self.data_listener.close()
@@ -99,7 +99,7 @@ class FtpSession(threading.Thread):
         stamp = time.strftime("%b %d %H:%M", time.localtime(stats.st_mtime))
         return f"{perms}   1 ps4      ps4      {stats.st_size:>12} {stamp} {name}"
 
-    # -- ciclo de vida ----------------------------------------------
+    # -- lifecycle --------------------------------------------------
     def run(self) -> None:
         try:
             self.send("220 GoldHEN FTP Server (mock-console)")
@@ -130,31 +130,31 @@ class FtpSession(threading.Thread):
         argument = parts[1] if len(parts) > 1 else ""
 
         if command in ("USER", "PASS"):
-            self.send("230 Sessão iniciada" if command == "PASS" else "331 Indica a palavra-passe")
+            self.send("230 Logged in" if command == "PASS" else "331 Please specify the password")
         elif command == "SYST":
             self.send("215 UNIX Type: L8")
         elif command == "FEAT":
-            self.send("211-Extensões suportadas")
+            self.send("211-Supported extensions")
             self.send(" SIZE")
             self.send(" REST STREAM")
             self.send(" PASV")
-            self.send("211 Fim")
+            self.send("211 End")
         elif command == "OPTS":
             self.send("200 Ok")
         elif command == "TYPE":
-            self.send("200 Tipo definido")
+            self.send("200 Type set")
         elif command == "PWD":
-            self.send(f'257 "{self.cwd}" é a pasta atual')
+            self.send(f'257 "{self.cwd}" is the current folder')
         elif command == "CWD":
             target = argument if argument.startswith("/") else self.cwd.rstrip("/") + "/" + argument
             if os.path.isdir(self.local_path(target)):
                 self.cwd = "/" + target.strip("/")
-                self.send("250 Pasta alterada")
+                self.send("250 Folder changed")
             else:
-                self.send("550 Pasta inexistente")
+                self.send("550 No such folder")
         elif command == "CDUP":
             self.cwd = "/" + "/".join(self.cwd.strip("/").split("/")[:-1])
-            self.send("250 Pasta alterada")
+            self.send("250 Folder changed")
         elif command == "PASV":
             port = self.make_passive()
             self.send(f"227 Entering Passive Mode (127,0,0,1,{port >> 8},{port & 0xFF})")
@@ -168,13 +168,13 @@ class FtpSession(threading.Thread):
             if os.path.isfile(path):
                 self.send(f"213 {os.path.getsize(path)}")
             else:
-                self.send("550 Ficheiro inexistente")
+                self.send("550 No such file")
         elif command == "REST":
             try:
                 self.rest_offset = int(argument)
-                self.send(f"350 A retomar a partir de {self.rest_offset}")
+                self.send(f"350 Restarting at {self.rest_offset}")
             except ValueError:
-                self.send("501 Offset inválido")
+                self.send("501 Invalid offset")
         elif command == "RETR":
             self.command_retr(argument)
         elif command in ("STOR", "APPE"):
@@ -183,49 +183,49 @@ class FtpSession(threading.Thread):
             path = self.local_path(argument)
             try:
                 os.remove(path)
-                self.send("250 Ficheiro apagado")
+                self.send("250 File deleted")
             except OSError:
-                self.send("550 Não foi possível apagar")
+                self.send("550 Could not delete")
         elif command == "MKD":
             try:
                 os.makedirs(self.local_path(argument), exist_ok=False)
-                self.send(f'257 "{argument}" criada')
+                self.send(f'257 "{argument}" created')
             except OSError:
-                self.send("550 Não foi possível criar")
+                self.send("550 Could not create")
         elif command == "RMD":
             try:
                 os.rmdir(self.local_path(argument))
-                self.send("250 Pasta apagada")
+                self.send("250 Folder deleted")
             except OSError:
-                self.send("550 Não foi possível apagar")
+                self.send("550 Could not delete")
         elif command == "RNFR":
             self.rename_from = self.local_path(argument)
-            self.send("350 Indica o novo nome")
+            self.send("350 Please specify the new name")
         elif command == "RNTO":
             if not self.rename_from:
-                self.send("503 Falta o RNFR")
+                self.send("503 RNFR is missing")
             else:
                 try:
                     os.replace(self.rename_from, self.local_path(argument))
-                    self.send("250 Nome alterado")
+                    self.send("250 Renamed")
                 except OSError:
-                    self.send("550 Não foi possível mudar o nome")
+                    self.send("550 Could not rename")
                 self.rename_from = None
         elif command == "NOOP":
             self.send("200 Ok")
         elif command == "QUIT":
-            self.send("221 Adeus")
+            self.send("221 Goodbye")
             return False
         else:
-            self.send("502 Comando não suportado")
+            self.send("502 Command not supported")
         return True
 
     def command_list(self, argument: str, names_only: bool) -> None:
         target = argument.strip()
-        if target.startswith("-"):  # ignora flags tipo "-a"
+        if target.startswith("-"):  # ignores flags like "-a"
             target = ""
         path = self.local_path(target or self.cwd)
-        self.send("150 A abrir a ligação de dados")
+        self.send("150 Opening data connection")
         data = self.open_data()
         if not data:
             return
@@ -235,16 +235,16 @@ class FtpSession(threading.Thread):
                     entry = os.path.join(path, name)
                     line = name if names_only else self.listing_line(entry, name)
                     data.sendall((line + "\r\n").encode("utf-8", "replace"))
-            self.send("226 Transferência completa")
+            self.send("226 Transfer complete")
         finally:
             data.close()
 
     def command_retr(self, argument: str) -> None:
         path = self.local_path(argument)
         if not os.path.isfile(path):
-            self.send("550 Ficheiro inexistente")
+            self.send("550 No such file")
             return
-        self.send("150 A enviar o ficheiro")
+        self.send("150 Sending the file")
         data = self.open_data()
         if not data:
             return
@@ -254,14 +254,14 @@ class FtpSession(threading.Thread):
                     handle.seek(self.rest_offset)
                     self.rest_offset = 0
                 shutil.copyfileobj(handle, data.makefile("wb"))
-            self.send("226 Transferência completa")
+            self.send("226 Transfer complete")
         finally:
             data.close()
 
     def command_stor(self, argument: str, append: bool) -> None:
         path = self.local_path(argument)
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        self.send("150 A receber o ficheiro")
+        self.send("150 Receiving the file")
         data = self.open_data()
         if not data:
             return
@@ -274,7 +274,7 @@ class FtpSession(threading.Thread):
                     if not chunk:
                         break
                     handle.write(chunk)
-            self.send("226 Transferência completa")
+            self.send("226 Transfer complete")
         finally:
             data.close()
 
@@ -309,12 +309,12 @@ class FtpServer(threading.Thread):
 # ------------------------------------------------- API do instalador
 
 def read_pkg_title(url: str) -> tuple[str, str]:
-    """Lê TITLE/TITLE_ID do PARAM.SFO via pedidos Range, como o instalador real.
+    """Reads TITLE/TITLE_ID from PARAM.SFO through Range requests, like the real installer.
 
-    O Remote Package Installer faz exatamente isto antes de registar a tarefa
-    (pkg_setup_prerequisites em pkg.c): puxa o cabeçalho, localiza a entrada
-    0x1000 e lê o PARAM.SFO. Aqui serve para a consola falsa devolver um
-    título realista — e para exercitar o suporte a Range do servidor local.
+    The Remote Package Installer does exactly this before registering the task
+    (pkg_setup_prerequisites in pkg.c): it pulls the header, finds entry
+    0x1000 and reads PARAM.SFO. Here it lets the fake console return a
+    realistic title — and exercises the local server's Range support.
     """
     def fetch(offset: int, size: int) -> bytes:
         request = urllib.request.Request(url)
@@ -355,13 +355,13 @@ def read_pkg_title(url: str) -> tuple[str, str]:
                 raw = sfo[value_table + value_offset:value_table + value_offset + value_size]
                 values[key] = raw.split(b"\0")[0].decode("utf-8", "replace")
             return (values.get("TITLE", ""), values.get("TITLE_ID", ""))
-    except Exception:  # noqa: BLE001 - o título é só cosmético
+    except Exception:  # noqa: BLE001 - the title is only cosmetic
         pass
     return ("", "")
 
 
 class InstallerState:
-    """Tarefas de instalação simuladas."""
+    """Simulated install tasks."""
 
     def __init__(self, download_dir: str, chunk_size: int = 256 * 1024,
                  chunk_delay: float = 0.0) -> None:
@@ -400,13 +400,13 @@ class InstallerState:
         destination = os.path.join(self.download_dir, f"task{task['id']}.pkg")
         try:
             for url in task["urls"]:
-                # HEAD para saber o tamanho, como a consola faz antes de puxar
-                # as partes do pkg.
+                # HEAD to learn the size, as the console does before pulling
+                # the parts of the pkg.
                 head = urllib.request.Request(url, method="HEAD")
                 with urllib.request.urlopen(head, timeout=10) as response:
                     total = int(response.headers.get("Content-Length", "0"))
                     if response.headers.get("Accept-Ranges") != "bytes":
-                        raise RuntimeError("servidor sem suporte a Range")
+                        raise RuntimeError("server without Range support")
                 with self.lock:
                     task["length"] += total
 
@@ -424,7 +424,7 @@ class InstallerState:
                         with urllib.request.urlopen(request, timeout=20) as response:
                             if response.status != 206:
                                 raise RuntimeError(
-                                    f"esperava 206, veio {response.status}")
+                                    f"expected 206, got {response.status}")
                             chunk = response.read()
                         output.write(chunk)
                         offset += len(chunk)
@@ -436,7 +436,7 @@ class InstallerState:
             with self.lock:
                 self.installed[task.get("title_id") or "CUSA00000"] = task["length"]
                 task["path"] = destination
-        except Exception as error:  # noqa: BLE001 - a consola só devolve um código
+        except Exception as error:  # noqa: BLE001 - the console only returns a code
             with self.lock:
                 task["error"] = 0x80020005  # ORBIS_KERNEL_ERROR_EIO
                 task["message"] = str(error)
@@ -446,7 +446,7 @@ class InstallerApiHandler(http.server.BaseHTTPRequestHandler):
     state: InstallerState = None  # type: ignore[assignment]
     protocol_version = "HTTP/1.1"
 
-    def log_message(self, *args) -> None:  # silencia o log por linha
+    def log_message(self, *args) -> None:  # silences the per-line log
         pass
 
     def _reply(self, body: str) -> None:
@@ -459,7 +459,7 @@ class InstallerApiHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
     def _fail(self, code: int) -> None:
-        # Formato real: hexadecimal sem aspas (não é JSON válido de propósito).
+        # Real format: hexadecimal without quotes (deliberately not valid JSON).
         self._reply('{ "status": "fail", "error_code": 0x%08X }' % code)
 
     def do_GET(self) -> None:  # noqa: N802
@@ -538,14 +538,14 @@ class ThreadingHttpServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
 
 
 class DiscoveryServer:
-    """Responde ao pedido de descoberta do Remote Play (987/UDP no PS4).
+    """Answers the Remote Play discovery request (987/UDP on the PS4).
 
-    O formato é o de uma resposta HTTP dentro de um datagrama, tal como o
-    chiaki-ng o interpreta em lib/src/discovery.c: código 200 quando a
-    consola está acordada, 620 quando está em repouso.
+    The format is an HTTP reply inside a datagram, as chiaki-ng parses it
+    in lib/src/discovery.c: code 200 when the console is awake, 620 when it
+    is in rest mode.
     """
 
-    def __init__(self, port: int, state: str = "ready", name: str = "PS4 da sala") -> None:
+    def __init__(self, port: int, state: str = "ready", name: str = "Living room PS4") -> None:
         self.port = port
         self.state = state
         self.name = name
@@ -569,10 +569,10 @@ class DiscoveryServer:
 
     def _response(self) -> bytes:
         if self.state == "standby":
-            linhas = ["HTTP/1.1 620 Server Standby"]
+            lines = ["HTTP/1.1 620 Server Standby"]
         else:
-            linhas = ["HTTP/1.1 200 Ok"]
-        linhas += [
+            lines = ["HTTP/1.1 200 Ok"]
+        lines += [
             "host-id:1122334455AA",
             "host-type:PS4",
             f"host-name:{self.name}",
@@ -581,8 +581,8 @@ class DiscoveryServer:
             "system-version:09000000",
         ]
         if self.state == "ready":
-            linhas += ["running-app-name:Bloodborne", "running-app-titleid:CUSA00207"]
-        return ("\r\n".join(linhas) + "\r\n").encode("utf-8")
+            lines += ["running-app-name:Bloodborne", "running-app-titleid:CUSA00207"]
+        return ("\r\n".join(lines) + "\r\n").encode("utf-8")
 
     def _loop(self) -> None:
         while self._running:
@@ -599,19 +599,19 @@ class DiscoveryServer:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Consola falsa para o OrbisLink")
+    parser = argparse.ArgumentParser(description="Fake console for OrbisLink")
     parser.add_argument("--ftp-port", type=int, default=2121)
     parser.add_argument("--api-port", type=int, default=12800)
-    parser.add_argument("--root", default=None, help="pasta que faz de sistema de ficheiros da consola")
-    parser.add_argument("--slow", type=float, default=0.0, metavar="SEGUNDOS",
-                        help="atraso por bloco descarregado (para demonstrações)")
+    parser.add_argument("--root", default=None, help="folder acting as the console file system")
+    parser.add_argument("--slow", type=float, default=0.0, metavar="SECONDS",
+                        help="delay per downloaded block (for demos)")
     parser.add_argument("--discovery-port", type=int, default=0, metavar="PORTA",
-                        help="responde à descoberta do Remote Play nesta porta "
-                             "(987 é a real, mas precisa de privilégios)")
+                        help="answers Remote Play discovery on this port "
+                             "(987 is the real one, but needs privileges)")
     parser.add_argument("--discovery-state", default="ready", choices=["ready", "standby"],
-                        help="estado que a consola falsa diz ter")
+                        help="state the fake console reports")
     parser.add_argument("--print-ports", action="store_true",
-                        help="imprime as portas escolhidas em JSON e continua")
+                        help="prints the chosen ports as JSON and keeps running")
     arguments = parser.parse_args()
 
     root = arguments.root or tempfile.mkdtemp(prefix="orbislink-mock-")
@@ -634,7 +634,7 @@ def main() -> int:
         try:
             discovery.start()
         except PermissionError:
-            print("Sem permissão para a porta da descoberta; Remote Play desligado.", flush=True)
+            print("No permission for the discovery port; Remote Play disabled.", flush=True)
             discovery = None
 
     info = {"ftp_port": ftp.port, "api_port": api.server_address[1], "root": root}
@@ -643,8 +643,8 @@ def main() -> int:
     if arguments.print_ports:
         print(json.dumps(info), flush=True)
     else:
-        print(f"Consola falsa: FTP em 127.0.0.1:{info['ftp_port']}, "
-              f"API em 127.0.0.1:{info['api_port']} (raiz: {root})", flush=True)
+        print(f"Fake console: FTP on 127.0.0.1:{info['ftp_port']}, "
+              f"API on 127.0.0.1:{info['api_port']} (root: {root})", flush=True)
 
     try:
         while True:

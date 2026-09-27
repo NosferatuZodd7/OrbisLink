@@ -3,6 +3,7 @@
 
 #include "orbislink/common/json.h"
 #include "orbislink/common/log.h"
+#include "orbislink/common/tr.h"
 #include "orbislink/common/util.h"
 #include "orbislink/installer/error_codes.h"
 #include "orbislink/net/http_client.h"
@@ -27,7 +28,7 @@ std::string RpiClient::endpoint() const
 
 bool RpiClient::probe(std::string *detail)
 {
-	// Qualquer resposta HTTP significa que o instalador está aberto (§5.1).
+	// Any HTTP reply means the installer is open (§5.1).
 	HttpClient client(config_.timeoutMs < 4000 ? config_.timeoutMs : 4000);
 	const HttpResponse response = client.get(endpoint() + "/api/is_exists");
 	if(response.transportOk)
@@ -52,7 +53,7 @@ InstallerResult RpiClient::call(const std::string &path, const std::string &json
 		if(attempt > 0)
 		{
 			const int delayMs = config_.backoffBaseMs * (1 << (attempt - 1)); // 1 s, 2 s, 4 s
-			logWarning("Instalador remoto sem resposta (" + response.error + "); nova tentativa em "
+			logWarning("Remote installer not answering (" + response.error + "); retrying in "
 				+ std::to_string(delayMs) + " ms.");
 			std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
 		}
@@ -64,8 +65,9 @@ InstallerResult RpiClient::call(const std::string &path, const std::string &json
 	if(!response.transportOk)
 	{
 		return InstallerResult::failure(
-			"Instalador remoto indisponível. Abre o Remote Package Installer na consola. ("
-			+ response.error + ")");
+			std::string(QT_TRANSLATE_NOOP("Messages",
+				"Remote installer unavailable. Open Remote Package Installer on the console."))
+			+ " (" + response.error + ")");
 	}
 
 	if(body)
@@ -76,7 +78,8 @@ InstallerResult RpiClient::call(const std::string &path, const std::string &json
 	if(json.isNull() || !json.isObject())
 	{
 		InstallerResult result = InstallerResult::failure(
-			"Resposta inesperada do instalador remoto (" + parseError + ").");
+			std::string(QT_TRANSLATE_NOOP("Messages", "Unexpected response from the remote installer"))
+			+ " (" + parseError + ").");
 		result.httpStatus = response.status;
 		result.rawBody = response.body;
 		return result;
@@ -91,8 +94,8 @@ InstallerResult RpiClient::call(const std::string &path, const std::string &json
 		return result;
 	}
 
-	// Dois formatos de falha: { "error_code": 0x... } da API e
-	// { "error": "texto" } dos erros de pedido malformado.
+	// Two failure formats: { "error_code": 0x... } from the API and
+	// { "error": "text" } from malformed request errors.
 	InstallerResult result;
 	result.httpStatus = response.status;
 	result.rawBody = response.body;
@@ -104,8 +107,8 @@ InstallerResult RpiClient::call(const std::string &path, const std::string &json
 	else if(json["error"].isString())
 		result.message = json["error"].toString();
 	else
-		result.message = "O instalador remoto recusou o pedido.";
-	logError("Instalador remoto: " + path + " -> " + result.message);
+		result.message = QT_TRANSLATE_NOOP("Messages", "The remote installer rejected the request.");
+	logError("Remote installer: " + path + " -> " + result.message);
 	return result;
 }
 
@@ -113,7 +116,7 @@ InstallerResult RpiClient::installDirect(const std::vector<std::string> &package
 	InstallTaskHandle *handle)
 {
 	if(packageUrls.empty())
-		return InstallerResult::failure("Nenhum pacote indicado para instalação.");
+		return InstallerResult::failure(QT_TRANSLATE_NOOP("Messages", "No package given to install."));
 
 	Json request = Json::makeObject();
 	request.set("type", Json::fromString("direct"));
@@ -160,7 +163,7 @@ InstallerResult RpiClient::isExists(const std::string &titleId, bool *exists, in
 	if(result.ok)
 	{
 		const Json json = Json::parse(body);
-		// "exists" vem como string ("true"/"false") no instalador do flatz.
+		// "exists" comes as a string ("true"/"false") in flatz's installer.
 		if(exists)
 			*exists = json["exists"].toLooseBool(false);
 		if(size)

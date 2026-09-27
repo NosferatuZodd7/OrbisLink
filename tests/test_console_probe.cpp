@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// A verificação automática do endereço nas definições assenta nesta função.
-// Aqui confirma-se contra servidores falsos: FTP a responder com o banner do
-// GoldHEN e instalador remoto a responder HTTP, cada um podendo faltar.
+// The automatic address check in the settings relies on this function.
+// Here it is checked against fake servers: FTP answering with the GoldHEN
+// banner and the remote installer answering HTTP, either of which may be missing.
 
 #include "orbislink/console/console_manager.h"
 #include "orbislink/net/socket_compat.h"
@@ -16,8 +16,8 @@ using namespace orbislink;
 
 namespace {
 
-// Servidor TCP mínimo: aceita uma ligação, envia `greeting` e fecha. O FTP
-// cumprimenta primeiro; o instalador só responde depois de ler o pedido HTTP.
+// Minimal TCP server: accepts a connection, sends `greeting` and closes. FTP
+// greets first; the installer only answers after reading the HTTP request.
 class FakeService
 {
 public:
@@ -108,8 +108,8 @@ private:
 	std::thread thread_;
 };
 
-// Uma porta que ninguém está a ouvir: abre-se e fecha-se um socket para
-// ficar com um número que o sistema acabou de libertar.
+// A port nobody is listening on: a socket is opened and closed to get
+// a number the system has just released.
 uint16_t closedPort()
 {
 	FakeService service("");
@@ -123,7 +123,7 @@ const char *kHttpOk = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}";
 
 } // namespace
 
-ORBISLINK_TEST(devolve_os_dois_servicos_quando_ambos_respondem)
+ORBISLINK_TEST(returns_both_services_when_both_answer)
 {
 	FakeService ftp("220 GoldHEN FTP Server\r\n");
 	FakeService installer(kHttpOk, true);
@@ -139,7 +139,7 @@ ORBISLINK_TEST(devolve_os_dois_servicos_quando_ambos_respondem)
 	CHECK(result.ftpDetail.find("220") != std::string::npos);
 }
 
-ORBISLINK_TEST(distingue_o_caso_de_so_um_servico_responder)
+ORBISLINK_TEST(tells_apart_only_one_service_answering)
 {
 	FakeService ftp("220 GoldHEN FTP Server\r\n");
 	CHECK(ftp.start());
@@ -153,7 +153,7 @@ ORBISLINK_TEST(distingue_o_caso_de_so_um_servico_responder)
 	CHECK(!result.allOk());
 }
 
-ORBISLINK_TEST(falha_sem_ninguem_do_outro_lado)
+ORBISLINK_TEST(fails_with_nobody_on_the_other_side)
 {
 	const uint16_t deadFtp = closedPort();
 	const uint16_t deadInstaller = closedPort();
@@ -166,13 +166,13 @@ ORBISLINK_TEST(falha_sem_ninguem_do_outro_lado)
 	CHECK(!result.anyOk());
 }
 
-ORBISLINK_TEST(endereco_vazio_nao_vai_a_rede)
+ORBISLINK_TEST(empty_address_does_not_go_to_the_network)
 {
 	const ProbeResult result = probeConsoleServices("   ", 2121, 12800, 1000);
 
 	CHECK(!result.anyOk());
-	CHECK(result.ftpDetail == "sem endereço de consola");
-	CHECK(result.installerDetail == "sem endereço de consola");
+	CHECK(result.ftpDetail == "no console address");
+	CHECK(result.installerDetail == "no console address");
 }
 
 TEST_MAIN()

@@ -15,13 +15,13 @@ struct AVFrame;
 
 namespace orbislink {
 
-// Leva os fotogramas do descodificador (thread do chiaki) para o item de
-// vídeo do QML (thread da UI).
+// Carries frames from the decoder (chiaki's thread) to the QML video
+// item (the UI thread).
 //
-// O descodificador entrega AVFrame em YUV420P. Em vez de o converter para
-// RGB no processador, copia-se plano a plano para um QVideoFrame e é a
-// placa gráfica que faz a conversão ao desenhar — é o que o VideoOutput do
-// Qt faz por nós.
+// The decoder delivers AVFrame in YUV420P. Instead of converting it to
+// RGB on the CPU, it is copied plane by plane into a QVideoFrame and the
+// GPU does the conversion while drawing — that is what Qt's VideoOutput
+// does for us.
 class VideoBridge : public QObject
 {
 	Q_OBJECT
@@ -30,18 +30,18 @@ public:
 	explicit VideoBridge(QObject *parent = nullptr);
 	~VideoBridge() override;
 
-	// Chamado pelo QML com o videoSink do VideoOutput.
+	// Called by QML with the VideoOutput's videoSink.
 	Q_INVOKABLE void setVideoSink(QVideoSink *sink);
 
 	// Chamado da thread do descodificador.
 	void presentFrame(AVFrame *frame);
-	// Limpa a imagem (fim de sessão).
+	// Clears the picture (end of session).
 	void clear();
 
-	// Quantos fotogramas já foram entregues. Serve para medir os fps a
-	// sério, em vez de mostrar o número que se pediu à consola: o que foi
-	// pedido e o que está a chegar podem ser coisas diferentes, e é o
-	// segundo que a pessoa vê.
+	// How many frames have been delivered. Used to measure the real fps,
+	// instead of showing the number asked of the console: what was asked
+	// and what is arriving can differ, and the second is what the person
+	// sees.
 	qint64 framesDelivered() const { return frames_.load(std::memory_order_relaxed); }
 
 signals:

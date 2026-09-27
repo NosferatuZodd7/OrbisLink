@@ -2,39 +2,72 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
+#include <vector>
 #include <string>
 
 namespace orbislink {
 
-// Modo de transferência escolhido no DropOverlay (§5.7).
+// Transfer mode chosen in the DropOverlay (§5.7).
 enum class TransferMode { DirectInstall, FtpUpload };
 
 const char *transferModeName(TransferMode mode);
 TransferMode transferModeFromName(const std::string &name, TransferMode fallback);
 
-// Todas as definições do OrbisLink que não pertencem ao chiaki-ng.
-// As definições de stream (resolução, fps, bitrate) continuam a ser geridas
-// pelo chiaki-ng e não são duplicadas aqui.
+// All OrbisLink settings that do not belong to chiaki-ng.
+// Stream settings (resolution, fps, bitrate) are still managed
+// by chiaki-ng and are not duplicated here.
+// A console saved in the list.
+struct ConsoleEntry
+{
+	std::string name;
+	std::string address;
+	// "ps4", "ps5", or empty while the console has never answered.
+	std::string type;
+	// The Account ID this console accepted at registration, in base64. Each
+	// console keeps its own: a PS4 whose account was activated by hand may
+	// have the bytes in a different order from the PS5 of the same account.
+	std::string accountId;
+	// The host-id the console reported in discovery (its MAC). It is what
+	// ties the entry to its Remote Play registration on this PC; empty until
+	// the console has answered once.
+	std::string hostId;
+};
+
+// A PSN Account ID saved under a name of the user's choosing, so it can be
+// picked for any console instead of being typed again.
+struct SavedAccount
+{
+	std::string label;
+	// In base64, the only form Remote Play accepts.
+	std::string accountId;
+};
+
 struct Settings
 {
-	// Consola
+	// Console: the one in use (FTP, the installer and Remote Play talk to
+	// it) and the list of added consoles, which also contains it.
 	std::string consoleName = "PS4";
 	std::string consoleAddress;
+	std::vector<ConsoleEntry> consoles;
 	uint16_t ftpPort = 2121;
+	// A jailbroken PS5 (etaHEN) has FTP on another port; it is stored
+	// separately so people with both consoles do not keep swapping the port.
+	uint16_t ftpPortPs5 = 1337;
 	uint16_t installerPort = 12800;
 
-	// Instalação
+	// Installation
 	TransferMode defaultMode = TransferMode::DirectInstall;
 	std::string ftpUploadDirectory = "/data/pkg/";
 	bool checkAlreadyInstalled = true;
 	bool installAfterUpload = false;
-	// Depois de enviar por FTP e instalar, apagar a cópia da consola: só
-	// faz sentido com installAfterUpload ligado.
+	// After uploading via FTP and installing, delete the copy on the
+	// console: only meaningful with installAfterUpload enabled.
 	bool deleteFromConsoleAfterInstall = false;
 
 	// Servidor HTTP local
 	uint16_t httpPort = 8765;
-	std::string httpBindAddress;       // vazio = escolher pela sub-rede da consola
+	std::string httpBindAddress;       // empty = choose by the console's subnet
 	bool restrictToConsoleIp = true;
 	bool firewallNoticeShown = false;  // aviso da firewall do Windows (§5.3)
 
@@ -43,54 +76,69 @@ struct Settings
 	bool ftpAdvancedMode = false;
 
 	// Remote Play
-	int streamResolution = 720;      // 360, 540, 720 ou 1080
-	int streamFps = 60;              // 30 ou 60
-	int streamBitrateKbps = 0;       // 0 = o que o preset do chiaki definir
+	int streamResolution = 720;      // 360, 540, 720 or 1080
+	int streamFps = 60;              // 30 or 60
+	int streamBitrateKbps = 0;       // 0 = whatever chiaki's preset sets
 	bool streamHardwareDecode = true;
 	bool streamFullscreenOnConnect = false;
 	bool streamRumble = true;
 	bool streamTouchpadFromMouse = true;
-	std::string streamAccountId;     // Account ID da PSN, em base64
+	std::string streamAccountId;     // the last accepted Account ID, in base64 (for new consoles)
+	// The saved Account IDs. Each console's accountId is one of these.
+	std::vector<SavedAccount> accounts;
+	// Keyboard as controller: action → key (Qt::Key). Only what was changed;
+	// the rest keep their default key.
+	std::map<std::string, int> keyboardBindings;
 
-	// Aplicação
-	std::string theme = "escuro";    // "escuro", "vidro" ou "claro"
-	std::string language = "auto";  // "auto", "pt_PT" ou "en"
+	// Application
+	std::string theme = "dark";      // "dark", "glass" or "light"
+	std::string language = "en";    // "en" or "pt_PT"
 	bool debugLogging = false;
-	// "Updates pela internet". Ligado por omissão: com o repositório público
-	// e uma compilação por push, uma app que nunca pergunta fica para trás
-	// sem ninguém dar por isso. Continua desligável (§9) — desligado, a app
-	// não vai à internet por causa de actualizações — e nunca instala sem
-	// perguntar.
+	// "Updates over the internet". On by default: with a public repository
+	// and a build per push, an app that never asks falls behind without
+	// anyone noticing. It can still be turned off (§9) — when off, the app
+	// never goes online for updates — and it never installs without
+	// asking.
 	bool checkForUpdates = true;
-	// Onde procurar lançamentos, na forma "dono/nome". É uma definição e não
-	// uma constante no código: uma cópia do projecto noutro repositório aponta
-	// a app para si sem a recompilar.
-	// Ver ORBISLINK_REPOSITORY no CMakeLists.txt: é o CI que o preenche.
+	// Where to look for releases, as "owner/name". It is a setting and not
+	// a constant in the code: a copy of the project in another repository
+	// points the app at itself without recompiling.
+	// See ORBISLINK_REPOSITORY in CMakeLists.txt: CI fills it in.
 	std::string updateRepository = ORBISLINK_REPOSITORY_STRING;
-	// "estavel" só vê lançamentos finais; "testes" vê também as
-	// pré-lançamentos que o CI publica por cada build.
-	std::string updateChannel = "estavel";
-	// O assistente de primeira utilização só aparece uma vez; depois disso
-	// abre-se a partir das definições.
+	// "stable" only sees final releases; "testing" also sees the
+	// prereleases that CI publishes for every build.
+	std::string updateChannel = "stable";
+	// The first-run wizard only appears once; after that it is opened
+	// from the settings.
 	bool firstRunDone = false;
 
 	std::string toJson() const;
 	static Settings fromJson(const std::string &text, bool *ok = nullptr);
 };
 
-// O repositório de actualizações que fica depois de ler as definições.
+// The update repository that results from reading the settings.
 //
-// O repositório gravado é o que estava por omissão na compilação que o
-// gravou. Se o projecto mudar de repositório, isso deixaria a app nova a
-// procurar versões no antigo. Por isso grava-se também qual era o valor
-// por omissão ("storedDefault"): se o gravado for igual a ele, ninguém o
-// escolheu e segue o desta compilação; se for diferente, foi escrito à mão
-// e fica. Ficheiros sem storedDefault (nullptr) não permitem distinguir, e
-// vale o desta compilação.
+// The stored repository is the default of the build that stored it. If the
+// project moves to another repository, that would leave the new app looking
+// for versions in the old one. So the default at the time is stored too
+// ("storedDefault"): if the stored value equals it, nobody chose it and the
+// one from this build applies; if it differs, it was written by hand and
+// stays. Files without storedDefault (nullptr) cannot tell the difference,
+// and this build's value applies.
+// Makes sure the console in use is in the list (at the front, if it is not)
+// and that the list has no empty or repeated addresses. This is what carries
+// over settings from before the list existed, which only had one console.
+void normaliseConsoles(Settings &settings);
+
+// Makes sure every Account ID a console uses, and the last accepted one,
+// is in the saved list, with no empty or repeated entries. Settings from
+// before the list existed get one entry per ID, named after its console.
+void normaliseAccounts(Settings &settings);
+
 std::string resolveUpdateRepository(const std::string &stored, const std::string *storedDefault,
 	const std::string &compiledDefault);
 
-// Persistência em JSON na pasta de dados da aplicação.
+// JSON persistence in the application's data folder.
 class SettingsStore
 {
 public:

@@ -18,36 +18,36 @@ namespace {
 
 #ifdef _WIN32
 
-// Um só ícone na área de notificação, criado à primeira mensagem e
-// removido no fim. O GUID fixo evita que o Windows crie um ícone novo a
-// cada arranque.
+// A single icon in the notification area, created on the first message and
+// removed at the end. The fixed GUID stops Windows from creating a new icon
+// on every start.
 NOTIFYICONDATAW &iconData()
 {
-	static NOTIFYICONDATAW dados {};
-	return dados;
+	static NOTIFYICONDATAW data {};
+	return data;
 }
 
-bool criarIcone()
+bool createIcon()
 {
-	NOTIFYICONDATAW &dados = iconData();
-	dados.cbSize = sizeof(NOTIFYICONDATAW);
-	// A janela dona: qualquer uma serve, desde que exista enquanto o ícone
-	// existir. Usa-se a janela da aplicação.
-	const QWindowList janelas = QGuiApplication::allWindows();
-	if(janelas.isEmpty())
+	NOTIFYICONDATAW &data = iconData();
+	data.cbSize = sizeof(NOTIFYICONDATAW);
+	// The owner window: any will do, as long as it exists while the icon
+	// exists. The application's window is used.
+	const QWindowList windowList = QGuiApplication::allWindows();
+	if(windowList.isEmpty())
 		return false;
-	dados.hWnd = reinterpret_cast<HWND>(janelas.first()->winId());
-	if(!dados.hWnd)
+	data.hWnd = reinterpret_cast<HWND>(windowList.first()->winId());
+	if(!data.hWnd)
 		return false;
-	dados.uID = 1;
-	dados.uFlags = NIF_ICON | NIF_TIP;
-	dados.hIcon = static_cast<HICON>(
+	data.uID = 1;
+	data.uFlags = NIF_ICON | NIF_TIP;
+	data.hIcon = static_cast<HICON>(
 		LoadImageW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(1), IMAGE_ICON, 0, 0,
 			LR_DEFAULTSIZE | LR_SHARED));
-	if(!dados.hIcon)
-		dados.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
-	wcscpy_s(dados.szTip, L"OrbisLink");
-	return Shell_NotifyIconW(NIM_ADD, &dados) != FALSE;
+	if(!data.hIcon)
+		data.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
+	wcscpy_s(data.szTip, L"OrbisLink");
+	return Shell_NotifyIconW(NIM_ADD, &data) != FALSE;
 }
 
 #endif // _WIN32
@@ -80,24 +80,24 @@ void Notifier::show(const QString &title, const QString &message, bool error)
 
 #ifdef _WIN32
 	if(!registered_)
-		registered_ = criarIcone();
+		registered_ = createIcon();
 	if(registered_)
 	{
-		NOTIFYICONDATAW &dados = iconData();
-		dados.uFlags = NIF_INFO;
-		dados.dwInfoFlags = error ? NIIF_ERROR : NIIF_INFO;
-		const QString cabecalho = title.isEmpty() ? QStringLiteral("OrbisLink") : title;
-		wcsncpy_s(dados.szInfoTitle, reinterpret_cast<const wchar_t *>(cabecalho.utf16()),
+		NOTIFYICONDATAW &data = iconData();
+		data.uFlags = NIF_INFO;
+		data.dwInfoFlags = error ? NIIF_ERROR : NIIF_INFO;
+		const QString header = title.isEmpty() ? QStringLiteral("OrbisLink") : title;
+		wcsncpy_s(data.szInfoTitle, reinterpret_cast<const wchar_t *>(header.utf16()),
 			_TRUNCATE);
-		wcsncpy_s(dados.szInfo, reinterpret_cast<const wchar_t *>(message.utf16()), _TRUNCATE);
-		Shell_NotifyIconW(NIM_MODIFY, &dados);
+		wcsncpy_s(data.szInfo, reinterpret_cast<const wchar_t *>(message.utf16()), _TRUNCATE);
+		Shell_NotifyIconW(NIM_MODIFY, &data);
 		return;
 	}
 #endif
 
-	// Sem notificação do sistema: a janela pisca na barra de tarefas, que
-	// pelo menos chama a atenção. Só para erros — piscar a cada informação
-	// seria insuportável.
+	// No system notification: the window flashes in the taskbar, which at
+	// least draws attention. Only for errors — flashing on every piece of
+	// information would be unbearable.
 	if(error && window_ && !window_->isActive())
 		window_->alert(0);
 }

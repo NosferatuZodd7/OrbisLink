@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// O item de vídeo, num ficheiro só para ele.
+// The video item, in a file of its own.
 //
-// O "import QtMultimedia" fica isolado aqui de propósito: quando o
-// OrbisLink é compilado sem Remote Play, ou quando o módulo QML do
-// QtMultimedia não está instalado, este ficheiro nunca é carregado e o
-// resto da janela abre na mesma. Ter o import no StreamArea.qml faria a
-// interface inteira falhar a carregar nessas máquinas.
+// The "import QtMultimedia" is isolated here on purpose: when OrbisLink
+// is built without Remote Play, or when QtMultimedia's QML module is not
+// installed, this file is never loaded and the rest of the window opens
+// anyway. Having the import in StreamArea.qml would make the whole
+// interface fail to load on those machines.
 import QtQuick
 import QtMultimedia
 
@@ -14,13 +14,13 @@ VideoOutput {
     id: video
     fillMode: VideoOutput.PreserveAspectFit
 
-    // O teclado faz de comando enquanto houver stream.
+    // The keyboard acts as the controller while there is a stream.
     Keys.onPressed: function(event) {
         if (event.isAutoRepeat)
             return
         if (event.key === Qt.Key_Escape) {
-            // Em ecrã inteiro, o Esc sai do ecrã inteiro; fora dele,
-            // termina a sessão. É o que qualquer pessoa espera.
+            // In full screen, Esc leaves full screen; outside it, it ends
+            // the session. It is what anyone expects.
             if (window.streamFullscreen)
                 window.setStreamFullscreen(false)
             else
@@ -42,8 +42,8 @@ VideoOutput {
     }
     onActiveFocusChanged: if (!activeFocus) stream.releaseAllKeys()
 
-    // O rato faz de touchpad: arrastar por cima da imagem é o mesmo que
-    // arrastar o dedo no comando. Clicar é um toque.
+    // The mouse acts as the touchpad: dragging over the picture is the same
+    // as dragging a finger on the controller. Clicking is a tap.
     MouseArea {
         anchors.fill: parent
         enabled: stream.touchpadFromMouse()
@@ -51,28 +51,28 @@ VideoOutput {
         cursorShape: enabled ? Qt.BlankCursor : Qt.ArrowCursor
         hoverEnabled: false
 
-        function normalizado(ponto) {
-            // O vídeo mantém a proporção, por isso a área desenhada pode ser
-            // menor do que o item. Usa-se a área real, senão o toque saía
-            // deslocado nas bandas pretas.
+        function normalised(dot) {
+            // The video keeps its aspect ratio, so the drawn area may be
+            // smaller than the item. The real area is used, otherwise the touch
+            // would land offset in the black bars.
             var r = video.contentRect
             if (r.width <= 0 || r.height <= 0)
                 return null
-            var x = (ponto.x - r.x) / r.width
-            var y = (ponto.y - r.y) / r.height
+            var x = (dot.x - r.x) / r.width
+            var y = (dot.y - r.y) / r.height
             if (x < 0 || x > 1 || y < 0 || y > 1)
                 return null
             return { "x": x, "y": y }
         }
 
         onPressed: function(mouse) {
-            var p = normalizado(mouse)
+            var p = normalised(mouse)
             if (p)
                 stream.touchBegin(p.x, p.y)
             video.forceActiveFocus()
         }
         onPositionChanged: function(mouse) {
-            var p = normalizado(mouse)
+            var p = normalised(mouse)
             if (p)
                 stream.touchMove(p.x, p.y)
         }

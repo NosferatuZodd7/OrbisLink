@@ -9,62 +9,102 @@ namespace orbislink {
 
 namespace {
 
-// As teclas seguem o mapa por omissão do chiaki-ng.
-uint32_t buttonFor(int key)
-{
-	switch(key)
-	{
-		case Qt::Key_Return:
-		case Qt::Key_Enter: return CHIAKI_CONTROLLER_BUTTON_CROSS;
-		case Qt::Key_Backspace: return CHIAKI_CONTROLLER_BUTTON_MOON;     // círculo
-		case Qt::Key_C: return CHIAKI_CONTROLLER_BUTTON_BOX;              // quadrado
-		case Qt::Key_V: return CHIAKI_CONTROLLER_BUTTON_PYRAMID;          // triângulo
-		case Qt::Key_Left: return CHIAKI_CONTROLLER_BUTTON_DPAD_LEFT;
-		case Qt::Key_Right: return CHIAKI_CONTROLLER_BUTTON_DPAD_RIGHT;
-		case Qt::Key_Up: return CHIAKI_CONTROLLER_BUTTON_DPAD_UP;
-		case Qt::Key_Down: return CHIAKI_CONTROLLER_BUTTON_DPAD_DOWN;
-		case Qt::Key_1: return CHIAKI_CONTROLLER_BUTTON_L1;
-		case Qt::Key_3: return CHIAKI_CONTROLLER_BUTTON_R1;
-		case Qt::Key_4: return CHIAKI_CONTROLLER_BUTTON_L3;
-		case Qt::Key_6: return CHIAKI_CONTROLLER_BUTTON_R3;
-		case Qt::Key_O: return CHIAKI_CONTROLLER_BUTTON_OPTIONS;
-		case Qt::Key_F: return CHIAKI_CONTROLLER_BUTTON_SHARE;
-		case Qt::Key_T: return CHIAKI_CONTROLLER_BUTTON_TOUCHPAD;
-		case Qt::Key_P: return CHIAKI_CONTROLLER_BUTTON_PS;
-		default: return 0;
-	}
-}
-
-bool isMapped(int key)
-{
-	if(buttonFor(key) != 0)
-		return true;
-	switch(key)
-	{
-		case Qt::Key_2: // L2
-		case Qt::Key_5: // R2
-		case Qt::Key_W:
-		case Qt::Key_A:
-		case Qt::Key_S:
-		case Qt::Key_D:
-		case Qt::Key_I:
-		case Qt::Key_J:
-		case Qt::Key_K:
-		case Qt::Key_L:
-			return true;
-		default:
-			return false;
-	}
-}
-
-// Os eixos do PS4 vão de -32768 a 32767; com teclado só há tudo ou nada.
+// PS4 axes range from -32768 to 32767; with a keyboard it is all or nothing.
 constexpr int16_t kAxisMax = 32767;
+
+// The keypad Enter counts as the normal Enter: they are the same key
+// to someone playing.
+int normalise(int key) { return key == Qt::Key_Enter ? Qt::Key_Return : key; }
 
 } // namespace
 
+const std::vector<KeyboardMap::Action> &KeyboardMap::actions()
+{
+	// The order is the map window's. The default keys are
+	// chiaki-ng's.
+	static const std::vector<Action> items = {
+		{ "cross", CHIAKI_CONTROLLER_BUTTON_CROSS, Qt::Key_Return },
+		{ "circle", CHIAKI_CONTROLLER_BUTTON_MOON, Qt::Key_Backspace },
+		{ "square", CHIAKI_CONTROLLER_BUTTON_BOX, Qt::Key_C },
+		{ "triangle", CHIAKI_CONTROLLER_BUTTON_PYRAMID, Qt::Key_V },
+		{ "dpad_up", CHIAKI_CONTROLLER_BUTTON_DPAD_UP, Qt::Key_Up },
+		{ "dpad_down", CHIAKI_CONTROLLER_BUTTON_DPAD_DOWN, Qt::Key_Down },
+		{ "dpad_left", CHIAKI_CONTROLLER_BUTTON_DPAD_LEFT, Qt::Key_Left },
+		{ "dpad_right", CHIAKI_CONTROLLER_BUTTON_DPAD_RIGHT, Qt::Key_Right },
+		{ "l1", CHIAKI_CONTROLLER_BUTTON_L1, Qt::Key_1 },
+		{ "l2", 0, Qt::Key_2 },
+		{ "r1", CHIAKI_CONTROLLER_BUTTON_R1, Qt::Key_3 },
+		{ "r2", 0, Qt::Key_5 },
+		{ "l3", CHIAKI_CONTROLLER_BUTTON_L3, Qt::Key_4 },
+		{ "r3", CHIAKI_CONTROLLER_BUTTON_R3, Qt::Key_6 },
+		{ "lstick_up", 0, Qt::Key_W },
+		{ "lstick_left", 0, Qt::Key_A },
+		{ "lstick_down", 0, Qt::Key_S },
+		{ "lstick_right", 0, Qt::Key_D },
+		{ "rstick_up", 0, Qt::Key_I },
+		{ "rstick_left", 0, Qt::Key_J },
+		{ "rstick_down", 0, Qt::Key_K },
+		{ "rstick_right", 0, Qt::Key_L },
+		{ "options", CHIAKI_CONTROLLER_BUTTON_OPTIONS, Qt::Key_O },
+		{ "share", CHIAKI_CONTROLLER_BUTTON_SHARE, Qt::Key_F },
+		{ "touchpad", CHIAKI_CONTROLLER_BUTTON_TOUCHPAD, Qt::Key_T },
+		{ "ps", CHIAKI_CONTROLLER_BUTTON_PS, Qt::Key_P },
+	};
+	return items;
+}
+
+KeyboardMap::Bindings KeyboardMap::defaults()
+{
+	Bindings bindings;
+	for(const Action &action : actions())
+		bindings[action.id] = action.defaultKey;
+	return bindings;
+}
+
+bool KeyboardMap::reserved(int key)
+{
+	return key == Qt::Key_Escape || key == Qt::Key_F11 || key == 0 || key == Qt::Key_unknown;
+}
+
+bool KeyboardMap::rebind(Bindings &bindings, const std::string &action, int key)
+{
+	key = normalise(key);
+	if(reserved(key))
+		return false;
+	auto target = bindings.find(action);
+	if(target == bindings.end())
+		return false;
+	const int old = target->second;
+	for(auto &pair : bindings)
+	{
+		if(pair.first != action && pair.second == key)
+			pair.second = old;
+	}
+	target->second = key;
+	return true;
+}
+
+KeyboardMap::KeyboardMap() { setBindings({}); }
+
+void KeyboardMap::setBindings(const Bindings &custom)
+{
+	// Always start from the default keys and apply what was changed, one
+	// action at a time and by the same swap rules: a hand-edited settings
+	// file cannot leave two actions on the same key or an action
+	// without a key.
+	bindings_ = defaults();
+	for(const auto &pair : custom)
+		rebind(bindings_, pair.first, pair.second);
+	byKey_.clear();
+	for(const auto &pair : bindings_)
+		byKey_.insert(pair.second, pair.first);
+	pressed_.clear();
+}
+
 bool KeyboardMap::press(int key)
 {
-	if(!isMapped(key))
+	key = normalise(key);
+	if(!byKey_.contains(key))
 		return false;
 	pressed_.insert(key);
 	return true;
@@ -72,7 +112,8 @@ bool KeyboardMap::press(int key)
 
 bool KeyboardMap::release(int key)
 {
-	if(!isMapped(key))
+	key = normalise(key);
+	if(!byKey_.contains(key))
 		return false;
 	pressed_.remove(key);
 	return true;
@@ -83,28 +124,34 @@ void KeyboardMap::clear() { pressed_.clear(); }
 StreamSession::ControllerState KeyboardMap::state() const
 {
 	StreamSession::ControllerState state;
-	for(int key : pressed_)
-		state.buttons |= buttonFor(key);
-
-	if(pressed_.contains(Qt::Key_2))
+	auto pressed = [this](const char *action) {
+		auto keyCap = bindings_.find(action);
+		return keyCap != bindings_.end() && pressed_.contains(keyCap->second);
+	};
+	for(const Action &action : actions())
+	{
+		if(action.button != 0 && pressed(action.id))
+			state.buttons |= action.button;
+	}
+	if(pressed("l2"))
 		state.l2 = 255;
-	if(pressed_.contains(Qt::Key_5))
+	if(pressed("r2"))
 		state.r2 = 255;
-	if(pressed_.contains(Qt::Key_A))
+	if(pressed("lstick_left"))
 		state.leftX = -kAxisMax;
-	if(pressed_.contains(Qt::Key_D))
+	if(pressed("lstick_right"))
 		state.leftX = kAxisMax;
-	if(pressed_.contains(Qt::Key_W))
+	if(pressed("lstick_up"))
 		state.leftY = -kAxisMax;
-	if(pressed_.contains(Qt::Key_S))
+	if(pressed("lstick_down"))
 		state.leftY = kAxisMax;
-	if(pressed_.contains(Qt::Key_J))
+	if(pressed("rstick_left"))
 		state.rightX = -kAxisMax;
-	if(pressed_.contains(Qt::Key_L))
+	if(pressed("rstick_right"))
 		state.rightX = kAxisMax;
-	if(pressed_.contains(Qt::Key_I))
+	if(pressed("rstick_up"))
 		state.rightY = -kAxisMax;
-	if(pressed_.contains(Qt::Key_K))
+	if(pressed("rstick_down"))
 		state.rightY = kAxisMax;
 	return state;
 }

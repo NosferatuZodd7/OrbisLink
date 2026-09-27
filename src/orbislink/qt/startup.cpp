@@ -41,9 +41,9 @@ QString dataDirectory()
 
 QString markerPath() { return QDir(dataDirectory()).filePath(QStringLiteral("startup.lock")); }
 
-// O registo só serve se existir mesmo. Tenta a pasta de dados, depois a
-// pasta do próprio executável (o caso do zip portátil numa sandbox, onde a
-// pasta de dados pode não ser gravável) e por fim a pasta temporária.
+// The log is only useful if it actually exists. Try the data folder, then
+// the executable's own folder (the portable zip in a sandbox, where the data
+// folder may not be writable) and finally the temporary folder.
 QString resolveLogPath()
 {
 	const QStringList candidates = {
@@ -67,7 +67,7 @@ void writeLine(const QString &line)
 {
 	QMutexLocker locker(&g_logMutex);
 	QFile file(logPath());
-	// Não deixa o registo crescer sem fim.
+	// Do not let the log grow without end.
 	if(file.exists() && file.size() > 2 * 1024 * 1024)
 		file.remove();
 	if(!file.open(QIODevice::Append | QIODevice::Text))
@@ -77,9 +77,9 @@ void writeLine(const QString &line)
 	stream << line << '\n';
 }
 
-// Avisos do Qt que, na prática, significam "a janela não vai aparecer".
-// Sem isto ficariam no registo como simples avisos, e a aplicação
-// pareceria viva sem nunca mostrar nada.
+// Qt warnings that, in practice, mean "the window is not going to appear".
+// Without this they would stay in the log as plain warnings, and the
+// application would look alive without ever showing anything.
 bool isWindowCreationFailure(const QString &message)
 {
 	static const char *fatalPatterns[] = {
@@ -103,8 +103,8 @@ void handler(QtMsgType type, const QMessageLogContext &context, const QString &m
 	{
 		case QtDebugMsg: level = "debug"; break;
 		case QtInfoMsg: level = "info"; break;
-		case QtWarningMsg: level = "aviso"; break;
-		case QtCriticalMsg: level = "erro"; break;
+		case QtWarningMsg: level = "warning"; break;
+		case QtCriticalMsg: level = "error"; break;
 		case QtFatalMsg: level = "fatal"; break;
 	}
 	const QString stamp = QDateTime::currentDateTimeUtc().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss.zzz"));
@@ -124,10 +124,10 @@ void handler(QtMsgType type, const QMessageLogContext &context, const QString &m
 } // namespace
 
 #ifdef Q_OS_WIN
-// Último recurso: se o processo estoirar, fica registado em vez de
-// desaparecer sem deixar rasto. Escreve-se com a API do Windows e sem
-// alocar memória — dentro de um manipulador de exceções não se pode confiar
-// no estado do processo.
+// Last resort: if the process crashes, it is logged instead of vanishing
+// without a trace. Written with the Windows API and without allocating
+// memory — inside an exception handler the process state cannot be
+// trusted.
 LONG WINAPI crashHandler(EXCEPTION_POINTERS *info)
 {
 	wchar_t path[MAX_PATH];
@@ -146,9 +146,9 @@ LONG WINAPI crashHandler(EXCEPTION_POINTERS *info)
 		const void *address = info && info->ExceptionRecord
 			? info->ExceptionRecord->ExceptionAddress
 			: nullptr;
-		// Resolve o endereço para módulo + deslocamento: sem isto o endereço
-		// muda a cada arranque (ASLR) e não diz nada a ninguém.
-		char module[MAX_PATH] = "desconhecido";
+		// Resolve the address to module + offset: without this the address
+		// changes on every start (ASLR) and tells nobody anything.
+		char module[MAX_PATH] = "unknown";
 		unsigned long long offset = 0;
 		HMODULE handle = nullptr;
 		if(address
@@ -169,13 +169,13 @@ LONG WINAPI crashHandler(EXCEPTION_POINTERS *info)
 		}
 
 		const int length = _snprintf_s(buffer, sizeof(buffer), _TRUNCATE,
-			"FATAL: o processo estoirou (codigo 0x%08lX em %s+0x%llX)\r\n",
+			"FATAL: the process crashed (code 0x%08lX at %s+0x%llX)\r\n",
 			static_cast<unsigned long>(code), module, offset);
 		DWORD written = 0;
 		if(length > 0)
 			WriteFile(file, buffer, static_cast<DWORD>(length), &written, nullptr);
 
-		// E a pilha de chamadas, módulo a módulo.
+		// And the call stack, module by module.
 		void *frames[24];
 		const USHORT captured = CaptureStackBackTrace(0, 24, frames, nullptr);
 		for(USHORT i = 0; i < captured; ++i)
@@ -199,15 +199,15 @@ LONG WINAPI crashHandler(EXCEPTION_POINTERS *info)
 					- reinterpret_cast<const unsigned char *>(frameModule));
 			}
 			const int frameLength = _snprintf_s(buffer, sizeof(buffer), _TRUNCATE,
-				"  pilha %02u: %s+0x%llX\r\n", static_cast<unsigned>(i), frameName, frameOffset);
+				"  stack %02u: %s+0x%llX\r\n", static_cast<unsigned>(i), frameName, frameOffset);
 			if(frameLength > 0)
 				WriteFile(file, buffer, static_cast<DWORD>(frameLength), &written, nullptr);
 		}
 		CloseHandle(file);
 	}
 
-	MessageBoxW(nullptr, L"O OrbisLink terminou inesperadamente.\n\n"
-						 L"Corre o diagnostico.bat e envia o relatório.",
+	MessageBoxW(nullptr, L"OrbisLink closed unexpectedly.\n\n"
+						 L"Run diagnostics.bat and send the report.",
 		L"OrbisLink", MB_OK | MB_ICONERROR);
 	return EXCEPTION_EXECUTE_HANDLER;
 }
@@ -223,8 +223,8 @@ QString logPath()
 void installFileLogger()
 {
 #ifdef Q_OS_WIN
-	// Sem isto, correr a aplicação a partir de uma linha de comandos não
-	// mostra nada: é um executável de janela, não tem consola própria.
+	// Without this, running the application from a command line shows
+	// nothing: it is a windowed executable, it has no console of its own.
 	if(AttachConsole(ATTACH_PARENT_PROCESS))
 	{
 		FILE *stream = nullptr;
@@ -237,8 +237,8 @@ void installFileLogger()
 	SetUnhandledExceptionFilter(crashHandler);
 #endif
 	g_previousHandler = qInstallMessageHandler(handler);
-	writeLine(QStringLiteral("──────────── arranque ────────────"));
-	qInfo("Registo em %s", qPrintable(g_logPath));
+	writeLine(QStringLiteral("──────────── startup ────────────"));
+	qInfo("Log at %s", qPrintable(g_logPath));
 }
 
 bool previousLaunchFailed() { return QFileInfo::exists(markerPath()); }
@@ -261,7 +261,7 @@ void reportFatal(const QString &title, const QString &message)
 {
 	writeLine(QStringLiteral("FATAL: ") + title + QStringLiteral(" — ") + message);
 #ifdef Q_OS_WIN
-	const QString full = message + QStringLiteral("\n\nDetalhes em:\n") + logPath();
+	const QString full = message + QStringLiteral("\n\nDetails in:\n") + logPath();
 	MessageBoxW(nullptr, reinterpret_cast<const wchar_t *>(full.utf16()),
 		reinterpret_cast<const wchar_t *>(title.utf16()), MB_OK | MB_ICONERROR);
 #else

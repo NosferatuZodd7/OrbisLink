@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Primeira abertura: em vez de uma janela vazia com serviços vermelhos e
-// nenhuma explicação, três passos que põem a aplicação a funcionar.
+// First launch: instead of an empty window with red services and no
+// explanation, three steps that get the application working.
 //
-// Aparece uma vez. Quem quiser voltar a vê-lo tem o botão nas definições.
+// It appears once. Anyone who wants to see it again has the button in the settings.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -18,11 +18,11 @@ Dialog {
     closePolicy: Popup.NoAutoClose
     padding: 0
 
-    property int passo: 0
-    readonly property int passos: 3
+    property int step: 0
+    readonly property int steps: 3
 
-    // A mesma verificação automática das definições: escreve-se o IP e o
-    // assistente diz se a consola respondeu, sem carregar em nada.
+    // The same automatic check as in the settings: type the IP and the
+    // wizard says whether the console answered, without pressing anything.
     property string probeState: "idle"
     property bool probeFtpOk: false
     property bool probeInstallerOk: false
@@ -35,39 +35,39 @@ Dialog {
 
     readonly property string probeText: {
         if (probeState === "checking")
-            return qsTr("A verificar %1…").arg(enderecoField.text.trim())
+            return qsTr("Checking %1…").arg(addressInput.text.trim())
         if (probeState === "ok")
-            return qsTr("Consola encontrada — instalador e FTP respondem.")
+            return qsTr("Console found — the installer and FTP both answer.")
         if (probeState === "partial") {
             if (probeInstallerOk)
-                return qsTr("Instalador remoto responde, FTP não — vê o passo seguinte.")
-            return qsTr("FTP responde, instalador remoto não — vê o passo seguinte.")
+                return qsTr("The remote installer answers, FTP does not — see the next step.")
+            return qsTr("FTP answers, the remote installer does not — see the next step.")
         }
         if (probeState === "fail")
-            return qsTr("Sem resposta de %1. Confirma o IP e que a consola está ligada.")
-                .arg(enderecoField.text.trim())
-        return qsTr("Escreve o endereço — é verificado sozinho.")
+            return qsTr("No answer from %1. Check the IP and that the console is on.")
+                .arg(addressInput.text.trim())
+        return qsTr("Type the address — it is checked on its own.")
     }
 
-    function enderecoCompleto(texto) {
-        var valor = (texto || "").trim()
-        if (valor.length === 0)
+    function addressComplete(message) {
+        var value = (message || "").trim()
+        if (value.length === 0)
             return false
-        if (/^[0-9.]+$/.test(valor)) {
-            var partes = valor.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
-            if (!partes)
+        if (/^[0-9.]+$/.test(value)) {
+            var parts = value.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+            if (!parts)
                 return false
             for (var i = 1; i <= 4; ++i) {
-                if (parseInt(partes[i], 10) > 255)
+                if (parseInt(parts[i], 10) > 255)
                     return false
             }
             return true
         }
-        return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(valor)
+        return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(value)
     }
 
-    function agendarVerificacao() {
-        if (!enderecoCompleto(enderecoField.text)) {
+    function scheduleCheck() {
+        if (!addressComplete(addressInput.text)) {
             probeState = "idle"
             probeTimer.stop()
             return
@@ -80,13 +80,13 @@ Dialog {
         id: probeTimer
         interval: 600
         repeat: false
-        onTriggered: app.probeConsole(enderecoField.text.trim(), 2121, 12800)
+        onTriggered: app.probeConsole(addressInput.text.trim(), 2121, 12800)
     }
 
     Connections {
         target: app
         function onConsoleProbed(address, ftpOk, installerOk, detail) {
-            if (address !== enderecoField.text.trim())
+            if (address !== addressInput.text.trim())
                 return
             wizard.probeFtpOk = ftpOk
             wizard.probeInstallerOk = installerOk
@@ -95,43 +95,43 @@ Dialog {
         }
     }
 
-    function comecar() {
-        passo = 0
-        var valores = app.settingsMap()
-        enderecoField.text = valores.consoleAddress
-        nomeField.text = valores.consoleName
-        accountWizardField.text = valores.streamAccountId
+    function begin() {
+        step = 0
+        var values = app.settingsMap()
+        addressInput.text = values.consoleAddress
+        consoleNameField.text = values.consoleName
+        accountWizardField.text = values.streamAccountId
         probeState = "idle"
         open()
-        agendarVerificacao()
+        scheduleCheck()
     }
 
-    function seguinte() {
-        if (passo < passos - 1) {
-            passo++
+    function next() {
+        if (step < steps - 1) {
+            step++
             return
         }
-        guardar()
+        save()
         close()
     }
 
-    // Guardar fecha o assistente para sempre: a partir daqui abre-se pelo
-    // botão nas definições.
-    function guardar() {
+    // Saving closes the wizard for good: from then on it opens from the
+    // button in the settings.
+    function save() {
         app.applySettings({
-            "consoleAddress": enderecoField.text.trim(),
-            "consoleName": nomeField.text.trim().length > 0 ? nomeField.text.trim() : "PS4",
-            // Guarda-se convertido: a consola só aceita base64, e assim o
-            // que fica gravado é directamente utilizável.
+            "consoleAddress": addressInput.text.trim(),
+            "consoleName": consoleNameField.text.trim().length > 0 ? consoleNameField.text.trim() : "PS4",
+            // Stored converted: the console only accepts base64, and this way
+            // what is saved is directly usable.
             "streamAccountId": accountWizardField.ok ? accountWizardField.base64
                                                      : accountWizardField.text.trim(),
             "firstRunDone": true
         })
     }
 
-    // Um modal quase opaco: com a transparência dos painéis, o que está por
-    // trás ver-se-ia através da caixa, e uma caixa que pede uma decisão não
-    // pode ser uma janela.
+    // A nearly opaque modal: with the panels' transparency, what is behind
+    // would show through the box, and a box asking for a decision must not
+    // be a window.
     Overlay.modal: Rectangle { color: Theme.scrim }
 
     background: Rectangle {
@@ -155,21 +155,21 @@ Dialog {
             }
             Text {
                 Layout.fillWidth: true
-                text: qsTr("Bem-vindo ao OrbisLink")
+                text: qsTr("Welcome to OrbisLink")
                 color: Theme.text
                 font.pixelSize: 16
                 font.bold: true
             }
-            // Três pontos a dizer onde se vai.
+            // Three dots saying where you are going.
             Row {
                 spacing: 6
                 Repeater {
-                    model: wizard.passos
+                    model: wizard.steps
                     delegate: Rectangle {
                         width: 7
                         height: 7
                         radius: 4
-                        color: index === wizard.passo ? Theme.accent : Theme.border
+                        color: index === wizard.step ? Theme.accent : Theme.border
                     }
                 }
             }
@@ -188,31 +188,31 @@ Dialog {
             anchors.rightMargin: Theme.dialogMargin
             spacing: 8
             StyledButton {
-                text: qsTr("Saltar")
+                text: qsTr("Skip")
                 implicitHeight: 32
-                onClicked: { wizard.guardar(); wizard.close() }
+                onClicked: { wizard.save(); wizard.close() }
             }
             Item { Layout.fillWidth: true }
             StyledButton {
-                text: qsTr("Anterior")
+                text: qsTr("Back")
                 implicitHeight: 32
-                enabled: wizard.passo > 0
-                onClicked: wizard.passo--
+                enabled: wizard.step > 0
+                onClicked: wizard.step--
             }
             StyledButton {
-                text: wizard.passo === wizard.passos - 1 ? qsTr("Começar") : qsTr("Seguinte")
+                text: wizard.step === wizard.steps - 1 ? qsTr("Start") : qsTr("Next")
                 implicitHeight: 32
-                larguraMinima: 120
+                minimumWidth: 120
                 primary: true
-                onClicked: wizard.seguinte()
+                onClicked: wizard.next()
             }
         }
     }
 
     contentItem: StackLayout {
-        currentIndex: wizard.passo
+        currentIndex: wizard.step
 
-        // ── 1. a consola
+        // ── 1. the console
         ColumnLayout {
             spacing: 12
             Text {
@@ -223,7 +223,7 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.text
                 font.pixelSize: 13
-                text: qsTr("Antes de mais, onde está a consola.")
+                text: qsTr("First of all, where the console is.")
             }
             Text {
                 Layout.fillWidth: true
@@ -232,8 +232,8 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.textMuted
                 font.pixelSize: 12
-                text: qsTr("O IP está na consola em Definições → Rede → Ver Estado da Ligação. "
-                           + "Tem de estar na mesma rede que este PC.")
+                text: qsTr("The IP is on the console under Settings → Network → View Connection "
+                           + "Status. It has to be on the same network as this PC.")
             }
             GridLayout {
                 Layout.fillWidth: true
@@ -242,18 +242,18 @@ Dialog {
                 columns: 2
                 columnSpacing: 12
                 rowSpacing: 8
-                Text { text: qsTr("Endereço IP"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("IP address"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField {
-                    id: enderecoField
+                    id: addressInput
                     Layout.fillWidth: true
                     placeholderText: "192.168.1.42"
-                    onTextChanged: wizard.agendarVerificacao()
+                    onTextChanged: wizard.scheduleCheck()
                 }
-                Text { text: qsTr("Nome"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Name"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField {
-                    id: nomeField
+                    id: consoleNameField
                     Layout.fillWidth: true
-                    placeholderText: qsTr("PS4 da sala")
+                    placeholderText: qsTr("Living room PS4")
                 }
             }
             RowLayout {
@@ -279,7 +279,7 @@ Dialog {
             }
         }
 
-        // ── 2. o que tem de estar ligado na consola
+        // ── 2. what has to be enabled on the console
         ColumnLayout {
             spacing: 10
             Text {
@@ -290,13 +290,13 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.text
                 font.pixelSize: 13
-                text: qsTr("Na consola, três coisas:")
+                text: qsTr("On the console, three things:")
             }
             Repeater {
                 model: [
-                    qsTr("GoldHEN carregado — é ele que traz o servidor FTP (porta 2121)."),
-                    qsTr("Remote Package Installer aberto, para instalar .pkg a partir daqui."),
-                    qsTr("Remote Play activado em Definições → Definições de Ligação do Remote Play.")
+                    qsTr("GoldHEN loaded — it is what brings the FTP server (port 2121)."),
+                    qsTr("Remote Package Installer open, to install .pkg files from here."),
+                    qsTr("Remote Play enabled under Settings → Remote Play Connection Settings.")
                 ]
                 delegate: RowLayout {
                     Layout.fillWidth: true
@@ -326,8 +326,8 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.textMuted
                 font.pixelSize: 11
-                text: qsTr("Nada disto é obrigatório agora — os indicadores na barra de cima "
-                           + "dizem sempre o que está em falta.")
+                text: qsTr("None of this is required right now — the indicators in the top bar "
+                           + "always say what is missing.")
             }
         }
 
@@ -342,7 +342,7 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.text
                 font.pixelSize: 13
-                text: qsTr("Para o Remote Play, a consola tem de autorizar este PC.")
+                text: qsTr("For Remote Play, the console has to authorise this PC.")
             }
             Text {
                 Layout.fillWidth: true
@@ -351,10 +351,10 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.textMuted
                 font.pixelSize: 12
-                text: qsTr("Precisas do Account ID da PSN — o número de 64 bits da conta que "
-                           + "usa a consola. Cola-o como o tiveres: em hexadecimal, em decimal "
-                           + "ou em base64. A conversão é feita aqui. Podes deixar em branco e "
-                           + "preencher depois.")
+                text: qsTr("You need the PSN Account ID — the 64-bit number of the account that "
+                           + "uses the console. Paste it however you have it: hexadecimal, decimal "
+                           + "or base64. The conversion is done here. You can leave it blank and "
+                           + "fill it in later.")
             }
             GridLayout {
                 Layout.fillWidth: true

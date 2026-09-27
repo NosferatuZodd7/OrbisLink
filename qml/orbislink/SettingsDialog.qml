@@ -6,6 +6,8 @@ import QtQuick.Layouts
 
 Dialog {
     id: dialog
+    // The console in use is a PS5: the FTP port being edited is its own.
+    property bool consoleIsPs5: false
     modal: true
     parent: Overlay.overlay
     anchors.centerIn: parent
@@ -13,9 +15,9 @@ Dialog {
     height: Math.min(parent ? parent.height - 80 : 620, 660)
     padding: 0
 
-    // Um modal quase opaco: com a transparência dos painéis, o que está por
-    // trás ver-se-ia através da caixa, e uma caixa que pede uma decisão não
-    // pode ser uma janela.
+    // A nearly opaque modal: with the panels' transparency, what is behind
+    // would show through the box, and a box asking for a decision must not
+    // be a window.
     Overlay.modal: Rectangle { color: Theme.scrim }
 
     background: Rectangle {
@@ -26,24 +28,22 @@ Dialog {
 
     property var values: ({})
 
-    // O assistente de primeira utilização vive no Main.qml; daqui só se
-    // pede que volte a aparecer.
-    signal abrirAssistente()
+    // The first-run wizard lives in Main.qml; from here we only ask for it
+    // to appear again.
+    signal openWizard()
 
-    function resolucaoParaIndice(resolucao) {
-        var ordem = [1080, 720, 540, 360]
-        var i = ordem.indexOf(resolucao)
+    function resolutionToIndex(resolution) {
+        var order = [1080, 720, 540, 360]
+        var i = order.indexOf(resolution)
         return i >= 0 ? i : 1
     }
 
-    function idiomaParaIndice(idioma) {
-        if (idioma === "pt_PT" || idioma === "pt") return 1
-        if (idioma === "en") return 2
-        return 0
+    function languageToIndex(language) {
+        return language === "pt_PT" || language === "pt" ? 1 : 0
     }
 
-    // Verificação automática do endereço: "idle", "checking", "ok",
-    // "partial" (só um dos serviços responde) ou "fail".
+    // Automatic address check: "idle", "checking", "ok",
+    // "partial" (only one of the services answers) or "fail".
     property string probeState: "idle"
     property string probeDetail: ""
     property bool probeFtpOk: false
@@ -57,23 +57,26 @@ Dialog {
 
     readonly property string probeText: {
         if (probeState === "checking")
-            return qsTr("A verificar %1…").arg(addressField.text.trim())
+            return qsTr("Checking %1…").arg(addressField.text.trim())
         if (probeState === "ok")
             return probeDetail.length > 0
-                ? qsTr("Consola encontrada — instalador e FTP respondem (%1).").arg(probeDetail)
-                : qsTr("Consola encontrada — instalador e FTP respondem.")
+                ? qsTr("Console found — the installer and FTP both answer (%1).").arg(probeDetail)
+                : qsTr("Console found — the installer and FTP both answer.")
         if (probeState === "partial") {
             if (probeInstallerOk)
-                return qsTr("Instalador remoto responde, FTP não. Confirma que o servidor FTP do GoldHEN está ativo.")
-            return qsTr("FTP responde, instalador remoto não. Abre o Remote Package Installer na consola.")
+                return qsTr("The remote installer answers, FTP does not. Check that GoldHEN's "
+                            + "FTP server is running.")
+            return qsTr("FTP answers, the remote installer does not. Open Remote Package "
+                        + "Installer on the console.")
         }
         if (probeState === "fail")
-            return qsTr("Sem resposta de %1. Confirma o IP e que a consola está ligada na mesma rede.").arg(addressField.text.trim())
-        return qsTr("Escreve o endereço IP da consola — é verificado sozinho.")
+            return qsTr("No answer from %1. Check the IP, and that the console is on and on the "
+                        + "same network.").arg(addressField.text.trim())
+        return qsTr("Type the console's IP address — it is checked on its own.")
     }
 
-    // Só vale a pena ligar quando o endereço está inteiro: um IPv4 completo
-    // (senão verificava-se "192.168.1." a cada tecla) ou um nome de máquina.
+    // Only worth connecting when the address is complete: a full IPv4
+    // (otherwise "192.168.1." would be checked on every key) or a host name.
     function addressLooksComplete(text) {
         var value = (text || "").trim()
         if (value.length === 0)
@@ -104,18 +107,18 @@ Dialog {
 
     Timer {
         id: probeTimer
-        // Espera que se pare de escrever antes de ir à rede.
+        // Waits for typing to stop before going to the network.
         interval: 600
         repeat: false
         onTriggered: app.probeConsole(addressField.text.trim(),
-            parseInt(ftpPortField.text) || 2121,
+            parseInt(ftpPortField.text) || (dialog.consoleIsPs5 ? 1337 : 2121),
             parseInt(installerPortField.text) || 12800)
     }
 
     Connections {
         target: app
         function onConsoleProbed(address, ftpOk, installerOk, detail) {
-            // Uma resposta de um endereço que já não é o escrito não conta.
+            // A reply for an address that is no longer the typed one does not count.
             if (address !== addressField.text.trim())
                 return
             dialog.probeFtpOk = ftpOk
@@ -133,35 +136,56 @@ Dialog {
         nameField.text = values.consoleName
         addressField.text = values.consoleAddress
         ftpPortField.text = values.ftpPort
+        consoleIsPs5 = values.consoleIsPs5 === true
         installerPortField.text = values.installerPort
         httpPortField.text = values.httpPort
         restrictBox.checked = values.restrictToConsoleIp
         modeBox.currentIndex = values.defaultMode
-        resolucaoBox.currentIndex = resolucaoParaIndice(values.streamResolution)
+        resolutionBox.currentIndex = resolutionToIndex(values.streamResolution)
         fpsBox.currentIndex = values.streamFps === 30 ? 1 : 0
         bitrateField.text = values.streamBitrateKbps > 0 ? String(values.streamBitrateKbps) : ""
         hardwareBox.checked = values.streamHardwareDecode
         fullscreenBox.checked = values.streamFullscreenOnConnect
         rumbleBox.checked = values.streamRumble
         touchpadBox.checked = values.streamTouchpadFromMouse
-        accountField.text = values.streamAccountId
-        idiomaBox.currentIndex = idiomaParaIndice(values.language)
+        languageBox.currentIndex = languageToIndex(values.language)
         uploadDirField.text = values.ftpUploadDirectory
         existsBox.checked = values.checkAlreadyInstalled
         installAfterBox.checked = values.installAfterUpload
         updatesBox.checked = values.checkForUpdates
         updateRepoField.text = values.updateRepository
-        updateChannelBox.currentIndex = values.updateChannel === "testes" ? 1 : 0
+        updateChannelBox.currentIndex = values.updateChannel === "testing" ? 1 : 0
         deleteAfterBox.checked = values.deleteFromConsoleAfterInstall
         advancedBox.checked = values.ftpAdvancedMode
         debugBox.checked = values.debugLogging
+    }
+
+    // Switching, editing or removing consoles in the list changes which one
+    // is in use: its fields follow, so saving never writes one console's
+    // values over another's.
+    Connections {
+        target: app
+        function onSettingsChanged() {
+            if (!dialog.visible)
+                return
+            var fresh = app.settingsMap()
+            if (fresh.consoleAddress === dialog.values.consoleAddress
+                    && fresh.consoleName === dialog.values.consoleName)
+                return
+            dialog.values.consoleName = fresh.consoleName
+            dialog.values.consoleAddress = fresh.consoleAddress
+            nameField.text = fresh.consoleName
+            addressField.text = fresh.consoleAddress
+            ftpPortField.text = fresh.ftpPort
+            dialog.consoleIsPs5 = fresh.consoleIsPs5 === true
+        }
     }
 
     function save() {
         app.applySettings({
             "consoleName": nameField.text,
             "consoleAddress": addressField.text,
-            "ftpPort": parseInt(ftpPortField.text) || 2121,
+            "ftpPort": parseInt(ftpPortField.text) || (dialog.consoleIsPs5 ? 1337 : 2121),
             "installerPort": parseInt(installerPortField.text) || 12800,
             "httpPort": parseInt(httpPortField.text) || 8765,
             "restrictToConsoleIp": restrictBox.checked,
@@ -171,19 +195,18 @@ Dialog {
             "installAfterUpload": installAfterBox.checked,
             "checkForUpdates": updatesBox.checked,
             "updateRepository": updateRepoField.text.trim(),
-            "updateChannel": updateChannelBox.currentIndex === 1 ? "testes" : "estavel",
+            "updateChannel": updateChannelBox.currentIndex === 1 ? "testing" : "stable",
             "deleteFromConsoleAfterInstall": deleteAfterBox.checked,
             "ftpAdvancedMode": advancedBox.checked,
             "debugLogging": debugBox.checked,
-            "streamResolution": [1080, 720, 540, 360][resolucaoBox.currentIndex],
+            "streamResolution": [1080, 720, 540, 360][resolutionBox.currentIndex],
             "streamFps": fpsBox.currentIndex === 1 ? 30 : 60,
             "streamBitrateKbps": parseInt(bitrateField.text) || 0,
             "streamHardwareDecode": hardwareBox.checked,
             "streamFullscreenOnConnect": fullscreenBox.checked,
             "streamRumble": rumbleBox.checked,
             "streamTouchpadFromMouse": touchpadBox.checked,
-            "streamAccountId": accountField.ok ? accountField.base64 : accountField.text.trim(),
-            "language": ["auto", "pt_PT", "en"][idiomaBox.currentIndex]
+            "language": ["en", "pt_PT"][languageBox.currentIndex]
         })
         close()
     }
@@ -195,7 +218,7 @@ Dialog {
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             anchors.leftMargin: Theme.dialogMargin
-            text: qsTr("Definições")
+            text: qsTr("Settings")
             color: Theme.text
             font.pixelSize: 16
             font.bold: true
@@ -224,21 +247,21 @@ Dialog {
             anchors.rightMargin: Theme.dialogMargin
             spacing: 10
             StyledButton {
-                text: qsTr("Assistente…")
-                larguraMinima: 130
+                text: qsTr("Setup wizard…")
+                minimumWidth: 130
                 ToolTip.visible: hovered
-                ToolTip.text: qsTr("Voltar a ver os três passos da primeira utilização")
-                onClicked: dialog.abrirAssistente()
+                ToolTip.text: qsTr("See the three first-run steps again")
+                onClicked: dialog.openWizard()
             }
             Item { Layout.fillWidth: true }
             StyledButton {
-                text: qsTr("Cancelar")
-                larguraMinima: 110
+                text: qsTr("Cancel")
+                minimumWidth: 110
                 onClicked: dialog.close()
             }
             StyledButton {
-                text: qsTr("Guardar")
-                larguraMinima: 110
+                text: qsTr("Save")
+                minimumWidth: 110
                 primary: true
                 onClicked: dialog.save()
             }
@@ -255,7 +278,15 @@ Dialog {
             y: Theme.dialogInner
             spacing: 14
 
-            Text { text: qsTr("Consola"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
+            ConsoleManager { Layout.fillWidth: true }
+
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
+
+            AccountManager { Layout.fillWidth: true }
+
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
+
+            Text { text: qsTr("Console in use"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
 
             GridLayout {
                 Layout.fillWidth: true
@@ -263,10 +294,10 @@ Dialog {
                 columnSpacing: 12
                 rowSpacing: 8
 
-                Text { text: qsTr("Nome"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Name"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField { id: nameField; Layout.fillWidth: true }
 
-                Text { text: qsTr("Endereço IP"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("IP address"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField {
                     id: addressField
                     Layout.fillWidth: true
@@ -274,14 +305,19 @@ Dialog {
                     onTextChanged: dialog.scheduleProbe()
                 }
 
-                Text { text: qsTr("Porta FTP"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text {
+                    // The port is the console in use's: a PS5 with etaHEN uses another.
+                    text: dialog.consoleIsPs5 ? qsTr("FTP port (PS5)") : qsTr("FTP port")
+                    color: Theme.textMuted
+                    font.pixelSize: 12
+                }
                 StyledField {
                     id: ftpPortField
                     Layout.fillWidth: true
                     onTextChanged: dialog.scheduleProbe()
                 }
 
-                Text { text: qsTr("Porta do instalador"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Installer port"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField {
                     id: installerPortField
                     Layout.fillWidth: true
@@ -289,7 +325,7 @@ Dialog {
                 }
             }
 
-            // Resultado da verificação automática, sem botão nenhum.
+            // Result of the automatic check, with no button at all.
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
@@ -337,7 +373,7 @@ Dialog {
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
-            Text { text: qsTr("Instalação"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
+            Text { text: qsTr("Installation"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
 
             GridLayout {
                 Layout.fillWidth: true
@@ -345,12 +381,12 @@ Dialog {
                 columnSpacing: 12
                 rowSpacing: 8
 
-                Text { text: qsTr("Modo por omissão"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Default mode"); color: Theme.textMuted; font.pixelSize: 12 }
                 ComboBox {
                     id: modeBox
                     Layout.fillWidth: true
                     implicitHeight: 32
-                    model: [qsTr("Instalação direta"), qsTr("Envio por FTP")]
+                    model: [qsTr("Direct install"), qsTr("FTP upload")]
 
                     background: Rectangle {
                         color: Theme.panelAltFill
@@ -402,41 +438,41 @@ Dialog {
                     }
                 }
 
-                Text { text: qsTr("Pasta no FTP"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("FTP folder"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField { id: uploadDirField; Layout.fillWidth: true }
             }
 
             StyledCheck {
                 id: existsBox
                 Layout.fillWidth: true
-                text: qsTr("Verificar se o título já existe na consola antes de instalar")
+                text: qsTr("Check whether the title is already on the console before installing")
             }
 
             StyledCheck {
                 id: installAfterBox
                 Layout.fillWidth: true
-                text: qsTr("Instalar também depois de enviar por FTP")
+                text: qsTr("Also install after sending over FTP")
             }
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 color: Theme.textMuted
                 font.pixelSize: 11
-                text: qsTr("O ficheiro fica guardado na consola e é logo instalado a partir do PC "
-                           + "— o instalador remoto só sabe descarregar por HTTP.")
+                text: qsTr("The file stays on the console and is installed right away from the "
+                           + "PC — the remote installer only knows how to download over HTTP.")
             }
             StyledCheck {
                 id: deleteAfterBox
                 Layout.fillWidth: true
                 Layout.leftMargin: 20
                 enabled: installAfterBox.checked
-                text: qsTr("E apagar a cópia da consola depois de instalar")
+                text: qsTr("And delete the console copy once installed")
             }
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
             Text {
-                text: qsTr("Servidor HTTP local")
+                text: qsTr("Local HTTP server")
                 color: Theme.accent
                 font.bold: true
                 font.pixelSize: 12
@@ -447,14 +483,14 @@ Dialog {
                 columns: 2
                 columnSpacing: 12
                 rowSpacing: 8
-                Text { text: qsTr("Porta"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Port"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField { id: httpPortField; Layout.fillWidth: true }
             }
 
             StyledCheck {
                 id: restrictBox
                 Layout.fillWidth: true
-                text: qsTr("Aceitar pedidos apenas do IP da consola")
+                text: qsTr("Only accept requests from the console's IP")
             }
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
@@ -469,19 +505,19 @@ Dialog {
                 columnSpacing: 12
                 rowSpacing: 8
 
-                Text { text: qsTr("Qualidade"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Quality"); color: Theme.textMuted; font.pixelSize: 12 }
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
                     StyledCombo {
-                        id: resolucaoBox
+                        id: resolutionBox
                         Layout.fillWidth: true
-                        // O 1080p só existe em PS4 Pro e em PS5. Numa PS4
-                        // normal o pedido é baixado para 720p pela própria
-                        // consola, e a etiqueta diz isso em vez de deixar
-                        // a pessoa a pensar que a definição não faz nada.
-                        model: [qsTr("1080p — só em PS4 Pro e PS5"), qsTr("720p — equilíbrio"),
-                                qsTr("540p"), qsTr("360p — rede fraca")]
+                        // 1080p only exists on PS4 Pro and PS5. On a regular
+                        // PS4 the request is lowered to 720p by the console
+                        // itself, and the label says so instead of leaving
+                        // the person thinking the setting does nothing.
+                        model: [qsTr("1080p — PS4 Pro and PS5 only"), qsTr("720p — balanced"),
+                                qsTr("540p"), qsTr("360p — weak network")]
                     }
                     StyledCombo {
                         id: fpsBox
@@ -494,10 +530,10 @@ Dialog {
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
-                    text: qsTr("Estas três só valem a partir da próxima ligação: o perfil de "
-                               + "vídeo é combinado com a consola no início da sessão. "
-                               + "Durante o stream, a barra de baixo mostra o que está "
-                               + "mesmo a chegar.")
+                    text: qsTr("These three only take effect from the next connection: the video "
+                               + "profile is agreed with the console when the session starts. "
+                               + "During the stream, the bar at the bottom shows what is actually "
+                               + "arriving.")
                     color: Theme.textSecondary
                     font.pixelSize: 10
                 }
@@ -506,58 +542,55 @@ Dialog {
                 StyledField {
                     id: bitrateField
                     Layout.fillWidth: true
-                    placeholderText: qsTr("automático (kbps)")
+                    placeholderText: qsTr("automatic (kbps)")
                     inputMethodHints: Qt.ImhDigitsOnly
                     validator: RegularExpressionValidator { regularExpression: /[0-9]{0,6}/ }
                 }
 
-                Text {
-                    text: qsTr("Account ID (PSN)")
-                    color: Theme.textMuted
-                    font.pixelSize: 12
-                    Layout.alignment: Qt.AlignTop
-                    Layout.topMargin: 8
-                }
-                // Aceita hexadecimal, decimal ou base64, e mostra as três
-                // por baixo. A consola só entende base64, mas isso é
-                // problema nosso e não de quem o está a copiar de um ecrã.
-                AccountIdField {
-                    id: accountField
-                    Layout.fillWidth: true
-                }
+            }
+
+            // The Account ID is chosen per console, from the saved ones.
+            Text {
+                Layout.fillWidth: true
+                text: qsTr("The Account ID each console registers with is chosen in Consoles (Edit), "
+                           + "from the ones saved in Account IDs.")
+                color: Theme.textMuted
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
             }
 
             StyledCheck {
                 id: hardwareBox
-                text: qsTr("Descodificar o vídeo na placa gráfica (recua para o processador se não der)")
+                text: qsTr("Decode video on the graphics card (falls back to the processor if it "
+                           + "cannot)")
             }
             StyledCheck {
                 id: fullscreenBox
-                text: qsTr("Ecrã inteiro ao ligar")
+                text: qsTr("Full screen on connect")
             }
             StyledCheck {
                 id: rumbleBox
-                text: qsTr("Vibração no comando")
+                text: qsTr("Controller rumble")
             }
             StyledCheck {
                 id: touchpadBox
-                text: qsTr("Rato faz de touchpad durante o stream")
+                text: qsTr("Mouse acts as the touchpad while streaming")
             }
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
-            Text { text: qsTr("Aspeto"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
+            Text { text: qsTr("Appearance"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
 
             GridLayout {
                 Layout.fillWidth: true
                 columns: 2
                 columnSpacing: 12
                 rowSpacing: 8
-                Text { text: qsTr("Idioma"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Language"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledCombo {
-                    id: idiomaBox
+                    id: languageBox
                     Layout.fillWidth: true
-                    model: [qsTr("Como o sistema"), "Português", "English"]
+                    model: ["English", "Português"]
                 }
             }
 
@@ -566,17 +599,18 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.textMuted
                 font.pixelSize: 11
-                text: qsTr("O idioma muda na próxima abertura. O tema escolhe-se nos ícones da barra de cima, ao lado das definições.")
+                text: qsTr("The language changes the next time the app opens. The theme is "
+                           + "picked with the icons in the top bar, next to settings.")
             }
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
-            Text { text: qsTr("Actualizações"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
+            Text { text: qsTr("Updates"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
 
             StyledCheck {
                 id: updatesBox
                 Layout.fillWidth: true
-                text: qsTr("Updates pela internet")
+                text: qsTr("Updates over the internet")
             }
 
             Text {
@@ -585,10 +619,10 @@ Dialog {
                 color: Theme.textMuted
                 font.pixelSize: 11
                 text: updatesBox.checked
-                      ? qsTr("Ao abrir, procura uma versão nova no repositório abaixo e pergunta "
-                             + "antes de instalar. Nada é instalado sem o teu clique.")
-                      : qsTr("Desligado: a aplicação não vai à internet à procura de versões. "
-                             + "\"Verificar agora\" continua a funcionar.")
+                      ? qsTr("On start, looks for a new version in the repository below and asks "
+                             + "before installing. Nothing is installed without your click.")
+                      : qsTr("Off: the app does not go online looking for versions. \"Check now\" "
+                             + "still works.")
             }
 
             GridLayout {
@@ -596,17 +630,17 @@ Dialog {
                 columns: 2
                 columnSpacing: 12
                 rowSpacing: 8
-                Text { text: qsTr("Repositório"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Repository"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledField {
                     id: updateRepoField
                     Layout.fillWidth: true
                     placeholderText: "dono/nome"
                 }
-                Text { text: qsTr("Canal"); color: Theme.textMuted; font.pixelSize: 12 }
+                Text { text: qsTr("Channel"); color: Theme.textMuted; font.pixelSize: 12 }
                 StyledCombo {
                     id: updateChannelBox
                     Layout.fillWidth: true
-                    model: [qsTr("Estável"), qsTr("Testes (builds da branch)")]
+                    model: [qsTr("Stable"), qsTr("Testing (branch builds)")]
                 }
             }
 
@@ -614,18 +648,18 @@ Dialog {
                 Layout.fillWidth: true
                 spacing: 8
                 StyledButton {
-                    text: qsTr("Verificar agora")
-                    enabled: app.updateState !== "a-verificar"
-                             && app.updateState !== "a-descarregar"
+                    text: qsTr("Check now")
+                    enabled: app.updateState !== "checking"
+                             && app.updateState !== "downloading"
                     onClicked: {
-                        // Guardar primeiro: senão verificava-se o repositório
-                        // antigo, não o que está escrito no campo. Só estes
-                        // três valores, e sem fechar: o resultado aparece
-                        // aqui ao lado, e quem carregou quer vê-lo.
+                        // Save first: otherwise the old repository would be
+                        // checked, not the one typed in the field. Only these
+                        // three values, and without closing: the result shows
+                        // up right here, and whoever pressed wants to see it.
                         app.saveUpdateSettings(updatesBox.checked,
                                                updateRepoField.text.trim(),
                                                updateChannelBox.currentIndex === 1
-                                                   ? "testes" : "estavel")
+                                                   ? "testing" : "stable")
                         app.checkForUpdatesNow(false)
                     }
                 }
@@ -633,8 +667,8 @@ Dialog {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     text: app.updateMessage
-                    color: app.updateState === "erro" ? Theme.error
-                         : app.updateState === "disponivel" ? Theme.ok
+                    color: app.updateState === "error" ? Theme.error
+                         : app.updateState === "available" ? Theme.ok
                          : Theme.textMuted
                     font.pixelSize: 11
                 }
@@ -645,25 +679,25 @@ Dialog {
                 wrapMode: Text.WordWrap
                 color: Theme.textMuted
                 font.pixelSize: 11
-                text: qsTr("Os lançamentos são lidos da API do GitHub e o repositório tem "
-                           + "de ser público. \"Verificar agora\" guarda as definições primeiro.")
+                text: qsTr("Releases are read from the GitHub API and the repository has to be "
+                           + "public. \"Check now\" saves the settings first.")
             }
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
-            Text { text: qsTr("Avançado"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
+            Text { text: qsTr("Advanced"); color: Theme.accent; font.bold: true; font.pixelSize: 12 }
 
             StyledCheck {
                 id: advancedBox
                 Layout.fillWidth: true
                 labelColor: Theme.warn
-                text: qsTr("Modo avançado: permite escrever nas zonas de sistema do FTP")
+                text: qsTr("Advanced mode: allows writing to the FTP system areas")
             }
 
             StyledCheck {
                 id: debugBox
                 Layout.fillWidth: true
-                text: qsTr("Registo detalhado (debug)")
+                text: qsTr("Verbose log (debug)")
             }
 
             Item { Layout.fillWidth: true; Layout.preferredHeight: 6 }

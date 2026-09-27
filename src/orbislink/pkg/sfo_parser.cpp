@@ -8,7 +8,7 @@ namespace orbislink {
 namespace {
 constexpr size_t kSfoHeaderSize = 0x14;
 constexpr size_t kSfoIndexEntrySize = 0x10;
-constexpr uint32_t kMaxEntries = 4096; // salvaguarda contra ficheiros corrompidos
+constexpr uint32_t kMaxEntries = 4096; // safeguard against corrupted files
 } // namespace
 
 std::string SfoEntry::asString() const
@@ -38,22 +38,22 @@ bool Sfo::parse(const uint8_t *data, size_t size, std::string *error)
 	};
 
 	if(!data || size < kSfoHeaderSize)
-		return fail("PARAM.SFO demasiado pequeno");
+		return fail("PARAM.SFO too small");
 	if(!(data[0] == 0x00 && data[1] == 'P' && data[2] == 'S' && data[3] == 'F'))
-		return fail("assinatura PARAM.SFO inválida");
+		return fail("invalid PARAM.SFO signature");
 
 	const uint32_t keyTableOffset = readLE32(data + 0x08);
 	const uint32_t valueTableOffset = readLE32(data + 0x0C);
 	const uint32_t entryCount = readLE32(data + 0x10);
 
 	if(entryCount > kMaxEntries)
-		return fail("número de entradas do PARAM.SFO implausível");
+		return fail("implausible PARAM.SFO entry count");
 	if(keyTableOffset > size || valueTableOffset > size)
-		return fail("tabelas do PARAM.SFO fora dos limites");
+		return fail("PARAM.SFO tables out of bounds");
 
 	const size_t indexSize = static_cast<size_t>(entryCount) * kSfoIndexEntrySize;
 	if(kSfoHeaderSize + indexSize > size)
-		return fail("índice do PARAM.SFO fora dos limites");
+		return fail("PARAM.SFO index out of bounds");
 
 	for(uint32_t i = 0; i < entryCount; ++i)
 	{
@@ -65,7 +65,7 @@ bool Sfo::parse(const uint8_t *data, size_t size, std::string *error)
 
 		const size_t keyStart = static_cast<size_t>(keyTableOffset) + keyOffset;
 		if(keyStart >= size)
-			continue; // entrada corrompida: ignora sem rejeitar o ficheiro todo
+			continue; // corrupted entry: skip it without rejecting the whole file
 		size_t keyLen = 0;
 		while(keyStart + keyLen < size && data[keyStart + keyLen] != '\0')
 			++keyLen;
@@ -83,7 +83,7 @@ bool Sfo::parse(const uint8_t *data, size_t size, std::string *error)
 	}
 
 	if(entries_.empty())
-		return fail("PARAM.SFO sem entradas legíveis");
+		return fail("PARAM.SFO has no readable entries");
 	return true;
 }
 

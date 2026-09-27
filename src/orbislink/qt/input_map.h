@@ -3,20 +3,52 @@
 
 #include "orbislink/stream/session.h"
 
+#include <QHash>
 #include <QSet>
+
+#include <map>
+#include <string>
+#include <vector>
 
 namespace orbislink {
 
-// Teclado → comando do PS4.
+// Keyboard → PS4 controller.
 //
-// Não substitui um comando a sério, mas chega para confirmar que o stream
-// responde e para navegar nos menus. O mapa segue o que o chiaki-ng usa por
-// omissão, para quem vem de lá não ter de reaprender.
+// It does not replace a real controller, but it is enough to confirm the
+// stream responds and to navigate menus. The default map is chiaki-ng's,
+// so people coming from there do not have to relearn it; each action can be
+// moved to another key, and what changed is kept in the settings.
 class KeyboardMap
 {
 public:
-	// Devolve false se a tecla não estiver mapeada (para o evento seguir
-	// o seu caminho normal, por exemplo o Esc a fechar a sessão).
+	// A controller action: a button (button != 0) or half of an axis.
+	struct Action
+	{
+		const char *id;   // the name stored in the settings, e.g. "cross"
+		uint32_t button;  // CHIAKI_CONTROLLER_BUTTON_*, or 0 for an axis
+		int defaultKey;   // Qt::Key
+	};
+	static const std::vector<Action> &actions();
+
+	// action → key. Actions not given keep their default key.
+	using Bindings = std::map<std::string, int>;
+	static Bindings defaults();
+
+	// Keys that cannot be given to an action: Esc leaves the stream and F11
+	// toggles full screen.
+	static bool reserved(int key);
+
+	// Gives `key` to `action`. If the key already belonged to another action,
+	// the two swap — no action is left without a key. Returns false (touching
+	// nothing) for an unknown action or a reserved key.
+	static bool rebind(Bindings &bindings, const std::string &action, int key);
+
+	KeyboardMap();
+	void setBindings(const Bindings &custom);
+	const Bindings &bindings() const { return bindings_; }
+
+	// Returns false if the key is not mapped (so the event follows its
+	// normal path, for example Esc closing the session).
 	bool press(int key);
 	bool release(int key);
 	void clear();
@@ -25,6 +57,8 @@ public:
 	bool empty() const { return pressed_.isEmpty(); }
 
 private:
+	Bindings bindings_;
+	QHash<int, std::string> byKey_;
 	QSet<int> pressed_;
 };
 

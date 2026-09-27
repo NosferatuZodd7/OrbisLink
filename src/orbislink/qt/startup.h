@@ -5,36 +5,36 @@
 
 namespace orbislink {
 
-// Arranque da interface: diagnóstico e recuperação.
+// Interface startup: diagnostics and recovery.
 //
-// Em máquinas sem aceleração gráfica (Windows Sandbox, máquinas virtuais,
-// sessões remotas) o Qt Quick não consegue criar o contexto de desenho e a
-// aplicação morre sem dizer nada. Estas funções tratam disso: escrevem
-// tudo num ficheiro de registo, marcam o arranque e, se o arranque
-// anterior não chegou a desenhar, passam sozinhas para desenho por
-// software.
+// On machines without graphics acceleration (Windows Sandbox, virtual
+// machines, remote sessions) Qt Quick cannot create the rendering context and
+// the application dies without saying anything. These functions deal with
+// that: they write everything to a log file, mark the startup and, if the
+// previous startup never got to draw, switch to software rendering
+// by themselves.
 namespace startup {
 
-// Encaminha as mensagens do Qt para <dados da app>/orbislink-gui.log.
+// Forwards Qt's messages to <app data>/orbislink-gui.log.
 void installFileLogger();
 
-// Caminho do registo, para o mostrar ao utilizador quando algo corre mal.
+// Log path, to show the user when something goes wrong.
 QString logPath();
 
-// true se o arranque anterior não chegou a desenhar um único fotograma.
+// true if the previous startup never drew a single frame.
 bool previousLaunchFailed();
 
-// Marca "estou a arrancar" (ficheiro que só é apagado quando a janela desenha).
+// Marks "starting up" (a file that is only deleted once the window draws).
 void markLaunchStarted();
 
-// Chamar quando a janela desenhar o primeiro fotograma.
+// Call when the window draws the first frame.
 void markLaunchSucceeded();
 
-// true se o Qt já se queixou de não conseguir criar a janela.
+// true if Qt has already complained it could not create the window.
 bool windowCreationFailed();
 
-// Mostra o erro ao utilizador. Em Windows é uma caixa de diálogo, porque a
-// aplicação não tem consola e a mensagem perder-se-ia.
+// Shows the error to the user. On Windows it is a dialog box, because the
+// application has no console and the message would be lost.
 void reportFatal(const QString &title, const QString &message);
 
 } // namespace startup

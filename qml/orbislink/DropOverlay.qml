@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Sobreposição de arrastar e largar (§5.7): duas zonas, uma por modo.
-// O stream continua a correr por baixo — nada é pausado.
+// Drag-and-drop overlay (§5.7): two zones, one per mode.
+// The stream keeps running underneath — nothing is paused.
 //
-// Não há aqui nenhum DropArea. Um DropArea por zona não serve: o da janela
-// fica com o arrasto agarrado e nunca larga, e as zonas nem chegam a saber
-// que o cursor está em cima delas. Há um único DropArea, na janela, que diz
-// onde está o cursor; a zona apontada calcula-se daqui.
+// There is no DropArea here. One DropArea per zone does not work: the
+// window's one keeps hold of the drag and never lets go, and the zones never
+// learn the cursor is over them. There is a single DropArea, on the window,
+// which says where the cursor is; the zone pointed at is worked out here.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -16,11 +16,11 @@ Item {
     id: root
     property bool active: false
 
-    // Posição do cursor dentro da janela, em coordenadas da janela.
+    // Cursor position inside the window, in window coordinates.
     property real pointerX: -1
     property real pointerY: -1
 
-    // 0 = instalação direta, 1 = envio por FTP, -1 = fora das duas.
+    // 0 = direct install, 1 = FTP upload, -1 = outside both.
     readonly property int zoneUnderPointer: {
         if (!active || pointerX < 0)
             return -1
@@ -53,16 +53,16 @@ Item {
         pointerY = -1
     }
 
-    // Chamado pelo DropArea da janela: devolve true se o ficheiro foi aceite.
+    // Called by the window's DropArea: returns true if the file was accepted.
     function dropAt(x, y, urls) {
         movePointer(x, y)
-        var zona = zoneUnderPointer
+        var zoneName = zoneUnderPointer
         hide()
-        if (zona === 0 && app.canInstallDirectly) {
+        if (zoneName === 0 && app.canInstallDirectly) {
             app.dropUrls(urls, 0)
             return true
         }
-        if (zona === 1 && app.canUseFtp) {
+        if (zoneName === 1 && app.canUseFtp) {
             app.dropUrls(urls, 1)
             return true
         }
@@ -90,7 +90,7 @@ Item {
         Text {
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
-            text: qsTr("Larga para…")
+            text: qsTr("Drop to…")
             color: Theme.onStage
             font.pixelSize: 22
             font.bold: true
@@ -106,8 +106,8 @@ Item {
                 objectName: "installZone"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                title: qsTr("Instalar diretamente")
-                subtitle: qsTr("A consola descarrega do PC e instala")
+                title: qsTr("Install directly")
+                subtitle: qsTr("The console downloads from this PC and installs")
                 glyph: "⤓"
                 enabledZone: app.canInstallDirectly
                 disabledReason: app.installerHint
@@ -119,8 +119,8 @@ Item {
                 objectName: "ftpZone"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                title: qsTr("Enviar por FTP")
-                subtitle: qsTr("Copia para %1").arg(app.ftpPath)
+                title: qsTr("Send over FTP")
+                subtitle: qsTr("Copies to %1").arg(app.ftpPath)
                 glyph: "⇪"
                 enabledZone: app.canUseFtp
                 disabledReason: app.ftpHint
@@ -131,7 +131,7 @@ Item {
         Text {
             Layout.fillWidth: true
             horizontalAlignment: Text.AlignHCenter
-            text: qsTr("Aceita vários ficheiros e pastas (procura .pkg lá dentro)")
+            text: qsTr("Takes several files and folders (it looks for .pkg inside)")
             color: Theme.onStageMuted
             font.pixelSize: 12
         }

@@ -8,10 +8,10 @@
 
 using namespace orbislink;
 
-ORBISLINK_TEST(ida_e_volta_das_definicoes)
+ORBISLINK_TEST(settings_round_trip)
 {
 	Settings settings;
-	settings.consoleName = "PS4 da sala";
+	settings.consoleName = "Living room PS4";
 	settings.consoleAddress = "192.168.1.42";
 	settings.defaultMode = TransferMode::FtpUpload;
 	settings.ftpUploadDirectory = "/mnt/usb0/pkg/";
@@ -24,7 +24,7 @@ ORBISLINK_TEST(ida_e_volta_das_definicoes)
 	bool ok = false;
 	const Settings restored = Settings::fromJson(settings.toJson(), &ok);
 	CHECK(ok);
-	CHECK_EQ(restored.consoleName, std::string("PS4 da sala"));
+	CHECK_EQ(restored.consoleName, std::string("Living room PS4"));
 	CHECK_EQ(restored.consoleAddress, std::string("192.168.1.42"));
 	CHECK(restored.defaultMode == TransferMode::FtpUpload);
 	CHECK_EQ(restored.ftpUploadDirectory, std::string("/mnt/usb0/pkg/"));
@@ -35,7 +35,7 @@ ORBISLINK_TEST(ida_e_volta_das_definicoes)
 	CHECK_EQ(restored.language, std::string("en"));
 }
 
-ORBISLINK_TEST(valores_por_omissao_seguem_a_especificacao)
+ORBISLINK_TEST(defaults_follow_the_specification)
 {
 	const Settings settings;
 	CHECK_EQ(settings.ftpPort, static_cast<uint16_t>(2121));
@@ -56,13 +56,13 @@ ORBISLINK_TEST(valores_por_omissao_seguem_a_especificacao)
 	CHECK(settings.streamHardwareDecode);
 	CHECK(!settings.streamFullscreenOnConnect);
 	CHECK(settings.streamRumble);
-	CHECK_EQ(settings.theme, std::string("escuro"));
-	CHECK_EQ(settings.language, std::string("auto"));
+	CHECK_EQ(settings.theme, std::string("dark"));
+	CHECK_EQ(settings.language, std::string("en"));
 }
 
-ORBISLINK_TEST(definicoes_de_stream_fora_do_admissivel_sao_corrigidas)
+ORBISLINK_TEST(out_of_range_stream_settings_are_corrected)
 {
-	// Um ficheiro editado à mão não pode pedir o que a consola não conhece.
+	// A hand-edited file cannot ask for what the console does not know.
 	bool ok = false;
 	const Settings settings = Settings::fromJson(
 		R"({"stream_resolution":999,"stream_fps":144,"stream_bitrate_kbps":-5,"theme":"neon"})",
@@ -71,10 +71,10 @@ ORBISLINK_TEST(definicoes_de_stream_fora_do_admissivel_sao_corrigidas)
 	CHECK_EQ(settings.streamResolution, 720);
 	CHECK_EQ(settings.streamFps, 60);
 	CHECK_EQ(settings.streamBitrateKbps, 0);
-	CHECK_EQ(settings.theme, std::string("escuro"));
+	CHECK_EQ(settings.theme, std::string("dark"));
 }
 
-ORBISLINK_TEST(definicoes_de_stream_admissiveis_passam)
+ORBISLINK_TEST(allowed_stream_settings_pass)
 {
 	bool ok = false;
 	const Settings settings = Settings::fromJson(
@@ -84,24 +84,24 @@ ORBISLINK_TEST(definicoes_de_stream_admissiveis_passam)
 	CHECK_EQ(settings.streamResolution, 1080);
 	CHECK_EQ(settings.streamFps, 30);
 	CHECK_EQ(settings.streamBitrateKbps, 15000);
-	CHECK_EQ(settings.theme, std::string("vidro"));
+	CHECK_EQ(settings.theme, std::string("glass"));
 }
 
-ORBISLINK_TEST(json_invalido_nao_estraga_as_definicoes)
+ORBISLINK_TEST(invalid_json_does_not_break_the_settings)
 {
 	bool ok = true;
-	const Settings settings = Settings::fromJson("{ lixo", &ok);
+	const Settings settings = Settings::fromJson("{ garbage", &ok);
 	CHECK(!ok);
 	CHECK_EQ(settings.ftpPort, static_cast<uint16_t>(2121));
 }
 
-ORBISLINK_TEST(limita_ligacoes_ftp_a_duas)
+ORBISLINK_TEST(limits_ftp_connections_to_two)
 {
 	const Settings settings = Settings::fromJson(R"({"ftp_max_connections": 9})");
 	CHECK_EQ(settings.ftpMaxConnections, 2);
 }
 
-ORBISLINK_TEST(guardar_e_ler_do_disco)
+ORBISLINK_TEST(save_and_read_from_disk)
 {
 	const std::string path = ".orbislink-test-settings.json";
 	Settings settings;
@@ -115,58 +115,148 @@ ORBISLINK_TEST(guardar_e_ler_do_disco)
 	std::remove(path.c_str());
 }
 
-ORBISLINK_TEST(logs_nao_levam_dados_sensiveis)
+ORBISLINK_TEST(logs_carry_no_sensitive_data)
 {
-	// §8/§9: nada de Account ID nem chaves de registo nos logs exportados.
+	// §8/§9: no Account ID or registration keys in the exported logs.
 	const std::string redacted =
-		redactSensitive(R"({"psn_account_id":"1234567890","rp_key":"abcdef","title":"Jogo"})");
+		redactSensitive(R"({"psn_account_id":"1234567890","rp_key":"abcdef","title":"Game"})");
 	CHECK(redacted.find("1234567890") == std::string::npos);
 	CHECK(redacted.find("abcdef") == std::string::npos);
-	CHECK(redacted.find("[REDIGIDO]") != std::string::npos);
-	CHECK(redacted.find("Jogo") != std::string::npos);
+	CHECK(redacted.find("[REDACTED]") != std::string::npos);
+	CHECK(redacted.find("Game") != std::string::npos);
 
-	const std::string plain = redactSensitive("account_id=AABBCCDD e password=segredo");
+	const std::string plain = redactSensitive("account_id=AABBCCDD and password=secret");
 	CHECK(plain.find("AABBCCDD") == std::string::npos);
-	CHECK(plain.find("segredo") == std::string::npos);
+	CHECK(plain.find("secret") == std::string::npos);
 }
 
-ORBISLINK_TEST(assistente_so_aparece_a_primeira_vez)
+ORBISLINK_TEST(wizard_only_appears_the_first_time)
 {
-	// Por omissão o assistente tem de aparecer; depois de correr uma vez,
-	// nunca mais — e isso tem de sobreviver a guardar e reler.
+	// By default the wizard must appear; after running once, never
+	// again — and that has to survive saving and reloading.
 	Settings settings;
 	CHECK(!settings.firstRunDone);
 
 	settings.firstRunDone = true;
 	bool ok = false;
-	const Settings relido = Settings::fromJson(settings.toJson(), &ok);
+	const Settings reloaded = Settings::fromJson(settings.toJson(), &ok);
 	CHECK(ok);
-	CHECK(relido.firstRunDone);
+	CHECK(reloaded.firstRunDone);
 
-	// Um ficheiro antigo, sem o campo, continua a pedir o assistente.
-	const Settings antigo = Settings::fromJson(R"({"console_address":"10.0.0.5"})");
-	CHECK(!antigo.firstRunDone);
+	// An old file, without the field, still asks for the wizard.
+	const Settings old = Settings::fromJson(R"({"console_address":"10.0.0.5"})");
+	CHECK(!old.firstRunDone);
 }
 
 
-// Se o projecto mudar de repositório, quem tem a versão antiga fica com o
-// repositório antigo gravado nas definições, e a app nova não pode
-// continuar a procurar versões lá.
-ORBISLINK_TEST(repositorio_de_actualizacoes_segue_a_compilacao)
+// If the project moves to another repository, whoever has the old version
+// has the old repository stored in the settings, and the new app cannot
+// keep looking for versions there.
+ORBISLINK_TEST(update_repository_follows_the_build)
 {
-	const std::string novo = "novo/OrbisLink";
-	const std::string antigo = "antigo/repo";
-	// Ficheiro de antes da regra: não diz qual era a omissão.
-	CHECK_EQ(resolveUpdateRepository(antigo, nullptr, novo), novo);
-	// Gravado igual à omissão de então: ninguém o escolheu.
-	CHECK_EQ(resolveUpdateRepository(antigo, &antigo, novo), novo);
-	// Escrito à mão (diferente da omissão de então): fica.
-	const std::string outro = "outra/copia";
-	CHECK_EQ(resolveUpdateRepository(outro, &antigo, novo), outro);
-	// Vazio nunca serve.
-	CHECK_EQ(resolveUpdateRepository("", &antigo, novo), novo);
-	// Compilação local, sem repositório: não há com que substituir.
-	CHECK_EQ(resolveUpdateRepository(antigo, nullptr, ""), antigo);
+	const std::string fresh = "new/OrbisLink";
+	const std::string old = "old/repo";
+	// File from before the rule: it does not say what the default was.
+	CHECK_EQ(resolveUpdateRepository(old, nullptr, fresh), fresh);
+	// Stored equal to the default at the time: nobody chose it.
+	CHECK_EQ(resolveUpdateRepository(old, &old, fresh), fresh);
+	// Written by hand (different from the default at the time): it stays.
+	const std::string other = "other/copy";
+	CHECK_EQ(resolveUpdateRepository(other, &old, fresh), other);
+	// Empty is never valid.
+	CHECK_EQ(resolveUpdateRepository("", &old, fresh), fresh);
+	// Local build, without a repository: nothing to replace it with.
+	CHECK_EQ(resolveUpdateRepository(old, nullptr, ""), old);
+}
+
+ORBISLINK_TEST(keyboard_keys_are_stored)
+{
+	Settings settings;
+	settings.keyboardBindings["cross"] = 32;
+	settings.keyboardBindings["ps"] = 80;
+	const Settings loaded = Settings::fromJson(settings.toJson());
+	CHECK_EQ(loaded.keyboardBindings.size(), static_cast<size_t>(2));
+	CHECK_EQ(loaded.keyboardBindings.at("cross"), 32);
+	// With nothing stored, it stays empty: the default map applies.
+	CHECK(Settings::fromJson("{}").keyboardBindings.empty());
+}
+
+ORBISLINK_TEST(console_list)
+{
+	// Settings from before the list: the console in use becomes the first.
+	const Settings oldOnes =
+		Settings::fromJson(R"({"console_name":"Living room","console_address":"10.0.0.5"})");
+	CHECK_EQ(oldOnes.consoles.size(), static_cast<size_t>(1));
+	CHECK_EQ(oldOnes.consoles[0].address, std::string("10.0.0.5"));
+	CHECK_EQ(oldOnes.consoles[0].name, std::string("Living room"));
+
+	// Two consoles, round trip, with no duplicates or empty addresses.
+	Settings settings;
+	settings.consoleName = "Living room";
+	settings.consoleAddress = "10.0.0.5";
+	settings.consoles = { { "Living room", "10.0.0.5" }, { "Bedroom", "10.0.0.9" },
+		{ "Repeated", "10.0.0.9" }, { "Empty", " " } };
+	const Settings loaded = Settings::fromJson(settings.toJson());
+	CHECK_EQ(loaded.consoles.size(), static_cast<size_t>(2));
+	CHECK_EQ(loaded.consoles[1].name, std::string("Bedroom"));
+
+	// With no console set, the list stays empty.
+	CHECK(Settings::fromJson("{}").consoles.empty());
+
+	// The type is stored; a value other than ps4/ps5 counts as
+	// unknown.
+	Settings withType;
+	withType.consoles = { { "Bedroom", "10.0.0.9", "ps5" } };
+	CHECK_EQ(Settings::fromJson(withType.toJson()).consoles[0].type, std::string("ps5"));
+	const Settings odd = Settings::fromJson(
+		R"({"consoles":[{"name":"X","address":"10.0.0.7","type":"xbox"}]})");
+	CHECK(odd.consoles[0].type.empty());
+
+	// Each console keeps its own Account ID: the PS4 and PS5 of the same
+	// account may need it with the bytes in different orders.
+	Settings two;
+	two.consoles = { { "PS4", "10.0.0.3", "ps4", "CAcGBQQDAgE=" },
+		{ "PS5", "10.0.0.4", "ps5", "AQIDBAUGBwg=" } };
+	const Settings reloaded = Settings::fromJson(two.toJson());
+	CHECK_EQ(reloaded.consoles[0].accountId, std::string("CAcGBQQDAgE="));
+	CHECK_EQ(reloaded.consoles[1].accountId, std::string("AQIDBAUGBwg="));
+	// Without an Account ID nothing is stored, and reading returns empty.
+	CHECK(Settings::fromJson(withType.toJson()).consoles[0].accountId.empty());
+
+	// The host-id ties the console to its registration: it has to survive
+	// saving and reloading, and a console that never answered has none.
+	Settings withHost;
+	ConsoleEntry entry;
+	entry.name = "PS4";
+	entry.address = "10.0.0.3";
+	entry.hostId = "AABBCCDDEEFF";
+	withHost.consoles = { entry };
+	CHECK_EQ(Settings::fromJson(withHost.toJson()).consoles[0].hostId, std::string("AABBCCDDEEFF"));
+	CHECK(Settings::fromJson(withType.toJson()).consoles[0].hostId.empty());
+}
+
+ORBISLINK_TEST(saved_account_ids_round_trip_and_include_those_in_use)
+{
+	// Settings from before the list: each Account ID a console uses, and the
+	// last accepted one, become saved entries named after the console.
+	const Settings old = Settings::fromJson(R"({"stream_account_id":"AQIDBAUGBwg=",
+		"consoles":[{"name":"PS4","address":"10.0.0.3","account_id":"CAcGBQQDAgE="},
+		            {"name":"PS5","address":"10.0.0.4","account_id":"CAcGBQQDAgE="}]})");
+	CHECK_EQ(old.accounts.size(), size_t(2));
+	CHECK_EQ(old.accounts[0].accountId, std::string("CAcGBQQDAgE="));
+	CHECK_EQ(old.accounts[0].label, std::string("PS4"));
+	CHECK_EQ(old.accounts[1].accountId, std::string("AQIDBAUGBwg="));
+	CHECK(!old.accounts[1].label.empty());
+
+	// Names survive saving and reloading, and repeated IDs are dropped.
+	Settings named;
+	SavedAccount a;
+	a.label = "Main";
+	a.accountId = "CAcGBQQDAgE=";
+	named.accounts = { a, a };
+	const Settings reloaded = Settings::fromJson(named.toJson());
+	CHECK_EQ(reloaded.accounts.size(), size_t(1));
+	CHECK_EQ(reloaded.accounts[0].label, std::string("Main"));
 }
 
 TEST_MAIN()

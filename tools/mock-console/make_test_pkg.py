@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Gera um .pkg PS4 sintético (cabeçalho + PARAM.SFO + ICON0.PNG).
+"""Generates a synthetic PS4 .pkg (header + PARAM.SFO + ICON0.PNG).
 
-Não contém nenhum conteúdo protegido: serve apenas para exercitar o
-PkgInspector, o servidor HTTP local e a fila. A estrutura segue os offsets
-confirmados em flatz/ps4_remote_pkg_installer/pkg.h e sfo.c.
+It contains no protected content: it only exercises PkgInspector, the local
+HTTP server and the queue. The structure follows the offsets confirmed in
+flatz/ps4_remote_pkg_installer/pkg.h and sfo.c.
 """
 
 from __future__ import annotations
@@ -59,7 +59,7 @@ def build_sfo(entries: dict[str, str]) -> bytes:
 
 
 def build_icon_png(size: int = 64, seed: int = 0) -> bytes:
-    """Gera um ICON0.PNG válido (gradiente simples), sem dependências."""
+    """Generates a valid ICON0.PNG (simple gradient), with no dependencies."""
     def chunk(kind: bytes, payload: bytes) -> bytes:
         data = kind + payload
         return (struct.pack(">I", len(payload)) + data
@@ -67,7 +67,7 @@ def build_icon_png(size: int = 64, seed: int = 0) -> bytes:
 
     rows = bytearray()
     for y in range(size):
-        rows.append(0)  # filtro "None"
+        rows.append(0)  # "None" filter
         for x in range(size):
             rows += bytes(((x * 255) // size,
                            (y * 255) // size,
@@ -131,11 +131,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output")
     parser.add_argument("--content-id", default="UP0001-CUSA12345_00-ORBISLINKTEST001")
-    parser.add_argument("--title", default="Jogo de Teste")
+    parser.add_argument("--title", default="Test Game")
     parser.add_argument("--category", default="gd", choices=["gd", "gp", "ac"])
     parser.add_argument("--app-version", default="01.00")
     parser.add_argument("--padding", type=int, default=1024 * 1024,
-                        help="bytes de enchimento depois dos metadados")
+                        help="padding bytes after the metadata")
     arguments = parser.parse_args()
 
     data = build_pkg(arguments.content_id, arguments.title, arguments.category,

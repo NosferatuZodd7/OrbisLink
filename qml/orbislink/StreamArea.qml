@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Área central da janela: o vídeo do Remote Play, e o que se pode fazer
-// antes de o haver (registar o PC na consola, acordá-la, ligar).
+// The window's central area: the Remote Play video, and what can be done
+// before there is any (register the PC on the console, wake it, connect).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -10,24 +10,32 @@ import QtQuick.Layouts
 Item {
     id: root
 
-    // O palco do vídeo flutua como o resto: margens, cantos largos e uma
-    // moldura de vidro. Em ecrã inteiro tudo isso desaparece — aí a
-    // imagem é que manda.
-    readonly property bool solto: typeof window !== "undefined" && window
+    // Here and not in the card: choosing a console rebuilds the list of
+    // cards, and a handler whose card has just been destroyed stops halfway,
+    // so the connection would only start on a second click.
+    function chooseAndConnect(address) {
+        app.selectConsole(address)
+        stream.connectOneClick()
+    }
+
+    // The video stage floats like everything else: margins, wide corners and
+    // a glass frame. In full screen all of that goes away — there the
+    // picture rules.
+    readonly property bool free: typeof window !== "undefined" && window
                                   && window.streamFullscreen
 
     Rectangle {
-        id: palco
+        id: videoStage
         anchors.fill: parent
-        anchors.leftMargin: root.solto ? 0 : Theme.gutter
-        anchors.topMargin: root.solto ? 0 : 6
-        anchors.bottomMargin: root.solto ? 0 : Theme.gutter
-        anchors.rightMargin: root.solto ? 0 : 6
-        radius: root.solto ? 0 : Theme.radius
-        // Preto sempre que há (ou vai haver) imagem; parado, segue o tema.
+        anchors.leftMargin: root.free ? 0 : Theme.gutter
+        anchors.topMargin: root.free ? 0 : 6
+        anchors.bottomMargin: root.free ? 0 : Theme.gutter
+        anchors.rightMargin: root.free ? 0 : 6
+        radius: root.free ? 0 : Theme.radius
+        // Black whenever there is (or will be) a picture; idle, it follows the theme.
         color: root.streaming ? "#000000" : Theme.stageIdle
         Behavior on color { ColorAnimation { duration: Theme.normal } }
-        border.width: root.solto ? 0 : 1
+        border.width: root.free ? 0 : 1
         border.color: Theme.glassEdge
         clip: true
 
@@ -35,23 +43,23 @@ Item {
         Behavior on radius { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
     }
 
-    // Testa o próprio objecto e não só a bandeira: ao fechar a janela o
-    // controlador morre antes das bindings, e sem isto o registo enche-se
-    // de "Cannot read property of null".
+    // Tests the object itself and not just the flag: when closing the window
+    // the controller dies before the bindings, and without this the log fills
+    // up with "Cannot read property of null".
     readonly property bool built: typeof stream !== "undefined" && stream !== null
     readonly property bool streaming: built && stream.streaming
     readonly property string consoleState: built ? stream.consoleState : "unknown"
     readonly property bool registered: built && stream.registered
     readonly property string sessionState: built ? stream.sessionState : "idle"
 
-    // ───────────────────────────── vídeo
+    // ───────────────────────────── video
     //
-    // Carregado à parte porque é o único sítio com "import QtMultimedia":
-    // onde esse módulo não existir, esta parte falha sozinha e o resto da
-    // janela abre na mesma.
+    // Loaded separately because it is the only place with "import QtMultimedia":
+    // where that module does not exist, this part fails on its own and the rest
+    // of the window opens anyway.
     Loader {
         id: videoLoader
-        anchors.fill: palco
+        anchors.fill: videoStage
         anchors.margins: 1
         visible: root.streaming
         active: root.built
@@ -59,7 +67,7 @@ Item {
 
         onStatusChanged: {
             if (status === Loader.Error)
-                console.warn("Sem QtMultimedia: o Remote Play não tem onde desenhar.")
+                console.warn("No QtMultimedia: Remote Play has nowhere to draw.")
         }
     }
 
@@ -78,9 +86,9 @@ Item {
         }
     }
 
-    // ───────────────────────────── fundo, quando não há imagem
+    // ───────────────────────────── background, when there is no picture
     Image {
-        anchors.fill: palco
+        anchors.fill: videoStage
         anchors.margins: 1
         source: Theme.stageBackdrop
         fillMode: Image.PreserveAspectFit
@@ -91,18 +99,18 @@ Item {
     }
 
     Canvas {
-        id: grelha
-        anchors.fill: palco
+        id: grid
+        anchors.fill: videoStage
         anchors.margins: 1
         visible: !root.streaming
         opacity: 0.25
-        // O Canvas não se redesenha sozinho quando a cor muda.
-        readonly property color cor: Theme.stageGrid
-        onCorChanged: requestPaint()
+        // The Canvas does not repaint by itself when the colour changes.
+        readonly property color tone: Theme.stageGrid
+        onToneChanged: requestPaint()
         onPaint: {
             var ctx = getContext("2d")
             ctx.reset()
-            ctx.strokeStyle = cor
+            ctx.strokeStyle = tone
             ctx.lineWidth = 1
             for (var x = 0; x < width; x += 40) {
                 ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke()
@@ -113,146 +121,124 @@ Item {
         }
     }
 
-    // ───────────────────────────── painel de ligação
-    ColumnLayout {
-        anchors.centerIn: palco
-        width: Math.min(palco.width - 100, 560)
+    // The console on a card in the centre: one click connects, wakes,
+    // registers or searches, depending on the state. Below, only the
+    // explanation the state calls for (the registration PIN, the reason for a failure, the game running).
+    Column {
+        anchors.centerIn: videoStage
         spacing: 18
         visible: !root.streaming
 
-        Image {
-            Layout.alignment: Qt.AlignHCenter
-            source: "qrc:/icons/logo.png"
-            sourceSize.width: 88
-            sourceSize.height: 88
-            opacity: 0.9
-        }
+        // The saved consoles side by side, and the card to add one more.
+        // The one in use is the usual one; the others show their state and
+        // a click switches to them.
+        Row {
+            id: consoleRow
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 18
+            readonly property var items: app.consoles
+            // A little below the drawing's size, so they do not dominate the
+            // stage; and they shrink together, without changing proportions,
+            // when they do not fit.
+            readonly property real scaleFactor: Math.max(0.42, Math.min(0.72,
+                (videoStage.width - 60 - spacing * items.length) / (360 * items.length + 250)))
 
-        Text {
-            Layout.fillWidth: true
-            horizontalAlignment: Text.AlignHCenter
-            color: Theme.onIdleStage
-            font.pixelSize: 20
-            font.bold: true
-            text: {
-                if (!root.built)
-                    return qsTr("Remote Play não incluído nesta versão")
-                if (root.sessionState === "connecting")
-                    return qsTr("A ligar ao Remote Play…")
-                if (root.consoleState === "standby")
-                    return qsTr("A consola está em repouso")
-                if (root.consoleState === "offline")
-                    return qsTr("A consola não respondeu")
-                if (!root.registered)
-                    return qsTr("Falta registar este PC na consola")
-                return qsTr("Pronto para ligar")
+            Repeater {
+                model: consoleRow.items
+
+                ConsoleCard {
+                    readonly property var other: root.built && !modelData.active
+                                                 ? stream.consoleStates[modelData.address] : undefined
+                    scaleFactor: consoleRow.scaleFactor
+                    current: modelData.active
+                    available: root.built
+                    address: modelData.address
+                    name: modelData.active && root.built && stream.consoleName.length > 0
+                          ? stream.consoleName : modelData.name
+                    status: modelData.active ? root.consoleState
+                          : (other ? other.state : "unknown")
+                    registered: modelData.active ? root.registered : (other ? other.registered : false)
+                    // What the console said just now, if it answered; otherwise,
+                    // what was stored the last time it answered.
+                    kind: {
+                        var answered = modelData.active
+                            ? (root.consoleState === "ready" || root.consoleState === "standby")
+                            : (other !== undefined && other.state !== "offline"
+                               && other.state !== "unknown")
+                        if (!answered)
+                            return modelData.type
+                        var ps5 = modelData.active ? stream.consolePs5 : other.ps5
+                        return ps5 ? "ps5" : "ps4"
+                    }
+                    connecting: modelData.active && root.sessionState === "connecting"
+                    searching: modelData.active && root.built && stream.searching
+                    stage: modelData.active && root.built ? stream.connectStage : ""
+                    onConnect: stream.connectOneClick()
+                    onCancel: {
+                        if (stream.connectStage.length > 0)
+                            stream.cancelOneClick()
+                        else
+                            stream.stopStream()
+                    }
+                    onEdit: registerDialog.open()
+                    // Another console: it becomes the console in use and connects
+                    // right away, in the same click (see chooseAndConnect).
+                    onChoose: root.chooseAndConnect(modelData.address)
+                    onRemove: app.removeConsole(modelData.address)
+                }
+            }
+
+            AddConsoleCard {
+                width: 250 * consoleRow.scaleFactor
+                height: 330 * consoleRow.scaleFactor
+                onAdd: addConsoleDialog.open()
             }
         }
 
         Text {
-            Layout.fillWidth: true
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: Math.min(videoStage.width - 80, 440)
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
+            visible: text.length > 0
             color: Theme.onIdleStageMuted
-            font.pixelSize: 13
+            font.pixelSize: 12
             text: {
                 if (!root.built)
-                    return qsTr("Este pacote foi compilado sem o chiaki-ng. Tudo o resto — "
-                                + "instalar pkg e FTP — funciona na mesma.")
+                    return qsTr("This package was built without chiaki-ng. Everything else — "
+                                + "installing pkg files and FTP — still works.")
                 if (root.sessionState === "failed" && stream.sessionDetail.length > 0)
                     return stream.sessionDetail
-                if (root.consoleState === "standby")
-                    return qsTr("Carrega em \"Acordar consola\" e espera uns segundos.")
                 if (root.consoleState === "offline")
-                    return qsTr("Confirma o IP nas definições e que a consola está ligada "
-                                + "na mesma rede.")
-                if (!root.registered)
-                    return qsTr("Na consola: Definições → Definições de Ligação do Remote Play "
-                                + "→ Adicionar Dispositivo. Aparece um PIN de 8 dígitos.")
+                    return qsTr("Check the IP in the settings, and that the console is on the "
+                                + "same network.")
+                if (!root.registered && root.consoleState !== "unknown")
+                    return stream.consolePs5
+                        ? qsTr("On the PS5: Settings → System → Remote Play → Link Device. An "
+                               + "8-digit PIN appears.")
+                        : qsTr("On the console: Settings → Remote Play Connection Settings → Add "
+                               + "Device. An 8-digit PIN appears.")
                 if (stream.runningApp.length > 0)
-                    return qsTr("A correr: %1").arg(stream.runningApp)
-                return qsTr("A consola está pronta.")
-            }
-        }
-
-        RowLayout {
-            Layout.alignment: Qt.AlignHCenter
-            spacing: 10
-            visible: root.built
-
-            StyledButton {
-                text: qsTr("Ligar")
-                visible: root.registered && root.consoleState === "ready"
-                         && root.sessionState !== "connecting"
-                primary: true
-                implicitHeight: 34
-                larguraMinima: 130
-                font.pixelSize: 13
-                onClicked: stream.startStream()
-            }
-
-            StyledButton {
-                text: qsTr("Acordar consola")
-                visible: root.registered && root.consoleState === "standby"
-                implicitHeight: 34
-                onClicked: stream.wakeUp()
-            }
-
-            StyledButton {
-                text: root.registered ? qsTr("Registar outra vez") : qsTr("Registar consola")
-                visible: root.consoleState !== "offline" || root.registered
-                implicitHeight: 34
-                onClicked: registerDialog.open()
-            }
-
-            StyledButton {
-                text: root.built && stream.searching ? qsTr("A procurar…") : qsTr("Procurar")
-                enabled: !(root.built && stream.searching)
-                implicitHeight: 34
-                onClicked: stream.refreshConsole()
-            }
-
-            StyledButton {
-                text: qsTr("Cancelar")
-                visible: root.sessionState === "connecting"
-                implicitHeight: 34
-                onClicked: stream.stopStream()
-            }
-        }
-
-        Rectangle {
-            Layout.alignment: Qt.AlignHCenter
-            visible: !root.streaming
-            radius: 6
-            color: Theme.panelAltFill
-            border.color: Theme.border
-            implicitWidth: hintText.implicitWidth + 24
-            implicitHeight: hintText.implicitHeight + 16
-            Text {
-                id: hintText
-                anchors.centerIn: parent
-                text: qsTr("Servidor HTTP local: %1").arg(app.httpServerAddress)
-                color: Theme.onIdleStageMuted
-                font.pixelSize: 12
-                font.family: "monospace"
+                    return qsTr("Running: %1").arg(stream.runningApp)
+                return ""
             }
         }
     }
 
-    // ───────────────────────────── barra durante o stream
+    // ───────────────────────────── bar during the stream
     //
-    // Flutua sobre a imagem, em cápsula de vidro, e aparece com um fade
-    // em vez de saltar para o ecrã.
+    // Floats over the picture, in a glass capsule, and fades in
+    // instead of jumping onto the screen.
     Rectangle {
-        id: barraStream
-        anchors.top: palco.top
-        anchors.horizontalCenter: palco.horizontalCenter
+        id: streamToolbar
+        anchors.top: videoStage.top
+        anchors.horizontalCenter: videoStage.horizontalCenter
         anchors.topMargin: 16
-        readonly property bool mostrar: root.streaming
+        readonly property bool shown: root.streaming
                                         && (streamBar.containsMouse || streamHover.hovered)
         visible: opacity > 0.01
-        opacity: mostrar ? 1.0 : 0.0
-        scale: mostrar ? 1.0 : 0.96
+        opacity: shown ? 1.0 : 0.0
+        scale: shown ? 1.0 : 0.96
         Behavior on opacity { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
         Behavior on scale {
             NumberAnimation { duration: Theme.normal; easing.type: Theme.easeSpring; easing.overshoot: 1.05 }
@@ -277,17 +263,17 @@ Item {
             id: streamRow
             anchors.centerIn: parent
             spacing: 12
-            // O que está mesmo a chegar: o tamanho da imagem e os fps
-            // contados. Não é o que foi pedido nas definições — a consola
-            // pode mandar menos e não avisar.
+            // What is really arriving: the picture size and the counted fps.
+            // Not what was asked in the settings — the console may send less
+            // without saying.
             Text {
                 text: {
                     if (!root.built || stream.frameWidth <= 0)
                         return ""
-                    var texto = qsTr("%1×%2").arg(stream.frameWidth).arg(stream.frameHeight)
+                    var message = qsTr("%1×%2").arg(stream.frameWidth).arg(stream.frameHeight)
                     if (stream.measuredFps > 0)
-                        texto += qsTr(" · %1 fps").arg(stream.measuredFps)
-                    return texto
+                        message += qsTr(" · %1 fps").arg(stream.measuredFps)
+                    return message
                 }
                 color: Theme.onStageMuted
                 font.pixelSize: 11
@@ -301,53 +287,52 @@ Item {
                 Layout.maximumWidth: 160
             }
             StyledButton {
-                readonly property string somEstado: root.built ? stream.audioState : "parado"
-                text: !root.built ? qsTr("Som")
-                     : somEstado === "erro" || somEstado === "sem-dispositivo" ? qsTr("Sem som")
-                     : stream.muted ? qsTr("Som: desligado")
-                     : qsTr("Som: ligado")
-                danger: somEstado === "erro" || somEstado === "sem-dispositivo"
+                readonly property string audioStatus: root.built ? stream.audioState : "stopped"
+                text: !root.built ? qsTr("Sound")
+                     : audioStatus === "error" || audioStatus === "no-device" ? qsTr("No sound")
+                     : stream.muted ? qsTr("Sound: off")
+                     : qsTr("Sound: on")
+                danger: audioStatus === "error" || audioStatus === "no-device"
                 implicitHeight: 30
                 font.pixelSize: 11
                 ToolTip.visible: hovered
-                ToolTip.text: somEstado === "sem-dispositivo"
-                        ? qsTr("Este PC não tem saída de som activa.")
-                    : somEstado === "erro"
-                        ? qsTr("A placa de som recusou o stream — vê o Ctrl+L.")
-                    : somEstado === "a-tocar"
-                        ? qsTr("A sair por %1").arg(stream.audioDevice)
-                        : qsTr("Ainda não chegou som da consola.")
+                ToolTip.text: audioStatus === "no-device"
+                        ? qsTr("This PC has no active sound output.")
+                    : audioStatus === "error"
+                        ? qsTr("The sound card refused the stream — see Ctrl+L.")
+                    : audioStatus === "playing"
+                        ? qsTr("Coming out of %1").arg(stream.audioDevice)
+                        : qsTr("No sound has arrived from the console yet.")
                 onClicked: stream.muted = !stream.muted
             }
             Text {
                 text: root.built && stream.hardwareDecoder
-                      ? qsTr("placa gráfica") : qsTr("processador")
+                      ? qsTr("graphics card") : qsTr("processor")
                 color: Theme.onStageMuted
                 font.pixelSize: 10
             }
-            // O microfone tem de se ver. Quando está a captar, o botão fica
-            // aceso — ninguém pode estar a ser ouvido sem dar por isso.
+            // The microphone must be visible. While it is capturing, the button
+            // stays lit — nobody can be heard without noticing.
             StyledButton {
-                readonly property string micEstado: root.built ? stream.microphoneState
-                                                               : "desligado"
-                text: micEstado === "a-falar" ? qsTr("🎤 A falar")
-                     : micEstado === "em-silencio" ? qsTr("🎤 Em silêncio")
-                     : qsTr("Microfone")
+                readonly property string micStatus: root.built ? stream.microphoneState
+                                                               : "off"
+                text: micStatus === "talking" ? qsTr("🎤 Talking")
+                     : micStatus === "muted" ? qsTr("🎤 Muted")
+                     : qsTr("Microphone")
                 implicitHeight: 30
                 font.pixelSize: 11
-                danger: micEstado === "a-falar"
+                danger: micStatus === "talking"
                 ToolTip.visible: hovered
-                ToolTip.text: micEstado === "desligado"
-                    ? qsTr("Enviar o teu microfone para a consola")
-                    : qsTr("A captar de %1. Clica para calar, ou usa o botão direito para "
-                           + "desligar.").arg(stream.microphoneDevice)
+                ToolTip.text: micStatus === "off"
+                    ? qsTr("Send your microphone to the console")
+                    : qsTr("Capturing from %1. Click to mute, or right-click to turn it off.").arg(stream.microphoneDevice)
                 onClicked: {
-                    if (micEstado === "desligado")
+                    if (micStatus === "off")
                         stream.setMicrophoneEnabled(true)
                     else
-                        stream.setMicrophoneMuted(micEstado === "a-falar")
+                        stream.setMicrophoneMuted(micStatus === "talking")
                 }
-                // Botão direito desliga de vez, em vez de só calar.
+                // Right click turns it off entirely, instead of just muting.
                 MouseArea {
                     anchors.fill: parent
                     acceptedButtons: Qt.RightButton
@@ -355,20 +340,20 @@ Item {
                 }
             }
             StyledButton {
-                text: window.streamFullscreen ? qsTr("Sair do ecrã inteiro")
-                                              : qsTr("Ecrã inteiro")
+                text: window.streamFullscreen ? qsTr("Leave full screen")
+                                              : qsTr("Full screen")
                 implicitHeight: 30
                 font.pixelSize: 11
                 onClicked: window.setStreamFullscreen(!window.streamFullscreen)
             }
             StyledButton {
-                text: qsTr("Teclas")
+                text: qsTr("Keys")
                 implicitHeight: 30
                 font.pixelSize: 11
                 onClicked: keysDialog.open()
             }
             StyledButton {
-                text: qsTr("Terminar sessão")
+                text: qsTr("End the session")
                 implicitHeight: 30
                 font.pixelSize: 11
                 onClicked: stream.stopStream()
@@ -377,21 +362,26 @@ Item {
     }
 
     HoverHandler { id: streamHover }
-    MouseArea { id: streamBar; anchors.fill: palco; hoverEnabled: true; acceptedButtons: Qt.NoButton }
+    MouseArea { id: streamBar; anchors.fill: videoStage; hoverEnabled: true; acceptedButtons: Qt.NoButton }
 
-    // Mapa do teclado, porque ninguém adivinha que V é o triângulo.
+    // Keyboard map, because nobody guesses that V is the triangle.
     //
-    // ATENÇÃO: um Dialog sem "background" próprio usa o do estilo Basic, que
-    // é branco, e o texto do tema por cima é claro. Por isso tem fundo
-    // próprio, como todos os diálogos (o scripts/check-qml.py verifica).
+    // NOTE: a Dialog without its own "background" uses the Basic style's,
+    // which is white, and the theme's text on top is light. So it has its own
+    // background, like every dialog (scripts/check-qml.py checks this).
     Dialog {
         id: keysDialog
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: Math.min(parent ? parent.width - 60 : 780, 780)
-        height: Math.min(parent ? parent.height - 60 : 640, 640)
+        height: Math.min(parent ? parent.height - 60 : 680, 680)
         modal: true
         padding: 0
+        // While waiting for a new key, Esc cancels the choice and does not
+        // close the window.
+        closePolicy: keyboardMap.chosen.length > 0
+                     ? Popup.NoAutoClose : Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        onClosed: keyboardMap.editing = false
 
         Overlay.modal: Rectangle { color: Theme.scrim }
 
@@ -408,7 +398,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.dialogMargin
-                text: qsTr("O teclado como comando")
+                text: qsTr("The keyboard as a controller")
                 color: Theme.text
                 font.pixelSize: 15
                 font.bold: true
@@ -430,10 +420,28 @@ Item {
                 anchors.margins: Theme.dialogInner
                 anchors.leftMargin: Theme.dialogMargin
                 anchors.rightMargin: Theme.dialogMargin
+                spacing: 10
+                StyledButton {
+                    visible: root.built
+                    text: keyboardMap.editing ? qsTr("Done") : qsTr("Change keys")
+                    minimumWidth: 130
+                    onClicked: keyboardMap.editing = !keyboardMap.editing
+                }
+                StyledButton {
+                    visible: root.built && keyboardMap.editing
+                    text: qsTr("Reset")
+                    minimumWidth: 100
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Go back to the default keys")
+                    onClicked: {
+                        keyboardMap.chosen = ""
+                        stream.resetKeyBindings()
+                    }
+                }
                 Item { Layout.fillWidth: true }
                 StyledButton {
-                    text: qsTr("Fechar")
-                    larguraMinima: 110
+                    text: qsTr("Close")
+                    minimumWidth: 110
                     primary: true
                     onClicked: keysDialog.close()
                 }
@@ -463,16 +471,16 @@ Item {
                         if (!root.built)
                             return ""
                         if (stream.gamepadName.length > 0)
-                            return qsTr("Comando ligado: %1. O teclado também funciona:")
+                            return qsTr("Controller connected: %1. The keyboard works too:")
                                 .arg(stream.gamepadName)
-                        return qsTr("Nenhum comando ligado — liga um por USB e é reconhecido "
-                                    + "sozinho. Entretanto, o teclado:")
+                        return qsTr("No controller connected — plug one in over USB and it is "
+                                    + "picked up on its own. Meanwhile, the keyboard:")
                     }
                 }
 
-                // Os dois ao centro, um por cima do outro, e a explicação numa
-                // caixa por baixo: o olho desce da tecla para o botão e dele
-                // para o texto.
+                // Both in the centre, one above the other, and the explanation
+                // in a box below: the eye goes down from the key to the button
+                // and from it to the text.
                 KeyboardMap {
                     id: keyboardMap
                     Layout.alignment: Qt.AlignHCenter
@@ -484,22 +492,23 @@ Item {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.preferredWidth: 236
                     Layout.preferredHeight: 178
-                    destaque: keyboardMap.destaque
+                    highlight: keyboardMap.highlight
                 }
 
                 Rectangle {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.preferredWidth: Math.min(parent.width, 520)
-                    // Altura fixa para duas linhas: a caixa não pode saltar
-                    // de tamanho cada vez que o rato passa de tecla em tecla.
+                    // Fixed height for two lines: the box must not jump in size
+                    // every time the mouse moves from key to key.
                     Layout.preferredHeight: 56
                     radius: Theme.radiusSmall
-                    color: keyboardMap.descricao.length > 0 ? Theme.accentFill
+                    readonly property bool full: keyboardMap.message.length > 0
+                    color: full ? Theme.accentFill
                          : Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b,
-                                   Theme.claro ? 1.0 : 0.6)
+                                   Theme.light ? 1.0 : 0.6)
                     border.width: 1
-                    border.color: keyboardMap.descricao.length > 0 ? Theme.accent
-                                : Theme.claro ? Qt.rgba(0, 0, 0, 0.12) : Theme.glassEdge
+                    border.color: full ? Theme.accent
+                                : Theme.light ? Qt.rgba(0, 0, 0, 0.12) : Theme.glassEdge
                     Behavior on color { ColorAnimation { duration: Theme.fast } }
 
                     Text {
@@ -509,13 +518,15 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                         wrapMode: Text.WordWrap
-                        color: keyboardMap.descricao.length > 0 ? Theme.text : Theme.textSecondary
-                        font.pixelSize: keyboardMap.descricao.length > 0 ? 15 : 12
-                        font.bold: keyboardMap.descricao.length > 0
-                        text: keyboardMap.descricao.length > 0
-                              ? keyboardMap.descricao
-                              : qsTr("Passa o rato por cima de uma tecla para ver no comando o "
-                                     + "botão que ela faz. As teclas apagadas não fazem nada.")
+                        color: parent.full ? Theme.text : Theme.textSecondary
+                        font.pixelSize: parent.full ? 14 : 12
+                        font.bold: parent.full
+                        text: parent.full ? keyboardMap.message
+                            : keyboardMap.editing
+                              ? qsTr("Click the key you want to change, then press the new key. "
+                                     + "If it already does something, the two swap.")
+                              : qsTr("Hover over a key to see on the controller which button it "
+                                     + "presses. Greyed-out keys do nothing.")
                     }
                 }
 
@@ -524,32 +535,72 @@ Item {
         }
     }
 
-    // Só para as capturas de ecrã.
+    // Screenshots only.
     Timer {
         running: typeof demoKeys !== "undefined" && demoKeys
         interval: 1500
-        // Como se o rato estivesse em cima do P: a captura mostra a ligação
-        // entre a tecla e o botão aceso no comando.
+        // As if the mouse were over P: the screenshot shows the link between
+        // the key and the lit button on the controller.
         onTriggered: {
             keysDialog.open()
-            keyboardMap.destaque = "ps"
-            keyboardMap.descricao = keyboardMap.funcoes["P"].texto
+            keyboardMap.hoverHighlight = "ps"
+            keyboardMap.description = "P — " + keyboardMap.actions["ps"].name
         }
     }
 
-    // ───────────────────────────── registo
+    // The other consoles in the list: ask how they are from time to time,
+    // while there is no session (the one in use is already watched by the stream).
+    Timer {
+        running: root.built && !root.streaming && app.consoles.length > 1
+        interval: 8000
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: {
+            var others = []
+            var items = app.consoles
+            for (var i = 0; i < items.length; ++i)
+                if (!items[i].active)
+                    others.push(items[i].address)
+            stream.probeConsoles(others)
+        }
+    }
+
+    AddConsoleDialog { id: addConsoleDialog }
+
+    // Each console that answers gets its type stored (PS4 or PS5), so
+    // the card shows it even when the console is off.
+    Connections {
+        target: root.built ? stream : null
+        function onConsoleChanged() {
+            if (root.consoleState === "ready" || root.consoleState === "standby")
+                app.rememberConsoleType(app.consoleAddress, stream.consolePs5, stream.hostId)
+        }
+        // One-click connect found the console unregistered: registration is
+        // opened instead of a message telling you to open it.
+        function onRegistrationNeeded() { registerDialog.open() }
+        function onConsoleStatesChanged() {
+            var stateList = stream.consoleStates
+            for (var address in stateList) {
+                var e = stateList[address]
+                if (e.state === "ready" || e.state === "standby")
+                    app.rememberConsoleType(address, e.ps5, e.hostId || "")
+            }
+        }
+    }
+
+    // ───────────────────────────── registration
     StreamRegisterDialog { id: registerDialog }
 
-    // Só para as capturas de ecrã.
+    // Screenshots only.
     Timer {
         running: typeof demoRegister !== "undefined" && demoRegister
         interval: 1500
         onTriggered: registerDialog.open()
     }
 
-    // O PIN que a consola pede para iniciar sessão na conta — não é o do
-    // registo. Tem fundo próprio pela mesma razão do mapa das teclas: num
-    // diálogo que bloqueia a ligação, ilegível é pior do que feio.
+    // The PIN the console asks for to sign in to the account — not the
+    // registration one. It has its own background for the same reason as the
+    // key map: in a dialog blocking the connection, unreadable is worse than ugly.
     Dialog {
         id: loginPinDialog
         property bool incorrect: false
@@ -574,7 +625,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.dialogMargin
-                text: qsTr("PIN da consola")
+                text: qsTr("Console PIN")
                 color: Theme.text
                 font.pixelSize: 15
                 font.bold: true
@@ -599,13 +650,13 @@ Item {
                 spacing: 10
                 Item { Layout.fillWidth: true }
                 StyledButton {
-                    text: qsTr("Cancelar")
-                    larguraMinima: 110
+                    text: qsTr("Cancel")
+                    minimumWidth: 110
                     onClicked: loginPinDialog.close()
                 }
                 StyledButton {
-                    text: qsTr("Enviar")
-                    larguraMinima: 110
+                    text: qsTr("Send")
+                    minimumWidth: 110
                     primary: true
                     enabled: loginPinField.text.length > 0
                     onClicked: {
@@ -625,8 +676,8 @@ Item {
                 Layout.topMargin: Theme.dialogInner
                 wrapMode: Text.WordWrap
                 text: loginPinDialog.incorrect
-                      ? qsTr("O PIN não estava certo. Tenta outra vez.")
-                      : qsTr("A consola pede o PIN de início de sessão da conta.")
+                      ? qsTr("That PIN was wrong. Try again.")
+                      : qsTr("The console is asking for the account's login PIN.")
                 color: loginPinDialog.incorrect ? Theme.error : Theme.textSecondary
                 font.pixelSize: 12
             }

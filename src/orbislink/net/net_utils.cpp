@@ -11,8 +11,8 @@ namespace orbislink {
 
 namespace {
 
-// No Windows o primeiro argumento de select() é ignorado e SOCKET é um
-// inteiro de 64 bits, por isso não se converte para int.
+// On Windows the first argument of select() is ignored and SOCKET is a
+// 64-bit integer, so it is not converted to int.
 inline int selectNfds(socket_t sock)
 {
 #ifdef _WIN32

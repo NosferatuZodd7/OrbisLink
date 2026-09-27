@@ -9,8 +9,8 @@ using namespace orbislink;
 
 namespace {
 
-// Uma onda sinusoidal, que é o que se consegue verificar sem ouvidos.
-std::vector<int16_t> seno(int samples, int channels, double hz, int rate)
+// A sine wave, which is what can be checked without ears.
+std::vector<int16_t> sine(int samples, int channels, double hz, int rate)
 {
 	std::vector<int16_t> out(static_cast<size_t>(samples) * channels);
 	for(int i = 0; i < samples; ++i)
@@ -24,7 +24,7 @@ std::vector<int16_t> seno(int samples, int channels, double hz, int rate)
 
 } // namespace
 
-ORBISLINK_TEST(formato_igual_nao_mexe_em_nada)
+ORBISLINK_TEST(same_format_touches_nothing)
 {
 	PcmConverter conv;
 	conv.configure(48000, 2, 48000, 2);
@@ -32,76 +32,76 @@ ORBISLINK_TEST(formato_igual_nao_mexe_em_nada)
 	CHECK_EQ(conv.outputSamples(480), static_cast<size_t>(480));
 }
 
-ORBISLINK_TEST(de_48k_para_44k_encolhe_na_proporcao_certa)
+ORBISLINK_TEST(from_48k_to_44k_shrinks_in_the_right_ratio)
 {
 	PcmConverter conv;
 	conv.configure(48000, 2, 44100, 2);
 	CHECK(conv.needed());
 
-	const auto entrada = seno(480, 2, 440.0, 48000);
-	const auto &saida = conv.convert(entrada.data(), 480);
-	// 480 amostras a 48 kHz são 10 ms; a 44100 são 441. Aceita-se uma de
-	// diferença, que é a que fica para a trama seguinte.
-	const size_t porCanal = saida.size() / 2;
-	CHECK(porCanal >= 439 && porCanal <= 442);
+	const auto input = sine(480, 2, 440.0, 48000);
+	const auto &output = conv.convert(input.data(), 480);
+	// 480 samples at 48 kHz are 10 ms; at 44100 they are 441. One of
+	// difference is accepted, which is the one left for the next frame.
+	const size_t perChannel = output.size() / 2;
+	CHECK(perChannel >= 439 && perChannel <= 442);
 }
 
-ORBISLINK_TEST(a_fase_continua_entre_tramas)
+ORBISLINK_TEST(phase_continues_across_frames)
 {
-	// Sem guardar a posição entre chamadas ouve-se um estalo em cada
-	// fronteira, e ao fim de cem tramas o desvio já é audível.
+	// Without keeping the position between calls there is a click at each
+	// boundary, and after a hundred frames the drift is already audible.
 	PcmConverter conv;
 	conv.configure(48000, 2, 44100, 2);
-	const auto entrada = seno(480, 2, 440.0, 48000);
+	const auto input = sine(480, 2, 440.0, 48000);
 
 	size_t total = 0;
 	for(int i = 0; i < 100; ++i)
-		total += conv.convert(entrada.data(), 480).size() / 2;
+		total += conv.convert(input.data(), 480).size() / 2;
 
-	// 100 tramas de 10 ms = 1 segundo, portanto ~44100 amostras. Com uma
-	// reamostragem que perdesse a fase, isto afastava-se depressa.
+	// 100 frames of 10 ms = 1 second, so ~44100 samples. With a
+	// resampling that lost the phase, this would drift away quickly.
 	CHECK(total >= 44050 && total <= 44150);
 }
 
-ORBISLINK_TEST(mono_para_estereo_duplica_o_canal)
+ORBISLINK_TEST(mono_to_stereo_duplicates_the_channel)
 {
 	PcmConverter conv;
 	conv.configure(48000, 1, 48000, 2);
 	CHECK(conv.needed());
 
-	const auto entrada = seno(64, 1, 440.0, 48000);
-	const auto &saida = conv.convert(entrada.data(), 64);
-	CHECK(saida.size() >= 2);
-	// Os dois canais saem iguais: um lado em silêncio seria pior que mono.
-	for(size_t i = 0; i + 1 < saida.size(); i += 2)
-		CHECK_EQ(saida[i], saida[i + 1]);
+	const auto input = sine(64, 1, 440.0, 48000);
+	const auto &output = conv.convert(input.data(), 64);
+	CHECK(output.size() >= 2);
+	// Both channels come out equal: one side silent would be worse than mono.
+	for(size_t i = 0; i + 1 < output.size(); i += 2)
+		CHECK_EQ(output[i], output[i + 1]);
 }
 
-ORBISLINK_TEST(estereo_para_mono_nao_perde_metade_do_som)
+ORBISLINK_TEST(stereo_to_mono_does_not_lose_half_the_sound)
 {
 	PcmConverter conv;
 	conv.configure(48000, 2, 48000, 1);
 
-	// Canal esquerdo com sinal, direito em silêncio. A média tem de dar
-	// metade — e não zero, que é o que daria ignorar um dos canais.
-	std::vector<int16_t> entrada(64 * 2, 0);
+	// Left channel with signal, right silent. The average must be half —
+	// not zero, which is what ignoring one of the channels would give.
+	std::vector<int16_t> input(64 * 2, 0);
 	for(int i = 0; i < 64; ++i)
-		entrada[static_cast<size_t>(i) * 2] = 10000;
+		input[static_cast<size_t>(i) * 2] = 10000;
 
-	const auto &saida = conv.convert(entrada.data(), 64);
-	CHECK(!saida.empty());
-	CHECK(saida[0] > 4000 && saida[0] < 6000);
+	const auto &output = conv.convert(input.data(), 64);
+	CHECK(!output.empty());
+	CHECK(output[0] > 4000 && output[0] < 6000);
 }
 
-ORBISLINK_TEST(nao_estoira_com_entradas_degeneradas)
+ORBISLINK_TEST(does_not_crash_on_degenerate_input)
 {
 	PcmConverter conv;
 	conv.configure(48000, 2, 44100, 2);
 	CHECK(conv.convert(nullptr, 100).empty());
-	const auto entrada = seno(1, 2, 440.0, 48000);
-	// Uma amostra só não dá para interpolar: não deve ler fora do buffer.
-	conv.convert(entrada.data(), 1);
-	// Um formato absurdo não deve dividir por zero.
+	const auto input = sine(1, 2, 440.0, 48000);
+	// A single sample cannot be interpolated: it must not read past the buffer.
+	conv.convert(input.data(), 1);
+	// An absurd format must not divide by zero.
 	conv.configure(0, 0, 0, 0);
 	CHECK(conv.targetRate() > 0);
 	CHECK(conv.targetChannels() > 0);

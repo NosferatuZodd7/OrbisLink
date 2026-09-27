@@ -2,11 +2,13 @@
 #include "orbislink/stream/registration.h"
 
 #include "orbislink/common/log.h"
+#include "orbislink/common/tr.h"
 #include "orbislink/stream/chiaki_log_bridge.h"
 #include "orbislink/stream/credentials.h"
 #include "orbislink/stream/stream_trace.h"
 
 #include <chiaki/regist.h>
+#include <chiaki/session.h>
 
 #include <atomic>
 #include <cstring>
@@ -47,9 +49,53 @@ StreamCredentials fromChiaki(const ChiakiRegisteredHost *host)
 	credentials.rpKeyHex = bytesToHex(host->rp_key, sizeof(host->rp_key));
 	credentials.rpKeyType = host->rp_key_type;
 	credentials.target = static_cast<int>(host->target);
+	credentials.ps5 = chiaki_target_is_ps5(host->target);
 	credentials.hostId = bytesToHex(host->server_mac, sizeof(host->server_mac));
 	credentials.valid = !credentials.registKey.empty();
 	return credentials;
+}
+
+// What the console said when refusing, in two versions: short for the
+// diagnostics, full for whoever is registering.
+struct Refusal
+{
+	std::string diagnostics;
+	std::string message;
+};
+
+Refusal explainRefusal(uint32_t reason)
+{
+	switch(reason)
+	{
+		case CHIAKI_RP_APPLICATION_REASON_INVALID_PSN_ID:
+			return { "the console did not recognise the Account ID (0x80108b02)",
+				QT_TRANSLATE_NOOP("Messages", "The console did not recognise the Account ID. It must belong "
+					"to the PSN account you used to request the PIN on the "
+					"console (each user has their own), not the PSN user name.") };
+		case CHIAKI_RP_APPLICATION_REASON_REGIST_FAILED:
+			return { "the console rejected the PIN (0x80108b09)",
+				QT_TRANSLATE_NOOP("Messages", "The console rejected the PIN. Request a new one on the "
+					"console — it is only valid for a few minutes — and type it "
+					"again.") };
+		case CHIAKI_RP_APPLICATION_REASON_IN_USE:
+			return { "the console's Remote Play is already in use (0x80108b10)",
+				QT_TRANSLATE_NOOP("Messages", "The console's Remote Play is already in use by another "
+					"device. Close that session and try again.") };
+		case CHIAKI_RP_APPLICATION_REASON_CRASH:
+			return { "the console's Remote Play crashed (0x80108b15)",
+				QT_TRANSLATE_NOOP("Messages", "The console's Remote Play crashed. Restart the console and "
+					"try again.") };
+		case CHIAKI_RP_APPLICATION_REASON_RP_VERSION:
+			return { "incompatible Remote Play version (0x80108b11)",
+				QT_TRANSLATE_NOOP("Messages", "The console did not accept the Remote Play version. Update "
+					"the console system software and try again.") };
+		default:
+			return { "the console rejected the registration (expired or wrong PIN, wrong "
+					 "Account ID, or Remote Play turned off on the console)",
+				QT_TRANSLATE_NOOP("Messages", "The console rejected the registration. Check the PIN (it is "
+					"valid for a few minutes), the PSN Account ID, and that the "
+					"console is on the same network.") };
+	}
 }
 
 void registCallback(ChiakiRegistEvent *event, void *user)
@@ -67,7 +113,7 @@ void registCallback(ChiakiRegistEvent *event, void *user)
 		{
 			StreamCredentials credentials = fromChiaki(event->registered_host);
 			impl->running.store(false);
-			StreamTrace::instance().ok("consola \"" + credentials.nickname + "\" registada, "
+			StreamTrace::instance().ok("console \"" + credentials.nickname + "\" registered, "
 				"host-id " + credentials.hostId);
 			if(finished)
 				finished(true, credentials, std::string());
@@ -75,20 +121,20 @@ void registCallback(ChiakiRegistEvent *event, void *user)
 		}
 		case CHIAKI_REGIST_EVENT_TYPE_FINISHED_CANCELED:
 			impl->running.store(false);
-			StreamTrace::instance().fail("registo cancelado");
+			StreamTrace::instance().fail("registration cancelled");
 			if(finished)
-				finished(false, {}, "Registo cancelado.");
+				finished(false, {}, QT_TRANSLATE_NOOP("Messages", "Registration cancelled."));
 			break;
 		case CHIAKI_REGIST_EVENT_TYPE_FINISHED_FAILED:
 		default:
+		{
 			impl->running.store(false);
-			StreamTrace::instance().fail("a consola recusou o registo (PIN expirado ou errado, "
-				"Account ID errado, ou Remote Play desligado na consola)");
+			const Refusal refusal = explainRefusal(takeApplicationReason());
+			StreamTrace::instance().fail(refusal.diagnostics);
 			if(finished)
-				finished(false, {},
-					"A consola recusou o registo. Confirma o PIN (é válido poucos minutos), "
-					"o Account ID da PSN e que a consola está ligada na mesma rede.");
+				finished(false, {}, refusal.message);
 			break;
+		}
 	}
 }
 
@@ -104,20 +150,21 @@ bool StreamRegistration::start(const Request &request, Finished finished, std::s
 	if(impl_->running.load())
 	{
 		if(error)
-			*error = "Já há um registo a decorrer.";
+			*error = QT_TRANSLATE_NOOP("Messages", "A registration is already in progress.");
 		return false;
 	}
 	if(request.address.empty())
 	{
 		if(error)
-			*error = "Falta o endereço da consola.";
+			*error = QT_TRANSLATE_NOOP("Messages", "The console's address is missing.");
 		return false;
 	}
-	// O PIN da consola tem 8 dígitos.
+	// The console PIN has 8 digits.
 	if(request.pin == 0)
 	{
 		if(error)
-			*error = "Falta o PIN que a consola mostra em Adicionar Dispositivo.";
+			*error = QT_TRANSLATE_NOOP("Messages", "The PIN shown by the console under Add Device is "
+				"missing.");
 		return false;
 	}
 
@@ -147,12 +194,13 @@ bool StreamRegistration::start(const Request &request, Finished finished, std::s
 	info.holepunch_info = nullptr;
 	info.rudp = nullptr;
 
-	StreamTrace::instance().step("registo",
-		"alvo " + std::to_string(request.target) + ", PIN de " + std::to_string(request.pin > 0 ? 8 : 0)
-			+ " dígitos, Account ID com "
-			+ std::to_string(request.accountIdBase64.size()) + " caracteres");
+	StreamTrace::instance().step("registration",
+		"target " + std::to_string(request.target) + ", " + std::to_string(request.pin > 0 ? 8 : 0)
+			+ "-digit PIN, Account ID with "
+			+ std::to_string(request.accountIdBase64.size()) + " characters");
 
 	impl_->running.store(true);
+	takeApplicationReason(); // an old reason does not apply to this registration
 	const ChiakiErrorCode result =
 		chiaki_regist_start(&impl_->regist, chiakiLog(), &info, registCallback, impl_.get());
 	if(result != CHIAKI_ERR_SUCCESS)
@@ -165,7 +213,7 @@ bool StreamRegistration::start(const Request &request, Finished finished, std::s
 		return false;
 	}
 	impl_->started = true;
-	logInfo("Remote Play: registo iniciado em " + request.address);
+	logInfo("Remote Play: registration started on " + request.address);
 	return true;
 }
 

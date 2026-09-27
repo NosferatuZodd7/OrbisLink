@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// A janela do registo. Serve para duas coisas: ver ao vivo o que a
-// aplicação está a fazer (sobretudo o Remote Play, que tem muitos passos e
-// falha em qualquer um deles), e produzir um ficheiro que se possa anexar
-// a uma mensagem sem ter de explicar nada.
+// The log window. It serves two purposes: watching live what the
+// application is doing (above all Remote Play, which has many steps and
+// can fail at any of them), and producing a file that can be attached
+// to a message without having to explain anything.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -20,11 +20,11 @@ Dialog {
     padding: 0
 
     property bool followTail: true
-    property string filtro: ""
+    property string filter: ""
 
-    // Um modal quase opaco: com a transparência dos painéis, o que está por
-    // trás ver-se-ia através da caixa, e uma caixa que pede uma decisão não
-    // pode ser uma janela.
+    // A nearly opaque modal: with the panels' transparency, what is behind
+    // would show through the box, and a box asking for a decision must not
+    // be a window.
     Overlay.modal: Rectangle { color: Theme.scrim }
 
     background: Rectangle {
@@ -33,48 +33,48 @@ Dialog {
         radius: Theme.radius
     }
 
-    function corDoNivel(nivel) {
-        if (nivel === "ERRO" || nivel === "ERROR") return Theme.error
-        if (nivel === "AVISO" || nivel === "WARNING") return Theme.warn
-        if (nivel === "DEBUG") return Theme.textMuted
+    function levelColor(level) {
+        if (level === "ERRO" || level === "ERROR") return Theme.error
+        if (level === "AVISO" || level === "WARNING") return Theme.warn
+        if (level === "DEBUG") return Theme.textMuted
         return Theme.text
     }
 
-    function carregar() {
-        linhas.clear()
-        var recentes = app.recentLog(1000)
-        for (var i = 0; i < recentes.length; ++i)
-            acrescentar(recentes[i])
+    function load() {
+        lines.clear()
+        var recent = app.recentLog(1000)
+        for (var i = 0; i < recent.length; ++i)
+            append(recent[i])
         if (followTail)
-            lista.positionViewAtEnd()
+            items.positionViewAtEnd()
     }
 
-    // As linhas vindas do registo já trazem "data [nível] texto".
-    function acrescentar(linha) {
-        var nivel = ""
-        var abre = linha.indexOf("[")
-        var fecha = linha.indexOf("]")
-        if (abre > 0 && fecha > abre)
-            nivel = linha.substring(abre + 1, fecha)
-        linhas.append({ "texto": linha, "nivel": nivel })
-        while (linhas.count > 2000)
-            linhas.remove(0)
+    // Lines coming from the log already carry "date [level] text".
+    function append(line) {
+        var level = ""
+        var openAt = line.indexOf("[")
+        var closeAt = line.indexOf("]")
+        if (openAt > 0 && closeAt > openAt)
+            level = line.substring(openAt + 1, closeAt)
+        lines.append({ "message": line, "level": level })
+        while (lines.count > 2000)
+            lines.remove(0)
     }
 
-    onOpened: carregar()
+    onOpened: load()
 
-    ListModel { id: linhas }
+    ListModel { id: lines }
 
     Connections {
         target: app
         function onLogLine(level, text) {
             if (!dialog.visible)
                 return
-            // Recompõe a linha como ela aparece no ficheiro.
-            dialog.acrescentar(Qt.formatDateTime(new Date(), "yyyy-MM-dd hh:mm:ss.zzz")
+            // Rebuilds the line as it appears in the file.
+            dialog.append(Qt.formatDateTime(new Date(), "yyyy-MM-dd hh:mm:ss.zzz")
                                + " [" + level + "] " + text)
             if (dialog.followTail)
-                lista.positionViewAtEnd()
+                items.positionViewAtEnd()
         }
     }
 
@@ -87,19 +87,19 @@ Dialog {
             anchors.rightMargin: Theme.dialogInner
             spacing: 12
             Text {
-                text: qsTr("Registo e diagnóstico")
+                text: qsTr("Log and diagnostics")
                 color: Theme.text
                 font.pixelSize: 15
                 font.bold: true
             }
             Item { Layout.fillWidth: true }
             StyledCheck {
-                text: qsTr("Detalhe do Remote Play")
+                text: qsTr("Remote Play detail")
                 checked: app.streamVerbose()
                 onCheckedChanged: app.setStreamVerbose(checked)
             }
             StyledCheck {
-                text: qsTr("Acompanhar o fim")
+                text: qsTr("Follow the tail")
                 checked: dialog.followTail
                 onCheckedChanged: dialog.followTail = checked
             }
@@ -119,33 +119,33 @@ Dialog {
             spacing: 8
             Text {
                 Layout.fillWidth: true
-                text: qsTr("Ficheiro: %1").arg(app.logFilePath())
+                text: qsTr("File: %1").arg(app.logFilePath())
                 color: Theme.textMuted
                 font.pixelSize: 10
                 elide: Text.ElideMiddle
             }
             StyledButton {
-                text: qsTr("Copiar tudo")
+                text: qsTr("Copy everything")
                 implicitHeight: 30
                 onClicked: app.copyDiagnosticsToClipboard()
             }
             StyledButton {
-                text: qsTr("Guardar em…")
+                text: qsTr("Save to…")
                 implicitHeight: 30
-                onClicked: destinoDiagnostico.open()
+                onClicked: diagnosticsDestination.open()
             }
             StyledButton {
-                text: qsTr("Guardar no ambiente de trabalho")
+                text: qsTr("Save to the desktop")
                 implicitHeight: 30
                 primary: true
                 onClicked: {
-                    var caminho = app.exportDiagnostics("")
-                    if (caminho.length > 0)
-                        app.openLocalFolder(caminho)
+                    var path = app.exportDiagnostics("")
+                    if (path.length > 0)
+                        app.openLocalFolder(path)
                 }
             }
             StyledButton {
-                text: qsTr("Fechar")
+                text: qsTr("Close")
                 implicitHeight: 30
                 onClicked: dialog.close()
             }
@@ -163,18 +163,18 @@ Dialog {
             spacing: 8
             StyledField {
                 Layout.fillWidth: true
-                placeholderText: qsTr("filtrar (ex.: Remote Play, FALHOU, FTP)")
-                onTextChanged: dialog.filtro = text
+                placeholderText: qsTr("filter (e.g. Remote Play, FAILED, FTP)")
+                onTextChanged: dialog.filter = text
             }
             StyledButton {
-                text: qsTr("Só erros")
+                text: qsTr("Errors only")
                 implicitHeight: 30
-                onClicked: dialog.filtro = "ERRO"
+                onClicked: dialog.filter = "ERROR"
             }
             StyledButton {
-                text: qsTr("Limpar filtro")
+                text: qsTr("Clear filter")
                 implicitHeight: 30
-                onClicked: dialog.filtro = ""
+                onClicked: dialog.filter = ""
             }
         }
 
@@ -189,21 +189,21 @@ Dialog {
             radius: 6
 
             ListView {
-                id: lista
+                id: items
                 anchors.fill: parent
                 anchors.margins: 6
                 clip: true
-                model: linhas
+                model: lines
                 spacing: 1
                 ScrollBar.vertical: ScrollBar { }
 
                 delegate: Text {
-                    width: lista.width
-                    visible: dialog.filtro.length === 0
-                             || model.texto.toLowerCase().indexOf(dialog.filtro.toLowerCase()) >= 0
+                    width: items.width
+                    visible: dialog.filter.length === 0
+                             || model.message.toLowerCase().indexOf(dialog.filter.toLowerCase()) >= 0
                     height: visible ? implicitHeight : 0
-                    text: model.texto
-                    color: dialog.corDoNivel(model.nivel)
+                    text: model.message
+                    color: dialog.levelColor(model.level)
                     font.family: "monospace"
                     font.pixelSize: 11
                     wrapMode: Text.WrapAnywhere
@@ -212,8 +212,8 @@ Dialog {
 
             Text {
                 anchors.centerIn: parent
-                visible: linhas.count === 0
-                text: qsTr("Sem nada registado ainda.")
+                visible: lines.count === 0
+                text: qsTr("Nothing logged yet.")
                 color: Theme.textMuted
                 font.pixelSize: 12
             }
@@ -221,12 +221,12 @@ Dialog {
     }
 
     FolderDialog {
-        id: destinoDiagnostico
-        title: qsTr("Onde guardar o diagnóstico")
+        id: diagnosticsDestination
+        title: qsTr("Where to save the diagnostics")
         onAccepted: {
-            var caminho = app.exportDiagnostics(selectedFolder)
-            if (caminho.length > 0)
-                app.openLocalFolder(caminho)
+            var path = app.exportDiagnostics(selectedFolder)
+            if (path.length > 0)
+                app.openLocalFolder(path)
         }
     }
 }

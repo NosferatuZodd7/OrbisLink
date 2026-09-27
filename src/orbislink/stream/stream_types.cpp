@@ -9,18 +9,18 @@ const char *hostStateName(HostState state)
 {
 	switch(state)
 	{
-		case HostState::Ready: return "pronta";
-		case HostState::Standby: return "em repouso";
+		case HostState::Ready: return "ready";
+		case HostState::Standby: return "rest mode";
 		case HostState::Unknown: break;
 	}
-	return "desconhecido";
+	return "unknown";
 }
 
 uint64_t StreamCredentials::wakeupCredential() const
 {
-	// O pacote de wakeup leva a chave de registo interpretada como um
-	// número hexadecimal — é assim que o chiaki a envia
-	// (chiaki_discovery_wakeup, campo user_credential).
+	// The wakeup packet carries the registration key read as a
+	// hexadecimal number — that is how chiaki sends it
+	// (chiaki_discovery_wakeup, user_credential field).
 	if(registKey.empty())
 		return 0;
 	return strtoull(registKey.c_str(), nullptr, 16);

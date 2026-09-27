@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Testes da interface que precisam de uma janela a sério: arranca a consola
-# falsa e o Xvfb e corre as auto-verificações do orbislink-gui.
+# Interface tests that need a real window: starts the fake console
+# and Xvfb and runs orbislink-gui's self-checks.
 #
 #   sudo apt install xvfb
 #   ./scripts/gui-selftest.sh
@@ -13,11 +13,11 @@ BUILD="${ORBISLINK_BUILD_DIR:-$REPO/build}"
 GUI="$BUILD/orbislink-gui"
 DISPLAY_NUM="${ORBISLINK_DISPLAY:-:98}"
 WORK="$(mktemp -d)"
-CONSOLE="$WORK/consola"
+CONSOLE="$WORK/console"
 CONFIG="$WORK/config"
 
-[ -x "$GUI" ] || { echo "Falta $GUI — compila primeiro (cmake --build build)." >&2; exit 1; }
-command -v Xvfb >/dev/null || { echo "Falta o Xvfb (apt install xvfb)." >&2; exit 1; }
+[ -x "$GUI" ] || { echo "$GUI is missing — build first (cmake --build build)." >&2; exit 1; }
+command -v Xvfb >/dev/null || { echo "Xvfb is missing (apt install xvfb)." >&2; exit 1; }
 
 mkdir -p "$CONSOLE/data/pkg" "$CONFIG/orbislink"
 
@@ -36,18 +36,18 @@ MOCK_PID=$!
 sleep 2
 
 cat > "$CONFIG/orbislink/settings.json" <<JSON
-{"console_address":"127.0.0.1","console_name":"PS4 de teste","ftp_port":2121,
+{"console_address":"127.0.0.1","console_name":"Test PS4","ftp_port":2121,
  "installer_port":12800,"http_bind_address":"127.0.0.1","http_port":8765,
  "restrict_to_console_ip":true,"check_already_installed":false,
  "ftp_upload_directory":"/data/pkg/","default_mode":"direct","debug_logging":false,
  "first_run_done":true}
 JSON
 
-echo "==> arrastar e largar"
+echo "==> drag and drop"
 if DISPLAY="$DISPLAY_NUM" XDG_CONFIG_HOME="$CONFIG" QT_QPA_PLATFORM=xcb \
-	"$GUI" --software --selftest-drag 2>&1 | grep -vE "^Arranque|^Serviços|^Registo"; then
-	echo "    passou"
+	"$GUI" --software --selftest-drag 2>&1 | grep -vE "^Startup|^Services|^Log"; then
+	echo "    passed"
 else
-	echo "    FALHOU" >&2
+	echo "    FAILED" >&2
 	exit 1
 fi
