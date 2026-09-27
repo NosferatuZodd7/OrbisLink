@@ -9,6 +9,8 @@ TabButton {
     id: control
     implicitHeight: 36
 
+    HoverHandler { cursorShape: Qt.PointingHandCursor }
+
     contentItem: Text {
         text: control.text
         color: control.checked ? Theme.text : Theme.textSecondary

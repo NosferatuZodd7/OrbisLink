@@ -114,6 +114,12 @@ void AppController::rebuildBackends()
 	if(httpServer_)
 		httpServer_->stop();
 
+	if(settings_.consoleAddress != listedConsole_)
+	{
+		ftpModel_.clear();
+		listedConsole_ = settings_.consoleAddress;
+	}
+
 	qInfo("Services: console manager");
 	// The services talk to the console in use, on its FTP port.
 	Settings effective = settings_;

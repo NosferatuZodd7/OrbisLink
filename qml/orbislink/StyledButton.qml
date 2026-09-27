@@ -60,12 +60,34 @@ Button {
         return Theme.text
     }
 
+    // The hand over anything that can be clicked.
+    HoverHandler {
+        cursorShape: button.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+    }
+
+    readonly property color hoverTone: danger ? Theme.error : Theme.accent
+
     background: Rectangle {
         radius: Theme.radiusControl
         color: button.backgroundColor
         border.width: button.primary || button.solid ? 0 : 1
-        border.color: button.danger ? Theme.alpha(Theme.error, 0.28) : Theme.glassEdge
+        // On hover the edge takes the button's colour: a clear "this one".
+        border.color: button.hovered && button.enabled ? Theme.alpha(button.hoverTone, 0.6)
+                    : button.danger ? Theme.alpha(Theme.error, 0.28) : Theme.glassEdge
         Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
+        Behavior on border.color { ColorAnimation { duration: Theme.fast } }
+
+        // A soft halo around it while the mouse is over it.
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: -3
+            radius: parent.radius + 3
+            color: "transparent"
+            border.width: 3
+            border.color: Theme.alpha(button.hoverTone, button.primary || button.solid ? 0.28 : 0.16)
+            opacity: button.hovered && button.enabled ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: Theme.fast } }
+        }
 
         // A faint light from above, only on the primary one.
         Rectangle {

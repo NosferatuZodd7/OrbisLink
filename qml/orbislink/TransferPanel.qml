@@ -56,10 +56,15 @@ Item {
             ScrollBar.vertical: ScrollBar { }
 
             delegate: Rectangle {
+                id: taskCard
                 width: list.width
                 radius: 16
-                color: Theme.panelAltFill
-                border.color: model.active ? Theme.alpha(Theme.accent, 0.6) : Theme.border
+                color: taskHover.hovered ? Qt.lighter(Theme.panelAltFill, Theme.light ? 1.0 : 1.15)
+                                         : Theme.panelAltFill
+                border.color: model.active ? Theme.alpha(Theme.accent, 0.6)
+                            : taskHover.hovered ? Theme.alpha(Theme.accent, 0.35) : Theme.border
+                Behavior on color { ColorAnimation { duration: Theme.fast } }
+                HoverHandler { id: taskHover }
                 border.width: 1
                 implicitHeight: content.implicitHeight + 24
 

@@ -150,11 +150,6 @@ Dialog {
                         app.openLocalFolder(path)
                 }
             }
-            StyledButton {
-                text: qsTr("Close")
-                implicitHeight: 30
-                onClicked: dialog.close()
-            }
         }
     }
 

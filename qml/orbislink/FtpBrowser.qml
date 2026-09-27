@@ -74,9 +74,9 @@ Item {
                 font.pixelSize: 12
                 selectByMouse: true
                 background: Rectangle {
-                    color: Theme.panelAltFill
-                    border.color: Theme.border
-                    radius: 6
+                    color: Theme.controlFill
+                    border.color: pathField.activeFocus ? Theme.accent : Theme.border
+                    radius: 10
                 }
                 onAccepted: app.ftpNavigate(text)
             }
@@ -184,6 +184,17 @@ Item {
                     readonly property bool replaced: root.beingUploaded(model.name)
                     visible: !replaced
                     height: replaced ? 0 : 32
+
+                    // The row under the mouse lights up; folders open with a
+                    // double click, so they get the hand.
+                    background: Rectangle {
+                        radius: 8
+                        color: row.hovered ? Theme.controlHover : "transparent"
+                        Behavior on color { ColorAnimation { duration: Theme.fast } }
+                    }
+                    HoverHandler {
+                        cursorShape: model.isDirectory ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    }
 
                     // Filled in as soon as the file is in the local cache:
                     // that is what allows dragging it out of the window.
@@ -361,9 +372,9 @@ Item {
                 color: Theme.text
                 font.pixelSize: 12
                 background: Rectangle {
-                    color: Theme.panelAltFill
-                    border.color: Theme.border
-                    radius: 6
+                    color: Theme.controlFill
+                    border.color: newFolderName.activeFocus ? Theme.accent : Theme.border
+                    radius: 10
                 }
             }
             StyledButton {

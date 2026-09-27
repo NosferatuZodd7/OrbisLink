@@ -417,6 +417,7 @@ Item {
                 StyledButton {
                     visible: root.built
                     text: keyboardMap.editing ? qsTr("Done") : qsTr("Change keys")
+                    primary: keyboardMap.editing
                     minimumWidth: 130
                     onClicked: keyboardMap.editing = !keyboardMap.editing
                 }
@@ -432,12 +433,6 @@ Item {
                     }
                 }
                 Item { Layout.fillWidth: true }
-                StyledButton {
-                    text: qsTr("Close")
-                    minimumWidth: 110
-                    primary: true
-                    onClicked: keysDialog.close()
-                }
             }
         }
 

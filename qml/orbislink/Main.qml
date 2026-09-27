@@ -13,6 +13,16 @@ ApplicationWindow {
     title: qsTr("OrbisLink — %1").arg(app.consoleName)
 
     property bool panelVisible: true
+    // What the console in use offers besides Remote Play. When it has neither
+    // FTP nor the installer (a PS5 with no jailbreak), the side panel has
+    // nothing to show and stays closed — unless there are still items in the
+    // queue to follow.
+    readonly property bool ftpAbsent: app.ftpState === "unavailable" || app.ftpState === "not-applicable"
+    readonly property bool installerAbsent: app.installerState === "unavailable"
+                                            || app.installerState === "not-applicable"
+    readonly property bool panelAllowed: !(ftpAbsent && installerAbsent) || app.queue.count > 0
+    readonly property string panelLockReason: qsTr("This console only offers Remote Play: it has "
+        + "neither FTP nor the remote installer running (a jailbreak adds them).")
     // Full screen for the stream: hides the top bar and the side panel,
     // and the window takes up the whole screen.
     property bool streamFullscreen: false
@@ -27,7 +37,12 @@ ApplicationWindow {
     // F9 shows and hides the side panel.
     Shortcut {
         sequence: "F9"
-        onActivated: window.panelVisible = !window.panelVisible
+        onActivated: {
+            if (window.panelAllowed)
+                window.panelVisible = !window.panelVisible
+            else
+                toast.show(window.panelLockReason, false)
+        }
     }
     Shortcut {
         sequence: "Ctrl+,"
@@ -154,10 +169,16 @@ ApplicationWindow {
                 }
                 StyledToolButton {
                     iconName: "panel"
-                    active: window.panelVisible
+                    active: window.panelVisible && window.panelAllowed
+                    opacity: window.panelAllowed ? 1.0 : 0.4
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Side panel (F9)")
-                    onClicked: window.panelVisible = !window.panelVisible
+                    ToolTip.text: window.panelAllowed ? qsTr("Side panel (F9)") : window.panelLockReason
+                    onClicked: {
+                        if (window.panelAllowed)
+                            window.panelVisible = !window.panelVisible
+                        else
+                            toast.show(window.panelLockReason, false)
+                    }
                 }
                 StyledToolButton {
                     iconName: "log"
@@ -189,7 +210,7 @@ ApplicationWindow {
             Item {
                 Layout.fillHeight: true
                 Layout.preferredWidth: 380
-                visible: window.panelVisible && !window.streamFullscreen
+                visible: window.panelVisible && window.panelAllowed && !window.streamFullscreen
 
                 Rectangle {
                     anchors.fill: parent
@@ -219,8 +240,10 @@ ApplicationWindow {
                         spacing: 12
 
                         // Queue and files as a segmented control.
+                        // Without FTP on the console there is only the queue: no tabs.
                         TabBar {
                             id: tabs
+                            visible: !window.ftpAbsent
                             Layout.fillWidth: true
                             currentIndex: demoTab
                             padding: 4
@@ -242,7 +265,7 @@ ApplicationWindow {
                         StackLayout {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            currentIndex: tabs.currentIndex
+                            currentIndex: window.ftpAbsent ? 0 : tabs.currentIndex
 
                             TransferPanel { }
                             FtpBrowser { }
