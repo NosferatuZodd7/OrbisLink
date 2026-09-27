@@ -75,6 +75,12 @@ void PcmQueue::clear()
 	pushed_ = 0;
 }
 
+void PcmQueue::discard()
+{
+	QMutexLocker lock(&mutex_);
+	buffer_.clear();
+}
+
 void PcmQueue::push(const char *data, qint64 size)
 {
 	{
@@ -435,7 +441,7 @@ void AudioOutput::setMuted(bool muted)
 		muted_ = muted;
 	}
 	if(muted)
-		queue_.clear();
+		queue_.discard();
 }
 
 void AudioOutput::stop()
@@ -450,8 +456,11 @@ void AudioOutput::stop()
 		pushTarget_ = nullptr;
 		pushMode_ = false;
 		// The session's numbers stay for the diagnostics; only mark that
-		// it ended, so it does not look like the sound never arrived.
-		ended_ = configured_;
+		// it ended, so it does not look like the sound never arrived. It
+		// can be called again after the session is gone: that must not
+		// undo the mark.
+		if(configured_)
+			ended_ = true;
 		configured_ = false;
 	}
 	if(dead)
@@ -461,7 +470,7 @@ void AudioOutput::stop()
 		state_ = QStringLiteral("stopped");
 		sinkState_ = QStringLiteral("no-sink");
 	}
-	queue_.clear();
+	queue_.discard();
 	if(queue_.isOpen())
 		queue_.close();
 }

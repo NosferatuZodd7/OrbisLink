@@ -1474,7 +1474,7 @@ void AppController::installUpdate()
 			const HttpResponse reply = client.fetch(shaUrl.toStdString(), options);
 			if(reply.transportOk && reply.status >= 200 && reply.status < 300)
 			{
-				// Formato do sha256sum: "<hash>  <nome>".
+				// sha256sum format: "<hash>  <name>".
 				const std::string body = trim(reply.body);
 				const size_t space = body.find_first_of(" \t");
 				const std::string firstWord =

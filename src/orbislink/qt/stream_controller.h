@@ -224,6 +224,10 @@ private:
 	bool streaming_ = false;
 	int frameWidth_ = 0;
 	int frameHeight_ = 0;
+	// The size of the last session's picture, kept for the diagnostics.
+	int lastFrameWidth_ = 0;
+	int lastFrameHeight_ = 0;
+	bool lastHardwareDecoder_ = false;
 	class QTimer *fpsTimer_ = nullptr;
 	// One-click connection.
 	void setConnectStage(const QString &stage);

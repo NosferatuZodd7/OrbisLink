@@ -37,6 +37,8 @@ public:
 	void push(const char *data, qint64 size);
 	void setLimit(qint64 bytes);
 	void clear();
+	// Drops what is waiting but keeps the byte counts, for the diagnostics.
+	void discard();
 	// How many bytes the sound card has already fetched. Zero with the
 	// session running means nobody is pulling — and that is a different
 	// problem from "no sound arrived".
