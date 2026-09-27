@@ -217,8 +217,15 @@ public:
 	// Adds a console to the list and, with `select`, switches to it. If the
 	// address is already there, it is just selected.
 	// `type` is "ps4", "ps5" or empty (unknown).
+	// `startMode` is "remoteplay" or "ftp" (see ConsoleEntry::startMode).
 	Q_INVOKABLE void addConsole(const QString &name, const QString &address,
-		const QString &type = QString(), bool select = true);
+		const QString &type = QString(), bool select = true,
+		const QString &startMode = QString());
+	// Chooses what a click on the console's card starts: "remoteplay" or "ftp".
+	Q_INVOKABLE void setConsoleStartMode(const QString &address, const QString &startMode);
+	// Opens the file browser on the console in use: the panel shows the
+	// files, in the upload folder, freshly listed.
+	Q_INVOKABLE void openFiles();
 	// Remembers the type of a console that answered, to show it even when
 	// it is off. Only saves if it changed.
 	Q_INVOKABLE void rememberConsoleType(const QString &address, bool ps5,

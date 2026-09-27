@@ -101,6 +101,11 @@ Dialog {
         addressInput.text = values.consoleAddress
         consoleNameField.text = values.consoleName
         accountWizardField.text = values.streamAccountId
+        startWizardBox.currentIndex = 0
+        var items = app.consoles
+        for (var i = 0; i < items.length; ++i)
+            if (items[i].active && items[i].startMode === "ftp")
+                startWizardBox.currentIndex = 1
         probeState = "idle"
         open()
         scheduleCheck()
@@ -127,6 +132,9 @@ Dialog {
                                                      : accountWizardField.text.trim(),
             "firstRunDone": true
         })
+        // The console is in the list now: its preferred start goes with it.
+        app.setConsoleStartMode(addressInput.text.trim(),
+                                startWizardBox.currentIndex === 1 ? "ftp" : "remoteplay")
     }
 
     // A nearly opaque modal: with the panels' transparency, what is behind
@@ -254,6 +262,13 @@ Dialog {
                     id: consoleNameField
                     Layout.fillWidth: true
                     placeholderText: qsTr("Living room PS4")
+                }
+                // What a click on the console's card starts.
+                Text { text: qsTr("Start with"); color: Theme.textMuted; font.pixelSize: 12 }
+                StyledCombo {
+                    id: startWizardBox
+                    Layout.fillWidth: true
+                    model: [qsTr("Remote Play (with FTP and the installer)"), qsTr("FTP only")]
                 }
             }
             RowLayout {

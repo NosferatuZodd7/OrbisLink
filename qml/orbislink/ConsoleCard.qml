@@ -2,13 +2,18 @@
 //
 // A saved console, in a card you click.
 //
-// One click connects: the app asks the console how it is, wakes it if it is
-// in rest mode, waits for it to be ready and connects — or opens registration,
-// if this PC is not registered on it yet. While that is going on, another
-// click cancels. What is happening is written on the button at the bottom.
+// Two ways in, one button each at the bottom:
 //
-// On another console (not the one in use), the click makes it the console in
-// use and connects in the same go; the ✕ in its corner removes it from the list.
+// * Remote Play: the app asks the console how it is, wakes it if it is in
+//   rest mode, waits for it to be ready and connects — or opens registration,
+//   if this PC is not registered on it yet. While that is going on, the
+//   button cancels. FTP and the installer work alongside.
+// * FTP: only the file browser, as an alternative to FileZilla.
+//
+// A click anywhere else on the card starts the console's preferred one
+// (chosen when adding or editing it). On another console (not the one in
+// use), either makes it the console in use first; the ✕ in its corner
+// removes it from the list.
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -31,12 +36,16 @@ Item {
     property string address: ""
     // False for the other consoles in the list.
     property bool current: true
+    // What a click on the card starts: "remoteplay" or "ftp".
+    property string startMode: "remoteplay"
+    readonly property bool prefersFtp: startMode === "ftp"
 
     signal connect()
     signal cancel()
     signal edit()
     signal choose()
     signal remove()
+    signal openFtp()
 
     // The ✕ asks for a second click before removing.
     property bool confirmRemoval: false
@@ -48,6 +57,7 @@ Item {
 
     // What the click does now.
     readonly property string actionName: {
+        if (prefersFtp) return "ftp"
         if (!available) return ""
         if (!current) return "choose"
         if (connecting || stage.length > 0) return "cancel"
@@ -82,28 +92,32 @@ Item {
                                       : mood === "remove" ? "close"
                                       : "info"
 
+    // The state in a few words; what to do is on the buttons below.
     readonly property string statusText: {
         if (!available) return qsTr("Remote Play is not in this build")
         if (confirmRemoval) return qsTr("Click ✕ again to remove")
-        if (!current) {
-            if (status === "ready") return qsTr("Ready — click to connect")
-            if (status === "standby") return qsTr("In rest mode — click to wake and connect")
-            if (status === "offline") return qsTr("Not responding — click to try to connect")
-            return qsTr("Checking — click to connect")
-        }
-        if (connecting) return qsTr("Connecting… — click to cancel")
-        if (stage === "waking") return qsTr("Waking the console… — click to cancel")
-        if (stage === "checking") return qsTr("Checking the console… — click to cancel")
-        if (searching) return qsTr("Searching for the console…")
-        if (status === "offline") return qsTr("Not responding — click to try to connect")
-        if (status === "unknown") return qsTr("Click to connect")
-        if (!registered) return qsTr("Not registered — click to register")
-        if (status === "standby") return qsTr("In rest mode — click to wake and connect")
-        return qsTr("Ready — click to connect")
+        if (current && connecting) return qsTr("Connecting…")
+        if (current && stage === "waking") return qsTr("Waking the console…")
+        if (current && stage === "checking") return qsTr("Checking the console…")
+        if (current && searching) return qsTr("Searching for the console…")
+        if (status === "offline") return qsTr("Not responding")
+        if (status === "unknown") return qsTr("Checking…")
+        if (current && !registered) return qsTr("Not registered for Remote Play")
+        if (status === "standby") return qsTr("In rest mode")
+        return qsTr("Ready")
     }
 
-    implicitWidth: 264
-    implicitHeight: 296
+    function runAction(name) {
+        switch (name) {
+        case "connect": card.connect(); break
+        case "cancel": card.cancel(); break
+        case "choose": card.choose(); break
+        case "ftp": card.openFtp(); break
+        }
+    }
+
+    implicitWidth: 300
+    implicitHeight: 312
 
     readonly property bool hover: area.containsMouse && actionName.length > 0
 
@@ -171,13 +185,7 @@ Item {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: card.actionName.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
-        onClicked: {
-            switch (card.actionName) {
-            case "connect": card.connect(); break
-            case "cancel": card.cancel(); break
-            case "choose": card.choose(); break
-            }
-        }
+        onClicked: card.runAction(card.actionName)
     }
 
     // ── Top: the state dot and the badge on the left; on the right the
@@ -310,48 +318,71 @@ Item {
         }
     }
 
-    // ── Bottom: the button with the state and what the click does.
-    Rectangle {
-        id: button
+    // ── Bottom: the state in one line, and the two ways in.
+    Row {
+        id: stateLine
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.margins: 16
-        height: 48
-        radius: 14
-        readonly property bool lit: card.current && card.available
-        color: {
-            var c = card.statusColor
-            var strength = lit ? (Theme.light ? 0.16 : 0.32) : (Theme.light ? 0.09 : 0.16)
-            return Theme.alpha(c, strength * (card.hover ? 1.3 : 1.0))
-        }
-        border.width: 1
-        border.color: Theme.alpha(card.statusColor, lit ? 0.45 : 0.22)
-        Behavior on color { ColorAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
-
+        anchors.bottom: buttons.top
+        anchors.leftMargin: 20
+        anchors.rightMargin: 16
+        anchors.bottomMargin: 12
+        spacing: 8
         Icon {
             id: stateGlyph
-            x: 14
             anchors.verticalCenter: parent.verticalCenter
             name: card.stateIcon
-            size: 18
+            size: 15
             spinning: card.mood === "busy"
             color: Theme.light ? card.statusColor : Qt.lighter(card.statusColor, 1.25)
         }
         Text {
-            anchors.left: stateGlyph.right
-            anchors.leftMargin: 10
-            anchors.right: parent.right
-            anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
-            wrapMode: Text.WordWrap
-            maximumLineCount: 2
+            width: parent.width - stateGlyph.width - parent.spacing
             elide: Text.ElideRight
-            lineHeight: 0.95
             text: card.statusText
             color: Theme.light ? Qt.darker(card.statusColor, 1.2) : Qt.lighter(card.statusColor, 1.35)
-            font.pixelSize: 13
+            font.pixelSize: 12
             font.weight: Font.DemiBold
+        }
+    }
+
+    Row {
+        id: buttons
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: 16
+        spacing: 8
+        readonly property real half: (width - spacing) / 2
+
+        // Remote Play: connects (or wakes, or registers); on the console
+        // being connected, cancels.
+        StyledButton {
+            width: buttons.half
+            leftPadding: 10
+            rightPadding: 10
+            readonly property bool cancelling: card.current && card.busy
+            text: cancelling ? qsTr("Cancel") : qsTr("Remote Play")
+            iconName: cancelling ? "loader" : "play"
+            primary: !card.prefersFtp
+            enabled: card.available
+            ToolTip.visible: hovered && !card.available
+            ToolTip.text: qsTr("Remote Play is not in this build")
+            onClicked: card.runAction(!card.current ? "choose"
+                                      : cancelling ? "cancel" : "connect")
+        }
+        // FTP: only the file browser.
+        StyledButton {
+            width: buttons.half
+            leftPadding: 10
+            rightPadding: 10
+            text: qsTr("FTP")
+            iconName: "folder"
+            primary: card.prefersFtp
+            ToolTip.visible: hovered
+            ToolTip.text: qsTr("Browse the console's files over FTP, without Remote Play")
+            onClicked: card.runAction("ftp")
         }
     }
 }

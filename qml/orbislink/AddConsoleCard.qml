@@ -9,8 +9,8 @@ Item {
 
     signal add()
 
-    implicitWidth: 220
-    implicitHeight: 296
+    implicitWidth: 180
+    implicitHeight: 312
 
     // The same motion as the console cards: lifts with the mouse over it,
     // sinks when pressed.
