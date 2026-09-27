@@ -31,7 +31,10 @@
         <file alias="ControllerSketch.qml">ControllerSketch.qml</file>
         <file alias="StyledMenuItem.qml">StyledMenuItem.qml</file>
         <file alias="Theme.qml">Theme.qml</file>
-        <file alias="GlassSurface.qml">GlassSurface.qml</file>
+        <file alias="Icon.qml">Icon.qml</file>
+        <file alias="DialogHeader.qml">DialogHeader.qml</file>
+        <file alias="HudButton.qml">HudButton.qml</file>
+        <file alias="Icons.js">Icons.js</file>
         <file alias="GlassBackground.qml">GlassBackground.qml</file>
         <file alias="qmldir">qmldir</file>
     </qresource>

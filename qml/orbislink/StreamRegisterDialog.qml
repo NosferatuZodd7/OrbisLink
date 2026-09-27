@@ -28,7 +28,7 @@ Dialog {
     background: Rectangle {
         color: Theme.dialogFill
         border.color: Theme.border
-        radius: Theme.radius
+        radius: Theme.radiusDialog
     }
 
     onOpened: {
@@ -37,25 +37,14 @@ Dialog {
         pinField.forceActiveFocus()
     }
 
-    header: Rectangle {
-        implicitHeight: Theme.dialogHeader
-        color: "transparent"
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.left: parent.left
-            anchors.leftMargin: Theme.dialogMargin
-            text: qsTr("Register this PC on the console")
-            color: Theme.text
-            font.pixelSize: 15
-            font.bold: true
-        }
-        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.border }
+    header: DialogHeader {
+        title: qsTr("Register this PC on the console")
+        dialog: dialog
     }
 
     footer: Rectangle {
         implicitHeight: Theme.dialogFooter
         color: "transparent"
-        Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.border }
         RowLayout {
             anchors.fill: parent
             anchors.margins: Theme.dialogInner

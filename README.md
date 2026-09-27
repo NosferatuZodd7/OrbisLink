@@ -325,9 +325,11 @@ is why this repository exists.
 The copyright notices of chiaki-ng and the other libraries stay where they
 are — they belong to other people and the licence requires keeping them.
 
-The PS4/PS5 wordmarks on the console box are set in
-[Fugaz One](https://fonts.google.com/specimen/Fugaz+One), by LatinoType,
-under the SIL Open Font License 1.1 (see [`third-party/fugaz-one`](third-party/fugaz-one)).
+The interface is set in [Inter](https://rsms.me/inter/), by Rasmus Andersson,
+under the SIL Open Font License 1.1 (see [`third-party/inter`](third-party/inter)), and
+its icons come from [Lucide](https://lucide.dev/), under the ISC licence (see
+[`third-party/lucide`](third-party/lucide); `scripts/generate-icons.py` turns them into
+`qml/orbislink/Icons.js`).
 
 Sources consulted to implement the protocols:
 [chiaki-ng](https://github.com/streetpea/chiaki-ng),

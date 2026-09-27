@@ -28,9 +28,9 @@ Item {
         id: videoStage
         anchors.fill: parent
         anchors.leftMargin: root.free ? 0 : Theme.gutter
-        anchors.topMargin: root.free ? 0 : 6
-        anchors.bottomMargin: root.free ? 0 : Theme.gutter
-        anchors.rightMargin: root.free ? 0 : 6
+        anchors.topMargin: root.free ? 0 : 4
+        anchors.bottomMargin: root.free ? 0 : 4
+        anchors.rightMargin: root.free ? 0 : 8
         radius: root.free ? 0 : Theme.radius
         // Black whenever there is (or will be) a picture; idle, it follows the theme.
         color: root.streaming ? "#000000" : Theme.stageIdle
@@ -86,70 +86,37 @@ Item {
         }
     }
 
-    // ───────────────────────────── background, when there is no picture
-    Image {
+    // ───────────────────────────── the consoles, when there is no picture
+    //
+    // The saved consoles side by side from the top left, and the card to add
+    // one more; they wrap onto more rows when the window is narrow. The one
+    // in use is the usual one; the others show their state and a click
+    // switches to them. Below, only the explanation the state calls for (the
+    // registration PIN, the reason for a failure, the game running).
+    Flickable {
+        id: cardScroll
         anchors.fill: videoStage
-        anchors.margins: 1
-        source: Theme.stageBackdrop
-        fillMode: Image.PreserveAspectFit
-        opacity: root.streaming ? 0.0 : Theme.stageBackdropOpacity
-        visible: opacity > 0
-        asynchronous: true
-        Behavior on opacity { NumberAnimation { duration: 200 } }
-    }
-
-    Canvas {
-        id: grid
-        anchors.fill: videoStage
-        anchors.margins: 1
+        anchors.margins: 24
+        anchors.bottomMargin: helpRow.visible ? helpRow.height + 40 : 24
         visible: !root.streaming
-        opacity: 0.25
-        // The Canvas does not repaint by itself when the colour changes.
-        readonly property color tone: Theme.stageGrid
-        onToneChanged: requestPaint()
-        onPaint: {
-            var ctx = getContext("2d")
-            ctx.reset()
-            ctx.strokeStyle = tone
-            ctx.lineWidth = 1
-            for (var x = 0; x < width; x += 40) {
-                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke()
-            }
-            for (var y = 0; y < height; y += 40) {
-                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke()
-            }
-        }
-    }
+        clip: true
+        contentWidth: width
+        contentHeight: consoleRow.height + 12
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-    // The console on a card in the centre: one click connects, wakes,
-    // registers or searches, depending on the state. Below, only the
-    // explanation the state calls for (the registration PIN, the reason for a failure, the game running).
-    Column {
-        anchors.centerIn: videoStage
-        spacing: 18
-        visible: !root.streaming
-
-        // The saved consoles side by side, and the card to add one more.
-        // The one in use is the usual one; the others show their state and
-        // a click switches to them.
-        Row {
+        Flow {
             id: consoleRow
-            anchors.horizontalCenter: parent.horizontalCenter
+            y: 6
+            width: cardScroll.width
             spacing: 18
-            readonly property var items: app.consoles
-            // A little below the drawing's size, so they do not dominate the
-            // stage; and they shrink together, without changing proportions,
-            // when they do not fit.
-            readonly property real scaleFactor: Math.max(0.42, Math.min(0.72,
-                (videoStage.width - 60 - spacing * items.length) / (360 * items.length + 250)))
 
             Repeater {
-                model: consoleRow.items
+                model: app.consoles
 
                 ConsoleCard {
                     readonly property var other: root.built && !modelData.active
                                                  ? stream.consoleStates[modelData.address] : undefined
-                    scaleFactor: consoleRow.scaleFactor
                     current: modelData.active
                     available: root.built
                     address: modelData.address
@@ -189,20 +156,34 @@ Item {
             }
 
             AddConsoleCard {
-                width: 250 * consoleRow.scaleFactor
-                height: 330 * consoleRow.scaleFactor
                 onAdd: addConsoleDialog.open()
             }
         }
+    }
 
+    Row {
+        id: helpRow
+        anchors.left: videoStage.left
+        anchors.bottom: videoStage.bottom
+        anchors.leftMargin: 26
+        anchors.bottomMargin: 22
+        spacing: 12
+        visible: !root.streaming && helpText.text.length > 0
+
+        Icon {
+            anchors.verticalCenter: parent.verticalCenter
+            name: "info"
+            size: 20
+            color: Theme.onIdleStageMuted
+        }
         Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: Math.min(videoStage.width - 80, 440)
-            horizontalAlignment: Text.AlignHCenter
+            id: helpText
+            anchors.verticalCenter: parent.verticalCenter
+            width: Math.min(implicitWidth, videoStage.width - 100)
             wrapMode: Text.WordWrap
-            visible: text.length > 0
             color: Theme.onIdleStageMuted
             font.pixelSize: 12
+            lineHeight: 1.15
             text: {
                 if (!root.built)
                     return qsTr("This package was built without chiaki-ng. Everything else — "
@@ -227,75 +208,108 @@ Item {
 
     // ───────────────────────────── bar during the stream
     //
-    // Floats over the picture, in a glass capsule, and fades in
-    // instead of jumping onto the screen.
+    // Floats over the top of the picture, in glass, and fades in when the
+    // mouse moves instead of jumping onto the screen.
     Rectangle {
         id: streamToolbar
         anchors.top: videoStage.top
-        anchors.horizontalCenter: videoStage.horizontalCenter
-        anchors.topMargin: 16
+        anchors.left: videoStage.left
+        anchors.right: videoStage.right
+        anchors.margins: 14
         readonly property bool shown: root.streaming
                                         && (streamBar.containsMouse || streamHover.hovered)
         visible: opacity > 0.01
         opacity: shown ? 1.0 : 0.0
-        scale: shown ? 1.0 : 0.96
         Behavior on opacity { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
-        Behavior on scale {
-            NumberAnimation { duration: Theme.normal; easing.type: Theme.easeSpring; easing.overshoot: 1.05 }
-        }
-        color: Qt.rgba(0.04, 0.04, 0.06, 0.72)
-        radius: height / 2
+        color: Theme.hudFill
+        radius: 16
         border.width: 1
-        border.color: Qt.rgba(1, 1, 1, 0.14)
-        implicitWidth: streamRow.implicitWidth + 32
-        implicitHeight: 44
+        border.color: Theme.hudEdge
+        implicitHeight: 52
 
-        Rectangle {
-            anchors.fill: parent
-            radius: parent.radius
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.10) }
-                GradientStop { position: 1.0; color: "transparent" }
+        // What is really arriving: the picture size and the counted fps.
+        // Not what was asked in the settings — the console may send less
+        // without saying.
+        Text {
+            id: frameInfo
+            anchors.left: parent.left
+            anchors.leftMargin: 18
+            anchors.verticalCenter: parent.verticalCenter
+            text: {
+                if (!root.built || stream.frameWidth <= 0)
+                    return ""
+                var message = qsTr("%1×%2").arg(stream.frameWidth).arg(stream.frameHeight)
+                if (stream.measuredFps > 0)
+                    message += qsTr(" · %1 fps").arg(stream.measuredFps)
+                return message
             }
+            color: Theme.onStage
+            font.pixelSize: 14
+            font.weight: Font.Medium
+            HoverHandler { id: frameHover }
+            ToolTip.visible: frameHover.hovered && text.length > 0
+            ToolTip.text: root.built && stream.hardwareDecoder
+                          ? qsTr("graphics card") : qsTr("processor")
         }
 
         RowLayout {
             id: streamRow
-            anchors.centerIn: parent
-            spacing: 12
-            // What is really arriving: the picture size and the counted fps.
-            // Not what was asked in the settings — the console may send less
-            // without saying.
-            Text {
-                text: {
-                    if (!root.built || stream.frameWidth <= 0)
-                        return ""
-                    var message = qsTr("%1×%2").arg(stream.frameWidth).arg(stream.frameHeight)
-                    if (stream.measuredFps > 0)
-                        message += qsTr(" · %1 fps").arg(stream.measuredFps)
-                    return message
-                }
-                color: Theme.onStageMuted
-                font.pixelSize: 11
+            anchors.right: parent.right
+            anchors.rightMargin: 10
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 6
+
+            // The controller in use; green when one is connected.
+            HudButton {
+                iconName: "gamepad"
+                tone: root.built && stream.gamepadName.length > 0 ? Theme.ok : Theme.onStageMuted
+                tip: root.built && stream.gamepadName.length > 0
+                     ? qsTr("Controller connected: %1. The keyboard works too:").arg(stream.gamepadName)
+                     : qsTr("No controller connected — plug one in over USB and it is "
+                            + "picked up on its own. Meanwhile, the keyboard:")
+                onClicked: keysDialog.open()
             }
-            Text {
-                visible: root.built && stream.gamepadName.length > 0
-                text: root.built ? stream.gamepadName : ""
-                color: Theme.ok
-                font.pixelSize: 11
-                elide: Text.ElideRight
-                Layout.maximumWidth: 160
-            }
-            StyledButton {
+
+            // Sound: a pill with its state, and a click mutes it.
+            Rectangle {
+                id: soundPill
                 readonly property string audioStatus: root.built ? stream.audioState : "stopped"
-                text: !root.built ? qsTr("Sound")
-                     : audioStatus === "error" || audioStatus === "no-device" ? qsTr("No sound")
-                     : stream.muted ? qsTr("Sound: off")
-                     : qsTr("Sound: on")
-                danger: audioStatus === "error" || audioStatus === "no-device"
-                implicitHeight: 30
-                font.pixelSize: 11
-                ToolTip.visible: hovered
+                readonly property bool broken: audioStatus === "error" || audioStatus === "no-device"
+                implicitHeight: 36
+                implicitWidth: soundRow.implicitWidth + 24
+                radius: 10
+                color: soundArea.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.06)
+                border.width: 1
+                border.color: Theme.hudEdge
+                Row {
+                    id: soundRow
+                    anchors.centerIn: parent
+                    spacing: 8
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 8; height: 8; radius: 4
+                        color: soundPill.broken ? Theme.error
+                             : root.built && stream.muted ? Theme.onStageMuted : Theme.ok
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: !root.built ? qsTr("Sound")
+                             : soundPill.broken ? qsTr("No sound")
+                             : stream.muted ? qsTr("Sound: off")
+                             : qsTr("Sound: on")
+                        color: Theme.onStage
+                        font.pixelSize: 12
+                        font.weight: Font.Medium
+                    }
+                }
+                MouseArea {
+                    id: soundArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: stream.muted = !stream.muted
+                }
+                ToolTip.visible: soundArea.containsMouse
                 ToolTip.text: audioStatus === "no-device"
                         ? qsTr("This PC has no active sound output.")
                     : audioStatus === "error"
@@ -303,27 +317,15 @@ Item {
                     : audioStatus === "playing"
                         ? qsTr("Coming out of %1").arg(stream.audioDevice)
                         : qsTr("No sound has arrived from the console yet.")
-                onClicked: stream.muted = !stream.muted
             }
-            Text {
-                text: root.built && stream.hardwareDecoder
-                      ? qsTr("graphics card") : qsTr("processor")
-                color: Theme.onStageMuted
-                font.pixelSize: 10
-            }
+
             // The microphone must be visible. While it is capturing, the button
             // stays lit — nobody can be heard without noticing.
-            StyledButton {
-                readonly property string micStatus: root.built ? stream.microphoneState
-                                                               : "off"
-                text: micStatus === "talking" ? qsTr("🎤 Talking")
-                     : micStatus === "muted" ? qsTr("🎤 Muted")
-                     : qsTr("Microphone")
-                implicitHeight: 30
-                font.pixelSize: 11
-                danger: micStatus === "talking"
-                ToolTip.visible: hovered
-                ToolTip.text: micStatus === "off"
+            HudButton {
+                readonly property string micStatus: root.built ? stream.microphoneState : "off"
+                iconName: micStatus === "muted" ? "mic-off" : "mic"
+                lit: micStatus === "talking"
+                tip: micStatus === "off"
                     ? qsTr("Send your microphone to the console")
                     : qsTr("Capturing from %1. Click to mute, or right-click to turn it off.").arg(stream.microphoneDevice)
                 onClicked: {
@@ -333,29 +335,24 @@ Item {
                         stream.setMicrophoneMuted(micStatus === "talking")
                 }
                 // Right click turns it off entirely, instead of just muting.
-                MouseArea {
-                    anchors.fill: parent
-                    acceptedButtons: Qt.RightButton
-                    onClicked: stream.setMicrophoneEnabled(false)
-                }
+                onRightClicked: stream.setMicrophoneEnabled(false)
             }
-            StyledButton {
-                text: window.streamFullscreen ? qsTr("Leave full screen")
-                                              : qsTr("Full screen")
-                implicitHeight: 30
-                font.pixelSize: 11
-                onClicked: window.setStreamFullscreen(!window.streamFullscreen)
-            }
-            StyledButton {
-                text: qsTr("Keys")
-                implicitHeight: 30
-                font.pixelSize: 11
+            HudButton {
+                iconName: "keyboard"
+                tip: qsTr("Keys")
                 onClicked: keysDialog.open()
             }
+            HudButton {
+                iconName: window.streamFullscreen ? "minimize" : "maximize"
+                tip: window.streamFullscreen ? qsTr("Leave full screen") : qsTr("Full screen")
+                onClicked: window.setStreamFullscreen(!window.streamFullscreen)
+            }
+            Item { implicitWidth: 4 }
             StyledButton {
                 text: qsTr("End the session")
-                implicitHeight: 30
-                font.pixelSize: 11
+                danger: true
+                solid: true
+                implicitHeight: 36
                 onClicked: stream.stopStream()
             }
         }
@@ -388,33 +385,17 @@ Item {
         background: Rectangle {
             color: Theme.dialogFill
             border.color: Theme.border
-            radius: Theme.radius
+            radius: Theme.radiusDialog
         }
 
-        header: Rectangle {
-            implicitHeight: Theme.dialogHeader
-            color: "transparent"
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.left: parent.left
-                anchors.leftMargin: Theme.dialogMargin
-                text: qsTr("The keyboard as a controller")
-                color: Theme.text
-                font.pixelSize: 15
-                font.bold: true
-            }
-            Rectangle {
-                anchors.bottom: parent.bottom
-                width: parent.width
-                height: 1
-                color: Theme.border
-            }
+        header: DialogHeader {
+            title: qsTr("The keyboard as a controller")
+            dialog: keysDialog
         }
 
         footer: Rectangle {
             implicitHeight: Theme.dialogFooter
             color: "transparent"
-            Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.border }
             RowLayout {
                 anchors.fill: parent
                 anchors.margins: Theme.dialogInner
@@ -615,33 +596,17 @@ Item {
         background: Rectangle {
             color: Theme.dialogFill
             border.color: Theme.border
-            radius: Theme.radius
+            radius: Theme.radiusDialog
         }
 
-        header: Rectangle {
-            implicitHeight: Theme.dialogHeader
-            color: "transparent"
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.left: parent.left
-                anchors.leftMargin: Theme.dialogMargin
-                text: qsTr("Console PIN")
-                color: Theme.text
-                font.pixelSize: 15
-                font.bold: true
-            }
-            Rectangle {
-                anchors.bottom: parent.bottom
-                width: parent.width
-                height: 1
-                color: Theme.border
-            }
+        header: DialogHeader {
+            title: qsTr("Console PIN")
+            dialog: loginPinDialog
         }
 
         footer: Rectangle {
             implicitHeight: Theme.dialogFooter
             color: "transparent"
-            Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.border }
             RowLayout {
                 anchors.fill: parent
                 anchors.margins: Theme.dialogInner

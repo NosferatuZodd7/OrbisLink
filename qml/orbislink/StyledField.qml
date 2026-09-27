@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Glass text field. No harsh outline: on gaining focus, a soft blue halo
-// lights up and the frame brightens.
+// Text field: a quiet fill with a thin border; on focus the border turns to
+// the accent with a soft glow around it.
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -9,47 +9,33 @@ TextField {
     id: field
     color: Theme.text
     font.pixelSize: 13
-    font.letterSpacing: -0.2
     selectByMouse: true
-    placeholderTextColor: Theme.textSecondary
-    implicitHeight: 42
-    leftPadding: 16
-    rightPadding: 16
-    selectionColor: Theme.accentFill
+    placeholderTextColor: Theme.alpha(Theme.textSecondary, 0.75)
+    implicitHeight: Theme.fieldHeight
+    leftPadding: 14
+    rightPadding: 14
+    selectionColor: Theme.alpha(Theme.accent, 0.35)
     selectedTextColor: Theme.text
 
     background: Item {
-        // The focus halo, underneath.
+        // The focus glow, underneath.
         Rectangle {
             anchors.fill: parent
-            anchors.margins: -4
-            radius: Theme.radiusControl + 4
+            anchors.margins: -3
+            radius: Theme.radiusField + 3
             visible: field.activeFocus
             color: "transparent"
-            border.width: 4
-            border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.22)
+            border.width: 3
+            border.color: Theme.alpha(Theme.accent, 0.20)
         }
 
         Rectangle {
             anchors.fill: parent
-            radius: Theme.radiusControl
-            color: Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b,
-                           field.activeFocus ? Theme.panelOpacity + 0.12 : Theme.panelOpacity)
+            radius: Theme.radiusField
+            color: Theme.light ? "#FFFFFF" : Theme.controlFill
             border.width: 1
-            border.color: field.activeFocus
-                ? Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.7)
-                : Theme.glassEdge
-            Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
+            border.color: field.activeFocus ? Theme.accent : Theme.glassEdge
             Behavior on border.color { ColorAnimation { duration: Theme.fast } }
-
-            Rectangle {
-                anchors.fill: parent
-                radius: parent.radius
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.glassHighlight) }
-                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.05) }
-                }
-            }
         }
     }
 }

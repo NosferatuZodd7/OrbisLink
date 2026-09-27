@@ -10,14 +10,14 @@ Item {
         anchors.fill: parent
         spacing: 0
 
-        // Paused queue notice (§6.3)
+        // Paused queue notice.
         Rectangle {
             Layout.fillWidth: true
-            Layout.margins: 10
+            Layout.bottomMargin: 8
             visible: app.queuePaused
-            radius: 8
-            color: "#3a2a12"
-            border.color: Theme.warn
+            radius: Theme.radiusSmall
+            color: Theme.alpha(Theme.warn, 0.12)
+            border.color: Theme.alpha(Theme.warn, 0.4)
             implicitHeight: pauseRow.implicitHeight + 18
 
             RowLayout {
@@ -26,10 +26,10 @@ Item {
                 anchors.margins: 9
                 spacing: 8
 
-                Text {
-                    text: "⏸"
+                Icon {
+                    name: "pause"
+                    size: 16
                     color: Theme.warn
-                    font.pixelSize: 16
                 }
                 Text {
                     Layout.fillWidth: true
@@ -49,35 +49,35 @@ Item {
             id: list
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.margins: 10
             clip: true
-            spacing: 8
+            spacing: 10
             model: app.queue
 
             ScrollBar.vertical: ScrollBar { }
 
             delegate: Rectangle {
                 width: list.width
-                radius: Theme.radius
+                radius: 16
                 color: Theme.panelAltFill
-                border.color: model.active ? Theme.accent : Theme.border
-                border.width: model.active ? 1 : 1
-                implicitHeight: content.implicitHeight + 20
+                border.color: model.active ? Theme.alpha(Theme.accent, 0.6) : Theme.border
+                border.width: 1
+                implicitHeight: content.implicitHeight + 24
 
                 ColumnLayout {
                     id: content
                     anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 7
+                    anchors.margins: 12
+                    spacing: 8
 
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 10
 
                         Rectangle {
-                            width: 44; height: 44; radius: 6
-                            color: Theme.panelFill
+                            width: 44; height: 44; radius: 10
+                            color: Theme.controlFill
                             border.color: Theme.border
+                            clip: true
                             Image {
                                 anchors.fill: parent
                                 anchors.margins: 1
@@ -85,12 +85,12 @@ Item {
                                 fillMode: Image.PreserveAspectCrop
                                 visible: source != ""
                             }
-                            Text {
+                            Icon {
                                 anchors.centerIn: parent
                                 visible: !model.iconSource
-                                text: "▣"
-                                color: Theme.border
-                                font.pixelSize: 20
+                                name: "package"
+                                size: 22
+                                color: Theme.textSecondary
                             }
                         }
 
@@ -102,7 +102,7 @@ Item {
                                 text: model.title
                                 color: Theme.text
                                 font.pixelSize: 14
-                                font.bold: true
+                                font.weight: Font.DemiBold
                                 elide: Text.ElideRight
                             }
                             Text {
@@ -117,30 +117,31 @@ Item {
                         }
 
                         Rectangle {
-                            radius: 10
-                            color: "transparent"
-                            border.color: Theme.taskColor(model.state)
-                            implicitWidth: stateText.implicitWidth + 16
-                            implicitHeight: 20
+                            radius: 11
+                            color: Theme.alpha(Theme.taskColor(model.state), 0.12)
+                            border.color: Theme.alpha(Theme.taskColor(model.state), 0.35)
+                            implicitWidth: stateText.implicitWidth + 18
+                            implicitHeight: 22
                             Text {
                                 id: stateText
                                 anchors.centerIn: parent
                                 text: model.stateLabel
                                 color: Theme.taskColor(model.state)
                                 font.pixelSize: 11
+                                font.weight: Font.Medium
                             }
                         }
                     }
 
                     Rectangle {
                         Layout.fillWidth: true
-                        height: 6
-                        radius: 3
-                        color: Theme.panelFill
+                        height: 8
+                        radius: 4
+                        color: Theme.controlFill
                         Rectangle {
                             width: parent.width * Math.max(0, Math.min(1, model.percent / 100))
                             height: parent.height
-                            radius: 3
+                            radius: 4
                             color: Theme.taskColor(model.state)
                             Behavior on width { NumberAnimation { duration: 180 } }
                         }
@@ -170,26 +171,30 @@ Item {
                         Item { Layout.fillWidth: true }
 
                         StyledToolButton {
-                            text: "▲"
-                            implicitWidth: 26; implicitHeight: 22
+                            iconName: "arrow-up"
+                            iconSize: 14
+                            implicitWidth: 28; implicitHeight: 28
                             onClicked: app.moveTaskUp(model.taskId)
                             visible: model.state === "pending"
                         }
                         StyledToolButton {
-                            text: "▼"
-                            implicitWidth: 26; implicitHeight: 22
+                            iconName: "arrow-down"
+                            iconSize: 14
+                            implicitWidth: 28; implicitHeight: 28
                             onClicked: app.moveTaskDown(model.taskId)
                             visible: model.state === "pending"
                         }
                         StyledToolButton {
-                            text: "↻"
-                            implicitWidth: 26; implicitHeight: 22
+                            iconName: "rotate-ccw"
+                            iconSize: 14
+                            implicitWidth: 28; implicitHeight: 28
                             onClicked: app.retryTask(model.taskId)
                             visible: model.state === "error" || model.state === "cancelled"
                         }
                         StyledToolButton {
-                            text: "✕"
-                            implicitWidth: 26; implicitHeight: 22
+                            iconName: "close"
+                            iconSize: 14
+                            implicitWidth: 28; implicitHeight: 28
                             onClicked: model.state === "pending" || model.active
                                        ? app.cancelTask(model.taskId)
                                        : app.removeTask(model.taskId)
@@ -207,7 +212,7 @@ Item {
                 }
             }
 
-            // Estado vazio
+            // Empty
             Item {
                 anchors.centerIn: parent
                 width: parent.width - 40
@@ -217,58 +222,66 @@ Item {
                 ColumnLayout {
                     id: emptyColumn
                     width: parent.width
-                    spacing: 8
-                    Text {
+                    spacing: 10
+                    Icon {
                         Layout.alignment: Qt.AlignHCenter
-                        text: "⤓"
-                        color: Theme.border
-                        font.pixelSize: 40
+                        Layout.bottomMargin: 8
+                        name: "download"
+                        size: 36
+                        strokeWidth: 1.5
+                        color: Theme.textSecondary
                     }
                     Text {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
                         text: qsTr("The queue is empty")
-                        color: Theme.textMuted
-                        font.pixelSize: 13
+                        color: Theme.text
+                        font.pixelSize: 15
+                        font.weight: Font.DemiBold
                     }
                     Text {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                         text: qsTr("Drag .pkg files onto the window.")
-                        color: Theme.border
-                        font.pixelSize: 11
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
                     }
                 }
             }
         }
 
-        // Footer with the summary (§5.7)
+        // Footer with the summary.
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: 34
-            color: Theme.panelFill
-            border.color: Theme.border
-            border.width: 0
+            Layout.preferredHeight: 1
+            color: Theme.border
+        }
+        Item {
+            Layout.fillWidth: true
+            implicitHeight: 48
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 12
-                anchors.rightMargin: 8
-                spacing: 12
+                anchors.leftMargin: 4
+                anchors.rightMargin: 0
+                anchors.topMargin: 8
+                spacing: 14
 
                 Text {
                     text: qsTr("Speed: %1").arg(app.queue.totalSpeedText)
-                    color: Theme.textMuted
-                    font.pixelSize: 11
+                    color: Theme.textSecondary
+                    font.pixelSize: 12
                 }
                 Text {
                     text: qsTr("Left: %1").arg(app.queue.remainingText)
-                    color: Theme.textMuted
-                    font.pixelSize: 11
+                    color: Theme.textSecondary
+                    font.pixelSize: 12
                 }
                 Item { Layout.fillWidth: true }
-                StyledToolButton {
+                StyledButton {
+                    chip: true
+                    iconName: app.queuePaused ? "play" : "pause"
                     text: app.queuePaused ? qsTr("Resume") : qsTr("Pause")
                     onClicked: app.queuePaused ? app.resumeQueue() : app.pauseQueue()
                     enabled: app.queue.count > 0

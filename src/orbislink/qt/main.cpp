@@ -17,6 +17,8 @@
 #include "orbislink/qt/startup.h"
 #include "orbislink/qt/window_chrome.h"
 
+#include <QFont>
+#include <QFontDatabase>
 #include <QGuiApplication>
 #include <QLibraryInfo>
 #include <QLocale>
@@ -76,6 +78,16 @@ int main(int argc, char **argv)
 	// from the .rc resource; this is the one the running application shows.
 	app.setWindowIcon(QIcon(QStringLiteral(":/icons/mark.png")));
 	QQuickStyle::setStyle(QStringLiteral("Basic"));
+	// Inter is shipped with the app, so the interface looks the same on every
+	// system instead of taking whatever font each one has.
+	for(const char *weight : {"Regular", "Medium", "SemiBold", "Bold"})
+		QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/Inter-%1.ttf").arg(QLatin1String(weight)));
+	{
+		QFont uiFont(QStringLiteral("Inter"));
+		uiFont.setPixelSize(13);
+		uiFont.setHintingPreference(QFont::PreferNoHinting);
+		app.setFont(uiFont);
+	}
 	qInfo("OrbisLink %s starting.", ORBISLINK_VERSION_STRING);
 	// Files from different versions in the same folder are a likely cause of
 	// crashes: it happens when installing over the top with the application

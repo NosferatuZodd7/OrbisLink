@@ -45,7 +45,7 @@ Dialog {
     background: Rectangle {
         color: Theme.dialogFill
         border.color: Theme.border
-        radius: Theme.radius
+        radius: Theme.radiusDialog
     }
 
     onOpened: {
@@ -55,25 +55,14 @@ Dialog {
             stream.scanNetwork()
     }
 
-    header: Rectangle {
-        implicitHeight: Theme.dialogHeader
-        color: "transparent"
-        Text {
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.left: parent.left
-            anchors.leftMargin: Theme.dialogMargin
-            text: qsTr("Add console")
-            color: Theme.text
-            font.pixelSize: 15
-            font.bold: true
-        }
-        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.border }
+    header: DialogHeader {
+        title: qsTr("Add console")
+        dialog: dialog
     }
 
     footer: Rectangle {
         implicitHeight: Theme.dialogFooter
         color: "transparent"
-        Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.border }
         RowLayout {
             anchors.fill: parent
             anchors.margins: Theme.dialogInner

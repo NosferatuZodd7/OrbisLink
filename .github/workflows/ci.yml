@@ -276,8 +276,8 @@ jobs:
           # from the Qt installation itself. The path where windeployqt puts
           # them changes between versions, so both are accepted.
           foreach ($module in @('QtMultimedia')) {
-            $jaLa = (Test-Path "dist/gui/$module") -or (Test-Path "dist/gui/qml/$module")
-            if ($jaLa) {
+            $present = (Test-Path "dist/gui/$module") -or (Test-Path "dist/gui/qml/$module")
+            if ($present) {
               Write-Host "QML module ${module}: already there."
               continue
             }

@@ -130,12 +130,14 @@ ColumnLayout {
         Text {
             Layout.fillWidth: true
             text: qsTr("Consoles")
-            color: Theme.accent
-            font.bold: true
-            font.pixelSize: 12
+            color: Theme.text
+            font.pixelSize: Theme.fontTitle
+            font.weight: Font.DemiBold
         }
         StyledButton {
             text: qsTr("Add console…")
+            primary: true
+            iconName: "plus"
             minimumWidth: 130
             onClicked: addDialog.open()
         }
@@ -162,8 +164,8 @@ ColumnLayout {
                 : modelData.type === "ps4" ? "PS4" : "?"
 
             Layout.fillWidth: true
-            implicitHeight: content.implicitHeight + 20
-            radius: Theme.radiusSmall
+            implicitHeight: content.implicitHeight + 28
+            radius: 16
             color: Theme.panelAltFill
             border.color: modelData.active ? Theme.accent : Theme.border
             border.width: 1
@@ -183,10 +185,10 @@ ColumnLayout {
                     visible: !row.isEditing
 
                     Rectangle {
-                        implicitWidth: 40
-                        implicitHeight: 26
-                        radius: 6
-                        color: "transparent"
+                        implicitWidth: 46
+                        implicitHeight: 34
+                        radius: 10
+                        color: Theme.controlFill
                         border.color: Theme.border
                         Text {
                             anchors.centerIn: parent
@@ -205,24 +207,35 @@ ColumnLayout {
                             Text {
                                 text: row.modelData.name
                                 color: Theme.text
-                                font.bold: true
-                                font.pixelSize: 13
+                                font.weight: Font.DemiBold
+                                font.pixelSize: 14
                                 elide: Text.ElideRight
-                                Layout.maximumWidth: 200
+                                Layout.maximumWidth: 220
                             }
-                            Text {
+                            Rectangle {
                                 visible: row.modelData.active
-                                text: qsTr("in use")
-                                color: Theme.accent
-                                font.pixelSize: 11
+                                implicitHeight: 20
+                                implicitWidth: inUseText.implicitWidth + 18
+                                radius: 10
+                                color: Theme.alpha(Theme.ok, 0.14)
+                                border.width: 1
+                                border.color: Theme.alpha(Theme.ok, 0.3)
+                                Text {
+                                    id: inUseText
+                                    anchors.centerIn: parent
+                                    text: qsTr("in use")
+                                    color: Theme.ok
+                                    font.pixelSize: 11
+                                    font.weight: Font.Medium
+                                }
                             }
                         }
                         Text {
                             text: row.modelData.accountLabel.length > 0
                                   ? qsTr("Account ID: %1").arg(row.modelData.accountLabel)
                                   : qsTr("No Account ID chosen")
-                            color: Theme.textMuted
-                            font.pixelSize: 11
+                            color: Theme.textSecondary
+                            font.pixelSize: 12
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
@@ -232,8 +245,8 @@ ColumnLayout {
                                 : manager.hostIdOf(row.modelData).length > 0
                                     ? qsTr("not registered")
                                     : qsTr("registration unknown until it answers"))
-                            color: row.registration ? Theme.ok : Theme.textMuted
-                            font.pixelSize: 11
+                            color: row.registration ? Theme.ok : Theme.textSecondary
+                            font.pixelSize: 12
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }

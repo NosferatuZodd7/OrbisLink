@@ -11,6 +11,7 @@ Item {
     id: zone
     property string title: ""
     property string subtitle: ""
+    // Name of the icon (Icons.js).
     property string glyph: ""
     property bool enabledZone: true
     property bool highlighted: false
@@ -20,11 +21,11 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        radius: 16
-        color: zone.active ? Theme.accentSoft : Theme.panel
-        opacity: zone.enabledZone ? 1.0 : 0.45
-        border.width: 2
-        border.color: zone.active ? Theme.accent : Theme.border
+        radius: 18
+        color: zone.active ? Theme.alpha(Theme.accent, 0.18) : Qt.rgba(1, 1, 1, 0.05)
+        opacity: zone.enabledZone ? 1.0 : 0.5
+        border.width: zone.active ? 2 : 1
+        border.color: zone.active ? Theme.accent : Qt.rgba(1, 1, 1, 0.14)
         scale: zone.active ? 1.02 : 1.0
 
         Behavior on color { ColorAnimation { duration: 110 } }
@@ -33,30 +34,33 @@ Item {
 
         ColumnLayout {
             anchors.centerIn: parent
-            width: parent.width - 48
+            width: parent.width - 40
             spacing: 10
 
-            Text {
+            Icon {
                 Layout.alignment: Qt.AlignHCenter
-                text: zone.glyph
-                font.pixelSize: 46
-                color: zone.enabledZone ? Theme.accent : Theme.textMuted
+                Layout.bottomMargin: 6
+                name: zone.glyph
+                size: 40
+                strokeWidth: 1.5
+                color: !zone.enabledZone ? Theme.onStageMuted
+                     : zone.active ? Theme.accentHover : Theme.onStage
             }
             Text {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
                 text: zone.title
                 color: Theme.onStage
-                font.pixelSize: 18
-                font.bold: true
+                font.pixelSize: 17
+                font.weight: Font.DemiBold
             }
             Text {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
                 text: zone.enabledZone ? zone.subtitle : zone.disabledReason
-                color: zone.enabledZone ? Theme.textMuted : Theme.error
-                font.pixelSize: 12
+                color: zone.enabledZone ? Theme.onStageMuted : Theme.error
+                font.pixelSize: 13
             }
         }
     }
