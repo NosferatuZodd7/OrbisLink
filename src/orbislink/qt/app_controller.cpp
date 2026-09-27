@@ -114,9 +114,9 @@ void AppController::rebuildBackends()
 
 	qInfo("Services: console manager");
 	// The services talk to the console in use, on its FTP port.
-	Settings efetivas = settings_;
-	efetivas.ftpPort = activeFtpPort();
-	console_ = std::make_unique<ConsoleManager>(efetivas);
+	Settings effective = settings_;
+	effective.ftpPort = activeFtpPort();
+	console_ = std::make_unique<ConsoleManager>(effective);
 	// The new manager is born knowing nothing about Remote Play; give it
 	// what was already known, otherwise the indicator goes blank mid-session.
 	if(!lastRemotePlayState_.isEmpty())
@@ -189,7 +189,7 @@ void AppController::rebuildBackends()
 	deps.ftp = ftp_.get();
 	deps.console = console_.get();
 	qInfo("Services: install queue");
-	queue_ = std::make_unique<InstallQueue>(deps, efetivas);
+	queue_ = std::make_unique<InstallQueue>(deps, effective);
 	queue_->load(SettingsStore::defaultQueuePath());
 	queue_->setListener([this](const QueueTask &task) {
 		const bool terminal = task.isTerminal();
