@@ -1,4 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// A service in the top bar: a pill with a dot in the state's colour and the
+// service's name. The dot pulses while it is being checked.
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -8,42 +11,18 @@ Item {
     property string state_: "unknown"
     property string hint: ""
 
-    implicitWidth: row.implicitWidth + 26
-    implicitHeight: 34
+    implicitWidth: row.implicitWidth + 28
+    implicitHeight: 32
 
-    scale: hoverHandler.hovered ? 1.03 : 1.0
-    Behavior on scale {
-        NumberAnimation { duration: Theme.fast; easing.type: Theme.easeSpring; easing.overshoot: 1.1 }
-    }
-
-    // Glass capsule, with a halo in the state colour when there is a problem.
-    Rectangle {
-        anchors.fill: parent
-        anchors.margins: -4
-        radius: (parent.height + 8) / 2
-        visible: root.state_ === "unavailable"
-        color: "transparent"
-        border.width: 4
-        border.color: Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.16)
-    }
+    readonly property color tone: Theme.stateColor(root.state_)
 
     Rectangle {
         anchors.fill: parent
         radius: height / 2
-        color: Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b,
-                       hoverHandler.hovered ? Theme.panelOpacity + 0.15 : Theme.panelOpacity)
-        border.color: Theme.glassEdge
+        color: hoverHandler.hovered ? Theme.controlHover : Theme.controlFill
+        border.color: root.state_ === "unavailable" ? Theme.alpha(Theme.error, 0.35) : Theme.glassEdge
         border.width: 1
         Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
-
-        Rectangle {
-            anchors.fill: parent
-            radius: parent.radius
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.glassHighlight) }
-                GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.05) }
-            }
-        }
     }
 
     Row {
@@ -54,14 +33,14 @@ Item {
         Rectangle {
             width: 8; height: 8; radius: 4
             anchors.verticalCenter: parent.verticalCenter
-            color: Theme.stateColor(root.state_)
-            // A lit dot has a halo; that is what tells it apart from a pixel.
+            color: root.tone
+            // A lit dot has a soft ring; that is what tells it apart from a pixel.
             Rectangle {
                 anchors.centerIn: parent
-                width: 16; height: 16; radius: 8
+                width: 14; height: 14; radius: 7
                 color: "transparent"
-                border.width: 4
-                border.color: Qt.rgba(parent.color.r, parent.color.g, parent.color.b, 0.22)
+                border.width: 3
+                border.color: Theme.alpha(root.tone, 0.22)
             }
 
             SequentialAnimation on opacity {
@@ -78,7 +57,6 @@ Item {
             color: Theme.text
             font.pixelSize: 12
             font.weight: Font.Medium
-            font.letterSpacing: -0.2
         }
     }
 

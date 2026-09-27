@@ -1,24 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Tab with a glass capsule indicator that slides from one to the other
-// instead of jumping. No underline: separation comes from depth,
-// not lines.
+// One segment of a segmented control: the TabBar draws the track, and the
+// selected segment is a raised surface inside it.
 import QtQuick
 import QtQuick.Controls.Basic
 
 TabButton {
     id: control
-    implicitHeight: 40
-
-    scale: down ? 0.99 : 1.0
-    Behavior on scale { NumberAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
+    implicitHeight: 36
 
     contentItem: Text {
         text: control.text
         color: control.checked ? Theme.text : Theme.textSecondary
         font.pixelSize: 13
         font.weight: control.checked ? Font.DemiBold : Font.Medium
-        font.letterSpacing: -0.2
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
@@ -26,25 +21,12 @@ TabButton {
     }
 
     background: Rectangle {
-        radius: height / 2
-        color: control.checked
-            ? Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b,
-                      Theme.panelOpacity + 0.2)
-            : (control.hovered
-                ? Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b, 0.25)
-                : "transparent")
+        radius: 9
+        color: control.checked ? (Theme.light ? "#FFFFFF" : Theme.alpha(Theme.panelAlt, 1.0))
+             : control.hovered ? Theme.alpha(Theme.controlHover, 0.6)
+             : "transparent"
         border.width: control.checked ? 1 : 0
         border.color: Theme.glassEdge
         Behavior on color { ColorAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
-
-        Rectangle {
-            anchors.fill: parent
-            radius: parent.radius
-            visible: control.checked
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.glassHighlight) }
-                GradientStop { position: 1.0; color: "transparent" }
-            }
-        }
     }
 }

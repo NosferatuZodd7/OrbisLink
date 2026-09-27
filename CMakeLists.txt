@@ -158,6 +158,7 @@ if(ORBISLINK_BUILD_GUI)
 			$<$<BOOL:${ORBISLINK_ENABLE_STREAM}>:${CMAKE_CURRENT_SOURCE_DIR}/src/orbislink/qt/video_bridge.cpp>
 			qml/orbislink/orbislink.qrc
 			src/icons/icons.qrc
+			third-party/inter/fonts.qrc
 			translations/translations.qrc
 			$<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/icons/orbislink.rc>
 		)

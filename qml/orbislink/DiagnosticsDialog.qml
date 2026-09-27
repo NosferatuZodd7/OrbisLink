@@ -30,7 +30,7 @@ Dialog {
     background: Rectangle {
         color: Theme.dialogFill
         border.color: Theme.border
-        radius: Theme.radius
+        radius: Theme.radiusDialog
     }
 
     function levelColor(level) {
@@ -89,28 +89,34 @@ Dialog {
             Text {
                 text: qsTr("Log and diagnostics")
                 color: Theme.text
-                font.pixelSize: 15
-                font.bold: true
+                font.pixelSize: 18
+                font.weight: Font.DemiBold
             }
             Item { Layout.fillWidth: true }
             StyledCheck {
+                Layout.fillWidth: false
                 text: qsTr("Remote Play detail")
                 checked: app.streamVerbose()
                 onCheckedChanged: app.setStreamVerbose(checked)
             }
             StyledCheck {
+                Layout.fillWidth: false
                 text: qsTr("Follow the tail")
                 checked: dialog.followTail
                 onCheckedChanged: dialog.followTail = checked
             }
+            StyledToolButton {
+                iconName: "close"
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Close")
+                onClicked: dialog.close()
+            }
         }
-        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.border }
     }
 
     footer: Rectangle {
         implicitHeight: Theme.dialogFooter
         color: "transparent"
-        Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.border }
         RowLayout {
             anchors.fill: parent
             anchors.margins: Theme.dialogInner
@@ -184,14 +190,16 @@ Dialog {
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
             Layout.bottomMargin: Theme.dialogInner
-            color: "#0b0d12"
+            // An editor's surface: darker than the dialog on the dark themes,
+            // near-white on the light one.
+            color: Theme.light ? "#F7F9FC" : "#0A0F17"
             border.color: Theme.border
-            radius: 6
+            radius: 14
 
             ListView {
                 id: items
                 anchors.fill: parent
-                anchors.margins: 6
+                anchors.margins: 12
                 clip: true
                 model: lines
                 spacing: 1

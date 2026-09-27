@@ -93,6 +93,9 @@ cp "$WORK/orbislink/orbislink-cli.exe" "$STAGE/"
 cp "$REPO/src/icons/orbisDDM.ico" "$STAGE/orbislink.ico"
 # Text files in CRLF, so they open properly in Notepad.
 sed 's/$/\r/' "$REPO/LICENSE" > "$STAGE/LICENSE.txt"
+# The font and the icons built into the interface carry their own licences.
+sed 's/$/\r/' "$REPO/third-party/inter/LICENSE.txt" > "$STAGE/LICENSE-Inter.txt"
+sed 's/$/\r/' "$REPO/third-party/lucide/LICENSE" > "$STAGE/LICENSE-Lucide.txt"
 # The project address comes from outside (ORBISLINK_REPO_URL); in CI it is the
 # repository the build ran in. When it is missing, the source code line
 # disappears instead of being left half written.

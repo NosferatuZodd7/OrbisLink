@@ -29,6 +29,8 @@ mkdir -p "$STAGE"
 cp "$BUILD/orbislink-cli" "$STAGE/"
 strip "$STAGE/orbislink-cli" 2>/dev/null || true
 cp "$REPO/LICENSE" "$STAGE/"
+cp "$REPO/third-party/inter/LICENSE.txt" "$STAGE/LICENSE-Inter.txt"
+cp "$REPO/third-party/lucide/LICENSE" "$STAGE/LICENSE-Lucide.txt"
 cp "$REPO/README.md" "$STAGE/"
 mkdir -p "$STAGE/mock-console"
 cp "$REPO"/tools/mock-console/*.py "$STAGE/mock-console/"

@@ -24,7 +24,7 @@ ApplicationWindow {
         window.visibility = isActive ? Window.FullScreen : Window.Windowed
     }
 
-    // F9 abre/fecha o painel lateral (§5.7).
+    // F9 shows and hides the side panel.
     Shortcut {
         sequence: "F9"
         onActivated: window.panelVisible = !window.panelVisible
@@ -53,22 +53,22 @@ ApplicationWindow {
         anchors.fill: parent
         spacing: 0
 
-        // ───────────────────────────── barra superior
+        // ───────────────────────────── top bar
         Item {
             Layout.fillWidth: true
             // In full screen only the picture matters.
             visible: !window.streamFullscreen
-            implicitHeight: visible ? 76 : 0
+            implicitHeight: visible ? 84 : 0
 
-            // Floating bar: it does not touch the window edges and has no
-            // line underneath — separation comes from depth.
+            // A floating bar: it does not touch the window edges.
             Rectangle {
+                id: topBar
                 anchors.fill: parent
                 anchors.leftMargin: Theme.gutter
                 anchors.rightMargin: Theme.gutter
                 anchors.topMargin: 14
-                anchors.bottomMargin: 6
-                radius: Theme.radiusControl + 4
+                anchors.bottomMargin: 8
+                radius: 18
                 color: Theme.panelFill
                 border.width: 1
                 border.color: Theme.glassEdge
@@ -76,43 +76,53 @@ ApplicationWindow {
                 Rectangle {
                     anchors.fill: parent
                     radius: parent.radius
+                    visible: Theme.glassHighlight > 0
                     gradient: Gradient {
-                        GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.glassHighlight) }
-                        GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.05) }
+                        GradientStop { position: 0.0; color: Theme.glassSheen }
+                        GradientStop { position: 1.0; color: "transparent" }
                     }
                 }
             }
 
             RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Theme.gutter + 20
-                anchors.rightMargin: Theme.gutter + 12
-                anchors.topMargin: 14
-                anchors.bottomMargin: 6
-                spacing: 14
+                anchors.fill: topBar
+                anchors.leftMargin: 14
+                anchors.rightMargin: 12
+                spacing: 10
 
-                Image {
-                    source: "qrc:/icons/mark.png"
-                    sourceSize.width: 28
-                    sourceSize.height: 28
+                // The app's symbol as the console's avatar.
+                Rectangle {
                     Layout.alignment: Qt.AlignVCenter
+                    implicitWidth: 38
+                    implicitHeight: 38
+                    radius: 19
+                    color: Theme.accentFill
+                    border.width: 1
+                    border.color: Theme.alpha(Theme.accent, 0.35)
+                    Image {
+                        anchors.centerIn: parent
+                        source: "qrc:/icons/mark.png"
+                        sourceSize.width: 48
+                        sourceSize.height: 48
+                        width: 24
+                        height: 24
+                    }
                 }
 
                 ColumnLayout {
-                    spacing: 0
+                    spacing: 1
+                    Layout.leftMargin: 2
                     Text {
                         text: app.consoleName
                         color: Theme.text
-                        font.pixelSize: 16
+                        font.pixelSize: 15
                         font.weight: Font.DemiBold
-                        font.letterSpacing: -0.4
                     }
                     Text {
                         text: app.consoleAddress.length > 0 ? app.consoleAddress
                                                             : qsTr("no address set")
                         color: Theme.textSecondary
-                        font.pixelSize: 11
-                        font.letterSpacing: -0.1
+                        font.pixelSize: 12
                     }
                 }
 
@@ -134,27 +144,30 @@ ApplicationWindow {
                     hint: app.installerHint
                 }
 
+                Item { implicitWidth: 6 }
+
                 StyledToolButton {
-                    text: "⟳"
+                    iconName: "refresh"
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Check the services now")
                     onClicked: app.checkServicesNow()
                 }
                 StyledToolButton {
-                    text: "☰"
+                    iconName: "panel"
+                    active: window.panelVisible
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Side panel (F9)")
                     onClicked: window.panelVisible = !window.panelVisible
                 }
                 StyledToolButton {
-                    text: "📋"
+                    iconName: "log"
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Log and diagnostics (Ctrl+L)")
                     onClicked: diagnosticsDialog.open()
                 }
                 ThemeSwitcher {}
                 StyledToolButton {
-                    text: "⚙"
+                    iconName: "settings"
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Settings (Ctrl+,)")
                     onClicked: { settingsDialog.loadValues(); settingsDialog.open() }
@@ -162,7 +175,7 @@ ApplicationWindow {
             }
         }
 
-        // ───────────────────────────── corpo
+        // ───────────────────────────── body
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -175,15 +188,15 @@ ApplicationWindow {
 
             Item {
                 Layout.fillHeight: true
-                Layout.preferredWidth: 440
+                Layout.preferredWidth: 380
                 visible: window.panelVisible && !window.streamFullscreen
 
                 Rectangle {
                     anchors.fill: parent
                     anchors.rightMargin: Theme.gutter
-                    anchors.topMargin: 6
-                    anchors.bottomMargin: Theme.gutter
-                    anchors.leftMargin: 6
+                    anchors.topMargin: 4
+                    anchors.bottomMargin: 4
+                    anchors.leftMargin: 8
                     radius: Theme.radius
                     color: Theme.panelFill
                     border.width: 1
@@ -193,74 +206,86 @@ ApplicationWindow {
                     Rectangle {
                         anchors.fill: parent
                         radius: parent.radius
+                        visible: Theme.glassHighlight > 0
                         gradient: Gradient {
-                            GradientStop {
-                                position: 0.0
-                                color: Qt.rgba(1, 1, 1, Theme.glassHighlight)
-                            }
+                            GradientStop { position: 0.0; color: Theme.glassSheen }
                             GradientStop { position: 0.4; color: "transparent" }
                         }
                     }
 
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 14
-                    spacing: 10
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        spacing: 12
 
-                    TabBar {
-                        id: tabs
-                        Layout.fillWidth: true
-                        currentIndex: demoTab
-                        background: Rectangle { color: "transparent" }
+                        // Queue and files as a segmented control.
+                        TabBar {
+                            id: tabs
+                            Layout.fillWidth: true
+                            currentIndex: demoTab
+                            padding: 4
+                            spacing: 4
+                            background: Rectangle {
+                                radius: 12
+                                color: Theme.controlFill
+                                border.width: 1
+                                border.color: Theme.glassEdge
+                            }
 
-                        StyledTab {
-                            text: app.queue.count > 0 ? qsTr("Queue (%1)").arg(app.queue.count)
-                                                      : qsTr("Queue")
+                            StyledTab {
+                                text: app.queue.count > 0 ? qsTr("Queue (%1)").arg(app.queue.count)
+                                                          : qsTr("Queue")
+                            }
+                            StyledTab { text: qsTr("Files (FTP)") }
                         }
-                        StyledTab { text: qsTr("Files (FTP)") }
-                    }
 
-                    StackLayout {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        currentIndex: tabs.currentIndex
+                        StackLayout {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            currentIndex: tabs.currentIndex
 
-                        TransferPanel { }
-                        FtpBrowser { }
+                            TransferPanel { }
+                            FtpBrowser { }
+                        }
                     }
-                }
                 }
             }
         }
 
-        // ───────────────────────────── barra de estado
+        // ───────────────────────────── status line
         Item {
             Layout.fillWidth: true
             visible: !window.streamFullscreen
-            implicitHeight: visible ? 34 : 0
+            implicitHeight: visible ? 40 : 0
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: Theme.gutter + 20
-                anchors.rightMargin: Theme.gutter + 20
-                spacing: 14
+                anchors.leftMargin: Theme.gutter + 6
+                anchors.rightMargin: Theme.gutter + 6
+                spacing: 16
 
+                Icon {
+                    visible: app.statusMessage.length > 0
+                    name: "check-circle"
+                    size: 14
+                    color: Theme.ok
+                }
                 Text {
                     Layout.fillWidth: true
                     text: app.statusMessage
                     color: Theme.textSecondary
-                    font.pixelSize: 11
+                    font.pixelSize: 12
                     elide: Text.ElideRight
                 }
                 Text {
                     text: qsTr("Local HTTP: %1").arg(app.httpServerAddress)
                     color: Theme.textSecondary
-                    font.pixelSize: 11
+                    font.pixelSize: 12
                 }
                 Text {
                     text: "v" + app.version
-                    color: Qt.rgba(Theme.textMuted.r, Theme.textMuted.g, Theme.textMuted.b, 0.3)
-                    font.pixelSize: 11
+                    color: Theme.alpha(Theme.textSecondary, 0.7)
+                    font.pixelSize: 12
                 }
             }
         }

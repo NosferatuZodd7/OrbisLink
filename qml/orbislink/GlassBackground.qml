@@ -25,13 +25,13 @@ Item {
     Canvas {
         id: halos
         anchors.fill: parent
-        opacity: Theme.light ? 0.55 : 0.75
         renderStrategy: Canvas.Cooperative
 
         // Repaints when the theme changes; it needs nothing else, it is static.
         readonly property color toneA: Theme.accent
-        readonly property color toneB: Theme.ok
+        readonly property string themeName: Theme.name
         onToneAChanged: requestPaint()
+        onThemeNameChanged: requestPaint()
         onWidthChanged: requestPaint()
         onHeightChanged: requestPaint()
 
@@ -48,9 +48,21 @@ Item {
             var ctx = getContext("2d")
             ctx.reset()
             var r = Math.max(width, height)
-            halo(ctx, width * 0.18, height * 0.12, r * 0.55, toneA, Theme.light ? 0.10 : 0.16)
-            halo(ctx, width * 0.88, height * 0.78, r * 0.50, toneB, Theme.light ? 0.06 : 0.09)
-            halo(ctx, width * 0.62, height * 0.05, r * 0.35, toneA, Theme.light ? 0.05 : 0.07)
+            if (Theme.glass) {
+                // The "wallpaper" the glass is laid over: big blurred shapes of
+                // light, blue and a little violet and cyan.
+                halo(ctx, width * 0.15, height * 0.15, r * 0.60, toneA, 0.55)
+                halo(ctx, width * 0.85, height * 0.25, r * 0.45, Qt.rgba(0.47, 0.36, 1, 1), 0.30)
+                halo(ctx, width * 0.55, height * 0.95, r * 0.55, Qt.rgba(0.13, 0.75, 0.95, 1), 0.28)
+                halo(ctx, width * 0.95, height * 0.90, r * 0.35, toneA, 0.35)
+            } else if (Theme.light) {
+                halo(ctx, width * 0.15, height * 0.05, r * 0.55, toneA, 0.07)
+                halo(ctx, width * 0.90, height * 0.85, r * 0.45, toneA, 0.04)
+            } else {
+                // Barely there: a soft blue glow from the top left.
+                halo(ctx, width * 0.18, height * 0.08, r * 0.60, toneA, 0.10)
+                halo(ctx, width * 0.85, height * 0.90, r * 0.45, toneA, 0.05)
+            }
         }
     }
 }

@@ -40,8 +40,10 @@ Item {
             spacing: 6
 
             StyledToolButton {
-                text: "↑"
-                implicitWidth: 30
+                iconName: "arrow-up"
+                iconSize: 16
+                implicitWidth: 32
+                implicitHeight: 32
                 onClicked: app.ftpUp()
                 enabled: !app.ftpBusy
             }
@@ -60,8 +62,10 @@ Item {
                 onAccepted: app.ftpNavigate(text)
             }
             StyledToolButton {
-                text: "⟳"
-                implicitWidth: 30
+                iconName: "refresh"
+                iconSize: 16
+                implicitWidth: 32
+                implicitHeight: 32
                 onClicked: app.ftpRefresh()
                 enabled: !app.ftpBusy
             }
@@ -148,9 +152,10 @@ Item {
                             RowLayout {
                                 anchors.fill: parent
                                 spacing: 8
-                                Text {
-                                    text: model.isDirectory ? "📁" : (row.localUrl.length > 0 ? "📥" : "📄")
-                                    font.pixelSize: 13
+                                Icon {
+                                    name: model.isDirectory ? "folder" : (row.localUrl.length > 0 ? "download" : "file")
+                                    size: 15
+                                    color: model.isDirectory ? Theme.accent : Theme.textSecondary
                                 }
                                 Text {
                                     Layout.fillWidth: true
@@ -202,14 +207,16 @@ Item {
                             font.pixelSize: 11
                         }
                         StyledToolButton {
-                            text: "⋮"
-                            implicitWidth: 22; implicitHeight: 22
+                            iconName: "more"
+                            iconSize: 14
+                            implicitWidth: 26; implicitHeight: 26
                             onClicked: rowMenu.popupFor(model.path, model.name, model.isDirectory, model.size, model.sizeText, row)
                         }
                         StyledToolButton {
-                            text: "✕"
+                            iconName: "trash"
+                            iconSize: 14
                             danger: true
-                            implicitWidth: 24; implicitHeight: 22
+                            implicitWidth: 26; implicitHeight: 26
                             onClicked: confirmDelete.open(model.path, model.isDirectory, model.name)
                         }
                     }
@@ -501,21 +508,9 @@ Item {
             radius: Theme.radius
         }
 
-        header: Rectangle {
-            implicitHeight: 48
-            color: "transparent"
-            Text {
-                anchors.fill: parent
-                anchors.leftMargin: 18
-                anchors.rightMargin: 18
-                verticalAlignment: Text.AlignVCenter
-                text: confirmDelete.targetIsDirectory ? qsTr("Delete the folder on the console?")
-                                                      : qsTr("Delete on the console?")
-                color: Theme.text
-                font.pixelSize: 15
-                font.bold: true
-            }
-            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.border }
+        header: DialogHeader {
+            title: confirmDelete.targetIsDirectory ? qsTr("Delete the folder on the console?") : qsTr("Delete on the console?")
+            dialog: confirmDelete
         }
 
         contentItem: Text {
@@ -535,7 +530,6 @@ Item {
         footer: Rectangle {
             implicitHeight: 56
             color: "transparent"
-            Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.border }
             RowLayout {
                 anchors.fill: parent
                 anchors.margins: 12

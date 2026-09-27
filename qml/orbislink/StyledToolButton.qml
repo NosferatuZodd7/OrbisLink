@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The small button of bars and lists. Round, with no frame until the mouse
-// gets there — navigation has to disappear when it is not needed.
+// The small square button of bars and lists: an icon with no frame until
+// the mouse gets there. Takes an icon from Icons.js (iconName) or, failing
+// that, its text.
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -9,36 +10,48 @@ ToolButton {
     id: button
 
     property bool danger: false
+    // Shown lit, as a toggle that is on.
+    property bool active: false
+    property string iconName: ""
+    property real iconSize: 18
 
-    implicitWidth: 38
-    implicitHeight: 38
+    implicitWidth: 36
+    implicitHeight: 36
     font.pixelSize: 14
 
-    scale: down ? Theme.pressScale : (hovered ? Theme.hoverScale : 1.0)
-    Behavior on scale {
-        NumberAnimation { duration: Theme.fast; easing.type: Theme.easeSpring; easing.overshoot: 1.1 }
-    }
+    scale: down ? Theme.pressScale : 1.0
+    Behavior on scale { NumberAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
+
+    readonly property color tone: !enabled ? Theme.alpha(Theme.textSecondary, 0.5)
+                                : danger ? Theme.error
+                                : active ? Theme.accent
+                                : hovered ? Theme.text : Theme.textSecondary
 
     background: Rectangle {
-        radius: width / 2
-        color: button.down
-            ? Theme.accentFill
-            : (button.hovered
-                ? Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b, 0.55)
-                : "transparent")
-        border.width: button.hovered ? 1 : 0
-        border.color: Theme.glassEdge
+        radius: 10
+        color: button.active ? Theme.accentFill
+             : button.down ? Theme.controlHover
+             : button.hovered ? Theme.controlFill
+             : "transparent"
+        border.width: button.hovered || button.active ? 1 : 0
+        border.color: button.active ? Theme.alpha(Theme.accent, 0.4) : Theme.glassEdge
         Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
     }
 
-    contentItem: Text {
-        text: button.text
-        font: button.font
-        color: !button.enabled ? Theme.textSecondary
-             : button.danger ? Theme.error
-             : button.hovered ? Theme.text : Theme.textSecondary
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
-        Behavior on color { ColorAnimation { duration: Theme.fast } }
+    contentItem: Item {
+        Icon {
+            anchors.centerIn: parent
+            visible: button.iconName.length > 0
+            name: button.iconName
+            size: button.iconSize
+            color: button.tone
+        }
+        Text {
+            anchors.centerIn: parent
+            visible: button.iconName.length === 0
+            text: button.text
+            font: button.font
+            color: button.tone
+        }
     }
 }
