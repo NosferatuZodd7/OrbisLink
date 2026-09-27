@@ -17,6 +17,13 @@ Item {
         app.selectConsole(address)
         stream.connectOneClick()
     }
+    // Whether a saved console answers on FTP: for the one in use, what the
+    // service check says; for the others, the last probeFtp.
+    function ftpOk(entry) {
+        return entry.active ? app.ftpState === "available"
+                            : app.ftpReachable[entry.address] === true
+    }
+
     // FTP only: the console becomes the one in use (if it was not) and the
     // file browser opens on it.
     function openFtp(address) {
@@ -124,6 +131,7 @@ Item {
                     readonly property var other: root.built && !modelData.active
                                                  ? stream.consoleStates[modelData.address] : undefined
                     current: modelData.active
+                    ftpAvailable: root.ftpOk(modelData)
                     startMode: modelData.startMode
                     available: root.built
                     address: modelData.address
@@ -547,6 +555,23 @@ Item {
                 if (!items[i].active)
                     others.push(items[i].address)
             stream.probeConsoles(others)
+        }
+    }
+
+    // The other consoles' FTP, from time to time, so their cards know
+    // whether to offer it (the one in use is checked by the services).
+    Timer {
+        running: !root.streaming && app.consoles.length > 1
+        interval: 10000
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: {
+            var others = []
+            var items = app.consoles
+            for (var i = 0; i < items.length; ++i)
+                if (!items[i].active)
+                    others.push(items[i].address)
+            app.probeFtp(others)
         }
     }
 

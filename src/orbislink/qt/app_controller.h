@@ -51,6 +51,10 @@ class AppController : public QObject
 	// The FTP uploads not finished yet, for the file list to show them where
 	// they are going: [{name, directory, percent, sending}].
 	Q_PROPERTY(QVariantList ftpUploads READ ftpUploads NOTIFY ftpUploadsChanged)
+	// For the consoles not in use: address → whether their FTP port answered
+	// the last time it was tried (see probeFtp). The console in use has
+	// ftpState instead.
+	Q_PROPERTY(QVariantMap ftpReachable READ ftpReachable NOTIFY ftpReachableChanged)
 	Q_PROPERTY(bool downloadActive READ downloadActive NOTIFY downloadChanged)
 	Q_PROPERTY(QString downloadName READ downloadName NOTIFY downloadChanged)
 	Q_PROPERTY(double downloadProgress READ downloadProgress NOTIFY downloadChanged)
@@ -101,6 +105,7 @@ public:
 	QString ftpPath() const { return ftpPath_; }
 	bool ftpBusy() const { return ftpBusy_; }
 	QVariantList ftpUploads() const { return ftpUploads_; }
+	QVariantMap ftpReachable() const { return ftpReachable_; }
 	bool downloadActive() const { return downloadActive_; }
 	QString downloadName() const { return downloadName_; }
 	double downloadProgress() const { return downloadProgress_; }
@@ -226,6 +231,9 @@ public:
 	// Opens the file browser on the console in use: the panel shows the
 	// files, in the upload folder, freshly listed.
 	Q_INVOKABLE void openFiles();
+	// Tries the FTP port of these consoles (each on its own port: PS4 or
+	// PS5), in the background; the answers land in ftpReachable.
+	Q_INVOKABLE void probeFtp(const QStringList &addresses);
 	// Remembers the type of a console that answered, to show it even when
 	// it is off. Only saves if it changed.
 	Q_INVOKABLE void rememberConsoleType(const QString &address, bool ps5,
@@ -270,6 +278,7 @@ signals:
 	void ftpPathChanged();
 	void ftpBusyChanged();
 	void ftpUploadsChanged();
+	void ftpReachableChanged();
 	// Some of the files dropped for FTP already exist in the upload folder:
 	// [{index, name, localSize, remoteSize, suggestion}]. The window asks
 	// what to do and answers with resolveUploadConflicts.
@@ -322,6 +331,8 @@ private:
 	QString ftpPath_ = QStringLiteral("/data/pkg/");
 	bool ftpBusy_ = false;
 	QVariantList ftpUploads_;
+	QVariantMap ftpReachable_;
+	bool probingFtp_ = false;
 	// The FTP drop waiting for an answer about the names already taken.
 	QStringList pendingUploads_;
 	// Only the most recent check matters: earlier ones are discarded when

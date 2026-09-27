@@ -8,6 +8,8 @@ import QtQuick.Controls.Basic
 ComboBox {
     id: control
     implicitHeight: Theme.fieldHeight
+    // Locked choices look it.
+    opacity: enabled ? 1.0 : 0.5
 
     background: Rectangle {
         radius: Theme.radiusField

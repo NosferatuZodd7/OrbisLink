@@ -91,6 +91,12 @@ ColumnLayout {
     // The actions live here and not in the rows: changing the list rebuilds
     // the rows, and a handler whose row has just been destroyed stops
     // halfway (the edit form would stay open, empty).
+    // Whether a saved console answers on FTP (see StreamArea.ftpOk).
+    function ftpOk(entry) {
+        return entry.active ? app.ftpState === "available"
+                            : app.ftpReachable[entry.address] === true
+    }
+
     function saveEdit(oldAddress, name, address, accountId, startMode) {
         var target = address.trim()
         if (!app.updateConsole(oldAddress, name, target))
@@ -278,8 +284,8 @@ ColumnLayout {
                                    ? qsTr("Account ID: %1").arg(row.modelData.accountLabel)
                                    : qsTr("No Account ID chosen"))
                                   + "  ·  "
-                                  + (row.modelData.startMode === "ftp" ? qsTr("Starts with FTP")
-                                                                       : qsTr("Starts with Remote Play"))
+                                  + (row.modelData.startMode === "ftp" && manager.ftpOk(row.modelData)
+                                     ? qsTr("Starts with FTP") : qsTr("Starts with Remote Play"))
                             color: Theme.textSecondary
                             font.pixelSize: 12
                             elide: Text.ElideRight
@@ -318,7 +324,8 @@ ColumnLayout {
                             nameEdit.text = row.modelData.name
                             addressEdit.text = row.modelData.address
                             accountBox.currentIndex = manager.accountIndex(row.modelData.accountId)
-                            startBox.currentIndex = row.modelData.startMode === "ftp" ? 1 : 0
+                            startBox.currentIndex = row.modelData.startMode === "ftp"
+                                                    && manager.ftpOk(row.modelData) ? 1 : 0
                             manager.editing = row.modelData.address
                         }
                     }
@@ -380,7 +387,22 @@ ColumnLayout {
                     StyledCombo {
                         id: startBox
                         Layout.fillWidth: true
+                        // Without FTP on the console there is nothing to choose.
+                        readonly property bool ftpHere: manager.ftpOk(row.modelData)
+                        enabled: ftpHere
                         model: [qsTr("Remote Play (with FTP and the installer)"), qsTr("FTP only")]
+                        onFtpHereChanged: if (!ftpHere) currentIndex = 0
+                    }
+
+                    Item { implicitWidth: 1; visible: !startBox.ftpHere }
+                    Text {
+                        visible: !startBox.ftpHere
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        text: qsTr("This console is not answering on FTP, so it starts with Remote Play. "
+                                   + "FTP needs a jailbreak: GoldHEN on the PS4, etaHEN on the PS5.")
+                        color: Theme.textSecondary
+                        font.pixelSize: 11
                     }
 
                     Item { implicitWidth: 1 }
@@ -398,7 +420,9 @@ ColumnLayout {
                             minimumWidth: 90
                             onClicked: manager.saveEdit(row.modelData.address, nameEdit.text, addressEdit.text,
                                 manager.accountChoices[accountBox.currentIndex].accountId,
-                                startBox.currentIndex === 1 ? "ftp" : "remoteplay")
+                                // Locked: what was chosen before stays stored, for when FTP appears.
+                                startBox.enabled ? (startBox.currentIndex === 1 ? "ftp" : "remoteplay")
+                                                 : row.modelData.startMode)
                         }
                     }
                 }

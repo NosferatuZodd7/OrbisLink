@@ -490,6 +490,42 @@ void AppController::setConsoleStartMode(const QString &address, const QString &s
 	}
 }
 
+void AppController::probeFtp(const QStringList &addresses)
+{
+	if(probingFtp_ || addresses.isEmpty())
+		return;
+	probingFtp_ = true;
+	std::vector<std::pair<std::string, uint16_t>> targets;
+	for(const QString &address : addresses)
+	{
+		const std::string trimmedAddress = address.trimmed().toStdString();
+		uint16_t port = settings_.ftpPort;
+		for(const ConsoleEntry &console : settings_.consoles)
+			if(console.address == trimmedAddress && console.type == "ps5")
+				port = settings_.ftpPortPs5;
+		targets.emplace_back(trimmedAddress, port);
+	}
+	std::thread([this, targets]() {
+		QVariantMap answers;
+		for(const auto &target : targets)
+			answers[QString::fromStdString(target.first)] = tcpProbe(target.first, target.second, 1200);
+		QMetaObject::invokeMethod(
+			this,
+			[this, answers]() {
+				probingFtp_ = false;
+				QVariantMap merged = ftpReachable_;
+				for(auto it = answers.begin(); it != answers.end(); ++it)
+					merged[it.key()] = it.value();
+				if(merged != ftpReachable_)
+				{
+					ftpReachable_ = merged;
+					emit ftpReachableChanged();
+				}
+			},
+			Qt::QueuedConnection);
+	}).detach();
+}
+
 void AppController::openFiles()
 {
 	emit showPanel(QStringLiteral("files"));
