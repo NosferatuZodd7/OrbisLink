@@ -64,6 +64,51 @@ ColumnLayout {
         return out
     }
 
+    // The saved Account IDs as the dropdown lists them: "none" first.
+    readonly property var accountChoices: {
+        var out = [{ label: qsTr("No Account ID"), accountId: "" }]
+        var items = app.accounts
+        for (var i = 0; i < items.length; ++i)
+            out.push(items[i])
+        return out
+    }
+
+    function accountIndex(accountId) {
+        for (var i = 0; i < accountChoices.length; ++i)
+            if (accountChoices[i].accountId === accountId)
+                return i
+        return 0
+    }
+
+    // The actions live here and not in the rows: changing the list rebuilds
+    // the rows, and a handler whose row has just been destroyed stops
+    // halfway (the edit form would stay open, empty).
+    function saveEdit(oldAddress, name, address, accountId) {
+        var target = address.trim()
+        if (!app.updateConsole(oldAddress, name, target))
+            return
+        editing = ""
+        app.setConsoleAccount(target, accountId)
+    }
+
+    function confirmForget(key, hostId) {
+        if (isConfirming(key, "forget")) {
+            confirming = ""
+            stream.forgetRegistration(hostId)
+        } else {
+            askConfirm(key, "forget")
+        }
+    }
+
+    function confirmRemove(address) {
+        if (isConfirming(address, "remove")) {
+            confirming = ""
+            app.removeConsole(address)
+        } else {
+            askConfirm(address, "remove")
+        }
+    }
+
     function askConfirm(key, action) {
         confirming = key
         confirmingAction = action
@@ -173,6 +218,15 @@ ColumnLayout {
                             }
                         }
                         Text {
+                            text: row.modelData.accountLabel.length > 0
+                                  ? qsTr("Account ID: %1").arg(row.modelData.accountLabel)
+                                  : qsTr("No Account ID chosen")
+                            color: Theme.textMuted
+                            font.pixelSize: 11
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                        }
+                        Text {
                             text: row.modelData.address + "  ·  " + (row.registration
                                 ? qsTr("registered for Remote Play")
                                 : manager.hostIdOf(row.modelData).length > 0
@@ -197,6 +251,7 @@ ColumnLayout {
                         onClicked: {
                             nameEdit.text = row.modelData.name
                             addressEdit.text = row.modelData.address
+                            accountBox.currentIndex = manager.accountIndex(row.modelData.accountId)
                             manager.editing = row.modelData.address
                         }
                     }
@@ -209,14 +264,7 @@ ColumnLayout {
                         ToolTip.visible: hovered
                         ToolTip.text: qsTr("Removes this PC's Remote Play registration on this console. "
                                            + "Connecting again will need a new PIN.")
-                        onClicked: {
-                            if (manager.isConfirming(row.modelData.address, "forget")) {
-                                stream.forgetRegistration(row.registration.hostId)
-                                manager.confirming = ""
-                            } else {
-                                manager.askConfirm(row.modelData.address, "forget")
-                            }
-                        }
+                        onClicked: manager.confirmForget(row.modelData.address, row.registration.hostId)
                     }
                     StyledButton {
                         danger: true
@@ -228,14 +276,7 @@ ColumnLayout {
                         ToolTip.text: app.consoles.length > 1
                             ? qsTr("Removes it from the list. The Remote Play registration stays until you forget it.")
                             : qsTr("The only console in the list cannot be removed.")
-                        onClicked: {
-                            if (manager.isConfirming(row.modelData.address, "remove")) {
-                                app.removeConsole(row.modelData.address)
-                                manager.confirming = ""
-                            } else {
-                                manager.askConfirm(row.modelData.address, "remove")
-                            }
-                        }
+                        onClicked: manager.confirmRemove(row.modelData.address)
                     }
                 }
 
@@ -257,6 +298,13 @@ ColumnLayout {
                         placeholderText: "192.168.1.42"
                     }
 
+                    Text { text: qsTr("Account ID"); color: Theme.textMuted; font.pixelSize: 12 }
+                    StyledCombo {
+                        id: accountBox
+                        Layout.fillWidth: true
+                        model: manager.accountChoices.map(function (a) { return a.label })
+                    }
+
                     Item { implicitWidth: 1 }
                     RowLayout {
                         Layout.fillWidth: true
@@ -270,10 +318,8 @@ ColumnLayout {
                             text: qsTr("Save")
                             primary: true
                             minimumWidth: 90
-                            onClicked: {
-                                if (app.updateConsole(row.modelData.address, nameEdit.text, addressEdit.text))
-                                    manager.editing = ""
-                            }
+                            onClicked: manager.saveEdit(row.modelData.address, nameEdit.text, addressEdit.text,
+                                manager.accountChoices[accountBox.currentIndex].accountId)
                         }
                     }
                 }
@@ -322,14 +368,7 @@ ColumnLayout {
                     text: manager.isConfirming(orphan.modelData.hostId, "forget")
                           ? qsTr("Confirm?") : qsTr("Forget registration")
                     minimumWidth: 90
-                    onClicked: {
-                        if (manager.isConfirming(orphan.modelData.hostId, "forget")) {
-                            stream.forgetRegistration(orphan.modelData.hostId)
-                            manager.confirming = ""
-                        } else {
-                            manager.askConfirm(orphan.modelData.hostId, "forget")
-                        }
-                    }
+                    onClicked: manager.confirmForget(orphan.modelData.hostId, orphan.modelData.hostId)
                 }
             }
         }

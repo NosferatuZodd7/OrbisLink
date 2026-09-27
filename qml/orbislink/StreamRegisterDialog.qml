@@ -33,6 +33,7 @@ Dialog {
 
     onOpened: {
         pinField.text = ""
+        savedBox.currentIndex = 0
         pinField.forceActiveFocus()
     }
 
@@ -155,6 +156,24 @@ Dialog {
                 maximumLength: 8
                 inputMethodHints: Qt.ImhDigitsOnly
                 validator: RegularExpressionValidator { regularExpression: /[0-9]{0,8}/ }
+            }
+
+            // A saved Account ID fills the field below in one click.
+            Text {
+                visible: app.accounts.length > 0
+                text: qsTr("Saved Account ID")
+                color: Theme.textMuted
+                font.pixelSize: 12
+            }
+            StyledCombo {
+                id: savedBox
+                visible: app.accounts.length > 0
+                Layout.fillWidth: true
+                model: [qsTr("Choose…")].concat(app.accounts.map(function (a) { return a.label }))
+                onActivated: function (index) {
+                    if (index > 0)
+                        accountField.text = app.accounts[index - 1].accountId
+                }
             }
 
             Text {

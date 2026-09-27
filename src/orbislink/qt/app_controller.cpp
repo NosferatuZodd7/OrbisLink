@@ -228,9 +228,115 @@ QVariantList AppController::consoles() const
 		input[QStringLiteral("active")] = console.address == settings_.consoleAddress;
 		input[QStringLiteral("type")] = QString::fromStdString(console.type);
 		input[QStringLiteral("hostId")] = QString::fromStdString(console.hostId);
+		input[QStringLiteral("accountId")] = QString::fromStdString(console.accountId);
+		QString accountLabel;
+		for(const SavedAccount &account : settings_.accounts)
+			if(account.accountId == console.accountId)
+				accountLabel = QString::fromStdString(account.label);
+		input[QStringLiteral("accountLabel")] = accountLabel;
 		items.append(input);
 	}
 	return items;
+}
+
+QVariantList AppController::accounts() const
+{
+	QVariantList items;
+	for(const SavedAccount &account : settings_.accounts)
+	{
+		QStringList usedBy;
+		for(const ConsoleEntry &console : settings_.consoles)
+			if(console.accountId == account.accountId)
+				usedBy << QString::fromStdString(console.name);
+		QVariantMap entry;
+		entry[QStringLiteral("label")] = QString::fromStdString(account.label);
+		entry[QStringLiteral("accountId")] = QString::fromStdString(account.accountId);
+		entry[QStringLiteral("usedBy")] = usedBy;
+		items.append(entry);
+	}
+	return items;
+}
+
+bool AppController::saveAccount(const QString &oldAccountId, const QString &label, const QString &accountId)
+{
+	const std::string from = trim(oldAccountId.toStdString());
+	const std::string id = trim(accountId.toStdString());
+	std::string name = trim(label.toStdString());
+	if(id.empty())
+	{
+		setStatusMessage(tr("The Account ID is empty or not valid."));
+		return false;
+	}
+	SavedAccount *target = nullptr;
+	for(SavedAccount &account : settings_.accounts)
+	{
+		if(!from.empty() && account.accountId == from)
+			target = &account;
+		else if(account.accountId == id)
+		{
+			setStatusMessage(tr("That Account ID is already saved as \"%1\".")
+				.arg(QString::fromStdString(account.label)));
+			return false;
+		}
+	}
+	if(name.empty())
+		name = tr("PSN account %1").arg(settings_.accounts.size() + (target ? 0 : 1)).toStdString();
+	if(target)
+	{
+		target->label = name;
+		target->accountId = id;
+		// Consoles using the old ID follow the edit.
+		for(ConsoleEntry &console : settings_.consoles)
+			if(console.accountId == from)
+				console.accountId = id;
+		if(settings_.streamAccountId == from)
+			settings_.streamAccountId = id;
+	}
+	else
+	{
+		SavedAccount account;
+		account.label = name;
+		account.accountId = id;
+		settings_.accounts.push_back(account);
+	}
+	store_.save(settings_);
+	emit settingsChanged();
+	setStatusMessage(tr("Account ID \"%1\" saved.").arg(QString::fromStdString(name)));
+	return true;
+}
+
+void AppController::removeAccount(const QString &accountId)
+{
+	const std::string id = trim(accountId.toStdString());
+	auto &items = settings_.accounts;
+	const auto before = items.size();
+	items.erase(std::remove_if(items.begin(), items.end(),
+					[&id](const SavedAccount &a) { return a.accountId == id; }),
+		items.end());
+	if(items.size() == before)
+		return;
+	for(ConsoleEntry &console : settings_.consoles)
+		if(console.accountId == id)
+			console.accountId.clear();
+	if(settings_.streamAccountId == id)
+		settings_.streamAccountId.clear();
+	store_.save(settings_);
+	emit settingsChanged();
+}
+
+void AppController::setConsoleAccount(const QString &address, const QString &accountId)
+{
+	const std::string target = address.trimmed().toStdString();
+	const std::string id = trim(accountId.toStdString());
+	for(ConsoleEntry &console : settings_.consoles)
+	{
+		if(console.address != target || console.accountId == id)
+			continue;
+		console.accountId = id;
+		store_.save(settings_);
+		emit settingsChanged();
+		return;
+	}
 }
 
 void AppController::selectConsole(const QString &address)
@@ -1166,6 +1272,10 @@ void AppController::rememberAccountId(const QString &accountId)
 		console.accountId = trimmedId;
 		changed = true;
 	}
+	// An ID the console just accepted goes into the saved list too.
+	const size_t savedBefore = settings_.accounts.size();
+	normaliseAccounts(settings_);
+	changed = changed || settings_.accounts.size() != savedBefore;
 	if(!changed)
 		return;
 	store_.save(settings_);
@@ -1553,6 +1663,7 @@ void AppController::applySettings(const QVariantMap &values)
 					console.accountId = after;
 		}
 	}
+	normaliseAccounts(settings_);
 	settings_.debugLogging = boolOr("debugLogging", settings_.debugLogging);
 	settings_.language = stringOr("language", settings_.language);
 	settings_.firstRunDone = boolOr("firstRunDone", settings_.firstRunDone);
