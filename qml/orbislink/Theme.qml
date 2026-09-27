@@ -138,6 +138,9 @@ QtObject {
     readonly property color accentFill: Qt.rgba(accent.r, accent.g, accent.b, accentSoftOpacity)
     readonly property color shadow: Qt.rgba(0, 0, 0, light ? 0.08 : 0.45)
     readonly property color dialogFill: Qt.rgba(panel.r, panel.g, panel.b, dialogOpacity)
+    // Menus float over lists of text: always fully opaque, a step above the
+    // panels so they read as on top.
+    readonly property color menuFill: light ? "#FFFFFF" : glass ? "#1C2B44" : "#182231"
     // Behind a modal: says the rest of the application is waiting.
     readonly property color scrim: Qt.rgba(0, 0, 0, light ? 0.28 : 0.55)
     // A control's own fill (secondary buttons, fields, segmented controls).

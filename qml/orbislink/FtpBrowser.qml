@@ -319,38 +319,61 @@ Item {
         bottomPadding: 8
 
         background: Rectangle {
-            implicitWidth: 320
-            color: Theme.dialogFill
+            implicitWidth: 300
+            color: Theme.menuFill
             border.color: Theme.glassEdge
             border.width: 1
-            radius: Theme.radiusSmall
+            radius: 14
+
+            // A soft shadow, so the menu reads as floating over the list.
+            Repeater {
+                model: 3
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: -(index + 1) * 3
+                    radius: parent.radius + (index + 1) * 3
+                    color: "transparent"
+                    border.width: 3
+                    border.color: Qt.rgba(0, 0, 0, Theme.light ? 0.04 - index * 0.012 : 0.16 - index * 0.05)
+                    z: -1
+                }
+            }
         }
 
         // Header with the name and size, so there is no doubt about which
         // file the menu is acting on.
         Rectangle {
-            implicitHeight: 50
+            implicitHeight: 56
             implicitWidth: rowMenu.width
             color: "transparent"
-            ColumnLayout {
+            RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 20
-                anchors.rightMargin: 20
+                anchors.leftMargin: 16
+                anchors.rightMargin: 16
                 anchors.topMargin: 6
                 anchors.bottomMargin: 6
-                spacing: 3
-                Text {
-                    Layout.fillWidth: true
-                    text: rowMenu.targetName
-                    color: Theme.text
-                    font.pixelSize: 11
-                    font.bold: true
-                    elide: Text.ElideMiddle
+                spacing: 12
+                Icon {
+                    name: rowMenu.targetIsDirectory ? "folder" : "file"
+                    size: 20
+                    color: rowMenu.targetIsDirectory ? Theme.accent : Theme.textSecondary
                 }
-                Text {
-                    text: rowMenu.targetIsDirectory ? qsTr("folder") : rowMenu.targetSizeText
-                    color: Theme.textMuted
-                    font.pixelSize: 10
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Text {
+                        Layout.fillWidth: true
+                        text: rowMenu.targetName
+                        color: Theme.text
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideMiddle
+                    }
+                    Text {
+                        text: rowMenu.targetIsDirectory ? qsTr("folder") : rowMenu.targetSizeText
+                        color: Theme.textSecondary
+                        font.pixelSize: 11
+                    }
                 }
             }
         }
@@ -366,18 +389,21 @@ Item {
 
         StyledMenuItem {
             text: qsTr("Open")
+            iconName: "folder"
             visible: rowMenu.targetIsDirectory
             height: visible ? implicitHeight : 0
             onTriggered: app.ftpNavigate(rowMenu.targetPath)
         }
         StyledMenuItem {
             text: qsTr("Use as the upload folder")
+            iconName: "upload"
             visible: rowMenu.targetIsDirectory
             height: visible ? implicitHeight : 0
             onTriggered: app.setFtpUploadDirectory(rowMenu.targetPath)
         }
         StyledMenuItem {
             text: qsTr("Download to the desktop")
+            iconName: "download"
             visible: !rowMenu.targetIsDirectory
             height: visible ? implicitHeight : 0
             enabled: !app.downloadActive
@@ -385,6 +411,7 @@ Item {
         }
         StyledMenuItem {
             text: qsTr("Download to…")
+            iconName: "save"
             visible: !rowMenu.targetIsDirectory
             height: visible ? implicitHeight : 0
             enabled: !app.downloadActive
@@ -392,6 +419,7 @@ Item {
         }
         StyledMenuItem {
             text: qsTr("Get it ready to drag")
+            iconName: "hard-drive"
             visible: !rowMenu.targetIsDirectory && (rowMenu.targetRow ? rowMenu.targetRow.localUrl.length === 0 : false)
             height: visible ? implicitHeight : 0
             enabled: !app.downloadActive
@@ -403,6 +431,7 @@ Item {
         }
         StyledMenuItem {
             text: qsTr("Show the local copy")
+            iconName: "external-link"
             visible: rowMenu.targetRow ? rowMenu.targetRow.localUrl.length > 0 : false
             height: visible ? implicitHeight : 0
             onTriggered: app.openLocalFolder(rowMenu.targetRow.localUrl)
@@ -419,14 +448,18 @@ Item {
 
         StyledMenuItem {
             text: qsTr("Copy the path")
+            iconName: "copy"
             onTriggered: app.copyToClipboard(rowMenu.targetPath)
         }
         StyledMenuItem {
             text: qsTr("Rename…")
+            iconName: "pencil"
             onTriggered: renameDialog.open(rowMenu.targetPath, rowMenu.targetName)
         }
         StyledMenuItem {
             text: qsTr("Delete on the console")
+            iconName: "trash"
+            danger: true
             onTriggered: confirmDelete.open(rowMenu.targetPath, rowMenu.targetIsDirectory,
                 rowMenu.targetName)
         }
