@@ -158,58 +158,58 @@
         <translation>On the network</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="106"/>
+        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="102"/>
         <source>Searching…</source>
         <translation>Searching…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="106"/>
+        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="102"/>
         <source>Search again</source>
         <translation>Search again</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="122"/>
+        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="127"/>
         <source>This build has no Remote Play, so it can&apos;t search the network. Type the address below.</source>
         <translation>This build has no Remote Play, so it can&apos;t search the network. Type the address below.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="124"/>
+        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="129"/>
         <source>No console answered. Check that it&apos;s on, on the same network, with Remote Play enabled — or type the address below.</source>
         <translation>No console answered. Check that it&apos;s on, on the same network, with Remote Play enabled — or type the address below.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="164"/>
+        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="176"/>
         <source>in rest mode</source>
         <translation>in rest mode</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="165"/>
+        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="177"/>
         <source>ready</source>
         <translation>ready</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="171"/>
+        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="183"/>
         <source>Already added</source>
         <translation>Already added</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="171"/>
-        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="218"/>
+        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="183"/>
+        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="231"/>
         <source>Add</source>
         <translation>Add</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="195"/>
+        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="208"/>
         <source>By hand</source>
         <translation>By hand</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="209"/>
+        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="222"/>
         <source>Name (optional)</source>
         <translation>Name (optional)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="214"/>
+        <location filename="../qml/orbislink/AddConsoleDialog.qml" line="227"/>
         <source>IP address, e.g. 192.168.1.50</source>
         <translation>IP address, e.g. 192.168.1.50</translation>
     </message>
@@ -1981,44 +1981,59 @@
         <translation> · %1 fps</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="296"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="269"/>
+        <source>Controller: %1. Click for the keyboard map.</source>
+        <translation>Controller: %1. Click for the keyboard map.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/StreamArea.qml" line="270"/>
+        <source>No controller connected. Click for the keyboard map.</source>
+        <translation>No controller connected. Click for the keyboard map.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/StreamArea.qml" line="297"/>
         <source>Sound</source>
         <translation>Sound</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="297"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="298"/>
         <source>No sound</source>
         <translation>No sound</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="298"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="299"/>
         <source>Sound: off</source>
         <translation>Sound: off</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="299"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="300"/>
         <source>Sound: on</source>
         <translation>Sound: on</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="314"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="315"/>
         <source>This PC has no active sound output.</source>
         <translation>This PC has no active sound output.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="316"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="317"/>
         <source>The sound card refused the stream — see Ctrl+L.</source>
         <translation>The sound card refused the stream — see Ctrl+L.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="318"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="319"/>
         <source>Coming out of %1</source>
         <translation>Coming out of %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="319"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="320"/>
         <source>No sound has arrived from the console yet.</source>
         <translation>No sound has arrived from the console yet.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/StreamArea.qml" line="388"/>
+        <source>Keyboard map</source>
+        <translation>Keyboard map</translation>
     </message>
     <message>
         <location filename="../qml/orbislink/StreamArea.qml" line="252"/>
@@ -2031,109 +2046,97 @@
         <translation>processor</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="329"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="330"/>
         <source>Send your microphone to the console</source>
         <translation>Send your microphone to the console</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="330"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="331"/>
         <source>Capturing from %1. Click to mute, or right-click to turn it off.</source>
         <translation>Capturing from %1. Click to mute, or right-click to turn it off.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="347"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="343"/>
         <source>Leave full screen</source>
         <translation>Leave full screen</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="347"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="343"/>
         <source>Full screen</source>
         <translation>Full screen</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="342"/>
-        <source>Keys</source>
-        <translation>Keys</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="352"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="348"/>
         <source>End the session</source>
         <translation>End the session</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="392"/>
-        <source>The keyboard as a controller</source>
-        <translation>The keyboard as a controller</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="407"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="403"/>
         <source>Done</source>
         <translation>Done</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="407"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="403"/>
         <source>Change keys</source>
         <translation>Change keys</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="413"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="409"/>
         <source>Reset</source>
         <translation>Reset</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="416"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="412"/>
         <source>Go back to the default keys</source>
         <translation>Go back to the default keys</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="424"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="420"/>
         <source>Close</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="267"/>
-        <location filename="../qml/orbislink/StreamArea.qml" line="455"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="451"/>
         <source>Controller connected: %1. The keyboard works too:</source>
         <translation>Controller connected: %1. The keyboard works too:</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="268"/>
-        <location filename="../qml/orbislink/StreamArea.qml" line="457"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="453"/>
         <source>No controller connected — plug one in over USB and it is picked up on its own. Meanwhile, the keyboard:</source>
         <translation>No controller connected — plug one in over USB and it is picked up on its own. Meanwhile, the keyboard:</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="507"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="503"/>
         <source>Click the key you want to change, then press the new key. If it already does something, the two swap.</source>
         <translation>Click the key you want to change, then press the new key. If it already does something, the two swap.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="509"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="505"/>
         <source>Hover over a key to see on the controller which button it presses. Greyed-out keys do nothing.</source>
         <translation>Hover over a key to see on the controller which button it presses. Greyed-out keys do nothing.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="603"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="599"/>
         <source>Console PIN</source>
         <translation>Console PIN</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="618"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="614"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="623"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="619"/>
         <source>Send</source>
         <translation>Send</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="644"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="640"/>
         <source>That PIN was wrong. Try again.</source>
         <translation>That PIN was wrong. Try again.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="645"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="641"/>
         <source>The console is asking for the account&apos;s login PIN.</source>
         <translation>The console is asking for the account&apos;s login PIN.</translation>
     </message>

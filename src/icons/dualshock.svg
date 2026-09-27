@@ -1,15 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later
 
-     A DualShock 4 style controller, drawn for OrbisLink. A plain silhouette
-     with the buttons, touchpad, PS button and sticks cut out: the app paints
-     what is lit underneath, and the cut-out lets it show.
+     A DualShock 4 style controller, drawn for OrbisLink: a plain silhouette
+     with the buttons, touchpad, PS button and sticks cut out.
 
-     The cut-out positions are the ones ControllerSketch.qml uses (in units
-     of this viewBox, 1590×988). Changing one here means changing it there.
-
-     The body colour comes from outside: scripts/generate-dualshock.sh replaces
-     BODY with each theme's colour and generates the two PNGs. -->
+     It is the reference ControllerSketch.qml was traced from: the app draws
+     the controller itself, as lines, in the units of this viewBox (1590×988).
+     Changing a position here means changing it there too.
+-->
 <svg xmlns="http://www.w3.org/2000/svg" width="1590" height="988" viewBox="0 0 1590 988">
   <defs>
     <mask id="cutouts" maskUnits="userSpaceOnUse" x="0" y="0" width="1590" height="988">

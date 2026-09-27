@@ -3,9 +3,9 @@
 // A line icon from the set in Icons.js, in any size and colour.
 //
 // Drawn with Shape instead of loading SVG files: no Qt SVG module to ship,
-// and the colour follows the theme like text does. The drawing is always
-// made on Lucide's 24×24 grid and scaled; the layer with multisampling is
-// what keeps the thin strokes smooth at small sizes.
+// and the colour follows the theme like text does. The paths are on Lucide's
+// 24×24 grid; the layer with multisampling is what keeps the thin strokes
+// smooth at small sizes.
 import QtQuick
 import QtQuick.Shapes
 import "Icons.js" as Icons
@@ -29,16 +29,18 @@ Item {
     layer.samples: 4
     layer.smooth: true
 
+    // The path is scaled, not the item: the curves are then flattened at the
+    // final size, so a circle stays round at any size instead of showing the
+    // segments of a 24-pixel drawing blown up.
     Shape {
         id: drawing
-        width: 24
-        height: 24
-        scale: icon.width / 24
-        transformOrigin: Item.TopLeft
+        anchors.fill: parent
+        readonly property real factor: icon.width / 24
 
         ShapePath {
+            scale: Qt.size(drawing.factor, drawing.factor)
             strokeColor: icon.color
-            strokeWidth: icon.strokeWidth
+            strokeWidth: icon.strokeWidth * drawing.factor
             fillColor: "transparent"
             capStyle: ShapePath.RoundCap
             joinStyle: ShapePath.RoundJoin
