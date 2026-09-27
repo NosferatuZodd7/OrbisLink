@@ -166,7 +166,7 @@ void frameAvailable(ChiakiFfmpegDecoder *decoder, void *user)
 	if(previous == 0)
 	{
 		StreamTrace::instance().ok(std::to_string(pulled.frame->width) + "x"
-			+ std::to_string(pulled.frame->height) + ", formato "
+			+ std::to_string(pulled.frame->height) + ", format "
 			+ std::to_string(pulled.frame->format));
 		StreamTrace::instance().end();
 	}

@@ -85,7 +85,7 @@ StreamController::StreamController(QObject *parent)
 				if(streaming_)
 				{
 					gamepad_.start();
-					hardwareDecoder_ = session_->usingHardwareDecoder();
+					hardwareDecoder_ = lastHardwareDecoder_ = session_->usingHardwareDecoder();
 					lastFrameCount_ = video_.framesDelivered();
 					measuredFps_ = 0;
 					if(fpsTimer_)
@@ -152,8 +152,8 @@ StreamController::StreamController(QObject *parent)
 	connect(&gamepad_, &Gamepad::connectedChanged, this, &StreamController::gamepadChanged);
 
 	connect(&video_, &VideoBridge::firstFrame, this, [this](int width, int height) {
-		frameWidth_ = width;
-		frameHeight_ = height;
+		frameWidth_ = lastFrameWidth_ = width;
+		frameHeight_ = lastFrameHeight_ = height;
 		emit videoChanged();
 
 		// The console may send less than it was asked for without telling
@@ -463,13 +463,19 @@ QString StreamController::videoSummary() const
 			message += QStringLiteral("  => the console lowered the resolution; a PS4 that is "
 									"not a Pro does not go above 720p\n");
 	}
+	else if(lastFrameWidth_ > 0)
+	{
+		message += QStringLiteral("  arriving     (no session now; the last one was %1×%2)\n")
+			.arg(lastFrameWidth_).arg(lastFrameHeight_);
+	}
 	else
 	{
 		message += QStringLiteral("  arriving     (no frame yet)\n");
 	}
 	message += QStringLiteral("  decoding     %1\n")
-		.arg(hardwareDecoder_ ? QStringLiteral("graphics card")
-							  : QStringLiteral("processor"));
+		.arg(hardwareDecoder_ || (!streaming_ && lastHardwareDecoder_)
+			? QStringLiteral("graphics card")
+			: QStringLiteral("processor"));
 	return message;
 }
 
