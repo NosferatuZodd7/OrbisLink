@@ -31,6 +31,9 @@ class AppController : public QObject
 	Q_PROPERTY(QString consoleAddress READ consoleAddress NOTIFY settingsChanged)
 	// The saved consoles: [{ name, address, active, type, hostId }].
 	Q_PROPERTY(QVariantList consoles READ consoles NOTIFY settingsChanged)
+	// The saved PSN Account IDs: [{ label, accountId, usedBy }], accountId in
+	// base64 and usedBy the names of the consoles that use it.
+	Q_PROPERTY(QVariantList accounts READ accounts NOTIFY settingsChanged)
 	Q_PROPERTY(QString remotePlayState READ remotePlayState NOTIFY statusChanged)
 	Q_PROPERTY(QString remotePlayHint READ remotePlayHint NOTIFY statusChanged)
 	Q_PROPERTY(QString ftpState READ ftpState NOTIFY statusChanged)
@@ -72,6 +75,7 @@ public:
 	QString consoleName() const;
 	QString consoleAddress() const;
 	QVariantList consoles() const;
+	QVariantList accounts() const;
 	QString remotePlayState() const;
 	QString remotePlayHint() const;
 	QString ftpState() const;
@@ -216,6 +220,15 @@ public:
 	// new IP is empty or already belongs to another console.
 	Q_INVOKABLE bool updateConsole(const QString &oldAddress, const QString &name,
 		const QString &address);
+	// Saves an Account ID (base64) under a name. With `oldAccountId` it edits
+	// that entry, and the consoles using it follow. Returns false, with the
+	// reason in the status bar, when the ID is empty or already saved.
+	Q_INVOKABLE bool saveAccount(const QString &oldAccountId, const QString &label,
+		const QString &accountId);
+	// Removes a saved Account ID; the consoles using it are left without one.
+	Q_INVOKABLE void removeAccount(const QString &accountId);
+	// Chooses which saved Account ID a console registers with ("" for none).
+	Q_INVOKABLE void setConsoleAccount(const QString &address, const QString &accountId);
 	// Removes a console from the list. If it is the one in use, the next
 	// one takes its place; the last console cannot be removed.
 	Q_INVOKABLE void removeConsole(const QString &address);

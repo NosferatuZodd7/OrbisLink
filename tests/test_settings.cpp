@@ -235,4 +235,28 @@ ORBISLINK_TEST(console_list)
 	CHECK(Settings::fromJson(withType.toJson()).consoles[0].hostId.empty());
 }
 
+ORBISLINK_TEST(saved_account_ids_round_trip_and_include_those_in_use)
+{
+	// Settings from before the list: each Account ID a console uses, and the
+	// last accepted one, become saved entries named after the console.
+	const Settings old = Settings::fromJson(R"({"stream_account_id":"AQIDBAUGBwg=",
+		"consoles":[{"name":"PS4","address":"10.0.0.3","account_id":"CAcGBQQDAgE="},
+		            {"name":"PS5","address":"10.0.0.4","account_id":"CAcGBQQDAgE="}]})");
+	CHECK_EQ(old.accounts.size(), size_t(2));
+	CHECK_EQ(old.accounts[0].accountId, std::string("CAcGBQQDAgE="));
+	CHECK_EQ(old.accounts[0].label, std::string("PS4"));
+	CHECK_EQ(old.accounts[1].accountId, std::string("AQIDBAUGBwg="));
+	CHECK(!old.accounts[1].label.empty());
+
+	// Names survive saving and reloading, and repeated IDs are dropped.
+	Settings named;
+	SavedAccount a;
+	a.label = "Main";
+	a.accountId = "CAcGBQQDAgE=";
+	named.accounts = { a, a };
+	const Settings reloaded = Settings::fromJson(named.toJson());
+	CHECK_EQ(reloaded.accounts.size(), size_t(1));
+	CHECK_EQ(reloaded.accounts[0].label, std::string("Main"));
+}
+
 TEST_MAIN()

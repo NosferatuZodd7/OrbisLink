@@ -148,7 +148,6 @@ Dialog {
         fullscreenBox.checked = values.streamFullscreenOnConnect
         rumbleBox.checked = values.streamRumble
         touchpadBox.checked = values.streamTouchpadFromMouse
-        accountField.text = values.streamAccountId
         languageBox.currentIndex = languageToIndex(values.language)
         uploadDirField.text = values.ftpUploadDirectory
         existsBox.checked = values.checkAlreadyInstalled
@@ -207,7 +206,6 @@ Dialog {
             "streamFullscreenOnConnect": fullscreenBox.checked,
             "streamRumble": rumbleBox.checked,
             "streamTouchpadFromMouse": touchpadBox.checked,
-            "streamAccountId": accountField.ok ? accountField.base64 : accountField.text.trim(),
             "language": ["en", "pt_PT"][languageBox.currentIndex]
         })
         close()
@@ -281,6 +279,10 @@ Dialog {
             spacing: 14
 
             ConsoleManager { Layout.fillWidth: true }
+
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
+
+            AccountManager { Layout.fillWidth: true }
 
             Rectangle { Layout.fillWidth: true; height: 1; color: Theme.border }
 
@@ -545,20 +547,16 @@ Dialog {
                     validator: RegularExpressionValidator { regularExpression: /[0-9]{0,6}/ }
                 }
 
-                Text {
-                    text: qsTr("Account ID (PSN)")
-                    color: Theme.textMuted
-                    font.pixelSize: 12
-                    Layout.alignment: Qt.AlignTop
-                    Layout.topMargin: 8
-                }
-                // Accepts hexadecimal, decimal or base64, and shows all three
-                // below. The console only understands base64, but that is our
-                // problem, not that of whoever is copying it off a screen.
-                AccountIdField {
-                    id: accountField
-                    Layout.fillWidth: true
-                }
+            }
+
+            // The Account ID is chosen per console, from the saved ones.
+            Text {
+                Layout.fillWidth: true
+                text: qsTr("The Account ID each console registers with is chosen in Consoles (Edit), "
+                           + "from the ones saved in Account IDs.")
+                color: Theme.textMuted
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
             }
 
             StyledCheck {

@@ -100,6 +100,12 @@ forget this PC's Remote Play registration on it (the next connection then asks
 for a new PIN). Registrations left behind by consoles no longer in the list
 appear at the end, so they can be forgotten too.
 
+Settings → **Account IDs (PSID)** keeps the PSN Account IDs saved on this PC,
+each under a username so they are easy to tell apart. They can be added,
+edited and removed there, and each console picks the one it registers with
+(Consoles → Edit → Account ID). The registration dialog can also fill the
+field from a saved one.
+
 ## Download (pre-built)
 
 The binaries are produced by GitHub Actions

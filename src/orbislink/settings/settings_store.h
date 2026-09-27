@@ -34,6 +34,15 @@ struct ConsoleEntry
 	std::string hostId;
 };
 
+// A PSN Account ID saved under a name of the user's choosing, so it can be
+// picked for any console instead of being typed again.
+struct SavedAccount
+{
+	std::string label;
+	// In base64, the only form Remote Play accepts.
+	std::string accountId;
+};
+
 struct Settings
 {
 	// Console: the one in use (FTP, the installer and Remote Play talk to
@@ -75,6 +84,8 @@ struct Settings
 	bool streamRumble = true;
 	bool streamTouchpadFromMouse = true;
 	std::string streamAccountId;     // the last accepted Account ID, in base64 (for new consoles)
+	// The saved Account IDs. Each console's accountId is one of these.
+	std::vector<SavedAccount> accounts;
 	// Keyboard as controller: action → key (Qt::Key). Only what was changed;
 	// the rest keep their default key.
 	std::map<std::string, int> keyboardBindings;
@@ -118,6 +129,11 @@ struct Settings
 // and that the list has no empty or repeated addresses. This is what carries
 // over settings from before the list existed, which only had one console.
 void normaliseConsoles(Settings &settings);
+
+// Makes sure every Account ID a console uses, and the last accepted one,
+// is in the saved list, with no empty or repeated entries. Settings from
+// before the list existed get one entry per ID, named after its console.
+void normaliseAccounts(Settings &settings);
 
 std::string resolveUpdateRepository(const std::string &stored, const std::string *storedDefault,
 	const std::string &compiledDefault);

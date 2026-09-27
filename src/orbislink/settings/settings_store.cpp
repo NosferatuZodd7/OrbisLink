@@ -69,6 +69,15 @@ std::string Settings::toJson() const
 	root.set("stream_rumble", Json::fromBool(streamRumble));
 	root.set("stream_touchpad_from_mouse", Json::fromBool(streamTouchpadFromMouse));
 	root.set("stream_account_id", Json::fromString(streamAccountId));
+	Json savedAccounts = Json::makeArray();
+	for(const SavedAccount &account : accounts)
+	{
+		Json input = Json::makeObject();
+		input.set("label", Json::fromString(account.label));
+		input.set("account_id", Json::fromString(account.accountId));
+		savedAccounts.push(std::move(input));
+	}
+	root.set("accounts", savedAccounts);
 	Json keys = Json::makeObject();
 	for(const auto &pair : keyboardBindings)
 		keys.set(pair.first, Json::fromInt(pair.second));
@@ -146,6 +155,17 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.streamTouchpadFromMouse =
 		root["stream_touchpad_from_mouse"].toLooseBool(settings.streamTouchpadFromMouse);
 	settings.streamAccountId = root["stream_account_id"].toString(settings.streamAccountId);
+	if(root["accounts"].isArray())
+	{
+		for(const Json &input : root["accounts"].items())
+		{
+			SavedAccount account;
+			account.label = input["label"].toString();
+			account.accountId = input["account_id"].toString();
+			settings.accounts.push_back(account);
+		}
+	}
+	normaliseAccounts(settings);
 	if(root["keyboard_bindings"].isObject())
 	{
 		for(const auto &pair : root["keyboard_bindings"].members())
@@ -245,6 +265,32 @@ void normaliseConsoles(Settings &settings)
 		}
 	}
 	settings.consoles = clean;
+}
+
+void normaliseAccounts(Settings &settings)
+{
+	std::vector<SavedAccount> clean;
+	auto find = [&clean](const std::string &id) -> SavedAccount * {
+		for(SavedAccount &account : clean)
+			if(account.accountId == id)
+				return &account;
+		return nullptr;
+	};
+	auto add = [&](const std::string &rawId, const std::string &label) {
+		const std::string id = trim(rawId);
+		if(id.empty() || find(id))
+			return;
+		SavedAccount account;
+		account.accountId = id;
+		account.label = trim(label).empty() ? "PSN account " + std::to_string(clean.size() + 1) : trim(label);
+		clean.push_back(account);
+	};
+	for(const SavedAccount &account : settings.accounts)
+		add(account.accountId, account.label);
+	for(const ConsoleEntry &console : settings.consoles)
+		add(console.accountId, console.name);
+	add(settings.streamAccountId, std::string());
+	settings.accounts = clean;
 }
 
 std::string resolveUpdateRepository(const std::string &stored, const std::string *storedDefault,

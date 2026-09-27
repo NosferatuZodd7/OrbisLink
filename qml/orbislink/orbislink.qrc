@@ -26,6 +26,7 @@
         <file alias="AddConsoleCard.qml">AddConsoleCard.qml</file>
         <file alias="AddConsoleDialog.qml">AddConsoleDialog.qml</file>
         <file alias="ConsoleManager.qml">ConsoleManager.qml</file>
+        <file alias="AccountManager.qml">AccountManager.qml</file>
         <file alias="KeyboardMap.qml">KeyboardMap.qml</file>
         <file alias="ControllerSketch.qml">ControllerSketch.qml</file>
         <file alias="StyledMenuItem.qml">StyledMenuItem.qml</file>
