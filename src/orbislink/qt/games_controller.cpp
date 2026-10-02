@@ -82,7 +82,7 @@ struct GamesController::Job
 	QString platform;
 	QString path;
 	QString listedPath;
-	bool install = false;
+	bool send = false;
 	QString state = QStringLiteral("waiting"); // waiting, converting, done, error, cancelled
 	QString stage;
 	double percent = 0;
@@ -280,7 +280,7 @@ QString GamesController::packageNameFor(const QString &path, const QString &titl
 #endif
 }
 
-void GamesController::convert(const QStringList &paths, bool install, const QStringList &titles)
+void GamesController::convert(const QStringList &paths, bool send, const QStringList &titles)
 {
 #ifdef ORBISLINK_HAS_FPKG
 	if(outputFolder().isEmpty())
@@ -300,7 +300,7 @@ void GamesController::convert(const QStringList &paths, bool install, const QStr
 		job->platform = game.value(QStringLiteral("platform")).toString();
 		job->title = i < titles.size() && !titles[i].trimmed().isEmpty() ? titles[i].trimmed()
 			: game.value(QStringLiteral("title")).toString();
-		job->install = install;
+		job->send = send;
 		job->disc = fpkg::inspectDisc(job->listedPath.toStdString());
 		// The art is drawn here, on the interface's thread.
 		job->icon = drawArt(job->title, job->platform, 512, 512);
@@ -319,7 +319,7 @@ void GamesController::convert(const QStringList &paths, bool install, const QStr
 	emit app_->showPanel(QStringLiteral("queue"));
 #else
 	Q_UNUSED(paths);
-	Q_UNUSED(install);
+	Q_UNUSED(send);
 	Q_UNUSED(titles);
 #endif
 }
@@ -401,7 +401,7 @@ void GamesController::publish()
 			m[QStringLiteral("stage")] = job->stage;
 			m[QStringLiteral("percent")] = job->percent;
 			m[QStringLiteral("message")] = job->message;
-			m[QStringLiteral("install")] = job->install;
+			m[QStringLiteral("send")] = job->send;
 			m[QStringLiteral("pkgPath")] = job->pkgPath;
 			list << m;
 		}
@@ -504,14 +504,16 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 		logWarning("Games: conversion failed — " + error);
 
 	const QString pkg = QString::fromStdString(result.pkgPath);
-	const bool install = job->install;
+	const bool send = job->send;
 	const QString title = job->title;
 	const QString message = QString::fromStdString(error);
 	const bool cancelled = job->cancel.load();
-	QMetaObject::invokeMethod(this, [this, ok, install, pkg, title, message, cancelled]() {
+	QMetaObject::invokeMethod(this, [this, ok, send, pkg, title, message, cancelled]() {
 		publish();
-		if(ok && install)
-			app_->addPaths(QStringList { pkg }, 0);
+		// Over FTP, like any file dropped on the FTP zone: same-name
+		// checks, the upload folder, and the install after it if set.
+		if(ok && send)
+			app_->addPaths(QStringList { pkg }, 1);
 		else if(ok)
 			emit app_->notify(tr("Convert"), tr("%1 is ready in the output folder.").arg(title), false);
 		else if(!cancelled)

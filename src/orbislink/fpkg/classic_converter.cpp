@@ -183,19 +183,28 @@ std::string lookupTitle(const std::string &databasePath, const std::string &titl
 
 std::string packageFileName(const std::string &title, const std::string &titleId)
 {
+	// Plain letters, digits and dashes: the name survives FTP servers and
+	// the console's file browser as it is.
 	std::string clean;
+	bool dash = false;
 	for(char c : title)
 	{
-		if(std::string("<>:\"/\\|?*").find(c) != std::string::npos
-			|| static_cast<unsigned char>(c) < 32)
-			continue;
-		clean += c;
+		const unsigned char u = static_cast<unsigned char>(c);
+		if(std::isalnum(u) && u < 128)
+		{
+			if(dash && !clean.empty())
+				clean += '-';
+			clean += c;
+			dash = false;
+		}
+		else
+			dash = true;
 	}
-	while(!clean.empty() && (clean.back() == ' ' || clean.back() == '.'))
-		clean.pop_back();
+	if(clean.size() > 60)
+		clean.resize(60);
 	if(clean.empty())
 		clean = "Game";
-	return clean + " [" + titleId + "].pkg";
+	return clean + "_" + titleId + ".pkg";
 }
 
 bool prepareClassic(const DiscInfo &disc, const EmulatorInfo &emulators,

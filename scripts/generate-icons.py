@@ -93,6 +93,7 @@ ICONS = {
     "square": "square",
     "square-check": "square-check",
     "image": "image",
+    "unlock": "lock-keyhole-open",
     "cpu": "cpu",
 }
 

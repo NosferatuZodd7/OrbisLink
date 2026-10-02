@@ -156,7 +156,7 @@ ApplicationWindow {
                     implicitHeight: 36
                     ToolTip.visible: hovered
                     ToolTip.text: window.view === "games" ? qsTr("Back to the consoles")
-                                                          : qsTr("Find PS1 and PS2 discs on this PC, send them or turn them into packages")
+                                                          : qsTr("Find PS1 and PS2 discs on this PC, convert them into packages and send them over FTP")
                     onClicked: window.view = window.view === "games" ? "home" : "games"
                 }
                 Item { implicitWidth: 6 }

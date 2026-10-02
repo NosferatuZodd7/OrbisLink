@@ -217,10 +217,10 @@ ColumnLayout {
             radius: 16
             // Green tone for a console that answers on FTP, as on its card.
             readonly property bool ftpHere: manager.ftpOk(modelData)
-            color: ftpHere ? Qt.tint(Theme.panelAltFill, Theme.alpha(Theme.ok, Theme.light ? 0.08 : 0.10))
+            color: ftpHere ? Qt.tint(Theme.panelAltFill, Theme.alpha(Theme.hen, Theme.light ? 0.10 : 0.10))
                            : Theme.panelAltFill
-            border.color: modelData.active ? (ftpHere ? Theme.ok : Theme.accent)
-                        : ftpHere ? Theme.alpha(Theme.ok, 0.35) : Theme.border
+            border.color: modelData.active ? (ftpHere ? Theme.hen : Theme.accent)
+                        : ftpHere ? Theme.alpha(Theme.hen, 0.5) : Theme.border
             border.width: 1
 
             ColumnLayout {
@@ -280,6 +280,22 @@ ColumnLayout {
                                     color: Theme.ok
                                     font.pixelSize: 11
                                     font.weight: Font.Medium
+                                }
+                            }
+                            // The jailbreak, in the same gold as the card.
+                            Rectangle {
+                                visible: row.ftpHere
+                                implicitHeight: 20
+                                implicitWidth: henText.implicitWidth + 18
+                                radius: 10
+                                color: Theme.henFill
+                                Text {
+                                    id: henText
+                                    anchors.centerIn: parent
+                                    text: app.jailbreaks[row.modelData.address] || "HEN"
+                                    color: Theme.textOnHen
+                                    font.pixelSize: 11
+                                    font.weight: Font.Bold
                                 }
                             }
                         }

@@ -60,6 +60,13 @@ QtObject {
     property color ok: "#22C55E"
     property color warn: "#F59E0B"
     property color error: "#EF4444"
+    // A console with a jailbreak (GoldHEN, etaHEN...): gold, so it stands
+    // out from the others at a glance. Text on it is dark.
+    property color hen: "#F5B700"
+    readonly property color textOnHen: "#1C1500"
+    // The badge's fill: the bright gold on every theme (the light theme's
+    // line gold is darker, to show on white).
+    readonly property color henFill: light ? "#F5B700" : hen
 
     // ── Lines
     // The frame of every surface: white at low opacity on the dark themes, a
@@ -121,9 +128,9 @@ QtObject {
     property color cardBottom: "#101C2F"
     // The console in use: the same card, lit from below in the accent.
     property color cardActiveBottom: "#0F3570"
-    // A console that answers on FTP: the same card, in a green tone.
-    property color cardFtpBottom: "#10301F"
-    property color cardFtpActiveBottom: "#0E4A2C"
+    // A console with a jailbreak: the same card, warmed in gold.
+    property color cardHenBottom: "#34290A"
+    property color cardHenActiveBottom: "#4D3C08"
     readonly property color cardText: text
     readonly property color cardTextMuted: textSecondary
     readonly property color cardEdge: light ? "#D8E0EA" : Qt.rgba(1, 1, 1, 0.08)
@@ -180,8 +187,9 @@ QtObject {
             cardTop = "#FFFFFF"
             cardBottom = "#F5F8FD"
             cardActiveBottom = "#E3EDFF"
-            cardFtpBottom = "#EDF9F1"
-            cardFtpActiveBottom = "#D8F3E2"
+            hen = "#B98000"
+            cardHenBottom = "#FFF5D6"
+            cardHenActiveBottom = "#FFE9A6"
         } else if (name === "glass") {
             background = "#10213A"
             backgroundDeep = "#081222"
@@ -205,8 +213,9 @@ QtObject {
             cardTop = Qt.rgba(40 / 255, 62 / 255, 96 / 255, 0.55)
             cardBottom = Qt.rgba(24 / 255, 40 / 255, 66 / 255, 0.55)
             cardActiveBottom = Qt.rgba(28 / 255, 78 / 255, 160 / 255, 0.62)
-            cardFtpBottom = Qt.rgba(22 / 255, 90 / 255, 60 / 255, 0.50)
-            cardFtpActiveBottom = Qt.rgba(26 / 255, 130 / 255, 80 / 255, 0.60)
+            hen = "#FFC51F"
+            cardHenBottom = Qt.rgba(120 / 255, 92 / 255, 14 / 255, 0.50)
+            cardHenActiveBottom = Qt.rgba(160 / 255, 120 / 255, 12 / 255, 0.62)
         } else {
             background = "#0B111A"
             backgroundDeep = "#070B12"
@@ -230,8 +239,9 @@ QtObject {
             cardTop = "#142339"
             cardBottom = "#101C2F"
             cardActiveBottom = "#0F3570"
-            cardFtpBottom = "#10301F"
-            cardFtpActiveBottom = "#0E4A2C"
+            hen = "#F5B700"
+            cardHenBottom = "#34290A"
+            cardHenActiveBottom = "#4D3C08"
         }
     }
 

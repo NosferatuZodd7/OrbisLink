@@ -64,10 +64,11 @@ public:
 	Q_INVOKABLE void setOutputFolder(const QString &folder);
 	Q_INVOKABLE void rescan();
 
-	// `paths` are the games' "path" values. `install` puts each package in
-	// the install queue once it is built; otherwise it stays in the output
-	// folder. `titles` (optional, same order) overrides the names.
-	Q_INVOKABLE void convert(const QStringList &paths, bool install, const QStringList &titles = {});
+	// `paths` are the games' "path" values. `send` sends each package to the
+	// console over FTP once it is built (installed after, if the setting
+	// says so); otherwise it stays in the output folder. `titles`
+	// (optional, same order) overrides the names.
+	Q_INVOKABLE void convert(const QStringList &paths, bool send, const QStringList &titles = {});
 	// The disc files themselves, over FTP, to the folder the file list is in.
 	Q_INVOKABLE void sendToConsole(const QStringList &paths);
 	Q_INVOKABLE void cancelConversion(const QString &id);

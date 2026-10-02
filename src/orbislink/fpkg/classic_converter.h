@@ -52,7 +52,7 @@ struct ClassicResult
 	std::string title;
 };
 
-// "Some Game [SLUS20946].pkg", without characters file systems refuse.
+// "Some-Game_SLUS20946.pkg": letters, digits and dashes only.
 std::string packageFileName(const std::string &title, const std::string &titleId);
 
 // What goes into the package, without building it (the tests look at it).

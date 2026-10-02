@@ -113,7 +113,9 @@ FTP). A click elsewhere on the card starts the console's preferred one, chosen
 when adding it or in Consoles → Edit → Start with. The FTP button only appears
 when the console answers on FTP (a jailbreak: GoldHEN on the PS4, etaHEN on the
 PS5); without it the card has Remote Play alone, and the preferred start stays
-on Remote Play.
+on Remote Play. A console with a jailbreak is drawn in gold, with a badge
+saying which one it runs (GoldHEN, etaHEN, or HEN for any other) — the app
+tells from the folder each one keeps in `/data`.
 
 Settings → **Account IDs (PSID)** keeps the PSN Account IDs saved on this PC,
 each under a username so they are easy to tell apart. They can be added,
@@ -126,19 +128,22 @@ field from a saved one.
 **PS1/PS2 Games** (top bar) finds the PS1 and PS2 disc images in a folder of
 the PC and shows them as cards. For each game, or several selected:
 
-- **Convert and install** turns the disc into a PS4 package (a PS2 or PS1
-  Classic) and puts it in the install queue. While it is being made it shows
-  in the queue in amber; then it installs like any package. The console needs
-  a jailbreak and Remote Package Installer open.
+- **Convert and send** turns the disc into a PS4 package (a PS2 or PS1
+  Classic) and sends it to the console over FTP. While it is being made it
+  shows in the queue in amber; then it uploads like any file. With "Install it
+  after sending" on, it is installed too (Remote Package Installer open on the
+  console).
 - **Convert only** leaves the package in an output folder the app remembers —
-  for consoles without a jailbreak, or to install later.
-- **Send to console** copies the disc file itself over FTP.
+  for consoles without a jailbreak, or to send later.
+- **Send disc file** copies the disc image itself over FTP.
 
-The packages are built inside the app (no external tools). The emulator that
-runs the games is Sony's and is **not** included: point the app at the folder
-with your own copy (the `emus` layout of PS Classics fPKG Builder is
-understood). Without it, discs can still be sent over FTP. PS1 discs need a
-single .bin (games with one file per track have to be joined first).
+OrbisLink is not an emulator: the packages are built inside the app (no
+external tools), but the PS4 only runs a PS1/PS2 game packed together with
+Sony's PS1/PS2 Classics files — as the store's versions are — and those are
+**not** included. Point the app at the folder with your own copy (the `emus`
+layout of PS Classics fPKG Builder is understood). Without them, discs can
+still be sent over FTP. PS1 discs need a single .bin (games with one file per
+track have to be joined first).
 
 ## Download (pre-built)
 
