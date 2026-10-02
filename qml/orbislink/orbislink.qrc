@@ -8,6 +8,9 @@
         <file alias="DropOverlay.qml">DropOverlay.qml</file>
         <file alias="DropZone.qml">DropZone.qml</file>
         <file alias="TransferPanel.qml">TransferPanel.qml</file>
+        <file alias="GamesView.qml">GamesView.qml</file>
+        <file alias="GameCard.qml">GameCard.qml</file>
+        <file alias="GameDialog.qml">GameDialog.qml</file>
         <file alias="FtpBrowser.qml">FtpBrowser.qml</file>
         <file alias="SettingsDialog.qml">SettingsDialog.qml</file>
         <file alias="FirstRunWizard.qml">FirstRunWizard.qml</file>

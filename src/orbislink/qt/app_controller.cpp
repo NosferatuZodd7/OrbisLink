@@ -1434,6 +1434,13 @@ void AppController::copyToClipboard(const QString &text) const
 		clipboard->setText(text);
 }
 
+void AppController::updateSettings(const std::function<void(Settings &)> &change)
+{
+	change(settings_);
+	store_.save(settings_);
+	emit settingsChanged();
+}
+
 void AppController::setFtpUploadDirectory(const QString &path)
 {
 	settings_.ftpUploadDirectory = normalizeRemotePath(path.toStdString());

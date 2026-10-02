@@ -40,6 +40,12 @@ order automatically.*
 *With no controller connected, the keyboard acts as one. Every key can be
 changed on the map, and the change is saved.*
 
+![PS1/PS2 Games](docs/images/13-games.png)
+
+*PS1/PS2 Games: the discs in a folder of the PC (.iso, .bin/.cue, .img), each
+recognised from the disc itself (serial and region). One click opens a game;
+the box in the corner selects several.*
+
 ![File menu](docs/images/05-file-menu.png)
 
 *In the FTP browser, every file and folder has its own menu: download to the
@@ -114,6 +120,25 @@ each under a username so they are easy to tell apart. They can be added,
 edited and removed there, and each console picks the one it registers with
 (Consoles → Edit → Account ID). The registration dialog can also fill the
 field from a saved one.
+
+### PS1 and PS2 games
+
+**PS1/PS2 Games** (top bar) finds the PS1 and PS2 disc images in a folder of
+the PC and shows them as cards. For each game, or several selected:
+
+- **Convert and install** turns the disc into a PS4 package (a PS2 or PS1
+  Classic) and puts it in the install queue. While it is being made it shows
+  in the queue in amber; then it installs like any package. The console needs
+  a jailbreak and Remote Package Installer open.
+- **Convert only** leaves the package in an output folder the app remembers —
+  for consoles without a jailbreak, or to install later.
+- **Send to console** copies the disc file itself over FTP.
+
+The packages are built inside the app (no external tools). The emulator that
+runs the games is Sony's and is **not** included: point the app at the folder
+with your own copy (the `emus` layout of PS Classics fPKG Builder is
+understood). Without it, discs can still be sent over FTP. PS1 discs need a
+single .bin (games with one file per track have to be joined first).
 
 ## Download (pre-built)
 

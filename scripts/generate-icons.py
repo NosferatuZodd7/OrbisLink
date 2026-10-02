@@ -87,6 +87,13 @@ ICONS = {
     "rotate-ccw": "rotate-ccw",
     "external-link": "external-link",
     "sparkles": "sparkles",
+    "disc": "disc-3",
+    "folder-open": "folder-open",
+    "package-plus": "package-plus",
+    "square": "square",
+    "square-check": "square-check",
+    "image": "image",
+    "cpu": "cpu",
 }
 
 NUM = r"-?\d*\.?\d+(?:e-?\d+)?"

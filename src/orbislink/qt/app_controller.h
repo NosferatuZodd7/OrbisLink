@@ -116,6 +116,9 @@ public:
 	// The settings in effect, for whoever needs all of them (the
 	// Remote Play controller).
 	const Settings &settings() const { return settings_; }
+	// Changes settings that need nothing rebuilt (folders remembered by
+	// other parts of the app) and saves them.
+	void updateSettings(const std::function<void(Settings &)> &change);
 	// Stores the PSN Account ID, so it does not have to be typed every time.
 	Q_INVOKABLE void rememberAccountId(const QString &accountId);
 	bool streamAvailable() const

@@ -116,6 +116,12 @@ struct Settings
 	// from the settings.
 	bool firstRunDone = false;
 
+	// PS1/PS2 games: where the discs are, where the emulator files (the
+	// person's own copy) are, and where converted packages go.
+	std::string gamesFolder;
+	std::string emulatorFolder;
+	std::string convertOutputFolder;
+
 	std::string toJson() const;
 	static Settings fromJson(const std::string &text, bool *ok = nullptr);
 };
