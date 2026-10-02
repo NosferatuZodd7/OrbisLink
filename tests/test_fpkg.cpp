@@ -250,6 +250,8 @@ ORBISLINK_TEST(serials_and_titles)
 	int disc = 0;
 	CHECK_EQ(titleFromFileName("Final_Game (USA) (Disc 2) [v1.1].bin", &disc), std::string("Final Game"));
 	CHECK_EQ(disc, 2);
+	CHECK_EQ(titleFromFileName("SLUS_209.05.Disney-Pixar The Incredibles.iso"), std::string("Disney-Pixar The Incredibles"));
+	CHECK_EQ(titleFromFileName("SCES-50490 Some Game.iso"), std::string("Some Game"));
 }
 
 ORBISLINK_TEST(scans_ps1_and_ps2_discs)
