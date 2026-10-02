@@ -96,6 +96,8 @@ endif()
 find_package(OpenSSL QUIET)
 if(OpenSSL_FOUND)
 	add_library(orbislink_fpkg STATIC
+		src/orbislink/fpkg/classic_converter.cpp
+		src/orbislink/fpkg/disc_scanner.cpp
 		src/orbislink/fpkg/fpkg_crypto.cpp
 		src/orbislink/fpkg/fpkg_keys.cpp
 		src/orbislink/fpkg/param_sfo.cpp

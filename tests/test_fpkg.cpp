@@ -4,11 +4,15 @@
 // out byte for byte the same as LibOrbisPkg's PkgTool for the same files
 // (volume_ts "2020-01-01 00:00:00", c_date "2020-01-01"); if a change moves
 // it, compare with PkgTool again before updating it.
+#include "orbislink/fpkg/classic_converter.h"
+#include "orbislink/fpkg/disc_scanner.h"
 #include "orbislink/fpkg/param_sfo.h"
 #include "orbislink/fpkg/pkg_builder.h"
 #include "test_support.h"
 
+#include <algorithm>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 
@@ -115,6 +119,59 @@ PkgRequest makeRequest(const fs::path &dir)
 	return request;
 }
 
+// A minimal ISO 9660 disc with SYSTEM.CNF in its root, in 2048-byte
+// sectors or as a raw 2352-byte mode 2 image.
+Bytes makeDisc(const std::string &systemCnf, bool raw, const char *systemId = "PLAYSTATION")
+{
+	std::vector<Bytes> sectors(20, Bytes(2048, 0));
+	Bytes &pvd = sectors[16];
+	pvd[0] = 1;
+	std::memcpy(pvd.data() + 1, "CD001", 5);
+	pvd[6] = 1;
+	std::memset(pvd.data() + 8, ' ', 32);
+	std::memcpy(pvd.data() + 8, systemId, std::strlen(systemId));
+	auto record = [](uint8_t *at, uint32_t extent, uint32_t size, const std::string &name, bool dir) {
+		const uint8_t len = static_cast<uint8_t>(33 + name.size() + (name.size() % 2 == 0 ? 1 : 0));
+		at[0] = len;
+		for(int i = 0; i < 4; ++i)
+		{
+			at[2 + i] = static_cast<uint8_t>(extent >> (8 * i));
+			at[10 + i] = static_cast<uint8_t>(size >> (8 * i));
+		}
+		at[25] = dir ? 2 : 0;
+		at[32] = static_cast<uint8_t>(name.size());
+		std::memcpy(at + 33, name.data(), name.size());
+		return len;
+	};
+	record(pvd.data() + 156, 18, 2048, std::string(1, '\0'), true);
+	sectors[17][0] = 255;
+	std::memcpy(sectors[17].data() + 1, "CD001", 5);
+	uint8_t *dir = sectors[18].data();
+	size_t at = 0;
+	at += record(dir + at, 18, 2048, std::string(1, '\0'), true);
+	at += record(dir + at, 18, 2048, std::string(1, '\1'), true);
+	if(!systemCnf.empty())
+	{
+		record(dir + at, 19, static_cast<uint32_t>(systemCnf.size()), "SYSTEM.CNF;1", false);
+		std::memcpy(sectors[19].data(), systemCnf.data(), systemCnf.size());
+	}
+	Bytes out;
+	for(const Bytes &s : sectors)
+	{
+		if(raw)
+		{
+			Bytes header(24, 0);
+			header[15] = 2; // mode 2
+			out.insert(out.end(), header.begin(), header.end());
+			out.insert(out.end(), s.begin(), s.end());
+			out.insert(out.end(), 280, 0);
+		}
+		else
+			out.insert(out.end(), s.begin(), s.end());
+	}
+	return out;
+}
+
 } // namespace
 
 ORBISLINK_TEST(sfo_round_trips_and_sorts)
@@ -181,6 +238,187 @@ ORBISLINK_TEST(refuses_a_package_without_param_sfo)
 	CHECK(!buildFakePkg(request, (dir / "out.pkg").u8string(), {}, &error));
 	CHECK(error.find("param.sfo") != std::string::npos);
 	cleanUp(dir);
+}
+
+ORBISLINK_TEST(serials_and_titles)
+{
+	CHECK_EQ(normaliseSerial("SLUS_209.46;1"), std::string("SLUS-20946"));
+	CHECK_EQ(normaliseSerial("SCES-50490"), std::string("SCES-50490"));
+	CHECK_EQ(normaliseSerial("readme.txt"), std::string());
+	CHECK_EQ(regionOfSerial("SLES-12345"), std::string("Europe"));
+	CHECK_EQ(regionOfSerial("SLPM-12345"), std::string("Japan"));
+	int disc = 0;
+	CHECK_EQ(titleFromFileName("Final_Game (USA) (Disc 2) [v1.1].bin", &disc), std::string("Final Game"));
+	CHECK_EQ(disc, 2);
+}
+
+ORBISLINK_TEST(scans_ps1_and_ps2_discs)
+{
+	const fs::path dir = fs::temp_directory_path() / "orbislink-test-discs";
+	fs::remove_all(dir);
+	writeFile(dir / "Some PS2 Game (USA).iso",
+		makeDisc("BOOT2 = cdrom0:\\SLUS_209.46;1\r\nVER = 1.00\r\nVMODE = NTSC\r\n", false));
+	writeFile(dir / "psx/A PS1 Game (Europe).bin", makeDisc("BOOT = cdrom:\\SCES_014.20;1\r\nTCB = 4\r\n", true));
+	const std::string cue = "FILE \"A PS1 Game (Europe).bin\" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n";
+	writeFile(dir / "psx/A PS1 Game (Europe).cue", Bytes(cue.begin(), cue.end()));
+	writeFile(dir / "notes.iso", Bytes(40000, 7));
+
+	const auto discs = scanFolder(dir.u8string());
+	CHECK_EQ(discs.size(), size_t(2));
+	CHECK_EQ(discs[0].title, std::string("A PS1 Game"));
+	CHECK_EQ(discs[0].platform, std::string("ps1"));
+	CHECK_EQ(discs[0].serial, std::string("SCES-01420"));
+	CHECK_EQ(discs[0].region, std::string("Europe"));
+	CHECK_EQ(discs[0].format, std::string("bin"));
+	CHECK(discs[0].listedPath.find(".cue") != std::string::npos);
+	CHECK_EQ(discs[1].title, std::string("Some PS2 Game"));
+	CHECK_EQ(discs[1].platform, std::string("ps2"));
+	CHECK_EQ(discs[1].titleId, std::string("SLUS20946"));
+	CHECK_EQ(discs[1].region, std::string("USA"));
+	fs::remove_all(dir);
+}
+
+namespace {
+
+// What PS-Classics-fPKG-Builder keeps under Tools/PS4: stand-ins, not
+// Sony's files.
+fs::path makeEmulatorBundle()
+{
+	const fs::path dir = fs::temp_directory_path() / "orbislink-test-emus";
+	fs::remove_all(dir);
+	const fs::path ps4 = dir / "Tools/PS4";
+	for(const char *emu : {"Jak v2", "Rogue v1"})
+	{
+		writeFile(ps4 / "emus" / emu / "eboot.bin", pattern(1000, 5));
+		writeFile(ps4 / "emus" / emu / "ps2-emu-compiler.self", pattern(2000, 6));
+		writeFile(ps4 / "emus" / emu / "sce_sys/param.sfo", pattern(100, 7));
+		writeFile(ps4 / "emus" / emu / "sce_sys/icon0.png", pattern(300, 8));
+		const std::string cfg = "--host-audio=1\n--ps2-title-id=SCUS-97124\n--gs-uprender=2x2\n";
+		writeFile(ps4 / "emus" / emu / "config-emu-ps4.txt", Bytes(cfg.begin(), cfg.end()));
+	}
+	writeFile(ps4 / "emus/ps1hd/eboot.bin", pattern(900, 9));
+	writeFile(ps4 / "emus/ps1hd/sce_sys/icon0.png", pattern(300, 10));
+	writeFile(ps4 / "emus/psphd/eboot.bin", pattern(900, 11));
+	writeFile(ps4 / "lua_include/common.lua", pattern(50, 12));
+	const std::string ids = "SLUS20946;A Real Title\r\nSCES01420;Other\r\n";
+	writeFile(dir / "Tools/ps2ids.txt", Bytes(ids.begin(), ids.end()));
+	return dir;
+}
+
+std::vector<std::string> targets(const PkgRequest &r)
+{
+	std::vector<std::string> out;
+	for(const auto &f : r.files)
+		out.push_back(f.targetPath);
+	return out;
+}
+
+const PkgSource *source(const PkgRequest &r, const std::string &target)
+{
+	for(const auto &f : r.files)
+		if(f.targetPath == target)
+			return &f;
+	return nullptr;
+}
+
+std::string text(const PkgSource *s)
+{
+	return s ? std::string(s->data.begin(), s->data.end()) : std::string();
+}
+
+} // namespace
+
+ORBISLINK_TEST(finds_the_emulators_in_a_bundle)
+{
+	const fs::path dir = makeEmulatorBundle();
+	const EmulatorInfo emus = findEmulators(dir.u8string());
+	CHECK(emus.hasPs2());
+	CHECK(emus.hasPs1());
+	CHECK_EQ(emus.ps2Name, std::string("Jak v2"));
+	CHECK(emus.ps1Dir.find("ps1hd") != std::string::npos);
+	CHECK(emus.luaInclude.find("lua_include") != std::string::npos);
+	CHECK_EQ(lookupTitle(emus.titleDatabase, "SLUS20946"), std::string("A Real Title"));
+	// Pointing straight at one emulator works too.
+	const EmulatorInfo one = findEmulators((dir / "Tools/PS4/emus/Rogue v1").u8string());
+	CHECK_EQ(one.ps2Name, std::string("Rogue v1"));
+	CHECK(!one.hasPs1());
+	CHECK(!findEmulators((dir / "nothing").u8string()).hasPs2());
+	fs::remove_all(dir);
+}
+
+ORBISLINK_TEST(a_ps2_disc_becomes_a_ps2_classic)
+{
+	const fs::path emuDir = makeEmulatorBundle();
+	const fs::path discs = fs::temp_directory_path() / "orbislink-test-ps2";
+	fs::remove_all(discs);
+	writeFile(discs / "Game (USA).iso", makeDisc("BOOT2 = cdrom0:\\SLUS_209.46;1\r\n", false));
+	const DiscInfo disc = inspectDisc((discs / "Game (USA).iso").u8string());
+	ClassicOptions options;
+	options.outputDir = (discs / "out").u8string();
+	options.now = 1577836800;
+	options.icon = pattern(400, 13);
+	PkgRequest request;
+	ClassicResult result;
+	std::string error;
+	CHECK(prepareClassic(disc, findEmulators(emuDir.u8string()), options, &request, &result, &error));
+	CHECK_EQ(result.contentId, std::string("UP9000-SLUS20946_00-SLUS209460000001"));
+	CHECK_EQ(result.title, std::string("A Real Title"));
+	CHECK(result.pkgPath.find("A Real Title [SLUS20946].pkg") != std::string::npos);
+	const auto t = targets(request);
+	CHECK(std::find(t.begin(), t.end(), "eboot.bin") != t.end());
+	CHECK(std::find(t.begin(), t.end(), "lua_include/common.lua") != t.end());
+	CHECK_EQ(t.back(), std::string("image/disc01.iso"));
+	CHECK_EQ(std::count(t.begin(), t.end(), "sce_sys/param.sfo"), 1);
+	CHECK_EQ(std::count(t.begin(), t.end(), "sce_sys/icon0.png"), 1);
+	CHECK_EQ(source(request, "sce_sys/icon0.png")->data.size(), size_t(400));
+	const std::string cfg = text(source(request, "config-emu-ps4.txt"));
+	CHECK(cfg.find("--ps2-title-id=SLUS-20946\n") != std::string::npos);
+	CHECK(cfg.find("--max-disc-num=1") != std::string::npos);
+	CHECK(cfg.find("SCUS-97124") == std::string::npos);
+	ParamSfo sfo;
+	CHECK(sfo.parse(source(request, "sce_sys/param.sfo")->data));
+	CHECK_EQ(sfo.find("TITLE_ID")->text, std::string("SLUS20946"));
+	CHECK_EQ(sfo.find("CATEGORY")->text, std::string("gd"));
+
+	// And it builds.
+	CHECK(convertClassic(disc, findEmulators(emuDir.u8string()), options, {}, &result, &error));
+	CHECK_EQ(error, std::string());
+	CHECK(fs::file_size(fs::u8path(result.pkgPath)) > 0);
+	fs::remove_all(discs);
+	fs::remove_all(emuDir);
+}
+
+ORBISLINK_TEST(a_ps1_disc_becomes_a_ps1_classic)
+{
+	const fs::path emuDir = makeEmulatorBundle();
+	const fs::path discs = fs::temp_directory_path() / "orbislink-test-ps1";
+	fs::remove_all(discs);
+	writeFile(discs / "Old Game (Europe).bin", makeDisc("BOOT = cdrom:\\SCES_014.20;1\r\n", true));
+	const std::string cue = "FILE \"Old Game (Europe).bin\" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n";
+	writeFile(discs / "Old Game (Europe).cue", Bytes(cue.begin(), cue.end()));
+	const DiscInfo disc = inspectDisc((discs / "Old Game (Europe).cue").u8string());
+	ClassicOptions options;
+	options.outputDir = (discs / "out").u8string();
+	options.now = 1577836800;
+	PkgRequest request;
+	ClassicResult result;
+	std::string error;
+	CHECK(prepareClassic(disc, findEmulators(emuDir.u8string()), options, &request, &result, &error));
+	CHECK_EQ(result.contentId, std::string("UP9000-SCES01420_00-SCES01420PS1FPKG"));
+	CHECK_EQ(result.title, std::string("Old Game"));
+	CHECK(text(source(request, "config-title.txt")).find("--image=\"data/disc1.bin\"") != std::string::npos);
+	CHECK(text(source(request, "data/disc1.cue")).find("FILE \"disc1.bin\" BINARY") != std::string::npos);
+	CHECK(source(request, "data/disc1.bin")->sourcePath.find("Old Game (Europe).bin") != std::string::npos);
+	// The PS2 emulator's files stay out.
+	const auto t = targets(request);
+	CHECK(std::find(t.begin(), t.end(), "ps2-emu-compiler.self") == t.end());
+
+	// Without the emulator, a clear refusal.
+	EmulatorInfo none;
+	CHECK(!prepareClassic(disc, none, options, &request, &result, &error));
+	CHECK(error.find("PS1 emulator") != std::string::npos);
+	fs::remove_all(discs);
+	fs::remove_all(emuDir);
 }
 
 TEST_MAIN()
