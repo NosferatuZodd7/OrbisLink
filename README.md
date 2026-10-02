@@ -340,6 +340,14 @@ its icons come from [Lucide](https://lucide.dev/), under the ISC licence (see
 [`third-party/lucide`](third-party/lucide); `scripts/generate-icons.py` turns them into
 `qml/orbislink/Icons.js`).
 
+The PS1/PS2 converter builds its packages with a C++ port of the fake PKG
+builder of [LibOrbisPkg](https://github.com/maxton/LibOrbisPkg), by maxton,
+under the GNU LGPL 3 (see [`third-party/liborbispkg`](third-party/liborbispkg)).
+The layout of a PS2 Classics package follows
+[easy-ps2-fpkg](https://github.com/spiral009/easy-ps2-fpkg) (MIT). No Sony
+emulator, firmware or game is included: the emulator files come from the
+user's own copy.
+
 Sources consulted to implement the protocols:
 [chiaki-ng](https://github.com/streetpea/chiaki-ng),
 [Remote Package Installer](https://github.com/flatz/ps4_remote_pkg_installer),

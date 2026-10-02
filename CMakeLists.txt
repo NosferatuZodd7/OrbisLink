@@ -91,6 +91,32 @@ if(ORBISLINK_ENABLE_STREAM)
 	target_compile_definitions(orbislink_stream PUBLIC ORBISLINK_HAS_STREAM=1)
 endif()
 
+# PS1/PS2 discs into PS4 packages: the fake PKG builder (ported from
+# LibOrbisPkg, LGPL-3.0) needs OpenSSL, which Remote Play already brings.
+find_package(OpenSSL QUIET)
+if(OpenSSL_FOUND)
+	add_library(orbislink_fpkg STATIC
+		src/orbislink/fpkg/fpkg_crypto.cpp
+		src/orbislink/fpkg/fpkg_keys.cpp
+		src/orbislink/fpkg/param_sfo.cpp
+		src/orbislink/fpkg/pfs_builder.cpp
+		src/orbislink/fpkg/pkg_builder.cpp
+	)
+	target_include_directories(orbislink_fpkg PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+	target_link_libraries(orbislink_fpkg PUBLIC OpenSSL::Crypto Threads::Threads)
+	target_compile_definitions(orbislink_fpkg PUBLIC ORBISLINK_HAS_FPKG=1)
+	if(MSVC)
+		target_compile_options(orbislink_fpkg PRIVATE /W4)
+	else()
+		target_compile_options(orbislink_fpkg PRIVATE -Wall -Wextra)
+		if(ORBISLINK_WARNINGS_AS_ERRORS)
+			target_compile_options(orbislink_fpkg PRIVATE -Werror)
+		endif()
+	endif()
+	add_executable(orbislink-fpkg tools/fpkg/main.cpp)
+	target_link_libraries(orbislink-fpkg PRIVATE orbislink_fpkg)
+endif()
+
 target_compile_definitions(orbislink_core PUBLIC
 	ORBISLINK_REPOSITORY_STRING="${ORBISLINK_REPOSITORY}")
 target_include_directories(orbislink_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
