@@ -11,6 +11,11 @@ Item {
 
     property var game: ({})
     property bool selected: false
+    // Where it is on its way to the console (games.progress), or null.
+    property var progress: null
+    readonly property string stage: progress ? progress.stage : ""
+    readonly property bool busy: stage === "waiting" || stage === "converting"
+                                 || stage === "sending" || stage === "installing"
     readonly property bool ps2: game.platform === "ps2"
     readonly property color tone: ps2 ? Theme.accent : Theme.textSecondary
 
@@ -49,8 +54,9 @@ Item {
         id: body
         anchors.fill: parent
         radius: Theme.radius
-        border.width: card.selected ? 2 : 1
-        border.color: card.selected ? Theme.accent
+        border.width: card.selected || card.busy ? 2 : 1
+        border.color: card.busy ? Theme.alpha(stageLoader.tone, 0.75)
+                    : card.selected ? Theme.accent
                     : card.hover ? Theme.alpha(card.tone, 0.6) : Theme.cardEdge
         Behavior on border.color { ColorAnimation { duration: Theme.cardEase } }
         gradient: Gradient {
@@ -104,8 +110,9 @@ Item {
             }
         }
 
-        // The file, at the bottom.
+        // The file, at the bottom (or, while it is on its way, where it is).
         Row {
+            visible: card.stage.length === 0
             anchors.left: parent.left
             anchors.leftMargin: 20
             anchors.bottom: parent.bottom
@@ -126,7 +133,7 @@ Item {
         }
         // No emulator for it yet: it can be sent, not converted.
         Icon {
-            visible: !card.game.convertible
+            visible: !card.game.convertible && card.stage.length === 0
             anchors.right: parent.right
             anchors.rightMargin: 18
             anchors.bottom: parent.bottom
@@ -134,6 +141,93 @@ Item {
             name: "warning"
             size: 15
             color: Theme.warn
+        }
+
+        // ── On its way: the step's own loader, what it is doing, and a
+        // bar along the bottom edge in the step's colour.
+        Row {
+            visible: card.stage.length > 0
+            anchors.left: parent.left
+            anchors.leftMargin: 16
+            anchors.right: parent.right
+            anchors.rightMargin: 16
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 16
+            spacing: 10
+            StageLoader {
+                id: stageLoader
+                anchors.verticalCenter: parent.verticalCenter
+                stage: card.stage
+                percent: card.progress ? card.progress.percent || 0 : 0
+                waiting: card.progress ? card.progress.waiting === true : false
+            }
+            Column {
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - stageLoader.width - parent.spacing
+                spacing: 1
+                Text {
+                    width: parent.width
+                    elide: Text.ElideRight
+                    text: {
+                        var p = card.progress
+                        if (!p) return ""
+                        var pct = Math.floor(p.percent || 0) + "%"
+                        switch (p.stage) {
+                        case "waiting": return qsTr("Waiting to convert")
+                        case "converting": return qsTr("Converting · %1").arg(pct)
+                        case "converted": return qsTr("Package ready")
+                        case "sending": return p.waiting ? qsTr("Waiting to send") : qsTr("Sending · %1").arg(pct)
+                        case "sent": return qsTr("On the console")
+                        case "installing": return p.waiting ? qsTr("Waiting to install") : qsTr("Installing · %1").arg(pct)
+                        case "installed": return qsTr("Installed")
+                        }
+                        return qsTr("Failed")
+                    }
+                    color: Theme.light ? Qt.darker(stageLoader.tone, 1.15) : Qt.lighter(stageLoader.tone, 1.2)
+                    font.pixelSize: 12
+                    font.weight: Font.DemiBold
+                }
+                Text {
+                    width: parent.width
+                    elide: Text.ElideRight
+                    text: {
+                        var s = card.stage
+                        if (s === "waiting" || s === "converting") return qsTr("into a PS4 package")
+                        if (s === "converted") return qsTr("saved on this PC")
+                        if (s === "sending") return qsTr("over FTP to the console")
+                        if (s === "sent") return qsTr("sent over FTP")
+                        if (s === "installing") return qsTr("on the console")
+                        if (s === "installed") return qsTr("ready to play")
+                        return card.progress && card.progress.message ? card.progress.message : ""
+                    }
+                    color: Theme.cardTextMuted
+                    font.pixelSize: 11
+                }
+            }
+        }
+
+        // A bar near the bottom edge, in the step's colour, inset so it
+        // stays clear of the rounded corners.
+        Rectangle {
+            visible: card.busy
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.leftMargin: Theme.radius
+            anchors.rightMargin: Theme.radius
+            anchors.bottomMargin: 6
+            height: 3
+            radius: 1.5
+            color: Theme.alpha(stageLoader.tone, 0.16)
+            Rectangle {
+                height: parent.height
+                radius: parent.radius
+                width: parent.width * (stageLoader.indeterminate ? 1
+                                       : Math.max(0, Math.min(1, (card.progress ? card.progress.percent || 0 : 0) / 100)))
+                color: stageLoader.tone
+                opacity: stageLoader.indeterminate ? 0.4 : 1
+                Behavior on width { NumberAnimation { duration: 250 } }
+            }
         }
     }
 

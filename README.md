@@ -137,6 +137,11 @@ the PC and shows them as cards. For each game, or several selected:
   for consoles without a jailbreak, or to send later.
 - **Send disc file** copies the disc image itself over FTP.
 
+Each game's card follows it on the way, with a loader of its own per step:
+amber with a spinning disc while converting, blue with a rising arrow while
+sending, green with a breathing box while installing — and a ✓ when it is
+done.
+
 OrbisLink is not an emulator: the packages are built inside the app (no
 external tools), but the PS4 only runs a PS1/PS2 game packed together with
 Sony's PS1/PS2 Classics files — as the store's versions are — and those are

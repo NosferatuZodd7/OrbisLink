@@ -99,6 +99,7 @@ struct GamesController::Job
 GamesController::GamesController(AppController *app, QObject *parent) : QObject(parent), app_(app)
 {
 	connect(app_, &AppController::settingsChanged, this, &GamesController::foldersChanged);
+	connect(app_, &AppController::transfersChanged, this, &GamesController::updateProgress);
 	refreshEmulators();
 	worker_ = std::thread([this]() { workerLoop(); });
 	if(!gamesFolder().isEmpty())
@@ -251,6 +252,7 @@ void GamesController::rescan()
 				: tr("%n game(s)", "", list.size());
 			logInfo("Games: " + std::to_string(list.size()) + " disc(s) found");
 			emit self->scanChanged();
+			self->updateProgress();
 		}, Qt::QueuedConnection);
 	}).detach();
 #endif
@@ -408,6 +410,67 @@ void GamesController::publish()
 	}
 	conversions_ = list;
 	emit conversionsChanged();
+	updateProgress();
+}
+
+void GamesController::updateProgress()
+{
+	QVariantMap progress;
+	const QVariantMap transfers = app_->transfers();
+	auto fromQueue = [&](const QString &file) -> QVariantMap {
+		return transfers.value(AppController::transferKey(file)).toMap();
+	};
+	QMap<QString, QVariantMap> fromJobs;
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		for(const auto &job : jobs_)
+		{
+			if(job->state == QLatin1String("done") && !job->pkgPath.isEmpty())
+				packageOf_[job->path] = job->pkgPath;
+			QVariantMap item;
+			if(job->state == QLatin1String("waiting") || job->state == QLatin1String("converting"))
+			{
+				item[QStringLiteral("stage")] = job->state;
+				item[QStringLiteral("percent")] = job->percent;
+			}
+			else if(job->state == QLatin1String("error"))
+			{
+				item[QStringLiteral("stage")] = QStringLiteral("error");
+				item[QStringLiteral("message")] = job->message;
+			}
+			else if(job->state == QLatin1String("done"))
+			{
+				item[QStringLiteral("stage")] = QStringLiteral("converted");
+				item[QStringLiteral("percent")] = 100.0;
+			}
+			if(!item.isEmpty())
+				fromJobs[job->path] = item; // the newest job of a disc wins
+		}
+	}
+	for(const QVariant &v : games_)
+	{
+		const QVariantMap game = v.toMap();
+		const QString path = game.value(QStringLiteral("path")).toString();
+		QVariantMap item = fromJobs.value(path);
+		const QString stage = item.value(QStringLiteral("stage")).toString();
+		// After the conversion, the package's journey: sending, installing.
+		if(stage.isEmpty() || stage == QLatin1String("converted"))
+		{
+			QVariantMap queued = packageOf_.contains(path) ? fromQueue(packageOf_.value(path)) : QVariantMap();
+			// The disc file itself, sent as it is.
+			if(queued.isEmpty())
+				queued = fromQueue(path);
+			if(!queued.isEmpty() && queued.value(QStringLiteral("stage")) != QLatin1String("cancelled"))
+				item = queued;
+		}
+		if(!item.isEmpty())
+			progress[path] = item;
+	}
+	if(progress != progress_)
+	{
+		progress_ = progress;
+		emit progressChanged();
+	}
 }
 
 void GamesController::workerLoop()

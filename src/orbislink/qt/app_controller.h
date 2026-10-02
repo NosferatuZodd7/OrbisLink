@@ -58,6 +58,10 @@ class AppController : public QObject
 	// Which homebrew enabler each console with FTP runs: "GoldHEN",
 	// "etaHEN" or "HEN" (some other), by address.
 	Q_PROPERTY(QVariantMap jailbreaks READ jailbreaks NOTIFY ftpReachableChanged)
+	// Where each local file stands in the queue, by its path (normalised
+	// with transferKey): { stage: "sending" | "installing" | "sent" |
+	// "installed" | "error" | "cancelled", percent, message }.
+	Q_PROPERTY(QVariantMap transfers READ transfers NOTIFY transfersChanged)
 	Q_PROPERTY(bool downloadActive READ downloadActive NOTIFY downloadChanged)
 	Q_PROPERTY(QString downloadName READ downloadName NOTIFY downloadChanged)
 	Q_PROPERTY(double downloadProgress READ downloadProgress NOTIFY downloadChanged)
@@ -110,6 +114,8 @@ public:
 	QVariantList ftpUploads() const { return ftpUploads_; }
 	QVariantMap ftpReachable() const { return ftpReachable_; }
 	QVariantMap jailbreaks() const { return jailbreaks_; }
+	QVariantMap transfers() const { return transfers_; }
+	static QString transferKey(const QString &localPath);
 	bool downloadActive() const { return downloadActive_; }
 	QString downloadName() const { return downloadName_; }
 	double downloadProgress() const { return downloadProgress_; }
@@ -286,6 +292,7 @@ signals:
 	void ftpBusyChanged();
 	void ftpUploadsChanged();
 	void ftpReachableChanged();
+	void transfersChanged();
 	// Some of the files dropped for FTP already exist in the upload folder:
 	// [{index, name, localSize, remoteSize, suggestion}]. The window asks
 	// what to do and answers with resolveUploadConflicts.
@@ -341,6 +348,7 @@ private:
 	QVariantList ftpUploads_;
 	QVariantMap ftpReachable_;
 	QVariantMap jailbreaks_;
+	QVariantMap transfers_;
 	// The console whose files the list shows: when the console in use
 	// changes, the previous one's listing must not stay on screen.
 	std::string listedConsole_;

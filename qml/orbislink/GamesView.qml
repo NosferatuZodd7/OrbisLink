@@ -234,6 +234,7 @@ Item {
                             required property var modelData
                             game: modelData
                             selected: root.isSelected(modelData.path)
+                            progress: games.progress[modelData.path] || null
                             onToggle: root.toggle(modelData.path)
                             onOpen: gameDialog.begin([modelData])
                         }

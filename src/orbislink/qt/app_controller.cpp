@@ -763,6 +763,56 @@ void AppController::refreshQueueModel()
 		ftpUploads_ = uploads;
 		emit ftpUploadsChanged();
 	}
+
+	// Each file's latest news: a task under way wins (installing over
+	// sending), otherwise the newest finished one says how it ended.
+	QVariantMap transfers;
+	auto percentOf = [](const QueueTask &task) {
+		return task.totalBytes > 0
+			? 100.0 * static_cast<double>(task.doneBytes) / static_cast<double>(task.totalBytes) : 0.0;
+	};
+	for(const QueueTask &task : queue_->tasks())
+	{
+		if(task.isTerminal())
+			continue;
+		const QString key = transferKey(QString::fromStdString(task.localPath));
+		const bool installing = task.mode == TransferMode::DirectInstall;
+		if(transfers.contains(key) && !installing)
+			continue;
+		QVariantMap item;
+		item[QStringLiteral("stage")] = installing ? QStringLiteral("installing") : QStringLiteral("sending");
+		item[QStringLiteral("percent")] = percentOf(task);
+		item[QStringLiteral("waiting")] = task.state == TaskState::Pending;
+		transfers[key] = item;
+	}
+	for(const QueueTask &task : queue_->history())
+	{
+		const QString key = transferKey(QString::fromStdString(task.localPath));
+		if(transfers.contains(key))
+			continue;
+		QVariantMap item;
+		const bool installing = task.mode == TransferMode::DirectInstall;
+		item[QStringLiteral("stage")] = task.state == TaskState::Completed
+			? (installing ? QStringLiteral("installed") : QStringLiteral("sent"))
+			: task.state == TaskState::Cancelled ? QStringLiteral("cancelled") : QStringLiteral("error");
+		item[QStringLiteral("percent")] = 100.0;
+		item[QStringLiteral("message")] = translateMessage(task.message);
+		transfers[key] = item;
+	}
+	if(transfers != transfers_)
+	{
+		transfers_ = transfers;
+		emit transfersChanged();
+	}
+}
+
+QString AppController::transferKey(const QString &localPath)
+{
+	QString key = QDir::cleanPath(QDir::fromNativeSeparators(localPath));
+#ifdef Q_OS_WIN
+	key = key.toLower();
+#endif
+	return key;
 }
 
 QString AppController::uploadDirectory() const
