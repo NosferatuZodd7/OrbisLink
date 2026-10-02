@@ -6,6 +6,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <regex>
 #include <set>
 
 namespace orbislink::fpkg {
@@ -200,6 +201,13 @@ std::string titleFromFileName(const std::string &fileName, int *discNumber)
 	std::string name = fs::u8path(fileName).stem().u8string();
 	if(discNumber)
 		*discNumber = 0;
+	// "SLUS_209.05.Some Game": the serial in front is not part of the name.
+	{
+		static const std::regex serialPrefix(R"(^[A-Za-z]{4}[_-]?\d{3}\.?\d{2}[\s._-]*)");
+		const std::string rest = std::regex_replace(name, serialPrefix, "");
+		if(!rest.empty())
+			name = rest;
+	}
 	std::string out;
 	for(size_t i = 0; i < name.size(); ++i)
 	{
