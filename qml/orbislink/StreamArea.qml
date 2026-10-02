@@ -125,7 +125,7 @@ Item {
             id: consoleRow
             y: 6
             width: cardScroll.width
-            spacing: 18
+            spacing: 16
 
             Repeater {
                 model: app.consoles
@@ -135,6 +135,7 @@ Item {
                                                  ? stream.consoleStates[modelData.address] : undefined
                     current: modelData.active
                     ftpAvailable: root.ftpOk(modelData)
+                    jailbreak: app.jailbreaks[modelData.address] || ""
                     startMode: modelData.startMode
                     available: root.built
                     address: modelData.address
@@ -582,20 +583,20 @@ Item {
         }
     }
 
-    // The other consoles' FTP, from time to time, so their cards know
-    // whether to offer it (the one in use is checked by the services).
+    // Every console's FTP, from time to time: the other consoles' cards
+    // learn whether to offer it (the one in use is checked by the
+    // services), and each card which enabler its console runs.
     Timer {
-        running: !root.streaming && app.consoles.length > 1
+        running: !root.streaming && app.consoles.length > 0
         interval: 10000
         repeat: true
         triggeredOnStart: true
         onTriggered: {
-            var others = []
+            var all = []
             var items = app.consoles
             for (var i = 0; i < items.length; ++i)
-                if (!items[i].active)
-                    others.push(items[i].address)
-            app.probeFtp(others)
+                all.push(items[i].address)
+            app.probeFtp(all)
         }
     }
 

@@ -3,12 +3,11 @@
 // One disc (or several selected ones): what it is, and the three things
 // that can be done with it.
 //
-// * Convert and install: the disc becomes a PS4 package that goes into the
-//   install queue. Needs a console with a jailbreak and Remote Package
-//   Installer open on it.
+// * Convert and send: the disc becomes a PS4 package that goes to the
+//   console over FTP (and is installed after, if that is switched on).
 // * Convert only: the package stays in the output folder (for consoles
-//   without a jailbreak, or to install later).
-// * Send to console: the disc file itself, over FTP.
+//   without a jailbreak, or to send later).
+// * Send the disc file: the image as it is, over FTP.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -40,6 +39,7 @@ Dialog {
         return false
     }
     readonly property bool installerUp: app.installerState === "available"
+    readonly property bool ftpUp: app.canUseFtp
     readonly property bool hasOutput: games.outputFolder.length > 0
 
     signal chooseEmulator()
@@ -49,6 +49,7 @@ Dialog {
     function begin(list) {
         items = list
         titleInput.text = list.length === 1 ? list[0].title : ""
+        installAfter.checked = app.settingsMap().installAfterUpload === true
         open()
     }
 
@@ -59,17 +60,17 @@ Dialog {
         return out
     }
 
-    function run(install) {
+    function run(send) {
         if (!hasOutput) {
-            pendingAction = install ? "install" : "convert"
+            pendingAction = send ? "send" : "convert"
             outputDialog.open()
             return
         }
-        games.convert(paths(), install, single ? [titleInput.text] : [])
+        games.convert(paths(), send, single ? [titleInput.text] : [])
         started()
         close()
     }
-    // What to do once an output folder is chosen ("install", "convert" or
+    // What to do once an output folder is chosen ("send", "convert" or
     // nothing, when the folder was only being changed).
     property string pendingAction: ""
 
@@ -249,13 +250,14 @@ Dialog {
                     color: Theme.text
                     font.pixelSize: 12
                     text: (dialog.needsPs2 && dialog.needsPs1
-                           ? qsTr("No PS1 or PS2 emulator found yet.")
-                           : dialog.needsPs2 ? qsTr("No PS2 emulator found yet.")
-                           : dialog.needsPs1 ? qsTr("No PS1 emulator found yet.")
+                           ? qsTr("The PS1 and PS2 Classics files are missing.")
+                           : dialog.needsPs2 ? qsTr("The PS2 Classics files are missing.")
+                           : dialog.needsPs1 ? qsTr("The PS1 Classics files are missing.")
                            : qsTr("The serial of this disc could not be read."))
-                          + " " + qsTr("The emulator is Sony's and does not come with OrbisLink: point "
-                                       + "the app at the folder with your own copy. Sending the disc "
-                                       + "over FTP still works.")
+                          + " " + qsTr("The PS4 only runs a PS1/PS2 disc packed together with Sony's "
+                                       + "Classics files, as the store's versions are. They are not "
+                                       + "included: choose the folder with your copy. The disc file can "
+                                       + "still be sent as it is.")
                 }
                 StyledButton {
                     visible: dialog.needsPs1 || dialog.needsPs2
@@ -266,30 +268,45 @@ Dialog {
             }
         }
 
-        RowLayout {
+        // ── how the package gets to the console
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
             Layout.bottomMargin: 4
-            spacing: 10
-            Icon {
-                name: dialog.installerUp ? "info" : "warning"
-                size: 16
-                color: dialog.installerUp ? Theme.textSecondary : Theme.warn
-                Layout.alignment: Qt.AlignTop
-            }
-            Text {
+            spacing: 8
+            RowLayout {
                 Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                color: Theme.textSecondary
-                font.pixelSize: 11
+                spacing: 10
+                Icon {
+                    name: dialog.ftpUp ? "info" : "warning"
+                    size: 16
+                    color: dialog.ftpUp ? Theme.textSecondary : Theme.warn
+                    Layout.alignment: Qt.AlignTop
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.textSecondary
+                    font.pixelSize: 11
+                    text: dialog.ftpUp
+                        ? qsTr("The package goes to the console over FTP, to the folder the file list is "
+                               + "in. A console without a jailbreak has no FTP: convert only, and the "
+                               + "package stays in the folder above.")
+                        : qsTr("The console has no FTP right now (it needs a jailbreak: GoldHEN or "
+                               + "etaHEN). Convert only, and send the package later.")
+                }
+            }
+            // Installing right after the upload: the same setting as for any
+            // file sent over FTP.
+            StyledCheck {
+                id: installAfter
+                Layout.fillWidth: true
+                enabled: dialog.ftpUp
                 text: dialog.installerUp
-                    ? qsTr("Installing needs Remote Package Installer open on the console. A console "
-                           + "without a jailbreak cannot install packages: convert only, and the "
-                           + "package stays in the folder above.")
-                    : qsTr("The remote installer is not answering now. To install, open Remote Package "
-                           + "Installer on the console (it needs a jailbreak); otherwise, convert only "
-                           + "and keep the package.")
+                      ? qsTr("Install it after sending")
+                      : qsTr("Install it after sending (open Remote Package Installer on the console)")
+                onToggled: app.applySettings({ "installAfterUpload": checked })
             }
         }
     }
@@ -303,12 +320,12 @@ Dialog {
             anchors.rightMargin: Theme.dialogMargin
             spacing: 10
             StyledButton {
-                text: qsTr("Send to console")
-                iconName: "upload"
-                enabled: app.canUseFtp
+                text: qsTr("Send disc file")
+                iconName: "disc"
+                enabled: dialog.ftpUp
                 ToolTip.visible: hovered
-                ToolTip.text: app.canUseFtp ? qsTr("The disc file as it is, over FTP, to the folder the file list is in")
-                                            : qsTr("The console has no FTP right now")
+                ToolTip.text: dialog.ftpUp ? qsTr("The disc image as it is, over FTP, to the folder the file list is in")
+                                           : qsTr("The console has no FTP right now")
                 onClicked: { games.sendToConsole(dialog.paths()); dialog.started(); dialog.close() }
             }
             Item { Layout.fillWidth: true }
@@ -318,10 +335,12 @@ Dialog {
                 onClicked: dialog.run(false)
             }
             StyledButton {
-                text: qsTr("Convert and install")
-                iconName: "package-plus"
+                text: qsTr("Convert and send")
+                iconName: "upload"
                 primary: true
-                enabled: dialog.allConvertible
+                enabled: dialog.allConvertible && dialog.ftpUp
+                ToolTip.visible: hovered && !dialog.ftpUp
+                ToolTip.text: qsTr("The console has no FTP right now")
                 onClicked: dialog.run(true)
             }
         }
@@ -334,7 +353,7 @@ Dialog {
         onAccepted: {
             games.setOutputFolder(selectedFolder)
             if (dialog.pendingAction.length > 0)
-                dialog.run(dialog.pendingAction === "install")
+                dialog.run(dialog.pendingAction === "send")
         }
     }
 }

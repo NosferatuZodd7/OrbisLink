@@ -55,6 +55,9 @@ class AppController : public QObject
 	// the last time it was tried (see probeFtp). The console in use has
 	// ftpState instead.
 	Q_PROPERTY(QVariantMap ftpReachable READ ftpReachable NOTIFY ftpReachableChanged)
+	// Which homebrew enabler each console with FTP runs: "GoldHEN",
+	// "etaHEN" or "HEN" (some other), by address.
+	Q_PROPERTY(QVariantMap jailbreaks READ jailbreaks NOTIFY ftpReachableChanged)
 	Q_PROPERTY(bool downloadActive READ downloadActive NOTIFY downloadChanged)
 	Q_PROPERTY(QString downloadName READ downloadName NOTIFY downloadChanged)
 	Q_PROPERTY(double downloadProgress READ downloadProgress NOTIFY downloadChanged)
@@ -106,6 +109,7 @@ public:
 	bool ftpBusy() const { return ftpBusy_; }
 	QVariantList ftpUploads() const { return ftpUploads_; }
 	QVariantMap ftpReachable() const { return ftpReachable_; }
+	QVariantMap jailbreaks() const { return jailbreaks_; }
 	bool downloadActive() const { return downloadActive_; }
 	QString downloadName() const { return downloadName_; }
 	double downloadProgress() const { return downloadProgress_; }
@@ -315,6 +319,7 @@ private:
 		const std::vector<std::string> &remoteNames = {});
 	// Lists the upload folder and, for the files already there, asks first.
 	void checkUploadConflicts(const QStringList &files);
+	static std::string detectJailbreak(const std::string &address, uint16_t port);
 	void refreshFtpListing(bool announce);
 	QString uploadDirectory() const;
 
@@ -335,6 +340,7 @@ private:
 	bool ftpBusy_ = false;
 	QVariantList ftpUploads_;
 	QVariantMap ftpReachable_;
+	QVariantMap jailbreaks_;
 	// The console whose files the list shows: when the console in use
 	// changes, the previous one's listing must not stay on screen.
 	std::string listedConsole_;

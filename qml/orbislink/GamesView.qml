@@ -113,7 +113,7 @@ Item {
                     iconName: "cpu"
                     active: games.ps1Emulator || games.ps2Emulator
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Emulator folder: %1").arg(emulatorSummary.text)
+                    ToolTip.text: qsTr("PS1/PS2 Classics files: %1").arg(emulatorSummary.text)
                     onClicked: emulatorFolderDialog.open()
                 }
             }
@@ -142,8 +142,8 @@ Item {
                         Text {
                             id: emulatorSummary
                             Layout.fillWidth: true
-                            text: (games.ps2Emulator ? qsTr("PS2 emulator: %1").arg(games.ps2EmulatorName) : qsTr("PS2 emulator: not found"))
-                                  + "  ·  " + (games.ps1Emulator ? qsTr("PS1 emulator: found") : qsTr("PS1 emulator: not found"))
+                            text: (games.ps2Emulator ? qsTr("PS2 Classics files: %1").arg(games.ps2EmulatorName) : qsTr("PS2 Classics files: not found"))
+                                  + "  ·  " + (games.ps1Emulator ? qsTr("PS1 Classics files: found") : qsTr("PS1 Classics files: not found"))
                             color: Theme.text
                             font.pixelSize: 12
                             font.weight: Font.DemiBold
@@ -153,14 +153,16 @@ Item {
                             wrapMode: Text.WordWrap
                             color: Theme.textSecondary
                             font.pixelSize: 11
-                            text: qsTr("Converting a disc needs Sony's PS2 or PS1 Classics emulator, which "
-                                       + "OrbisLink does not include. Point the app at the folder with your "
-                                       + "own copy (an \"emus\" folder like the one PS Classics fPKG Builder "
-                                       + "uses works). Without it, discs can still be sent over FTP.")
+                            text: qsTr("OrbisLink converts the disc into a PS4 package and sends it over FTP; "
+                                       + "it is not an emulator. But the PS4 only runs a PS1/PS2 game packed "
+                                       + "with Sony's Classics files (as the store's versions are), and those "
+                                       + "cannot be shipped: choose the folder with your copy (an \"emus\" "
+                                       + "folder like PS Classics fPKG Builder's works). Without them, the "
+                                       + "disc file can still be sent as it is.")
                         }
                     }
                     StyledButton {
-                        text: qsTr("Emulator folder…")
+                        text: qsTr("Classics files…")
                         chip: true
                         onClicked: emulatorFolderDialog.open()
                     }
@@ -193,8 +195,8 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
                     text: qsTr("Choose the folder with your disc images (.iso, .bin/.cue, .img). The app "
-                               + "finds which are PS1 and PS2 games, and can send them to the console or "
-                               + "turn them into packages and install them.")
+                               + "finds which are PS1 and PS2 games, converts them into PS4 packages and "
+                               + "sends them to the console over FTP.")
                     color: Theme.textSecondary
                     font.pixelSize: 13
                 }
@@ -315,7 +317,7 @@ Item {
     }
     FolderDialog {
         id: emulatorFolderDialog
-        title: qsTr("Folder with the PS1/PS2 Classics emulator")
+        title: qsTr("Folder with the PS1/PS2 Classics files")
         currentFolder: games.folderUrl(games.emulatorFolder)
         onAccepted: games.setEmulatorFolder(selectedFolder)
     }

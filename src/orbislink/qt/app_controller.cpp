@@ -31,6 +31,7 @@
 #include <thread>
 
 #include <algorithm>
+#include <cctype>
 #include <map>
 #include <set>
 
@@ -496,6 +497,33 @@ void AppController::setConsoleStartMode(const QString &address, const QString &s
 	}
 }
 
+// GoldHEN keeps /data/GoldHEN and etaHEN /data/etaHEN; anything else with
+// an FTP server is some other HEN.
+std::string AppController::detectJailbreak(const std::string &address, uint16_t port)
+{
+	FtpClient::Config config;
+	config.host = address;
+	config.port = port;
+	config.connectTimeoutSeconds = 3;
+	config.idleTimeoutSeconds = 5;
+	config.maxRetries = 0;
+	FtpClient client(config);
+	std::vector<FtpEntry> entries;
+	if(!client.list("/data/", &entries).ok)
+		return "HEN";
+	for(const FtpEntry &entry : entries)
+	{
+		std::string name = entry.name;
+		for(char &c : name)
+			c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+		if(name == "goldhen")
+			return "GoldHEN";
+		if(name == "etahen")
+			return "etaHEN";
+	}
+	return "HEN";
+}
+
 void AppController::probeFtp(const QStringList &addresses)
 {
 	if(probingFtp_ || addresses.isEmpty())
@@ -511,20 +539,34 @@ void AppController::probeFtp(const QStringList &addresses)
 				port = settings_.ftpPortPs5;
 		targets.emplace_back(trimmedAddress, port);
 	}
-	std::thread([this, targets]() {
+	const QVariantMap known = jailbreaks_;
+	std::thread([this, targets, known]() {
 		QVariantMap answers;
+		QVariantMap found;
 		for(const auto &target : targets)
-			answers[QString::fromStdString(target.first)] = tcpProbe(target.first, target.second, 1200);
+		{
+			const QString address = QString::fromStdString(target.first);
+			const bool reachable = tcpProbe(target.first, target.second, 1200);
+			answers[address] = reachable;
+			// Once per console: which enabler it runs, from the folder each
+			// one leaves in /data.
+			if(reachable && !known.contains(address))
+				found[address] = QString::fromStdString(detectJailbreak(target.first, target.second));
+		}
 		QMetaObject::invokeMethod(
 			this,
-			[this, answers]() {
+			[this, answers, found]() {
 				probingFtp_ = false;
 				QVariantMap merged = ftpReachable_;
 				for(auto it = answers.begin(); it != answers.end(); ++it)
 					merged[it.key()] = it.value();
-				if(merged != ftpReachable_)
+				QVariantMap jailbreaks = jailbreaks_;
+				for(auto it = found.begin(); it != found.end(); ++it)
+					jailbreaks[it.key()] = it.value();
+				if(merged != ftpReachable_ || jailbreaks != jailbreaks_)
 				{
 					ftpReachable_ = merged;
+					jailbreaks_ = jailbreaks;
 					emit ftpReachableChanged();
 				}
 			},

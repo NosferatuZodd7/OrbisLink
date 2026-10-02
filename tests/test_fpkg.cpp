@@ -363,7 +363,8 @@ ORBISLINK_TEST(a_ps2_disc_becomes_a_ps2_classic)
 	CHECK(prepareClassic(disc, findEmulators(emuDir.u8string()), options, &request, &result, &error));
 	CHECK_EQ(result.contentId, std::string("UP9000-SLUS20946_00-SLUS209460000001"));
 	CHECK_EQ(result.title, std::string("A Real Title"));
-	CHECK(result.pkgPath.find("A Real Title [SLUS20946].pkg") != std::string::npos);
+	CHECK(result.pkgPath.find("A-Real-Title_SLUS20946.pkg") != std::string::npos);
+	CHECK_EQ(packageFileName("Jogo: Ação & Aventura!", "SLES12345"), std::string("Jogo-A-o-Aventura_SLES12345.pkg"));
 	const auto t = targets(request);
 	CHECK(std::find(t.begin(), t.end(), "eboot.bin") != t.end());
 	CHECK(std::find(t.begin(), t.end(), "lua_include/common.lua") != t.end());

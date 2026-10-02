@@ -17,8 +17,9 @@ Item {
     signal open()
     signal toggle()
 
-    implicitWidth: 220
-    implicitHeight: 272
+    // A square, like every card.
+    implicitWidth: 236
+    implicitHeight: 236
 
     readonly property bool hover: area.containsMouse
 
@@ -60,7 +61,7 @@ Item {
         // The platform, large, as the console cards show "PS4".
         Text {
             x: 20
-            y: 46
+            y: 34
             text: card.ps2 ? "PS2" : "PS1"
             color: card.ps2 ? Theme.accent : Theme.cardText
             font.pixelSize: 44
@@ -70,7 +71,7 @@ Item {
         Icon {
             anchors.right: parent.right
             anchors.rightMargin: 22
-            y: 58
+            y: 46
             name: "disc"
             size: 30
             color: Theme.alpha(card.tone, 0.55)
@@ -81,7 +82,7 @@ Item {
             anchors.right: parent.right
             anchors.leftMargin: 20
             anchors.rightMargin: 20
-            y: 116
+            y: 100
             spacing: 6
             Text {
                 width: parent.width
@@ -90,7 +91,7 @@ Item {
                 font.pixelSize: Theme.fontCardTitle
                 font.weight: Font.DemiBold
                 wrapMode: Text.WordWrap
-                maximumLineCount: 3
+                maximumLineCount: 2
                 elide: Text.ElideRight
                 lineHeight: 1.1
             }

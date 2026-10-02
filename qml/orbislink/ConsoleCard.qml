@@ -45,8 +45,11 @@ Item {
     // What a click on the card starts: "remoteplay" or "ftp".
     property string startMode: "remoteplay"
     readonly property bool prefersFtp: startMode === "ftp" && ftpAvailable
-    // The card's colour: green when the console answers on FTP, blue otherwise.
-    readonly property color tone: ftpAvailable ? Theme.ok : Theme.accent
+    // Which homebrew enabler it runs ("GoldHEN", "etaHEN", "HEN"), once known.
+    property string jailbreak: ""
+    // The card's colour: gold when the console has a jailbreak (its FTP
+    // answers), blue otherwise.
+    readonly property color tone: ftpAvailable ? Theme.hen : Theme.accent
 
     signal connect()
     signal cancel()
@@ -124,8 +127,9 @@ Item {
         }
     }
 
-    implicitWidth: 300
-    implicitHeight: 312
+    // A square, like every card.
+    implicitWidth: 256
+    implicitHeight: 256
 
     readonly property bool hover: area.containsMouse && actionName.length > 0
 
@@ -188,7 +192,7 @@ Item {
         border.width: card.current && card.available ? 2 : 1
         border.color: card.current && card.available ? card.tone
                     : card.hover ? Theme.alpha(card.tone, 0.6)
-                    : card.ftpAvailable ? Theme.alpha(Theme.ok, 0.35)
+                    : card.ftpAvailable ? Theme.alpha(Theme.hen, 0.55)
                     : Theme.cardEdge
         Behavior on border.color { ColorAnimation { duration: Theme.cardEase } }
         gradient: Gradient {
@@ -196,7 +200,7 @@ Item {
             GradientStop {
                 position: 1.0
                 color: card.ftpAvailable
-                       ? (card.current ? Theme.cardFtpActiveBottom : Theme.cardFtpBottom)
+                       ? (card.current ? Theme.cardHenActiveBottom : Theme.cardHenBottom)
                        : (card.current && card.available ? Theme.cardActiveBottom : Theme.cardBottom)
             }
         }
@@ -289,6 +293,39 @@ Item {
                 }
             }
         }
+
+        // The jailbreak, in solid gold: the first thing the eye finds.
+        Rectangle {
+            visible: card.ftpAvailable
+            anchors.verticalCenter: parent.verticalCenter
+            height: 24
+            width: henRow.implicitWidth + 18
+            radius: 12
+            color: Theme.henFill
+            Row {
+                id: henRow
+                anchors.centerIn: parent
+                spacing: 5
+                Icon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: "unlock"
+                    size: 12
+                    strokeWidth: 2.2
+                    color: Theme.textOnHen
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: card.jailbreak.length > 0 ? card.jailbreak : "HEN"
+                    color: Theme.textOnHen
+                    font.pixelSize: 11
+                    font.weight: Font.Bold
+                }
+            }
+            HoverHandler { id: henHover }
+            ToolTip.visible: henHover.hovered
+            ToolTip.text: qsTr("This console has a jailbreak: its FTP server answers, so files and "
+                               + "packages can be sent to it.")
+        }
     }
 
     StyledToolButton {
@@ -326,7 +363,7 @@ Item {
     // ── Middle: PS4/PS5 in large type, the name and the IP.
     Column {
         x: 22
-        y: 74
+        y: 64
         width: parent.width - 44
         spacing: 6
 
@@ -401,7 +438,8 @@ Item {
             rightPadding: 10
             readonly property bool cancelling: card.current && card.busy
             text: cancelling ? qsTr("Cancel") : qsTr("Remote Play")
-            iconName: cancelling ? "loader" : "play"
+            // Side by side with FTP there is no room for the icon.
+            iconName: card.ftpAvailable ? "" : cancelling ? "loader" : "play"
             primary: !card.prefersFtp
             enabled: card.available
             ToolTip.visible: hovered && !card.available
@@ -416,7 +454,6 @@ Item {
             leftPadding: 10
             rightPadding: 10
             text: qsTr("FTP")
-            iconName: "folder"
             primary: card.prefersFtp
             ToolTip.visible: hovered
             ToolTip.text: qsTr("Browse the console's files over FTP, without Remote Play")
