@@ -40,6 +40,8 @@ Item {
     // jailbreak, a PS4 without GoldHEN's FTP) there is no FTP button, and
     // the card always starts Remote Play.
     property bool ftpAvailable: false
+    // Lit for a moment, to show where a console that was just registered is.
+    property bool spotlight: false
     // What a click on the card starts: "remoteplay" or "ftp".
     property string startMode: "remoteplay"
     readonly property bool prefersFtp: startMode === "ftp" && ftpAvailable
@@ -151,6 +153,31 @@ Item {
             border.color: card.current && card.available
                 ? Theme.alpha(card.tone, (Theme.light ? 0.10 : 0.14) - index * 0.04)
                 : Qt.rgba(0, 0, 0, Theme.light ? 0.025 - index * 0.008 : 0.10 - index * 0.03)
+        }
+    }
+
+    // ── The spotlight: an accent ring that breathes a few times.
+    Rectangle {
+        id: spotlightRing
+        anchors.fill: body
+        anchors.margins: -8
+        radius: body.radius + 8
+        color: "transparent"
+        border.width: 3
+        border.color: Theme.accent
+        opacity: 0
+        SequentialAnimation {
+            running: card.spotlight
+            loops: 3
+            onStopped: spotlightRing.opacity = 0
+            NumberAnimation {
+                target: spotlightRing; property: "opacity"
+                from: 0; to: 0.9; duration: 450; easing.type: Easing.OutCubic
+            }
+            NumberAnimation {
+                target: spotlightRing; property: "opacity"
+                to: 0.2; duration: 650; easing.type: Easing.InOutCubic
+            }
         }
     }
 

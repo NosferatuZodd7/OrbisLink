@@ -5,6 +5,7 @@
 #include "orbislink/stream/account_id.h"
 #include "orbislink/common/util.h"
 
+#include <QDateTime>
 #include <QKeySequence>
 #include <QTimer>
 
@@ -79,6 +80,11 @@ StreamController::StreamController(QObject *parent)
 		QMetaObject::invokeMethod(
 			this,
 			[this, slug, message, state]() {
+				if(state == SessionState::Failed && retryAfterInUse())
+					return;
+				if(sessionState_ == QLatin1String("connected")
+					&& (state == SessionState::Stopped || state == SessionState::Failed))
+					lastSessionEndMs_ = QDateTime::currentMSecsSinceEpoch();
 				sessionState_ = slug;
 				sessionDetail_ = message;
 				streaming_ = state == SessionState::Connected;
@@ -583,6 +589,7 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 						}
 						emit notify(tr("Registration"),
 							tr("Console registered. The Account ID is saved — next time you only need the PIN."), false);
+						emit registrationSucceeded();
 					}
 					else
 					{
@@ -642,8 +649,39 @@ void StreamController::forgetRegistration(const QString &hostId)
 	emit notify(tr("Remote Play"), tr("Registration removed from this PC."), false);
 }
 
+bool StreamController::retryAfterInUse()
+{
+	// Only right after a session of ours ended: an "in use" out of the
+	// blue is somebody else playing, and that is said straight away.
+	const qint64 sinceEnd = QDateTime::currentMSecsSinceEpoch() - lastSessionEndMs_;
+	if(!session_->lastFailureWasInUse() || lastSessionEndMs_ == 0 || sinceEnd > 30000
+		|| inUseRetries_ >= 8)
+		return false;
+	++inUseRetries_;
+	logInfo("Remote Play: the console is still closing the last session, trying again ("
+		+ std::to_string(inUseRetries_) + ").");
+	sessionState_ = QStringLiteral("connecting");
+	sessionDetail_ = tr("The console is still closing the last session — trying again…");
+	emit sessionChanged();
+	if(!inUseRetryTimer_)
+	{
+		inUseRetryTimer_ = new QTimer(this);
+		inUseRetryTimer_->setSingleShot(true);
+		inUseRetryTimer_->setInterval(1500);
+		connect(inUseRetryTimer_, &QTimer::timeout, this, [this]() {
+			retryingInUse_ = true;
+			startStream();
+			retryingInUse_ = false;
+		});
+	}
+	inUseRetryTimer_->start();
+	return true;
+}
+
 void StreamController::startStream()
 {
+	if(!retryingInUse_)
+		inUseRetries_ = 0;
 	if(streaming_)
 	{
 		emit notify(tr("Remote Play"), tr("The session is already running."), false);
@@ -828,6 +866,18 @@ void StreamController::stopStream()
 	microphone_.stop();
 	session_->stopMicrophone();
 	emit microphoneChanged();
+
+	// Ending while waiting to try again: there is no session to stop,
+	// only the wait.
+	if(inUseRetryTimer_ && inUseRetryTimer_->isActive())
+	{
+		inUseRetryTimer_->stop();
+		inUseRetries_ = 0;
+		sessionState_ = QStringLiteral("stopped");
+		sessionDetail_ = QString();
+		emit sessionChanged();
+		return;
+	}
 
 	// chiaki's stop waits for its threads; off the UI thread so the
 	// window does not freeze.

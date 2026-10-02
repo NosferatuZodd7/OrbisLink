@@ -183,7 +183,14 @@ Item {
                     // A file being replaced shows only once, as the upload above.
                     readonly property bool replaced: root.beingUploaded(model.name)
                     visible: !replaced
-                    height: replaced ? 0 : 32
+                    height: replaced ? 0 : 34
+                    // The Basic style pads 12px all round, which in a 34px row
+                    // squeezes the content into a sliver and leaves it off the
+                    // lit box. The row sets its own.
+                    topPadding: 0
+                    bottomPadding: 0
+                    leftPadding: 12
+                    rightPadding: 6
 
                     // The row under the mouse lights up; folders open with a
                     // double click, so they get the hand.

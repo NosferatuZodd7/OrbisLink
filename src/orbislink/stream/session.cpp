@@ -48,6 +48,7 @@ struct StreamSession::Impl
 	bool usingHardware = false;
 
 	std::atomic<bool> active { false };
+	std::atomic<bool> failedInUse { false };
 	std::atomic<int> state { static_cast<int>(SessionState::Idle) };
 	std::atomic<int> width { 0 };
 	std::atomic<int> height { 0 };
@@ -253,6 +254,7 @@ void eventCallback(ChiakiEvent *event, void *user)
 		case CHIAKI_EVENT_QUIT:
 		{
 			impl->active.store(false);
+			impl->failedInUse.store(event->quit.reason == CHIAKI_QUIT_REASON_SESSION_REQUEST_RP_IN_USE);
 			const bool cleaned = event->quit.reason == CHIAKI_QUIT_REASON_STOPPED;
 			std::string detail = quitReasonText(event->quit.reason);
 			if(event->quit.reason_str && *event->quit.reason_str)
@@ -349,8 +351,11 @@ int StreamSession::frameHeight() const { return impl_->height.load(); }
 uint64_t StreamSession::framesDecoded() const { return impl_->frames.load(); }
 bool StreamSession::usingHardwareDecoder() const { return impl_->usingHardware; }
 
+bool StreamSession::lastFailureWasInUse() const { return impl_->failedInUse.load(); }
+
 bool StreamSession::start(const Config &config, std::string *error)
 {
+	impl_->failedInUse.store(false);
 	if(impl_->sessionStarted)
 	{
 		// A session that has already ended must not block the next one.

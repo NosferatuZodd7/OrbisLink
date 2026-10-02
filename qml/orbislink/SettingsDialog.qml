@@ -221,6 +221,17 @@ Dialog {
         close()
     }
 
+    // Save first: otherwise the old repository would be checked, not the one
+    // typed in the field. Only these three values, and without closing: the
+    // result shows up in the dialog, and whoever pressed wants to see it.
+    function checkUpdatesNow() {
+        if (app.updateState === "checking" || app.updateState === "downloading")
+            return
+        app.saveUpdateSettings(updatesBox.checked, updateRepoField.text.trim(),
+                               updateChannelBox.currentIndex === 1 ? "testing" : "stable")
+        app.checkForUpdatesNow(false)
+    }
+
     header: Item {
         implicitHeight: Theme.dialogHeader
         Row {
@@ -412,6 +423,72 @@ Dialog {
                             onClicked: dialog.section = navItem.index
                         }
                     }
+                }
+            }
+
+            // Not a section: looks for a new version straight away, on the
+            // repository and channel set under General, and says how it went.
+            Column {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: 14
+                spacing: 6
+
+                Rectangle { width: parent.width; height: 1; color: Theme.border }
+
+                Rectangle {
+                    id: updateItem
+                    readonly property bool busy: app.updateState === "checking"
+                                                 || app.updateState === "downloading"
+                    width: parent.width
+                    height: 42
+                    radius: 12
+                    color: updateArea.containsMouse && !busy ? Theme.controlFill : "transparent"
+                    Behavior on color { ColorAnimation { duration: Theme.fast } }
+
+                    Row {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 12
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            name: "refresh"
+                            size: 18
+                            spinning: updateItem.busy
+                            color: updateItem.busy ? Theme.accent : Theme.textSecondary
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: qsTr("Update check")
+                            color: Theme.text
+                            font.pixelSize: 13
+                            font.weight: Font.Medium
+                        }
+                    }
+                    MouseArea {
+                        id: updateArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: updateItem.busy ? Qt.ArrowCursor : Qt.PointingHandCursor
+                        onClicked: dialog.checkUpdatesNow()
+                    }
+                }
+
+                Text {
+                    width: parent.width
+                    leftPadding: 12
+                    rightPadding: 4
+                    visible: app.updateMessage.length > 0
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 3
+                    elide: Text.ElideRight
+                    text: app.updateMessage
+                    color: app.updateState === "error" ? Theme.error
+                         : app.updateState === "available" ? Theme.ok
+                         : Theme.textSecondary
+                    font.pixelSize: 11
                 }
             }
         }
@@ -753,17 +830,7 @@ Dialog {
                             text: qsTr("Check now")
                             enabled: app.updateState !== "checking"
                                      && app.updateState !== "downloading"
-                            onClicked: {
-                                // Save first: otherwise the old repository would be
-                                // checked, not the one typed in the field. Only these
-                                // three values, and without closing: the result shows
-                                // up right here, and whoever pressed wants to see it.
-                                app.saveUpdateSettings(updatesBox.checked,
-                                                       updateRepoField.text.trim(),
-                                                       updateChannelBox.currentIndex === 1
-                                                           ? "testing" : "stable")
-                                app.checkForUpdatesNow(false)
-                            }
+                            onClicked: dialog.checkUpdatesNow()
                         }
                         Text {
                             Layout.fillWidth: true

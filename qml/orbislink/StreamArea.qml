@@ -10,6 +10,9 @@ import QtQuick.Layouts
 Item {
     id: root
 
+    // The console accepted a registration made from here.
+    signal registeredHere()
+
     // Here and not in the card: choosing a console rebuilds the list of
     // cards, and a handler whose card has just been destroyed stops halfway,
     // so the connection would only start on a second click.
@@ -168,6 +171,8 @@ Item {
                     onChoose: root.chooseAndConnect(modelData.address)
                     onRemove: app.removeConsole(modelData.address)
                     onOpenFtp: root.openFtp(modelData.address)
+                    spotlight: root.spotlightAddress.length > 0
+                               && root.spotlightAddress === modelData.address
                 }
             }
 
@@ -225,15 +230,39 @@ Item {
     // ───────────────────────────── bar during the stream
     //
     // Floats over the top of the picture, in glass, and fades in when the
-    // mouse moves instead of jumping onto the screen.
+    // mouse moves instead of jumping onto the screen. In full screen it stays
+    // out of the picture and only comes back when the mouse nears the top.
     Rectangle {
         id: streamToolbar
         anchors.top: videoStage.top
         anchors.left: videoStage.left
         anchors.right: videoStage.right
         anchors.margins: 14
-        readonly property bool shown: root.streaming
-                                        && (streamBar.containsMouse || streamHover.hovered)
+        readonly property bool wanted: root.streaming
+            && (toolbarHover.hovered
+                || (window.streamFullscreen
+                    ? streamBar.containsMouse && streamBar.mouseY < 110
+                    : streamBar.containsMouse || streamHover.hovered))
+        property bool shown: false
+        onWantedChanged: {
+            if (wanted) {
+                hideDelay.stop()
+                shown = true
+            } else if (!root.streaming) {
+                hideDelay.stop()
+                shown = false
+            } else {
+                hideDelay.restart()
+            }
+        }
+        // A short grace, so the bar does not flicker when the mouse leaves
+        // it for a moment.
+        Timer {
+            id: hideDelay
+            interval: 800
+            onTriggered: streamToolbar.shown = false
+        }
+        HoverHandler { id: toolbarHover }
         visible: opacity > 0.01
         opacity: shown ? 1.0 : 0.0
         Behavior on opacity { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
@@ -583,6 +612,14 @@ Item {
         // One-click connect found the console unregistered: registration is
         // opened instead of a message telling you to open it.
         function onRegistrationNeeded() { registerDialog.open() }
+        // Registered: nothing more to do in the dialog. Back to the cards,
+        // with the console just registered lit for a moment.
+        function onRegistrationSucceeded() {
+            registerDialog.close()
+            root.spotlightAddress = app.consoleAddress
+            spotlightTimer.restart()
+            root.registeredHere()
+        }
         function onConsoleStatesChanged() {
             var stateList = stream.consoleStates
             for (var address in stateList) {
@@ -595,6 +632,14 @@ Item {
 
     // ───────────────────────────── registration
     StreamRegisterDialog { id: registerDialog }
+
+    // The card the eye should go to after registering.
+    property string spotlightAddress: ""
+    Timer {
+        id: spotlightTimer
+        interval: 4000
+        onTriggered: root.spotlightAddress = ""
+    }
 
     // Screenshots only.
     Timer {

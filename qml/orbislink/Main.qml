@@ -205,6 +205,12 @@ ApplicationWindow {
             StreamArea {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                // Back to the home page: whatever was open on top of the
+                // cards gets out of the way of the console just registered.
+                onRegisteredHere: {
+                    settingsDialog.close()
+                    firstRunWizard.close()
+                }
             }
 
             Item {
