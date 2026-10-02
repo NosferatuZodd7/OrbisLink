@@ -12,7 +12,9 @@
 #include <QString>
 #include <QStringList>
 #include <QUrl>
+#include <QMap>
 #include <QVariantList>
+#include <QVariantMap>
 
 #include <atomic>
 #include <condition_variable>
@@ -40,6 +42,11 @@ class GamesController : public QObject
 	Q_PROPERTY(QVariantList games READ games NOTIFY scanChanged)
 	Q_PROPERTY(QVariantList conversions READ conversions NOTIFY conversionsChanged)
 	Q_PROPERTY(bool converting READ converting NOTIFY conversionsChanged)
+	// Where each game stands, by its "path": { stage, percent, message },
+	// stage being "waiting", "converting", "converted", "sending", "sent",
+	// "installing", "installed" or "error". Games with nothing going on
+	// are not in it.
+	Q_PROPERTY(QVariantMap progress READ progress NOTIFY progressChanged)
 
 public:
 	explicit GamesController(AppController *app, QObject *parent = nullptr);
@@ -57,6 +64,7 @@ public:
 	QVariantList games() const { return games_; }
 	QVariantList conversions() const { return conversions_; }
 	bool converting() const;
+	QVariantMap progress() const { return progress_; }
 
 	// Folders come as paths or file:// URLs (what FolderDialog gives).
 	Q_INVOKABLE void setGamesFolder(const QString &folder);
@@ -82,6 +90,7 @@ signals:
 	void foldersChanged();
 	void scanChanged();
 	void conversionsChanged();
+	void progressChanged();
 
 private:
 	struct Job;
@@ -91,6 +100,7 @@ private:
 	void workerLoop();
 	void runJob(const std::shared_ptr<Job> &job);
 	void publish();
+	void updateProgress();
 
 	AppController *app_;
 	bool ps1Emulator_ = false;
@@ -102,6 +112,9 @@ private:
 	quint64 scanRun_ = 0;
 
 	QVariantList conversions_;
+	QVariantMap progress_;
+	// The package each disc became (kept after the conversion rows go).
+	QMap<QString, QString> packageOf_;
 	mutable std::mutex mutex_;
 	std::deque<std::shared_ptr<Job>> jobs_;
 	std::condition_variable wakeup_;
