@@ -72,11 +72,11 @@ public:
 	Q_INVOKABLE void setOutputFolder(const QString &folder);
 	Q_INVOKABLE void rescan();
 
-	// `paths` are the games' "path" values. `send` sends each package to the
-	// console over FTP once it is built (installed after, if the setting
-	// says so); otherwise it stays in the output folder. `titles`
-	// (optional, same order) overrides the names.
-	Q_INVOKABLE void convert(const QStringList &paths, bool send, const QStringList &titles = {});
+	// `paths` are the games' "path" values. `install` sends each package to
+	// the console over FTP once it is built and then installs it; otherwise
+	// it stays in the output folder. `titles` (optional, same order)
+	// overrides the names.
+	Q_INVOKABLE void convert(const QStringList &paths, bool install, const QStringList &titles = {});
 	// The disc files themselves, over FTP, to the folder the file list is in.
 	Q_INVOKABLE void sendToConsole(const QStringList &paths);
 	Q_INVOKABLE void cancelConversion(const QString &id);
@@ -115,6 +115,9 @@ private:
 	QVariantMap progress_;
 	// The package each disc became (kept after the conversion rows go).
 	QMap<QString, QString> packageOf_;
+	// Packages on their way over FTP that get installed once they land
+	// (the flag: their upload was seen under way).
+	QMap<QString, bool> installAfterSend_;
 	mutable std::mutex mutex_;
 	std::deque<std::shared_ptr<Job>> jobs_;
 	std::condition_variable wakeup_;
