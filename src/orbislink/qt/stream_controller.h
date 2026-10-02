@@ -187,6 +187,9 @@ signals:
 	void connectStageChanged();
 	// The console answered but this PC is not registered on it yet.
 	void registrationNeeded();
+	// The console accepted this PC: the registration dialog closes and the
+	// window goes back to the console's card.
+	void registrationSucceeded();
 	void consoleChanged();
 	void registrationChanged();
 	void sessionChanged();
@@ -236,6 +239,14 @@ private:
 	QString connectStage_;
 	class QTimer *wakeTimer_ = nullptr;
 	int wakeAttempts_ = 0;
+	// "Remote Play already in use" right after a session ended: the console
+	// is still closing the old one, so the connection is tried again a few
+	// times before it counts as a failure.
+	class QTimer *inUseRetryTimer_ = nullptr;
+	int inUseRetries_ = 0;
+	bool retryingInUse_ = false;
+	qint64 lastSessionEndMs_ = 0;
+	bool retryAfterInUse();
 	quint64 oneClickRun_ = 0;
 	qint64 lastFrameCount_ = 0;
 	int measuredFps_ = 0;
