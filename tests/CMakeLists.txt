@@ -25,6 +25,15 @@ if(ORBISLINK_ENABLE_STREAM AND TARGET orbislink_stream)
 	endforeach()
 endif()
 
+# The fake PKG builder, when OpenSSL is there to build it.
+if(TARGET orbislink_fpkg)
+	add_executable(test_fpkg test_fpkg.cpp)
+	target_link_libraries(test_fpkg PRIVATE orbislink_fpkg orbislink_core)
+	target_include_directories(test_fpkg PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+	target_compile_definitions(test_fpkg PRIVATE EXPECTED_SHA="aa809a8c16a99d553f5891efcd50dc3d9ff36adf82a69b4827c439266905ead4")
+	add_test(NAME test_fpkg COMMAND test_fpkg)
+endif()
+
 # The PCM queue lives on the Qt side, but what matters to test in it — the
 # accounting of how much went in and how much came out — needs no sound card
 # at all, and that is what tells "the sound did not arrive" from "the sound did not come out".
