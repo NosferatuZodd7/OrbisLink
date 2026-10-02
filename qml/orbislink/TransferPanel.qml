@@ -45,6 +45,160 @@ Item {
             }
         }
 
+        // PS1/PS2 conversions: above the transfers and drawn apart from them,
+        // in amber, while the package is being made. One meant for installing
+        // then shows up below as an ordinary install.
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.bottomMargin: games.conversions.length > 0 ? 10 : 0
+            visible: games.conversions.length > 0
+            spacing: 8
+
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    text: qsTr("Conversions")
+                    color: Theme.textSecondary
+                    font.pixelSize: 12
+                    font.weight: Font.DemiBold
+                }
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    chip: true
+                    visible: {
+                        for (var i = 0; i < games.conversions.length; ++i) {
+                            var s = games.conversions[i].state
+                            if (s !== "waiting" && s !== "converting")
+                                return true
+                        }
+                        return false
+                    }
+                    text: qsTr("Clear finished")
+                    onClicked: games.clearFinishedConversions()
+                }
+            }
+
+            Repeater {
+                model: games.conversions
+                delegate: Rectangle {
+                    id: conv
+                    required property var modelData
+                    readonly property bool working: modelData.state === "converting"
+                    readonly property bool waiting: modelData.state === "waiting"
+                    readonly property color tone: modelData.state === "error" ? Theme.error
+                                                : modelData.state === "done" ? Theme.ok
+                                                : modelData.state === "cancelled" ? Theme.textSecondary
+                                                : Theme.warn
+                    Layout.fillWidth: true
+                    radius: 16
+                    color: Theme.alpha(tone, Theme.light ? 0.07 : 0.09)
+                    border.width: 1
+                    border.color: Theme.alpha(tone, 0.45)
+                    implicitHeight: convColumn.implicitHeight + 24
+
+                    ColumnLayout {
+                        id: convColumn
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: 12
+                        spacing: 8
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+                            Rectangle {
+                                width: 44; height: 44; radius: 10
+                                color: Theme.alpha(conv.tone, 0.14)
+                                Icon {
+                                    anchors.centerIn: parent
+                                    name: conv.modelData.state === "done" ? "check" : "disc"
+                                    spinning: conv.working
+                                    size: 22
+                                    color: conv.tone
+                                }
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 2
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: conv.modelData.title
+                                    color: Theme.text
+                                    font.pixelSize: 14
+                                    font.weight: Font.DemiBold
+                                    elide: Text.ElideRight
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: {
+                                        var d = conv.modelData
+                                        var p = (d.platform === "ps2" ? "PS2" : "PS1") + "  ·  "
+                                        if (d.state === "waiting")
+                                            return p + qsTr("Waiting to convert")
+                                        if (d.state === "converting")
+                                            return p + (d.stage === "digest" || d.stage === "finish"
+                                                        ? qsTr("Signing… %1%").arg(Math.floor(d.percent))
+                                                        : qsTr("Converting… %1%").arg(Math.floor(d.percent)))
+                                        if (d.state === "done")
+                                            return p + (d.install ? qsTr("Ready — installing below")
+                                                                  : qsTr("Package ready"))
+                                        if (d.state === "cancelled")
+                                            return p + qsTr("Cancelled")
+                                        return p + qsTr("Failed")
+                                    }
+                                    color: conv.modelData.state === "error" ? Theme.error : Theme.textSecondary
+                                    font.pixelSize: 11
+                                    elide: Text.ElideRight
+                                }
+                            }
+                            StyledToolButton {
+                                visible: conv.working || conv.waiting
+                                iconName: "close"
+                                iconSize: 15
+                                danger: true
+                                ToolTip.visible: hovered
+                                ToolTip.text: qsTr("Cancel")
+                                onClicked: games.cancelConversion(conv.modelData.id)
+                            }
+                            StyledToolButton {
+                                visible: conv.modelData.state === "done"
+                                iconName: "folder-open"
+                                iconSize: 15
+                                ToolTip.visible: hovered
+                                ToolTip.text: qsTr("Open the folder")
+                                onClicked: games.openOutputFolder()
+                            }
+                        }
+
+                        // A bar with the amber of a conversion, not the blue of a transfer.
+                        Rectangle {
+                            visible: conv.working || conv.waiting
+                            Layout.fillWidth: true
+                            height: 4
+                            radius: 2
+                            color: Theme.alpha(conv.tone, 0.18)
+                            Rectangle {
+                                width: parent.width * Math.max(0, Math.min(1, conv.modelData.percent / 100))
+                                height: parent.height
+                                radius: parent.radius
+                                color: conv.tone
+                                Behavior on width { NumberAnimation { duration: 250 } }
+                            }
+                        }
+                        Text {
+                            visible: conv.modelData.message.length > 0
+                            Layout.fillWidth: true
+                            text: conv.modelData.message
+                            color: Theme.error
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: 11
+                        }
+                    }
+                }
+            }
+        }
+
         ListView {
             id: list
             Layout.fillWidth: true
@@ -221,7 +375,7 @@ Item {
             Item {
                 anchors.centerIn: parent
                 width: parent.width - 40
-                visible: list.count === 0
+                visible: list.count === 0 && games.conversions.length === 0
                 implicitHeight: emptyColumn.implicitHeight
 
                 ColumnLayout {

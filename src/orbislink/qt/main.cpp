@@ -4,6 +4,7 @@
 
 #include "orbislink/common/log.h"
 #include "orbislink/qt/app_controller.h"
+#include "orbislink/qt/games_controller.h"
 #include "orbislink/settings/settings_store.h"
 #include "orbislink/qt/ftp_model.h"
 #include "orbislink/qt/queue_model.h"
@@ -118,6 +119,7 @@ int main(int argc, char **argv)
 	bool demoFullscreen = false;
 	bool demoWizard = false;
 	bool demoUpdate = false;
+	bool demoGames = false;
 	QString demoTheme;
 	bool printDiagnostics = false;
 	bool selfTestDrag = false;
@@ -151,6 +153,8 @@ int main(int argc, char **argv)
 			demoWizard = true;
 		else if(argument == QStringLiteral("--demo-update"))
 			demoUpdate = true;
+		else if(argument == QStringLiteral("--demo-games"))
+			demoGames = true;
 		else if(argument == QStringLiteral("--demo-theme") && i + 1 < arguments.size())
 			demoTheme = arguments[++i];
 		else if(argument == QStringLiteral("--print-diagnostics"))
@@ -239,6 +243,9 @@ int main(int argc, char **argv)
 			QCoreApplication::exit(1);
 		});
 	engine.rootContext()->setContextProperty(QStringLiteral("app"), controller.get());
+	// PS1/PS2 discs: found, sent or converted.
+	auto games = std::make_unique<GamesController>(controller.get());
+	engine.rootContext()->setContextProperty(QStringLiteral("games"), games.get());
 
 #ifdef ORBISLINK_HAS_STREAM
 	// Remote Play is a separate controller, but it follows the console
@@ -281,6 +288,7 @@ int main(int argc, char **argv)
 #endif
 	engine.rootContext()->setContextProperty(QStringLiteral("demoOverlay"), demoOverlay);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoTab"), demoTab);
+	engine.rootContext()->setContextProperty(QStringLiteral("demoGames"), demoGames);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoSettings"), demoSettings);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoMenu"), demoMenu);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoRegister"), demoRegister);

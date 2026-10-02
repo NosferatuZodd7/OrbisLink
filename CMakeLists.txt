@@ -171,6 +171,7 @@ if(ORBISLINK_BUILD_GUI)
 		qt_add_executable(orbislink-gui
 			src/orbislink/qt/main.cpp
 			src/orbislink/qt/app_controller.cpp
+			src/orbislink/qt/games_controller.cpp
 			src/orbislink/qt/queue_model.cpp
 			src/orbislink/qt/ftp_model.cpp
 			src/orbislink/qt/startup.cpp
@@ -194,6 +195,9 @@ if(ORBISLINK_BUILD_GUI)
 			ORBISLINK_VERSION_STRING="${ORBISLINK_VERSION_NAME}")
 		target_link_libraries(orbislink-gui PRIVATE
 			orbislink_core Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2)
+		if(TARGET orbislink_fpkg)
+			target_link_libraries(orbislink-gui PRIVATE orbislink_fpkg)
+		endif()
 		if(ORBISLINK_ENABLE_STREAM)
 			target_link_libraries(orbislink-gui PRIVATE orbislink_stream Qt6::Multimedia)
 			target_compile_definitions(orbislink-gui PRIVATE ORBISLINK_HAS_STREAM=1)

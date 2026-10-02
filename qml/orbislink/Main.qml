@@ -21,6 +21,9 @@ ApplicationWindow {
     readonly property bool installerAbsent: app.installerState === "unavailable"
                                             || app.installerState === "not-applicable"
     readonly property bool panelAllowed: !(ftpAbsent && installerAbsent) || app.queue.count > 0
+                                         || games.conversions.length > 0
+    // What the main area shows: the consoles ("home") or the PS1/PS2 games.
+    property string view: typeof demoGames !== "undefined" && demoGames ? "games" : "home"
     readonly property string panelLockReason: qsTr("This console only offers Remote Play: it has "
         + "neither FTP nor the remote installer running (a jailbreak adds them).")
     // Full screen for the stream: hides the top bar and the side panel,
@@ -143,6 +146,21 @@ ApplicationWindow {
 
                 Item { Layout.fillWidth: true }
 
+                // PS1/PS2 games: a page of its own, in place of the consoles.
+                StyledButton {
+                    visible: games.available
+                    text: qsTr("PS1/PS2 Games")
+                    iconName: "disc"
+                    chip: true
+                    primary: window.view === "games"
+                    implicitHeight: 36
+                    ToolTip.visible: hovered
+                    ToolTip.text: window.view === "games" ? qsTr("Back to the consoles")
+                                                          : qsTr("Find PS1 and PS2 discs on this PC, send them or turn them into packages")
+                    onClicked: window.view = window.view === "games" ? "home" : "games"
+                }
+                Item { implicitWidth: 6 }
+
                 ServiceIndicator {
                     label: qsTr("Remote Play")
                     state_: app.remotePlayState
@@ -202,7 +220,15 @@ ApplicationWindow {
             Layout.fillHeight: true
             spacing: 0
 
+            GamesView {
+                visible: window.view === "games"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                onBack: window.view = "home"
+            }
+
             StreamArea {
+                visible: window.view !== "games"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 // Back to the home page: whatever was open on top of the
