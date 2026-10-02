@@ -195,8 +195,8 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
                     text: qsTr("Choose the folder with your disc images (.iso, .bin/.cue, .img). The app "
-                               + "finds which are PS1 and PS2 games, converts them into PS4 packages and "
-                               + "sends them to the console over FTP.")
+                               + "finds which are PS1 and PS2 games, converts them into PS4 packages, "
+                               + "sends them to the console over FTP and installs them.")
                     color: Theme.textSecondary
                     font.pixelSize: 13
                 }

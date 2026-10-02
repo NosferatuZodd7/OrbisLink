@@ -82,7 +82,7 @@ struct GamesController::Job
 	QString platform;
 	QString path;
 	QString listedPath;
-	bool send = false;
+	bool install = false;
 	QString state = QStringLiteral("waiting"); // waiting, converting, done, error, cancelled
 	QString stage;
 	double percent = 0;
@@ -282,7 +282,7 @@ QString GamesController::packageNameFor(const QString &path, const QString &titl
 #endif
 }
 
-void GamesController::convert(const QStringList &paths, bool send, const QStringList &titles)
+void GamesController::convert(const QStringList &paths, bool install, const QStringList &titles)
 {
 #ifdef ORBISLINK_HAS_FPKG
 	if(outputFolder().isEmpty())
@@ -302,7 +302,7 @@ void GamesController::convert(const QStringList &paths, bool send, const QString
 		job->platform = game.value(QStringLiteral("platform")).toString();
 		job->title = i < titles.size() && !titles[i].trimmed().isEmpty() ? titles[i].trimmed()
 			: game.value(QStringLiteral("title")).toString();
-		job->send = send;
+		job->install = install;
 		job->disc = fpkg::inspectDisc(job->listedPath.toStdString());
 		// The art is drawn here, on the interface's thread.
 		job->icon = drawArt(job->title, job->platform, 512, 512);
@@ -321,7 +321,7 @@ void GamesController::convert(const QStringList &paths, bool send, const QString
 	emit app_->showPanel(QStringLiteral("queue"));
 #else
 	Q_UNUSED(paths);
-	Q_UNUSED(send);
+	Q_UNUSED(install);
 	Q_UNUSED(titles);
 #endif
 }
@@ -403,7 +403,7 @@ void GamesController::publish()
 			m[QStringLiteral("stage")] = job->stage;
 			m[QStringLiteral("percent")] = job->percent;
 			m[QStringLiteral("message")] = job->message;
-			m[QStringLiteral("send")] = job->send;
+			m[QStringLiteral("install")] = job->install;
 			m[QStringLiteral("pkgPath")] = job->pkgPath;
 			list << m;
 		}
@@ -417,6 +417,29 @@ void GamesController::updateProgress()
 {
 	QVariantMap progress;
 	const QVariantMap transfers = app_->transfers();
+	// Packages that just landed on the console: now they are installed.
+	// (Only once this upload was seen under way: an old "sent" of the same
+	// file does not count.)
+	for(auto it = installAfterSend_.begin(); it != installAfterSend_.end();)
+	{
+		const QString stage = transfers.value(it.key()).toMap().value(QStringLiteral("stage")).toString();
+		if(stage == QLatin1String("sending"))
+		{
+			it.value() = true;
+			++it;
+		}
+		else if(stage == QLatin1String("sent") && it.value())
+		{
+			const QString pkg = it.key();
+			it = installAfterSend_.erase(it);
+			QMetaObject::invokeMethod(this, [this, pkg]() { app_->addPaths(QStringList { pkg }, 0); },
+				Qt::QueuedConnection);
+		}
+		else if(it.value() && (stage == QLatin1String("error") || stage == QLatin1String("cancelled")))
+			it = installAfterSend_.erase(it);
+		else
+			++it;
+	}
 	auto fromQueue = [&](const QString &file) -> QVariantMap {
 		return transfers.value(AppController::transferKey(file)).toMap();
 	};
@@ -567,19 +590,24 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 		logWarning("Games: conversion failed — " + error);
 
 	const QString pkg = QString::fromStdString(result.pkgPath);
-	const bool send = job->send;
+	const bool install = job->install;
 	const QString title = job->title;
 	const QString message = QString::fromStdString(error);
 	const bool cancelled = job->cancel.load();
-	QMetaObject::invokeMethod(this, [this, ok, send, pkg, title, message, cancelled]() {
-		publish();
-		// Over FTP, like any file dropped on the FTP zone: same-name
-		// checks, the upload folder, and the install after it if set.
-		if(ok && send)
+	QMetaObject::invokeMethod(this, [this, ok, install, pkg, title, message, cancelled]() {
+		// Over FTP, like any file dropped on the FTP zone (same-name checks,
+		// the upload folder), and installed once it lands — unless the
+		// setting already installs every upload.
+		if(ok && install)
+		{
+			if(!app_->settings().installAfterUpload)
+				installAfterSend_[AppController::transferKey(pkg)] = false;
 			app_->addPaths(QStringList { pkg }, 1);
-		else if(ok)
+		}
+		publish();
+		if(ok && !install)
 			emit app_->notify(tr("Convert"), tr("%1 is ready in the output folder.").arg(title), false);
-		else if(!cancelled)
+		else if(!ok && !cancelled)
 			emit app_->notify(tr("Convert"), tr("%1: %2").arg(title, message), true);
 	}, Qt::QueuedConnection);
 #else

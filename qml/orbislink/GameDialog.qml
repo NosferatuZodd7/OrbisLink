@@ -3,11 +3,11 @@
 // One disc (or several selected ones): what it is, and the three things
 // that can be done with it.
 //
-// * Convert and send: the disc becomes a PS4 package that goes to the
-//   console over FTP (and is installed after, if that is switched on).
+// * Convert and install: the disc becomes a PS4 package, goes to the
+//   console over FTP and is installed there.
 // * Convert only: the package stays in the output folder (for consoles
-//   without a jailbreak, or to send later).
-// * Send the disc file: the image as it is, over FTP.
+//   without a jailbreak, or to install later).
+// * Send disc file: the image as it is, over FTP.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -49,7 +49,6 @@ Dialog {
     function begin(list) {
         items = list
         titleInput.text = list.length === 1 ? list[0].title : ""
-        installAfter.checked = app.settingsMap().installAfterUpload === true
         open()
     }
 
@@ -60,17 +59,17 @@ Dialog {
         return out
     }
 
-    function run(send) {
+    function run(install) {
         if (!hasOutput) {
-            pendingAction = send ? "send" : "convert"
+            pendingAction = install ? "install" : "convert"
             outputDialog.open()
             return
         }
-        games.convert(paths(), send, single ? [titleInput.text] : [])
+        games.convert(paths(), install, single ? [titleInput.text] : [])
         started()
         close()
     }
-    // What to do once an output folder is chosen ("send", "convert" or
+    // What to do once an output folder is chosen ("install", "convert" or
     // nothing, when the folder was only being changed).
     property string pendingAction: ""
 
@@ -289,24 +288,17 @@ Dialog {
                     wrapMode: Text.WordWrap
                     color: Theme.textSecondary
                     font.pixelSize: 11
-                    text: dialog.ftpUp
-                        ? qsTr("The package goes to the console over FTP, to the folder the file list is "
-                               + "in. A console without a jailbreak has no FTP: convert only, and the "
-                               + "package stays in the folder above.")
-                        : qsTr("The console has no FTP right now (it needs a jailbreak: GoldHEN or "
-                               + "etaHEN). Convert only, and send the package later.")
+                    text: !dialog.ftpUp
+                        ? qsTr("The console has no FTP right now (it needs a jailbreak: GoldHEN or "
+                               + "etaHEN). Convert only, and install the package later.")
+                        : dialog.installerUp
+                        ? qsTr("Convert and install: the package is made here, sent to the console over "
+                               + "FTP and installed. A console without a jailbreak cannot install: convert "
+                               + "only, and the package stays in the folder above.")
+                        : qsTr("Convert and install: the package is made here, sent over FTP and then "
+                               + "installed — open Remote Package Installer on the console for that last "
+                               + "step (it waits in the queue until then).")
                 }
-            }
-            // Installing right after the upload: the same setting as for any
-            // file sent over FTP.
-            StyledCheck {
-                id: installAfter
-                Layout.fillWidth: true
-                enabled: dialog.ftpUp
-                text: dialog.installerUp
-                      ? qsTr("Install it after sending")
-                      : qsTr("Install it after sending (open Remote Package Installer on the console)")
-                onToggled: app.applySettings({ "installAfterUpload": checked })
             }
         }
     }
@@ -335,8 +327,8 @@ Dialog {
                 onClicked: dialog.run(false)
             }
             StyledButton {
-                text: qsTr("Convert and send")
-                iconName: "upload"
+                text: qsTr("Convert and install")
+                iconName: "package-plus"
                 primary: true
                 enabled: dialog.allConvertible && dialog.ftpUp
                 ToolTip.visible: hovered && !dialog.ftpUp
@@ -353,7 +345,7 @@ Dialog {
         onAccepted: {
             games.setOutputFolder(selectedFolder)
             if (dialog.pendingAction.length > 0)
-                dialog.run(dialog.pendingAction === "send")
+                dialog.run(dialog.pendingAction === "install")
         }
     }
 }

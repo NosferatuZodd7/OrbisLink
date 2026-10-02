@@ -128,13 +128,11 @@ field from a saved one.
 **PS1/PS2 Games** (top bar) finds the PS1 and PS2 disc images in a folder of
 the PC and shows them as cards. For each game, or several selected:
 
-- **Convert and send** turns the disc into a PS4 package (a PS2 or PS1
-  Classic) and sends it to the console over FTP. While it is being made it
-  shows in the queue in amber; then it uploads like any file. With "Install it
-  after sending" on, it is installed too (Remote Package Installer open on the
-  console).
+- **Convert and install** turns the disc into a PS4 package (a PS2 or PS1
+  Classic), sends it to the console over FTP and installs it (Remote Package
+  Installer open on the console for that last step).
 - **Convert only** leaves the package in an output folder the app remembers —
-  for consoles without a jailbreak, or to send later.
+  for consoles without a jailbreak, or to install later.
 - **Send disc file** copies the disc image itself over FTP.
 
 Each game's card follows it on the way, with a loader of its own per step:
