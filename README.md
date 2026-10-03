@@ -40,6 +40,12 @@ order automatically.*
 *With no controller connected, the keyboard acts as one. Every key can be
 changed on the map, and the change is saved.*
 
+![PS1/PS2 Games](docs/images/13-games.png)
+
+*PS1/PS2 Games: the discs in a folder of the PC (.iso, .bin/.cue, .img), each
+recognised from the disc itself (serial and region). One click opens a game;
+the box in the corner selects several.*
+
 ![File menu](docs/images/05-file-menu.png)
 
 *In the FTP browser, every file and folder has its own menu: download to the
@@ -100,11 +106,50 @@ forget this PC's Remote Play registration on it (the next connection then asks
 for a new PIN). Registrations left behind by consoles no longer in the list
 appear at the end, so they can be forgotten too.
 
+Each console card has two buttons: **Remote Play** (the stream, with FTP and
+the installer alongside) and **FTP** (only the file browser, as an alternative
+to FileZilla — no jailbreak needed for Remote Play, no Remote Play needed for
+FTP). A click elsewhere on the card starts the console's preferred one, chosen
+when adding it or in Consoles → Edit → Start with. The FTP button only appears
+when the console answers on FTP (a jailbreak: GoldHEN on the PS4, etaHEN on the
+PS5); without it the card has Remote Play alone, and the preferred start stays
+on Remote Play. A console with a jailbreak is drawn in gold, with a badge
+saying which one it runs (GoldHEN, etaHEN, or HEN for any other) — the app
+tells from the folder each one keeps in `/data`.
+
 Settings → **Account IDs (PSID)** keeps the PSN Account IDs saved on this PC,
 each under a username so they are easy to tell apart. They can be added,
 edited and removed there, and each console picks the one it registers with
 (Consoles → Edit → Account ID). The registration dialog can also fill the
 field from a saved one.
+
+### PS1 and PS2 games
+
+**PS1/PS2 Games** (top bar) finds the PS1 and PS2 disc images in a folder of
+the PC and shows them as cards. For each game, or several selected:
+
+- **Convert and install** turns the disc into a PS4 package (a PS2 or PS1
+  Classic), sends it to the console over FTP and installs it (Remote Package
+  Installer open on the console for that last step).
+- **Convert only** leaves the package in an output folder the app remembers —
+  for consoles without a jailbreak, or to install later.
+- **Send disc file** copies the disc image itself over FTP.
+
+Each game's card follows it on the way, with a loader of its own per step:
+amber with a spinning disc while converting, blue with a rising arrow while
+sending, green with a breathing box while installing — and a ✓ when it is
+done.
+
+Nothing else has to be provided. PS2 discs are converted exactly the way
+[easy-ps2-fpkg](https://github.com/spiral009/easy-ps2-fpkg) does it: the first
+conversion downloads the emulator files once (about 109 MB, from the
+[PS Classics fPKG Builder](https://github.com/SvenGDK/PS-Classics-fPKG-Builder)
+release) and keeps them; the package gets the "Jak v2" emulator, its config
+with the game's serial, its param.sfo with the game's IDs and name (from the
+emulator's title list), and the game's official cover when there is one. PS1
+discs use the PS1 emulator from the same download, as PS Classics fPKG
+Builder does; they need a single .bin (games with one file per track have to
+be joined first).
 
 ## Download (pre-built)
 
@@ -325,9 +370,22 @@ is why this repository exists.
 The copyright notices of chiaki-ng and the other libraries stay where they
 are — they belong to other people and the licence requires keeping them.
 
-The PS4/PS5 wordmarks on the console box are set in
-[Fugaz One](https://fonts.google.com/specimen/Fugaz+One), by LatinoType,
-under the SIL Open Font License 1.1 (see [`third-party/fugaz-one`](third-party/fugaz-one)).
+The interface is set in [Inter](https://rsms.me/inter/), by Rasmus Andersson,
+under the SIL Open Font License 1.1 (see [`third-party/inter`](third-party/inter)), and
+its icons come from [Lucide](https://lucide.dev/), under the ISC licence (see
+[`third-party/lucide`](third-party/lucide); `scripts/generate-icons.py` turns them into
+`qml/orbislink/Icons.js`).
+
+The PS1/PS2 converter builds its packages with a C++ port of the fake PKG
+builder of [LibOrbisPkg](https://github.com/maxton/LibOrbisPkg), by maxton,
+under the GNU LGPL 3 (see [`third-party/liborbispkg`](third-party/liborbispkg)).
+PS2 packages are made as [easy-ps2-fpkg](https://github.com/spiral009/easy-ps2-fpkg)
+(MIT) makes them, PS1 packages as
+[PS Classics fPKG Builder](https://github.com/SvenGDK/PS-Classics-fPKG-Builder)
+does; covers come from [xlenore/ps2-covers](https://github.com/xlenore/ps2-covers).
+No Sony emulator, firmware or game is part of OrbisLink: like easy-ps2-fpkg,
+it downloads the emulator files at run time from PS Classics fPKG Builder's
+release.
 
 Sources consulted to implement the protocols:
 [chiaki-ng](https://github.com/streetpea/chiaki-ng),

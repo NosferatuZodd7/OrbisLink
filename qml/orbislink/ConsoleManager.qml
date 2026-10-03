@@ -19,6 +19,14 @@ ColumnLayout {
 
     readonly property bool hasStream: typeof stream !== "undefined" && stream !== null
     readonly property var registrations: hasStream ? stream.registrations : []
+    // A Remote Play session is running (or starting) on the console in use.
+    // Until it ends, that console stays the one in use: switching would move
+    // FTP and the installer to another console while the picture still comes
+    // from this one.
+    readonly property bool sessionActive: hasStream
+        && (stream.streaming || stream.sessionState === "connecting")
+    readonly property string sessionLock: qsTr("End the Remote Play session first: it is running on "
+                                               + "the console in use.")
 
     // The address of the row being edited ("" when none), and the one
     // waiting for a second click to confirm a removal or a forget.
@@ -83,12 +91,19 @@ ColumnLayout {
     // The actions live here and not in the rows: changing the list rebuilds
     // the rows, and a handler whose row has just been destroyed stops
     // halfway (the edit form would stay open, empty).
-    function saveEdit(oldAddress, name, address, accountId) {
+    // Whether a saved console answers on FTP (see StreamArea.ftpOk).
+    function ftpOk(entry) {
+        return entry.active ? app.ftpState === "available"
+                            : app.ftpReachable[entry.address] === true
+    }
+
+    function saveEdit(oldAddress, name, address, accountId, startMode) {
         var target = address.trim()
         if (!app.updateConsole(oldAddress, name, target))
             return
         editing = ""
         app.setConsoleAccount(target, accountId)
+        app.setConsoleStartMode(target, startMode)
     }
 
     function confirmForget(key, hostId) {
@@ -130,14 +145,50 @@ ColumnLayout {
         Text {
             Layout.fillWidth: true
             text: qsTr("Consoles")
-            color: Theme.accent
-            font.bold: true
-            font.pixelSize: 12
+            color: Theme.text
+            font.pixelSize: Theme.fontTitle
+            font.weight: Font.DemiBold
         }
         StyledButton {
             text: qsTr("Add console…")
+            primary: true
+            iconName: "plus"
             minimumWidth: 130
             onClicked: addDialog.open()
+        }
+    }
+
+    // While a session runs, say why the console in use cannot change.
+    Rectangle {
+        visible: manager.sessionActive
+        Layout.fillWidth: true
+        implicitHeight: lockRow.implicitHeight + 20
+        radius: 12
+        color: Theme.alpha(Theme.warn, 0.12)
+        border.color: Theme.alpha(Theme.warn, 0.35)
+        Row {
+            id: lockRow
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
+            spacing: 10
+            Icon {
+                anchors.verticalCenter: parent.verticalCenter
+                name: "info"
+                size: 16
+                color: Theme.warn
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - 26
+                wrapMode: Text.WordWrap
+                text: qsTr("A Remote Play session is running. The console in use cannot be switched, "
+                           + "edited or removed until it ends.")
+                color: Theme.text
+                font.pixelSize: 12
+            }
         }
     }
 
@@ -162,10 +213,14 @@ ColumnLayout {
                 : modelData.type === "ps4" ? "PS4" : "?"
 
             Layout.fillWidth: true
-            implicitHeight: content.implicitHeight + 20
-            radius: Theme.radiusSmall
-            color: Theme.panelAltFill
-            border.color: modelData.active ? Theme.accent : Theme.border
+            implicitHeight: content.implicitHeight + 28
+            radius: 16
+            // Green tone for a console that answers on FTP, as on its card.
+            readonly property bool ftpHere: manager.ftpOk(modelData)
+            color: ftpHere ? Qt.tint(Theme.panelAltFill, Theme.alpha(Theme.hen, Theme.light ? 0.10 : 0.10))
+                           : Theme.panelAltFill
+            border.color: modelData.active ? (ftpHere ? Theme.hen : Theme.accent)
+                        : ftpHere ? Theme.alpha(Theme.hen, 0.5) : Theme.border
             border.width: 1
 
             ColumnLayout {
@@ -183,10 +238,10 @@ ColumnLayout {
                     visible: !row.isEditing
 
                     Rectangle {
-                        implicitWidth: 40
-                        implicitHeight: 26
-                        radius: 6
-                        color: "transparent"
+                        implicitWidth: 46
+                        implicitHeight: 34
+                        radius: 10
+                        color: Theme.controlFill
                         border.color: Theme.border
                         Text {
                             anchors.centerIn: parent
@@ -205,24 +260,54 @@ ColumnLayout {
                             Text {
                                 text: row.modelData.name
                                 color: Theme.text
-                                font.bold: true
-                                font.pixelSize: 13
+                                font.weight: Font.DemiBold
+                                font.pixelSize: 14
                                 elide: Text.ElideRight
-                                Layout.maximumWidth: 200
+                                Layout.maximumWidth: 220
                             }
-                            Text {
+                            Rectangle {
                                 visible: row.modelData.active
-                                text: qsTr("in use")
-                                color: Theme.accent
-                                font.pixelSize: 11
+                                implicitHeight: 20
+                                implicitWidth: inUseText.implicitWidth + 18
+                                radius: 10
+                                color: Theme.alpha(Theme.ok, 0.14)
+                                border.width: 1
+                                border.color: Theme.alpha(Theme.ok, 0.3)
+                                Text {
+                                    id: inUseText
+                                    anchors.centerIn: parent
+                                    text: qsTr("in use")
+                                    color: Theme.ok
+                                    font.pixelSize: 11
+                                    font.weight: Font.Medium
+                                }
+                            }
+                            // The jailbreak, in the same gold as the card.
+                            Rectangle {
+                                visible: row.ftpHere
+                                implicitHeight: 20
+                                implicitWidth: henText.implicitWidth + 18
+                                radius: 10
+                                color: Theme.henFill
+                                Text {
+                                    id: henText
+                                    anchors.centerIn: parent
+                                    text: app.jailbreaks[row.modelData.address] || "HEN"
+                                    color: Theme.textOnHen
+                                    font.pixelSize: 11
+                                    font.weight: Font.Bold
+                                }
                             }
                         }
                         Text {
-                            text: row.modelData.accountLabel.length > 0
-                                  ? qsTr("Account ID: %1").arg(row.modelData.accountLabel)
-                                  : qsTr("No Account ID chosen")
-                            color: Theme.textMuted
-                            font.pixelSize: 11
+                            text: (row.modelData.accountLabel.length > 0
+                                   ? qsTr("Account ID: %1").arg(row.modelData.accountLabel)
+                                   : qsTr("No Account ID chosen"))
+                                  + "  ·  "
+                                  + (row.modelData.startMode === "ftp" && manager.ftpOk(row.modelData)
+                                     ? qsTr("Starts with FTP") : qsTr("Starts with Remote Play"))
+                            color: Theme.textSecondary
+                            font.pixelSize: 12
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
@@ -232,8 +317,8 @@ ColumnLayout {
                                 : manager.hostIdOf(row.modelData).length > 0
                                     ? qsTr("not registered")
                                     : qsTr("registration unknown until it answers"))
-                            color: row.registration ? Theme.ok : Theme.textMuted
-                            font.pixelSize: 11
+                            color: row.registration ? Theme.ok : Theme.textSecondary
+                            font.pixelSize: 12
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
@@ -241,22 +326,32 @@ ColumnLayout {
 
                     StyledButton {
                         visible: !row.modelData.active
+                        enabled: !manager.sessionActive
                         text: qsTr("Use")
                         minimumWidth: 64
+                        ToolTip.visible: hovered && manager.sessionActive
+                        ToolTip.text: manager.sessionLock
                         onClicked: app.selectConsole(row.modelData.address)
                     }
                     StyledButton {
+                        readonly property bool locked: row.modelData.active && manager.sessionActive
+                        enabled: !locked
                         text: qsTr("Edit")
                         minimumWidth: 64
+                        ToolTip.visible: hovered && locked
+                        ToolTip.text: manager.sessionLock
                         onClicked: {
                             nameEdit.text = row.modelData.name
                             addressEdit.text = row.modelData.address
                             accountBox.currentIndex = manager.accountIndex(row.modelData.accountId)
+                            startBox.currentIndex = row.modelData.startMode === "ftp"
+                                                    && manager.ftpOk(row.modelData) ? 1 : 0
                             manager.editing = row.modelData.address
                         }
                     }
                     StyledButton {
                         visible: row.registration !== null
+                        enabled: !(row.modelData.active && manager.sessionActive)
                         danger: manager.isConfirming(row.modelData.address, "forget")
                         text: manager.isConfirming(row.modelData.address, "forget")
                               ? qsTr("Confirm?") : qsTr("Forget registration")
@@ -267,13 +362,15 @@ ColumnLayout {
                         onClicked: manager.confirmForget(row.modelData.address, row.registration.hostId)
                     }
                     StyledButton {
+                        readonly property bool locked: row.modelData.active && manager.sessionActive
                         danger: true
-                        enabled: app.consoles.length > 1
+                        enabled: app.consoles.length > 1 && !locked
                         text: manager.isConfirming(row.modelData.address, "remove")
                               ? qsTr("Confirm?") : qsTr("Remove")
                         minimumWidth: 70
                         ToolTip.visible: hovered
-                        ToolTip.text: app.consoles.length > 1
+                        ToolTip.text: locked ? manager.sessionLock
+                            : app.consoles.length > 1
                             ? qsTr("Removes it from the list. The Remote Play registration stays until you forget it.")
                             : qsTr("The only console in the list cannot be removed.")
                         onClicked: manager.confirmRemove(row.modelData.address)
@@ -305,6 +402,29 @@ ColumnLayout {
                         model: manager.accountChoices.map(function (a) { return a.label })
                     }
 
+                    // What a click on the console's card starts.
+                    Text { text: qsTr("Start with"); color: Theme.textMuted; font.pixelSize: 12 }
+                    StyledCombo {
+                        id: startBox
+                        Layout.fillWidth: true
+                        // Without FTP on the console there is nothing to choose.
+                        readonly property bool ftpHere: manager.ftpOk(row.modelData)
+                        enabled: ftpHere
+                        model: [qsTr("Remote Play (with FTP and the installer)"), qsTr("FTP only")]
+                        onFtpHereChanged: if (!ftpHere) currentIndex = 0
+                    }
+
+                    Item { implicitWidth: 1; visible: !startBox.ftpHere }
+                    Text {
+                        visible: !startBox.ftpHere
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        text: qsTr("This console is not answering on FTP, so it starts with Remote Play. "
+                                   + "FTP needs a jailbreak: GoldHEN on the PS4, etaHEN on the PS5.")
+                        color: Theme.textSecondary
+                        font.pixelSize: 11
+                    }
+
                     Item { implicitWidth: 1 }
                     RowLayout {
                         Layout.fillWidth: true
@@ -319,7 +439,10 @@ ColumnLayout {
                             primary: true
                             minimumWidth: 90
                             onClicked: manager.saveEdit(row.modelData.address, nameEdit.text, addressEdit.text,
-                                manager.accountChoices[accountBox.currentIndex].accountId)
+                                manager.accountChoices[accountBox.currentIndex].accountId,
+                                // Locked: what was chosen before stays stored, for when FTP appears.
+                                startBox.enabled ? (startBox.currentIndex === 1 ? "ftp" : "remoteplay")
+                                                 : row.modelData.startMode)
                         }
                     }
                 }

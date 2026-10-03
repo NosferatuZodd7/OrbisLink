@@ -17,6 +17,14 @@ TransferMode transferModeFromName(const std::string &name, TransferMode fallback
 // All OrbisLink settings that do not belong to chiaki-ng.
 // Stream settings (resolution, fps, bitrate) are still managed
 // by chiaki-ng and are not duplicated here.
+// A saved look: the base theme and the colours changed on top of it.
+struct ThemePreset
+{
+	std::string name;
+	std::string theme;                         // "dark", "glass" or "light"
+	std::map<std::string, std::string> colors; // key → "#RRGGBB"
+};
+
 // A console saved in the list.
 struct ConsoleEntry
 {
@@ -32,6 +40,10 @@ struct ConsoleEntry
 	// ties the entry to its Remote Play registration on this PC; empty until
 	// the console has answered once.
 	std::string hostId;
+	// What a click on its card starts: "remoteplay" (Remote Play, with FTP
+	// and the installer alongside) or "ftp" (only the file browser, as an
+	// alternative to FileZilla). Empty means "remoteplay".
+	std::string startMode;
 };
 
 // A PSN Account ID saved under a name of the user's choosing, so it can be
@@ -59,6 +71,9 @@ struct Settings
 	// Installation
 	TransferMode defaultMode = TransferMode::DirectInstall;
 	std::string ftpUploadDirectory = "/data/pkg/";
+	// The folders pinned at the top of the Files tab, in order.
+	std::vector<std::string> ftpPinnedFolders { "/data/", "/data/pkg/", "/data/GoldHEN/", "/user/app/",
+		"/mnt/usb0/" };
 	bool checkAlreadyInstalled = true;
 	bool installAfterUpload = false;
 	// After uploading via FTP and installing, delete the copy on the
@@ -81,6 +96,8 @@ struct Settings
 	int streamBitrateKbps = 0;       // 0 = whatever chiaki's preset sets
 	bool streamHardwareDecode = true;
 	bool streamFullscreenOnConnect = false;
+	// How the picture fills the window: "fit" (as sent), "4:3" or "fill".
+	std::string streamAspect = "fit";
 	bool streamRumble = true;
 	bool streamTouchpadFromMouse = true;
 	std::string streamAccountId;     // the last accepted Account ID, in base64 (for new consoles)
@@ -89,9 +106,15 @@ struct Settings
 	// Keyboard as controller: action → key (Qt::Key). Only what was changed;
 	// the rest keep their default key.
 	std::map<std::string, int> keyboardBindings;
+	// Physical controller button (SDL name) → action, only what was changed.
+	std::map<std::string, std::string> padBindings;
 
 	// Application
 	std::string theme = "dark";      // "dark", "glass" or "light"
+	// Colours changed on top of the theme (accent, hen, ok, warn, error,
+	// background, panel, text → "#RRGGBB"), and the saved looks.
+	std::map<std::string, std::string> themeColors;
+	std::vector<ThemePreset> themePresets;
 	std::string language = "en";    // "en" or "pt_PT"
 	bool debugLogging = false;
 	// "Updates over the internet". On by default: with a public repository
@@ -111,6 +134,10 @@ struct Settings
 	// The first-run wizard only appears once; after that it is opened
 	// from the settings.
 	bool firstRunDone = false;
+
+	// PS1/PS2 games: where the discs are and where converted packages go.
+	std::string gamesFolder;
+	std::string convertOutputFolder;
 
 	std::string toJson() const;
 	static Settings fromJson(const std::string &text, bool *ok = nullptr);

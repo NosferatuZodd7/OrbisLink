@@ -5,13 +5,17 @@
 #include "orbislink/stream/account_id.h"
 #include "orbislink/common/util.h"
 
+#include <QDateTime>
 #include <QKeySequence>
 #include <QTimer>
 
 #include "orbislink/common/log.h"
 
 #include <QMetaObject>
+#include <algorithm>
 #include <thread>
+
+#include <chiaki/controller.h>
 
 namespace orbislink {
 
@@ -79,6 +83,11 @@ StreamController::StreamController(QObject *parent)
 		QMetaObject::invokeMethod(
 			this,
 			[this, slug, message, state]() {
+				if(state == SessionState::Failed && retryAfterInUse())
+					return;
+				if(sessionState_ == QLatin1String("connected")
+					&& (state == SessionState::Stopped || state == SessionState::Failed))
+					lastSessionEndMs_ = QDateTime::currentMSecsSinceEpoch();
 				sessionState_ = slug;
 				sessionDetail_ = message;
 				streaming_ = state == SessionState::Connected;
@@ -93,9 +102,11 @@ StreamController::StreamController(QObject *parent)
 				}
 				else
 				{
-					gamepad_.stop();
+					if(!inputPreview_)
+						gamepad_.stop();
 					hardwareDecoder_ = false;
 					touchEnd();
+					resetInput();
 					if(fpsTimer_)
 						fpsTimer_->stop();
 					measuredFps_ = 0;
@@ -146,9 +157,12 @@ StreamController::StreamController(QObject *parent)
 	// The physical controller is only read during the session.
 	connect(&gamepad_, &Gamepad::stateChanged, this,
 		[this](const StreamSession::ControllerState &state) {
-			if(streaming_)
-				session_->sendController(state);
+			padState_ = state;
+			updatePadPressed();
+			sendInput();
 		});
+	connect(&gamepad_, &Gamepad::buttonDown, this, &StreamController::padButtonDown);
+	connect(&gamepad_, &Gamepad::touchChanged, this, &StreamController::padTouch);
 	connect(&gamepad_, &Gamepad::connectedChanged, this, &StreamController::gamepadChanged);
 
 	connect(&video_, &VideoBridge::firstFrame, this, [this](int width, int height) {
@@ -236,6 +250,7 @@ void StreamController::applySettings(const Settings &settings)
 		if(console.address == settings.consoleAddress && !console.accountId.empty())
 			accountId_ = QString::fromStdString(console.accountId);
 	keyboard_.setBindings(settings.keyboardBindings);
+	gamepad_.setButtonMap(settings.padBindings);
 	emit settingsApplied();
 	emit keyBindingsChanged();
 }
@@ -257,7 +272,70 @@ bool StreamController::setKeyBinding(const QString &action, int key)
 	return true;
 }
 
-void StreamController::resetKeyBindings() { emit keyBindingsEdited({}); }
+void StreamController::resetKeyBindings()
+{
+	emit keyBindingsEdited({});
+	emit padBindingsEdited({});
+}
+
+QVariantMap StreamController::padBindings() const
+{
+	QVariantMap map;
+	for(const auto &pair : gamepad_.buttonMap())
+		map.insert(QString::fromStdString(pair.first), QString::fromStdString(pair.second));
+	return map;
+}
+
+void StreamController::setPadBinding(const QString &action, const QString &physical)
+{
+	// Only what differs from the defaults is kept.
+	emit padBindingsEdited(PadMap::changes(
+		PadMap::remapped(gamepad_.buttonMap(), action.toStdString(), physical.toStdString())));
+}
+
+void StreamController::setInputPreview(bool on)
+{
+	inputPreview_ = on;
+	if(on)
+		gamepad_.start();
+	else if(!streaming_)
+		gamepad_.stop();
+}
+
+void StreamController::updatePadPressed()
+{
+	QStringList pressed;
+	for(const KeyboardMap::Action &action : KeyboardMap::actions())
+		if(action.button != 0 && (padState_.buttons & action.button))
+			pressed << QString::fromLatin1(action.id);
+	// The triggers and sticks, past a dead zone.
+	constexpr int kStick = 16000;
+	if(padState_.l2 > 40)
+		pressed << QStringLiteral("l2");
+	if(padState_.r2 > 40)
+		pressed << QStringLiteral("r2");
+	if(padState_.leftX < -kStick)
+		pressed << QStringLiteral("lstick_left");
+	if(padState_.leftX > kStick)
+		pressed << QStringLiteral("lstick_right");
+	if(padState_.leftY < -kStick)
+		pressed << QStringLiteral("lstick_up");
+	if(padState_.leftY > kStick)
+		pressed << QStringLiteral("lstick_down");
+	if(padState_.rightX < -kStick)
+		pressed << QStringLiteral("rstick_left");
+	if(padState_.rightX > kStick)
+		pressed << QStringLiteral("rstick_right");
+	if(padState_.rightY < -kStick)
+		pressed << QStringLiteral("rstick_up");
+	if(padState_.rightY > kStick)
+		pressed << QStringLiteral("rstick_down");
+	if(pressed != padPressed_)
+	{
+		padPressed_ = pressed;
+		emit padPressedChanged();
+	}
+}
 
 QString StreamController::keyName(int key) const
 {
@@ -583,6 +661,7 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 						}
 						emit notify(tr("Registration"),
 							tr("Console registered. The Account ID is saved — next time you only need the PIN."), false);
+						emit registrationSucceeded();
 					}
 					else
 					{
@@ -642,8 +721,39 @@ void StreamController::forgetRegistration(const QString &hostId)
 	emit notify(tr("Remote Play"), tr("Registration removed from this PC."), false);
 }
 
+bool StreamController::retryAfterInUse()
+{
+	// Only right after a session of ours ended: an "in use" out of the
+	// blue is somebody else playing, and that is said straight away.
+	const qint64 sinceEnd = QDateTime::currentMSecsSinceEpoch() - lastSessionEndMs_;
+	if(!session_->lastFailureWasInUse() || lastSessionEndMs_ == 0 || sinceEnd > 30000
+		|| inUseRetries_ >= 8)
+		return false;
+	++inUseRetries_;
+	logInfo("Remote Play: the console is still closing the last session, trying again ("
+		+ std::to_string(inUseRetries_) + ").");
+	sessionState_ = QStringLiteral("connecting");
+	sessionDetail_ = tr("The console is still closing the last session — trying again…");
+	emit sessionChanged();
+	if(!inUseRetryTimer_)
+	{
+		inUseRetryTimer_ = new QTimer(this);
+		inUseRetryTimer_->setSingleShot(true);
+		inUseRetryTimer_->setInterval(1500);
+		connect(inUseRetryTimer_, &QTimer::timeout, this, [this]() {
+			retryingInUse_ = true;
+			startStream();
+			retryingInUse_ = false;
+		});
+	}
+	inUseRetryTimer_->start();
+	return true;
+}
+
 void StreamController::startStream()
 {
+	if(!retryingInUse_)
+		inUseRetries_ = 0;
 	if(streaming_)
 	{
 		emit notify(tr("Remote Play"), tr("The session is already running."), false);
@@ -829,6 +939,18 @@ void StreamController::stopStream()
 	session_->stopMicrophone();
 	emit microphoneChanged();
 
+	// Ending while waiting to try again: there is no session to stop,
+	// only the wait.
+	if(inUseRetryTimer_ && inUseRetryTimer_->isActive())
+	{
+		inUseRetryTimer_->stop();
+		inUseRetries_ = 0;
+		sessionState_ = QStringLiteral("stopped");
+		sessionDetail_ = QString();
+		emit sessionChanged();
+		return;
+	}
+
 	// chiaki's stop waits for its threads; off the UI thread so the
 	// window does not freeze.
 	std::thread([this]() { session_->stop(); }).detach();
@@ -904,7 +1026,8 @@ bool StreamController::keyPressed(int key)
 {
 	if(!streaming_ || !keyboard_.press(key))
 		return false;
-	session_->sendController(keyboard_.state());
+	keyState_ = keyboard_.state();
+	sendInput();
 	return true;
 }
 
@@ -912,8 +1035,8 @@ bool StreamController::keyReleased(int key)
 {
 	if(!keyboard_.release(key))
 		return false;
-	if(streaming_)
-		session_->sendController(keyboard_.state());
+	keyState_ = keyboard_.state();
+	sendInput();
 	return true;
 }
 
@@ -924,8 +1047,115 @@ void StreamController::releaseAllKeys()
 	if(keyboard_.empty())
 		return;
 	keyboard_.clear();
-	if(streaming_)
-		session_->sendController(keyboard_.state());
+	keyState_ = keyboard_.state();
+	sendInput();
+}
+
+namespace {
+
+// Keyboard and controller together: buttons from both, the stronger
+// trigger, and each stick from whichever is pushing it.
+StreamSession::ControllerState merged(const StreamSession::ControllerState &keys,
+	const StreamSession::ControllerState &pad)
+{
+	StreamSession::ControllerState state = pad;
+	state.buttons |= keys.buttons;
+	state.l2 = std::max(keys.l2, pad.l2);
+	state.r2 = std::max(keys.r2, pad.r2);
+	if(keys.leftX != 0)
+		state.leftX = keys.leftX;
+	if(keys.leftY != 0)
+		state.leftY = keys.leftY;
+	if(keys.rightX != 0)
+		state.rightX = keys.rightX;
+	if(keys.rightY != 0)
+		state.rightY = keys.rightY;
+	return state;
+}
+
+// How long the finger rests on the pad before the click, and after it.
+constexpr int kClickSettleMs = 60;
+
+} // namespace
+
+void StreamController::sendInput()
+{
+	if(!streaming_)
+		return;
+	StreamSession::ControllerState state = merged(keyState_, padState_);
+	const bool click = (state.buttons & CHIAKI_CONTROLLER_BUTTON_TOUCHPAD) != 0;
+	if(click && !clickDown_)
+	{
+		clickDown_ = true;
+		const bool fingerDown = touchId_ >= 0 || padTouchIds_[0] >= 0 || padTouchIds_[1] >= 0;
+		clickArmed_ = fingerDown;
+		logInfo(fingerDown ? "Remote Play: touchpad click (finger already on the pad)."
+						   : "Remote Play: touchpad click, finger placed on the left half (Select).");
+		if(!fingerDown)
+		{
+			clickTouch_ = session_->startTouch(StreamSession::kTouchpadWidth / 4,
+				StreamSession::kTouchpadHeight / 2);
+			const quint64 run = ++clickRun_;
+			QTimer::singleShot(kClickSettleMs, this, [this, run]() {
+				if(run != clickRun_ || !clickDown_)
+					return;
+				clickArmed_ = true;
+				sendInput();
+			});
+		}
+	}
+	else if(!click && clickDown_)
+	{
+		clickDown_ = false;
+		clickArmed_ = false;
+		if(clickTouch_ >= 0)
+		{
+			// The click goes up first (below), the finger a moment later.
+			const int id = clickTouch_;
+			clickTouch_ = -1;
+			const quint64 run = ++clickRun_;
+			QTimer::singleShot(kClickSettleMs, this, [this, run, id]() {
+				if(run == clickRun_)
+					session_->stopTouch(id);
+			});
+		}
+	}
+	if(!clickArmed_)
+		state.buttons &= ~CHIAKI_CONTROLLER_BUTTON_TOUCHPAD;
+	session_->sendController(state);
+}
+
+void StreamController::padTouch(int finger, bool down, double x, double y)
+{
+	if(finger < 0 || finger > 1)
+		return;
+	int &id = padTouchIds_[finger];
+	if(!streaming_)
+	{
+		id = -1;
+		return;
+	}
+	const uint16_t px = static_cast<uint16_t>(std::clamp(x, 0.0, 1.0) * (StreamSession::kTouchpadWidth - 1));
+	const uint16_t py = static_cast<uint16_t>(std::clamp(y, 0.0, 1.0) * (StreamSession::kTouchpadHeight - 1));
+	if(down && id < 0)
+		id = session_->startTouch(px, py);
+	else if(down)
+		session_->moveTouch(id, px, py);
+	else if(id >= 0)
+	{
+		session_->stopTouch(id);
+		id = -1;
+	}
+}
+
+void StreamController::resetInput()
+{
+	keyState_ = {};
+	padState_ = {};
+	padTouchIds_[0] = padTouchIds_[1] = -1;
+	clickDown_ = clickArmed_ = false;
+	clickTouch_ = -1;
+	++clickRun_;
 }
 
 

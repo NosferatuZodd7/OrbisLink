@@ -4,6 +4,9 @@
 #include "orbislink/common/util.h"
 #include "orbislink/qt/translate_message.h"
 
+#include <QDir>
+#include <QSet>
+
 namespace orbislink {
 
 QueueModel::QueueModel(QObject *parent) : QAbstractListModel(parent) {}
@@ -30,6 +33,10 @@ QHash<int, QByteArray> QueueModel::roleNames() const
 		{ ModeRole, "mode" },
 		{ IconRole, "iconSource" },
 		{ ActiveRole, "active" },
+		{ LocalKeyRole, "localKey" },
+		{ SupersededRole, "superseded" },
+		{ CanMoveUpRole, "canMoveUp" },
+		{ CanMoveDownRole, "canMoveDown" },
 	};
 }
 
@@ -53,6 +60,10 @@ QVariant QueueModel::data(const QModelIndex &index, int role) const
 		case MessageRole: return row.message;
 		case ModeRole: return row.mode;
 		case ActiveRole: return row.active;
+		case LocalKeyRole: return row.localKey;
+		case SupersededRole: return row.superseded;
+		case CanMoveUpRole: return row.canMoveUp;
+		case CanMoveDownRole: return row.canMoveDown;
 		case IconRole: return icons_.value(row.id);
 		default: return {};
 	}
@@ -78,11 +89,31 @@ QString QueueModel::remainingText() const
 	return QString::fromStdString(humanBytes(remaining));
 }
 
+QString QueueModel::totalText() const
+{
+	qint64 total = 0;
+	for(const Row &row : rows_)
+		if(row.state != QLatin1String("completed") && row.state != QLatin1String("error")
+			&& row.state != QLatin1String("cancelled"))
+			total += row.totalBytes;
+	if(total <= 0)
+		return QStringLiteral("—");
+	return QString::fromStdString(humanBytes(total));
+}
+
+int QueueModel::shownCount(const QVariantMap &followed) const
+{
+	int shown = 0;
+	for(const Row &row : rows_)
+		if(!row.superseded && !followed.value(row.localKey).toBool())
+			++shown;
+	return shown;
+}
+
 void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
 {
-	beginResetModel();
-	rows_.clear();
-	rows_.reserve(static_cast<int>(tasks.size()));
+	QVector<Row> rows;
+	rows.reserve(static_cast<int>(tasks.size()));
 	for(const QueueTask &task : tasks)
 	{
 		Row row;
@@ -108,11 +139,67 @@ void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
 			|| task.state == TaskState::Validating;
 		row.bytesPerSecond = row.active ? task.bytesPerSecond : 0.0;
 		row.remainingBytes = task.totalBytes > task.doneBytes ? task.totalBytes - task.doneBytes : 0;
-		rows_.push_back(row);
+		row.totalBytes = task.totalBytes;
+		row.localKey = fileKey(QString::fromStdString(task.localPath));
+		rows.push_back(row);
 	}
+	// The queue moves a waiting task by swapping it with its neighbour, and
+	// never with the task under way; finished ones (the history) come after.
+	for(size_t i = 0; i < tasks.size(); ++i)
+	{
+		if(tasks[i].state != TaskState::Pending)
+			continue;
+		Row &row = rows[static_cast<int>(i)];
+		row.canMoveUp = i > 0 && tasks[i - 1].state == TaskState::Pending;
+		row.canMoveDown = i + 1 < tasks.size() && !tasks[i + 1].isTerminal();
+	}
+
+	// A package sent over FTP and then installed: the install's card tells
+	// the whole story, the upload's would be a second card for the same game.
+	QSet<QString> installed;
+	for(size_t i = 0; i < tasks.size(); ++i)
+		if(tasks[i].mode == TransferMode::DirectInstall)
+			installed.insert(rows[static_cast<int>(i)].localKey);
+	for(size_t i = 0; i < tasks.size(); ++i)
+	{
+		Row &row = rows[static_cast<int>(i)];
+		row.superseded = tasks[i].mode != TransferMode::DirectInstall
+			&& tasks[i].state == TaskState::Completed && !row.localKey.isEmpty()
+			&& installed.contains(row.localKey);
+	}
+
+	// The same tasks in the same order (each progress tick): only the rows
+	// that changed are told, so the cards stay and their bars move instead
+	// of being made again from zero.
+	bool sameTasks = rows.size() == rows_.size();
+	for(int i = 0; sameTasks && i < rows.size(); ++i)
+		sameTasks = rows[i].id == rows_[i].id;
+	if(sameTasks)
+	{
+		for(int i = 0; i < rows.size(); ++i)
+		{
+			if(rows[i] == rows_[i])
+				continue;
+			rows_[i] = rows[i];
+			emit dataChanged(index(i), index(i));
+		}
+		emit summaryChanged();
+		return;
+	}
+	beginResetModel();
+	rows_ = rows;
 	endResetModel();
 	emit countChanged();
 	emit summaryChanged();
+}
+
+QString QueueModel::fileKey(const QString &localPath)
+{
+	QString key = QDir::cleanPath(QDir::fromNativeSeparators(localPath));
+#ifdef Q_OS_WIN
+	key = key.toLower();
+#endif
+	return key;
 }
 
 void QueueModel::setIcon(const QString &taskId, const QString &dataUri)

@@ -44,14 +44,36 @@ class AppController : public QObject
 	Q_PROPERTY(bool canUseFtp READ canUseFtp NOTIFY statusChanged)
 	Q_PROPERTY(bool queuePaused READ queuePaused NOTIFY queueStateChanged)
 	Q_PROPERTY(QString pauseReason READ pauseReason NOTIFY queueStateChanged)
+	// The queue waits for Remote Package Installer to be opened on the console.
+	Q_PROPERTY(bool waitingForInstaller READ waitingForInstaller NOTIFY queueStateChanged)
 	Q_PROPERTY(QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
 	Q_PROPERTY(QString httpServerAddress READ httpServerAddress NOTIFY statusChanged)
 	Q_PROPERTY(QString ftpPath READ ftpPath NOTIFY ftpPathChanged)
 	Q_PROPERTY(bool ftpBusy READ ftpBusy NOTIFY ftpBusyChanged)
+	// The FTP uploads not finished yet, for the file list to show them where
+	// they are going: [{name, directory, percent, sending}].
+	Q_PROPERTY(QVariantList ftpUploads READ ftpUploads NOTIFY ftpUploadsChanged)
+	// For the consoles not in use: address → whether their FTP port answered
+	// the last time it was tried (see probeFtp). The console in use has
+	// ftpState instead.
+	Q_PROPERTY(QVariantMap ftpReachable READ ftpReachable NOTIFY ftpReachableChanged)
+	// Which homebrew enabler each console with FTP runs: "GoldHEN",
+	// "etaHEN" or "HEN" (some other), by address.
+	Q_PROPERTY(QVariantMap jailbreaks READ jailbreaks NOTIFY ftpReachableChanged)
+	// Where each local file stands in the queue, by its path (normalised
+	// with transferKey): { stage: "sending" | "installing" | "sent" |
+	// "installed" | "error" | "cancelled", percent, message }.
+	Q_PROPERTY(QVariantMap transfers READ transfers NOTIFY transfersChanged)
 	Q_PROPERTY(bool downloadActive READ downloadActive NOTIFY downloadChanged)
 	Q_PROPERTY(QString downloadName READ downloadName NOTIFY downloadChanged)
 	Q_PROPERTY(double downloadProgress READ downloadProgress NOTIFY downloadChanged)
-	Q_PROPERTY(QStringList ftpShortcuts READ ftpShortcuts CONSTANT)
+	Q_PROPERTY(QStringList ftpShortcuts READ ftpShortcuts NOTIFY ftpShortcutsChanged)
+	// Remote Play picture: "fit" (as the console sends it), "4:3" or "fill".
+	Q_PROPERTY(QString streamAspect READ streamAspect WRITE setStreamAspect NOTIFY streamAspectChanged)
+	// Personalisation: the colours changed on top of the theme, and the
+	// saved looks ({ name, theme, colors }).
+	Q_PROPERTY(QVariantMap themeColors READ themeColors NOTIFY themeColorsChanged)
+	Q_PROPERTY(QVariantList themePresets READ themePresets NOTIFY themePresetsChanged)
 	Q_PROPERTY(orbislink::QueueModel *queue READ queue CONSTANT)
 	Q_PROPERTY(orbislink::FtpModel *files READ files CONSTANT)
 	Q_PROPERTY(QString version READ version CONSTANT)
@@ -93,20 +115,41 @@ public:
 	std::string activeAccountId() const;
 	bool queuePaused() const;
 	QString pauseReason() const;
+	bool waitingForInstaller() const;
 	QString statusMessage() const { return statusMessage_; }
 	QString httpServerAddress() const;
 	QString ftpPath() const { return ftpPath_; }
 	bool ftpBusy() const { return ftpBusy_; }
+	QVariantList ftpUploads() const { return ftpUploads_; }
+	QVariantMap ftpReachable() const { return ftpReachable_; }
+	QVariantMap jailbreaks() const { return jailbreaks_; }
+	QVariantMap transfers() const { return transfers_; }
+	static QString transferKey(const QString &localPath);
 	bool downloadActive() const { return downloadActive_; }
 	QString downloadName() const { return downloadName_; }
 	double downloadProgress() const { return downloadProgress_; }
 	QStringList ftpShortcuts() const;
+	QString streamAspect() const { return QString::fromStdString(settings_.streamAspect); }
+	void setStreamAspect(const QString &aspect);
+	QVariantMap themeColors() const;
+	QVariantList themePresets() const;
+	// An empty colour puts the theme's own back.
+	Q_INVOKABLE void setThemeColor(const QString &key, const QString &color);
+	Q_INVOKABLE void resetThemeColors();
+	// Saves the theme and colours in use under `name` (replacing one with
+	// the same name); applying one brings both back.
+	Q_INVOKABLE void saveThemePreset(const QString &name);
+	Q_INVOKABLE void applyThemePreset(const QString &name);
+	Q_INVOKABLE void deleteThemePreset(const QString &name);
 	QueueModel *queue() { return &queueModel_; }
 	FtpModel *files() { return &ftpModel_; }
 	QString version() const;
 	// The settings in effect, for whoever needs all of them (the
 	// Remote Play controller).
 	const Settings &settings() const { return settings_; }
+	// Changes settings that need nothing rebuilt (folders remembered by
+	// other parts of the app) and saves them.
+	void updateSettings(const std::function<void(Settings &)> &change);
 	// Stores the PSN Account ID, so it does not have to be typed every time.
 	Q_INVOKABLE void rememberAccountId(const QString &accountId);
 	bool streamAvailable() const
@@ -121,6 +164,10 @@ public:
 	// Dropping files: mode 0 = direct install, 1 = FTP upload.
 	Q_INVOKABLE void dropUrls(const QList<QUrl> &urls, int mode);
 	Q_INVOKABLE void addPaths(const QStringList &paths, int mode);
+	// The answer to uploadConflicts: one {index, action, name} per file that
+	// was already on the console; action is "overwrite", "rename" (to name)
+	// or "skip". The other files of the drop go as they were.
+	Q_INVOKABLE void resolveUploadConflicts(const QVariantList &decisions);
 	Q_INVOKABLE void checkServicesNow();
 	// The Remote Play state comes from chiaki (StreamController), not from
 	// the periodic check: this is how it reaches the status bar indicator.
@@ -142,6 +189,16 @@ public:
 	Q_INVOKABLE void cancelTask(const QString &id);
 	Q_INVOKABLE void retryTask(const QString &id);
 	Q_INVOKABLE void removeTask(const QString &id);
+	// Folders pinned at the top of the Files tab (ftpShortcuts).
+	Q_INVOKABLE bool isFtpPinned(const QString &path) const;
+	Q_INVOKABLE void pinFtpFolder(const QString &path);
+	Q_INVOKABLE void unpinFtpFolder(const QString &path);
+	// Drops the finished tasks (sent, installed, failed, cancelled) of one
+	// file: a conversion card that goes away takes its queue tasks along.
+	void removeFinishedTasksOf(const QString &localPath);
+	// A converted game: over FTP into `directory`, installed once there,
+	// and the copy on the console deleted after the install.
+	void sendAndInstall(const QString &pkg, const QString &directory);
 	Q_INVOKABLE void moveTaskUp(const QString &id);
 	Q_INVOKABLE void moveTaskDown(const QString &id);
 	Q_INVOKABLE void pauseQueue();
@@ -153,6 +210,21 @@ public:
 	Q_INVOKABLE void ftpDelete(const QString &path, bool isDirectory);
 	Q_INVOKABLE void ftpMakeDirectory(const QString &name);
 	Q_INVOKABLE void ftpRename(const QString &path, const QString &newName);
+	// The folders inside `path` on the console, for the folder picker,
+	// without touching the file list; the answer comes in ftpFoldersListed.
+	Q_INVOKABLE void ftpListFolders(const QString &path);
+	// Creates a folder (full path) on the console; the answer comes in
+	// ftpFolderCreated.
+	Q_INVOKABLE void ftpCreateFolder(const QString &path);
+	// Starts dragging a row of the FTP list (localUrl: its copy on the PC,
+	// if there is one).
+	Q_INVOKABLE void startFtpDrag(const QString &remotePath, const QString &localUrl);
+	// Moves a file or folder to another folder of the console.
+	Q_INVOKABLE void ftpMove(const QString &path, const QString &destinationDir);
+	// A whole folder, with everything inside it, to a folder of the PC
+	// (empty: the downloads folder).
+	Q_INVOKABLE void ftpDownloadFolder(const QString &remotePath, const QString &name,
+		const QString &destinationDir);
 
 	// Bring from the console to the PC (§5.5). Empty `destination` = default
 	// folder (desktop).
@@ -209,8 +281,18 @@ public:
 	// Adds a console to the list and, with `select`, switches to it. If the
 	// address is already there, it is just selected.
 	// `type` is "ps4", "ps5" or empty (unknown).
+	// `startMode` is "remoteplay" or "ftp" (see ConsoleEntry::startMode).
 	Q_INVOKABLE void addConsole(const QString &name, const QString &address,
-		const QString &type = QString(), bool select = true);
+		const QString &type = QString(), bool select = true,
+		const QString &startMode = QString());
+	// Chooses what a click on the console's card starts: "remoteplay" or "ftp".
+	Q_INVOKABLE void setConsoleStartMode(const QString &address, const QString &startMode);
+	// Opens the file browser on the console in use: the panel shows the
+	// files, in the upload folder, freshly listed.
+	Q_INVOKABLE void openFiles();
+	// Tries the FTP port of these consoles (each on its own port: PS4 or
+	// PS5), in the background; the answers land in ftpReachable.
+	Q_INVOKABLE void probeFtp(const QStringList &addresses);
 	// Remembers the type of a console that answered, to show it even when
 	// it is off. Only saves if it changed.
 	Q_INVOKABLE void rememberConsoleType(const QString &address, bool ps5,
@@ -241,10 +323,15 @@ public:
 	// Saves the keyboard-as-controller keys (action → key), without
 	// rebuilding the services.
 	void saveKeyBindings(const std::map<std::string, int> &bindings);
+	void savePadBindings(const std::map<std::string, std::string> &bindings);
 	Q_INVOKABLE void saveUpdateSettings(bool checkForUpdates, const QString &repository,
 		const QString &channel);
 
 signals:
+	void ftpShortcutsChanged();
+	void streamAspectChanged();
+	void themeColorsChanged();
+	void themePresetsChanged();
 	void settingsChanged();
 	// A new log line, already masked. The diagnostics window connects to
 	// this to show what happens in real time.
@@ -253,7 +340,19 @@ signals:
 	void queueStateChanged();
 	void statusMessageChanged();
 	void ftpPathChanged();
+	void ftpFoldersListed(const QString &path, const QStringList &folders, const QString &error);
+	void ftpFolderCreated(const QString &path, const QString &error);
 	void ftpBusyChanged();
+	void ftpUploadsChanged();
+	void ftpReachableChanged();
+	void transfersChanged();
+	// Some of the files dropped for FTP already exist in the upload folder:
+	// [{index, name, localSize, remoteSize, suggestion}]. The window asks
+	// what to do and answers with resolveUploadConflicts.
+	void uploadConflicts(const QVariantList &conflicts);
+	// Files were queued: the panel shows where they can be followed —
+	// "queue" for installs, "files" for FTP uploads.
+	void showPanel(const QString &which);
 	void notify(const QString &title, const QString &message, bool error);
 	void consoleProbed(const QString &address, bool ftpOk, bool installerOk,
 		const QString &detail);
@@ -271,11 +370,19 @@ private:
 	// Says why a click did nothing, instead of swallowing it silently.
 	// Returns false when the operation cannot go ahead.
 	bool ftpReady(const QString &operation);
+	void resumeWhenInstallerIsBack();
 	void refreshQueueModel();
 	void setStatusMessage(const QString &message);
 	void setFtpBusy(bool busy);
 	static QStringList collectPkgFiles(const QStringList &paths);
 	void registerIcons(const QStringList &paths, const QStringList &taskIds);
+	void enqueueFiles(const QStringList &files, TransferMode mode,
+		const std::vector<std::string> &remoteNames = {});
+	// Lists the upload folder and, for the files already there, asks first.
+	void checkUploadConflicts(const QStringList &files);
+	static std::string detectJailbreak(const std::string &address, uint16_t port);
+	void refreshFtpListing(bool announce);
+	QString uploadDirectory() const;
 
 	Settings settings_;
 	SettingsStore store_;
@@ -292,6 +399,17 @@ private:
 	QString statusMessage_;
 	QString ftpPath_ = QStringLiteral("/data/pkg/");
 	bool ftpBusy_ = false;
+	bool installerRecheckPending_ = false;
+	QVariantList ftpUploads_;
+	QVariantMap ftpReachable_;
+	QVariantMap jailbreaks_;
+	QVariantMap transfers_;
+	// The console whose files the list shows: when the console in use
+	// changes, the previous one's listing must not stay on screen.
+	std::string listedConsole_;
+	bool probingFtp_ = false;
+	// The FTP drop waiting for an answer about the names already taken.
+	QStringList pendingUploads_;
 	// Only the most recent check matters: earlier ones are discarded when
 	// they arrive, so the result never contradicts what is on screen.
 	std::atomic<uint64_t> probeGeneration_ { 0 };

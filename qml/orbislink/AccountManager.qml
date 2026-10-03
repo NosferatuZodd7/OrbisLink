@@ -62,12 +62,14 @@ ColumnLayout {
         Text {
             Layout.fillWidth: true
             text: qsTr("Account IDs (PSID)")
-            color: Theme.accent
-            font.bold: true
-            font.pixelSize: 12
+            color: Theme.text
+            font.pixelSize: Theme.fontTitle
+            font.weight: Font.DemiBold
         }
         StyledButton {
             text: qsTr("Add Account ID…")
+            primary: true
+            iconName: "plus"
             minimumWidth: 130
             enabled: manager.editing === ""
             onClicked: manager.startEdit("+", "", "")

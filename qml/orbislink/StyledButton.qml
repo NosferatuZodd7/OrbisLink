@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The application's button, in liquid glass.
+// The application's button.
 //
-// QtQuick.Controls.Basic draws flat grey buttons. This one is a
-// translucent surface with an edge of light, which grows 2% on hover
-// and shrinks when pressed — the movement is what makes it feel like a body
-// and not a drawing.
+// Four kinds: primary (solid accent, one per screen at most), secondary (the
+// default: a quiet fill with a thin border), danger (soft red) and chip (a
+// smaller secondary). An optional line icon sits before the text.
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -14,104 +13,118 @@ Button {
 
     property bool primary: false
     property bool danger: false
+    // With danger: a solid red button, for the one destructive action that
+    // must stand out (ending a session).
+    property bool solid: false
     property bool chip: false
-    // Requested width — and it is a minimum, not a maximum. The dialogs'
-    // numbers were measured with one language's labels; in another the
-    // same label may be longer. A button is never narrower than its
-    // text.
+    // Name of an icon from Icons.js, drawn before the text.
+    property string iconName: ""
+    // Requested width — and it is a minimum, not a maximum: in another
+    // language the same label may be longer, and a button is never narrower
+    // than its text.
     property int minimumWidth: 0
 
-    implicitWidth: Math.max(minimumWidth, keyLabel.implicitWidth + leftPadding + rightPadding)
-    implicitHeight: chip ? 30 : 38
-    // Side padding only. Control's "padding" applies to all four, and
-    // 20 above plus 20 below do not fit in a height of 38: the text
-    // would get a negative height and not appear.
-    leftPadding: chip ? 14 : 20
-    rightPadding: chip ? 14 : 20
+    // Icon and text, or the icon alone when there is no text.
+    readonly property real iconSpace: iconName.length > 0 ? (chip ? 14 : 16) + (text.length > 0 ? 8 : 0) : 0
+    implicitWidth: Math.max(minimumWidth, keyLabel.implicitWidth + iconSpace + leftPadding + rightPadding)
+    implicitHeight: chip ? 30 : Theme.controlHeight
+    // Side padding only: 20 above plus 20 below would not fit in the height.
+    leftPadding: chip ? 12 : 18
+    rightPadding: chip ? 12 : 18
     topPadding: 0
     bottomPadding: 0
-    font.pixelSize: chip ? 11 : 13
+    font.pixelSize: chip ? 12 : 13
     font.weight: primary ? Font.DemiBold : Font.Medium
-    // The slightly tight tracking is half the personality of Apple's
-    // typography.
-    font.letterSpacing: -0.2
 
-    // Grows on hover, shrinks when pressed. OutBack gives it weight.
-    scale: down ? Theme.pressScale : (hovered ? Theme.hoverScale : 1.0)
-    Behavior on scale {
-        NumberAnimation { duration: Theme.fast; easing.type: Theme.easeSpring; easing.overshoot: 1.1 }
-    }
+    scale: down ? Theme.pressScale : 1.0
+    Behavior on scale { NumberAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
 
     readonly property color backgroundColor: {
         if (!enabled)
-            return Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b, 0.25)
+            return primary ? Theme.alpha(Theme.accent, 0.35) : Theme.controlFill
         if (primary)
-            return down ? Qt.darker(Theme.accent, 1.15) : Theme.accent
+            return down ? Qt.darker(Theme.accent, 1.12) : hovered ? Theme.accentHover : Theme.accent
+        if (danger && solid)
+            return down ? Qt.darker(Theme.error, 1.12) : hovered ? Qt.lighter(Theme.error, 1.08) : Theme.error
         if (danger)
-            return Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, hovered ? 0.24 : 0.14)
-        return Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b,
-                       hovered ? Theme.panelOpacity + 0.18 : Theme.panelOpacity)
+            return Theme.alpha(Theme.error, hovered ? 0.22 : 0.13)
+        return hovered ? Theme.controlHover : Theme.controlFill
     }
 
     readonly property color textColor: {
         if (!enabled)
-            return Theme.textSecondary
-        if (primary)
-            return "#FFFFFF"
+            return primary ? Theme.alpha(Theme.textOnAccent, 0.7) : Theme.textSecondary
+        if (primary || (danger && solid))
+            return Theme.textOnAccent
         if (danger)
             return Theme.error
         return Theme.text
     }
 
-    background: Item {
-        // Halo under the primary button: it is what draws the eye.
+    // The hand over anything that can be clicked.
+    HoverHandler {
+        cursorShape: button.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+    }
+
+    readonly property color hoverTone: danger ? Theme.error : Theme.accent
+
+    background: Rectangle {
+        radius: Theme.radiusControl
+        color: button.backgroundColor
+        border.width: button.primary || button.solid ? 0 : 1
+        // On hover the edge takes the button's colour: a clear "this one".
+        border.color: button.hovered && button.enabled ? Theme.alpha(button.hoverTone, 0.6)
+                    : button.danger ? Theme.alpha(Theme.error, 0.28) : Theme.glassEdge
+        Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
+        Behavior on border.color { ColorAnimation { duration: Theme.fast } }
+
+        // A soft halo around it while the mouse is over it.
         Rectangle {
             anchors.fill: parent
-            anchors.margins: -5
-            radius: Theme.radiusControl + 5
-            visible: button.primary && button.enabled
+            anchors.margins: -3
+            radius: parent.radius + 3
             color: "transparent"
-            border.width: 5
-            border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b,
-                                  button.hovered ? 0.30 : 0.18)
-            Behavior on border.color { ColorAnimation { duration: Theme.fast } }
+            border.width: 3
+            border.color: Theme.alpha(button.hoverTone, button.primary || button.solid ? 0.28 : 0.16)
+            opacity: button.hovered && button.enabled ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: Theme.fast } }
         }
 
+        // A faint light from above, only on the primary one.
         Rectangle {
             anchors.fill: parent
-            radius: Theme.radiusControl
-            color: button.backgroundColor
-            border.width: 1
-            border.color: button.primary
-                ? Qt.rgba(1, 1, 1, 0.22)
-                : (button.danger
-                    ? Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.35)
-                    : Theme.glassEdge)
-            Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
-
-            // Inner gradient and edge of light, as on the other surfaces.
-            Rectangle {
-                anchors.fill: parent
-                radius: parent.radius
-                gradient: Gradient {
-                    GradientStop {
-                        position: 0.0
-                        color: Qt.rgba(1, 1, 1, button.primary ? 0.20 : Theme.glassHighlight)
-                    }
-                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.06) }
-                }
+            radius: parent.radius
+            visible: button.primary && button.enabled
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.14) }
+                GradientStop { position: 1.0; color: "transparent" }
             }
         }
     }
 
-    contentItem: Text {
-        id: keyLabel
-        text: button.text
-        font: button.font
-        color: button.textColor
-        elide: Text.ElideRight
-        horizontalAlignment: Text.AlignHCenter
-        verticalAlignment: Text.AlignVCenter
-        Behavior on color { ColorAnimation { duration: Theme.fast } }
+    contentItem: Item {
+        Row {
+            anchors.centerIn: parent
+            spacing: 8
+            Icon {
+                anchors.verticalCenter: parent.verticalCenter
+                name: button.iconName
+                size: button.chip ? 14 : 16
+                color: button.textColor
+                // The waiting icon turns on its own.
+                spinning: button.iconName === "loader"
+            }
+            Text {
+                id: keyLabel
+                visible: text.length > 0
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.min(implicitWidth, Math.max(0, button.availableWidth - button.iconSpace))
+                text: button.text
+                font: button.font
+                color: button.textColor
+                elide: Text.ElideRight
+                Behavior on color { ColorAnimation { duration: Theme.fast } }
+            }
+        }
     }
 }

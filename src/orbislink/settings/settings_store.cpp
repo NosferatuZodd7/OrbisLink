@@ -5,6 +5,7 @@
 #include "orbislink/common/log.h"
 #include "orbislink/common/util.h"
 
+#include <cctype>
 #include <cstdlib>
 #include <fstream>
 #include <sys/stat.h>
@@ -13,6 +14,21 @@
 #endif
 
 namespace orbislink {
+
+namespace {
+
+// "#RRGGBB", as the colour picker writes it.
+bool isThemeColor(const std::string &value)
+{
+	if(value.size() != 7 || value[0] != '#')
+		return false;
+	for(size_t i = 1; i < value.size(); ++i)
+		if(!std::isxdigit(static_cast<unsigned char>(value[i])))
+			return false;
+	return true;
+}
+
+} // namespace
 
 const char *transferModeName(TransferMode mode)
 {
@@ -44,6 +60,8 @@ std::string Settings::toJson() const
 			input.set("account_id", Json::fromString(console.accountId));
 		if(!console.hostId.empty())
 			input.set("host_id", Json::fromString(console.hostId));
+		if(console.startMode == "ftp")
+			input.set("start_mode", Json::fromString(console.startMode));
 		items.push(input);
 	}
 	root.set("consoles", items);
@@ -52,6 +70,10 @@ std::string Settings::toJson() const
 	root.set("installer_port", Json::fromInt(installerPort));
 	root.set("default_mode", Json::fromString(transferModeName(defaultMode)));
 	root.set("ftp_upload_directory", Json::fromString(ftpUploadDirectory));
+	Json pinned = Json::makeArray();
+	for(const std::string &folder : ftpPinnedFolders)
+		pinned.push(Json::fromString(folder));
+	root.set("ftp_pinned_folders", pinned);
 	root.set("check_already_installed", Json::fromBool(checkAlreadyInstalled));
 	root.set("install_after_upload", Json::fromBool(installAfterUpload));
 	root.set("delete_from_console_after_install", Json::fromBool(deleteFromConsoleAfterInstall));
@@ -66,6 +88,7 @@ std::string Settings::toJson() const
 	root.set("stream_bitrate_kbps", Json::fromInt(streamBitrateKbps));
 	root.set("stream_hardware_decode", Json::fromBool(streamHardwareDecode));
 	root.set("stream_fullscreen_on_connect", Json::fromBool(streamFullscreenOnConnect));
+	root.set("stream_aspect", Json::fromString(streamAspect));
 	root.set("stream_rumble", Json::fromBool(streamRumble));
 	root.set("stream_touchpad_from_mouse", Json::fromBool(streamTouchpadFromMouse));
 	root.set("stream_account_id", Json::fromString(streamAccountId));
@@ -82,11 +105,34 @@ std::string Settings::toJson() const
 	for(const auto &pair : keyboardBindings)
 		keys.set(pair.first, Json::fromInt(pair.second));
 	root.set("keyboard_bindings", keys);
+	Json pad = Json::makeObject();
+	for(const auto &pair : padBindings)
+		pad.set(pair.first, Json::fromString(pair.second));
+	root.set("pad_bindings", pad);
 	root.set("theme", Json::fromString(theme));
+	Json colors = Json::makeObject();
+	for(const auto &pair : themeColors)
+		colors.set(pair.first, Json::fromString(pair.second));
+	root.set("theme_colors", colors);
+	Json presets = Json::makeArray();
+	for(const ThemePreset &preset : themePresets)
+	{
+		Json item = Json::makeObject();
+		item.set("name", Json::fromString(preset.name));
+		item.set("theme", Json::fromString(preset.theme));
+		Json presetColors = Json::makeObject();
+		for(const auto &pair : preset.colors)
+			presetColors.set(pair.first, Json::fromString(pair.second));
+		item.set("colors", presetColors);
+		presets.push(std::move(item));
+	}
+	root.set("theme_presets", presets);
 	root.set("language", Json::fromString(language));
 	root.set("debug_logging", Json::fromBool(debugLogging));
 	root.set("check_for_updates", Json::fromBool(checkForUpdates));
 	root.set("first_run_done", Json::fromBool(firstRunDone));
+	root.set("games_folder", Json::fromString(gamesFolder));
+	root.set("convert_output_folder", Json::fromString(convertOutputFolder));
 	root.set("update_repository", Json::fromString(updateRepository));
 	root.set("update_repository_default", Json::fromString(ORBISLINK_REPOSITORY_STRING));
 	root.set("update_channel", Json::fromString(updateChannel));
@@ -122,6 +168,7 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 			entry.type = kind;
 			entry.accountId = input["account_id"].toString();
 			entry.hostId = input["host_id"].toString();
+			entry.startMode = input["start_mode"].toString() == "ftp" ? "ftp" : "";
 			settings.consoles.push_back(entry);
 		}
 	}
@@ -131,6 +178,14 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.installerPort = static_cast<uint16_t>(root["installer_port"].toInt(settings.installerPort));
 	settings.defaultMode = transferModeFromName(root["default_mode"].toString(), settings.defaultMode);
 	settings.ftpUploadDirectory = root["ftp_upload_directory"].toString(settings.ftpUploadDirectory);
+	// Missing: the defaults. Present, even empty: what the person left.
+	if(root["ftp_pinned_folders"].isArray())
+	{
+		settings.ftpPinnedFolders.clear();
+		for(const Json &folder : root["ftp_pinned_folders"].items())
+			if(folder.isString() && !folder.toString().empty())
+				settings.ftpPinnedFolders.push_back(folder.toString());
+	}
 	settings.checkAlreadyInstalled =
 		root["check_already_installed"].toLooseBool(settings.checkAlreadyInstalled);
 	settings.installAfterUpload = root["install_after_upload"].toLooseBool(settings.installAfterUpload);
@@ -151,6 +206,11 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 		root["stream_hardware_decode"].toLooseBool(settings.streamHardwareDecode);
 	settings.streamFullscreenOnConnect =
 		root["stream_fullscreen_on_connect"].toLooseBool(settings.streamFullscreenOnConnect);
+	{
+		const std::string aspect = root["stream_aspect"].toString(settings.streamAspect);
+		if(aspect == "fit" || aspect == "4:3" || aspect == "fill")
+			settings.streamAspect = aspect;
+	}
 	settings.streamRumble = root["stream_rumble"].toLooseBool(settings.streamRumble);
 	settings.streamTouchpadFromMouse =
 		root["stream_touchpad_from_mouse"].toLooseBool(settings.streamTouchpadFromMouse);
@@ -174,7 +234,35 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 				settings.keyboardBindings[pair.first] = static_cast<int>(pair.second.toInt());
 		}
 	}
+	if(root["pad_bindings"].isObject())
+	{
+		for(const auto &pair : root["pad_bindings"].members())
+			if(pair.second.isString())
+				settings.padBindings[pair.first] = pair.second.toString();
+	}
 	settings.theme = root["theme"].toString(settings.theme);
+	auto readColors = [](const Json &object) {
+		std::map<std::string, std::string> colors;
+		if(object.isObject())
+			for(const auto &pair : object.members())
+				if(pair.second.isString() && isThemeColor(pair.second.toString()))
+					colors[pair.first] = pair.second.toString();
+		return colors;
+	};
+	settings.themeColors = readColors(root["theme_colors"]);
+	if(root["theme_presets"].isArray())
+	{
+		for(const Json &item : root["theme_presets"].items())
+		{
+			if(!item.isObject() || item["name"].toString().empty())
+				continue;
+			ThemePreset preset;
+			preset.name = item["name"].toString();
+			preset.theme = item["theme"].toString("dark");
+			preset.colors = readColors(item["colors"]);
+			settings.themePresets.push_back(std::move(preset));
+		}
+	}
 	settings.language = root["language"].toString(settings.language);
 	// English is the default for everyone; "auto" (following the system) was
 	// the old default and becomes English too.
@@ -183,6 +271,8 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.debugLogging = root["debug_logging"].toLooseBool(settings.debugLogging);
 	settings.checkForUpdates = root["check_for_updates"].toLooseBool(settings.checkForUpdates);
 	settings.firstRunDone = root["first_run_done"].toLooseBool(settings.firstRunDone);
+	settings.gamesFolder = root["games_folder"].toString(settings.gamesFolder);
+	settings.convertOutputFolder = root["convert_output_folder"].toString(settings.convertOutputFolder);
 	{
 		const std::string stored = root["update_repository"].toString(settings.updateRepository);
 		const bool hasDefault = root["update_repository_default"].isString();

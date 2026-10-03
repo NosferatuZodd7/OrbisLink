@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The console found on the network, in a card you click.
+// A saved console, in a card you click.
 //
-// One click connects: the app asks the console how it is, wakes it if it is
-// in rest mode, waits for it to be ready and connects — or opens registration,
-// if this PC is not registered on it yet. While that is going on, another
-// click cancels. What is happening is written on the bottom button.
+// Two ways in, one button each at the bottom:
 //
-// The design is 360×330 and scales as a whole (`scaleFactor`) when there are
-// several consoles side by side: that way the proportions never change.
-// Without QtQuick.Effects (the screenshots' Qt 6.4 lacks it), the glass,
-// glow and shadow are layers and gradients drawn here.
+// * Remote Play: the app asks the console how it is, wakes it if it is in
+//   rest mode, waits for it to be ready and connects — or opens registration,
+//   if this PC is not registered on it yet. While that is going on, the
+//   button cancels. FTP and the installer work alongside.
+// * FTP: only the file browser, as an alternative to FileZilla.
 //
-// A console of unknown type gets a different card, in a cartoon style:
-// flat colour, thick outline and a hard offset shadow, with no glass,
-// waves or glow.
+// A click anywhere else on the card starts the console's preferred one
+// (chosen when adding or editing it). On another console (not the one in
+// use), either makes it the console in use first; the ✕ in its corner
+// removes it from the list.
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -30,22 +29,34 @@ Item {
     property string stage: ""
     property bool available: true   // false in a build without Remote Play
     // "ps4", "ps5", or empty when the console never answered — and then no
-    // number is made up: "Unknown PlayStation" appears, on a simpler card,
-    // so it does not pass for a known console.
+    // number is made up.
     property string kind: ""
     readonly property bool known: kind === "ps4" || kind === "ps5"
     property string name: ""
     property string address: ""
-    // False for the other consoles in the list: there the click selects it
-    // (it becomes the console in use), and the corner has a ✕ to remove it.
+    // False for the other consoles in the list.
     property bool current: true
-    property real scaleFactor: 1.0
+    // Whether the console answers on FTP. Without it (a PS5 with no
+    // jailbreak, a PS4 without GoldHEN's FTP) there is no FTP button, and
+    // the card always starts Remote Play.
+    property bool ftpAvailable: false
+    // Lit for a moment, to show where a console that was just registered is.
+    property bool spotlight: false
+    // What a click on the card starts: "remoteplay" or "ftp".
+    property string startMode: "remoteplay"
+    readonly property bool prefersFtp: startMode === "ftp" && ftpAvailable
+    // Which homebrew enabler it runs ("GoldHEN", "etaHEN", "HEN"), once known.
+    property string jailbreak: ""
+    // The card's colour: gold when the console has a jailbreak (its FTP
+    // answers), blue otherwise.
+    readonly property color tone: ftpAvailable ? Theme.hen : Theme.accent
 
     signal connect()
     signal cancel()
     signal edit()
     signal choose()
     signal remove()
+    signal openFtp()
 
     // The ✕ asks for a second click before removing.
     property bool confirmRemoval: false
@@ -57,430 +68,435 @@ Item {
 
     // What the click does now.
     readonly property string actionName: {
+        if (prefersFtp) return "ftp"
         if (!available) return ""
         if (!current) return "choose"
         if (connecting || stage.length > 0) return "cancel"
         return "connect"
     }
-    readonly property bool dimmed: !available || status === "offline"
-    readonly property bool checking: searching || stage.length > 0
-                                       || (status === "unknown" && available)
+    readonly property bool busy: connecting || stage.length > 0 || (current && searching)
 
-    readonly property color statusColor: !available ? Theme.cardTextMuted
-                                     : checking ? Theme.cardGlow
-                                     : status === "ready" ? Theme.cardBlue
-                                     : status === "standby" ? Theme.cardAmber
-                                     : status === "offline" ? Theme.cardRed
-                                     : Theme.cardTextMuted
+    // One click, one request: after a click the card takes no other until
+    // the console has answered (Remote Play connected or failed, FTP found
+    // or not), and at least for a moment, so a double click is one click.
+    property bool clickLocked: false
+    readonly property bool waitingOnConsole: busy
+        || (current && (app.ftpState === "checking" || app.remotePlayState === "checking"))
+    readonly property bool cancelReady: !minimumLock.running && current && busy
+    function releaseLock() {
+        if (!minimumLock.running && !waitingOnConsole)
+            clickLocked = false
+    }
+    onWaitingOnConsoleChanged: releaseLock()
+    Timer {
+        id: minimumLock
+        interval: 1500
+        onTriggered: card.releaseLock()
+    }
+    // Never stuck: whatever happens, the card listens again after a while.
+    Timer {
+        running: card.clickLocked
+        interval: 30000
+        onTriggered: card.clickLocked = false
+    }
+    readonly property bool checking: busy || (status === "unknown" && available)
 
+    // The state as one word, which decides the colour and the icon.
+    readonly property string mood: {
+        if (!available) return "off"
+        if (confirmRemoval) return "remove"
+        if (busy) return "busy"
+        if (status === "offline") return "offline"
+        if (status === "unknown") return "busy"
+        if (current && !registered) return "unregistered"
+        if (status === "standby") return "standby"
+        return "ready"
+    }
+
+    readonly property color statusColor: mood === "ready" || mood === "unregistered" ? Theme.accent
+                                       : mood === "busy" ? Theme.accent
+                                       : mood === "standby" ? Theme.warn
+                                       : mood === "offline" || mood === "remove" ? Theme.error
+                                       : Theme.textSecondary
+
+    readonly property string stateIcon: mood === "ready" ? "play"
+                                      : mood === "busy" ? "loader"
+                                      : mood === "standby" ? "moon"
+                                      : mood === "offline" ? "warning"
+                                      : mood === "unregistered" ? "link"
+                                      : mood === "remove" ? "close"
+                                      : "info"
+
+    // The state in a few words; what to do is on the buttons below.
     readonly property string statusText: {
         if (!available) return qsTr("Remote Play is not in this build")
         if (confirmRemoval) return qsTr("Click ✕ again to remove")
-        if (!current) {
-            if (status === "ready") return qsTr("Ready — click to connect")
-            if (status === "standby") return qsTr("In rest mode — click to wake and connect")
-            if (status === "offline") return qsTr("Not responding — click to try to connect")
-            return qsTr("Checking — click to connect")
-        }
-        if (connecting) return qsTr("Connecting… — click to cancel")
-        if (stage === "waking") return qsTr("Waking the console… — click to cancel")
-        if (stage === "checking") return qsTr("Checking the console… — click to cancel")
-        if (searching) return qsTr("Searching for the console…")
-        if (status === "offline") return qsTr("Not responding — click to try to connect")
-        if (status === "unknown") return qsTr("Click to connect")
-        if (!registered) return qsTr("Not registered — click to register")
-        if (status === "standby") return qsTr("In rest mode — click to wake and connect")
-        return qsTr("Ready — click to connect")
+        if (current && connecting) return qsTr("Connecting…")
+        if (current && stage === "waking") return qsTr("Waking the console…")
+        if (current && stage === "checking") return qsTr("Checking the console…")
+        if (current && searching) return qsTr("Searching for the console…")
+        if (status === "offline") return qsTr("Not responding")
+        if (status === "unknown") return qsTr("Checking…")
+        if (current && !registered) return qsTr("Not registered for Remote Play")
+        if (status === "standby") return qsTr("In rest mode")
+        return qsTr("Ready")
     }
 
-    implicitWidth: 360 * scaleFactor
-    implicitHeight: 330 * scaleFactor
-    width: implicitWidth
-    height: implicitHeight
+    function runAction(name) {
+        if (name === "cancel") {
+            // Only from the button, and never as the second half of a
+            // double click on the card.
+            if (!card.cancelReady)
+                return
+        } else {
+            if (card.clickLocked)
+                return
+            card.clickLocked = true
+            minimumLock.restart()
+        }
+        switch (name) {
+        case "connect": card.connect(); break
+        case "cancel": card.cancel(); break
+        case "choose": card.choose(); break
+        case "ftp": card.openFtp(); break
+        }
+    }
 
-    // The mouse over a card that does something when clicked.
-    readonly property bool hover: area.containsMouse && actionName.length > 0
+    // A square, like every card.
+    implicitWidth: 256
+    implicitHeight: 256
 
-    // With no action, the whole card fades back a little.
-    opacity: dimmed && !area.containsMouse ? 0.9 : 1.0
+    readonly property bool hover: area.containsMouse && actionName.length > 0 && actionName !== "cancel"
+                                  && !clickLocked
+
+    opacity: !available || (status === "offline" && !area.containsMouse) ? 0.85 : 1.0
     Behavior on opacity { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
 
-    // With the mouse over it, it grows a little and lifts; when pressed, it sinks.
-    scale: area.pressed && hover ? Theme.pressScale : (hover ? 1.03 : 1.0)
+    // With the mouse over it, it lifts; when pressed, it sinks a little.
+    scale: area.pressed && hover ? Theme.pressScale : 1.0
     Behavior on scale { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
     transform: Translate {
-        y: card.hover && !area.pressed ? -4 : 0
+        y: card.hover && !area.pressed ? -5 : 0
         Behavior on y { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
     }
 
-    Item {
-        id: drawing
-        width: 360
-        height: 330
-        scale: card.scaleFactor
-        transformOrigin: Item.TopLeft
+    // ── A soft glow in the accent around the console in use; a faint
+    // shadow under the others.
+    Repeater {
+        model: 3
+        Rectangle {
+            anchors.fill: body
+            anchors.margins: -(index + 1) * 3
+            radius: body.radius + (index + 1) * 3
+            color: "transparent"
+            border.width: 3
+            border.color: card.current && card.available
+                ? Theme.alpha(card.tone, (Theme.light ? 0.10 : 0.14) - index * 0.04)
+                : Qt.rgba(0, 0, 0, Theme.light ? 0.025 - index * 0.008 : 0.10 - index * 0.03)
+        }
+    }
 
-        // ── Soft shadow: three layers widening and fading.
-        Repeater {
-            model: card.known ? 3 : 0
+    // ── The spotlight: an accent ring that breathes a few times.
+    Rectangle {
+        id: spotlightRing
+        anchors.fill: body
+        anchors.margins: -8
+        radius: body.radius + 8
+        color: "transparent"
+        border.width: 3
+        border.color: Theme.accent
+        opacity: 0
+        SequentialAnimation {
+            running: card.spotlight
+            loops: 3
+            onStopped: spotlightRing.opacity = 0
+            NumberAnimation {
+                target: spotlightRing; property: "opacity"
+                from: 0; to: 0.9; duration: 450; easing.type: Easing.OutCubic
+            }
+            NumberAnimation {
+                target: spotlightRing; property: "opacity"
+                to: 0.2; duration: 650; easing.type: Easing.InOutCubic
+            }
+        }
+    }
+
+    Rectangle {
+        id: body
+        anchors.fill: parent
+        radius: Theme.radius
+        border.width: card.current && card.available ? 2 : 1
+        border.color: card.current && card.available ? card.tone
+                    : card.hover ? Theme.alpha(card.tone, 0.6)
+                    : card.ftpAvailable ? Theme.alpha(Theme.hen, 0.55)
+                    : Theme.cardEdge
+        Behavior on border.color { ColorAnimation { duration: Theme.cardEase } }
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Theme.cardTop }
+            GradientStop {
+                position: 1.0
+                color: card.ftpAvailable
+                       ? (card.current ? Theme.cardHenActiveBottom : Theme.cardHenBottom)
+                       : (card.current && card.available ? Theme.cardActiveBottom : Theme.cardBottom)
+            }
+        }
+
+        // A faint light along the top edge.
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: parent.border.width
+            height: 70
+            radius: parent.radius
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.0 : 0.05) }
+                GradientStop { position: 1.0; color: "transparent" }
+            }
+        }
+    }
+
+    MouseArea {
+        id: area
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: card.actionName.length > 0 && card.actionName !== "cancel" && !card.clickLocked
+                     ? Qt.PointingHandCursor : Qt.ArrowCursor
+        // The card itself only starts things; cancelling is the button's.
+        onClicked: if (card.actionName !== "cancel") card.runAction(card.actionName)
+    }
+
+    // ── Top: the state dot and the badge on the left; on the right the
+    // registration (on the console in use) or the ✕ (on the others).
+    Row {
+        x: 20
+        y: 20
+        height: 28
+        spacing: 10
+
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            width: 10; height: 10; radius: 5
+            color: card.statusColor
             Rectangle {
-                anchors.fill: backdrop
-                anchors.margins: -(index + 1) * 4
-                anchors.topMargin: -(index + 1) * 2
-                anchors.bottomMargin: -(index + 1) * 6
-                radius: backdrop.radius + (index + 1) * 4
+                anchors.centerIn: parent
+                width: 18; height: 18; radius: 9
                 color: "transparent"
                 border.width: 4
-                border.color: Qt.rgba(0, 0, 0, (Theme.light ? 0.03 - index * 0.008 : 0.09 - index * 0.025)
-                                               * (card.hover ? 1.6 : 1.0))
+                border.color: Theme.alpha(card.statusColor, 0.22)
+            }
+            SequentialAnimation on opacity {
+                running: card.checking
+                loops: Animation.Infinite
+                onStopped: parent.opacity = 1
+                NumberAnimation { to: 0.3; duration: 550 }
+                NumberAnimation { to: 1.0; duration: 550 }
             }
         }
 
-        // ── Blue glow around it, only with the mouse over it: at rest, the
-        // card stays discreet.
-        Repeater {
-            model: card.known ? 3 : 0
-            Rectangle {
-                anchors.fill: backdrop
-                anchors.margins: -(index + 1) * 3
-                radius: backdrop.radius + (index + 1) * 3
-                color: "transparent"
-                border.width: 3
-                border.color: Theme.cardGlow
-                opacity: card.hover ? 0.2 - index * 0.06 : 0
-                Behavior on opacity { NumberAnimation { duration: Theme.cardEase } }
-            }
-        }
-
-        // ── Cartoon: the hard shadow, the same shape offset and without blur.
+        // "In use" on the console in use, "Registered" on the others that are.
         Rectangle {
-            visible: !card.known
-            x: area.pressed ? 3 : card.hover ? 10 : 7
-            y: area.pressed ? 3 : card.hover ? 10 : 7
-            Behavior on x { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
-            Behavior on y { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
-            width: backdrop.width
-            height: backdrop.height
-            radius: backdrop.radius
-            color: Theme.light ? Theme.cardText : Qt.rgba(Theme.cardGlow.r, Theme.cardGlow.g,
-                                                         Theme.cardGlow.b, 0.5)
+            readonly property bool inUse: card.current && card.available
+            visible: inUse || card.registered
+            anchors.verticalCenter: parent.verticalCenter
+            height: 24
+            width: badge.implicitWidth + 20
+            radius: 12
+            color: inUse ? Theme.alpha(Theme.ok, 0.14) : Theme.controlFill
+            border.width: 1
+            border.color: inUse ? Theme.alpha(Theme.ok, 0.30) : Theme.glassEdge
+            Row {
+                id: badge
+                anchors.centerIn: parent
+                spacing: 6
+                Rectangle {
+                    visible: parent.parent.inUse
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 6; height: 6; radius: 3
+                    color: Theme.ok
+                }
+                Icon {
+                    visible: !parent.parent.inUse
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: "link"
+                    size: 12
+                    color: Theme.textSecondary
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: parent.parent.inUse ? qsTr("In use") : qsTr("Registered")
+                    color: parent.parent.inUse ? Theme.ok : Theme.textSecondary
+                    font.pixelSize: 11
+                    font.weight: Font.Medium
+                }
+            }
         }
 
+        // The jailbreak, in solid gold: the first thing the eye finds.
         Rectangle {
-            id: backdrop
-            anchors.fill: parent
-            radius: 30
-            border.width: !card.known ? 4 : 1
-            border.color: card.hover ? Theme.cardGlow
-                        : !card.known ? (Theme.light ? Theme.cardText : Theme.cardTextMuted)
-                        : card.current && card.available ? Qt.rgba(Theme.cardGlow.r, Theme.cardGlow.g,
-                                                                    Theme.cardGlow.b, 0.4)
-                        : Theme.cardEdge
-            Behavior on border.color { ColorAnimation { duration: Theme.cardEase } }
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Theme.cardTop }
-                GradientStop { position: 1.0; color: Theme.cardBottom }
-            }
-            clip: true
-
-            // Wide curves and the radial gradient behind the logo, plus an
-            // almost invisible noise so the blue does not look flat.
-            Canvas {
-                id: waves
-                anchors.fill: parent
-                visible: card.known
-                readonly property color waveColor: Theme.cardWave
-                readonly property color lightColor: card.statusColor
-                readonly property bool light: Theme.light
-                onWaveColorChanged: requestPaint()
-                onLightColorChanged: requestPaint()
-                onLightChanged: requestPaint()
-                onPaint: {
-                    var ctx = getContext("2d")
-                    ctx.reset()
-                    var w = width, h = height
-
-                    var halo = ctx.createRadialGradient(w / 2, 92, 4, w / 2, 92, 150)
-                    halo.addColorStop(0, Qt.rgba(lightColor.r, lightColor.g, lightColor.b, light ? 0.06 : 0.12))
-                    halo.addColorStop(1, Qt.rgba(lightColor.r, lightColor.g, lightColor.b, 0))
-                    ctx.fillStyle = halo
-                    ctx.fillRect(0, 0, w, h)
-
-                    ctx.fillStyle = waveColor
-                    ctx.beginPath()
-                    ctx.moveTo(0, h * 0.42)
-                    ctx.bezierCurveTo(w * 0.30, h * 0.66, w * 0.62, h * 0.72, w, h * 0.46)
-                    ctx.lineTo(w, h * 0.58)
-                    ctx.bezierCurveTo(w * 0.62, h * 0.84, w * 0.30, h * 0.80, 0, h * 0.54)
-                    ctx.closePath()
-                    ctx.fill()
-                    ctx.beginPath()
-                    ctx.moveTo(0, h * 0.30)
-                    ctx.bezierCurveTo(w * 0.35, h * 0.52, w * 0.70, h * 0.58, w, h * 0.34)
-                    ctx.lineTo(w, h * 0.37)
-                    ctx.bezierCurveTo(w * 0.70, h * 0.62, w * 0.35, h * 0.56, 0, h * 0.33)
-                    ctx.closePath()
-                    ctx.fill()
-
-                    // Noise at 2–3%: scattered dots, always the same ones.
-                    var seed = 7
-                    function random() {
-                        seed = (seed * 16807) % 2147483647
-                        return seed / 2147483647
-                    }
-                    ctx.fillStyle = light ? "rgba(15,23,42,0.035)" : "rgba(255,255,255,0.03)"
-                    for (var i = 0; i < 900; ++i)
-                        ctx.fillRect(random() * w, random() * h, 1, 1)
+            visible: card.ftpAvailable
+            anchors.verticalCenter: parent.verticalCenter
+            height: 24
+            width: henRow.implicitWidth + 18
+            radius: 12
+            color: Theme.henFill
+            Row {
+                id: henRow
+                anchors.centerIn: parent
+                spacing: 5
+                Icon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: "unlock"
+                    size: 12
+                    strokeWidth: 2.2
+                    color: Theme.textOnHen
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: card.jailbreak.length > 0 ? card.jailbreak : "HEN"
+                    color: Theme.textOnHen
+                    font.pixelSize: 11
+                    font.weight: Font.Bold
                 }
             }
-
-            // Cartoon: the flat colour over the gradient, inside the outline.
-            Rectangle {
-                visible: !card.known
-                anchors.fill: parent
-                anchors.margins: parent.border.width
-                radius: parent.radius - parent.border.width
-                color: Theme.cardTop
-            }
-
-            // The edge of light at the top.
-            Rectangle {
-                visible: card.known
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.margins: 1
-                height: 90
-                radius: parent.radius
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.7 : 0.06) }
-                    GradientStop { position: 1.0; color: "transparent" }
-                }
-            }
+            HoverHandler { id: henHover }
+            ToolTip.visible: henHover.hovered
+            ToolTip.text: qsTr("This console has a jailbreak: its FTP server answers, so files and "
+                               + "packages can be sent to it.")
         }
+    }
 
-        MouseArea {
-            id: area
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: card.actionName.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
-            onClicked: {
-                switch (card.actionName) {
-                case "connect": card.connect(); break
-                case "cancel": card.cancel(); break
-                case "choose": card.choose(); break
-                }
-            }
+    StyledToolButton {
+        x: parent.width - width - 12
+        y: 14
+        width: 32
+        height: 32
+        visible: card.available && card.current
+        iconName: "link"
+        iconSize: 16
+        ToolTip.visible: hovered
+        ToolTip.text: card.registered ? qsTr("Register this PC again")
+                                      : qsTr("Register this PC on the console")
+        onClicked: card.edit()
+    }
+    StyledToolButton {
+        x: parent.width - width - 12
+        y: 14
+        width: 32
+        height: 32
+        visible: !card.current
+        danger: card.confirmRemoval
+        iconName: "close"
+        iconSize: 16
+        ToolTip.visible: hovered
+        ToolTip.text: qsTr("Remove this console from the list")
+        onClicked: {
+            if (card.confirmRemoval)
+                card.remove()
+            else
+                card.confirmRemoval = true
         }
+    }
 
-        // ── Top: the app symbol on the left, and on the right the registration
-        // (the "link" between this PC and the console) or, on other consoles, the ✕.
-        Image {
-            x: 24
-            y: 22
-            width: 22
-            height: 22
-            source: "qrc:/icons/mark.png"
-            sourceSize.width: 44
-            sourceSize.height: 44
-            opacity: 0.55
-        }
+    // ── Middle: PS4/PS5 in large type, the name and the IP.
+    Column {
+        x: 22
+        y: 64
+        width: parent.width - 44
+        spacing: 6
 
-        StyledToolButton {
-            x: parent.width - width - 16
-            y: 14
-            implicitWidth: 36
-            implicitHeight: 36
-            visible: card.available && card.current
-            opacity: 0.7
-            text: "🔗"
-            ToolTip.visible: hovered
-            ToolTip.text: card.registered ? qsTr("Register this PC again")
-                                          : qsTr("Register this PC on the console")
-            onClicked: card.edit()
+        Text {
+            text: card.known ? card.kind.toUpperCase() : qsTr("Console")
+            color: Theme.cardText
+            font.pixelSize: card.known ? 38 : 28
+            font.weight: Font.Bold
+            font.letterSpacing: -0.5
         }
-        StyledToolButton {
-            x: parent.width - width - 16
-            y: 14
-            implicitWidth: 36
-            implicitHeight: 36
-            visible: !card.current
-            danger: card.confirmRemoval
-            opacity: 0.7
-            text: "✕"
-            ToolTip.visible: hovered
-            ToolTip.text: qsTr("Remove this console from the list")
-            onClicked: {
-                if (card.confirmRemoval)
-                    card.remove()
-                else
-                    card.confirmRemoval = true
-            }
-        }
-
-        // ── Centre: PS4/PS5 in a thin stroke, the blue line, the name and the IP.
-        Column {
-            x: 0
-            y: 58
+        Item { width: 1; height: 2 }
+        Text {
             width: parent.width
-            spacing: 0
-
-            // The PS4/PS5 wordmark (or "Unknown PlayStation", when the type is
-            // not known), generated by scripts/generate-wordmarks.py: white on the
-            // dark themes, black on the light one.
-            Image {
-                id: letters
-                anchors.horizontalCenter: parent.horizontalCenter
-                source: "qrc:/icons/wordmark-" + (card.known ? card.kind : "unknown")
-                        + (Theme.light ? "-black" : "-white") + ".png"
-                sourceSize.height: 186
-                height: 62
-                width: implicitWidth / 3
-                fillMode: Image.PreserveAspectFit
-                smooth: true
-                mipmap: true
-            }
-
-            Item { width: 1; height: 6 }
-
-            Item { width: 1; height: 8 }
-
-            // The thin line under the logo: blue on the console in use,
-            // grey on the others.
-            Rectangle {
-                id: separator
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: 118
-                height: 3
-                radius: 1.5
-                readonly property color tone: card.current ? Theme.cardBlue : Theme.cardTextMuted
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: Qt.rgba(separator.tone.r, separator.tone.g, separator.tone.b, 0.35) }
-                    GradientStop { position: 0.5; color: separator.tone }
-                    GradientStop { position: 1.0; color: Qt.rgba(separator.tone.r, separator.tone.g, separator.tone.b, 0.35) }
-                }
-                opacity: card.current ? 1.0 : 0.6
-            }
-
-            Item { width: 1; height: 22 }
-
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: parent.width - 48
-                horizontalAlignment: Text.AlignHCenter
-                elide: Text.ElideRight
-                text: card.name.length > 0 ? card.name : qsTr("Console")
-                color: Theme.cardText
-                font.pixelSize: 26
-                font.weight: Font.DemiBold
-            }
-
-            Item { width: 1; height: 2 }
-
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                visible: card.address.length > 0
-                text: card.address
-                color: Theme.cardTextMuted
-                font.pixelSize: 14
-            }
+            elide: Text.ElideRight
+            text: card.name.length > 0 ? card.name : qsTr("Console")
+            color: Theme.cardText
+            font.pixelSize: Theme.fontCardTitle
+            font.weight: Font.DemiBold
         }
+        Text {
+            visible: card.address.length > 0
+            text: card.address
+            color: Theme.cardTextMuted
+            font.pixelSize: 13
+        }
+    }
 
-        // ── Footer: the button with the state and what the click does.
-        Rectangle {
-            id: button
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 24
-            width: parent.width * 0.82
-            height: 58
-            radius: height / 2
-            clip: true
-            readonly property real alpha: area.containsMouse && card.actionName.length > 0 ? 1.4 : 1.0
-            color: {
-                var c = card.statusColor
-                if (!card.available)
-                    return Qt.rgba(c.r, c.g, c.b, 0.12)
-                if (card.status === "standby" && !card.checking)
-                    return Qt.rgba(c.r, c.g, c.b, (Theme.light ? 0.13 : 0.16) * alpha)
-                if (card.status === "offline" && !card.checking)
-                    return Qt.rgba(c.r, c.g, c.b, (Theme.light ? 0.10 : 0.16) * alpha)
-                return Qt.rgba(c.r, c.g, c.b, (Theme.light ? 0.10 : 0.20) * alpha)
-            }
-            // On the cartoon card, a thick outline in the state colour.
-            border.width: card.known ? 1 : 3
-            border.color: card.known
-                          ? Qt.rgba(card.statusColor.r, card.statusColor.g, card.statusColor.b,
-                                    Theme.light ? 0.10 : 0.28)
-                          : card.statusColor
-            Behavior on color { ColorAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
+    // ── Bottom: the state in one line, and the two ways in.
+    Row {
+        id: stateLine
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: buttons.top
+        anchors.leftMargin: 20
+        anchors.rightMargin: 16
+        anchors.bottomMargin: 12
+        spacing: 8
+        Icon {
+            id: stateGlyph
+            anchors.verticalCenter: parent.verticalCenter
+            name: card.stateIcon
+            size: 15
+            spinning: card.mood === "busy"
+            color: Theme.light ? card.statusColor : Qt.lighter(card.statusColor, 1.25)
+        }
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width - stateGlyph.width - parent.spacing
+            elide: Text.ElideRight
+            text: card.statusText
+            color: Theme.light ? Qt.darker(card.statusColor, 1.2) : Qt.lighter(card.statusColor, 1.35)
+            font.pixelSize: 12
+            font.weight: Font.DemiBold
+        }
+    }
 
-            // The dot on the left, the text (up to two lines) and the chevron
-            // on the right, in the state's colour.
-            Rectangle {
-                id: dot
-                x: 24
-                anchors.verticalCenter: parent.verticalCenter
-                width: 14; height: 14; radius: 7
-                color: card.statusColor
-                SequentialAnimation on opacity {
-                    running: card.connecting || card.checking
-                    loops: Animation.Infinite
-                    onStopped: dot.opacity = 1
-                    NumberAnimation { to: 0.25; duration: 500 }
-                    NumberAnimation { to: 1.0; duration: 500 }
-                }
-            }
-            Text {
-                anchors.left: dot.right
-                anchors.leftMargin: 16
-                anchors.right: chevron.left
-                anchors.rightMargin: 10
-                anchors.verticalCenter: parent.verticalCenter
-                wrapMode: Text.WordWrap
-                maximumLineCount: 2
-                elide: Text.ElideRight
-                lineHeight: 0.95
-                text: card.statusText
-                color: Theme.cardText
-                font.pixelSize: 15
-                font.weight: Font.Medium
-            }
-            Text {
-                id: chevron
-                anchors.right: parent.right
-                anchors.rightMargin: 20
-                anchors.verticalCenter: parent.verticalCenter
-                visible: card.actionName.length > 0
-                text: "›"
-                color: card.statusColor
-                font.pixelSize: 28
-            }
+    Row {
+        id: buttons
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.margins: 16
+        spacing: 8
+        readonly property real half: (width - spacing) / 2
 
-            // Searching: a shine running along the bottom of the button.
-            Rectangle {
-                id: barShine
-                visible: card.checking
-                anchors.bottom: parent.bottom
-                height: 2
-                width: parent.width * 0.35
-                radius: 1
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 0.5; color: Theme.cardGlow }
-                    GradientStop { position: 1.0; color: "transparent" }
-                }
-                NumberAnimation on x {
-                    running: card.checking
-                    loops: Animation.Infinite
-                    from: -barShine.width
-                    to: button.width
-                    duration: 1300
-                    easing.type: Easing.InOutQuad
-                }
-            }
+        // Remote Play: connects (or wakes, or registers); on the console
+        // being connected, cancels.
+        StyledButton {
+            // Alone, it takes the whole width.
+            width: card.ftpAvailable ? buttons.half : buttons.width
+            leftPadding: 10
+            rightPadding: 10
+            readonly property bool cancelling: card.current && card.busy
+            text: cancelling ? qsTr("Cancel") : qsTr("Remote Play")
+            // Side by side with FTP there is no room for the icon.
+            iconName: card.ftpAvailable ? "" : cancelling ? "loader" : "play"
+            primary: !card.prefersFtp
+            enabled: card.available && (cancelling ? card.cancelReady : !card.clickLocked)
+            ToolTip.visible: hovered && !card.available
+            ToolTip.text: qsTr("Remote Play is not in this build")
+            onClicked: card.runAction(!card.current ? "choose"
+                                      : cancelling ? "cancel" : "connect")
+        }
+        // FTP: only the file browser.
+        StyledButton {
+            visible: card.ftpAvailable
+            width: buttons.half
+            leftPadding: 10
+            rightPadding: 10
+            text: qsTr("FTP")
+            primary: card.prefersFtp
+            enabled: !card.clickLocked
+            ToolTip.visible: hovered
+            ToolTip.text: qsTr("Browse the console's files over FTP, without Remote Play")
+            onClicked: card.runAction("ftp")
         }
     }
 }

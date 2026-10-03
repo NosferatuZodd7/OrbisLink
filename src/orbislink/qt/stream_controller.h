@@ -67,6 +67,11 @@ class StreamController : public QObject
 	Q_PROPERTY(bool fullscreenOnConnect READ fullscreenOnConnect NOTIFY settingsApplied)
 	Q_PROPERTY(QString savedAccountId READ accountId NOTIFY settingsApplied)
 	Q_PROPERTY(QVariantMap keyBindings READ keyBindings NOTIFY keyBindingsChanged)
+	// Physical controller button → action ("a" → "cross"…), all of them.
+	Q_PROPERTY(QVariantMap padBindings READ padBindings NOTIFY keyBindingsChanged)
+	// The actions the physical controller is pressing right now ("cross",
+	// "l2", "lstick_left"…), for the key map window to light them up.
+	Q_PROPERTY(QStringList padPressed READ padPressed NOTIFY padPressedChanged)
 	// The state of the other saved consoles, by address:
 	// { state, name, ps5, registered, hostId }.
 	Q_PROPERTY(QVariantMap consoleStates READ consoleStates NOTIFY consoleStatesChanged)
@@ -163,6 +168,13 @@ public:
 	// Returns false for a key that cannot be used (Esc, F11).
 	Q_INVOKABLE bool setKeyBinding(const QString &action, int key);
 	Q_INVOKABLE void resetKeyBindings();
+	QVariantMap padBindings() const;
+	QStringList padPressed() const { return padPressed_; }
+	// Moves `action` to the physical button `physical`; the two swap.
+	Q_INVOKABLE void setPadBinding(const QString &action, const QString &physical);
+	// Reads the controller while the key map window is open, even without
+	// a session, so its buttons light up there.
+	Q_INVOKABLE void setInputPreview(bool on);
 	// The key name as the system writes it ("Enter", "Space", "Q").
 	Q_INVOKABLE QString keyName(int key) const;
 
@@ -187,6 +199,9 @@ signals:
 	void connectStageChanged();
 	// The console answered but this PC is not registered on it yet.
 	void registrationNeeded();
+	// The console accepted this PC: the registration dialog closes and the
+	// window goes back to the console's card.
+	void registrationSucceeded();
 	void consoleChanged();
 	void registrationChanged();
 	void sessionChanged();
@@ -200,11 +215,15 @@ signals:
 	void gamepadChanged();
 	void settingsApplied();
 	void keyBindingsChanged();
+	void padPressedChanged();
+	// A physical controller button went down (its SDL name).
+	void padButtonDown(const QString &physical);
 	void consoleStatesChanged();
 	void scanChanged();
 	// Request to save the keys in the settings; whoever stores them connects
 	// here, and the new map comes back through applySettings().
 	void keyBindingsEdited(const std::map<std::string, int> &bindings);
+	void padBindingsEdited(const std::map<std::string, std::string> &bindings);
 	void notify(const QString &title, const QString &message, bool error);
 	void loginPinRequested(bool incorrect);
 
@@ -236,6 +255,14 @@ private:
 	QString connectStage_;
 	class QTimer *wakeTimer_ = nullptr;
 	int wakeAttempts_ = 0;
+	// "Remote Play already in use" right after a session ended: the console
+	// is still closing the old one, so the connection is tried again a few
+	// times before it counts as a failure.
+	class QTimer *inUseRetryTimer_ = nullptr;
+	int inUseRetries_ = 0;
+	bool retryingInUse_ = false;
+	qint64 lastSessionEndMs_ = 0;
+	bool retryAfterInUse();
 	quint64 oneClickRun_ = 0;
 	qint64 lastFrameCount_ = 0;
 	int measuredFps_ = 0;
@@ -248,6 +275,25 @@ private:
 	bool rumbleEnabled_ = true;
 	bool touchpadFromMouse_ = true;
 	int touchId_ = -1;
+
+	// What the keyboard and the controller hold, sent to the console as one.
+	void sendInput();
+	void padTouch(int finger, bool down, double x, double y);
+	void resetInput();
+	StreamSession::ControllerState keyState_;
+	StreamSession::ControllerState padState_;
+	QStringList padPressed_;
+	bool inputPreview_ = false;
+	void updatePadPressed();
+	int padTouchIds_[2] = { -1, -1 };
+	// A touchpad click with no finger on the pad (the T key, or a controller
+	// whose touches do not come in): a finger is put on the left half first
+	// and the click follows a moment later, as on a real pad — PS2 games
+	// ignore a click they cannot place (left half: Select).
+	bool clickDown_ = false;
+	bool clickArmed_ = false;
+	int clickTouch_ = -1;
+	quint64 clickRun_ = 0;
 	QString accountId_;
 	bool searching_ = false;
 	bool notifyWhenDone_ = false;

@@ -156,4 +156,51 @@ StreamSession::ControllerState KeyboardMap::state() const
 	return state;
 }
 
+const std::vector<std::pair<std::string, std::string>> &PadMap::defaults()
+{
+	static const std::vector<std::pair<std::string, std::string>> map = {
+		{ "a", "cross" }, { "b", "circle" }, { "x", "square" }, { "y", "triangle" },
+		{ "dpup", "dpad_up" }, { "dpdown", "dpad_down" }, { "dpleft", "dpad_left" },
+		{ "dpright", "dpad_right" }, { "leftshoulder", "l1" }, { "rightshoulder", "r1" },
+		{ "leftstick", "l3" }, { "rightstick", "r3" }, { "start", "options" }, { "back", "share" },
+		{ "guide", "ps" }, { "touchpad", "touchpad" },
+	};
+	return map;
+}
+
+PadMap::Map PadMap::effective(const Map &overrides)
+{
+	Map map;
+	for(const auto &pair : defaults())
+	{
+		const auto given = overrides.find(pair.first);
+		map[pair.first] = given != overrides.end() ? given->second : pair.second;
+	}
+	return map;
+}
+
+PadMap::Map PadMap::remapped(Map map, const std::string &action, const std::string &physical)
+{
+	if(!map.count(physical))
+		return map;
+	const std::string before = map[physical];
+	for(auto &pair : map)
+		if(pair.second == action)
+			pair.second = before;
+	map[physical] = action;
+	return map;
+}
+
+PadMap::Map PadMap::changes(const Map &map)
+{
+	Map changed;
+	for(const auto &pair : defaults())
+	{
+		const auto now = map.find(pair.first);
+		if(now != map.end() && now->second != pair.second)
+			changed[pair.first] = now->second;
+	}
+	return changed;
+}
+
 } // namespace orbislink

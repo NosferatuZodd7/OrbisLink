@@ -31,7 +31,7 @@ std::string localAddressForConsole(const std::string &consoleIp);
 // confirm FTP's "220").
 bool tcpProbe(const std::string &host, uint16_t port, int timeoutMs, std::string *banner = nullptr);
 
-// Porta TCP livre a partir de `preferred` (§5.3: se ocupada, escolher outra).
+// A free TCP port starting at `preferred` (§5.3: if taken, pick another).
 bool findFreePort(const std::string &bindAddress, uint16_t preferred, uint16_t *outPort,
 	int maxAttempts = 64);
 

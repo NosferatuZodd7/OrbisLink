@@ -134,6 +134,10 @@ public:
 	uint64_t framesDecoded() const;
 	// True when the video is being decoded on the GPU.
 	bool usingHardwareDecoder() const;
+	// True when the last session failed because the console said its
+	// Remote Play was still in use. Right after a session ends it says so
+	// for a few seconds, while it closes the old one.
+	bool lastFailureWasInUse() const;
 
 	struct Impl;
 

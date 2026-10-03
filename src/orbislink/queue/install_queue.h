@@ -49,10 +49,19 @@ struct QueueTask
 
 	int consoleTaskId = -1;
 	std::string httpToken;
-	std::string remotePath; // destino no FTP (modo B)
+	std::string remotePath; // where it goes on the console (FTP upload)
+	// The file name to give it on the console; empty keeps the local name.
+	// Set when the name was already taken there and the person chose another.
+	std::string remoteName;
 	// File to delete from the console when this task succeeds. Only set
 	// by "upload and install" with "delete afterwards" enabled.
 	std::string cleanupRemotePath;
+	// FTP upload only. The folder to put it in instead of the upload folder
+	// (made if missing), and whether to install it once it is there — and
+	// then delete it — whatever the settings say.
+	std::string remoteDirectory;
+	bool installAfter = false;
+	bool deleteAfterInstall = false;
 	std::string message;    // error or information for the UI
 	uint32_t errorCode = 0;
 	int attempts = 0;
@@ -103,8 +112,18 @@ public:
 
 	// Validates and appends. Orders the batch as game → patch → DLC within the
 	// same TITLE_ID. `rejected` receives "file: reason" for each refusal.
+	// remoteNames, when given, has one entry per path (empty: the local name).
 	std::vector<std::string> enqueue(const std::vector<std::string> &paths, TransferMode mode,
-		std::vector<std::string> *rejected = nullptr);
+		std::vector<std::string> *rejected = nullptr,
+		const std::vector<std::string> *remoteNames = nullptr);
+	// An FTP upload to `directory` that installs the package once it lands
+	// and then deletes the copy on the console.
+	std::string enqueueUploadAndInstall(const std::string &path, const std::string &directory,
+		std::string *error = nullptr);
+	// As above; `adjust` sets each task up before anything can pick it.
+	std::vector<std::string> enqueue(const std::vector<std::string> &paths, TransferMode mode,
+		std::vector<std::string> *rejected, const std::vector<std::string> *remoteNames,
+		const std::function<void(QueueTask &)> &adjust);
 	std::string enqueueOne(const std::string &path, TransferMode mode, std::string *error = nullptr);
 
 	void start();
@@ -112,6 +131,9 @@ public:
 	void pause(const std::string &reason = std::string());
 	void resume();
 	bool paused() const { return paused_.load(); }
+	// Paused because the console's installer stopped answering: it goes on
+	// by itself once the installer is back.
+	bool waitingForService() const { return waitingForService_.load(); }
 	std::string pauseReason() const;
 
 	bool cancel(const std::string &id);
@@ -164,6 +186,7 @@ private:
 
 	std::atomic<bool> running_ { false };
 	std::atomic<bool> paused_ { false };
+	std::atomic<bool> waitingForService_ { false };
 	std::atomic<bool> cancelCurrent_ { false };
 	std::condition_variable wakeup_;
 	std::mutex wakeupMutex_;
