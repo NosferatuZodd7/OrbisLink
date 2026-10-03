@@ -37,6 +37,7 @@ ICONS = {
     "pin": "pin",
     "pin-off": "pin-off",
     "plus": "plus",
+    "ratio": "ratio",
     "plus-circle": "circle-plus",
     "refresh": "refresh-cw",
     "settings": "settings",

@@ -732,6 +732,17 @@ QStringList AppController::ftpShortcuts() const
 	return shortcuts;
 }
 
+void AppController::setStreamAspect(const QString &aspect)
+{
+	if(aspect != QLatin1String("fit") && aspect != QLatin1String("4:3") && aspect != QLatin1String("fill"))
+		return;
+	if(settings_.streamAspect == aspect.toStdString())
+		return;
+	settings_.streamAspect = aspect.toStdString();
+	store_.save(settings_);
+	emit streamAspectChanged();
+}
+
 bool AppController::isFtpPinned(const QString &path) const
 {
 	const std::string folder = pinnedForm(path.toStdString());

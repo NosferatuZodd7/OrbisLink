@@ -75,8 +75,15 @@ Item {
     // of the window opens anyway.
     Loader {
         id: videoLoader
-        anchors.fill: videoStage
-        anchors.margins: 1
+        // The picture's box: the whole stage, or a centred 4:3 box in it
+        // (PS1/PS2 games come stretched to 16:9).
+        readonly property real stageW: videoStage.width - 2
+        readonly property real stageH: videoStage.height - 2
+        readonly property bool boxed: app.streamAspect === "4:3"
+        width: boxed ? Math.min(stageW, stageH * 4 / 3) : stageW
+        height: boxed ? Math.min(stageH, stageW * 3 / 4) : stageH
+        x: videoStage.x + 1 + (stageW - width) / 2
+        y: videoStage.y + 1 + (stageH - height) / 2
         visible: root.streaming
         active: root.built
         source: root.built ? "qrc:/qml/StreamVideo.qml" : ""
@@ -389,6 +396,50 @@ Item {
                 }
                 // Right click turns it off entirely, instead of just muting.
                 onRightClicked: stream.setMicrophoneEnabled(false)
+            }
+            // The picture's shape: as sent (16:9), 4:3 for PS1/PS2 games, or
+            // stretched to the window. Each click moves to the next.
+            Rectangle {
+                id: aspectPill
+                readonly property var modes: ["fit", "4:3", "fill"]
+                implicitHeight: 36
+                implicitWidth: aspectRow.implicitWidth + 24
+                radius: 10
+                color: aspectArea.pressed ? Qt.rgba(1, 1, 1, 0.18)
+                     : aspectArea.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.06)
+                border.width: 1
+                border.color: Theme.hudEdge
+                Row {
+                    id: aspectRow
+                    anchors.centerIn: parent
+                    spacing: 7
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "ratio"
+                        size: 16
+                        color: Theme.onStage
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: app.streamAspect === "4:3" ? "4:3"
+                            : app.streamAspect === "fill" ? qsTr("Fill") : "16:9"
+                        color: Theme.onStage
+                        font.pixelSize: 12
+                        font.weight: Font.Medium
+                    }
+                }
+                MouseArea {
+                    id: aspectArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        var i = aspectPill.modes.indexOf(app.streamAspect)
+                        app.streamAspect = aspectPill.modes[(i + 1) % aspectPill.modes.length]
+                    }
+                }
+                ToolTip.visible: aspectArea.containsMouse
+                ToolTip.text: qsTr("Picture shape: 16:9 as the console sends it, 4:3 for PS1/PS2 games, or Fill to stretch it to the window. Click to change.")
             }
             HudButton {
                 iconName: window.streamFullscreen ? "minimize" : "maximize"

@@ -12,7 +12,9 @@ import QtMultimedia
 
 VideoOutput {
     id: video
-    fillMode: VideoOutput.PreserveAspectFit
+    // "fill" stretches to the whole stage; "4:3" gets a 4:3 box from the
+    // stage (see StreamArea) and fills it; "fit" keeps the picture as sent.
+    fillMode: app.streamAspect === "fit" ? VideoOutput.PreserveAspectFit : VideoOutput.Stretch
 
     // The keyboard acts as the controller while there is a stream.
     Keys.onPressed: function(event) {
