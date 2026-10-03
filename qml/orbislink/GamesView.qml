@@ -50,6 +50,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         anchors.leftMargin: Theme.gutter
+        anchors.rightMargin: window.panelShown ? 8 : Theme.gutter
         anchors.topMargin: 4
         anchors.bottomMargin: 4
         radius: Theme.radius
@@ -181,49 +182,50 @@ Item {
                 }
             }
 
-            // ── nothing chosen yet
-            ColumnLayout {
+            // ── nothing chosen yet: centred in the page, both ways
+            Item {
                 visible: games.gamesFolder.length === 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                spacing: 14
-                Item { Layout.fillHeight: true }
-                Icon {
-                    Layout.alignment: Qt.AlignHCenter
-                    name: "disc"
-                    size: 56
-                    color: Theme.alpha(Theme.accent, 0.8)
+
+                Column {
+                    anchors.centerIn: parent
+                    width: Math.min(520, parent.width - 32)
+                    spacing: 14
+                    Icon {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        name: "disc"
+                        size: 56
+                        color: Theme.alpha(Theme.accent, 0.8)
+                    }
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        text: qsTr("Your PS1 and PS2 games, ready for the console")
+                        color: Theme.text
+                        font.pixelSize: 17
+                        font.weight: Font.DemiBold
+                    }
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        text: qsTr("Choose the folder with your disc images (.iso, .bin/.cue, .img). The app "
+                                   + "finds which are PS1 and PS2 games, converts them into PS4 packages, "
+                                   + "sends them to the console over FTP and installs them.")
+                        color: Theme.textSecondary
+                        font.pixelSize: 13
+                    }
+                    Item { width: 1; height: 6 }
+                    StyledButton {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: qsTr("Choose games folder…")
+                        iconName: "folder-open"
+                        primary: true
+                        onClicked: gamesFolderDialog.open()
+                    }
                 }
-                Text {
-                    Layout.alignment: Qt.AlignHCenter
-                    Layout.maximumWidth: 520
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.WordWrap
-                    text: qsTr("Your PS1 and PS2 games, ready for the console")
-                    color: Theme.text
-                    font.pixelSize: 17
-                    font.weight: Font.DemiBold
-                }
-                Text {
-                    Layout.alignment: Qt.AlignHCenter
-                    Layout.maximumWidth: 520
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.WordWrap
-                    text: qsTr("Choose the folder with your disc images (.iso, .bin/.cue, .img). The app "
-                               + "finds which are PS1 and PS2 games, converts them into PS4 packages, "
-                               + "sends them to the console over FTP and installs them.")
-                    color: Theme.textSecondary
-                    font.pixelSize: 13
-                }
-                StyledButton {
-                    Layout.alignment: Qt.AlignHCenter
-                    Layout.topMargin: 6
-                    text: qsTr("Choose games folder…")
-                    iconName: "folder-open"
-                    primary: true
-                    onClicked: gamesFolderDialog.open()
-                }
-                Item { Layout.fillHeight: true }
             }
 
             // ── the games: centred, as many to a row as fit

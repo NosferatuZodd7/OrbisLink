@@ -24,6 +24,9 @@ ApplicationWindow {
     readonly property bool installerAbsent: app.installerState === "unavailable"
                                             || app.installerState === "not-applicable"
     readonly property bool panelAllowed: !(ftpAbsent && installerAbsent) || app.queue.count > 0
+    // Whether the side panel is on screen; without it the page takes the
+    // window's right gutter, so it lines up with the top bar.
+    readonly property bool panelShown: panelVisible && panelAllowed && !streamFullscreen
                                          || games.conversions.length > 0
     // What the main area shows: the consoles ("home") or the PS1/PS2 games.
     property string view: typeof demoGames !== "undefined" && demoGames ? "games" : "home"
@@ -303,7 +306,7 @@ ApplicationWindow {
             Item {
                 Layout.fillHeight: true
                 Layout.preferredWidth: 380
-                visible: window.panelVisible && window.panelAllowed && !window.streamFullscreen
+                visible: window.panelShown
 
                 Rectangle {
                     anchors.fill: parent
