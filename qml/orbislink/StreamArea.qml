@@ -46,7 +46,7 @@ Item {
         anchors.leftMargin: root.free ? 0 : Theme.gutter
         anchors.topMargin: root.free ? 0 : 4
         anchors.bottomMargin: root.free ? 0 : 4
-        anchors.rightMargin: root.free ? 0 : 8
+        anchors.rightMargin: root.free ? 0 : window.panelShown ? 8 : Theme.gutter
         radius: root.free ? 0 : Theme.radius
         // Black whenever there is (or will be) a picture; idle, it follows the theme.
         color: root.streaming ? "#000000" : Theme.stageIdle
