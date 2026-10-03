@@ -177,6 +177,11 @@ ApplicationWindow {
                 }
                 Item { implicitWidth: 6 }
 
+                // The console everything goes to.
+                ConsoleChip {
+                    onShowConsoles: window.view = "home"
+                }
+
                 ServiceIndicator {
                     label: qsTr("Remote Play")
                     state_: app.remotePlayState

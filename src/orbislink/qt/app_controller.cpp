@@ -1574,6 +1574,47 @@ void AppController::ftpDownload(const QString &remotePath, const QString &name,
 	startDownload(remotePath, name, uniqueLocalPath(QDir(dir).filePath(name)), false);
 }
 
+void AppController::ftpListFolders(const QString &path)
+{
+	if(!ftp_)
+	{
+		emit ftpFoldersListed(path, {}, tr("FTP is not connected."));
+		return;
+	}
+	const std::string dir = normalizeRemotePath(path.toStdString());
+	std::thread([this, path, dir]() {
+		std::vector<FtpEntry> entries;
+		const FtpResult result = ftp_->list(dir, &entries);
+		QStringList folders;
+		for(const FtpEntry &e : entries)
+			if(e.isDirectory || e.isSymlink)
+				folders << QString::fromStdString(e.name);
+		const QString error = result.ok ? QString() : translateMessage(result.message);
+		QMetaObject::invokeMethod(this, [this, path, folders, error]() {
+			emit ftpFoldersListed(path, folders, error);
+		}, Qt::QueuedConnection);
+	}).detach();
+}
+
+void AppController::ftpCreateFolder(const QString &path)
+{
+	if(!ftp_)
+	{
+		emit ftpFolderCreated(path, tr("FTP is not connected."));
+		return;
+	}
+	const std::string target = normalizeRemotePath(path.toStdString());
+	std::thread([this, path, target]() {
+		const FtpResult result = ftp_->makeDirectory(target);
+		const QString error = result.ok ? QString() : translateMessage(result.message);
+		QMetaObject::invokeMethod(this, [this, path, error]() {
+			emit ftpFolderCreated(path, error);
+			if(error.isEmpty())
+				refreshFtpListing(false);
+		}, Qt::QueuedConnection);
+	}).detach();
+}
+
 void AppController::startFtpDrag(const QString &remotePath, const QString &localUrl)
 {
 	// A real system drag: the file (when it is on the PC) for the desktop and

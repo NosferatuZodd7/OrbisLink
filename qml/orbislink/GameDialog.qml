@@ -311,6 +311,53 @@ Dialog {
             }
         }
 
+        // ── where it goes: the console in use, or why nothing can be sent
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.dialogMargin
+            Layout.rightMargin: Theme.dialogMargin
+            readonly property color tone: dialog.ftpUp ? Theme.hen : Theme.warn
+            radius: 14
+            color: Theme.alpha(tone, 0.08)
+            border.width: 1
+            border.color: Theme.alpha(tone, 0.35)
+            implicitHeight: targetRow.implicitHeight + 22
+            RowLayout {
+                id: targetRow
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: 14
+                anchors.rightMargin: 12
+                spacing: 12
+                Icon {
+                    name: dialog.ftpUp ? "unlock" : "warning"
+                    size: 18
+                    color: Theme.light ? Qt.darker(parent.parent.tone, 1.2) : parent.parent.tone
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.text
+                    font.pixelSize: 12
+                    text: dialog.ftpUp
+                        ? qsTr("Sends to %1 (%2)%3.").arg(app.consoleName).arg(app.consoleAddress)
+                              .arg(app.jailbreaks[app.consoleAddress] ? " · " + app.jailbreaks[app.consoleAddress] : "")
+                        : app.consoleAddress.length > 0
+                        ? qsTr("Not connected to %1: sending and installing need its FTP (a jailbreak such as "
+                               + "GoldHEN). Converting works without a console.").arg(app.consoleName)
+                        : qsTr("No console yet: sending and installing need one with FTP (a jailbreak such as "
+                               + "GoldHEN). Converting works without a console.")
+                }
+                StyledButton {
+                    visible: !dialog.ftpUp && app.consoleAddress.length > 0
+                    text: qsTr("Look again")
+                    chip: true
+                    onClicked: app.checkServicesNow()
+                }
+            }
+        }
+
         // ── how the package gets to the console
         ColumnLayout {
             Layout.fillWidth: true
@@ -318,6 +365,7 @@ Dialog {
             Layout.rightMargin: Theme.dialogMargin
             Layout.bottomMargin: 4
             spacing: 8
+            visible: dialog.ftpUp
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 10
@@ -373,13 +421,15 @@ Dialog {
             StyledButton {
                 visible: !dialog.reusing
                 text: qsTr("Convert only")
+                // Without a console, it is the thing to do.
+                primary: !dialog.ftpUp
                 enabled: dialog.allConvertible
                 onClicked: dialog.run(false)
             }
             StyledButton {
                 text: dialog.reusing ? qsTr("Send and install") : qsTr("Convert and install")
                 iconName: "package-plus"
-                primary: true
+                primary: dialog.ftpUp
                 enabled: (dialog.allConvertible || dialog.reusing) && dialog.ftpUp
                 ToolTip.visible: hovered && !dialog.ftpUp
                 ToolTip.text: qsTr("The console has no FTP right now")
