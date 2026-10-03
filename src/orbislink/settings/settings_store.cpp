@@ -90,7 +90,6 @@ std::string Settings::toJson() const
 	root.set("check_for_updates", Json::fromBool(checkForUpdates));
 	root.set("first_run_done", Json::fromBool(firstRunDone));
 	root.set("games_folder", Json::fromString(gamesFolder));
-	root.set("emulator_folder", Json::fromString(emulatorFolder));
 	root.set("convert_output_folder", Json::fromString(convertOutputFolder));
 	root.set("update_repository", Json::fromString(updateRepository));
 	root.set("update_repository_default", Json::fromString(ORBISLINK_REPOSITORY_STRING));
@@ -190,7 +189,6 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.checkForUpdates = root["check_for_updates"].toLooseBool(settings.checkForUpdates);
 	settings.firstRunDone = root["first_run_done"].toLooseBool(settings.firstRunDone);
 	settings.gamesFolder = root["games_folder"].toString(settings.gamesFolder);
-	settings.emulatorFolder = root["emulator_folder"].toString(settings.emulatorFolder);
 	settings.convertOutputFolder = root["convert_output_folder"].toString(settings.convertOutputFolder);
 	{
 		const std::string stored = root["update_repository"].toString(settings.updateRepository);

@@ -174,7 +174,11 @@ Item {
                         var pct = Math.floor(p.percent || 0) + "%"
                         switch (p.stage) {
                         case "waiting": return qsTr("Waiting to convert")
-                        case "converting": return qsTr("Converting · %1").arg(pct)
+                        case "converting":
+                            if (p.step === "download") return qsTr("Emulator files · %1").arg(pct)
+                            if (p.step === "unpack") return qsTr("Unpacking · %1").arg(pct)
+                            if (p.step === "cover") return qsTr("Getting the cover")
+                            return qsTr("Converting · %1").arg(pct)
                         case "converted": return qsTr("Package ready")
                         case "sending": return p.waiting ? qsTr("Waiting to send") : qsTr("Sending · %1").arg(pct)
                         case "sent": return qsTr("On the console")
@@ -192,6 +196,9 @@ Item {
                     elide: Text.ElideRight
                     text: {
                         var s = card.stage
+                        if (s === "converting" && card.progress && (card.progress.step === "download"
+                                                                   || card.progress.step === "unpack"))
+                            return qsTr("downloaded once")
                         if (s === "waiting" || s === "converting") return qsTr("into a PS4 package")
                         if (s === "converted") return qsTr("saved on this PC")
                         if (s === "sending") return qsTr("over FTP to the console")

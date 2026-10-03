@@ -140,13 +140,16 @@ amber with a spinning disc while converting, blue with a rising arrow while
 sending, green with a breathing box while installing — and a ✓ when it is
 done.
 
-OrbisLink is not an emulator: the packages are built inside the app (no
-external tools), but the PS4 only runs a PS1/PS2 game packed together with
-Sony's PS1/PS2 Classics files — as the store's versions are — and those are
-**not** included. Point the app at the folder with your own copy (the `emus`
-layout of PS Classics fPKG Builder is understood). Without them, discs can
-still be sent over FTP. PS1 discs need a single .bin (games with one file per
-track have to be joined first).
+Nothing else has to be provided. PS2 discs are converted exactly the way
+[easy-ps2-fpkg](https://github.com/spiral009/easy-ps2-fpkg) does it: the first
+conversion downloads the emulator files once (about 109 MB, from the
+[PS Classics fPKG Builder](https://github.com/SvenGDK/PS-Classics-fPKG-Builder)
+release) and keeps them; the package gets the "Jak v2" emulator, its config
+with the game's serial, its param.sfo with the game's IDs and name (from the
+emulator's title list), and the game's official cover when there is one. PS1
+discs use the PS1 emulator from the same download, as PS Classics fPKG
+Builder does; they need a single .bin (games with one file per track have to
+be joined first).
 
 ## Download (pre-built)
 
@@ -376,14 +379,13 @@ its icons come from [Lucide](https://lucide.dev/), under the ISC licence (see
 The PS1/PS2 converter builds its packages with a C++ port of the fake PKG
 builder of [LibOrbisPkg](https://github.com/maxton/LibOrbisPkg), by maxton,
 under the GNU LGPL 3 (see [`third-party/liborbispkg`](third-party/liborbispkg)).
-Decrypted executables (from a dump) are fake-signed with a C++ port of
-[create-fself](https://github.com/OpenOrbis/create-fself), by the OpenOrbis
-team after flatz' `make_fself.py`, under the GNU GPL 3 (see
-[`third-party/create-fself`](third-party/create-fself)).
-The layout of a PS2 Classics package follows
-[easy-ps2-fpkg](https://github.com/spiral009/easy-ps2-fpkg) (MIT). No Sony
-emulator, firmware or game is included: the emulator files come from the
-user's own copy.
+PS2 packages are made as [easy-ps2-fpkg](https://github.com/spiral009/easy-ps2-fpkg)
+(MIT) makes them, PS1 packages as
+[PS Classics fPKG Builder](https://github.com/SvenGDK/PS-Classics-fPKG-Builder)
+does; covers come from [xlenore/ps2-covers](https://github.com/xlenore/ps2-covers).
+No Sony emulator, firmware or game is part of OrbisLink: like easy-ps2-fpkg,
+it downloads the emulator files at run time from PS Classics fPKG Builder's
+release.
 
 Sources consulted to implement the protocols:
 [chiaki-ng](https://github.com/streetpea/chiaki-ng),

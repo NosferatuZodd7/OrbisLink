@@ -498,7 +498,10 @@ Item {
         switch (stage) {
         case "waiting": text = qsTr("Waiting to convert"); break
         case "converting":
-            text = c.stage === "digest" || c.stage === "finish"
+            text = c.stage === "download" ? qsTr("Downloading the emulator files… %1%").arg(pct(c.percent))
+                 : c.stage === "unpack" ? qsTr("Unpacking the emulator files… %1%").arg(pct(c.percent))
+                 : c.stage === "cover" ? qsTr("Getting the cover…")
+                 : c.stage === "digest" || c.stage === "finish"
                  ? qsTr("Signing… %1%").arg(pct(c.percent))
                  : qsTr("Converting… %1%").arg(pct(c.percent)); break
         case "converted": text = c.install ? qsTr("Converted — sending next") : qsTr("Package ready"); break

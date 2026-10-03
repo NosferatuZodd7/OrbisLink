@@ -5,8 +5,8 @@
 // (volume_ts "2020-01-01 00:00:00", c_date "2020-01-01"); if a change moves
 // it, compare with PkgTool again before updating it.
 #include "orbislink/fpkg/classic_converter.h"
+#include "orbislink/fpkg/classics_assets.h"
 #include "orbislink/fpkg/disc_scanner.h"
-#include "orbislink/fpkg/fself.h"
 #include "orbislink/fpkg/param_sfo.h"
 #include "orbislink/fpkg/pkg_builder.h"
 #include "test_support.h"
@@ -283,28 +283,44 @@ ORBISLINK_TEST(scans_ps1_and_ps2_discs)
 
 namespace {
 
-// What PS-Classics-fPKG-Builder keeps under Tools/PS4: stand-ins, not
-// Sony's files.
+// The emulator files as they are after the download (emus/, lua_include/,
+// the title lists): stand-ins, not Sony's files.
 fs::path makeEmulatorBundle()
 {
 	const fs::path dir = fs::temp_directory_path() / "orbislink-test-emus";
 	fs::remove_all(dir);
-	const fs::path ps4 = dir / "Tools/PS4";
+	ParamSfo sfo;
+	sfo.setInteger("APP_TYPE", 1);
+	sfo.setString("APP_VER", "01.00", 8);
+	sfo.setString("CATEGORY", "gd", 4);
+	sfo.setString("CONTENT_ID", "UP9000-CRST00001_00-TEST123450000001", 48);
+	sfo.setInteger("REMOTE_PLAY_KEY_ASSIGN", 1);
+	sfo.setString("SERVICE_ID_ADDCONT_ADD_1", "", 20);
+	sfo.setString("TITLE", "Something Else", 128);
+	sfo.setString("TITLE_ID", "CRST00001", 12);
 	for(const char *emu : {"Jak v2", "Rogue v1"})
 	{
-		writeFile(ps4 / "emus" / emu / "eboot.bin", pattern(1000, 5));
-		writeFile(ps4 / "emus" / emu / "ps2-emu-compiler.self", pattern(2000, 6));
-		writeFile(ps4 / "emus" / emu / "sce_sys/param.sfo", pattern(100, 7));
-		writeFile(ps4 / "emus" / emu / "sce_sys/icon0.png", pattern(300, 8));
-		const std::string cfg = "--host-audio=1\n--ps2-title-id=SCUS-97124\n--gs-uprender=2x2\n";
-		writeFile(ps4 / "emus" / emu / "config-emu-ps4.txt", Bytes(cfg.begin(), cfg.end()));
+		writeFile(dir / "emus" / emu / "eboot.bin", pattern(1000, 5));
+		writeFile(dir / "emus" / emu / "ps2-emu-compiler.self", pattern(2000, 6));
+		writeFile(dir / "emus" / emu / "sce_sys/param.sfo", sfo.serialize());
+		writeFile(dir / "emus" / emu / "sce_sys/icon0.png", pattern(300, 8));
+		writeFile(dir / "emus" / emu / "sce_sys/pic1.png", pattern(400, 13));
+		writeFile(dir / "emus" / emu / "docs/revision.h", pattern(30, 14));
+		writeFile(dir / "emus" / emu / "lua_include/common.lua", pattern(40, 15));
+		writeFile(dir / "emus" / emu / "lua_include/own.lua", pattern(20, 16));
+		const std::string cfg = "--host-audio=1\r\n--ps2-title-id=SLES-00000\r\n--gs-uprender=2x2\r\n";
+		writeFile(dir / "emus" / emu / "config-emu-ps4.txt", Bytes(cfg.begin(), cfg.end()));
 	}
-	writeFile(ps4 / "emus/ps1hd/eboot.bin", pattern(900, 9));
-	writeFile(ps4 / "emus/ps1hd/sce_sys/icon0.png", pattern(300, 10));
-	writeFile(ps4 / "emus/psphd/eboot.bin", pattern(900, 11));
-	writeFile(ps4 / "lua_include/common.lua", pattern(50, 12));
-	const std::string ids = "SLUS20946;A Real Title\r\nSCES01420;Other\r\n";
-	writeFile(dir / "Tools/ps2ids.txt", Bytes(ids.begin(), ids.end()));
+	writeFile(dir / "emus/ps1hd/eboot.bin", pattern(900, 9));
+	writeFile(dir / "emus/ps1hd/sce_sys/icon0.png", pattern(300, 10));
+	writeFile(dir / "emus/ps1hd/sce_sys/param.sfo", pattern(100, 17));
+	writeFile(dir / "emus/ps1hd/config-title.txt", Bytes(5, 'x'));
+	writeFile(dir / "emus/psphd/eboot.bin", pattern(900, 11));
+	writeFile(dir / "lua_include/common.lua", pattern(50, 12));
+	const std::string ids = "SLUS20946;\"Real Title, A\"\r\nSCES01420;Other\r\n";
+	writeFile(dir / "ps2ids.txt", Bytes(ids.begin(), ids.end()));
+	const std::string ps1 = "SCES-01420;Old Game From The List\r\n";
+	writeFile(dir / "ps1ids.txt", Bytes(ps1.begin(), ps1.end()));
 	return dir;
 }
 
@@ -331,20 +347,35 @@ std::string text(const PkgSource *s)
 
 } // namespace
 
+ORBISLINK_TEST(keeps_only_the_emulator_files_of_the_download)
+{
+	// easy-ps2-fpkg's MapAssetPath, plus the PS1 title list.
+	const std::string top = "PS Classics fPKG Builder v1/";
+	CHECK_EQ(classicsAssetPath(top + "Tools/PS4/emus/Jak v2/eboot.bin"), std::string("emus/Jak v2/eboot.bin"));
+	CHECK_EQ(classicsAssetPath(top + "Tools/PS4/lua_include/utils.lua"), std::string("lua_include/utils.lua"));
+	CHECK_EQ(classicsAssetPath(top + "Tools/PS4/ps2-configs/widescreen.dat"), std::string("ps2-configs/widescreen.dat"));
+	CHECK_EQ(classicsAssetPath(top + "Tools/ps2ids.txt"), std::string("ps2ids.txt"));
+	CHECK_EQ(classicsAssetPath(top + "Tools/ps1ids.txt"), std::string("ps1ids.txt"));
+	CHECK_EQ(classicsAssetPath(top + "Tools/PS4/gengp4_app.exe"), std::string());
+	CHECK_EQ(classicsAssetPath(top + "Avalonia.Base.dll"), std::string());
+	CHECK_EQ(classicsAssetPath(top + "Tools/PS4/emus/../../../evil"), std::string());
+	CHECK(std::string(kClassicsAssetsUrl).find("SvenGDK/PS-Classics-fPKG-Builder/releases/download/v1/") != std::string::npos);
+}
+
 ORBISLINK_TEST(finds_the_emulators_in_a_bundle)
 {
 	const fs::path dir = makeEmulatorBundle();
+	CHECK(hasClassicsAssets(dir.u8string()));
+	CHECK(!hasClassicsAssets((dir / "nothing").u8string()));
 	const EmulatorInfo emus = findEmulators(dir.u8string());
 	CHECK(emus.hasPs2());
 	CHECK(emus.hasPs1());
 	CHECK_EQ(emus.ps2Name, std::string("Jak v2"));
 	CHECK(emus.ps1Dir.find("ps1hd") != std::string::npos);
-	CHECK(emus.luaInclude.find("lua_include") != std::string::npos);
-	CHECK_EQ(lookupTitle(emus.titleDatabase, "SLUS20946"), std::string("A Real Title"));
-	// Pointing straight at one emulator works too.
-	const EmulatorInfo one = findEmulators((dir / "Tools/PS4/emus/Rogue v1").u8string());
-	CHECK_EQ(one.ps2Name, std::string("Rogue v1"));
-	CHECK(!one.hasPs1());
+	CHECK_EQ(fs::u8path(emus.luaInclude), dir / "lua_include");
+	// Quotes around a name with a comma go; PS1 serials have a dash.
+	CHECK_EQ(lookupTitle(emus.titleDatabase, "SLUS20946"), std::string("Real Title, A"));
+	CHECK_EQ(lookupTitle(emus.ps1TitleDatabase, "SCES01420"), std::string("Old Game From The List"));
 	CHECK(!findEmulators((dir / "nothing").u8string()).hasPs2());
 	fs::remove_all(dir);
 }
@@ -359,30 +390,50 @@ ORBISLINK_TEST(a_ps2_disc_becomes_a_ps2_classic)
 	ClassicOptions options;
 	options.outputDir = (discs / "out").u8string();
 	options.now = 1577836800;
-	options.icon = pattern(400, 13);
 	PkgRequest request;
 	ClassicResult result;
 	std::string error;
 	CHECK(prepareClassic(disc, findEmulators(emuDir.u8string()), options, &request, &result, &error));
 	CHECK_EQ(result.contentId, std::string("UP9000-SLUS20946_00-SLUS209460000001"));
-	CHECK_EQ(result.title, std::string("A Real Title"));
-	CHECK(result.pkgPath.find("A-Real-Title_SLUS20946.pkg") != std::string::npos);
+	CHECK_EQ(result.title, std::string("Real Title, A"));
+	CHECK(result.pkgPath.find("Real-Title-A_SLUS20946.pkg") != std::string::npos);
 	CHECK_EQ(packageFileName("Jogo: Ação & Aventura!", "SLES12345"), std::string("Jogo-A-o-Aventura_SLES12345.pkg"));
+
+	// easy-ps2-fpkg's project: the emulator folder as it is (docs too), the
+	// shared lua_include over its own, the disc last.
 	const auto t = targets(request);
-	CHECK(std::find(t.begin(), t.end(), "eboot.bin") != t.end());
-	CHECK(std::find(t.begin(), t.end(), "lua_include/common.lua") != t.end());
+	for(const char *f : {"eboot.bin", "ps2-emu-compiler.self", "docs/revision.h", "lua_include/own.lua",
+			"sce_sys/icon0.png", "sce_sys/pic1.png", "config-emu-ps4.txt"})
+		CHECK(std::find(t.begin(), t.end(), f) != t.end());
+	CHECK_EQ(source(request, "lua_include/common.lua")->sourcePath, (emuDir / "lua_include/common.lua").u8string());
+	CHECK_EQ(source(request, "sce_sys/icon0.png")->sourcePath, (emuDir / "emus/Jak v2/sce_sys/icon0.png").u8string());
 	CHECK_EQ(t.back(), std::string("image/disc01.iso"));
 	CHECK_EQ(std::count(t.begin(), t.end(), "sce_sys/param.sfo"), 1);
-	CHECK_EQ(std::count(t.begin(), t.end(), "sce_sys/icon0.png"), 1);
-	CHECK_EQ(source(request, "sce_sys/icon0.png")->data.size(), size_t(400));
-	const std::string cfg = text(source(request, "config-emu-ps4.txt"));
-	CHECK(cfg.find("--ps2-title-id=SLUS-20946\n") != std::string::npos);
-	CHECK(cfg.find("--max-disc-num=1") != std::string::npos);
-	CHECK(cfg.find("SCUS-97124") == std::string::npos);
+
+	// The emulator's config, with the serial and one disc.
+	CHECK_EQ(text(source(request, "config-emu-ps4.txt")),
+		std::string("--host-audio=1\n--ps2-title-id=SLUS-20946\n--gs-uprender=2x2\n--max-disc-num=1\n"));
+
+	// The emulator's param.sfo, with only the game's IDs and name changed.
 	ParamSfo sfo;
 	CHECK(sfo.parse(source(request, "sce_sys/param.sfo")->data));
+	CHECK_EQ(sfo.find("CONTENT_ID")->text, std::string("UP9000-SLUS20946_00-SLUS209460000001"));
 	CHECK_EQ(sfo.find("TITLE_ID")->text, std::string("SLUS20946"));
-	CHECK_EQ(sfo.find("CATEGORY")->text, std::string("gd"));
+	CHECK_EQ(sfo.find("TITLE")->text, std::string("Real Title, A"));
+	CHECK_EQ(sfo.find("REMOTE_PLAY_KEY_ASSIGN")->number, 1);
+	CHECK(sfo.find("SERVICE_ID_ADDCONT_ADD_1") != nullptr);
+
+	// A cover replaces the emulator's art: icon0, and pic1 + pic0.
+	options.icon = pattern(400, 18);
+	options.background = pattern(500, 19);
+	options.title = "My Name";
+	CHECK(prepareClassic(disc, findEmulators(emuDir.u8string()), options, &request, &result, &error));
+	CHECK_EQ(result.title, std::string("My Name"));
+	CHECK_EQ(source(request, "sce_sys/icon0.png")->data.size(), size_t(400));
+	CHECK_EQ(source(request, "sce_sys/pic1.png")->data.size(), size_t(500));
+	CHECK_EQ(source(request, "sce_sys/pic0.png")->data.size(), size_t(500));
+	const auto withArt = targets(request);
+	CHECK_EQ(std::count(withArt.begin(), withArt.end(), "sce_sys/icon0.png"), 1);
 
 	// And it builds.
 	CHECK(convertClassic(disc, findEmulators(emuDir.u8string()), options, {}, &result, &error));
@@ -409,13 +460,18 @@ ORBISLINK_TEST(a_ps1_disc_becomes_a_ps1_classic)
 	std::string error;
 	CHECK(prepareClassic(disc, findEmulators(emuDir.u8string()), options, &request, &result, &error));
 	CHECK_EQ(result.contentId, std::string("UP9000-SCES01420_00-SCES01420PS1FPKG"));
-	CHECK_EQ(result.title, std::string("Old Game"));
-	CHECK(text(source(request, "config-title.txt")).find("--image=\"data/disc1.bin\"") != std::string::npos);
+	CHECK_EQ(result.title, std::string("Old Game From The List"));
+	CHECK_EQ(text(source(request, "config-title.txt")),
+		std::string("--ps4-trophies=0\n--ps5-uds=0\n--trophies=0\n--image=\"data/disc1.bin\"\n"));
 	CHECK(text(source(request, "data/disc1.cue")).find("FILE \"disc1.bin\" BINARY") != std::string::npos);
 	CHECK(source(request, "data/disc1.bin")->sourcePath.find("Old Game (Europe).bin") != std::string::npos);
+	ParamSfo sfo;
+	CHECK(sfo.parse(source(request, "sce_sys/param.sfo")->data));
+	CHECK_EQ(sfo.find("TITLE_ID")->text, std::string("SCES01420"));
 	// The PS2 emulator's files stay out.
 	const auto t = targets(request);
 	CHECK(std::find(t.begin(), t.end(), "ps2-emu-compiler.self") == t.end());
+	CHECK_EQ(std::count(t.begin(), t.end(), "config-title.txt"), 1);
 
 	// Without the emulator, a clear refusal.
 	EmulatorInfo none;
@@ -423,100 +479,6 @@ ORBISLINK_TEST(a_ps1_disc_becomes_a_ps1_classic)
 	CHECK(error.find("PS1 emulator") != std::string::npos);
 	fs::remove_all(discs);
 	fs::remove_all(emuDir);
-}
-
-namespace {
-
-// A small PS4-like executable: a code segment and a dynlib data segment.
-Bytes makeElf()
-{
-	Bytes elf = pattern(0x6100, 21);
-	std::memset(elf.data(), 0, 0x40 + 2 * 0x38);
-	const uint8_t ident[] = {0x7F, 'E', 'L', 'F', 2, 1, 1, 9};
-	std::memcpy(elf.data(), ident, sizeof ident);
-	auto put = [&](size_t at, uint64_t v, int n) {
-		for(int i = 0; i < n; ++i)
-			elf[at + i] = static_cast<uint8_t>(v >> (8 * i));
-	};
-	put(0x10, 0xFE10, 2); // ET_SCE_DYNEXEC
-	put(0x12, 0x3E, 2);   // x86-64
-	put(0x14, 1, 4);
-	put(0x20, 0x40, 8);   // program headers
-	put(0x34, 0x40, 2);
-	put(0x36, 0x38, 2);
-	put(0x38, 2, 2);
-	const uint64_t segs[2][3] = {{1, 0x1000, 0x5000}, {0x61000000, 0x6000, 0x100}};
-	for(int i = 0; i < 2; ++i)
-	{
-		const size_t ph = 0x40 + i * 0x38;
-		put(ph, segs[i][0], 4);
-		put(ph + 4, 5, 4);
-		put(ph + 0x08, segs[i][1], 8);
-		put(ph + 0x20, segs[i][2], 8);
-		put(ph + 0x28, segs[i][2], 8);
-		put(ph + 0x30, 0x4000, 8);
-	}
-	return elf;
-}
-
-} // namespace
-
-ORBISLINK_TEST(a_plain_elf_becomes_a_fake_self)
-{
-	const Bytes elf = makeElf();
-	CHECK(isPlainElf(elf.data(), elf.size()));
-	std::string error;
-	const Bytes self = makeFself(elf, &error);
-	CHECK_EQ(error, std::string());
-	CHECK(!isPlainElf(self.data(), self.size()));
-	CHECK(self.size() > 0x20 && self[0] == 0x4F && self[1] == 0x15 && self[2] == 0x3D && self[3] == 0x1D);
-	CHECK_EQ(int(self[24]), 4); // two entries per loaded segment
-	// The same bytes as OpenOrbis' create-fself (make_fself.py's defaults).
-	CHECK_EQ(hex(sha256(self)), std::string(EXPECTED_FSELF_SHA));
-	CHECK(makeFself(pattern(100, 1), &error).empty());
-}
-
-ORBISLINK_TEST(a_dump_folder_gives_only_the_emulator)
-{
-	// A GoldHEN dump used as it is, with the packages made from it next to it.
-	const fs::path dir = fs::temp_directory_path() / "orbislink-test-dump";
-	fs::remove_all(dir);
-	writeFile(dir / "eboot.bin", makeElf());
-	writeFile(dir / "eboot.fself", Bytes());
-	writeFile(dir / "ps2-emu-compiler.self", pattern(3000, 30));
-	writeFile(dir / "PS20220WD20050620.crack", pattern(1000, 31));
-	writeFile(dir / "sce_module/libc.prx", makeElf());
-	writeFile(dir / "sce_sys/keystone", pattern(96, 32));
-	writeFile(dir / "sce_sys/license.dat", pattern(1024, 33));
-	writeFile(dir / "sce_sys/playgo-chunk.dat", pattern(1024, 34));
-	writeFile(dir / "sce_sys/icon0.png", pattern(500, 35));
-	writeFile(dir / "docs/readme.txt", pattern(50, 36));
-	writeFile(dir / "image/disc01.iso", pattern(4096, 37));
-	writeFile(dir / "Old-Game_SLUS20905.pkg", pattern(4096, 38));
-	writeFile(dir / "SLUS20905.gp4", pattern(400, 39));
-	writeFile(dir / "lua_include/common.lua", pattern(70, 40));
-	writeFile(dir / "games/Game (USA).iso", makeDisc("BOOT2 = cdrom0:\\SLUS_209.05;1\r\n", false));
-	const DiscInfo disc = inspectDisc((dir / "games/Game (USA).iso").u8string());
-	ClassicOptions options;
-	options.outputDir = dir.u8string();
-	options.now = 1577836800;
-	PkgRequest request;
-	ClassicResult result;
-	std::string error;
-	CHECK(prepareClassic(disc, findEmulators(dir.u8string()), options, &request, &result, &error));
-	CHECK_EQ(error, std::string());
-	auto t = targets(request);
-	std::sort(t.begin(), t.end());
-	const std::vector<std::string> expected = {"PS20220WD20050620.crack", "config-emu-ps4.txt", "eboot.bin",
-		"image/disc01.iso", "lua_include/common.lua", "ps2-emu-compiler.self", "sce_module/libc.prx",
-		"sce_sys/icon0.png", "sce_sys/param.sfo"};
-	CHECK(t == expected);
-	// The decrypted executables go in fake-signed.
-	const PkgSource *eboot = source(request, "eboot.bin");
-	CHECK(eboot->sourcePath.empty() && eboot->data.size() > 4 && eboot->data[0] == 0x4F);
-	CHECK(source(request, "sce_module/libc.prx")->data[0] == 0x4F);
-	CHECK(source(request, "image/disc01.iso")->sourcePath.find("Game (USA).iso") != std::string::npos);
-	fs::remove_all(dir);
 }
 
 TEST_MAIN()

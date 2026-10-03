@@ -4,10 +4,9 @@
 // the disc and a few lines of emulator configuration, packed with the fake
 // PKG builder.
 //
-// The emulator is Sony's and is not part of OrbisLink: it comes from a folder
-// the person points at (their own copy, taken from a PS2 or PS1 Classic). The
-// layouts of PS-Classics-fPKG-Builder ("emus/<name>") and of easy-ps2-fpkg
-// are both understood.
+// PS2 discs follow easy-ps2-fpkg step by step; PS1 discs, PS Classics fPKG
+// Builder. The emulators are not part of OrbisLink: like easy-ps2-fpkg, it
+// downloads them once (see classics_assets.h).
 #pragma once
 
 #include "orbislink/fpkg/disc_scanner.h"
@@ -20,19 +19,21 @@ namespace orbislink::fpkg {
 
 struct EmulatorInfo
 {
-	std::string ps2Dir;       // folder with eboot.bin and ps2-emu-compiler.self
+	std::string ps2Dir;       // emus/Jak v2: eboot.bin and ps2-emu-compiler.self
 	std::string ps2Name;      // its folder name ("Jak v2"...)
-	std::string ps1Dir;       // folder of the PS1 emulator (eboot.bin, no ps2 compiler)
-	std::string luaInclude;   // lua_include next to them, if any
-	std::string titleDatabase; // ps2ids.txt, if any
+	std::string ps1Dir;       // emus/ps1hd
+	std::string luaInclude;   // the shared lua_include
+	std::string titleDatabase; // ps2ids.txt
+	std::string ps1TitleDatabase; // ps1ids.txt
 	bool hasPs2() const { return !ps2Dir.empty(); }
 	bool hasPs1() const { return !ps1Dir.empty(); }
 };
 
-// Looks for the emulators in `folder` and a few levels below it.
+// The emulators in a folder of downloaded files.
 EmulatorInfo findEmulators(const std::string &folder);
 
-// The game's name from ps2ids.txt ("SLUS20946;Title"), or empty.
+// The game's name from ps2ids.txt ("SLUS20946;Title") or ps1ids.txt
+// ("SLPS-00965;Title"), or empty.
 std::string lookupTitle(const std::string &databasePath, const std::string &titleId);
 
 struct ClassicOptions
