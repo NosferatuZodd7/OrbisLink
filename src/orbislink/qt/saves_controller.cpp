@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <map>
 #include <set>
+#include <utility>
 
 namespace orbislink {
 
@@ -80,6 +81,34 @@ QString psidOf(const std::string &hex)
 	if(hex.size() != 16)
 		return QString();
 	return QString::fromLatin1(QByteArray::fromHex(QByteArray::fromStdString(hex)).toBase64());
+}
+
+// The PSID as the PS4 names its USB folders: the 8 bytes the other way
+// round from how they are stored, in hex.
+QString psidFolderFromStored(const std::string &hex)
+{
+	if(hex.size() != 16)
+		return QString();
+	QByteArray bytes = QByteArray::fromHex(QByteArray::fromStdString(hex));
+	std::reverse(bytes.begin(), bytes.end());
+	return QString::fromLatin1(bytes.toHex());
+}
+
+QString psidFolderFromBase64(const QString &accountId)
+{
+	QByteArray bytes = QByteArray::fromBase64(accountId.toLatin1());
+	if(bytes.size() != 8)
+		return QString();
+	std::reverse(bytes.begin(), bytes.end());
+	return QString::fromLatin1(bytes.toHex());
+}
+
+QString labelOfAccount(const QString &accountId, const Settings &settings)
+{
+	for(const SavedAccount &account : settings.accounts)
+		if(QString::fromStdString(account.accountId) == accountId)
+			return QString::fromStdString(account.label);
+	return QString();
 }
 
 QString psidName(const QString &psid, const Settings &settings)
@@ -185,6 +214,18 @@ void SavesController::publish(const std::vector<SaveInfo> &list, SaveVault &vaul
 		const QString psid = psidOf(save.accountId);
 		item[QStringLiteral("psid")] = psid;
 		item[QStringLiteral("psidName")] = psidName(psid, app_->settings());
+		// Whose console user folder it is: the Account ID linked to it.
+		const auto link = app_->settings().saveAccountLinks.find(save.account);
+		const QString linked = link == app_->settings().saveAccountLinks.end() ? QString()
+			: QString::fromStdString(link->second);
+		item[QStringLiteral("userName")] = linked.isEmpty() ? QString() : labelOfAccount(linked, app_->settings());
+		item[QStringLiteral("linked")] = !linked.isEmpty();
+		// The PSID folder of the PS4's USB copies: from the save itself, or
+		// else from the account linked to its user.
+		QString folder = psidFolderFromStored(save.accountId);
+		if(folder.isEmpty() && !linked.isEmpty())
+			folder = psidFolderFromBase64(linked);
+		item[QStringLiteral("psidFolder")] = folder;
 		item[QStringLiteral("sync")] = syncName(save.sync());
 		item[QStringLiteral("onConsole")] = save.onConsole;
 		item[QStringLiteral("inVault")] = save.inVault;
@@ -356,6 +397,165 @@ void SavesController::removeFromVault(const QStringList &keys)
 		*error = !why.empty();
 		return why.empty() ? tr("%n save(s) deleted from the vault.", "", done)
 						   : tr("Not everything was deleted: %1").arg(QString::fromStdString(why));
+	});
+}
+
+void SavesController::linkAccount(const QString &user, const QString &accountId)
+{
+	app_->updateSettings([&](Settings &s) {
+		if(accountId.isEmpty())
+			s.saveAccountLinks.erase(user.toStdString());
+		else
+			s.saveAccountLinks[user.toStdString()] = accountId.toStdString();
+	});
+	// The names and PSIDs on the page come from the link.
+	refresh();
+}
+
+void SavesController::exportToUsb(const QStringList &keys, const QString &where)
+{
+	const std::vector<SaveInfo> chosen = pick(keys);
+	std::map<std::string, QString> folders; // key → PSID folder
+	for(const QVariant &v : saves_)
+	{
+		const QVariantMap item = v.toMap();
+		folders[item.value(QStringLiteral("key")).toString().toStdString()] =
+			item.value(QStringLiteral("psidFolder")).toString();
+	}
+	const bool console = where == QLatin1String("console");
+	const QUrl url(where);
+	const QString local = url.isLocalFile() ? url.toLocalFile() : where;
+	run(tr("Copying to the USB drive…"), [this, chosen, folders, console, local](SaveRemote &remote,
+											 SaveVault &vault, std::vector<SaveInfo> &, bool *error) -> QString {
+		FolderRemote folder(local.toStdString());
+		SaveRemote &target = console ? remote : static_cast<SaveRemote &>(folder);
+		const std::string base = console ? "/mnt/usb0" : "/";
+		if(console)
+		{
+			std::vector<FtpEntry> probe;
+			std::string why;
+			if(!remote.list(base, &probe, &why))
+			{
+				*error = true;
+				return tr("No USB drive found in the PS4. Plug one in (FAT32 or exFAT) and try again.");
+			}
+		}
+		int done = 0;
+		QStringList failed;
+		for(size_t i = 0; i < chosen.size(); ++i)
+		{
+			const SaveInfo &save = chosen[i];
+			setProgress(tr("Copying %1 to the USB drive (%2 of %3)…")
+					.arg(QString::fromStdString(save.saveTitle.empty() ? save.dir : save.saveTitle))
+					.arg(i + 1).arg(chosen.size()),
+				static_cast<double>(i) / chosen.size());
+			const auto psid = folders.find(save.key());
+			std::string why;
+			if(psid == folders.end() || psid->second.isEmpty())
+				failed << tr("%1: link its console user to an Account ID first").arg(QString::fromStdString(save.dir));
+			else if(vault.exportToUsb(target, base, save, psid->second.toStdString(), &why))
+				++done;
+			else
+				failed << QString::fromStdString(save.dir + ": " + why);
+		}
+		*error = !failed.isEmpty();
+		if(!failed.isEmpty())
+			return tr("%1 of %2 copied to the USB drive. Not done: %3").arg(done).arg(chosen.size())
+				.arg(failed.join(QStringLiteral("; ")));
+		return tr("%n save(s) on the USB drive. On the PS4: Settings → Application Saved Data Management → "
+				  "Saved Data on USB Storage → Copy to System Storage.", "", done);
+	});
+}
+
+void SavesController::importFromUsb(const QString &where)
+{
+	// PSID folder → console user, from the links.
+	std::map<std::string, std::string> userOf;
+	for(const auto &pair : app_->settings().saveAccountLinks)
+	{
+		const QString folder = psidFolderFromBase64(QString::fromStdString(pair.second));
+		if(!folder.isEmpty())
+			userOf[folder.toStdString()] = pair.first;
+	}
+	// Key → sizes of the image and key file of its latest backup.
+	std::map<std::string, std::pair<int64_t, int64_t>> inVault;
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		for(const SaveInfo &save : current_)
+		{
+			if(save.inVault)
+			{
+				std::pair<int64_t, int64_t> sizes{-1, -1};
+				for(const SaveFile &file : save.vaultFiles)
+				{
+					if(file.relative == "savedata/sdimg_" + save.dir)
+						sizes.first = file.size;
+					else if(file.relative == "savedata/" + save.dir + ".bin")
+						sizes.second = file.size;
+				}
+				inVault[save.key()] = sizes;
+			}
+			// A user whose saves name their PSID needs no link.
+			const QString folder = psidFolderFromStored(save.accountId);
+			if(!folder.isEmpty() && !userOf.count(folder.toStdString()))
+				userOf[folder.toStdString()] = save.account;
+		}
+	}
+	const bool console = where == QLatin1String("console");
+	const QUrl url(where);
+	const QString local = url.isLocalFile() ? url.toLocalFile() : where;
+	run(tr("Reading the USB drive…"), [this, userOf, inVault, console, local](SaveRemote &remote,
+										  SaveVault &vault, std::vector<SaveInfo> &, bool *error) -> QString {
+		FolderRemote folder(local.toStdString());
+		SaveRemote &source = console ? remote : static_cast<SaveRemote &>(folder);
+		const std::string base = console ? "/mnt/usb0" : "/";
+		std::string why;
+		const std::vector<UsbSave> found = vault.usbSaves(source, base, &why);
+		if(found.empty())
+		{
+			*error = true;
+			return tr("No saves found on the USB drive (it looks for PS4/SAVEDATA, as the PS4 copies them).");
+		}
+		int done = 0;
+		int same = 0;
+		QStringList unlinked;
+		QStringList failed;
+		for(size_t i = 0; i < found.size(); ++i)
+		{
+			const UsbSave &usb = found[i];
+			const auto user = userOf.find(usb.psid);
+			if(user == userOf.end())
+			{
+				if(!unlinked.contains(QString::fromStdString(usb.psid)))
+					unlinked << QString::fromStdString(usb.psid);
+				continue;
+			}
+			// Already in the vault as it is: not again.
+			const auto kept = inVault.find(user->second + "/" + usb.titleId + "/" + usb.dir);
+			if(kept != inVault.end() && kept->second == std::make_pair(usb.imageSize, usb.keySize))
+			{
+				++same;
+				continue;
+			}
+			setProgress(tr("Bringing %1 from the USB drive (%2 of %3)…").arg(QString::fromStdString(usb.dir))
+					.arg(i + 1).arg(found.size()),
+				static_cast<double>(i) / found.size());
+			std::string reason;
+			if(vault.importFromUsb(source, base, usb, user->second, &reason))
+				++done;
+			else
+				failed << QString::fromStdString(usb.dir + ": " + reason);
+		}
+		*error = !failed.isEmpty() || !unlinked.isEmpty();
+		QString message = tr("%n save(s) brought into the vault.", "", done);
+		if(same > 0)
+			message += QStringLiteral(" ") + tr("%n already there.", "", same);
+		if(!unlinked.isEmpty())
+			message += QStringLiteral(" ") + tr("PSID %1: link it to a console user (the user chips at the top) to bring its saves.")
+				.arg(unlinked.join(QStringLiteral(", ")));
+		if(!failed.isEmpty())
+			message += QStringLiteral(" ") + tr("Not done: %1").arg(failed.join(QStringLiteral("; ")));
+		return message;
 	});
 }
 

@@ -140,6 +140,10 @@ std::string Settings::toJson() const
 	root.set("games_folder", Json::fromString(gamesFolder));
 	root.set("convert_output_folder", Json::fromString(convertOutputFolder));
 	root.set("save_vault_folder", Json::fromString(saveVaultFolder));
+	Json links = Json::makeObject();
+	for(const auto &pair : saveAccountLinks)
+		links.set(pair.first, Json::fromString(pair.second));
+	root.set("save_account_links", links);
 	root.set("update_repository", Json::fromString(updateRepository));
 	root.set("update_repository_default", Json::fromString(ORBISLINK_REPOSITORY_STRING));
 	root.set("update_channel", Json::fromString(updateChannel));
@@ -284,6 +288,10 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.gamesFolder = root["games_folder"].toString(settings.gamesFolder);
 	settings.convertOutputFolder = root["convert_output_folder"].toString(settings.convertOutputFolder);
 	settings.saveVaultFolder = root["save_vault_folder"].toString(settings.saveVaultFolder);
+	if(root["save_account_links"].isObject())
+		for(const auto &pair : root["save_account_links"].members())
+			if(pair.second.isString())
+				settings.saveAccountLinks[pair.first] = pair.second.toString();
 	{
 		const std::string stored = root["update_repository"].toString(settings.updateRepository);
 		const bool hasDefault = root["update_repository_default"].isString();

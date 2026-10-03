@@ -26,6 +26,38 @@ public:
 	virtual bool removeDirectory(const std::string &path) = 0;
 };
 
+// A folder on this PC seen as a console (paths as on it, under `root`): for
+// a USB drive or folder in the PS4's own USB layout.
+class FolderRemote : public SaveRemote
+{
+public:
+	explicit FolderRemote(std::string root) : root_(std::move(root)) {}
+	bool list(const std::string &dir, std::vector<FtpEntry> *entries, std::string *error) override;
+	bool download(const std::string &remote, const std::string &local, std::string *error) override;
+	bool upload(const std::string &local, const std::string &remote, std::string *error) override;
+	bool makeDirectory(const std::string &dir) override;
+	bool removeFile(const std::string &path, std::string *error) override;
+	bool removeDirectory(const std::string &path) override;
+
+private:
+	std::string at(const std::string &path) const;
+	std::string root_;
+};
+
+// A save in the PS4's USB layout — what the PS4 writes when it copies saves
+// to a USB drive, and what it can copy back to its storage, registering
+// them itself: PS4/SAVEDATA/<PSID in hex>/<TITLE_ID>/<dir> (the image) and
+// <dir>.bin (its key).
+struct UsbSave
+{
+	std::string psid;    // 16 hex digits, as the folder is named
+	std::string titleId;
+	std::string dir;
+	int64_t imageSize = 0;
+	int64_t keySize = 0;
+	std::string modified;
+};
+
 // One file of a save, as the console lists it. `relative` is
 // "savedata/<file>" (the encrypted image and its key) or "meta/<file>"
 // (param.sfo, icon0.png…).
@@ -113,6 +145,18 @@ public:
 	// of its own, and taking the files away over FTP leaves it with an entry
 	// it reports as corrupted. Saves are deleted on the PS4 itself.
 	bool removeFromVault(const SaveInfo &save, std::string *error);
+
+	// The latest backup in the PS4's USB layout under `base` (the root of a
+	// USB drive: "/mnt/usb0" on the console, "/" for a FolderRemote), for
+	// the PS4 to copy back itself. `psid`: the owner's PSID, 16 hex digits.
+	bool exportToUsb(SaveRemote &target, const std::string &base, const SaveInfo &save,
+		const std::string &psid, std::string *error);
+	// The saves in the PS4's USB layout under `base`.
+	std::vector<UsbSave> usbSaves(SaveRemote &source, const std::string &base, std::string *error);
+	// A save from there into the vault, as a backup of `account` (the
+	// console's user folder its owner has).
+	bool importFromUsb(SaveRemote &source, const std::string &base, const UsbSave &save,
+		const std::string &account, std::string *error);
 
 	// The game's own name (from its param.sfo, read once), or "".
 	std::string gameTitle(SaveRemote *remote, const std::string &titleId);

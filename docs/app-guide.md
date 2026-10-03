@@ -237,10 +237,11 @@ level, percentage…), its size and where it stands:
 |---|---|
 | **Back up everything** | Backs up every save that is not backed up or changed, in one click. |
 | **Put back what's missing** | Puts back on the console every save only the vault has (see below). |
-| Accounts | One chip per PSN account the saves belong to (read from each save): its name when it is one of the Account IDs kept in the app (Settings → Account IDs), else its PSID. Each save shows its account too. With one chosen, everything on the page — the counts, **Back up everything**, **Put back what's missing** — is that account's. |
+| Users | One chip per console user (its folder on the console), named after the Account ID linked to it, or the one its saves name (read from each save), else "User <id>". The tooltip shows its PSID as the PS4 names its USB folders. **Link…** says which of the Account IDs kept in the app (Settings → Account IDs) the user is: it names the saves, and gives the PSID when the saves do not carry one. Each save shows its account too. With one chosen, everything on the page — the counts, **Back up everything**, **Put back what's missing** — is that user's. |
 | Filters | All · Not backed up · Changed · Missing on the console. |
 | Click on a save · **Select all** | Selects; the top strip then offers **Back up**, **Put back** and **Delete…** for the selection. |
-| **Put back** | Always asks first: the game has to be closed. Replaces the console's copy with the latest backup, then checks on the console that every file arrived whole (an error otherwise). |
+| **Put back** | Always asks first, and offers two ways. **Through a USB drive** (recommended): the latest backups are written in the PS4's own USB layout, to the USB drive plugged into the PS4 (over FTP, `/mnt/usb0`) or to a folder / USB drive on this PC; a window then lists the steps on the PS4 (Settings → Application Saved Data Management → Saved Data on USB Storage → Copy to System Storage). **Straight onto the console**: replaces the console's copy over FTP, then checks every file arrived whole; only for saves the console still lists, game closed. |
+| 🖴 (header) | **Bring saves from a USB drive**: the saves the PS4 copied to a USB drive (Copy to USB Storage), from the drive in the PS4 or a folder on this PC, go into the vault under the console user with their PSID. Ones already in the vault as they are are skipped. |
 | **Delete…** | From the vault only (it warns when the vault holds the only copy). Saves on the console are deleted on the PS4 itself, Settings → Application Saved Data Management. |
 | Folder chip · ⚙ | Opens the vault folder · changes it. |
 | ⟳ | Reads the console again. |
@@ -262,11 +263,15 @@ What the PS4 allows, and why the page works this way:
   page says which game is open, and leaves its saves out of backing up and
   putting back.
 - The PS4 lists its saves in a database of its own, which copying files does
-  not touch. So a save is put back over one the console still lists; for one
-  it no longer has, open the game and save once in the same slot, then put
-  it back over that one. And nothing is deleted on the console from here:
-  files taken away over FTP leave the PS4 with an entry it reports as
-  corrupted.
+  not touch. That is why the USB route is the recommended one: the PS4 copies
+  the save in itself and lists it, even one it lost. Over FTP a save only
+  takes over one the console still lists. And nothing is deleted on the
+  console from here: files taken away over FTP leave the PS4 with an entry
+  it reports as corrupted.
+- The PS4's USB layout is `PS4/SAVEDATA/<PSID>/<game>/<save>` (the image)
+  and `<save>.bin` (its key), the PSID being the owner's 16 hex digits. The
+  vault writes the console's own image and key there under those names;
+  the PS4 copies back only to the user and console the save belongs to.
 
 On the PC: `<vault>/<account>/<game>/<save>/<date>/` with the save's files
 and a `vault.json` describing them.
@@ -293,7 +298,8 @@ and a `vault.json` describing them.
 | Files tab (browsing also works while an upload runs) | yes | yes | — | — |
 | Remote Play | yes | — | — | yes |
 | Save vault: back up, put back, delete on the console | yes | yes | — | — |
-| Save vault: see or delete what the PC holds | no | — | — | — |
+| Save vault: put back through the USB drive in the PS4, bring from it | yes | yes | — | — |
+| Save vault: see or delete what the PC holds; copy to or bring from a folder / USB drive on the PC | no | — | — | — |
 
 ## Where it lives in the code
 

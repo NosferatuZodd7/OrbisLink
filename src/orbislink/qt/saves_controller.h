@@ -54,6 +54,14 @@ public:
 	// Puts the latest backup of each back on the console.
 	Q_INVOKABLE void restore(const QStringList &keys);
 	Q_INVOKABLE void removeFromVault(const QStringList &keys);
+	// Console user folder → Account ID (base64) kept in the app.
+	Q_INVOKABLE void linkAccount(const QString &user, const QString &accountId);
+	// The saves' latest backups in the PS4's USB layout, for the PS4 to copy
+	// back itself: `where` is "console" (the USB drive in the PS4, over FTP)
+	// or a folder on this PC (a USB drive's root).
+	Q_INVOKABLE void exportToUsb(const QStringList &keys, const QString &where);
+	// Everything the PS4 copied to a USB drive (same `where`), into the vault.
+	Q_INVOKABLE void importFromUsb(const QString &where);
 	Q_INVOKABLE void setVaultFolder(const QString &folder);
 	Q_INVOKABLE void openVaultFolder() const;
 
