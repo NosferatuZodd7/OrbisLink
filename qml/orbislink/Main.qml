@@ -115,30 +115,19 @@ ApplicationWindow {
                 anchors.rightMargin: 12
                 spacing: 10
 
-                // A narrow window squeezes the bar instead of pushing its
-                // right end out: 1 — the services become dots and the page
-                // buttons icons; 2 — the console's name and address go too
-                // (the console chip still shows it). It widens again only
-                // with room to spare, so it never flickers between the two.
-                property int squeeze: 0
-                readonly property real saving1: remotePlayDot.labelWidth + ftpDot.labelWidth
-                    + installerDot.labelWidth + gamesText.width + 8
-                    + (backButton.visible ? backText.width + 8 : 0)
-                readonly property real saving2: consoleInfo.implicitWidth + spacing + 2
+                // A narrow window drops the console's name and address on the
+                // left (the console chip still shows it); they come back only
+                // with room to spare, so it never flickers.
+                property bool tight: false
                 function fit() {
-                    var need = implicitWidth
-                    if (need > width + 0.5 && squeeze < 2)
-                        squeeze += 1
-                    else if (squeeze === 2 && need + saving2 + 16 <= width)
-                        squeeze = 1
-                    else if (squeeze === 1 && need + saving1 + 16 <= width)
-                        squeeze = 0
+                    if (!tight && implicitWidth > width + 0.5)
+                        tight = true
+                    else if (tight && implicitWidth + consoleInfo.implicitWidth + spacing + 18 <= width)
+                        tight = false
                 }
                 onWidthChanged: Qt.callLater(fit)
                 onImplicitWidthChanged: Qt.callLater(fit)
                 Component.onCompleted: Qt.callLater(fit)
-                TextMetrics { id: gamesText; font.pixelSize: 12; font.weight: Font.Medium; text: qsTr("PS1/PS2 Games") }
-                TextMetrics { id: backText; font.pixelSize: 12; font.weight: Font.DemiBold; text: qsTr("Back to Remote Play") }
 
                 // The app's symbol as the console's avatar.
                 Rectangle {
@@ -161,7 +150,7 @@ ApplicationWindow {
 
                 ColumnLayout {
                     id: consoleInfo
-                    visible: barRow.squeeze < 2
+                    visible: !barRow.tight
                     spacing: 1
                     Layout.leftMargin: 2
                     Text {
@@ -180,69 +169,70 @@ ApplicationWindow {
 
                 Item { Layout.fillWidth: true }
 
-                // Away from a Remote Play session that is still running: one
-                // click goes back to the picture.
-                StyledButton {
-                    id: backButton
-                    readonly property bool live: typeof stream !== "undefined" && stream !== null
-                                                 && stream.streaming
-                    visible: live && window.view !== "home"
-                    text: barRow.squeeze > 0 ? "" : qsTr("Back to Remote Play")
-                    iconName: "gamepad"
-                    chip: true
-                    primary: true
-                    implicitHeight: 36
-                    ToolTip.visible: hovered
-                    ToolTip.text: barRow.squeeze > 0 ? qsTr("Back to Remote Play") + " — " + qsTr("The session is still running")
-                                                     : qsTr("The session is still running")
-                    onClicked: window.view = "home"
-                }
-
-                // PS1/PS2 games: a page of its own, in place of the consoles.
-                StyledButton {
-                    visible: games.available
-                    text: barRow.squeeze > 0 ? "" : qsTr("PS1/PS2 Games")
-                    iconName: "disc"
-                    chip: true
-                    primary: window.view === "games"
-                    implicitHeight: 36
-                    ToolTip.visible: hovered
-                    ToolTip.text: (barRow.squeeze > 0 ? qsTr("PS1/PS2 Games") + " — " : "")
-                                  + (window.view === "games" ? qsTr("Back to the consoles")
-                                     : qsTr("Find PS1 and PS2 discs on this PC, convert them into packages and install them on the console"))
-                    onClicked: window.view = window.view === "games" ? "home" : "games"
-                }
-                Item { implicitWidth: 6 }
-
-                // The console everything goes to.
+                // ── What is: the console everything goes to, and its services.
                 ConsoleChip {
                     onShowConsoles: window.view = "home"
                 }
-
-                ServiceIndicator {
-                    id: remotePlayDot
-                    compact: barRow.squeeze > 0
-                    label: qsTr("Remote Play")
-                    state_: app.remotePlayState
-                    hint: app.remotePlayHint
-                }
-                ServiceIndicator {
-                    id: ftpDot
-                    compact: barRow.squeeze > 0
-                    label: qsTr("FTP")
-                    state_: app.ftpState
-                    hint: app.ftpHint
-                }
-                ServiceIndicator {
-                    id: installerDot
-                    compact: barRow.squeeze > 0
-                    label: qsTr("Installer")
-                    state_: app.installerState
-                    hint: app.installerHint
+                BarGroup {
+                    ServiceIndicator {
+                        label: qsTr("Remote Play")
+                        iconName: "gamepad"
+                        state_: app.remotePlayState
+                        hint: app.remotePlayHint
+                    }
+                    ServiceIndicator {
+                        label: qsTr("FTP")
+                        state_: app.ftpState
+                        hint: app.ftpHint
+                    }
+                    ServiceIndicator {
+                        label: qsTr("Installer")
+                        iconName: "package"
+                        state_: app.installerState
+                        hint: app.installerHint
+                    }
                 }
 
-                Item { implicitWidth: 6 }
+                BarDivider {}
 
+                // ── Where to go: the pages, as icons.
+                BarGroup {
+                    // Away from a Remote Play session that is still running: one
+                    // click goes back to the picture.
+                    StyledToolButton {
+                        readonly property bool live: typeof stream !== "undefined" && stream !== null
+                                                     && stream.streaming
+                        visible: live && window.view !== "home"
+                        iconName: "play"
+                        active: true
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Back to Remote Play") + " — " + qsTr("The session is still running")
+                        onClicked: window.view = "home"
+                    }
+                    StyledToolButton {
+                        visible: games.available
+                        iconName: "disc"
+                        active: window.view === "games"
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("PS1/PS2 Games") + " — "
+                                      + (window.view === "games" ? qsTr("Back to the consoles")
+                                         : qsTr("Find PS1 and PS2 discs on this PC, convert them into packages and install them on the console"))
+                        onClicked: window.view = window.view === "games" ? "home" : "games"
+                    }
+                    StyledToolButton {
+                        iconName: "archive"
+                        active: window.view === "saves"
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Save vault") + " — "
+                                      + (window.view === "saves" ? qsTr("Back to the consoles")
+                                         : qsTr("Back up the console's saves on this PC and put them back"))
+                        onClicked: window.view = window.view === "saves" ? "home" : "saves"
+                    }
+                }
+
+                BarDivider {}
+
+                // ── Tools.
                 StyledToolButton {
                     iconName: "refresh"
                     ToolTip.visible: hovered
@@ -268,7 +258,13 @@ ApplicationWindow {
                     ToolTip.text: qsTr("Log and diagnostics (Ctrl+L)")
                     onClicked: diagnosticsDialog.open()
                 }
-                ThemeSwitcher {}
+                ThemeSwitcher {
+                    onCustomRequested: {
+                        settingsDialog.loadValues()
+                        settingsDialog.section = 4
+                        settingsDialog.open()
+                    }
+                }
                 StyledToolButton {
                     iconName: "settings"
                     ToolTip.visible: hovered
@@ -291,8 +287,15 @@ ApplicationWindow {
                 onBack: window.view = "home"
             }
 
+            SavesView {
+                visible: window.view === "saves"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                onBack: window.view = "home"
+            }
+
             StreamArea {
-                visible: window.view !== "games"
+                visible: window.view !== "games" && window.view !== "saves"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 // Back to the home page: whatever was open on top of the
@@ -494,6 +497,28 @@ ApplicationWindow {
         running: typeof demoUpdate !== "undefined" && demoUpdate
         interval: 1500
         onTriggered: { app.loadDemoUpdate(); updateDialog.open() }
+    }
+
+    // A few things of the top bar together, on one soft surface.
+    component BarGroup: Rectangle {
+        default property alias content: groupRow.data
+        implicitWidth: groupRow.implicitWidth + 6
+        implicitHeight: 40
+        radius: 13
+        color: Theme.controlFill
+        border.width: 1
+        border.color: Theme.glassEdge
+        Row {
+            id: groupRow
+            anchors.centerIn: parent
+            spacing: 1
+        }
+    }
+    // Between what is (the console and its services) and what can be done.
+    component BarDivider: Rectangle {
+        implicitWidth: 1
+        implicitHeight: 22
+        color: Theme.glassEdge
     }
 
     // The theme comes from the settings and changes in real time.

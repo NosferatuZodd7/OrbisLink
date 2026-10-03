@@ -974,8 +974,12 @@ Dialog {
                                 }
                             }
                             StyledButton {
-                                text: qsTr("Apply")
+                                readonly property bool inUse: app.customLook
+                                                              && app.activePreset === presetRow.modelData.name
+                                text: inUse ? qsTr("In use") : qsTr("Apply")
                                 chip: true
+                                primary: inUse
+                                enabled: !inUse
                                 onClicked: app.applyThemePreset(presetRow.modelData.name)
                             }
                             StyledToolButton {

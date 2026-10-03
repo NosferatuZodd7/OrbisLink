@@ -541,8 +541,12 @@ Item {
             clip: true
             ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
             contentWidth: availableWidth
+            // Told outright, so the end is always in reach (see SettingsPage).
+            contentHeight: keysColumn.implicitHeight
+            ScrollBar.vertical.policy: contentHeight > height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
 
             ColumnLayout {
+                id: keysColumn
                 width: keysScroll.availableWidth - Theme.dialogMargin * 2
                 x: Theme.dialogMargin
                 spacing: 18

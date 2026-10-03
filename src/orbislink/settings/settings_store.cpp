@@ -127,12 +127,19 @@ std::string Settings::toJson() const
 		presets.push(std::move(item));
 	}
 	root.set("theme_presets", presets);
+	root.set("theme_active_preset", Json::fromString(activePreset));
+	Json lastColors = Json::makeObject();
+	for(const auto &pair : lastCustomColors)
+		lastColors.set(pair.first, Json::fromString(pair.second));
+	root.set("theme_last_custom", lastColors);
+	root.set("theme_last_custom_base", Json::fromString(lastCustomTheme));
 	root.set("language", Json::fromString(language));
 	root.set("debug_logging", Json::fromBool(debugLogging));
 	root.set("check_for_updates", Json::fromBool(checkForUpdates));
 	root.set("first_run_done", Json::fromBool(firstRunDone));
 	root.set("games_folder", Json::fromString(gamesFolder));
 	root.set("convert_output_folder", Json::fromString(convertOutputFolder));
+	root.set("save_vault_folder", Json::fromString(saveVaultFolder));
 	root.set("update_repository", Json::fromString(updateRepository));
 	root.set("update_repository_default", Json::fromString(ORBISLINK_REPOSITORY_STRING));
 	root.set("update_channel", Json::fromString(updateChannel));
@@ -250,6 +257,9 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 		return colors;
 	};
 	settings.themeColors = readColors(root["theme_colors"]);
+	settings.lastCustomColors = readColors(root["theme_last_custom"]);
+	settings.lastCustomTheme = root["theme_last_custom_base"].toString();
+	settings.activePreset = root["theme_active_preset"].toString();
 	if(root["theme_presets"].isArray())
 	{
 		for(const Json &item : root["theme_presets"].items())
@@ -273,6 +283,7 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.firstRunDone = root["first_run_done"].toLooseBool(settings.firstRunDone);
 	settings.gamesFolder = root["games_folder"].toString(settings.gamesFolder);
 	settings.convertOutputFolder = root["convert_output_folder"].toString(settings.convertOutputFolder);
+	settings.saveVaultFolder = root["save_vault_folder"].toString(settings.saveVaultFolder);
 	{
 		const std::string stored = root["update_repository"].toString(settings.updateRepository);
 		const bool hasDefault = root["update_repository_default"].isString();

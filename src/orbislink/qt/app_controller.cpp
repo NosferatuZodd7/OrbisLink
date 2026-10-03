@@ -764,6 +764,16 @@ QVariantMap colorsToMap(const std::map<std::string, std::string> &colors)
 
 } // namespace
 
+FtpClient::Config AppController::ftpClientConfig() const
+{
+	if(ftp_)
+		return ftp_->config();
+	FtpClient::Config config;
+	config.host = settings_.consoleAddress;
+	config.port = activeFtpPort();
+	return config;
+}
+
 QVariantMap AppController::themeColors() const { return colorsToMap(settings_.themeColors); }
 
 QVariantList AppController::themePresets() const
@@ -789,6 +799,8 @@ void AppController::setThemeColor(const QString &key, const QString &color)
 		settings_.themeColors.erase(key.toStdString());
 	else
 		settings_.themeColors[key.toStdString()] = parsed.name(QColor::HexRgb).toUpper().toStdString();
+	// Changed by hand: it is no longer exactly the saved look.
+	settings_.activePreset.clear();
 	store_.save(settings_);
 	emit themeColorsChanged();
 }
@@ -798,6 +810,7 @@ void AppController::resetThemeColors()
 	if(settings_.themeColors.empty())
 		return;
 	settings_.themeColors.clear();
+	settings_.activePreset.clear();
 	store_.save(settings_);
 	emit themeColorsChanged();
 }
@@ -815,8 +828,10 @@ void AppController::saveThemePreset(const QString &name)
 		*same = preset;
 	else
 		presets.push_back(preset);
+	settings_.activePreset = trimmed;
 	store_.save(settings_);
 	emit themePresetsChanged();
+	emit themeColorsChanged();
 	setStatusMessage(tr("Look \"%1\" saved.").arg(name.trimmed()));
 }
 
@@ -828,11 +843,33 @@ void AppController::applyThemePreset(const QString &name)
 			continue;
 		settings_.theme = preset.theme == "glass" || preset.theme == "light" ? preset.theme : "dark";
 		settings_.themeColors = preset.colors;
+		settings_.activePreset = preset.name;
 		store_.save(settings_);
 		emit themeColorsChanged();
 		emit settingsChanged();
 		return;
 	}
+}
+
+bool AppController::applyCustomLook()
+{
+	for(const ThemePreset &preset : settings_.themePresets)
+	{
+		if(preset.name == settings_.activePreset && !preset.colors.empty())
+		{
+			applyThemePreset(QString::fromStdString(preset.name));
+			return true;
+		}
+	}
+	if(settings_.lastCustomColors.empty())
+		return false;
+	settings_.themeColors = settings_.lastCustomColors;
+	if(!settings_.lastCustomTheme.empty())
+		settings_.theme = settings_.lastCustomTheme;
+	store_.save(settings_);
+	emit themeColorsChanged();
+	emit settingsChanged();
+	return true;
 }
 
 void AppController::deleteThemePreset(const QString &name)
@@ -844,6 +881,8 @@ void AppController::deleteThemePreset(const QString &name)
 		presets.end());
 	if(presets.size() == before)
 		return;
+	if(settings_.activePreset == name.toStdString())
+		settings_.activePreset.clear();
 	store_.save(settings_);
 	emit themePresetsChanged();
 }
@@ -2491,10 +2530,21 @@ void AppController::setTheme(const QString &theme)
 	const std::string themeName = theme.toStdString();
 	if(themeName != "dark" && themeName != "glass" && themeName != "light")
 		return;
-	if(settings_.theme == themeName)
+	// A plain theme is just that: the custom colours step aside (kept for
+	// the "custom" button) instead of being mixed with it.
+	const bool hadCustom = !settings_.themeColors.empty();
+	if(hadCustom)
+	{
+		settings_.lastCustomColors = settings_.themeColors;
+		settings_.lastCustomTheme = settings_.theme;
+		settings_.themeColors.clear();
+	}
+	if(settings_.theme == themeName && !hadCustom)
 		return;
 	settings_.theme = themeName;
 	store_.save(settings_);
+	if(hadCustom)
+		emit themeColorsChanged();
 	emit settingsChanged();
 }
 

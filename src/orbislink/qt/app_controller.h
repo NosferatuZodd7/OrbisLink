@@ -74,6 +74,10 @@ class AppController : public QObject
 	// saved looks ({ name, theme, colors }).
 	Q_PROPERTY(QVariantMap themeColors READ themeColors NOTIFY themeColorsChanged)
 	Q_PROPERTY(QVariantList themePresets READ themePresets NOTIFY themePresetsChanged)
+	// A custom look is in use (colours on top of the theme), and which
+	// saved look it is, if it is one.
+	Q_PROPERTY(bool customLook READ customLook NOTIFY themeColorsChanged)
+	Q_PROPERTY(QString activePreset READ activePreset NOTIFY themeColorsChanged)
 	Q_PROPERTY(orbislink::QueueModel *queue READ queue CONSTANT)
 	Q_PROPERTY(orbislink::FtpModel *files READ files CONSTANT)
 	Q_PROPERTY(QString version READ version CONSTANT)
@@ -141,12 +145,20 @@ public:
 	Q_INVOKABLE void saveThemePreset(const QString &name);
 	Q_INVOKABLE void applyThemePreset(const QString &name);
 	Q_INVOKABLE void deleteThemePreset(const QString &name);
+	bool customLook() const { return !settings_.themeColors.empty(); }
+	QString activePreset() const { return QString::fromStdString(settings_.activePreset); }
+	// The "custom" button: the chosen saved look, or the colours set aside.
+	// False when there is none yet (the Personalisation page should open).
+	Q_INVOKABLE bool applyCustomLook();
 	QueueModel *queue() { return &queueModel_; }
 	FtpModel *files() { return &ftpModel_; }
 	QString version() const;
 	// The settings in effect, for whoever needs all of them (the
 	// Remote Play controller).
 	const Settings &settings() const { return settings_; }
+	// How to reach the console's FTP right now, for whoever needs a
+	// connection of its own (the save vault).
+	FtpClient::Config ftpClientConfig() const;
 	// Changes settings that need nothing rebuilt (folders remembered by
 	// other parts of the app) and saves them.
 	void updateSettings(const std::function<void(Settings &)> &change);

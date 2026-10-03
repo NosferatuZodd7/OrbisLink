@@ -9,6 +9,7 @@
         <file alias="DropZone.qml">DropZone.qml</file>
         <file alias="TransferPanel.qml">TransferPanel.qml</file>
         <file alias="GamesView.qml">GamesView.qml</file>
+        <file alias="SavesView.qml">SavesView.qml</file>
         <file alias="GameCard.qml">GameCard.qml</file>
         <file alias="StageLoader.qml">StageLoader.qml</file>
         <file alias="GameDialog.qml">GameDialog.qml</file>

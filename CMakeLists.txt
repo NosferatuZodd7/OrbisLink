@@ -69,6 +69,7 @@ add_library(orbislink_core STATIC
 	src/orbislink/pkg/pkg_inspector.cpp
 	src/orbislink/pkg/sfo_parser.cpp
 	src/orbislink/queue/install_queue.cpp
+	src/orbislink/saves/save_vault.cpp
 	src/orbislink/settings/settings_store.cpp
 	src/orbislink/update/sha256.cpp
 	src/orbislink/update/update_checker.cpp
@@ -174,6 +175,7 @@ if(ORBISLINK_BUILD_GUI)
 			src/orbislink/qt/main.cpp
 			src/orbislink/qt/app_controller.cpp
 			src/orbislink/qt/games_controller.cpp
+			src/orbislink/qt/saves_controller.cpp
 			src/orbislink/qt/queue_model.cpp
 			src/orbislink/qt/ftp_model.cpp
 			src/orbislink/qt/startup.cpp
