@@ -56,6 +56,12 @@ struct QueueTask
 	// File to delete from the console when this task succeeds. Only set
 	// by "upload and install" with "delete afterwards" enabled.
 	std::string cleanupRemotePath;
+	// FTP upload only. The folder to put it in instead of the upload folder
+	// (made if missing), and whether to install it once it is there — and
+	// then delete it — whatever the settings say.
+	std::string remoteDirectory;
+	bool installAfter = false;
+	bool deleteAfterInstall = false;
 	std::string message;    // error or information for the UI
 	uint32_t errorCode = 0;
 	int attempts = 0;
@@ -110,6 +116,14 @@ public:
 	std::vector<std::string> enqueue(const std::vector<std::string> &paths, TransferMode mode,
 		std::vector<std::string> *rejected = nullptr,
 		const std::vector<std::string> *remoteNames = nullptr);
+	// An FTP upload to `directory` that installs the package once it lands
+	// and then deletes the copy on the console.
+	std::string enqueueUploadAndInstall(const std::string &path, const std::string &directory,
+		std::string *error = nullptr);
+	// As above; `adjust` sets each task up before anything can pick it.
+	std::vector<std::string> enqueue(const std::vector<std::string> &paths, TransferMode mode,
+		std::vector<std::string> *rejected, const std::vector<std::string> *remoteNames,
+		const std::function<void(QueueTask &)> &adjust);
 	std::string enqueueOne(const std::string &path, TransferMode mode, std::string *error = nullptr);
 
 	void start();

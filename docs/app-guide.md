@@ -91,7 +91,7 @@ The picture fills the stage. Moving the mouse shows the toolbar:
 
 | Button | Does |
 |---|---|
-| 🎮 | Keyboard map: which key presses which button. **Change keys** to rebind (click a key, press the new one; two keys swap); **Reset** goes back to the defaults. |
+| 🎮 | Keyboard map: which key presses which button. The touchpad key (T) clicks the touchpad with a finger on its left half — Select in PS2 games. **Change keys** to rebind (click a key, press the new one; two keys swap); **Reset** goes back to the defaults. |
 | Speaker | Mutes / unmutes the console's sound. |
 | Microphone | Sends / stops the PC microphone. |
 | Full screen | Full screen on / off (F11; Esc leaves the session). |
@@ -112,12 +112,18 @@ speed and time left.
 
 Footer: total speed, what is left, **Pause / Resume** for the whole queue.
 
+Every upload and install is followed here, never in the Files tab: sending
+opens this tab, and the file list keeps showing the console's folders (a file
+still arriving is listed with "arriving…").
+
 When Remote Package Installer stops answering, the queue pauses and shows
 *Waiting for Remote Package Installer*: it checks every few seconds and goes
 on by itself when the installer is back (**Try now** forces it).
 
 A converted PS1/PS2 game shows as **one** card with three bars — Convert,
-Send, Install — instead of separate queue cards (see *PS1/PS2 Games*).
+Send, Install — instead of separate queue cards (see *PS1/PS2 Games*);
+closing it takes its finished queue tasks along. A package sent and then
+installed is one card too (the install's). The tab's number counts cards.
 
 ### Files (FTP) tab
 
@@ -176,7 +182,7 @@ packages are saved (**Change…**).
 | Button | Does | Needs |
 |---|---|---|
 | **Convert only** | Makes the package in the output folder. | Nothing (no console). |
-| **Convert and install** | Makes it, sends it over FTP, installs it. | FTP of the console in use; the installer for the last step (the queue waits for it). |
+| **Convert and install** | Makes it, sends it over FTP to `/data/OrbisLinkFPKG/` on the console (made if missing), installs it, then deletes that copy. The package stays in the output folder. | FTP of the console in use; the installer for the last step (the queue waits for it). |
 | **Send and install** | Shown instead when the package was made before and *Use the existing package* is chosen: skips the conversion. | Same as above. |
 | **Send disc file** | Sends the disc image itself over FTP. | FTP. |
 
@@ -215,7 +221,7 @@ as `image/disc01.iso`. PS1 discs as PS Classics fPKG Builder does.
 | Convert and install / Send and install | yes | yes | waits for it | — |
 | Send disc file, Send over FTP | yes | yes | — | — |
 | Install directly | yes | — | yes | — |
-| Files tab | yes | yes | — | — |
+| Files tab (browsing also works while an upload runs) | yes | yes | — | — |
 | Remote Play | yes | — | — | yes |
 
 ## Where it lives in the code

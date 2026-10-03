@@ -126,72 +126,13 @@ Item {
                 model: app.files
                 ScrollBar.vertical: ScrollBar { }
 
-                header: Column {
-                    width: files.width
-                    Repeater {
-                        model: root.uploadsHere
-                        Item {
-                            required property var modelData
-                            width: files.width
-                            height: 40
-                            // Faded until it has arrived.
-                            opacity: 0.55
-
-                            Icon {
-                                id: uploadGlyph
-                                x: 12
-                                y: 8
-                                name: "upload"
-                                size: 15
-                                color: Theme.accent
-                            }
-                            Text {
-                                anchors.left: uploadGlyph.right
-                                anchors.leftMargin: 8
-                                anchors.right: uploadPercent.left
-                                anchors.rightMargin: 8
-                                y: 7
-                                text: modelData.name
-                                color: Theme.text
-                                font.pixelSize: 12
-                                elide: Text.ElideMiddle
-                            }
-                            Text {
-                                id: uploadPercent
-                                anchors.right: parent.right
-                                anchors.rightMargin: 12
-                                y: 8
-                                text: modelData.sending ? Math.floor(modelData.percent) + "%" : qsTr("queued")
-                                color: Theme.textSecondary
-                                font.pixelSize: 11
-                            }
-                            // The thin bar under the name.
-                            Rectangle {
-                                x: 35
-                                y: 28
-                                width: parent.width - 47
-                                height: 3
-                                radius: 1.5
-                                color: Theme.controlFill
-                                Rectangle {
-                                    width: parent.width * Math.max(0, Math.min(1, modelData.percent / 100))
-                                    height: parent.height
-                                    radius: parent.radius
-                                    color: Theme.accent
-                                    Behavior on width { NumberAnimation { duration: 200 } }
-                                }
-                            }
-                        }
-                    }
-                }
-
                 delegate: ItemDelegate {
                     id: row
                     width: files.width
-                    // A file being replaced shows only once, as the upload above.
-                    readonly property bool replaced: root.beingUploaded(model.name)
-                    visible: !replaced
-                    height: replaced ? 0 : 34
+                    // A file still arriving is listed like the others; its
+                    // progress is in the queue.
+                    readonly property bool arriving: root.beingUploaded(model.name)
+                    height: 34
                     // The Basic style pads 12px all round, which in a 34px row
                     // squeezes the content into a sliver and leaves it off the
                     // lit box. The row sets its own.
@@ -349,8 +290,8 @@ Item {
                         }
 
                         Text {
-                            text: row.preparing ? qsTr("getting it…") : model.sizeText
-                            color: row.preparing ? Theme.accent : Theme.textMuted
+                            text: row.preparing ? qsTr("getting it…") : row.arriving ? qsTr("arriving…") : model.sizeText
+                            color: row.preparing || row.arriving ? Theme.accent : Theme.textMuted
                             font.pixelSize: 11
                         }
                         StyledToolButton {

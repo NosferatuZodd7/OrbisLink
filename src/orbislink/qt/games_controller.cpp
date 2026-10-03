@@ -31,6 +31,9 @@ namespace orbislink {
 
 namespace {
 
+// Where converted games go on the console before they are installed.
+constexpr char kConvertedGamesFolder[] = "/data/OrbisLinkFPKG/";
+
 QString sizeText(quint64 bytes)
 {
 	if(bytes >= 1024ull * 1024 * 1024)
@@ -524,19 +527,24 @@ void GamesController::clearFinishedConversions()
 		const QVariantMap m = v.toMap();
 		const QVariantMap t = m.value(QStringLiteral("transfer")).toMap();
 		const QString stage = t.value(QStringLiteral("stage")).toString();
-		if(stage == QLatin1String("sending") || stage == QLatin1String("installing")
-			|| t.value(QStringLiteral("installNext")).toBool())
+		if(stage == QLatin1String("sending") || stage == QLatin1String("installing"))
 			travelling.insert(m.value(QStringLiteral("id")).toString());
 	}
+	QStringList packages;
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
 		jobs_.erase(std::remove_if(jobs_.begin(), jobs_.end(),
 						[&](const std::shared_ptr<Job> &j) {
-							return j->state != QLatin1String("waiting")
+							const bool gone = j->state != QLatin1String("waiting")
 								&& j->state != QLatin1String("converting") && !travelling.contains(j->id);
+							if(gone)
+								packages << j->pkgPath;
+							return gone;
 						}),
 			jobs_.end());
 	}
+	for(const QString &pkg : packages)
+		app_->removeFinishedTasksOf(pkg);
 	publish();
 }
 
@@ -584,29 +592,6 @@ void GamesController::updateProgress()
 {
 	QVariantMap progress;
 	const QVariantMap transfers = app_->transfers();
-	// Packages that just landed on the console: now they are installed.
-	// (Only once this upload was seen under way: an old "sent" of the same
-	// file does not count.)
-	for(auto it = installAfterSend_.begin(); it != installAfterSend_.end();)
-	{
-		const QString stage = transfers.value(it.key()).toMap().value(QStringLiteral("stage")).toString();
-		if(stage == QLatin1String("sending"))
-		{
-			it.value() = true;
-			++it;
-		}
-		else if(stage == QLatin1String("sent") && it.value())
-		{
-			const QString pkg = it.key();
-			it = installAfterSend_.erase(it);
-			QMetaObject::invokeMethod(this, [this, pkg]() { app_->addPaths(QStringList { pkg }, 0); },
-				Qt::QueuedConnection);
-		}
-		else if(it.value() && (stage == QLatin1String("error") || stage == QLatin1String("cancelled")))
-			it = installAfterSend_.erase(it);
-		else
-			++it;
-	}
 	auto fromQueue = [&](const QString &file) -> QVariantMap {
 		return transfers.value(AppController::transferKey(file)).toMap();
 	};
@@ -675,8 +660,6 @@ void GamesController::updateProgress()
 		const QString stale = m.value(QStringLiteral("staleTaskId")).toString();
 		if(!stale.isEmpty() && transfer.value(QStringLiteral("taskId")).toString() == stale)
 			transfer.clear();
-		if(transfer.value(QStringLiteral("stage")) == QLatin1String("sent") && installAfterSend_.contains(key))
-			transfer[QStringLiteral("installNext")] = true;
 		m[QStringLiteral("pkgKey")] = key;
 		m[QStringLiteral("transfer")] = transfer;
 		v = m;
@@ -690,15 +673,21 @@ void GamesController::updateProgress()
 
 void GamesController::removeConversion(const QString &id)
 {
+	QStringList packages;
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
 		jobs_.erase(std::remove_if(jobs_.begin(), jobs_.end(),
 						[&](const std::shared_ptr<Job> &j) {
-							return j->id == id && j->state != QLatin1String("waiting")
+							const bool gone = j->id == id && j->state != QLatin1String("waiting")
 								&& j->state != QLatin1String("converting");
+							if(gone)
+								packages << j->pkgPath;
+							return gone;
 						}),
 			jobs_.end());
 	}
+	for(const QString &pkg : packages)
+		app_->removeFinishedTasksOf(pkg);
 	publish();
 }
 
@@ -842,9 +831,8 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 	const QString message = QString::fromStdString(error);
 	const bool cancelled = job->cancel.load();
 	QMetaObject::invokeMethod(this, [this, job, ok, install, pkg, title, message, cancelled]() {
-		// Over FTP, like any file dropped on the FTP zone (same-name checks,
-		// the upload folder), and installed once it lands — unless the
-		// setting already installs every upload.
+		// Over FTP into the app's own folder on the console, installed once
+		// it lands, and deleted from there after the install.
 		if(ok)
 		{
 			const QString before = app_->transfers().value(AppController::transferKey(pkg)).toMap()
@@ -853,11 +841,7 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 			job->staleTaskId = before;
 		}
 		if(ok && install)
-		{
-			if(!app_->settings().installAfterUpload)
-				installAfterSend_[AppController::transferKey(pkg)] = false;
-			app_->addPaths(QStringList { pkg }, 1);
-		}
+			app_->sendAndInstall(pkg, QString::fromLatin1(kConvertedGamesFolder));
 		publish();
 		if(ok && !install)
 			emit app_->notify(tr("Convert"), tr("%1 is ready in the output folder.").arg(title), false);

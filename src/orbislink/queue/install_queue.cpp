@@ -83,6 +83,9 @@ Json taskToJson(const QueueTask &task)
 	json.set("remote_path", Json::fromString(task.remotePath));
 	json.set("remote_name", Json::fromString(task.remoteName));
 	json.set("cleanup_remote_path", Json::fromString(task.cleanupRemotePath));
+	json.set("remote_directory", Json::fromString(task.remoteDirectory));
+	json.set("install_after", Json::fromBool(task.installAfter));
+	json.set("delete_after_install", Json::fromBool(task.deleteAfterInstall));
 	json.set("message", Json::fromString(task.message));
 	json.set("error_code", Json::fromInt(static_cast<int64_t>(task.errorCode)));
 	json.set("attempts", Json::fromInt(task.attempts));
@@ -109,6 +112,9 @@ QueueTask taskFromJson(const Json &json)
 	task.remotePath = json["remote_path"].toString();
 	task.remoteName = json["remote_name"].toString();
 	task.cleanupRemotePath = json["cleanup_remote_path"].toString();
+	task.remoteDirectory = json["remote_directory"].toString();
+	task.installAfter = json["install_after"].toLooseBool(false);
+	task.deleteAfterInstall = json["delete_after_install"].toLooseBool(false);
 	task.message = json["message"].toString();
 	task.errorCode = static_cast<uint32_t>(json["error_code"].toInt());
 	task.attempts = static_cast<int>(json["attempts"].toInt());
@@ -207,9 +213,35 @@ std::string InstallQueue::enqueueOne(const std::string &path, TransferMode mode,
 	return ids.front();
 }
 
+std::string InstallQueue::enqueueUploadAndInstall(const std::string &path,
+	const std::string &directory, std::string *error)
+{
+	std::vector<std::string> rejected;
+	const std::vector<std::string> ids = enqueue({ path }, TransferMode::FtpUpload, &rejected,
+		nullptr, [&](QueueTask &task) {
+			task.remoteDirectory = directory;
+			task.installAfter = true;
+			task.deleteAfterInstall = true;
+		});
+	if(ids.empty())
+	{
+		if(error)
+			*error = rejected.empty() ? std::string("rejected") : rejected.front();
+		return std::string();
+	}
+	return ids.front();
+}
+
 std::vector<std::string> InstallQueue::enqueue(const std::vector<std::string> &paths,
 	TransferMode mode, std::vector<std::string> *rejected,
 	const std::vector<std::string> *remoteNames)
+{
+	return enqueue(paths, mode, rejected, remoteNames, nullptr);
+}
+
+std::vector<std::string> InstallQueue::enqueue(const std::vector<std::string> &paths,
+	TransferMode mode, std::vector<std::string> *rejected,
+	const std::vector<std::string> *remoteNames, const std::function<void(QueueTask &)> &adjust)
 {
 	PkgInspector inspector;
 	std::vector<QueueTask> batch;
@@ -243,6 +275,8 @@ std::vector<std::string> InstallQueue::enqueue(const std::vector<std::string> &p
 		task.category = info.kind;
 		task.totalBytes = info.fileSize;
 		task.createdAtUnix = nowUnixSeconds();
+		if(adjust)
+			adjust(task);
 		batch.push_back(task);
 	}
 
@@ -846,6 +880,12 @@ void InstallQueue::runFtpUpload(QueueTask task)
 		task.totalBytes = info.fileSize;
 
 	std::string directory = cfg.ftpUploadDirectory.empty() ? "/data/pkg/" : cfg.ftpUploadDirectory;
+	if(!task.remoteDirectory.empty())
+	{
+		directory = task.remoteDirectory;
+		// Already there is fine; anything else shows up in the upload.
+		deps_.ftp->makeDirectory(directory);
+	}
 	task.remotePath = normalizeRemotePath(directory + "/"
 		+ sanitizeFileName(task.remoteName.empty() ? task.localPath : task.remoteName));
 
@@ -903,23 +943,25 @@ void InstallQueue::runFtpUpload(QueueTask task)
 	// was just placed on the console. Instead, a direct install of the same
 	// file is queued, served by the local HTTP server — the pkg stays
 	// stored on the console and gets installed, which is what the option promises.
-	const bool installAfter = cfg.installAfterUpload;
-	finishTask(task);
-
+	// The install is queued before the upload is marked done, so nothing
+	// sees the package as only "sent" in between.
+	const bool installAfter = cfg.installAfterUpload || task.installAfter;
+	const bool deleteAfter = task.installAfter ? task.deleteAfterInstall : cfg.deleteFromConsoleAfterInstall;
 	if(installAfter)
 	{
 		std::string err;
-		const std::string id = enqueueOne(task.localPath, TransferMode::DirectInstall, &err);
-		if(id.empty())
-			logWarning("Could not install " + baseName(task.localPath)
-				+ " after the upload: " + err);
+		const std::string remotePath = task.remotePath;
+		const std::vector<std::string> ids = enqueue({ task.localPath }, TransferMode::DirectInstall,
+			nullptr, nullptr, [&](QueueTask &install) {
+				if(deleteAfter)
+					install.cleanupRemotePath = remotePath;
+			});
+		if(ids.empty())
+			logWarning("Could not install " + baseName(task.localPath) + " after the upload.");
 		else
-		{
-			if(cfg.deleteFromConsoleAfterInstall)
-				setCleanupPath(id, task.remotePath);
 			logInfo("Uploaded; installing " + task.title + " from the PC.");
-		}
 	}
+	finishTask(task);
 }
 
 std::string InstallQueue::toJson() const

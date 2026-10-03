@@ -7,6 +7,7 @@
 #include <QHash>
 #include <QList>
 #include <QString>
+#include <QVariantMap>
 
 namespace orbislink {
 
@@ -18,6 +19,8 @@ class QueueModel : public QAbstractListModel
 	Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
 	Q_PROPERTY(QString totalSpeedText READ totalSpeedText NOTIFY summaryChanged)
 	Q_PROPERTY(QString remainingText READ remainingText NOTIFY summaryChanged)
+	// The size of everything still to go, as a whole (what is left is part of it).
+	Q_PROPERTY(QString totalText READ totalText NOTIFY summaryChanged)
 
 public:
 	enum Roles {
@@ -36,6 +39,9 @@ public:
 		IconRole,
 		ActiveRole,
 		LocalKeyRole,
+		// A finished task of a file that has a later task (the upload once
+		// the install of the same package is there): one card per file.
+		SupersededRole,
 	};
 
 	explicit QueueModel(QObject *parent = nullptr);
@@ -46,6 +52,10 @@ public:
 
 	QString totalSpeedText() const;
 	QString remainingText() const;
+	QString totalText() const;
+	// The cards the panel shows: rows neither superseded nor followed by a
+	// conversion card (`followed`: their localKey → true).
+	Q_INVOKABLE int shownCount(const QVariantMap &followed) const;
 
 	// Chamado de qualquer thread.
 	void applySnapshot(const std::vector<QueueTask> &tasks);
@@ -75,7 +85,9 @@ private:
 		bool active = false;
 		double bytesPerSecond = 0.0;
 		qint64 remainingBytes = 0;
+		qint64 totalBytes = 0;
 		QString localKey;
+		bool superseded = false;
 		bool operator==(const Row &o) const
 		{
 			return id == o.id && title == o.title && titleId == o.titleId && category == o.category
@@ -83,7 +95,8 @@ private:
 				&& sizeText == o.sizeText && speedText == o.speedText && etaText == o.etaText
 				&& message == o.message && mode == o.mode && active == o.active
 				&& bytesPerSecond == o.bytesPerSecond && remainingBytes == o.remainingBytes
-				&& localKey == o.localKey;
+				&& totalBytes == o.totalBytes
+				&& localKey == o.localKey && superseded == o.superseded;
 		}
 	};
 

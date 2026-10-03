@@ -162,6 +162,9 @@ std::string curlMessage(CURLcode code, const char *errorBuffer)
 
 } // namespace
 
+// Room for one more transfer (upload or download). Listing, renaming and
+// the other short commands do not wait for it: with one connection allowed,
+// browsing would otherwise freeze for as long as an upload lasts.
 struct FtpClient::Slot
 {
 	FtpClient *owner;
@@ -353,7 +356,6 @@ FtpResult FtpClient::list(const std::string &remoteDir, std::vector<FtpEntry> *e
 {
 	const std::string dir = normalizeRemotePath(remoteDir);
 	return withRetries("list " + dir, [&]() -> FtpResult {
-		Slot slot(this);
 		const Config cfg = config();
 		CURL *curl = curl_easy_init();
 		if(!curl)
@@ -386,7 +388,6 @@ FtpResult FtpClient::remoteSize(const std::string &remotePath, int64_t *size)
 {
 	const std::string path = normalizeRemotePath(remotePath);
 	return withRetries("get size of " + path, [&]() -> FtpResult {
-		Slot slot(this);
 		const Config cfg = config();
 		CURL *curl = curl_easy_init();
 		if(!curl)
@@ -487,7 +488,6 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 
 bool FtpClient::querySize(const std::string &path, int64_t *size)
 {
-	Slot slot(this);
 	const Config cfg = config();
 	CURL *curl = curl_easy_init();
 	if(!curl)
@@ -656,7 +656,6 @@ FtpResult FtpClient::makeDirectory(const std::string &remotePath)
 		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
 			"mode in the settings."));
 	return withRetries("create folder " + path, [&]() -> FtpResult {
-		Slot slot(this);
 		const Config cfg = config();
 		return runQuoteCommands(cfg, cfg.host, { "MKD " + path },
 			"ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/");
@@ -670,7 +669,6 @@ FtpResult FtpClient::removeFile(const std::string &remotePath)
 		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
 			"mode in the settings."));
 	return withRetries("delete " + path, [&]() -> FtpResult {
-		Slot slot(this);
 		const Config cfg = config();
 		return runQuoteCommands(cfg, cfg.host, { "DELE " + path },
 			"ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/");
@@ -684,7 +682,6 @@ FtpResult FtpClient::removeDirectory(const std::string &remotePath)
 		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
 			"mode in the settings."));
 	return withRetries("delete folder " + path, [&]() -> FtpResult {
-		Slot slot(this);
 		const Config cfg = config();
 		return runQuoteCommands(cfg, cfg.host, { "RMD " + path },
 			"ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/");
@@ -699,7 +696,6 @@ FtpResult FtpClient::rename(const std::string &fromPath, const std::string &toPa
 		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
 			"mode in the settings."));
 	return withRetries("rename " + from, [&]() -> FtpResult {
-		Slot slot(this);
 		const Config cfg = config();
 		return runQuoteCommands(cfg, cfg.host, { "RNFR " + from, "RNTO " + to },
 			"ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/");

@@ -956,19 +956,25 @@ void AppController::enqueueFiles(const QStringList &files, TransferMode transfer
 	if(ids.empty())
 		return;
 
-	// Show where they can be followed: the queue for installs; for uploads,
-	// the file list in the folder they are going to.
-	if(transferMode == TransferMode::FtpUpload)
+	// Uploads and installs alike are followed in the queue, with their
+	// bars; the file list keeps showing the console's folders.
+	emit showPanel(QStringLiteral("queue"));
+}
+
+void AppController::sendAndInstall(const QString &pkg, const QString &directory)
+{
+	if(!queue_)
+		return;
+	std::string error;
+	const std::string id = queue_->enqueueUploadAndInstall(pkg.toStdString(), directory.toStdString(), &error);
+	if(id.empty())
 	{
-		const QString directory = uploadDirectory();
-		if(normalizeRemotePath(ftpPath_.toStdString()) != directory.toStdString())
-			ftpNavigate(directory);
-		emit showPanel(QStringLiteral("files"));
+		setStatusMessage(translateMessage(error));
+		return;
 	}
-	else
-	{
-		emit showPanel(QStringLiteral("queue"));
-	}
+	registerIcons(QStringList { pkg }, QStringList { QString::fromStdString(id) });
+	refreshQueueModel();
+	emit showPanel(QStringLiteral("queue"));
 }
 
 namespace {
@@ -1142,6 +1148,26 @@ void AppController::retryTask(const QString &id)
 void AppController::removeTask(const QString &id)
 {
 	if(queue_ && queue_->remove(id.toStdString()))
+		refreshQueueModel();
+}
+
+void AppController::removeFinishedTasksOf(const QString &localPath)
+{
+	if(!queue_ || localPath.isEmpty())
+		return;
+	const QString key = transferKey(localPath);
+	bool removed = false;
+	std::vector<QueueTask> all = queue_->tasks();
+	const std::vector<QueueTask> done = queue_->history();
+	all.insert(all.end(), done.begin(), done.end());
+	for(const QueueTask &task : all)
+	{
+		const bool finished = task.state == TaskState::Completed || task.state == TaskState::Error
+			|| task.state == TaskState::Cancelled;
+		if(finished && transferKey(QString::fromStdString(task.localPath)) == key)
+			removed = queue_->remove(task.id) || removed;
+	}
+	if(removed)
 		refreshQueueModel();
 }
 

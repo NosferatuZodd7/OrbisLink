@@ -6,6 +6,12 @@ import QtQuick.Layouts
 Item {
     id: root
 
+    // How many cards the queue shows (a converted game is one card).
+    readonly property int cardCount: {
+        app.queue.totalText  // re-read on every queue change
+        return games.conversions.length + app.queue.shownCount(list.followed)
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -75,7 +81,7 @@ Item {
             delegate: Item {
                 id: taskSlot
                 width: list.width
-                readonly property bool followed: list.followed[model.localKey] === true
+                readonly property bool followed: list.followed[model.localKey] === true || model.superseded
                 visible: !followed
                 height: followed ? 0 : taskCard.implicitHeight + 10
 
@@ -304,7 +310,8 @@ Item {
                     font.pixelSize: 12
                 }
                 Text {
-                    text: qsTr("Left: %1").arg(app.queue.remainingText)
+                    text: app.queue.totalText === "—" ? qsTr("Left: %1").arg(app.queue.remainingText)
+                          : qsTr("Left: %1 of %2").arg(app.queue.remainingText).arg(app.queue.totalText)
                     color: Theme.textSecondary
                     font.pixelSize: 12
                 }
@@ -354,10 +361,14 @@ Item {
             }
 
             Repeater {
-                model: games.conversions
+                // By position, not by value: every progress tick hands over a
+                // new list, and a value model would make each card (and its
+                // bars) again from zero — the bars would flash.
+                model: games.conversions.length
                 delegate: Rectangle {
                     id: conv
-                    required property var modelData
+                    required property int index
+                    readonly property var modelData: games.conversions[index] || ({})
                     readonly property var j: root.journey(modelData)
                     Layout.fillWidth: true
                     radius: 16
@@ -443,9 +454,10 @@ Item {
                             Layout.fillWidth: true
                             spacing: 6
                             Repeater {
-                                model: conv.j.steps
+                                model: conv.j.steps.length
                                 ColumnLayout {
-                                    required property var modelData
+                                    required property int index
+                                    readonly property var modelData: conv.j.steps[index]
                                     Layout.fillWidth: true
                                     Layout.preferredWidth: 1
                                     spacing: 4
@@ -464,7 +476,10 @@ Item {
                                     }
                                     Text {
                                         Layout.fillWidth: true
-                                        text: modelData.label
+                                        // The step under way says how far it is.
+                                        text: modelData.current && modelData.percent > 0 && modelData.percent < 100
+                                              ? modelData.label + "  ·  " + Math.floor(modelData.percent) + "%"
+                                              : modelData.label
                                         color: modelData.current ? Theme.text : Theme.textMuted
                                         font.pixelSize: 10
                                         font.weight: modelData.current ? Font.DemiBold : Font.Normal
@@ -507,7 +522,7 @@ Item {
         case "converted": text = c.install ? qsTr("Converted — sending next") : qsTr("Package ready"); break
         case "sending":
             text = t.waiting ? qsTr("Waiting to send") : qsTr("Sending to the console… %1%").arg(pct(t.percent)); break
-        case "sent": text = t.installNext ? qsTr("Sent — installing next") : qsTr("On the console"); break
+        case "sent": text = qsTr("On the console"); break
         case "installing":
             text = t.waiting ? qsTr("Waiting to install") : qsTr("Installing… %1%").arg(pct(t.percent)); break
         case "installed": text = qsTr("Installed"); break
@@ -540,7 +555,7 @@ Item {
         }
         var finished = stage === "installed" || stage === "error" || stage === "cancelled"
                      || (stage === "converted" && !c.install)
-                     || (stage === "sent" && !t.installNext)
+                     || stage === "sent"
         return { stage: stage === "converted" ? "converted" : stage,
                  percent: stage === "converting" ? (c.percent || 0) : (t.percent || 0),
                  waiting: stage === "waiting" || t.waiting === true,

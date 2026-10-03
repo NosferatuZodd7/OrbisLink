@@ -133,9 +133,6 @@ private:
 	QVariantMap progress_;
 	// The package each disc became (kept after the conversion rows go).
 	QMap<QString, QString> packageOf_;
-	// Packages on their way over FTP that get installed once they land
-	// (the flag: their upload was seen under way).
-	QMap<QString, bool> installAfterSend_;
 	mutable std::mutex mutex_;
 	std::deque<std::shared_ptr<Job>> jobs_;
 	std::condition_variable wakeup_;
