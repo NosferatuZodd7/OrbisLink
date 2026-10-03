@@ -63,6 +63,9 @@ struct SaveInfo
 	std::string gameTitle;
 	std::string saveTitle;
 	std::string detail;  // what the game wrote about it: chapter, level…
+	// The PSN account it belongs to: param.sfo's ACCOUNT_ID, its 8 bytes in
+	// hex as stored (little-endian, like the Account ID of Remote Play).
+	std::string accountId;
 	bool onConsole = false;
 	bool inVault = false;
 	std::vector<SaveFile> consoleFiles;

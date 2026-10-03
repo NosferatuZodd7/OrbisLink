@@ -6,11 +6,13 @@
 #include "orbislink/ftp/ftp_client.h"
 #include "orbislink/qt/app_controller.h"
 
+#include <QByteArray>
 #include <QDesktopServices>
 #include <QDir>
 #include <QMetaObject>
 #include <QStandardPaths>
 
+#include <algorithm>
 #include <map>
 #include <set>
 
@@ -67,6 +69,31 @@ QString syncName(SaveSync sync)
 		case SaveSync::Changed: return QStringLiteral("changed");
 		case SaveSync::ConsoleOnly: return QStringLiteral("console");
 		case SaveSync::VaultOnly: return QStringLiteral("vault");
+	}
+	return QString();
+}
+
+// The save's account in base64, the form the app keeps Account IDs in, and
+// the name it has in the app if it is one of them (either byte order).
+QString psidOf(const std::string &hex)
+{
+	if(hex.size() != 16)
+		return QString();
+	return QString::fromLatin1(QByteArray::fromHex(QByteArray::fromStdString(hex)).toBase64());
+}
+
+QString psidName(const QString &psid, const Settings &settings)
+{
+	if(psid.isEmpty())
+		return QString();
+	QByteArray reversed = QByteArray::fromBase64(psid.toLatin1());
+	std::reverse(reversed.begin(), reversed.end());
+	const QString other = QString::fromLatin1(reversed.toBase64());
+	for(const SavedAccount &account : settings.accounts)
+	{
+		const QString known = QString::fromStdString(account.accountId);
+		if(known == psid || known == other)
+			return QString::fromStdString(account.label);
 	}
 	return QString();
 }
@@ -155,6 +182,9 @@ void SavesController::publish(const std::vector<SaveInfo> &list, SaveVault &vaul
 		item[QStringLiteral("saveTitle")] = QString::fromStdString(
 			save.saveTitle.empty() ? save.dir : save.saveTitle);
 		item[QStringLiteral("detail")] = QString::fromStdString(save.detail);
+		const QString psid = psidOf(save.accountId);
+		item[QStringLiteral("psid")] = psid;
+		item[QStringLiteral("psidName")] = psidName(psid, app_->settings());
 		item[QStringLiteral("sync")] = syncName(save.sync());
 		item[QStringLiteral("onConsole")] = save.onConsole;
 		item[QStringLiteral("inVault")] = save.inVault;

@@ -26,7 +26,9 @@ CONTENT_TYPE_AC = 0x1B
 FLAG_FIRST_PATCH = 0x00100000
 
 
-def build_sfo(entries: dict[str, str]) -> bytes:
+def build_sfo(entries: dict[str, "str | bytes"]) -> bytes:
+    """Text values are stored as NUL-terminated UTF-8; bytes values as they
+    are (the "special" format of binary entries such as ACCOUNT_ID)."""
     keys = sorted(entries)
     header_size = 0x14
     index_size = len(keys) * 0x10
@@ -34,15 +36,17 @@ def build_sfo(entries: dict[str, str]) -> bytes:
     key_table = bytearray()
     value_table = bytearray()
     index = bytearray()
-    key_offsets, value_offsets, value_sizes = [], [], []
+    key_offsets, value_offsets, value_sizes, formats = [], [], [], []
 
     for key in keys:
         key_offsets.append(len(key_table))
         key_table += key.encode("utf-8") + b"\0"
-        value = entries[key].encode("utf-8") + b"\0"
+        raw = entries[key]
+        value = raw if isinstance(raw, bytes) else raw.encode("utf-8") + b"\0"
         value_offsets.append(len(value_table))
         value_table += value
         value_sizes.append(len(value))
+        formats.append(0x0004 if isinstance(raw, bytes) else 0x0204)
     while len(key_table) % 4:
         key_table += b"\0"
 
@@ -50,7 +54,7 @@ def build_sfo(entries: dict[str, str]) -> bytes:
     value_table_offset = key_table_offset + len(key_table)
 
     for i, _ in enumerate(keys):
-        index += struct.pack("<HHIII", key_offsets[i], 0x0204, value_sizes[i],
+        index += struct.pack("<HHIII", key_offsets[i], formats[i], value_sizes[i],
                              value_sizes[i], value_offsets[i])
 
     header = struct.pack("<4sIIII", b"\x00PSF", 0x00000101, key_table_offset,

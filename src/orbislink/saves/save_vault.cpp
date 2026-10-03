@@ -87,6 +87,22 @@ void readSfo(const std::string &path, SaveInfo &save)
 	const std::string detail = sfo.stringValue("DETAIL");
 	if(!detail.empty())
 		save.detail = detail;
+	if(const SfoEntry *account = sfo.find("ACCOUNT_ID"))
+	{
+		if(account->value.size() >= 8)
+		{
+			static const char *digits = "0123456789abcdef";
+			std::string hex;
+			for(size_t i = 0; i < 8; ++i)
+			{
+				hex += digits[account->value[i] >> 4];
+				hex += digits[account->value[i] & 0x0F];
+			}
+			// All zeros: a save made offline, with no account.
+			if(hex != std::string(16, '0'))
+				save.accountId = hex;
+		}
+	}
 }
 
 Json filesToJson(const std::vector<SaveFile> &files)
@@ -243,6 +259,7 @@ void SaveVault::readVault(std::map<std::string, SaveInfo> &out) const
 				save.gameTitle = info["game_title"].toString();
 				save.saveTitle = info["save_title"].toString();
 				save.detail = info["detail"].toString();
+				save.accountId = info["account_id"].toString();
 				save.backedUpAt = info["backed_up_at"].toString();
 				for(const Json &item : info["files"].items())
 				{
@@ -416,6 +433,7 @@ bool SaveVault::backup(SaveRemote &remote, SaveInfo &save, std::string *error, c
 	info.set("game_title", Json::fromString(save.gameTitle));
 	info.set("save_title", Json::fromString(save.saveTitle));
 	info.set("detail", Json::fromString(save.detail));
+	info.set("account_id", Json::fromString(save.accountId));
 	info.set("backed_up_at", Json::fromString(save.backedUpAt));
 	info.set("files", filesToJson(save.consoleFiles));
 	{

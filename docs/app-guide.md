@@ -237,11 +237,15 @@ level, percentage…), its size and where it stands:
 |---|---|
 | **Back up everything** | Backs up every save that is not backed up or changed, in one click. |
 | **Put back what's missing** | Puts back on the console every save only the vault has. |
+| Accounts | One chip per PSN account the saves belong to (read from each save): its name when it is one of the Account IDs kept in the app (Settings → Account IDs), else its PSID. Each save shows its account too. With one chosen, everything on the page — the counts, **Back up everything**, **Put back what's missing** — is that account's. |
 | Filters | All · Not backed up · Changed · Missing on the console. |
 | Click on a save · **Select all** | Selects; the top strip then offers **Back up**, **Put back** and **Delete…** for the selection. |
 | **Delete…** | Asks where: the console, the vault, or both (and warns when a save exists in one place only). |
 | Folder chip · ⚙ | Opens the vault folder · changes it. |
 | ⟳ | Reads the console again. |
+
+PS1/PS2 games converted to packages keep their memory cards as ordinary
+PS4 saves, so they are in the vault like any other game.
 
 Each save keeps its last 5 backups. Saves are copied exactly as the console
 has them (no re-signing): they go back to the same console and account. The

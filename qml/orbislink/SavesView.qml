@@ -19,11 +19,39 @@ Item {
     // "all", "console" (not backed up), "changed", "vault" (missing on the console).
     property string filter: "all"
     property var selected: ({})
+    // The PSN account shown: "" every one, "-" saves with none, else a PSID.
+    property string account: ""
+    function inAccount(s) {
+        return account === "" || (account === "-" ? s.psid.length === 0 : s.psid === account)
+    }
+    // Each account found in the saves: its PSID, and its name if it is one
+    // of the Account IDs kept in the app (Settings → Account IDs).
+    readonly property var accounts: {
+        var seen = {}
+        var list = []
+        for (var i = 0; i < saves.saves.length; ++i) {
+            var s = saves.saves[i]
+            var id = s.psid.length > 0 ? s.psid : "-"
+            if (seen[id] === undefined) {
+                seen[id] = list.length
+                list.push({ psid: id, name: s.psidName, count: 0 })
+            }
+            list[seen[id]].count++
+        }
+        return list
+    }
+    function accountLabel(psid, name) {
+        if (psid === "-" || psid.length === 0)
+            return qsTr("No account")
+        return name.length > 0 ? name : psid
+    }
     readonly property int selectedCount: Object.keys(selected).length
 
     readonly property var counts: {
         var c = { all: 0, same: 0, changed: 0, console: 0, vault: 0 }
         for (var i = 0; i < saves.saves.length; ++i) {
+            if (!root.inAccount(saves.saves[i]))
+                continue
             c.all++
             c[saves.saves[i].sync]++
         }
@@ -36,7 +64,7 @@ Item {
         var list = []
         for (var i = 0; i < saves.saves.length; ++i) {
             var s = saves.saves[i]
-            if (filter === "all" || s.sync === filter)
+            if ((filter === "all" || s.sync === filter) && inAccount(s))
                 list.push(s)
         }
         list.sort(function (a, b) {
@@ -273,7 +301,7 @@ Item {
                         onClicked: {
                             var keys = []
                             for (var i = 0; i < saves.saves.length; ++i)
-                                if (saves.saves[i].sync === "vault")
+                                if (saves.saves[i].sync === "vault" && root.inAccount(saves.saves[i]))
                                     keys.push(saves.saves[i].key)
                             saves.restore(keys)
                         }
@@ -284,7 +312,52 @@ Item {
                         iconName: "download"
                         primary: true
                         enabled: root.online && !saves.busy && root.pending > 0
-                        onClicked: saves.backup([])
+                        // Everything, or everything of the account shown.
+                        onClicked: {
+                            if (root.account === "") {
+                                saves.backup([])
+                                return
+                            }
+                            var keys = []
+                            for (var i = 0; i < saves.saves.length; ++i) {
+                                var s = saves.saves[i]
+                                if (s.onConsole && s.sync !== "same" && root.inAccount(s))
+                                    keys.push(s.key)
+                            }
+                            saves.backup(keys)
+                        }
+                    }
+                }
+            }
+
+            // ── whose saves: one chip per PSN account found
+            Flow {
+                Layout.fillWidth: true
+                visible: root.accounts.length > 1
+                         || (root.accounts.length === 1 && root.accounts[0].psid !== "-")
+                spacing: 6
+                StyledButton {
+                    chip: true
+                    iconName: "users"
+                    primary: root.account === ""
+                    text: qsTr("All accounts")
+                    onClicked: { root.account = ""; root.selected = ({}) }
+                }
+                Repeater {
+                    model: root.accounts
+                    StyledButton {
+                        required property var modelData
+                        chip: true
+                        iconName: "user"
+                        primary: root.account === modelData.psid
+                        text: root.accountLabel(modelData.psid, modelData.name) + "  " + modelData.count
+                        Layout.maximumWidth: 280
+                        ToolTip.visible: hovered && modelData.psid !== "-"
+                        ToolTip.text: modelData.name.length > 0
+                                      ? qsTr("%1 — PSID %2").arg(modelData.name).arg(modelData.psid)
+                                      : qsTr("PSID %1. Add it under Settings → Account IDs to see its name here.")
+                                            .arg(modelData.psid)
+                        onClicked: { root.account = modelData.psid; root.selected = ({}) }
                     }
                 }
             }
@@ -451,14 +524,37 @@ Item {
                                     font.pixelSize: 13
                                     font.weight: Font.Medium
                                 }
-                                Text {
+                                RowLayout {
                                     Layout.fillWidth: true
-                                    elide: Text.ElideRight
-                                    // What the game says about it (chapter, level…), then the size.
-                                    text: [row.modelData.detail, row.modelData.size]
-                                          .filter(function (t) { return t && t.length > 0 }).join("  ·  ")
-                                    color: Theme.textSecondary
-                                    font.pixelSize: 11
+                                    spacing: 6
+                                    // Whose it is: the name kept in the app, or the PSID.
+                                    Row {
+                                        visible: row.modelData.psid.length > 0
+                                        spacing: 4
+                                        Icon {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            name: "user"
+                                            size: 11
+                                            color: row.modelData.psidName.length > 0 ? Theme.accent : Theme.textMuted
+                                        }
+                                        Text {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: root.accountLabel(row.modelData.psid, row.modelData.psidName)
+                                            color: row.modelData.psidName.length > 0 ? Theme.accent : Theme.textMuted
+                                            font.pixelSize: 11
+                                            font.weight: Font.Medium
+                                        }
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        elide: Text.ElideRight
+                                        // What the game says about it (chapter, level…), then the size.
+                                        text: (row.modelData.psid.length > 0 ? "·  " : "")
+                                              + [row.modelData.detail, row.modelData.size]
+                                                .filter(function (t) { return t && t.length > 0 }).join("  ·  ")
+                                        color: Theme.textSecondary
+                                        font.pixelSize: 11
+                                    }
                                 }
                             }
                             // Where it stands.
