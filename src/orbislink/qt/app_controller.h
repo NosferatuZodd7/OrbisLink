@@ -309,6 +309,7 @@ public:
 	// Saves the keyboard-as-controller keys (action → key), without
 	// rebuilding the services.
 	void saveKeyBindings(const std::map<std::string, int> &bindings);
+	void savePadBindings(const std::map<std::string, std::string> &bindings);
 	Q_INVOKABLE void saveUpdateSettings(bool checkForUpdates, const QString &repository,
 		const QString &channel);
 

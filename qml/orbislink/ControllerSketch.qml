@@ -17,6 +17,14 @@ Item {
     // "cross", "circle", "square", "triangle", "l1", "l2", "r1", "r2",
     // "lstick", "rstick", "dpad", "options", "share", "touchpad", "ps" or "".
     property string highlight: ""
+    // Parts pressed right now (same names), lit while held.
+    property var lit: []
+    // In edit mode the buttons can be clicked: actionClicked gives the
+    // action id of the part ("cross", "dpad_up", "l1"…).
+    property bool clickable: false
+    signal actionClicked(string action)
+
+    function isLit(name) { return name.length > 0 && (highlight === name || lit.indexOf(name) >= 0) }
 
     readonly property color crossColor: "#7CB2E8"
     readonly property color circleColor: "#FF6B6B"
@@ -56,6 +64,7 @@ Item {
 
     function redraw() { bottom.requestPaint(); top.requestPaint() }
     onHighlightChanged: redraw()
+    onLitChanged: redraw()
     onWidthChanged: redraw()
     onHeightChanged: redraw()
     Connections {
@@ -94,10 +103,12 @@ Item {
             ctx.lineCap = "round"
 
             // The lit part first, underneath the strokes.
-            var litZone = controller.zones[controller.highlight]
-            if (litZone) {
-                controller.path(ctx, litZone)
-                ctx.fillStyle = Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.45)
+            for (var name in controller.zones) {
+                if (!controller.isLit(name))
+                    continue
+                controller.path(ctx, controller.zones[name])
+                ctx.fillStyle = Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b,
+                                        controller.lit.indexOf(name) >= 0 ? 0.7 : 0.45)
                 ctx.fill()
             }
 
@@ -203,8 +214,10 @@ Item {
             var ctx = getContext("2d")
             controller.prepareContext(ctx)
 
-            var zoneName = controller.zones[controller.highlight]
-            if (zoneName && zoneName.c && zoneName.c[2] < 100) {
+            for (var name in controller.zones) {
+                var zoneName = controller.zones[name]
+                if (!controller.isLit(name) || !zoneName.c || zoneName.c[2] >= 100)
+                    continue
                 ctx.beginPath()
                 ctx.arc(zoneName.c[0], zoneName.c[1] + controller.shoulderHeight, zoneName.c[2] + 16, 0,
                         Math.PI * 2)
@@ -224,7 +237,7 @@ Item {
             ctx.textBaseline = "middle"
             for (var i = 0; i < shoulders.length; ++i) {
                 var o = shoulders[i]
-                var lit = controller.highlight === o[0]
+                var lit = controller.isLit(o[0])
                 var span = o[0] === "l1" || o[0] === "r1" ? 240 : 180
                 ctx.beginPath()
                 ctx.roundedRect(o[2], o[3], span, 88, 44, 44)
@@ -239,6 +252,56 @@ Item {
                 ctx.fillStyle = lit ? "#FFFFFF" : neutral
                 ctx.fillText(o[1], o[2] + span / 2, o[3] + 46)
             }
+        }
+    }
+
+    // Which button is under a point of the drawing (item coordinates):
+    // the d-pad by arm, the sticks as L3/R3, L1/R1 on the shoulder strip.
+    // The triggers are axes and are not remapped.
+    function actionAt(px, py) {
+        if (scaleFactor <= 0)
+            return ""
+        var x = (px - originX) / scaleFactor
+        var y = (py - originY) / scaleFactor
+        if (y >= 100 && y <= 188) {
+            if (x >= 185 && x <= 425) return "l1"
+            if (x >= 1165 && x <= 1405) return "r1"
+        }
+        var iy = y - shoulderHeight
+        var arms = [["dpad_up", 264, 146, 70, 108], ["dpad_down", 264, 302, 70, 108],
+                    ["dpad_left", 167, 243, 108, 70], ["dpad_right", 323, 243, 108, 70]]
+        for (var a = 0; a < arms.length; ++a) {
+            var r = arms[a]
+            if (x >= r[1] && x <= r[1] + r[3] && iy >= r[2] && iy <= r[2] + r[4])
+                return r[0]
+        }
+        var names = { "triangle": "triangle", "circle": "circle", "cross": "cross", "square": "square",
+                      "ps": "ps", "lstick": "l3", "rstick": "r3", "touchpad": "touchpad",
+                      "share": "share", "options": "options" }
+        for (var name in names) {
+            var zone = zones[name]
+            if (zone.c) {
+                var dx = x - zone.c[0], dy = iy - zone.c[1]
+                if (dx * dx + dy * dy <= (zone.c[2] + 10) * (zone.c[2] + 10))
+                    return names[name]
+            } else if (x >= zone.r[0] && x <= zone.r[0] + zone.r[2]
+                       && iy >= zone.r[1] && iy <= zone.r[1] + zone.r[3]) {
+                return names[name]
+            }
+        }
+        return ""
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        enabled: controller.clickable
+        hoverEnabled: true
+        cursorShape: controller.clickable && controller.actionAt(mouseX, mouseY).length > 0
+                     ? Qt.PointingHandCursor : Qt.ArrowCursor
+        onClicked: function (mouse) {
+            var action = controller.actionAt(mouse.x, mouse.y)
+            if (action.length > 0)
+                controller.actionClicked(action)
         }
     }
 }

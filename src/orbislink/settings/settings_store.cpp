@@ -89,6 +89,10 @@ std::string Settings::toJson() const
 	for(const auto &pair : keyboardBindings)
 		keys.set(pair.first, Json::fromInt(pair.second));
 	root.set("keyboard_bindings", keys);
+	Json pad = Json::makeObject();
+	for(const auto &pair : padBindings)
+		pad.set(pair.first, Json::fromString(pair.second));
+	root.set("pad_bindings", pad);
 	root.set("theme", Json::fromString(theme));
 	root.set("language", Json::fromString(language));
 	root.set("debug_logging", Json::fromBool(debugLogging));
@@ -196,6 +200,12 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 			if(pair.second.isNumber())
 				settings.keyboardBindings[pair.first] = static_cast<int>(pair.second.toInt());
 		}
+	}
+	if(root["pad_bindings"].isObject())
+	{
+		for(const auto &pair : root["pad_bindings"].members())
+			if(pair.second.isString())
+				settings.padBindings[pair.first] = pair.second.toString();
 	}
 	settings.theme = root["theme"].toString(settings.theme);
 	settings.language = root["language"].toString(settings.language);

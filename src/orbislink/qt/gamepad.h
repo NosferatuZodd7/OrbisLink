@@ -7,6 +7,12 @@
 #include <QString>
 #include <QTimer>
 
+#include <map>
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
+
 namespace orbislink {
 
 // Physical controller (DualShock 4, DualSense, or any other SDL
@@ -37,6 +43,15 @@ public:
 	void rumble(quint8 left, quint8 right);
 	void setRumbleEnabled(bool enabled) { rumbleEnabled_ = enabled; }
 
+	// Which PlayStation button each physical button presses. Physical
+	// buttons go by SDL's names ("a", "b", "dpup", "leftshoulder"…), the
+	// buttons they press by the key map's action ids ("cross", "l1"…).
+	// The triggers are axes and stay L2/R2.
+	// (See PadMap.) Physical buttons not given keep their default.
+	using ButtonMap = std::map<std::string, std::string>;
+	void setButtonMap(const ButtonMap &overrides);
+	ButtonMap buttonMap() const { return map_; }
+
 signals:
 	// Emitted only when something changes.
 	void stateChanged(const StreamSession::ControllerState &state);
@@ -45,6 +60,9 @@ signals:
 	// (0 to 1 both ways). PS2 games read it: a click on the left half is
 	// Select, on the right half Start.
 	void touchChanged(int finger, bool down, double x, double y);
+	// A physical button went down (its SDL name), whatever it is mapped to:
+	// the key map window learns a new mapping from it.
+	void buttonDown(const QString &physical);
 
 private:
 	void poll();
@@ -56,6 +74,8 @@ private:
 	bool haveLast_ = false;
 	bool initialised_ = false;
 	bool rumbleEnabled_ = true;
+	ButtonMap map_;
+	std::set<std::string> down_;
 };
 
 } // namespace orbislink

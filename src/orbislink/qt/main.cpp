@@ -266,6 +266,10 @@ int main(int argc, char **argv)
 		[&controller](const std::map<std::string, int> &bindings) {
 			controller->saveKeyBindings(bindings);
 		});
+	QObject::connect(stream.get(), &StreamController::padBindingsEdited, controller.get(),
+		[&controller](const std::map<std::string, std::string> &bindings) {
+			controller->savePadBindings(bindings);
+		});
 	// The "Remote Play" indicator in the top bar shows what the console
 	// answered to discovery, instead of staying grey forever.
 	QObject::connect(stream.get(), &StreamController::consoleChanged, controller.get(),

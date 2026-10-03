@@ -8,6 +8,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace orbislink {
@@ -60,6 +61,22 @@ private:
 	Bindings bindings_;
 	QHash<int, std::string> byKey_;
 	QSet<int> pressed_;
+};
+
+// Physical controller → PS4 controller. Physical buttons go by SDL's
+// names ("a", "b", "dpup", "leftshoulder"…), what they press by the key
+// map's action ids ("cross", "l1"…). The triggers are axes and stay L2/R2.
+struct PadMap
+{
+	using Map = std::map<std::string, std::string>;
+	static const std::vector<std::pair<std::string, std::string>> &defaults();
+	// Every physical button; those not in `overrides` keep their default.
+	static Map effective(const Map &overrides);
+	// `map` with `action` moved to `physical`; whatever `physical` did goes
+	// to the button that had `action`, so the two swap.
+	static Map remapped(Map map, const std::string &action, const std::string &physical);
+	// Only what differs from the defaults (what the settings keep).
+	static Map changes(const Map &map);
 };
 
 } // namespace orbislink
