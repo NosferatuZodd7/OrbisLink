@@ -386,14 +386,15 @@ Dialog {
                         ? qsTr("The console has no FTP right now (it needs a jailbreak: GoldHEN or "
                                + "etaHEN). Convert only, and install the package later.")
                         : dialog.reusing
-                        ? qsTr("Send and install: the package already in the folder goes to the console "
-                               + "over FTP and is installed, without converting the disc again.")
+                        ? qsTr("Send and install: the package already in the folder goes to /data/OrbisLinkFPKG "
+                               + "on the console and is installed, without converting the disc again; the "
+                               + "copy there is deleted once installed.")
                         : dialog.installerUp
-                        ? qsTr("Convert and install: the package is made here, sent to the console over "
-                               + "FTP and installed. A console without a jailbreak cannot install: convert "
-                               + "only, and the package stays in the folder above.")
-                        : qsTr("Convert and install: the package is made here, sent over FTP and then "
-                               + "installed — open Remote Package Installer on the console for that last "
+                        ? qsTr("Convert and install: the package is made here, sent to /data/OrbisLinkFPKG "
+                               + "on the console and installed; the copy there is deleted once installed. "
+                               + "Your package stays in the folder above.")
+                        : qsTr("Convert and install: the package is made here, sent to /data/OrbisLinkFPKG "
+                               + "and then installed (the copy there is deleted afterwards) — open Remote Package Installer on the console for that last "
                                + "step (it waits in the queue until then)."))
                 }
             }

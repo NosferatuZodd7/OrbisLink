@@ -5,6 +5,7 @@
 #include "orbislink/qt/translate_message.h"
 
 #include <QDir>
+#include <QSet>
 
 namespace orbislink {
 
@@ -33,6 +34,7 @@ QHash<int, QByteArray> QueueModel::roleNames() const
 		{ IconRole, "iconSource" },
 		{ ActiveRole, "active" },
 		{ LocalKeyRole, "localKey" },
+		{ SupersededRole, "superseded" },
 	};
 }
 
@@ -57,6 +59,7 @@ QVariant QueueModel::data(const QModelIndex &index, int role) const
 		case ModeRole: return row.mode;
 		case ActiveRole: return row.active;
 		case LocalKeyRole: return row.localKey;
+		case SupersededRole: return row.superseded;
 		case IconRole: return icons_.value(row.id);
 		default: return {};
 	}
@@ -80,6 +83,27 @@ QString QueueModel::remainingText() const
 	if(remaining <= 0)
 		return QStringLiteral("—");
 	return QString::fromStdString(humanBytes(remaining));
+}
+
+QString QueueModel::totalText() const
+{
+	qint64 total = 0;
+	for(const Row &row : rows_)
+		if(row.state != QLatin1String("completed") && row.state != QLatin1String("error")
+			&& row.state != QLatin1String("cancelled"))
+			total += row.totalBytes;
+	if(total <= 0)
+		return QStringLiteral("—");
+	return QString::fromStdString(humanBytes(total));
+}
+
+int QueueModel::shownCount(const QVariantMap &followed) const
+{
+	int shown = 0;
+	for(const Row &row : rows_)
+		if(!row.superseded && !followed.value(row.localKey).toBool())
+			++shown;
+	return shown;
 }
 
 void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
@@ -111,8 +135,22 @@ void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
 			|| task.state == TaskState::Validating;
 		row.bytesPerSecond = row.active ? task.bytesPerSecond : 0.0;
 		row.remainingBytes = task.totalBytes > task.doneBytes ? task.totalBytes - task.doneBytes : 0;
+		row.totalBytes = task.totalBytes;
 		row.localKey = fileKey(QString::fromStdString(task.localPath));
 		rows.push_back(row);
+	}
+	// A package sent over FTP and then installed: the install's card tells
+	// the whole story, the upload's would be a second card for the same game.
+	QSet<QString> installed;
+	for(size_t i = 0; i < tasks.size(); ++i)
+		if(tasks[i].mode == TransferMode::DirectInstall)
+			installed.insert(rows[static_cast<int>(i)].localKey);
+	for(size_t i = 0; i < tasks.size(); ++i)
+	{
+		Row &row = rows[static_cast<int>(i)];
+		row.superseded = tasks[i].mode != TransferMode::DirectInstall
+			&& tasks[i].state == TaskState::Completed && !row.localKey.isEmpty()
+			&& installed.contains(row.localKey);
 	}
 
 	// The same tasks in the same order (each progress tick): only the rows

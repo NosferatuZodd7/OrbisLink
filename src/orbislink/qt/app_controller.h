@@ -171,6 +171,12 @@ public:
 	Q_INVOKABLE void cancelTask(const QString &id);
 	Q_INVOKABLE void retryTask(const QString &id);
 	Q_INVOKABLE void removeTask(const QString &id);
+	// Drops the finished tasks (sent, installed, failed, cancelled) of one
+	// file: a conversion card that goes away takes its queue tasks along.
+	void removeFinishedTasksOf(const QString &localPath);
+	// A converted game: over FTP into `directory`, installed once there,
+	// and the copy on the console deleted after the install.
+	void sendAndInstall(const QString &pkg, const QString &directory);
 	Q_INVOKABLE void moveTaskUp(const QString &id);
 	Q_INVOKABLE void moveTaskDown(const QString &id);
 	Q_INVOKABLE void pauseQueue();

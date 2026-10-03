@@ -309,8 +309,8 @@ ApplicationWindow {
                             }
 
                             StyledTab {
-                                text: app.queue.count > 0 ? qsTr("Queue (%1)").arg(app.queue.count)
-                                                          : qsTr("Queue")
+                                text: transferPanel.cardCount > 0 ? qsTr("Queue (%1)").arg(transferPanel.cardCount)
+                                                                  : qsTr("Queue")
                             }
                             StyledTab { text: qsTr("Files (FTP)") }
                         }
@@ -320,7 +320,7 @@ ApplicationWindow {
                             Layout.fillHeight: true
                             currentIndex: window.ftpAbsent ? 0 : tabs.currentIndex
 
-                            TransferPanel { }
+                            TransferPanel { id: transferPanel }
                             FtpBrowser { }
                         }
                     }
