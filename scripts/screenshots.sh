@@ -48,9 +48,9 @@ python3 "$REPO/tools/mock-console/make_test_pkg.py" "$CONSOLE/data/pkg/Retro-Lau
 	--padding 2400000 >/dev/null
 echo "config" > "$CONSOLE/data/GoldHEN/config.ini"
 
-echo "==> demo discs and a stand-in emulator"
+echo "==> demo discs and stand-ins for the downloaded emulator files"
 GAMES="$WORK/games"
-mkdir -p "$GAMES/PS2" "$GAMES/PS1" "$WORK/emus/Tools/PS4/emus/Jak v2"
+mkdir -p "$GAMES/PS2" "$GAMES/PS1" "$WORK/classics/emus/Jak v2"
 DISC="$REPO/tools/mock-console/make_test_disc.py"
 python3 "$DISC" "$GAMES/PS2/Orbis Racing (USA).iso" --ps2 --serial SLUS_209.46 --size-mb 6
 python3 "$DISC" "$GAMES/PS2/Shadow Kingdom II (Europe).iso" --ps2 --serial SCES_524.12 --size-mb 5
@@ -59,8 +59,11 @@ python3 "$DISC" "$GAMES/PS1/Pocket Monsters Arena (USA).bin" --ps1 --serial SLUS
 printf 'FILE "Pocket Monsters Arena (USA).bin" BINARY\n  TRACK 01 MODE2/2352\n    INDEX 01 00:00:00\n' \
 	> "$GAMES/PS1/Pocket Monsters Arena (USA).cue"
 python3 "$DISC" "$GAMES/PS1/Castle Night (Europe) (Disc 1).bin" --ps1 --serial SLES_005.24 --size-mb 2
-head -c 4096 /dev/urandom > "$WORK/emus/Tools/PS4/emus/Jak v2/eboot.bin"
-head -c 4096 /dev/urandom > "$WORK/emus/Tools/PS4/emus/Jak v2/ps2-emu-compiler.self"
+head -c 4096 /dev/urandom > "$WORK/classics/emus/Jak v2/eboot.bin"
+head -c 4096 /dev/urandom > "$WORK/classics/emus/Jak v2/ps2-emu-compiler.self"
+# The app would download the real ones (as easy-ps2-fpkg does); this
+# points it at the stand-ins instead.
+export ORBISLINK_CLASSICS_ASSETS="$WORK/classics"
 
 echo "==> Xvfb on $DISPLAY_NUM"
 Xvfb "$DISPLAY_NUM" -screen 0 1400x900x24 >/dev/null 2>&1 &
@@ -80,7 +83,7 @@ cat > "$CONFIG/orbislink/settings.json" <<JSON
  "restrict_to_console_ip":true,"check_already_installed":false,
  "ftp_upload_directory":"/data/pkg/","default_mode":"direct","debug_logging":false,
  "first_run_done":true,
- "games_folder":"$GAMES","emulator_folder":"$WORK/emus","convert_output_folder":"$WORK/packages",
+ "games_folder":"$GAMES","convert_output_folder":"$WORK/packages",
  "consoles":[{"name":"Living room PS4","address":"127.0.0.1"},{"name":"Bedroom PS5","address":"192.0.2.10"}],
  "stream_account_id":"782riWdFIwE="}
 JSON

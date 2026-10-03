@@ -26,23 +26,10 @@ Dialog {
                 return false
         return items.length > 0
     }
-    readonly property bool needsPs2: {
-        for (var i = 0; i < items.length; ++i)
-            if (items[i].platform === "ps2" && !items[i].hasEmulator)
-                return true
-        return false
-    }
-    readonly property bool needsPs1: {
-        for (var i = 0; i < items.length; ++i)
-            if (items[i].platform === "ps1" && !items[i].hasEmulator)
-                return true
-        return false
-    }
     readonly property bool installerUp: app.installerState === "available"
     readonly property bool ftpUp: app.canUseFtp
     readonly property bool hasOutput: games.outputFolder.length > 0
 
-    signal chooseEmulator()
     // Something was started with the games on screen.
     signal started()
 
@@ -293,7 +280,7 @@ Dialog {
             }
         }
 
-        // ── what is missing, or worth knowing
+        // ── a disc whose serial could not be read
         Rectangle {
             visible: !dialog.allConvertible
             Layout.fillWidth: true
@@ -318,21 +305,8 @@ Dialog {
                     wrapMode: Text.WordWrap
                     color: Theme.text
                     font.pixelSize: 12
-                    text: (dialog.needsPs2 && dialog.needsPs1
-                           ? qsTr("The PS1 and PS2 Classics files are missing.")
-                           : dialog.needsPs2 ? qsTr("The PS2 Classics files are missing.")
-                           : dialog.needsPs1 ? qsTr("The PS1 Classics files are missing.")
-                           : qsTr("The serial of this disc could not be read."))
-                          + " " + qsTr("The PS4 only runs a PS1/PS2 disc packed together with Sony's "
-                                       + "Classics files, as the store's versions are. They are not "
-                                       + "included: choose the folder with your copy. The disc file can "
-                                       + "still be sent as it is.")
-                }
-                StyledButton {
-                    visible: dialog.needsPs1 || dialog.needsPs2
-                    text: qsTr("Choose…")
-                    chip: true
-                    onClicked: { dialog.close(); dialog.chooseEmulator() }
+                    text: qsTr("The serial of this disc could not be read, so it cannot be converted. "
+                               + "The disc file can still be sent as it is.")
                 }
             }
         }
@@ -358,7 +332,9 @@ Dialog {
                     wrapMode: Text.WordWrap
                     color: Theme.textSecondary
                     font.pixelSize: 11
-                    text: !dialog.ftpUp
+                    text: (games.assetsState === "ready" || dialog.reusing ? ""
+                           : qsTr("The first conversion also downloads the emulator files (about 109 MB, "
+                                  + "only once). ")) + (!dialog.ftpUp
                         ? qsTr("The console has no FTP right now (it needs a jailbreak: GoldHEN or "
                                + "etaHEN). Convert only, and install the package later.")
                         : dialog.reusing
@@ -370,7 +346,7 @@ Dialog {
                                + "only, and the package stays in the folder above.")
                         : qsTr("Convert and install: the package is made here, sent over FTP and then "
                                + "installed — open Remote Package Installer on the console for that last "
-                               + "step (it waits in the queue until then).")
+                               + "step (it waits in the queue until then)."))
                 }
             }
         }

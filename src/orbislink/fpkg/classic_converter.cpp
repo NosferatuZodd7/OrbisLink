@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "orbislink/fpkg/classic_converter.h"
 
-#include "orbislink/fpkg/fself.h"
 #include "orbislink/fpkg/param_sfo.h"
 
 #include <algorithm>
@@ -9,7 +8,7 @@
 #include <ctime>
 #include <filesystem>
 #include <fstream>
-#include <iterator>
+#include <map>
 #include <sstream>
 
 namespace orbislink::fpkg {
@@ -83,59 +82,6 @@ std::vector<std::pair<std::string, std::string>> listFiles(const fs::path &dir)
 	return out;
 }
 
-constexpr uint64_t kLargestEmulatorFile = 256ull * 1024 * 1024;
-
-// Whether a file of the Classics folder (path inside it, lower case) goes
-// into the package. A dump of a game or a builder's work folder holds more
-// than the emulator: the donor's disc, earlier packages, notes, and the
-// files that tie it to its own licence, which the builder makes anew.
-bool isEmulatorFile(const std::string &low)
-{
-	static const char *const skippedDirs[] = {"image/", "docs/", "data/disc", "sce_sys/trophy/"};
-	for(const char *d : skippedDirs)
-		if(low.rfind(d, 0) == 0)
-			return false;
-	static const char *const madeAnew[] = {"keystone", "license.dat", "license.info", "playgo-chunk.dat",
-		"playgo-chunk.sha", "playgo-manifest.xml", "psreserved.dat", "pubtoolinfo.dat", "selfinfo.dat",
-		"imageinfo.dat", "target-deltainfo.dat", "origin-deltainfo.dat"};
-	for(const char *n : madeAnew)
-		if(low == std::string("sce_sys/") + n)
-			return false;
-	const std::string ext = fs::path(low).extension().string();
-	static const char *const skippedExtensions[] = {".pkg", ".gp4", ".iso", ".cue", ".img", ".mdf",
-		".mds", ".chd", ".zip", ".rar", ".7z", ".fself", ".elf", ".log"};
-	for(const char *e : skippedExtensions)
-		if(ext == e)
-			return false;
-	return true;
-}
-
-// Whether `path` is `dir` or below it (case aside, as on Windows).
-bool isInside(const fs::path &path, const fs::path &dir)
-{
-	auto key = [](const fs::path &p) {
-		std::string s = lower(p.lexically_normal().generic_u8string());
-		if(s.empty() || s.back() != '/')
-			s += '/';
-		return s;
-	};
-	return key(path).rfind(key(dir), 0) == 0;
-}
-
-bool looksLikeElf(const std::string &path)
-{
-	std::ifstream in(fs::u8path(path), std::ios::binary);
-	uint8_t head[0x40] = {};
-	in.read(reinterpret_cast<char *>(head), sizeof head);
-	return in && isPlainElf(head, sizeof head);
-}
-
-Bytes readAll(const std::string &path)
-{
-	std::ifstream in(fs::u8path(path), std::ios::binary);
-	return Bytes(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
-}
-
 std::string utcDate(int64_t now)
 {
 	const std::time_t t = static_cast<std::time_t>(now);
@@ -170,40 +116,30 @@ void addDisk(PkgRequest &request, const std::string &target, const std::string &
 
 EmulatorInfo findEmulators(const std::string &folder)
 {
+	// The layout of the downloaded files (see classics_assets.h):
+	// emus/<name>/eboot.bin, lua_include/, ps2ids.txt, ps1ids.txt.
 	EmulatorInfo info;
 	if(folder.empty())
 		return info;
 	const fs::path root = fs::u8path(folder);
-	std::vector<fs::path> dirs;
 	std::error_code ec;
-	if(fileExists(root / "eboot.bin"))
-		dirs.push_back(root);
-	for(fs::recursive_directory_iterator it(root, fs::directory_options::skip_permission_denied, ec), end;
-		!ec && it != end; it.increment(ec))
-	{
-		if(it.depth() > 4)
-		{
-			it.disable_recursion_pending();
-			continue;
-		}
-		if(it->is_directory(ec))
-		{
-			const std::string name = lower(it->path().filename().u8string());
-			if(name == "lua_include" && info.luaInclude.empty())
-				info.luaInclude = it->path().u8string();
-			if(fileExists(it->path() / "eboot.bin"))
-				dirs.push_back(it->path());
-		}
-		else if(lower(it->path().filename().u8string()) == "ps2ids.txt" && info.titleDatabase.empty())
-			info.titleDatabase = it->path().u8string();
-	}
+	if(fs::is_directory(root / "lua_include", ec))
+		info.luaInclude = (root / "lua_include").u8string();
+	if(fileExists(root / "ps2ids.txt"))
+		info.titleDatabase = (root / "ps2ids.txt").u8string();
+	if(fileExists(root / "ps1ids.txt"))
+		info.ps1TitleDatabase = (root / "ps1ids.txt").u8string();
+	std::vector<fs::path> dirs;
+	for(fs::directory_iterator it(root / "emus", ec), end; !ec && it != end; it.increment(ec))
+		if(it->is_directory(ec) && fileExists(it->path() / "eboot.bin"))
+			dirs.push_back(it->path());
 	std::sort(dirs.begin(), dirs.end());
 	for(const fs::path &d : dirs)
 	{
 		const std::string name = lower(d.filename().u8string());
 		if(fileExists(d / "ps2-emu-compiler.self"))
 		{
-			// "Jak v2" is the one most games are happy with.
+			// "Jak v2" is easy-ps2-fpkg's default: most games are happy with it.
 			if(info.ps2Dir.empty() || name == "jak v2")
 			{
 				info.ps2Dir = d.u8string();
@@ -220,18 +156,29 @@ std::string lookupTitle(const std::string &databasePath, const std::string &titl
 {
 	if(databasePath.empty() || titleId.empty())
 		return {};
+	// "SLUS20946;Title" in ps2ids.txt, "SLPS-00965;Title" in ps1ids.txt.
+	auto key = [](const std::string &id) {
+		std::string k;
+		for(char c : id)
+			if(c != '-' && c != '_' && c != '.')
+				k += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+		return k;
+	};
+	const std::string wanted = key(titleId);
 	std::ifstream in(fs::u8path(databasePath));
 	std::string line;
-	const std::string key = lower(titleId) + ";";
 	while(std::getline(in, line))
 	{
-		if(lower(line.substr(0, key.size())) == key)
-		{
-			std::string title = line.substr(key.size());
-			while(!title.empty() && (title.back() == '\r' || title.back() == ' '))
-				title.pop_back();
-			return title;
-		}
+		const size_t semicolon = line.find(';');
+		if(semicolon == std::string::npos || key(line.substr(0, semicolon)) != wanted)
+			continue;
+		std::string title = line.substr(semicolon + 1);
+		while(!title.empty() && (title.back() == '\r' || title.back() == ' '))
+			title.pop_back();
+		// Some names are quoted, for their commas: "Incredibles, The".
+		if(title.size() >= 2 && title.front() == '"' && title.back() == '"')
+			title = title.substr(1, title.size() - 2);
+		return title;
 	}
 	return {};
 }
@@ -277,11 +224,13 @@ bool prepareClassic(const DiscInfo &disc, const EmulatorInfo &emulators,
 		return fail("the disc's serial could not be read");
 	const std::string emuDir = ps2 ? emulators.ps2Dir : emulators.ps1Dir;
 	if(emuDir.empty())
-		return fail(ps2 ? "no PS2 emulator in the emulator folder" : "no PS1 emulator in the emulator folder");
+		return fail(ps2 ? "the PS2 emulator files are not there" : "the PS1 emulator files are not there");
 
+	// The name: the one given, else the emulator's title list, else the
+	// file's name.
 	std::string title = options.title;
-	if(title.empty() && ps2)
-		title = lookupTitle(emulators.titleDatabase, disc.titleId);
+	if(title.empty())
+		title = lookupTitle(ps2 ? emulators.titleDatabase : emulators.ps1TitleDatabase, disc.titleId);
 	if(title.empty())
 		title = disc.title;
 
@@ -293,102 +242,97 @@ bool prepareClassic(const DiscInfo &disc, const EmulatorInfo &emulators,
 	req.volumeTime = options.now;
 	req.creationDate = utcDate(options.now);
 
-	// The emulator, minus what is made for this game.
+	// PS2: easy-ps2-fpkg's recipe. The emulator folder is copied as it is,
+	// then the shared lua_include over it; its config gets the game's
+	// serial; its own param.sfo gets the game's IDs and name.
+	// PS1: PS Classics fPKG Builder's — the emulator, a config and a
+	// param.sfo written for the game.
 	const std::string configName = ps2 ? "config-emu-ps4.txt" : "config-title.txt";
+	std::map<std::string, PkgSource> files;
+	auto put = [&](const std::string &target, const std::string &path) {
+		PkgSource s;
+		s.targetPath = target;
+		s.sourcePath = path;
+		files[target] = std::move(s);
+	};
 	std::vector<std::string> config;
-	bool hasLua = false;
-	// Packages made into a folder inside the emulator's must not end up in
-	// the next one.
-	const fs::path outputDir = fs::u8path(options.outputDir);
-	const bool outputBelowEmulator = !options.outputDir.empty() && isInside(outputDir, fs::u8path(emuDir))
-		&& !isInside(fs::u8path(emuDir), outputDir);
+	Bytes templateSfo;
 	for(const auto &f : listFiles(fs::u8path(emuDir)))
 	{
-		const std::string rel = f.first;
-		const std::string low = lower(rel);
-		if(low == "sce_sys/param.sfo" || !isEmulatorFile(low))
-			continue;
-		std::error_code ec;
-		const uint64_t size = fs::file_size(fs::u8path(f.second), ec);
-		// Empty files are leftovers of a failed step; very large ones are
-		// discs or packages that do not belong to the emulator.
-		if(ec || size == 0 || size > kLargestEmulatorFile)
-			continue;
-		if(outputBelowEmulator && isInside(fs::u8path(f.second), outputDir))
-			continue;
-		if(fs::u8path(f.second).lexically_normal() == fs::u8path(disc.path).lexically_normal())
-			continue;
-		if(low == lower(configName))
+		if(f.first == configName)
 		{
 			if(ps2)
 				config = readLines(fs::u8path(f.second));
 			continue;
 		}
-		if(!options.icon.empty() && low == "sce_sys/icon0.png")
-			continue;
-		if(!options.background.empty() && (low == "sce_sys/pic0.png" || low == "sce_sys/pic1.png"))
-			continue;
-		// A disc that came with the emulator's donor game stays out.
-		if(low.rfind("image/", 0) == 0 || low.rfind("data/disc", 0) == 0)
-			continue;
-		if(low.rfind("lua_include/", 0) == 0)
-			hasLua = true;
-		// A dump holds the executables decrypted; the console wants them
-		// fake-signed.
-		if(looksLikeElf(f.second))
+		if(f.first == "sce_sys/param.sfo")
 		{
-			std::string why;
-			Bytes fself = makeFself(readAll(f.second), &why);
-			if(fself.empty())
-				return fail(rel + ": " + why);
-			addMemory(req, rel, std::move(fself));
+			std::ifstream in(fs::u8path(f.second), std::ios::binary);
+			templateSfo.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
 			continue;
 		}
-		addDisk(req, rel, f.second);
+		put(f.first, f.second);
 	}
-	if(ps2 && !hasLua && !emulators.luaInclude.empty())
+	if(ps2 && !emulators.luaInclude.empty())
 		for(const auto &f : listFiles(fs::u8path(emulators.luaInclude)))
-			if(isEmulatorFile("lua_include/" + lower(f.first)))
-				addDisk(req, "lua_include/" + f.first, f.second);
+			put("lua_include/" + f.first, f.second);
+	for(auto &f : files)
+		req.files.push_back(std::move(f.second));
 
 	if(ps2)
 	{
 		if(config.empty())
-			config = {"--path-vmc=\"/tmp/vmc\"", "--config-local-lua=\"\"", "--host-audio=1",
-				"--rom=\"PS20220WD20050620.crack\"", "--verbose-cdvd-reads=0",
-				"--host-display-mode=normal", "--gs-uprender=2x2", "--gs-upscale=none"};
+			config = {"--path-vmc=\"/tmp/vmc\"", "--host-audio=1", "--host-display-mode=full",
+				"--rom=\"PS20220WD20050620.crack\""};
 		setOrAdd(config, "--ps2-title-id=", disc.serial);
-		setOrAdd(config, "--max-disc-num=", "1");
+		if(std::none_of(config.begin(), config.end(),
+			   [](const std::string &l) { return l.rfind("--max-disc-num=", 0) == 0; }))
+			config.push_back("--max-disc-num=1");
 	}
 	else
-	{
-		config = {"--ps4-trophies=0", "--ps5-uds=0", "--trophies=0", "--image=\"data/disc1.bin\"",
-			"--scale=2"};
-	}
+		config = {"--ps4-trophies=0", "--ps5-uds=0", "--trophies=0", "--image=\"data/disc1.bin\""};
 	addMemory(req, configName, joinLines(config));
 
 	ParamSfo sfo;
-	sfo.setInteger("APP_TYPE", 1);
-	sfo.setString("APP_VER", "01.00", 8);
-	sfo.setInteger("ATTRIBUTE", 0);
-	sfo.setString("CATEGORY", "gd", 4);
-	sfo.setString("CONTENT_ID", contentId, 48);
-	sfo.setInteger("DOWNLOAD_DATA_SIZE", 0);
-	sfo.setString("FORMAT", "obs", 4);
-	sfo.setInteger("PARENTAL_LEVEL", 5);
 	if(ps2)
-		sfo.setInteger("REMOTE_PLAY_KEY_ASSIGN", 0);
-	sfo.setInteger("SYSTEM_VER", 0);
-	sfo.setString("TITLE", title, 128);
-	sfo.setString("TITLE_ID", disc.titleId, 12);
-	sfo.setString("VERSION", "01.00", 8);
+	{
+		std::string why;
+		if(templateSfo.empty() || !sfo.parse(templateSfo, &why))
+			return fail("the emulator has no usable sce_sys/param.sfo");
+		sfo.setString("CONTENT_ID", contentId, 48);
+		sfo.setString("TITLE", title, 128);
+		sfo.setString("TITLE_ID", disc.titleId, 12);
+	}
+	else
+	{
+		sfo.setInteger("APP_TYPE", 1);
+		sfo.setString("APP_VER", "01.00", 8);
+		sfo.setInteger("ATTRIBUTE", 0);
+		sfo.setString("CATEGORY", "gd", 4);
+		sfo.setString("CONTENT_ID", contentId, 48);
+		sfo.setInteger("DOWNLOAD_DATA_SIZE", 0);
+		sfo.setString("FORMAT", "obs", 4);
+		sfo.setInteger("PARENTAL_LEVEL", 5);
+		sfo.setInteger("SYSTEM_VER", 0);
+		sfo.setString("TITLE", title, 128);
+		sfo.setString("TITLE_ID", disc.titleId, 12);
+		sfo.setString("VERSION", "01.00", 8);
+	}
 	addMemory(req, "sce_sys/param.sfo", sfo.serialize());
+
+	// Art: the game's cover when there is one, else the emulator's own.
+	auto replace = [&](const std::string &target, const Bytes &data) {
+		req.files.erase(std::remove_if(req.files.begin(), req.files.end(),
+							[&](const PkgSource &s) { return s.targetPath == target; }),
+			req.files.end());
+		addMemory(req, target, data);
+	};
 	if(!options.icon.empty())
-		addMemory(req, "sce_sys/icon0.png", options.icon);
+		replace("sce_sys/icon0.png", options.icon);
 	if(!options.background.empty())
 	{
-		addMemory(req, "sce_sys/pic0.png", options.background);
-		addMemory(req, "sce_sys/pic1.png", options.background);
+		replace("sce_sys/pic1.png", options.background);
+		replace("sce_sys/pic0.png", options.background);
 	}
 
 	// The disc last: it is most of the package.

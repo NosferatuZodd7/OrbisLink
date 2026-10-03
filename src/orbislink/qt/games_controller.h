@@ -5,7 +5,10 @@
 //
 // Conversions run one at a time on a thread of their own and show up in the
 // queue panel while they happen; a package meant for installing then goes
-// into the ordinary install queue.
+// into the ordinary install queue. Like easy-ps2-fpkg, nothing has to be
+// provided: the emulator files are downloaded the first time they are needed
+// and kept (ORBISLINK_CLASSICS_ASSETS points at a folder that already has
+// them).
 #pragma once
 
 #include <QObject>
@@ -19,6 +22,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -32,11 +36,12 @@ class GamesController : public QObject
 	Q_OBJECT
 	Q_PROPERTY(bool available READ available CONSTANT)
 	Q_PROPERTY(QString gamesFolder READ gamesFolder NOTIFY foldersChanged)
-	Q_PROPERTY(QString emulatorFolder READ emulatorFolder NOTIFY foldersChanged)
 	Q_PROPERTY(QString outputFolder READ outputFolder NOTIFY foldersChanged)
-	Q_PROPERTY(bool ps1Emulator READ ps1Emulator NOTIFY foldersChanged)
-	Q_PROPERTY(bool ps2Emulator READ ps2Emulator NOTIFY foldersChanged)
-	Q_PROPERTY(QString ps2EmulatorName READ ps2EmulatorName NOTIFY foldersChanged)
+	// The emulator files: "missing" (downloaded with the first conversion),
+	// "downloading", "unpacking", "ready" or "error" (assetsMessage says why).
+	Q_PROPERTY(QString assetsState READ assetsState NOTIFY assetsChanged)
+	Q_PROPERTY(double assetsPercent READ assetsPercent NOTIFY assetsChanged)
+	Q_PROPERTY(QString assetsMessage READ assetsMessage NOTIFY assetsChanged)
 	Q_PROPERTY(bool scanning READ scanning NOTIFY scanChanged)
 	Q_PROPERTY(QString scanStatus READ scanStatus NOTIFY scanChanged)
 	Q_PROPERTY(QVariantList games READ games NOTIFY scanChanged)
@@ -54,11 +59,10 @@ public:
 
 	bool available() const;
 	QString gamesFolder() const;
-	QString emulatorFolder() const;
 	QString outputFolder() const;
-	bool ps1Emulator() const { return ps1Emulator_; }
-	bool ps2Emulator() const { return ps2Emulator_; }
-	QString ps2EmulatorName() const { return ps2EmulatorName_; }
+	QString assetsState() const { return assetsState_; }
+	double assetsPercent() const { return assetsPercent_; }
+	QString assetsMessage() const { return assetsMessage_; }
 	bool scanning() const { return scanning_; }
 	QString scanStatus() const { return scanStatus_; }
 	QVariantList games() const { return games_; }
@@ -68,9 +72,10 @@ public:
 
 	// Folders come as paths or file:// URLs (what FolderDialog gives).
 	Q_INVOKABLE void setGamesFolder(const QString &folder);
-	Q_INVOKABLE void setEmulatorFolder(const QString &folder);
 	Q_INVOKABLE void setOutputFolder(const QString &folder);
 	Q_INVOKABLE void rescan();
+	// Gets the emulator files now instead of with the first conversion.
+	Q_INVOKABLE void downloadAssets();
 
 	// `paths` are the games' "path" values. `install` sends each package to
 	// the console over FTP once it is built and then installs it; otherwise
@@ -97,11 +102,17 @@ signals:
 	void scanChanged();
 	void conversionsChanged();
 	void progressChanged();
+	void assetsChanged();
 
 private:
 	struct Job;
 	QString toLocalPath(const QString &folder) const;
-	void refreshEmulators();
+	QString assetsFolder() const;
+	// Downloads and unpacks the emulator files unless they are there; one
+	// at a time, from any thread. `progress` gets "download"/"unpack" and a
+	// percentage; returning false cancels.
+	bool ensureAssets(const std::function<bool(const QString &, double)> &progress, QString *error);
+	void setAssets(const QString &state, double percent, const QString &message = {});
 	QVariantMap gameByPath(const QString &path) const;
 	void workerLoop();
 	void runJob(const std::shared_ptr<Job> &job);
@@ -109,9 +120,10 @@ private:
 	void updateProgress();
 
 	AppController *app_;
-	bool ps1Emulator_ = false;
-	bool ps2Emulator_ = false;
-	QString ps2EmulatorName_;
+	QString assetsState_;
+	double assetsPercent_ = 0;
+	QString assetsMessage_;
+	std::mutex assetsMutex_;
 	bool scanning_ = false;
 	QString scanStatus_;
 	QVariantList games_;

@@ -97,13 +97,14 @@ find_package(OpenSSL QUIET)
 if(OpenSSL_FOUND)
 	add_library(orbislink_fpkg STATIC
 		src/orbislink/fpkg/classic_converter.cpp
+		src/orbislink/fpkg/classics_assets.cpp
 		src/orbislink/fpkg/disc_scanner.cpp
 		src/orbislink/fpkg/fpkg_crypto.cpp
 		src/orbislink/fpkg/fpkg_keys.cpp
-		src/orbislink/fpkg/fself.cpp
 		src/orbislink/fpkg/param_sfo.cpp
 		src/orbislink/fpkg/pfs_builder.cpp
 		src/orbislink/fpkg/pkg_builder.cpp
+		src/orbislink/fpkg/targz.cpp
 	)
 	target_include_directories(orbislink_fpkg PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 	target_link_libraries(orbislink_fpkg PUBLIC OpenSSL::Crypto Threads::Threads)

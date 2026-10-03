@@ -109,62 +109,74 @@ Item {
                     ToolTip.text: qsTr("Look again")
                     onClicked: games.rescan()
                 }
-                StyledToolButton {
-                    iconName: "cpu"
-                    active: games.ps1Emulator || games.ps2Emulator
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("PS1/PS2 Classics files: %1").arg(emulatorSummary.text)
-                    onClicked: emulatorFolderDialog.open()
-                }
             }
 
-            // ── the emulators: what was found, or why they are needed
+            // ── the emulator files: downloaded once, the first time they are
+            // needed (as easy-ps2-fpkg does), and nothing else to provide
             Rectangle {
+                id: assetsStrip
+                readonly property string state_: games.assetsState
+                readonly property bool busy: state_ === "downloading" || state_ === "unpacking"
+                readonly property color tone: state_ === "error" ? Theme.error : Theme.accent
                 Layout.fillWidth: true
-                visible: games.gamesFolder.length > 0 && !(games.ps1Emulator && games.ps2Emulator)
+                visible: games.gamesFolder.length > 0 && state_ !== "ready"
                 radius: 14
-                color: Theme.alpha(Theme.warn, 0.08)
+                color: Theme.alpha(tone, 0.08)
                 border.width: 1
-                border.color: Theme.alpha(Theme.warn, 0.30)
-                implicitHeight: emuRow.implicitHeight + 24
-                RowLayout {
-                    id: emuRow
+                border.color: Theme.alpha(tone, 0.30)
+                implicitHeight: assetsColumn.implicitHeight + 24
+                ColumnLayout {
+                    id: assetsColumn
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.leftMargin: 16
                     anchors.rightMargin: 14
-                    spacing: 12
-                    Icon { name: "info"; size: 18; color: Theme.warn; Layout.alignment: Qt.AlignTop }
-                    ColumnLayout {
+                    spacing: 8
+                    RowLayout {
                         Layout.fillWidth: true
-                        spacing: 3
-                        Text {
-                            id: emulatorSummary
-                            Layout.fillWidth: true
-                            text: (games.ps2Emulator ? qsTr("PS2 Classics files: %1").arg(games.ps2EmulatorName) : qsTr("PS2 Classics files: not found"))
-                                  + "  ·  " + (games.ps1Emulator ? qsTr("PS1 Classics files: found") : qsTr("PS1 Classics files: not found"))
-                            color: Theme.text
-                            font.pixelSize: 12
-                            font.weight: Font.DemiBold
+                        spacing: 12
+                        Icon {
+                            name: assetsStrip.state_ === "error" ? "warning" : assetsStrip.busy ? "loader" : "download"
+                            spinning: assetsStrip.busy
+                            size: 18
+                            color: assetsStrip.tone
+                            Layout.alignment: Qt.AlignTop
                         }
                         Text {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
-                            color: Theme.textSecondary
-                            font.pixelSize: 11
-                            text: qsTr("OrbisLink converts the disc into a PS4 package and sends it over FTP; "
-                                       + "it is not an emulator. But the PS4 only runs a PS1/PS2 game packed "
-                                       + "with Sony's Classics files (as the store's versions are), and those "
-                                       + "cannot be shipped: choose the folder with your copy (an \"emus\" "
-                                       + "folder like PS Classics fPKG Builder's works). Without them, the "
-                                       + "disc file can still be sent as it is.")
+                            color: Theme.text
+                            font.pixelSize: 12
+                            text: assetsStrip.state_ === "downloading"
+                                  ? qsTr("Downloading the PS1/PS2 emulator files… %1%").arg(Math.floor(games.assetsPercent))
+                                  : assetsStrip.state_ === "unpacking"
+                                  ? qsTr("Unpacking the emulator files… %1%").arg(Math.floor(games.assetsPercent))
+                                  : assetsStrip.state_ === "error"
+                                  ? qsTr("The emulator files could not be downloaded: %1").arg(games.assetsMessage)
+                                  : qsTr("Nothing else is needed: the first conversion downloads the PS1/PS2 "
+                                         + "emulator files once (about 109 MB), like easy-ps2-fpkg.")
+                        }
+                        StyledButton {
+                            visible: !assetsStrip.busy
+                            text: assetsStrip.state_ === "error" ? qsTr("Try again") : qsTr("Download now")
+                            chip: true
+                            onClicked: games.downloadAssets()
                         }
                     }
-                    StyledButton {
-                        text: qsTr("Classics files…")
-                        chip: true
-                        onClicked: emulatorFolderDialog.open()
+                    Rectangle {
+                        visible: assetsStrip.busy
+                        Layout.fillWidth: true
+                        height: 4
+                        radius: 2
+                        color: Theme.alpha(assetsStrip.tone, 0.18)
+                        Rectangle {
+                            width: parent.width * Math.max(0, Math.min(1, games.assetsPercent / 100))
+                            height: parent.height
+                            radius: parent.radius
+                            color: assetsStrip.tone
+                            Behavior on width { NumberAnimation { duration: 250 } }
+                        }
                     }
                 }
             }
@@ -327,7 +339,6 @@ Item {
 
     GameDialog {
         id: gameDialog
-        onChooseEmulator: emulatorFolderDialog.open()
         onStarted: root.selected = []
     }
 
@@ -336,11 +347,5 @@ Item {
         title: qsTr("Folder with your PS1/PS2 disc images")
         currentFolder: games.folderUrl(games.gamesFolder)
         onAccepted: games.setGamesFolder(selectedFolder)
-    }
-    FolderDialog {
-        id: emulatorFolderDialog
-        title: qsTr("Folder with the PS1/PS2 Classics files")
-        currentFolder: games.folderUrl(games.emulatorFolder)
-        onAccepted: games.setEmulatorFolder(selectedFolder)
     }
 }

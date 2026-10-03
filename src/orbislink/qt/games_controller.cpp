@@ -2,22 +2,22 @@
 #include "orbislink/qt/games_controller.h"
 
 #include "orbislink/common/log.h"
+#include "orbislink/net/http_client.h"
 #include "orbislink/qt/app_controller.h"
 
 #ifdef ORBISLINK_HAS_FPKG
 #include "orbislink/fpkg/classic_converter.h"
+#include "orbislink/fpkg/classics_assets.h"
 #include "orbislink/fpkg/disc_scanner.h"
 #endif
 
 #include <QBuffer>
-#include <QGuiApplication>
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
-#include <QFont>
 #include <QImage>
-#include <QLinearGradient>
 #include <QPainter>
 #include <QPointer>
 #include <QSet>
@@ -25,6 +25,7 @@
 #include <QUrl>
 
 #include <algorithm>
+#include <vector>
 
 namespace orbislink {
 
@@ -38,39 +39,99 @@ QString sizeText(quint64 bytes)
 }
 
 #ifdef ORBISLINK_HAS_FPKG
-// A plain cover for the PS4 menu, so a converted game does not show the
-// art of the game the emulator came from: the platform, large, and the name.
-fpkg::Bytes drawArt(const QString &title, const QString &platform, int width, int height)
+// easy-ps2-fpkg's "official cover": the front cover by serial, from the
+// xlenore/ps2-covers collection.
+const char *const kCoverUrl = "https://raw.githubusercontent.com/xlenore/ps2-covers/main/covers/default/%1.jpg";
+
+fpkg::Bytes png(const QImage &image)
 {
-	QImage image(width, height, QImage::Format_RGB888);
-	QPainter p(&image);
-	p.setRenderHint(QPainter::Antialiasing);
-	QLinearGradient g(0, 0, width, height);
-	const bool ps2 = platform == QLatin1String("ps2");
-	g.setColorAt(0, ps2 ? QColor(0x14, 0x23, 0x39) : QColor(0x2a, 0x2d, 0x34));
-	g.setColorAt(1, ps2 ? QColor(0x0b, 0x11, 0x1a) : QColor(0x14, 0x16, 0x1b));
-	p.fillRect(image.rect(), g);
-	const int unit = std::min(width, height);
-	QFont big = QGuiApplication::font();
-	big.setPixelSize(unit / 4);
-	big.setWeight(QFont::Black);
-	p.setFont(big);
-	p.setPen(ps2 ? QColor(0x38, 0x8a, 0xff) : QColor(0xc8, 0xcc, 0xd4));
-	const QRect top(0, height / 8, width, height / 2);
-	p.drawText(top, Qt::AlignHCenter | Qt::AlignVCenter, ps2 ? QStringLiteral("PS2") : QStringLiteral("PS1"));
-	QFont name = big;
-	name.setPixelSize(unit / 14);
-	name.setWeight(QFont::DemiBold);
-	p.setFont(name);
-	p.setPen(QColor(0xeb, 0xed, 0xf3));
-	const QRect bottom(width / 12, height / 2 + height / 12, width - width / 6, height / 3);
-	p.drawText(bottom, Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap, title);
-	p.end();
-	QByteArray png;
-	QBuffer buffer(&png);
+	QByteArray data;
+	QBuffer buffer(&data);
 	buffer.open(QIODevice::WriteOnly);
 	image.save(&buffer, "PNG");
-	return fpkg::Bytes(png.begin(), png.end());
+	return fpkg::Bytes(data.begin(), data.end());
+}
+
+// `passes` box blurs of the given radius, across and down: close to a
+// Gaussian blur.
+QImage boxBlur(QImage image, int radius, int passes)
+{
+	image = image.convertToFormat(QImage::Format_RGB32);
+	const int w = image.width(), h = image.height();
+	std::vector<QRgb> line(static_cast<size_t>(std::max(w, h)));
+	auto blurLine = [&](auto get, auto set, int n) {
+		for(int i = 0; i < n; ++i)
+			line[static_cast<size_t>(i)] = get(i);
+		int r = 0, g = 0, b = 0;
+		const int span = 2 * radius + 1;
+		auto at = [&](int i) { return line[static_cast<size_t>(std::clamp(i, 0, n - 1))]; };
+		for(int i = -radius; i <= radius; ++i)
+		{
+			r += qRed(at(i));
+			g += qGreen(at(i));
+			b += qBlue(at(i));
+		}
+		for(int i = 0; i < n; ++i)
+		{
+			set(i, qRgb(r / span, g / span, b / span));
+			const QRgb out = at(i - radius), in = at(i + radius + 1);
+			r += qRed(in) - qRed(out);
+			g += qGreen(in) - qGreen(out);
+			b += qBlue(in) - qBlue(out);
+		}
+	};
+	for(int pass = 0; pass < passes; ++pass)
+	{
+		for(int y = 0; y < h; ++y)
+		{
+			auto *row = reinterpret_cast<QRgb *>(image.scanLine(y));
+			blurLine([&](int x) { return row[x]; }, [&](int x, QRgb c) { row[x] = c; }, w);
+		}
+		for(int x = 0; x < w; ++x)
+			blurLine([&](int y) { return reinterpret_cast<const QRgb *>(image.constScanLine(y))[x]; },
+				[&](int y, QRgb c) { reinterpret_cast<QRgb *>(image.scanLine(y))[x] = c; }, h);
+	}
+	return image;
+}
+
+// The whole cover in the middle, over a blurred and darkened copy of itself
+// that fills the rest — as easy-ps2-fpkg composes it.
+QImage composeCover(const QImage &cover, int width, int height)
+{
+	QImage canvas(width, height, QImage::Format_RGB32);
+	QImage fill = cover.scaled(width, height, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+	fill = fill.copy((fill.width() - width) / 2, (fill.height() - height) / 2, width, height);
+	// A strong, smooth blur (easy-ps2-fpkg's is Gaussian, radius 14): three
+	// box blurs on a quarter-size copy, then back to full size.
+	fill = boxBlur(fill.scaled(std::max(1, width / 4), std::max(1, height / 4), Qt::IgnoreAspectRatio,
+					   Qt::SmoothTransformation),
+		4, 3)
+			   .scaled(width, height, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+	QPainter p(&canvas);
+	p.drawImage(0, 0, fill);
+	p.fillRect(canvas.rect(), QColor(0, 0, 0, 115)); // brightness 0.55
+	const QImage front = cover.scaled(width, height, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+	p.drawImage((width - front.width()) / 2, (height - front.height()) / 2, front);
+	p.end();
+	return canvas;
+}
+
+// The icon (512×512) and background (1920×1080) from the game's cover, or
+// nothing when it has none: the emulator's own art stays then.
+bool fetchCover(const std::string &serial, fpkg::Bytes *icon, fpkg::Bytes *background)
+{
+	HttpClient http(20000);
+	HttpClient::FetchOptions options;
+	options.headers = {"User-Agent: OrbisLink"};
+	const HttpResponse r = http.fetch(QString::fromLatin1(kCoverUrl).arg(QString::fromStdString(serial)).toStdString(), options);
+	if(!r.transportOk || r.status != 200 || r.body.empty())
+		return false;
+	const QImage cover = QImage::fromData(reinterpret_cast<const uchar *>(r.body.data()), static_cast<int>(r.body.size()));
+	if(cover.isNull())
+		return false;
+	*icon = png(composeCover(cover, 512, 512));
+	*background = png(composeCover(cover, 1920, 1080));
+	return true;
 }
 #endif
 
@@ -97,8 +158,6 @@ struct GamesController::Job
 	std::atomic<bool> cancel { false };
 #ifdef ORBISLINK_HAS_FPKG
 	fpkg::DiscInfo disc;
-	fpkg::Bytes icon;
-	fpkg::Bytes background;
 #endif
 };
 
@@ -106,7 +165,10 @@ GamesController::GamesController(AppController *app, QObject *parent) : QObject(
 {
 	connect(app_, &AppController::settingsChanged, this, &GamesController::foldersChanged);
 	connect(app_, &AppController::transfersChanged, this, &GamesController::updateProgress);
-	refreshEmulators();
+#ifdef ORBISLINK_HAS_FPKG
+	assetsState_ = fpkg::hasClassicsAssets(assetsFolder().toStdString()) ? QStringLiteral("ready")
+																		  : QStringLiteral("missing");
+#endif
 	worker_ = std::thread([this]() { workerLoop(); });
 	if(!gamesFolder().isEmpty())
 		rescan();
@@ -139,9 +201,13 @@ QString GamesController::gamesFolder() const
 	return QString::fromStdString(app_->settings().gamesFolder);
 }
 
-QString GamesController::emulatorFolder() const
+QString GamesController::assetsFolder() const
 {
-	return QString::fromStdString(app_->settings().emulatorFolder);
+	const QByteArray given = qgetenv("ORBISLINK_CLASSICS_ASSETS");
+	if(!given.isEmpty())
+		return QString::fromLocal8Bit(given);
+	return QDir(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation))
+		.filePath(QStringLiteral("classics"));
 }
 
 QString GamesController::outputFolder() const
@@ -173,39 +239,111 @@ void GamesController::setGamesFolder(const QString &folder)
 	rescan();
 }
 
-void GamesController::setEmulatorFolder(const QString &folder)
-{
-	const std::string path = toLocalPath(folder).toStdString();
-	app_->updateSettings([&](Settings &s) { s.emulatorFolder = path; });
-	refreshEmulators();
-	rescan();
-}
-
 void GamesController::setOutputFolder(const QString &folder)
 {
 	const std::string path = toLocalPath(folder).toStdString();
 	app_->updateSettings([&](Settings &s) { s.convertOutputFolder = path; });
 }
 
-void GamesController::refreshEmulators()
+void GamesController::setAssets(const QString &state, double percent, const QString &message)
+{
+	QMetaObject::invokeMethod(this, [this, state, percent, message]() {
+		const bool becameReady = state == QLatin1String("ready") && assetsState_ != state;
+		assetsState_ = state;
+		assetsPercent_ = percent;
+		assetsMessage_ = message;
+		emit assetsChanged();
+		// The emulator's title lists now give the games their names.
+		if(becameReady)
+			rescan();
+	}, Qt::QueuedConnection);
+}
+
+bool GamesController::ensureAssets(const std::function<bool(const QString &, double)> &progress, QString *error)
 {
 #ifdef ORBISLINK_HAS_FPKG
-	const fpkg::EmulatorInfo emus = fpkg::findEmulators(app_->settings().emulatorFolder);
-	ps1Emulator_ = emus.hasPs1();
-	ps2Emulator_ = emus.hasPs2();
-	ps2EmulatorName_ = QString::fromStdString(emus.ps2Name);
-	logInfo("Games: emulator folder \"" + app_->settings().emulatorFolder + "\" — PS2 "
-		+ (emus.hasPs2() ? "\"" + emus.ps2Name + "\"" : std::string("missing")) + ", PS1 "
-		+ (emus.hasPs1() ? "found" : "missing"));
+	std::lock_guard<std::mutex> lock(assetsMutex_);
+	const QString dir = assetsFolder();
+	if(fpkg::hasClassicsAssets(dir.toStdString()))
+	{
+		setAssets(QStringLiteral("ready"), 100);
+		return true;
+	}
+	QDir().mkpath(QFileInfo(dir).absolutePath());
+	const QString archive = dir + QStringLiteral(".download");
+	const QByteArray url = qEnvironmentVariableIsSet("ORBISLINK_CLASSICS_URL")
+		? qgetenv("ORBISLINK_CLASSICS_URL") : QByteArray(fpkg::kClassicsAssetsUrl);
+	logInfo("Games: downloading the emulator files from " + url.toStdString());
+	setAssets(QStringLiteral("downloading"), 0);
+	HttpClient http(30000);
+	int lastPercent = -1;
+	const HttpClient::DownloadResult got = http.download(url.toStdString(), archive.toStdString(),
+		[&](int64_t done, int64_t total) {
+			const double percent = total > 0 ? 100.0 * double(done) / double(total) : 0.0;
+			if(int(percent) != lastPercent)
+			{
+				lastPercent = int(percent);
+				setAssets(QStringLiteral("downloading"), percent);
+			}
+			return !progress || progress(QStringLiteral("download"), percent);
+		});
+	QString why;
+	if(!got.ok)
+		why = got.status >= 400 ? tr("the server answered %1").arg(got.status) : QString::fromStdString(got.error);
+	else
+	{
+		setAssets(QStringLiteral("unpacking"), 0);
+		std::string unpackError;
+		lastPercent = -1;
+		const bool unpacked = fpkg::installClassicsAssets(archive.toStdString(), dir.toStdString(),
+			[&](uint64_t read, uint64_t total) {
+				const double percent = total > 0 ? 100.0 * double(read) / double(total) : 0.0;
+				if(int(percent) != lastPercent)
+				{
+					lastPercent = int(percent);
+					setAssets(QStringLiteral("unpacking"), percent);
+				}
+				return !progress || progress(QStringLiteral("unpack"), percent);
+			},
+			&unpackError);
+		if(!unpacked)
+			why = QString::fromStdString(unpackError);
+	}
+	QFile::remove(archive);
+	if(!why.isEmpty())
+	{
+		logWarning("Games: the emulator files could not be fetched — " + why.toStdString());
+		setAssets(QStringLiteral("error"), 0, why);
+		if(error)
+			*error = tr("Could not get the emulator files: %1").arg(why);
+		return false;
+	}
+	logInfo("Games: emulator files ready in " + dir.toStdString());
+	setAssets(QStringLiteral("ready"), 100);
+	return true;
+#else
+	Q_UNUSED(progress);
+	Q_UNUSED(error);
+	return false;
 #endif
-	emit foldersChanged();
+}
+
+void GamesController::downloadAssets()
+{
+	if(assetsState_ == QLatin1String("downloading") || assetsState_ == QLatin1String("unpacking"))
+		return;
+	QPointer<GamesController> self(this);
+	std::thread([self]() {
+		if(self)
+			self->ensureAssets({}, nullptr);
+	}).detach();
 }
 
 void GamesController::rescan()
 {
 #ifdef ORBISLINK_HAS_FPKG
 	const std::string folder = app_->settings().gamesFolder;
-	const std::string emulatorFolder = app_->settings().emulatorFolder;
+	const std::string emulatorFolder = assetsFolder().toStdString();
 	const quint64 run = ++scanRun_;
 	if(folder.empty())
 	{
@@ -226,10 +364,10 @@ void GamesController::rescan()
 		for(const fpkg::DiscInfo &d : discs)
 		{
 			QVariantMap m;
-			std::string title = d.platform == "ps2" ? fpkg::lookupTitle(emus.titleDatabase, d.titleId) : std::string();
+			std::string title = fpkg::lookupTitle(d.platform == "ps2" ? emus.titleDatabase : emus.ps1TitleDatabase,
+				d.titleId);
 			if(title.empty())
 				title = d.title;
-			const bool hasEmulator = d.platform == "ps2" ? emus.hasPs2() : emus.hasPs1();
 			m[QStringLiteral("path")] = QString::fromStdString(d.path);
 			m[QStringLiteral("listedPath")] = QString::fromStdString(d.listedPath);
 			m[QStringLiteral("fileName")] = QString::fromStdString(d.fileName);
@@ -243,8 +381,7 @@ void GamesController::rescan()
 			m[QStringLiteral("size")] = static_cast<double>(d.size);
 			m[QStringLiteral("sizeText")] = sizeText(d.size);
 			m[QStringLiteral("disc")] = d.discNumber;
-			m[QStringLiteral("hasEmulator")] = hasEmulator;
-			m[QStringLiteral("convertible")] = hasEmulator && d.titleId.size() == 9;
+			m[QStringLiteral("convertible")] = d.titleId.size() == 9;
 			list << m;
 		}
 		if(!self)
@@ -325,9 +462,6 @@ void GamesController::convert(const QStringList &paths, bool install, const QStr
 		if(reuse)
 			job->reusePath = existingPackage(job->path, job->title);
 		job->disc = fpkg::inspectDisc(job->listedPath.toStdString());
-		// The art is drawn here, on the interface's thread.
-		job->icon = drawArt(job->title, job->platform, 512, 512);
-		job->background = drawArt(job->title, job->platform, 1920, 1080);
 		{
 			std::lock_guard<std::mutex> lock(mutex_);
 			job->id = QString::number(nextId_++);
@@ -487,6 +621,7 @@ void GamesController::updateProgress()
 			if(job->state == QLatin1String("waiting") || job->state == QLatin1String("converting"))
 			{
 				item[QStringLiteral("stage")] = job->state;
+				item[QStringLiteral("step")] = job->stage;
 				item[QStringLiteral("percent")] = job->percent;
 			}
 			else if(job->state == QLatin1String("error"))
@@ -612,10 +747,45 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 	fpkg::ClassicOptions options;
 	options.title = job->title.toStdString();
 	options.outputDir = settings.convertOutputFolder;
-	options.icon = job->icon;
-	options.background = job->background;
 	options.now = QDateTime::currentSecsSinceEpoch();
-	const fpkg::EmulatorInfo emus = fpkg::findEmulators(settings.emulatorFolder);
+
+	// First use: the emulator files, as easy-ps2-fpkg fetches them.
+	QString assetsError;
+	if(job->reusePath.isEmpty()
+		&& !ensureAssets([&](const QString &stage, double percent) {
+			   {
+				   std::lock_guard<std::mutex> lock(mutex_);
+				   job->stage = stage;
+				   job->percent = percent;
+			   }
+			   schedulePublish();
+			   return !job->cancel.load() && !stopping_.load();
+		   },
+			&assetsError))
+	{
+		{
+			std::lock_guard<std::mutex> lock(mutex_);
+			job->state = job->cancel ? QStringLiteral("cancelled") : QStringLiteral("error");
+			job->message = job->cancel ? QString() : assetsError;
+		}
+		QMetaObject::invokeMethod(this, [this]() { publish(); }, Qt::QueuedConnection);
+		return;
+	}
+	const fpkg::EmulatorInfo emus = fpkg::findEmulators(assetsFolder().toStdString());
+	// The game's own cover, when the collection has it (PS2 only).
+	if(job->reusePath.isEmpty() && job->platform == QLatin1String("ps2") && !job->disc.serial.empty())
+	{
+		{
+			std::lock_guard<std::mutex> lock(mutex_);
+			job->stage = QStringLiteral("cover");
+			job->percent = 0;
+		}
+		schedulePublish();
+		if(fetchCover(job->disc.serial, &options.icon, &options.background))
+			logInfo("Games: cover art for " + job->disc.serial);
+		else
+			logInfo("Games: no cover for " + job->disc.serial + "; the emulator's art stays");
+	}
 
 	fpkg::ClassicResult result;
 	std::string error;
