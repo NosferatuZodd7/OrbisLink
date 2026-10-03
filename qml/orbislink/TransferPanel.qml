@@ -210,14 +210,16 @@ Item {
                             iconSize: 14
                             implicitWidth: 28; implicitHeight: 28
                             onClicked: app.moveTaskUp(model.taskId)
-                            visible: model.state === "pending"
+                            visible: model.state === "pending" && (model.canMoveUp || model.canMoveDown)
+                            enabled: model.canMoveUp
                         }
                         StyledToolButton {
                             iconName: "arrow-down"
                             iconSize: 14
                             implicitWidth: 28; implicitHeight: 28
                             onClicked: app.moveTaskDown(model.taskId)
-                            visible: model.state === "pending"
+                            visible: model.state === "pending" && (model.canMoveUp || model.canMoveDown)
+                            enabled: model.canMoveDown
                         }
                         StyledToolButton {
                             iconName: "rotate-ccw"

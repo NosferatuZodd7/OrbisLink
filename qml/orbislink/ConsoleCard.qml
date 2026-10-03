@@ -75,6 +75,30 @@ Item {
         return "connect"
     }
     readonly property bool busy: connecting || stage.length > 0 || (current && searching)
+
+    // One click, one request: after a click the card takes no other until
+    // the console has answered (Remote Play connected or failed, FTP found
+    // or not), and at least for a moment, so a double click is one click.
+    property bool clickLocked: false
+    readonly property bool waitingOnConsole: busy
+        || (current && (app.ftpState === "checking" || app.remotePlayState === "checking"))
+    readonly property bool cancelReady: !minimumLock.running && current && busy
+    function releaseLock() {
+        if (!minimumLock.running && !waitingOnConsole)
+            clickLocked = false
+    }
+    onWaitingOnConsoleChanged: releaseLock()
+    Timer {
+        id: minimumLock
+        interval: 1500
+        onTriggered: card.releaseLock()
+    }
+    // Never stuck: whatever happens, the card listens again after a while.
+    Timer {
+        running: card.clickLocked
+        interval: 30000
+        onTriggered: card.clickLocked = false
+    }
     readonly property bool checking: busy || (status === "unknown" && available)
 
     // The state as one word, which decides the colour and the icon.
@@ -119,6 +143,17 @@ Item {
     }
 
     function runAction(name) {
+        if (name === "cancel") {
+            // Only from the button, and never as the second half of a
+            // double click on the card.
+            if (!card.cancelReady)
+                return
+        } else {
+            if (card.clickLocked)
+                return
+            card.clickLocked = true
+            minimumLock.restart()
+        }
         switch (name) {
         case "connect": card.connect(); break
         case "cancel": card.cancel(); break
@@ -131,7 +166,8 @@ Item {
     implicitWidth: 256
     implicitHeight: 256
 
-    readonly property bool hover: area.containsMouse && actionName.length > 0
+    readonly property bool hover: area.containsMouse && actionName.length > 0 && actionName !== "cancel"
+                                  && !clickLocked
 
     opacity: !available || (status === "offline" && !area.containsMouse) ? 0.85 : 1.0
     Behavior on opacity { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
@@ -224,8 +260,10 @@ Item {
         id: area
         anchors.fill: parent
         hoverEnabled: true
-        cursorShape: card.actionName.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
-        onClicked: card.runAction(card.actionName)
+        cursorShape: card.actionName.length > 0 && card.actionName !== "cancel" && !card.clickLocked
+                     ? Qt.PointingHandCursor : Qt.ArrowCursor
+        // The card itself only starts things; cancelling is the button's.
+        onClicked: if (card.actionName !== "cancel") card.runAction(card.actionName)
     }
 
     // ── Top: the state dot and the badge on the left; on the right the
@@ -441,7 +479,7 @@ Item {
             // Side by side with FTP there is no room for the icon.
             iconName: card.ftpAvailable ? "" : cancelling ? "loader" : "play"
             primary: !card.prefersFtp
-            enabled: card.available
+            enabled: card.available && (cancelling ? card.cancelReady : !card.clickLocked)
             ToolTip.visible: hovered && !card.available
             ToolTip.text: qsTr("Remote Play is not in this build")
             onClicked: card.runAction(!card.current ? "choose"
@@ -455,6 +493,7 @@ Item {
             rightPadding: 10
             text: qsTr("FTP")
             primary: card.prefersFtp
+            enabled: !card.clickLocked
             ToolTip.visible: hovered
             ToolTip.text: qsTr("Browse the console's files over FTP, without Remote Play")
             onClicked: card.runAction("ftp")

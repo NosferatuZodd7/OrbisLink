@@ -77,11 +77,14 @@ centred and wrap onto more rows.
 |---|---|
 | Card body (console in use) | Remote Play: connects with one click (wakes it from rest mode if needed). |
 | Card body (another console) | Makes it the console in use and connects. |
-| **Remote Play** | Same as the body. While connecting: **Cancel**. |
+| **Remote Play** | Same as the body. While connecting: **Cancel** (only this button cancels, and only after a moment, so a double click never cancels). |
 | **FTP** | Makes it the console in use and opens the Files tab, without Remote Play. |
 | 🔗 | Registers this PC for Remote Play (the console shows an 8-digit PIN). |
 | ✕ | Removes the console from the list (asks first). |
 | Gold badge | The console has a jailbreak (FTP answers). |
+
+One click, one request: after a click the card takes no other until the
+console has answered (Remote Play connected or failed, FTP found or not).
 
 **Add console**: name, IP and type; it is probed straight away.
 
@@ -106,7 +109,7 @@ speed and time left.
 
 | On a card | Does |
 |---|---|
-| ↑ ↓ | Moves a waiting task up or down. |
+| ↑ ↓ | Moves a waiting task up or down; greyed out when it cannot go that way (never past the task under way), hidden when it cannot move at all. |
 | ⟲ | Tries a failed or cancelled task again. |
 | ✕ | Cancels a running task; removes a finished one. |
 
