@@ -314,7 +314,13 @@ Dialog {
         default property alias content: pageColumn.data
         clip: true
         contentWidth: availableWidth
+        // Told outright, top and bottom margins included: worked out on its
+        // own, the height could come out short and the end of a page would
+        // be out of reach.
+        contentHeight: pageColumn.implicitHeight + 44
         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+        // In sight whenever there is more below, not only while scrolling.
+        ScrollBar.vertical.policy: contentHeight > height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
 
         ColumnLayout {
             id: pageColumn
@@ -879,7 +885,13 @@ Dialog {
                                                                   swatch.shown.b, 1))
                                         colourPicker.parent = swatch
                                         colourPicker.x = swatch.width - colourPicker.width
-                                        colourPicker.y = swatch.height + 6
+                                        // Below the colour, or above it when the window
+                                        // has no room left below.
+                                        var below = swatch.mapToItem(null, 0, swatch.height).y
+                                        var room = (swatch.Window.height || 0) - below
+                                        colourPicker.y = room > colourPicker.implicitHeight + 16
+                                                       ? swatch.height + 6
+                                                       : -colourPicker.implicitHeight - 6
                                         colourPicker.open()
                                     }
                                 }
