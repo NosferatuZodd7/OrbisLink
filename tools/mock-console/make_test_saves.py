@@ -19,6 +19,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from make_test_pkg import build_icon_png, build_sfo  # noqa: E402
 
 ACCOUNT = "1a2b3c4d"
+# Two made-up PSN accounts, as the 8 bytes of ACCOUNT_ID (little-endian):
+# most saves are the first's, the last game's are the second's.
+ACCOUNT_IDS = [(0x0123456789ABCDEF).to_bytes(8, "little"), (0x0FEDCBA987654321).to_bytes(8, "little")]
 GAMES = [
     ("CUSA00001", "Orbis Racing", [("SAVEDATA00", "Career", "Season 2 - 48%"),
                                    ("SAVEDATA01", "Time trials", "12 tracks")]),
@@ -47,7 +50,8 @@ def main() -> int:
             meta.mkdir(parents=True, exist_ok=True)
             (meta / "param.sfo").write_bytes(build_sfo({
                 "MAINTITLE": game, "SUBTITLE": title, "DETAIL": detail,
-                "SAVEDATA_DIRECTORY": dir_name, "TITLE_ID": title_id}))
+                "SAVEDATA_DIRECTORY": dir_name, "TITLE_ID": title_id,
+                "ACCOUNT_ID": ACCOUNT_IDS[1 if seed == len(GAMES) - 1 else 0]}))
             (meta / "icon0.png").write_bytes(build_icon_png(64, seed + 10))
     print(f"Saves of {len(GAMES)} games under {home}")
     return 0

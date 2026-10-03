@@ -107,7 +107,7 @@ fs::path makeConsole(const fs::path &root)
 		writeBytes(home / "savedata/CUSA00001" / (dir + ".bin"), 96, 'k');
 		writeData(home / "savedata_meta/user/CUSA00001" / dir / "param.sfo",
 			buildSfo({ { "MAINTITLE", "Orbis Racing" }, { "SUBTITLE", "Slot " + dir },
-				{ "DETAIL", "Chapter 5 - 34%" } }));
+				{ "DETAIL", "Chapter 5 - 34%" }, { "ACCOUNT_ID", "ABCDEFGH" } }));
 		writeBytes(home / "savedata_meta/user/CUSA00001" / dir / "icon0.png", 64, 'p');
 	}
 	writeBytes(root / "user/appmeta/CUSA00001/icon0.png", 128, 'g');
@@ -154,6 +154,8 @@ ORBISLINK_TEST(scan_backup_change_delete_restore)
 	CHECK_EQ(save0->saveTitle, std::string("Slot SAVE0"));
 	CHECK_EQ(save0->detail, std::string("Chapter 5 - 34%"));
 	CHECK(save0->sync() == SaveSync::ConsoleOnly);
+	// The account it belongs to, as the bytes are stored.
+	CHECK_EQ(save0->accountId, std::string("4142434445464748"));
 	CHECK_EQ(save0->consoleFiles.size(), static_cast<size_t>(4));
 	CHECK(!save0->iconPath.empty());
 	CHECK(!vault.gameIcon(&console, "CUSA00001").empty());
@@ -178,6 +180,7 @@ ORBISLINK_TEST(scan_backup_change_delete_restore)
 	const SaveInfo *lost = find(saves, "SAVE0");
 	CHECK(lost != nullptr);
 	CHECK(lost->sync() == SaveSync::VaultOnly);
+	CHECK_EQ(lost->accountId, std::string("4142434445464748"));
 	CHECK_EQ(lost->gameTitle, std::string("Orbis Racing"));
 
 	// …and it goes back as it was backed up.
