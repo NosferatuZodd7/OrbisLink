@@ -5,6 +5,7 @@
 #include "orbislink/common/log.h"
 #include "orbislink/qt/app_controller.h"
 #include "orbislink/qt/games_controller.h"
+#include "orbislink/qt/saves_controller.h"
 #include "orbislink/settings/settings_store.h"
 #include "orbislink/qt/ftp_model.h"
 #include "orbislink/qt/queue_model.h"
@@ -238,6 +239,8 @@ int main(int argc, char **argv)
 	// PS1/PS2 discs: found, sent or converted. Made before the engine, so it
 	// outlives the interface that reads it when the application closes.
 	auto games = std::make_unique<GamesController>(controller.get());
+	// The save vault, the same way.
+	auto saves = std::make_unique<SavesController>(controller.get());
 
 	QQmlApplicationEngine engine;
 	QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
@@ -248,6 +251,7 @@ int main(int argc, char **argv)
 		});
 	engine.rootContext()->setContextProperty(QStringLiteral("app"), controller.get());
 	engine.rootContext()->setContextProperty(QStringLiteral("games"), games.get());
+	engine.rootContext()->setContextProperty(QStringLiteral("saves"), saves.get());
 
 #ifdef ORBISLINK_HAS_STREAM
 	// Remote Play is a separate controller, but it follows the console

@@ -14,6 +14,8 @@ Three jobs, around one PlayStation at a time — the **console in use**:
    or by direct install, and files back from it.
 3. **PS1/PS2 games** — disc images on the PC turned into PS4 packages, then
    (optionally) sent and installed.
+4. **Save vault** — every save on the console backed up on the PC, and put
+   back when the console loses it.
 
 ## Words used in the app
 
@@ -30,38 +32,40 @@ Three jobs, around one PlayStation at a time — the **console in use**:
 ## The window
 
 ```
-┌ top bar ─────────────────────────────────────────────────────────────┐
-│ logo  console name/IP        [console chip] [Remote Play] [FTP] [Installer]  ⟳ ▣ 🗎 ◐ ⚙ │
-├──────────────────────────────────────────────┬───────────────────────┤
-│ stage: consoles · Remote Play · PS1/PS2 Games │ side panel: Queue | Files (FTP) │
-├──────────────────────────────────────────────┴───────────────────────┤
-│ status line: last message                     Local HTTP: … · version │
-└──────────────────────────────────────────────────────────────────────┘
+┌ top bar ───────────────────────────────────────────────────────────────────┐
+│ logo  name/IP      [console chip] [🎮 FTP 📦] │ [▶ 💿 🗄] │ ⟳ ▣ 🗎 [☾ ◐ ☀ ✨] ⚙ │
+├────────────────────────────────────────────────────┬───────────────────────┤
+│ stage: consoles · Remote Play · PS1/PS2 · Saves     │ side panel: Queue | Files (FTP) │
+├────────────────────────────────────────────────────┴───────────────────────┤
+│ status line: last message                      Local HTTP: … · version     │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Top bar
 
-In a narrow window the bar squeezes instead of overflowing: first the
-service pills become dots and the page buttons icons (names in their
-tooltips), then the console's name and address on the left go (the console
-chip still shows it). The window cannot be made narrower than where that fits.
+Three groups, apart: what is (the console and its services), where to go
+(the pages) and the tools. Everything is an icon, with its name and what it
+means in the tooltip. In a narrow window the console's name and address on
+the left go (the console chip still shows it); the window cannot be made
+narrower than where the rest fits.
 
 | Item | What it shows | Click |
 |---|---|---|
 | Logo, name, IP | The console in use. | — |
-| **Back to Remote Play** | Only while a Remote Play session runs and another page is open. | Back to the picture. |
-| **PS1/PS2 Games** | Highlighted while that page is open. | Opens / closes the games page. |
 | **Console chip** | See *Console chip* below. | See below. |
-| Remote Play / FTP / Installer | A dot per service of the console in use: green available, amber checking, red not answering, grey not applicable. Hover: why. | — |
+| 🎮 · **FTP** · 📦 | Remote Play, FTP (the word in small bold letters) and the installer, each with a dot at the corner: green available (with a soft ring), amber checking (it breathes), red not answering, grey not applicable. Hover: the name and why. | — |
+| ▶ | Only while a Remote Play session runs and another page is open. | Back to the picture. |
+| 💿 | PS1/PS2 games; lit while that page is open. | Opens / closes the games page. |
+| 🗄 | The save vault; lit while that page is open. | Opens / closes the save vault. |
 | ⟳ | | Checks the three services now. |
 | ▣ | | Shows / hides the side panel (F9). Locked while full screen. |
 | 🗎 | | Log and diagnostics (Ctrl+L): log, copy, save a diagnostics file. |
-| ◐ | | Dark / system / light theme. |
+| ☾ ◐ ☀ ✨ | Only one is lit. | Dark, glass or light: the plain theme (custom colours step aside, kept for ✨). ✨ Custom: the saved look chosen in Settings → Personalisation (or the colours set aside); with none yet, opens that page. |
 | ⚙ | | Settings (Ctrl+,). |
 
 ### Console chip
 
-Left of the service dots, the console the file actions go to:
+Left of the services, the console the file actions go to:
 
 | Situation | Looks like | Click |
 |---|---|---|
@@ -212,6 +216,40 @@ comes, its config with the game's serial, its own `param.sfo` with the game's
 IDs and name, the official cover by serial (else the emulator's art), the disc
 as `image/disc01.iso`. PS1 discs as PS Classics fPKG Builder does.
 
+## Save vault
+
+A place on this PC with a copy of every save on the console, to put back
+whatever the console loses. It needs the console's FTP (GoldHEN, etaHEN);
+without it, the page shows what the vault holds.
+
+Opening the page reads the console: every account, every game with saves,
+and each save with its icon, its name, what the game wrote about it (chapter,
+level, percentage…), its size and where it stands:
+
+| Badge | Means |
+|---|---|
+| ✓ In the vault | The console's save is the one backed up. |
+| ↺ Changed since the backup | The game wrote to it after the last backup. |
+| ⇧ Not backed up | Only on the console. |
+| 🗄 Only in the vault | The console no longer has it: it can be put back. |
+
+| Item | Does |
+|---|---|
+| **Back up everything** | Backs up every save that is not backed up or changed, in one click. |
+| **Put back what's missing** | Puts back on the console every save only the vault has. |
+| Filters | All · Not backed up · Changed · Missing on the console. |
+| Click on a save · **Select all** | Selects; the top strip then offers **Back up**, **Put back** and **Delete…** for the selection. |
+| **Delete…** | Asks where: the console, the vault, or both (and warns when a save exists in one place only). |
+| Folder chip · ⚙ | Opens the vault folder · changes it. |
+| ⟳ | Reads the console again. |
+
+Each save keeps its last 5 backups. Saves are copied exactly as the console
+has them (no re-signing): they go back to the same console and account. The
+game should be closed before its save is put back.
+
+On the PC: `<vault>/<account>/<game>/<save>/<date>/` with the save's files
+and a `vault.json` describing them.
+
 ## Settings
 
 | Section | Holds |
@@ -220,7 +258,7 @@ as `image/disc01.iso`. PS1 discs as PS Classics fPKG Builder does.
 | Account IDs (PSID) | PSN accounts for Remote Play registration. |
 | Console in use | Which console; FTP port, user, upload folder, connections, advanced mode (protected system folders); installer port and install options; local HTTP server. |
 | Remote Play | Resolution, frame rate, bitrate, hardware decoding, rumble, touchpad from the mouse, full screen on connect. |
-| Personalisation | The app's colours, on top of the theme picked in the top bar: accent, jailbreak (GoldHEN gold), available, checking, error, window background, panels, text. A click on a colour opens a picker (square, hue strip, hex code, suggestions); ↺ puts the theme's colour back. **Saved looks**: give the theme and colours in use a name to keep them; **Apply** brings one back, 🗑 deletes it. Changes show at once. |
+| Personalisation | The app's colours, on top of the theme picked in the top bar: accent, jailbreak (GoldHEN gold), available, checking, error, window background, panels, text. A click on a colour opens a picker (square, hue strip, hex code, suggestions); ↺ puts the theme's colour back. **Saved looks**: give the theme and colours in use a name to keep them; **Apply** brings one back (it is then the one ✨ in the top bar brings), 🗑 deletes it. Changes show at once. |
 | General | Language, theme, updates (channel: stable or testing), advanced options. |
 
 ## What needs what
@@ -233,6 +271,8 @@ as `image/disc01.iso`. PS1 discs as PS Classics fPKG Builder does.
 | Install directly | yes | — | yes | — |
 | Files tab (browsing also works while an upload runs) | yes | yes | — | — |
 | Remote Play | yes | — | — | yes |
+| Save vault: back up, put back, delete on the console | yes | yes | — | — |
+| Save vault: see or delete what the PC holds | no | — | — | — |
 
 ## Where it lives in the code
 
@@ -245,6 +285,7 @@ as `image/disc01.iso`. PS1 discs as PS Classics fPKG Builder does.
 | Games page | `GamesView.qml`, `GameCard.qml`, `GameDialog.qml` |
 | Everything the QML calls (`app`) | `src/orbislink/qt/app_controller.*` |
 | Games (`games`) | `src/orbislink/qt/games_controller.*` |
+| Save vault (`saves`) | `SavesView.qml`, `src/orbislink/qt/saves_controller.*`, `src/orbislink/saves` |
 | Remote Play (`stream`) | `src/orbislink/qt/stream_controller.*` |
 | Queue, FTP, installer | `src/orbislink/queue`, `ftp`, `installer` |
 | Package builder, disc scanner, Classics files | `src/orbislink/fpkg` |

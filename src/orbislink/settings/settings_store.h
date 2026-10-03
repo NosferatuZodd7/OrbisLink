@@ -115,6 +115,11 @@ struct Settings
 	// background, panel, text → "#RRGGBB"), and the saved looks.
 	std::map<std::string, std::string> themeColors;
 	std::vector<ThemePreset> themePresets;
+	// The custom look the "custom" button brings back: a saved look by name,
+	// or else the last colours set aside when a plain theme was picked.
+	std::string activePreset;
+	std::map<std::string, std::string> lastCustomColors;
+	std::string lastCustomTheme;
 	std::string language = "en";    // "en" or "pt_PT"
 	bool debugLogging = false;
 	// "Updates over the internet". On by default: with a public repository
@@ -138,6 +143,8 @@ struct Settings
 	// PS1/PS2 games: where the discs are and where converted packages go.
 	std::string gamesFolder;
 	std::string convertOutputFolder;
+	// The save vault on this PC (empty: Documents/OrbisLink/Saves).
+	std::string saveVaultFolder;
 
 	std::string toJson() const;
 	static Settings fromJson(const std::string &text, bool *ok = nullptr);

@@ -11,6 +11,7 @@ set(ORBISLINK_TESTS
 	test_console_probe
 	test_update
 	test_pcm_convert
+	test_save_vault
 )
 
 # The Remote Play tests need the stream library.
