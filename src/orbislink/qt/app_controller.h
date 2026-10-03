@@ -67,7 +67,7 @@ class AppController : public QObject
 	Q_PROPERTY(bool downloadActive READ downloadActive NOTIFY downloadChanged)
 	Q_PROPERTY(QString downloadName READ downloadName NOTIFY downloadChanged)
 	Q_PROPERTY(double downloadProgress READ downloadProgress NOTIFY downloadChanged)
-	Q_PROPERTY(QStringList ftpShortcuts READ ftpShortcuts CONSTANT)
+	Q_PROPERTY(QStringList ftpShortcuts READ ftpShortcuts NOTIFY ftpShortcutsChanged)
 	Q_PROPERTY(orbislink::QueueModel *queue READ queue CONSTANT)
 	Q_PROPERTY(orbislink::FtpModel *files READ files CONSTANT)
 	Q_PROPERTY(QString version READ version CONSTANT)
@@ -171,6 +171,10 @@ public:
 	Q_INVOKABLE void cancelTask(const QString &id);
 	Q_INVOKABLE void retryTask(const QString &id);
 	Q_INVOKABLE void removeTask(const QString &id);
+	// Folders pinned at the top of the Files tab (ftpShortcuts).
+	Q_INVOKABLE bool isFtpPinned(const QString &path) const;
+	Q_INVOKABLE void pinFtpFolder(const QString &path);
+	Q_INVOKABLE void unpinFtpFolder(const QString &path);
 	// Drops the finished tasks (sent, installed, failed, cancelled) of one
 	// file: a conversion card that goes away takes its queue tasks along.
 	void removeFinishedTasksOf(const QString &localPath);
@@ -305,6 +309,7 @@ public:
 		const QString &channel);
 
 signals:
+	void ftpShortcutsChanged();
 	void settingsChanged();
 	// A new log line, already masked. The diagnostics window connects to
 	// this to show what happens in real time.

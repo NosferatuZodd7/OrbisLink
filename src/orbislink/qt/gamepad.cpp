@@ -146,8 +146,23 @@ void Gamepad::poll()
 			emit connectedChanged(name_);
 			// Release everything, otherwise a button stays stuck on the other side.
 			emit stateChanged({});
+			for(int finger = 0; finger < 2; ++finger)
+				emit touchChanged(finger, false, 0.0, 0.0);
 			haveLast_ = false;
 		}
+#if SDL_VERSION_ATLEAST(2, 0, 14)
+		if((event.type == SDL_CONTROLLERTOUCHPADDOWN || event.type == SDL_CONTROLLERTOUCHPADMOTION
+			   || event.type == SDL_CONTROLLERTOUCHPADUP)
+			&& controller_ && event.ctouchpad.touchpad == 0
+			&& event.ctouchpad.finger >= 0 && event.ctouchpad.finger < 2
+			&& event.ctouchpad.which
+				== SDL_JoystickInstanceID(SDL_GameControllerGetJoystick(
+					static_cast<SDL_GameController *>(controller_))))
+		{
+			emit touchChanged(event.ctouchpad.finger, event.type != SDL_CONTROLLERTOUCHPADUP,
+				event.ctouchpad.x, event.ctouchpad.y);
+		}
+#endif
 	}
 
 	if(!controller_)

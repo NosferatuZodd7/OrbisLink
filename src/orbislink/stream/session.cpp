@@ -55,9 +55,6 @@ struct StreamSession::Impl
 	std::atomic<uint64_t> frames { 0 };
 	ChiakiControllerState controller {};
 	bool controllerInitialised = false;
-	// The touch that goes with a touchpad click from a key or a controller
-	// without touch data: the console ignores a click with no finger on it.
-	int8_t clickTouch = -1;
 
 	ChiakiOpusDecoder audioDecoder {};
 	bool audioReady = false;
@@ -697,26 +694,6 @@ void StreamSession::sendController(const ControllerState &state)
 	fresh.left_y = state.leftY;
 	fresh.right_x = state.rightX;
 	fresh.right_y = state.rightY;
-
-	// A real touchpad click always has a finger on the pad, and games read
-	// where it is: the PS2 emulator takes the left half as Select. So a click
-	// without a touch (keyboard, or a controller whose touches are not
-	// forwarded) gets one on the left half for as long as it is held.
-	const bool clicked = (state.buttons & CHIAKI_CONTROLLER_BUTTON_TOUCHPAD) != 0;
-	if(clicked && impl_->clickTouch < 0)
-	{
-		bool fingerDown = false;
-		for(const ChiakiControllerTouch &touch : fresh.touches)
-			fingerDown = fingerDown || touch.id >= 0;
-		if(!fingerDown)
-			impl_->clickTouch = chiaki_controller_state_start_touch(&fresh,
-				kTouchpadWidth / 4, kTouchpadHeight / 2);
-	}
-	else if(!clicked && impl_->clickTouch >= 0)
-	{
-		chiaki_controller_state_stop_touch(&fresh, static_cast<uint8_t>(impl_->clickTouch));
-		impl_->clickTouch = -1;
-	}
 
 	// Repeating the same state is extra traffic for nothing.
 	if(impl_->controllerInitialised && chiaki_controller_state_equals(&impl_->controller, &fresh))

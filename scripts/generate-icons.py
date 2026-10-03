@@ -34,6 +34,8 @@ ICONS = {
     "download": "download",
     "upload": "upload",
     "cloud-upload": "cloud-upload",
+    "pin": "pin",
+    "pin-off": "pin-off",
     "plus": "plus",
     "plus-circle": "circle-plus",
     "refresh": "refresh-cw",

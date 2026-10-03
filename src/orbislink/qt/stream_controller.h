@@ -259,6 +259,22 @@ private:
 	bool rumbleEnabled_ = true;
 	bool touchpadFromMouse_ = true;
 	int touchId_ = -1;
+
+	// What the keyboard and the controller hold, sent to the console as one.
+	void sendInput();
+	void padTouch(int finger, bool down, double x, double y);
+	void resetInput();
+	StreamSession::ControllerState keyState_;
+	StreamSession::ControllerState padState_;
+	int padTouchIds_[2] = { -1, -1 };
+	// A touchpad click with no finger on the pad (the T key, or a controller
+	// whose touches do not come in): a finger is put on the left half first
+	// and the click follows a moment later, as on a real pad — PS2 games
+	// ignore a click they cannot place (left half: Select).
+	bool clickDown_ = false;
+	bool clickArmed_ = false;
+	int clickTouch_ = -1;
+	quint64 clickRun_ = 0;
 	QString accountId_;
 	bool searching_ = false;
 	bool notifyWhenDone_ = false;

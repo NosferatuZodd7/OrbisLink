@@ -12,7 +12,10 @@
 #include "orbislink/common/log.h"
 
 #include <QMetaObject>
+#include <algorithm>
 #include <thread>
+
+#include <chiaki/controller.h>
 
 namespace orbislink {
 
@@ -102,6 +105,7 @@ StreamController::StreamController(QObject *parent)
 					gamepad_.stop();
 					hardwareDecoder_ = false;
 					touchEnd();
+					resetInput();
 					if(fpsTimer_)
 						fpsTimer_->stop();
 					measuredFps_ = 0;
@@ -152,9 +156,10 @@ StreamController::StreamController(QObject *parent)
 	// The physical controller is only read during the session.
 	connect(&gamepad_, &Gamepad::stateChanged, this,
 		[this](const StreamSession::ControllerState &state) {
-			if(streaming_)
-				session_->sendController(state);
+			padState_ = state;
+			sendInput();
 		});
+	connect(&gamepad_, &Gamepad::touchChanged, this, &StreamController::padTouch);
 	connect(&gamepad_, &Gamepad::connectedChanged, this, &StreamController::gamepadChanged);
 
 	connect(&video_, &VideoBridge::firstFrame, this, [this](int width, int height) {
@@ -954,7 +959,8 @@ bool StreamController::keyPressed(int key)
 {
 	if(!streaming_ || !keyboard_.press(key))
 		return false;
-	session_->sendController(keyboard_.state());
+	keyState_ = keyboard_.state();
+	sendInput();
 	return true;
 }
 
@@ -962,8 +968,8 @@ bool StreamController::keyReleased(int key)
 {
 	if(!keyboard_.release(key))
 		return false;
-	if(streaming_)
-		session_->sendController(keyboard_.state());
+	keyState_ = keyboard_.state();
+	sendInput();
 	return true;
 }
 
@@ -974,8 +980,115 @@ void StreamController::releaseAllKeys()
 	if(keyboard_.empty())
 		return;
 	keyboard_.clear();
-	if(streaming_)
-		session_->sendController(keyboard_.state());
+	keyState_ = keyboard_.state();
+	sendInput();
+}
+
+namespace {
+
+// Keyboard and controller together: buttons from both, the stronger
+// trigger, and each stick from whichever is pushing it.
+StreamSession::ControllerState merged(const StreamSession::ControllerState &keys,
+	const StreamSession::ControllerState &pad)
+{
+	StreamSession::ControllerState state = pad;
+	state.buttons |= keys.buttons;
+	state.l2 = std::max(keys.l2, pad.l2);
+	state.r2 = std::max(keys.r2, pad.r2);
+	if(keys.leftX != 0)
+		state.leftX = keys.leftX;
+	if(keys.leftY != 0)
+		state.leftY = keys.leftY;
+	if(keys.rightX != 0)
+		state.rightX = keys.rightX;
+	if(keys.rightY != 0)
+		state.rightY = keys.rightY;
+	return state;
+}
+
+// How long the finger rests on the pad before the click, and after it.
+constexpr int kClickSettleMs = 60;
+
+} // namespace
+
+void StreamController::sendInput()
+{
+	if(!streaming_)
+		return;
+	StreamSession::ControllerState state = merged(keyState_, padState_);
+	const bool click = (state.buttons & CHIAKI_CONTROLLER_BUTTON_TOUCHPAD) != 0;
+	if(click && !clickDown_)
+	{
+		clickDown_ = true;
+		const bool fingerDown = touchId_ >= 0 || padTouchIds_[0] >= 0 || padTouchIds_[1] >= 0;
+		clickArmed_ = fingerDown;
+		logInfo(fingerDown ? "Remote Play: touchpad click (finger already on the pad)."
+						   : "Remote Play: touchpad click, finger placed on the left half (Select).");
+		if(!fingerDown)
+		{
+			clickTouch_ = session_->startTouch(StreamSession::kTouchpadWidth / 4,
+				StreamSession::kTouchpadHeight / 2);
+			const quint64 run = ++clickRun_;
+			QTimer::singleShot(kClickSettleMs, this, [this, run]() {
+				if(run != clickRun_ || !clickDown_)
+					return;
+				clickArmed_ = true;
+				sendInput();
+			});
+		}
+	}
+	else if(!click && clickDown_)
+	{
+		clickDown_ = false;
+		clickArmed_ = false;
+		if(clickTouch_ >= 0)
+		{
+			// The click goes up first (below), the finger a moment later.
+			const int id = clickTouch_;
+			clickTouch_ = -1;
+			const quint64 run = ++clickRun_;
+			QTimer::singleShot(kClickSettleMs, this, [this, run, id]() {
+				if(run == clickRun_)
+					session_->stopTouch(id);
+			});
+		}
+	}
+	if(!clickArmed_)
+		state.buttons &= ~CHIAKI_CONTROLLER_BUTTON_TOUCHPAD;
+	session_->sendController(state);
+}
+
+void StreamController::padTouch(int finger, bool down, double x, double y)
+{
+	if(finger < 0 || finger > 1)
+		return;
+	int &id = padTouchIds_[finger];
+	if(!streaming_)
+	{
+		id = -1;
+		return;
+	}
+	const uint16_t px = static_cast<uint16_t>(std::clamp(x, 0.0, 1.0) * (StreamSession::kTouchpadWidth - 1));
+	const uint16_t py = static_cast<uint16_t>(std::clamp(y, 0.0, 1.0) * (StreamSession::kTouchpadHeight - 1));
+	if(down && id < 0)
+		id = session_->startTouch(px, py);
+	else if(down)
+		session_->moveTouch(id, px, py);
+	else if(id >= 0)
+	{
+		session_->stopTouch(id);
+		id = -1;
+	}
+}
+
+void StreamController::resetInput()
+{
+	keyState_ = {};
+	padState_ = {};
+	padTouchIds_[0] = padTouchIds_[1] = -1;
+	clickDown_ = clickArmed_ = false;
+	clickTouch_ = -1;
+	++clickRun_;
 }
 
 

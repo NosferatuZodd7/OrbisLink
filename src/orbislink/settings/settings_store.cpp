@@ -54,6 +54,10 @@ std::string Settings::toJson() const
 	root.set("installer_port", Json::fromInt(installerPort));
 	root.set("default_mode", Json::fromString(transferModeName(defaultMode)));
 	root.set("ftp_upload_directory", Json::fromString(ftpUploadDirectory));
+	Json pinned = Json::makeArray();
+	for(const std::string &folder : ftpPinnedFolders)
+		pinned.push(Json::fromString(folder));
+	root.set("ftp_pinned_folders", pinned);
 	root.set("check_already_installed", Json::fromBool(checkAlreadyInstalled));
 	root.set("install_after_upload", Json::fromBool(installAfterUpload));
 	root.set("delete_from_console_after_install", Json::fromBool(deleteFromConsoleAfterInstall));
@@ -136,6 +140,14 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.installerPort = static_cast<uint16_t>(root["installer_port"].toInt(settings.installerPort));
 	settings.defaultMode = transferModeFromName(root["default_mode"].toString(), settings.defaultMode);
 	settings.ftpUploadDirectory = root["ftp_upload_directory"].toString(settings.ftpUploadDirectory);
+	// Missing: the defaults. Present, even empty: what the person left.
+	if(root["ftp_pinned_folders"].isArray())
+	{
+		settings.ftpPinnedFolders.clear();
+		for(const Json &folder : root["ftp_pinned_folders"].items())
+			if(folder.isString() && !folder.toString().empty())
+				settings.ftpPinnedFolders.push_back(folder.toString());
+	}
 	settings.checkAlreadyInstalled =
 		root["check_already_installed"].toLooseBool(settings.checkAlreadyInstalled);
 	settings.installAfterUpload = root["install_after_upload"].toLooseBool(settings.installAfterUpload);
