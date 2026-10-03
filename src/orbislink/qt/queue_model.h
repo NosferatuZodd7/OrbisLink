@@ -42,6 +42,9 @@ public:
 		// A finished task of a file that has a later task (the upload once
 		// the install of the same package is there): one card per file.
 		SupersededRole,
+		// Whether ↑ / ↓ can move this waiting task (never past the one running).
+		CanMoveUpRole,
+		CanMoveDownRole,
 	};
 
 	explicit QueueModel(QObject *parent = nullptr);
@@ -88,6 +91,8 @@ private:
 		qint64 totalBytes = 0;
 		QString localKey;
 		bool superseded = false;
+		bool canMoveUp = false;
+		bool canMoveDown = false;
 		bool operator==(const Row &o) const
 		{
 			return id == o.id && title == o.title && titleId == o.titleId && category == o.category
@@ -96,7 +101,8 @@ private:
 				&& message == o.message && mode == o.mode && active == o.active
 				&& bytesPerSecond == o.bytesPerSecond && remainingBytes == o.remainingBytes
 				&& totalBytes == o.totalBytes
-				&& localKey == o.localKey && superseded == o.superseded;
+				&& localKey == o.localKey && superseded == o.superseded
+				&& canMoveUp == o.canMoveUp && canMoveDown == o.canMoveDown;
 		}
 	};
 

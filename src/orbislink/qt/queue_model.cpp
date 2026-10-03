@@ -35,6 +35,8 @@ QHash<int, QByteArray> QueueModel::roleNames() const
 		{ ActiveRole, "active" },
 		{ LocalKeyRole, "localKey" },
 		{ SupersededRole, "superseded" },
+		{ CanMoveUpRole, "canMoveUp" },
+		{ CanMoveDownRole, "canMoveDown" },
 	};
 }
 
@@ -60,6 +62,8 @@ QVariant QueueModel::data(const QModelIndex &index, int role) const
 		case ActiveRole: return row.active;
 		case LocalKeyRole: return row.localKey;
 		case SupersededRole: return row.superseded;
+		case CanMoveUpRole: return row.canMoveUp;
+		case CanMoveDownRole: return row.canMoveDown;
 		case IconRole: return icons_.value(row.id);
 		default: return {};
 	}
@@ -139,6 +143,17 @@ void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
 		row.localKey = fileKey(QString::fromStdString(task.localPath));
 		rows.push_back(row);
 	}
+	// The queue moves a waiting task by swapping it with its neighbour, and
+	// never with the task under way; finished ones (the history) come after.
+	for(size_t i = 0; i < tasks.size(); ++i)
+	{
+		if(tasks[i].state != TaskState::Pending)
+			continue;
+		Row &row = rows[static_cast<int>(i)];
+		row.canMoveUp = i > 0 && tasks[i - 1].state == TaskState::Pending;
+		row.canMoveDown = i + 1 < tasks.size() && !tasks[i + 1].isTerminal();
+	}
+
 	// A package sent over FTP and then installed: the install's card tells
 	// the whole story, the upload's would be a second card for the same game.
 	QSet<QString> installed;

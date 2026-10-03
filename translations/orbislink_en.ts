@@ -232,114 +232,114 @@
 <context>
     <name>ConsoleCard</name>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="108"/>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="446"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="132"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="484"/>
         <source>Remote Play is not in this build</source>
         <translation>Remote Play is not in this build</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="109"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="133"/>
         <source>Click ✕ again to remove</source>
         <translation>Click ✕ again to remove</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="113"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="137"/>
         <source>Searching for the console…</source>
         <translation>Searching for the console…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="110"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="134"/>
         <source>Connecting…</source>
         <translation>Connecting…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="111"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="135"/>
         <source>Waking the console…</source>
         <translation>Waking the console…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="112"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="136"/>
         <source>Checking the console…</source>
         <translation>Checking the console…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="114"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="138"/>
         <source>Not responding</source>
         <translation>Not responding</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="115"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="139"/>
         <source>Checking…</source>
         <translation>Checking…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="116"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="140"/>
         <source>Not registered for Remote Play</source>
         <translation>Not registered for Remote Play</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="117"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="141"/>
         <source>In rest mode</source>
         <translation>In rest mode</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="118"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="142"/>
         <source>Ready</source>
         <translation>Ready</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="289"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="327"/>
         <source>In use</source>
         <translation>In use</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="289"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="327"/>
         <source>Registered</source>
         <translation>Registered</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="326"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="364"/>
         <source>This console has a jailbreak: its FTP server answers, so files and packages can be sent to it.</source>
         <translation>This console has a jailbreak: its FTP server answers, so files and packages can be sent to it.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="340"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="378"/>
         <source>Register this PC again</source>
         <translation>Register this PC again</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="341"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="379"/>
         <source>Register this PC on the console</source>
         <translation>Register this PC on the console</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="354"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="392"/>
         <source>Remove this console from the list</source>
         <translation>Remove this console from the list</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="371"/>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="381"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="409"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="419"/>
         <source>Console</source>
         <translation>Console</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="440"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="478"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="440"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="478"/>
         <source>Remote Play</source>
         <translation>Remote Play</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="456"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="494"/>
         <source>FTP</source>
         <translation>FTP</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="459"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="498"/>
         <source>Browse the console&apos;s files over FTP, without Remote Play</source>
         <translation>Browse the console&apos;s files over FTP, without Remote Play</translation>
     </message>
@@ -2248,12 +2248,12 @@
 <context>
     <name>QueueModel</name>
     <message>
-        <location filename="../src/orbislink/qt/queue_model.cpp" line="132"/>
+        <location filename="../src/orbislink/qt/queue_model.cpp" line="136"/>
         <source>Direct install</source>
         <translation>Direct install</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/queue_model.cpp" line="133"/>
+        <location filename="../src/orbislink/qt/queue_model.cpp" line="137"/>
         <source>FTP upload</source>
         <translation>FTP upload</translation>
     </message>
@@ -2877,153 +2877,153 @@
     </message>
     <message>
         <location filename="../qml/orbislink/TransferPanel.qml" line="52"/>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="311"/>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="316"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="313"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="318"/>
         <source>Resume</source>
         <translation>Resume</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="392"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="394"/>
         <source>Clear finished</source>
         <translation>Clear finished</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="458"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="460"/>
         <source>Try again</source>
         <translation>Try again</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="474"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="476"/>
         <source>Remove</source>
         <translation>Remove</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="548"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="550"/>
         <source>Waiting to convert</source>
         <translation>Waiting to convert</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="550"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="552"/>
         <source>Downloading the emulator files… %1%</source>
         <translation>Downloading the emulator files… %1%</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="551"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="553"/>
         <source>Unpacking the emulator files… %1%</source>
         <translation>Unpacking the emulator files… %1%</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="552"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="554"/>
         <source>Getting the cover…</source>
         <translation>Getting the cover…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="554"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="556"/>
         <source>Signing… %1%</source>
         <translation>Signing… %1%</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="555"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="557"/>
         <source>Converting… %1%</source>
         <translation>Converting… %1%</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="556"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="558"/>
         <source>Package ready</source>
         <translation>Package ready</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="556"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="558"/>
         <source>Converted — sending next</source>
         <translation>Converted — sending next</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="558"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="560"/>
         <source>Waiting to send</source>
         <translation>Waiting to send</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="558"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="560"/>
         <source>Sending to the console… %1%</source>
         <translation>Sending to the console… %1%</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="559"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="561"/>
         <source>On the console</source>
         <translation>On the console</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="561"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="563"/>
         <source>Waiting to install</source>
         <translation>Waiting to install</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="561"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="563"/>
         <source>Installing… %1%</source>
         <translation>Installing… %1%</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="562"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="564"/>
         <source>Installed</source>
         <translation>Installed</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="563"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="565"/>
         <source>Cancelled</source>
         <translation>Cancelled</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="564"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="566"/>
         <source>Failed</source>
         <translation>Failed</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="574"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="576"/>
         <source>Convert</source>
         <translation>Convert</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="574"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="576"/>
         <source>Send</source>
         <translation>Send</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="574"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="576"/>
         <source>Install</source>
         <translation>Install</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="474"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="476"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="351"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="353"/>
         <source>Speed</source>
         <translation>Speed</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="356"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="358"/>
         <source>Left</source>
         <translation>Left</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="358"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="360"/>
         <source>%1 of %2</source>
         <translation>%1 of %2</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="378"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="380"/>
         <source>PS1/PS2 games</source>
         <translation>PS1/PS2 games</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="466"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="468"/>
         <source>Open the folder</source>
         <translation>Open the folder</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="273"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="275"/>
         <source>The queue is empty</source>
         <translation>The queue is empty</translation>
     </message>
@@ -3038,13 +3038,13 @@
         <translation>Try now</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="282"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="284"/>
         <source>Drag .pkg files onto the window.</source>
         <translation>Drag .pkg files onto the window.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="311"/>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="315"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="313"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="317"/>
         <source>Pause</source>
         <translation>Pause</translation>
     </message>
