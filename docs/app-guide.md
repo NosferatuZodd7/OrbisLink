@@ -101,6 +101,7 @@ The picture fills the stage. Moving the mouse shows the toolbar:
 |---|---|
 | 🎮 | Keyboard map: which key presses which button. The touchpad key (T) puts a finger on the left half of the touchpad and then clicks — Select in PS2 games. A controller's own touchpad is passed on as it is (left half Select, right half Start). Keyboard and controller can be used together. **Change keys** to rebind (click a key, press the new one; two keys swap); **Reset** goes back to the defaults. |
 | Speaker | Mutes / unmutes the console's sound. |
+| ▭ 16:9 / 4:3 / Fill | The picture's shape, one click to the next: as the console sends it (16:9), 4:3 with bars at the sides (PS1/PS2 games come stretched), or stretched to the window. Kept for next time. |
 | Microphone | Sends / stops the PC microphone. |
 | Full screen | Full screen on / off (F11; Esc leaves the session). |
 | **End the session** | Disconnects. |

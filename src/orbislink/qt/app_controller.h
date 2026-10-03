@@ -68,6 +68,8 @@ class AppController : public QObject
 	Q_PROPERTY(QString downloadName READ downloadName NOTIFY downloadChanged)
 	Q_PROPERTY(double downloadProgress READ downloadProgress NOTIFY downloadChanged)
 	Q_PROPERTY(QStringList ftpShortcuts READ ftpShortcuts NOTIFY ftpShortcutsChanged)
+	// Remote Play picture: "fit" (as the console sends it), "4:3" or "fill".
+	Q_PROPERTY(QString streamAspect READ streamAspect WRITE setStreamAspect NOTIFY streamAspectChanged)
 	Q_PROPERTY(orbislink::QueueModel *queue READ queue CONSTANT)
 	Q_PROPERTY(orbislink::FtpModel *files READ files CONSTANT)
 	Q_PROPERTY(QString version READ version CONSTANT)
@@ -123,6 +125,8 @@ public:
 	QString downloadName() const { return downloadName_; }
 	double downloadProgress() const { return downloadProgress_; }
 	QStringList ftpShortcuts() const;
+	QString streamAspect() const { return QString::fromStdString(settings_.streamAspect); }
+	void setStreamAspect(const QString &aspect);
 	QueueModel *queue() { return &queueModel_; }
 	FtpModel *files() { return &ftpModel_; }
 	QString version() const;
@@ -310,6 +314,7 @@ public:
 
 signals:
 	void ftpShortcutsChanged();
+	void streamAspectChanged();
 	void settingsChanged();
 	// A new log line, already masked. The diagnostics window connects to
 	// this to show what happens in real time.

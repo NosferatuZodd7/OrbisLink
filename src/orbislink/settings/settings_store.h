@@ -88,6 +88,8 @@ struct Settings
 	int streamBitrateKbps = 0;       // 0 = whatever chiaki's preset sets
 	bool streamHardwareDecode = true;
 	bool streamFullscreenOnConnect = false;
+	// How the picture fills the window: "fit" (as sent), "4:3" or "fill".
+	std::string streamAspect = "fit";
 	bool streamRumble = true;
 	bool streamTouchpadFromMouse = true;
 	std::string streamAccountId;     // the last accepted Account ID, in base64 (for new consoles)

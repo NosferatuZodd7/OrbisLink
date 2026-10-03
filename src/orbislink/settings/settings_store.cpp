@@ -72,6 +72,7 @@ std::string Settings::toJson() const
 	root.set("stream_bitrate_kbps", Json::fromInt(streamBitrateKbps));
 	root.set("stream_hardware_decode", Json::fromBool(streamHardwareDecode));
 	root.set("stream_fullscreen_on_connect", Json::fromBool(streamFullscreenOnConnect));
+	root.set("stream_aspect", Json::fromString(streamAspect));
 	root.set("stream_rumble", Json::fromBool(streamRumble));
 	root.set("stream_touchpad_from_mouse", Json::fromBool(streamTouchpadFromMouse));
 	root.set("stream_account_id", Json::fromString(streamAccountId));
@@ -168,6 +169,11 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 		root["stream_hardware_decode"].toLooseBool(settings.streamHardwareDecode);
 	settings.streamFullscreenOnConnect =
 		root["stream_fullscreen_on_connect"].toLooseBool(settings.streamFullscreenOnConnect);
+	{
+		const std::string aspect = root["stream_aspect"].toString(settings.streamAspect);
+		if(aspect == "fit" || aspect == "4:3" || aspect == "fill")
+			settings.streamAspect = aspect;
+	}
 	settings.streamRumble = root["stream_rumble"].toLooseBool(settings.streamRumble);
 	settings.streamTouchpadFromMouse =
 		root["stream_touchpad_from_mouse"].toLooseBool(settings.streamTouchpadFromMouse);
