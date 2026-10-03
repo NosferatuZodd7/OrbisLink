@@ -70,6 +70,10 @@ class AppController : public QObject
 	Q_PROPERTY(QStringList ftpShortcuts READ ftpShortcuts NOTIFY ftpShortcutsChanged)
 	// Remote Play picture: "fit" (as the console sends it), "4:3" or "fill".
 	Q_PROPERTY(QString streamAspect READ streamAspect WRITE setStreamAspect NOTIFY streamAspectChanged)
+	// Personalisation: the colours changed on top of the theme, and the
+	// saved looks ({ name, theme, colors }).
+	Q_PROPERTY(QVariantMap themeColors READ themeColors NOTIFY themeColorsChanged)
+	Q_PROPERTY(QVariantList themePresets READ themePresets NOTIFY themePresetsChanged)
 	Q_PROPERTY(orbislink::QueueModel *queue READ queue CONSTANT)
 	Q_PROPERTY(orbislink::FtpModel *files READ files CONSTANT)
 	Q_PROPERTY(QString version READ version CONSTANT)
@@ -127,6 +131,16 @@ public:
 	QStringList ftpShortcuts() const;
 	QString streamAspect() const { return QString::fromStdString(settings_.streamAspect); }
 	void setStreamAspect(const QString &aspect);
+	QVariantMap themeColors() const;
+	QVariantList themePresets() const;
+	// An empty colour puts the theme's own back.
+	Q_INVOKABLE void setThemeColor(const QString &key, const QString &color);
+	Q_INVOKABLE void resetThemeColors();
+	// Saves the theme and colours in use under `name` (replacing one with
+	// the same name); applying one brings both back.
+	Q_INVOKABLE void saveThemePreset(const QString &name);
+	Q_INVOKABLE void applyThemePreset(const QString &name);
+	Q_INVOKABLE void deleteThemePreset(const QString &name);
 	QueueModel *queue() { return &queueModel_; }
 	FtpModel *files() { return &ftpModel_; }
 	QString version() const;
@@ -316,6 +330,8 @@ public:
 signals:
 	void ftpShortcutsChanged();
 	void streamAspectChanged();
+	void themeColorsChanged();
+	void themePresetsChanged();
 	void settingsChanged();
 	// A new log line, already masked. The diagnostics window connects to
 	// this to show what happens in real time.

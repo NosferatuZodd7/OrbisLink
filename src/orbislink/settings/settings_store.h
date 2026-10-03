@@ -17,6 +17,14 @@ TransferMode transferModeFromName(const std::string &name, TransferMode fallback
 // All OrbisLink settings that do not belong to chiaki-ng.
 // Stream settings (resolution, fps, bitrate) are still managed
 // by chiaki-ng and are not duplicated here.
+// A saved look: the base theme and the colours changed on top of it.
+struct ThemePreset
+{
+	std::string name;
+	std::string theme;                         // "dark", "glass" or "light"
+	std::map<std::string, std::string> colors; // key → "#RRGGBB"
+};
+
 // A console saved in the list.
 struct ConsoleEntry
 {
@@ -103,6 +111,10 @@ struct Settings
 
 	// Application
 	std::string theme = "dark";      // "dark", "glass" or "light"
+	// Colours changed on top of the theme (accent, hen, ok, warn, error,
+	// background, panel, text → "#RRGGBB"), and the saved looks.
+	std::map<std::string, std::string> themeColors;
+	std::vector<ThemePreset> themePresets;
 	std::string language = "en";    // "en" or "pt_PT"
 	bool debugLogging = false;
 	// "Updates over the internet". On by default: with a public repository

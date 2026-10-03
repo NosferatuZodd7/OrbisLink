@@ -17,6 +17,7 @@
 
 #include <QClipboard>
 #include <QCryptographicHash>
+#include <QColor>
 #include <QCoreApplication>
 #include <QDesktopServices>
 #include <QDir>
@@ -741,6 +742,110 @@ void AppController::setStreamAspect(const QString &aspect)
 	settings_.streamAspect = aspect.toStdString();
 	store_.save(settings_);
 	emit streamAspectChanged();
+}
+
+namespace {
+
+const QStringList &themeColorKeys()
+{
+	static const QStringList keys = { QStringLiteral("accent"), QStringLiteral("hen"), QStringLiteral("ok"),
+		QStringLiteral("warn"), QStringLiteral("error"), QStringLiteral("background"),
+		QStringLiteral("panel"), QStringLiteral("text") };
+	return keys;
+}
+
+QVariantMap colorsToMap(const std::map<std::string, std::string> &colors)
+{
+	QVariantMap map;
+	for(const auto &pair : colors)
+		map.insert(QString::fromStdString(pair.first), QString::fromStdString(pair.second));
+	return map;
+}
+
+} // namespace
+
+QVariantMap AppController::themeColors() const { return colorsToMap(settings_.themeColors); }
+
+QVariantList AppController::themePresets() const
+{
+	QVariantList list;
+	for(const ThemePreset &preset : settings_.themePresets)
+	{
+		QVariantMap item;
+		item[QStringLiteral("name")] = QString::fromStdString(preset.name);
+		item[QStringLiteral("theme")] = QString::fromStdString(preset.theme);
+		item[QStringLiteral("colors")] = colorsToMap(preset.colors);
+		list << item;
+	}
+	return list;
+}
+
+void AppController::setThemeColor(const QString &key, const QString &color)
+{
+	if(!themeColorKeys().contains(key))
+		return;
+	const QColor parsed(color);
+	if(color.isEmpty() || !parsed.isValid())
+		settings_.themeColors.erase(key.toStdString());
+	else
+		settings_.themeColors[key.toStdString()] = parsed.name(QColor::HexRgb).toUpper().toStdString();
+	store_.save(settings_);
+	emit themeColorsChanged();
+}
+
+void AppController::resetThemeColors()
+{
+	if(settings_.themeColors.empty())
+		return;
+	settings_.themeColors.clear();
+	store_.save(settings_);
+	emit themeColorsChanged();
+}
+
+void AppController::saveThemePreset(const QString &name)
+{
+	const std::string trimmed = name.trimmed().toStdString();
+	if(trimmed.empty())
+		return;
+	ThemePreset preset { trimmed, settings_.theme, settings_.themeColors };
+	auto &presets = settings_.themePresets;
+	auto same = std::find_if(presets.begin(), presets.end(),
+		[&](const ThemePreset &p) { return p.name == trimmed; });
+	if(same != presets.end())
+		*same = preset;
+	else
+		presets.push_back(preset);
+	store_.save(settings_);
+	emit themePresetsChanged();
+	setStatusMessage(tr("Look \"%1\" saved.").arg(name.trimmed()));
+}
+
+void AppController::applyThemePreset(const QString &name)
+{
+	for(const ThemePreset &preset : settings_.themePresets)
+	{
+		if(preset.name != name.toStdString())
+			continue;
+		settings_.theme = preset.theme == "glass" || preset.theme == "light" ? preset.theme : "dark";
+		settings_.themeColors = preset.colors;
+		store_.save(settings_);
+		emit themeColorsChanged();
+		emit settingsChanged();
+		return;
+	}
+}
+
+void AppController::deleteThemePreset(const QString &name)
+{
+	auto &presets = settings_.themePresets;
+	const auto before = presets.size();
+	presets.erase(std::remove_if(presets.begin(), presets.end(),
+					  [&](const ThemePreset &p) { return p.name == name.toStdString(); }),
+		presets.end());
+	if(presets.size() == before)
+		return;
+	store_.save(settings_);
+	emit themePresetsChanged();
 }
 
 bool AppController::isFtpPinned(const QString &path) const

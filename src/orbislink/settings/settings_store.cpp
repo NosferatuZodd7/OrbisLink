@@ -5,6 +5,7 @@
 #include "orbislink/common/log.h"
 #include "orbislink/common/util.h"
 
+#include <cctype>
 #include <cstdlib>
 #include <fstream>
 #include <sys/stat.h>
@@ -13,6 +14,21 @@
 #endif
 
 namespace orbislink {
+
+namespace {
+
+// "#RRGGBB", as the colour picker writes it.
+bool isThemeColor(const std::string &value)
+{
+	if(value.size() != 7 || value[0] != '#')
+		return false;
+	for(size_t i = 1; i < value.size(); ++i)
+		if(!std::isxdigit(static_cast<unsigned char>(value[i])))
+			return false;
+	return true;
+}
+
+} // namespace
 
 const char *transferModeName(TransferMode mode)
 {
@@ -94,6 +110,23 @@ std::string Settings::toJson() const
 		pad.set(pair.first, Json::fromString(pair.second));
 	root.set("pad_bindings", pad);
 	root.set("theme", Json::fromString(theme));
+	Json colors = Json::makeObject();
+	for(const auto &pair : themeColors)
+		colors.set(pair.first, Json::fromString(pair.second));
+	root.set("theme_colors", colors);
+	Json presets = Json::makeArray();
+	for(const ThemePreset &preset : themePresets)
+	{
+		Json item = Json::makeObject();
+		item.set("name", Json::fromString(preset.name));
+		item.set("theme", Json::fromString(preset.theme));
+		Json presetColors = Json::makeObject();
+		for(const auto &pair : preset.colors)
+			presetColors.set(pair.first, Json::fromString(pair.second));
+		item.set("colors", presetColors);
+		presets.push(std::move(item));
+	}
+	root.set("theme_presets", presets);
 	root.set("language", Json::fromString(language));
 	root.set("debug_logging", Json::fromBool(debugLogging));
 	root.set("check_for_updates", Json::fromBool(checkForUpdates));
@@ -208,6 +241,28 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 				settings.padBindings[pair.first] = pair.second.toString();
 	}
 	settings.theme = root["theme"].toString(settings.theme);
+	auto readColors = [](const Json &object) {
+		std::map<std::string, std::string> colors;
+		if(object.isObject())
+			for(const auto &pair : object.members())
+				if(pair.second.isString() && isThemeColor(pair.second.toString()))
+					colors[pair.first] = pair.second.toString();
+		return colors;
+	};
+	settings.themeColors = readColors(root["theme_colors"]);
+	if(root["theme_presets"].isArray())
+	{
+		for(const Json &item : root["theme_presets"].items())
+		{
+			if(!item.isObject() || item["name"].toString().empty())
+				continue;
+			ThemePreset preset;
+			preset.name = item["name"].toString();
+			preset.theme = item["theme"].toString("dark");
+			preset.colors = readColors(item["colors"]);
+			settings.themePresets.push_back(std::move(preset));
+		}
+	}
 	settings.language = root["language"].toString(settings.language);
 	// English is the default for everyone; "auto" (following the system) was
 	// the old default and becomes English too.
