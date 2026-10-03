@@ -41,6 +41,10 @@ class FtpSession(threading.Thread):
 
     # Pause after each block received, to watch uploads in progress (--ftp-slow).
     upload_delay = 0.0
+    # Cuts the data connection once per file after this many bytes, to try
+    # resuming (--ftp-drop-once).
+    drop_after = 0
+    dropped: set = set()
 
     def __init__(self, conn: socket.socket, root: str) -> None:
         super().__init__(daemon=True)
@@ -270,6 +274,8 @@ class FtpSession(threading.Thread):
             return
         mode = "ab" if (append or self.rest_offset) else "wb"
         self.rest_offset = 0
+        drop = FtpSession.drop_after if path not in FtpSession.dropped else 0
+        received = 0
         try:
             with open(path, mode) as handle:
                 while True:
@@ -277,6 +283,13 @@ class FtpSession(threading.Thread):
                     if not chunk:
                         break
                     handle.write(chunk)
+                    received += len(chunk)
+                    if drop and received >= drop:
+                        FtpSession.dropped.add(path)
+                        data.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0))
+                        handle.flush()
+                        self.send("426 Connection closed; transfer aborted")
+                        return
                     if FtpSession.upload_delay:
                         time.sleep(FtpSession.upload_delay)
             self.send("226 Transfer complete")
@@ -612,6 +625,8 @@ def main() -> int:
                         help="delay per downloaded block (for demos)")
     parser.add_argument("--ftp-slow", type=float, default=0.0, metavar="SECONDS",
                         help="delay per uploaded block over FTP (to watch uploads in progress)")
+    parser.add_argument("--ftp-drop-once", type=int, default=0, metavar="BYTES",
+                        help="cuts each upload once after this many bytes (to try resuming)")
     parser.add_argument("--discovery-port", type=int, default=0, metavar="PORT",
                         help="answers Remote Play discovery on this port "
                              "(987 is the real one, but needs privileges)")
@@ -628,6 +643,7 @@ def main() -> int:
     os.makedirs(downloads, exist_ok=True)
 
     FtpSession.upload_delay = arguments.ftp_slow
+    FtpSession.drop_after = arguments.ftp_drop_once
     ftp = FtpServer(arguments.ftp_port, root)
     ftp.start()
 

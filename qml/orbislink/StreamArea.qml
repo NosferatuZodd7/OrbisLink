@@ -112,19 +112,25 @@ Item {
     Flickable {
         id: cardScroll
         anchors.fill: videoStage
-        anchors.margins: 24
-        anchors.bottomMargin: helpRow.visible ? helpRow.height + 40 : 24
+        anchors.margins: 10
+        anchors.bottomMargin: helpRow.visible ? helpRow.height + 26 : 10
         visible: !root.streaming
         clip: true
         contentWidth: width
-        contentHeight: consoleRow.height + 12
+        contentHeight: consoleRow.height + 2 * consoleRow.y
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
+        // Centred, as many to a row as fit; the room around them keeps the
+        // glow and the lift on hover inside the clip.
         Flow {
             id: consoleRow
-            y: 6
-            width: cardScroll.width
+            readonly property int cell: 256 + spacing
+            readonly property int fits: Math.max(1, Math.floor((cardScroll.width - 28 + spacing) / cell))
+            readonly property int count: app.consoles.length + 1
+            x: Math.round((cardScroll.width - width) / 2)
+            y: 14
+            width: Math.min(fits, count) * cell - spacing
             spacing: 16
 
             Repeater {
@@ -496,9 +502,10 @@ Item {
                     }
                 }
 
-                // Both in the centre, one above the other, and the explanation
-                // in a box below: the eye goes down from the key to the button
-                // and from it to the text.
+                // The keyboard above; below it the controller and, beside it,
+                // what the key does: the eye goes down from the key to the
+                // button and across to the text, and nothing hides under the
+                // dialog's edge.
                 KeyboardMap {
                     id: keyboardMap
                     Layout.alignment: Qt.AlignHCenter
@@ -506,45 +513,53 @@ Item {
                     Layout.preferredHeight: implicitHeight
                 }
 
-                ControllerSketch {
+                Item {
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredWidth: 300
-                    Layout.preferredHeight: 226
-                    highlight: keyboardMap.highlight
-                }
+                    implicitWidth: sketch.width + 28 + explanation.width
+                    implicitHeight: sketch.height
 
-                Rectangle {
-                    Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredWidth: Math.min(parent.width, 520)
-                    // Fixed height for two lines: the box must not jump in size
-                    // every time the mouse moves from key to key.
-                    Layout.preferredHeight: 56
-                    radius: Theme.radiusSmall
-                    readonly property bool full: keyboardMap.message.length > 0
-                    color: full ? Theme.accentFill
-                         : Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b,
-                                   Theme.light ? 1.0 : 0.6)
-                    border.width: 1
-                    border.color: full ? Theme.accent
-                                : Theme.light ? Qt.rgba(0, 0, 0, 0.12) : Theme.glassEdge
-                    Behavior on color { ColorAnimation { duration: Theme.fast } }
+                    ControllerSketch {
+                        id: sketch
+                        width: 280
+                        height: 211
+                        highlight: keyboardMap.highlight
+                    }
 
-                    Text {
-                        anchors.fill: parent
-                        anchors.leftMargin: 16
-                        anchors.rightMargin: 16
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                        wrapMode: Text.WordWrap
-                        color: parent.full ? Theme.text : Theme.textSecondary
-                        font.pixelSize: parent.full ? 14 : 12
-                        font.bold: parent.full
-                        text: parent.full ? keyboardMap.message
-                            : keyboardMap.editing
-                              ? qsTr("Click the key you want to change, then press the new key. "
-                                     + "If it already does something, the two swap.")
-                              : qsTr("Hover over a key to see on the controller which button it "
-                                     + "presses. Greyed-out keys do nothing.")
+                    Rectangle {
+                        id: explanation
+                        x: sketch.width + 28
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 340
+                        // Fixed height for a few lines: the box must not jump in
+                        // size every time the mouse moves from key to key.
+                        height: 96
+                        radius: Theme.radiusSmall
+                        readonly property bool full: keyboardMap.message.length > 0
+                        color: full ? Theme.accentFill
+                             : Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b,
+                                       Theme.light ? 1.0 : 0.6)
+                        border.width: 1
+                        border.color: full ? Theme.accent
+                                    : Theme.light ? Qt.rgba(0, 0, 0, 0.12) : Theme.glassEdge
+                        Behavior on color { ColorAnimation { duration: Theme.fast } }
+
+                        Text {
+                            anchors.fill: parent
+                            anchors.leftMargin: 16
+                            anchors.rightMargin: 16
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            wrapMode: Text.WordWrap
+                            color: parent.full ? Theme.text : Theme.textSecondary
+                            font.pixelSize: parent.full ? 14 : 12
+                            font.bold: parent.full
+                            text: parent.full ? keyboardMap.message
+                                : keyboardMap.editing
+                                  ? qsTr("Click the key you want to change, then press the new key. "
+                                         + "If it already does something, the two swap.")
+                                  : qsTr("Hover over a key to see on the controller which button it "
+                                         + "presses. Greyed-out keys do nothing.")
+                        }
                     }
                 }
 

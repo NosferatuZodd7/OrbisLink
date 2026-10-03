@@ -101,6 +101,9 @@ public:
 private:
 	struct Slot;
 	FtpResult withRetries(const std::string &what, const std::function<FtpResult()> &operation);
+	bool querySize(const std::string &path, int64_t *size);
+	FtpResult uploadOnce(const std::string &localPath, const std::string &path,
+		const FtpProgressCallback &progress, int64_t localSize, int64_t from, int64_t *reached);
 
 	mutable std::mutex mutex_;
 	Config config_;

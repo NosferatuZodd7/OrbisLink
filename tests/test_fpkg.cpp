@@ -6,6 +6,7 @@
 // it, compare with PkgTool again before updating it.
 #include "orbislink/fpkg/classic_converter.h"
 #include "orbislink/fpkg/disc_scanner.h"
+#include "orbislink/fpkg/fself.h"
 #include "orbislink/fpkg/param_sfo.h"
 #include "orbislink/fpkg/pkg_builder.h"
 #include "test_support.h"
@@ -422,6 +423,100 @@ ORBISLINK_TEST(a_ps1_disc_becomes_a_ps1_classic)
 	CHECK(error.find("PS1 emulator") != std::string::npos);
 	fs::remove_all(discs);
 	fs::remove_all(emuDir);
+}
+
+namespace {
+
+// A small PS4-like executable: a code segment and a dynlib data segment.
+Bytes makeElf()
+{
+	Bytes elf = pattern(0x6100, 21);
+	std::memset(elf.data(), 0, 0x40 + 2 * 0x38);
+	const uint8_t ident[] = {0x7F, 'E', 'L', 'F', 2, 1, 1, 9};
+	std::memcpy(elf.data(), ident, sizeof ident);
+	auto put = [&](size_t at, uint64_t v, int n) {
+		for(int i = 0; i < n; ++i)
+			elf[at + i] = static_cast<uint8_t>(v >> (8 * i));
+	};
+	put(0x10, 0xFE10, 2); // ET_SCE_DYNEXEC
+	put(0x12, 0x3E, 2);   // x86-64
+	put(0x14, 1, 4);
+	put(0x20, 0x40, 8);   // program headers
+	put(0x34, 0x40, 2);
+	put(0x36, 0x38, 2);
+	put(0x38, 2, 2);
+	const uint64_t segs[2][3] = {{1, 0x1000, 0x5000}, {0x61000000, 0x6000, 0x100}};
+	for(int i = 0; i < 2; ++i)
+	{
+		const size_t ph = 0x40 + i * 0x38;
+		put(ph, segs[i][0], 4);
+		put(ph + 4, 5, 4);
+		put(ph + 0x08, segs[i][1], 8);
+		put(ph + 0x20, segs[i][2], 8);
+		put(ph + 0x28, segs[i][2], 8);
+		put(ph + 0x30, 0x4000, 8);
+	}
+	return elf;
+}
+
+} // namespace
+
+ORBISLINK_TEST(a_plain_elf_becomes_a_fake_self)
+{
+	const Bytes elf = makeElf();
+	CHECK(isPlainElf(elf.data(), elf.size()));
+	std::string error;
+	const Bytes self = makeFself(elf, &error);
+	CHECK_EQ(error, std::string());
+	CHECK(!isPlainElf(self.data(), self.size()));
+	CHECK(self.size() > 0x20 && self[0] == 0x4F && self[1] == 0x15 && self[2] == 0x3D && self[3] == 0x1D);
+	CHECK_EQ(int(self[24]), 4); // two entries per loaded segment
+	// The same bytes as OpenOrbis' create-fself (make_fself.py's defaults).
+	CHECK_EQ(hex(sha256(self)), std::string(EXPECTED_FSELF_SHA));
+	CHECK(makeFself(pattern(100, 1), &error).empty());
+}
+
+ORBISLINK_TEST(a_dump_folder_gives_only_the_emulator)
+{
+	// A GoldHEN dump used as it is, with the packages made from it next to it.
+	const fs::path dir = fs::temp_directory_path() / "orbislink-test-dump";
+	fs::remove_all(dir);
+	writeFile(dir / "eboot.bin", makeElf());
+	writeFile(dir / "eboot.fself", Bytes());
+	writeFile(dir / "ps2-emu-compiler.self", pattern(3000, 30));
+	writeFile(dir / "PS20220WD20050620.crack", pattern(1000, 31));
+	writeFile(dir / "sce_module/libc.prx", makeElf());
+	writeFile(dir / "sce_sys/keystone", pattern(96, 32));
+	writeFile(dir / "sce_sys/license.dat", pattern(1024, 33));
+	writeFile(dir / "sce_sys/playgo-chunk.dat", pattern(1024, 34));
+	writeFile(dir / "sce_sys/icon0.png", pattern(500, 35));
+	writeFile(dir / "docs/readme.txt", pattern(50, 36));
+	writeFile(dir / "image/disc01.iso", pattern(4096, 37));
+	writeFile(dir / "Old-Game_SLUS20905.pkg", pattern(4096, 38));
+	writeFile(dir / "SLUS20905.gp4", pattern(400, 39));
+	writeFile(dir / "lua_include/common.lua", pattern(70, 40));
+	writeFile(dir / "games/Game (USA).iso", makeDisc("BOOT2 = cdrom0:\\SLUS_209.05;1\r\n", false));
+	const DiscInfo disc = inspectDisc((dir / "games/Game (USA).iso").u8string());
+	ClassicOptions options;
+	options.outputDir = dir.u8string();
+	options.now = 1577836800;
+	PkgRequest request;
+	ClassicResult result;
+	std::string error;
+	CHECK(prepareClassic(disc, findEmulators(dir.u8string()), options, &request, &result, &error));
+	CHECK_EQ(error, std::string());
+	auto t = targets(request);
+	std::sort(t.begin(), t.end());
+	const std::vector<std::string> expected = {"PS20220WD20050620.crack", "config-emu-ps4.txt", "eboot.bin",
+		"image/disc01.iso", "lua_include/common.lua", "ps2-emu-compiler.self", "sce_module/libc.prx",
+		"sce_sys/icon0.png", "sce_sys/param.sfo"};
+	CHECK(t == expected);
+	// The decrypted executables go in fake-signed.
+	const PkgSource *eboot = source(request, "eboot.bin");
+	CHECK(eboot->sourcePath.empty() && eboot->data.size() > 4 && eboot->data[0] == 0x4F);
+	CHECK(source(request, "sce_module/libc.prx")->data[0] == 0x4F);
+	CHECK(source(request, "image/disc01.iso")->sourcePath.find("Game (USA).iso") != std::string::npos);
+	fs::remove_all(dir);
 }
 
 TEST_MAIN()

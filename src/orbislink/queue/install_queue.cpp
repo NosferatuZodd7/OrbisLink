@@ -302,6 +302,7 @@ void InstallQueue::resume()
 		std::lock_guard<std::mutex> lock(mutex_);
 		pauseReason_.clear();
 	}
+	waitingForService_.store(false);
 	paused_.store(false);
 	wakeup_.notify_all();
 }
@@ -539,6 +540,7 @@ void InstallQueue::requeueForServiceLoss(QueueTask task, const std::string &reas
 		currentId_.clear();
 	}
 	pause(reason);
+	waitingForService_.store(true);
 	notify(task);
 }
 

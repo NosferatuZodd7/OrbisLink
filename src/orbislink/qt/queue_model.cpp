@@ -4,6 +4,8 @@
 #include "orbislink/common/util.h"
 #include "orbislink/qt/translate_message.h"
 
+#include <QDir>
+
 namespace orbislink {
 
 QueueModel::QueueModel(QObject *parent) : QAbstractListModel(parent) {}
@@ -30,6 +32,7 @@ QHash<int, QByteArray> QueueModel::roleNames() const
 		{ ModeRole, "mode" },
 		{ IconRole, "iconSource" },
 		{ ActiveRole, "active" },
+		{ LocalKeyRole, "localKey" },
 	};
 }
 
@@ -53,6 +56,7 @@ QVariant QueueModel::data(const QModelIndex &index, int role) const
 		case MessageRole: return row.message;
 		case ModeRole: return row.mode;
 		case ActiveRole: return row.active;
+		case LocalKeyRole: return row.localKey;
 		case IconRole: return icons_.value(row.id);
 		default: return {};
 	}
@@ -80,9 +84,8 @@ QString QueueModel::remainingText() const
 
 void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
 {
-	beginResetModel();
-	rows_.clear();
-	rows_.reserve(static_cast<int>(tasks.size()));
+	QVector<Row> rows;
+	rows.reserve(static_cast<int>(tasks.size()));
 	for(const QueueTask &task : tasks)
 	{
 		Row row;
@@ -108,11 +111,42 @@ void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
 			|| task.state == TaskState::Validating;
 		row.bytesPerSecond = row.active ? task.bytesPerSecond : 0.0;
 		row.remainingBytes = task.totalBytes > task.doneBytes ? task.totalBytes - task.doneBytes : 0;
-		rows_.push_back(row);
+		row.localKey = fileKey(QString::fromStdString(task.localPath));
+		rows.push_back(row);
 	}
+
+	// The same tasks in the same order (each progress tick): only the rows
+	// that changed are told, so the cards stay and their bars move instead
+	// of being made again from zero.
+	bool sameTasks = rows.size() == rows_.size();
+	for(int i = 0; sameTasks && i < rows.size(); ++i)
+		sameTasks = rows[i].id == rows_[i].id;
+	if(sameTasks)
+	{
+		for(int i = 0; i < rows.size(); ++i)
+		{
+			if(rows[i] == rows_[i])
+				continue;
+			rows_[i] = rows[i];
+			emit dataChanged(index(i), index(i));
+		}
+		emit summaryChanged();
+		return;
+	}
+	beginResetModel();
+	rows_ = rows;
 	endResetModel();
 	emit countChanged();
 	emit summaryChanged();
+}
+
+QString QueueModel::fileKey(const QString &localPath)
+{
+	QString key = QDir::cleanPath(QDir::fromNativeSeparators(localPath));
+#ifdef Q_OS_WIN
+	key = key.toLower();
+#endif
+	return key;
 }
 
 void QueueModel::setIcon(const QString &taskId, const QString &dataUri)

@@ -376,6 +376,10 @@ its icons come from [Lucide](https://lucide.dev/), under the ISC licence (see
 The PS1/PS2 converter builds its packages with a C++ port of the fake PKG
 builder of [LibOrbisPkg](https://github.com/maxton/LibOrbisPkg), by maxton,
 under the GNU LGPL 3 (see [`third-party/liborbispkg`](third-party/liborbispkg)).
+Decrypted executables (from a dump) are fake-signed with a C++ port of
+[create-fself](https://github.com/OpenOrbis/create-fself), by the OpenOrbis
+team after flatz' `make_fself.py`, under the GNU GPL 3 (see
+[`third-party/create-fself`](third-party/create-fself)).
 The layout of a PS2 Classics package follows
 [easy-ps2-fpkg](https://github.com/spiral009/easy-ps2-fpkg) (MIT). No Sony
 emulator, firmware or game is included: the emulator files come from the

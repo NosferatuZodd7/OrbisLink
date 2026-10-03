@@ -100,6 +100,7 @@ if(OpenSSL_FOUND)
 		src/orbislink/fpkg/disc_scanner.cpp
 		src/orbislink/fpkg/fpkg_crypto.cpp
 		src/orbislink/fpkg/fpkg_keys.cpp
+		src/orbislink/fpkg/fself.cpp
 		src/orbislink/fpkg/param_sfo.cpp
 		src/orbislink/fpkg/pfs_builder.cpp
 		src/orbislink/fpkg/pkg_builder.cpp
