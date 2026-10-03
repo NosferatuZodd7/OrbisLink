@@ -184,6 +184,9 @@ Item {
                 }
                 Text {
                     Layout.alignment: Qt.AlignHCenter
+                    Layout.maximumWidth: 520
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
                     text: qsTr("Your PS1 and PS2 games, ready for the console")
                     color: Theme.text
                     font.pixelSize: 17
@@ -211,32 +214,43 @@ Item {
                 Item { Layout.fillHeight: true }
             }
 
-            // ── the games
-            ScrollView {
-                id: gamesScroll
+            // ── the games: centred, as many to a row as fit
+            Item {
                 visible: games.gamesFolder.length > 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                contentWidth: availableWidth
-                clip: true
-                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
 
-                Flow {
-                    width: gamesScroll.availableWidth
-                    topPadding: 8
-                    leftPadding: 6
-                    spacing: 18
-                    bottomPadding: root.selected.length > 0 ? 90 : 16
+                Flickable {
+                    id: gamesScroll
+                    anchors.fill: parent
+                    // Room for the cards' glow and lift on hover.
+                    anchors.leftMargin: -14
+                    anchors.rightMargin: -14
+                    clip: true
+                    contentWidth: width
+                    contentHeight: gamesFlow.height + gamesFlow.y + (root.selected.length > 0 ? 90 : 16)
+                    boundsBehavior: Flickable.StopAtBounds
+                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-                    Repeater {
-                        model: games.games
-                        GameCard {
-                            required property var modelData
-                            game: modelData
-                            selected: root.isSelected(modelData.path)
-                            progress: games.progress[modelData.path] || null
-                            onToggle: root.toggle(modelData.path)
-                            onOpen: gameDialog.begin([modelData])
+                    Flow {
+                        id: gamesFlow
+                        readonly property int cell: 236 + spacing
+                        readonly property int fits: Math.max(1, Math.floor((gamesScroll.width - 28 + spacing) / cell))
+                        x: Math.round((gamesScroll.width - width) / 2)
+                        y: 14
+                        width: Math.max(0, Math.min(fits, games.games.length) * cell - spacing)
+                        spacing: 18
+
+                        Repeater {
+                            model: games.games
+                            GameCard {
+                                required property var modelData
+                                game: modelData
+                                selected: root.isSelected(modelData.path)
+                                progress: games.progress[modelData.path] || null
+                                onToggle: root.toggle(modelData.path)
+                                onOpen: gameDialog.begin([modelData])
+                            }
                         }
                     }
                 }
@@ -244,12 +258,19 @@ Item {
                 // Looking, or found nothing.
                 Column {
                     anchors.centerIn: parent
-                    visible: games.scanning || (games.games.length === 0 && games.gamesFolder.length > 0)
+                    visible: games.scanning || games.games.length === 0
                     spacing: 12
                     BusyIndicator {
                         anchors.horizontalCenter: parent.horizontalCenter
                         visible: games.scanning
                         running: games.scanning
+                    }
+                    Icon {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        visible: !games.scanning
+                        name: "disc"
+                        size: 44
+                        color: Theme.alpha(Theme.textSecondary, 0.7)
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter

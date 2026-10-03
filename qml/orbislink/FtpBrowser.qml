@@ -28,6 +28,14 @@ Item {
         return false
     }
 
+    // A file or a whole folder to the PC (empty destination: the desktop).
+    function download(path, name, isDirectory, destination) {
+        if (isDirectory)
+            app.ftpDownloadFolder(path, name, destination)
+        else
+            app.ftpDownload(path, name, destination)
+    }
+
     property url lastDestination
 
     // Lists when the tab appears for the first time.
@@ -222,23 +230,14 @@ Item {
                                 return
                             row.localUrl = localUrl
                             row.preparing = false
+                            // Still holding the button: the drag goes on.
+                            if (dragArea.pressed && dragArea.dragged)
+                                app.startFtpDrag(model.path, localUrl)
                         }
                         function onDownloadChanged() {
                             if (row.preparing && !app.downloadActive)
                                 row.preparing = false
                         }
-                    }
-
-                    // Dragging out hands a local file to the system; that
-                    // is why the proxy only exists after the copy.
-                    Item {
-                        id: dragProxy
-                        Drag.active: dragArea.drag.active
-                        Drag.dragType: Drag.Automatic
-                        Drag.supportedActions: Qt.CopyAction
-                        Drag.mimeData: ({ "text/uri-list": row.localUrl })
-                        // Without an image, the cursor drags an invisible nothing.
-                        Drag.imageSource: "qrc:/icons/logo.png"
                     }
 
                     contentItem: RowLayout {
@@ -269,33 +268,82 @@ Item {
                                 id: dragArea
                                 anchors.fill: parent
                                 acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                cursorShape: row.localUrl.length > 0 ? Qt.OpenHandCursor : Qt.ArrowCursor
-                                drag.target: row.localUrl.length > 0 ? dragProxy : null
-                                drag.threshold: 10
+                                cursorShape: model.isDirectory ? Qt.PointingHandCursor
+                                           : row.localUrl.length > 0 ? Qt.OpenHandCursor : Qt.ArrowCursor
                                 // Otherwise the list steals the gesture and treats
                                 // it as scrolling instead of dragging the file.
-                                preventStealing: row.localUrl.length > 0
+                                preventStealing: true
+                                property point pressedAt
+                                property bool dragged: false
 
-                                onClicked: (mouse) => {
-                                    if (mouse.button === Qt.RightButton)
-                                        rowMenu.popupFor(model.path, model.name, model.isDirectory, model.size, model.sizeText, row)
+                                onPressed: (mouse) => {
+                                    pressedAt = Qt.point(mouse.x, mouse.y)
+                                    dragged = false
                                 }
-                                onDoubleClicked: {
-                                    if (model.isDirectory)
+                                // One click opens a folder; on a file it shows
+                                // what can be done with it.
+                                onClicked: (mouse) => {
+                                    if (dragged)
+                                        return
+                                    if (mouse.button === Qt.LeftButton && model.isDirectory)
                                         app.ftpNavigate(model.path)
                                     else
-                                        app.ftpDownload(model.path, model.name, "")
+                                        rowMenu.popupFor(model.path, model.name, model.isDirectory, model.size, model.sizeText, row)
                                 }
-                                onPressAndHold: rowMenu.popupFor(model.path, model.name, model.isDirectory, model.size, model.sizeText, row)
-                                // Dragging a file that is not on the PC yet starts
-                                // by fetching it; when it arrives, it is dragged.
-                                onPositionChanged: {
-                                    if (!pressed || model.isDirectory || row.localUrl.length > 0)
+                                onPressAndHold: {
+                                    if (!dragged)
+                                        rowMenu.popupFor(model.path, model.name, model.isDirectory, model.size, model.sizeText, row)
+                                }
+                                // Dragging: onto a folder of the list it moves
+                                // there; out of the window it needs the file on
+                                // the PC, so a small file not fetched yet is
+                                // fetched first and the drag goes on when it
+                                // arrives. A big one is dragged at once, for
+                                // the folders of the list ("Get it ready to
+                                // drag" brings it to the PC first).
+                                onPositionChanged: (mouse) => {
+                                    if (!pressed || dragged || !(mouse.buttons & Qt.LeftButton))
                                         return
+                                    if (Math.abs(mouse.x - pressedAt.x) + Math.abs(mouse.y - pressedAt.y) < 10)
+                                        return
+                                    dragged = true
+                                    if (model.isDirectory || row.localUrl.length > 0
+                                            || model.size > 64 * 1024 * 1024) {
+                                        app.startFtpDrag(model.path, row.localUrl)
+                                        return
+                                    }
                                     if (row.preparing || app.downloadActive)
                                         return
                                     row.preparing = true
                                     app.ftpPrepareForDrag(model.path, model.name, model.size)
+                                }
+                            }
+
+                            // A folder takes what is dropped on it from the list.
+                            DropArea {
+                                anchors.fill: parent
+                                enabled: model.isDirectory
+                                keys: ["application/x-orbislink-ftp-path"]
+                                onEntered: (drag) => {
+                                    const from = drag.getDataAsString("application/x-orbislink-ftp-path")
+                                    if (from === model.path)
+                                        drag.accepted = false
+                                }
+                                onDropped: (drop) => {
+                                    const from = drop.getDataAsString("application/x-orbislink-ftp-path")
+                                    if (from.length > 0 && from !== model.path) {
+                                        app.ftpMove(from, model.path)
+                                        drop.accept(Qt.MoveAction)
+                                    }
+                                }
+                                Rectangle {
+                                    anchors.fill: parent
+                                    anchors.margins: -4
+                                    radius: 8
+                                    visible: parent.containsDrag
+                                    color: Theme.alpha(Theme.accent, 0.12)
+                                    border.width: 1
+                                    border.color: Theme.accent
                                 }
                             }
                         }
@@ -503,16 +551,12 @@ Item {
         StyledMenuItem {
             text: qsTr("Download to the desktop")
             iconName: "download"
-            visible: !rowMenu.targetIsDirectory
-            height: visible ? implicitHeight : 0
             enabled: !app.downloadActive
-            onTriggered: app.ftpDownload(rowMenu.targetPath, rowMenu.targetName, "")
+            onTriggered: root.download(rowMenu.targetPath, rowMenu.targetName, rowMenu.targetIsDirectory, "")
         }
         StyledMenuItem {
             text: qsTr("Download to…")
             iconName: "save"
-            visible: !rowMenu.targetIsDirectory
-            height: visible ? implicitHeight : 0
             enabled: !app.downloadActive
             onTriggered: destinationDialog.open()
         }
@@ -556,6 +600,11 @@ Item {
             onTriggered: renameDialog.open(rowMenu.targetPath, rowMenu.targetName)
         }
         StyledMenuItem {
+            text: qsTr("Move to…")
+            iconName: "folder-open"
+            onTriggered: renameDialog.openMove(rowMenu.targetPath, app.ftpPath)
+        }
+        StyledMenuItem {
             text: qsTr("Delete on the console")
             iconName: "trash"
             danger: true
@@ -572,13 +621,15 @@ Item {
             : "file://" + app.defaultDownloadDirectory()
         onAccepted: {
             root.lastDestination = selectedFolder
-            app.ftpDownload(rowMenu.targetPath, rowMenu.targetName, selectedFolder)
+            root.download(rowMenu.targetPath, rowMenu.targetName, rowMenu.targetIsDirectory, selectedFolder)
         }
     }
 
     Dialog {
         id: renameDialog
         property string targetPath: ""
+        // "rename": a new name; "move": the console folder to move it to.
+        property string mode: "rename"
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: 440
@@ -586,8 +637,18 @@ Item {
         padding: 0
 
         function open(path, name) {
+            mode = "rename"
             targetPath = path
             nameInput.text = name
+            visible = true
+            nameInput.forceActiveFocus()
+            nameInput.selectAll()
+        }
+
+        function openMove(path, folder) {
+            mode = "move"
+            targetPath = path
+            nameInput.text = folder
             visible = true
             nameInput.forceActiveFocus()
             nameInput.selectAll()
@@ -596,7 +657,10 @@ Item {
         function confirm() {
             if (nameInput.text.trim().length === 0)
                 return
-            app.ftpRename(targetPath, nameInput.text.trim())
+            if (mode === "move")
+                app.ftpMove(targetPath, nameInput.text.trim())
+            else
+                app.ftpRename(targetPath, nameInput.text.trim())
             close()
         }
 
@@ -609,7 +673,7 @@ Item {
         }
 
         header: DialogHeader {
-            title: qsTr("Rename")
+            title: renameDialog.mode === "move" ? qsTr("Move to the folder") : qsTr("Rename")
             dialog: renameDialog
         }
 
@@ -637,7 +701,7 @@ Item {
                     onClicked: renameDialog.close()
                 }
                 StyledButton {
-                    text: qsTr("Rename")
+                    text: renameDialog.mode === "move" ? qsTr("Move") : qsTr("Rename")
                     primary: true
                     minimumWidth: 110
                     enabled: nameInput.text.trim().length > 0

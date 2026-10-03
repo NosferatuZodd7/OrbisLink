@@ -44,6 +44,8 @@ class AppController : public QObject
 	Q_PROPERTY(bool canUseFtp READ canUseFtp NOTIFY statusChanged)
 	Q_PROPERTY(bool queuePaused READ queuePaused NOTIFY queueStateChanged)
 	Q_PROPERTY(QString pauseReason READ pauseReason NOTIFY queueStateChanged)
+	// The queue waits for Remote Package Installer to be opened on the console.
+	Q_PROPERTY(bool waitingForInstaller READ waitingForInstaller NOTIFY queueStateChanged)
 	Q_PROPERTY(QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
 	Q_PROPERTY(QString httpServerAddress READ httpServerAddress NOTIFY statusChanged)
 	Q_PROPERTY(QString ftpPath READ ftpPath NOTIFY ftpPathChanged)
@@ -107,6 +109,7 @@ public:
 	std::string activeAccountId() const;
 	bool queuePaused() const;
 	QString pauseReason() const;
+	bool waitingForInstaller() const;
 	QString statusMessage() const { return statusMessage_; }
 	QString httpServerAddress() const;
 	QString ftpPath() const { return ftpPath_; }
@@ -179,6 +182,15 @@ public:
 	Q_INVOKABLE void ftpDelete(const QString &path, bool isDirectory);
 	Q_INVOKABLE void ftpMakeDirectory(const QString &name);
 	Q_INVOKABLE void ftpRename(const QString &path, const QString &newName);
+	// Starts dragging a row of the FTP list (localUrl: its copy on the PC,
+	// if there is one).
+	Q_INVOKABLE void startFtpDrag(const QString &remotePath, const QString &localUrl);
+	// Moves a file or folder to another folder of the console.
+	Q_INVOKABLE void ftpMove(const QString &path, const QString &destinationDir);
+	// A whole folder, with everything inside it, to a folder of the PC
+	// (empty: the downloads folder).
+	Q_INVOKABLE void ftpDownloadFolder(const QString &remotePath, const QString &name,
+		const QString &destinationDir);
 
 	// Bring from the console to the PC (§5.5). Empty `destination` = default
 	// folder (desktop).
@@ -317,6 +329,7 @@ private:
 	// Says why a click did nothing, instead of swallowing it silently.
 	// Returns false when the operation cannot go ahead.
 	bool ftpReady(const QString &operation);
+	void resumeWhenInstallerIsBack();
 	void refreshQueueModel();
 	void setStatusMessage(const QString &message);
 	void setFtpBusy(bool busy);
@@ -345,6 +358,7 @@ private:
 	QString statusMessage_;
 	QString ftpPath_ = QStringLiteral("/data/pkg/");
 	bool ftpBusy_ = false;
+	bool installerRecheckPending_ = false;
 	QVariantList ftpUploads_;
 	QVariantMap ftpReachable_;
 	QVariantMap jailbreaks_;

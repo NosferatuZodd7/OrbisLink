@@ -27,174 +27,24 @@ Item {
                 spacing: 8
 
                 Icon {
-                    name: "pause"
+                    name: app.waitingForInstaller ? "refresh" : "pause"
+                    spinning: app.waitingForInstaller
                     size: 16
                     color: Theme.warn
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: app.pauseReason.length > 0 ? app.pauseReason : qsTr("Queue paused.")
+                    text: app.waitingForInstaller
+                          ? qsTr("Waiting for Remote Package Installer: open it on the console and the "
+                                 + "install starts by itself.")
+                          : app.pauseReason.length > 0 ? app.pauseReason : qsTr("Queue paused.")
                     color: Theme.text
                     wrapMode: Text.WordWrap
                     font.pixelSize: 12
                 }
                 StyledButton {
-                    text: qsTr("Resume")
+                    text: app.waitingForInstaller ? qsTr("Try now") : qsTr("Resume")
                     onClicked: app.resumeQueue()
-                }
-            }
-        }
-
-        // PS1/PS2 conversions: above the transfers and drawn apart from them,
-        // in amber, while the package is being made. One meant for installing
-        // then shows up below as an ordinary install.
-        ColumnLayout {
-            Layout.fillWidth: true
-            Layout.bottomMargin: games.conversions.length > 0 ? 10 : 0
-            visible: games.conversions.length > 0
-            spacing: 8
-
-            RowLayout {
-                Layout.fillWidth: true
-                Text {
-                    text: qsTr("Conversions")
-                    color: Theme.textSecondary
-                    font.pixelSize: 12
-                    font.weight: Font.DemiBold
-                }
-                Item { Layout.fillWidth: true }
-                StyledButton {
-                    chip: true
-                    visible: {
-                        for (var i = 0; i < games.conversions.length; ++i) {
-                            var s = games.conversions[i].state
-                            if (s !== "waiting" && s !== "converting")
-                                return true
-                        }
-                        return false
-                    }
-                    text: qsTr("Clear finished")
-                    onClicked: games.clearFinishedConversions()
-                }
-            }
-
-            Repeater {
-                model: games.conversions
-                delegate: Rectangle {
-                    id: conv
-                    required property var modelData
-                    readonly property bool working: modelData.state === "converting"
-                    readonly property bool waiting: modelData.state === "waiting"
-                    readonly property color tone: modelData.state === "error" ? Theme.error
-                                                : modelData.state === "done" ? Theme.ok
-                                                : modelData.state === "cancelled" ? Theme.textSecondary
-                                                : Theme.warn
-                    Layout.fillWidth: true
-                    radius: 16
-                    color: Theme.alpha(tone, Theme.light ? 0.07 : 0.09)
-                    border.width: 1
-                    border.color: Theme.alpha(tone, 0.45)
-                    implicitHeight: convColumn.implicitHeight + 24
-
-                    ColumnLayout {
-                        id: convColumn
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.margins: 12
-                        spacing: 8
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 10
-                            Rectangle {
-                                width: 44; height: 44; radius: 10
-                                color: Theme.alpha(conv.tone, 0.14)
-                                Icon {
-                                    anchors.centerIn: parent
-                                    name: conv.modelData.state === "done" ? "check" : "disc"
-                                    spinning: conv.working
-                                    size: 22
-                                    color: conv.tone
-                                }
-                            }
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: conv.modelData.title
-                                    color: Theme.text
-                                    font.pixelSize: 14
-                                    font.weight: Font.DemiBold
-                                    elide: Text.ElideRight
-                                }
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: {
-                                        var d = conv.modelData
-                                        var p = (d.platform === "ps2" ? "PS2" : "PS1") + "  ·  "
-                                        if (d.state === "waiting")
-                                            return p + qsTr("Waiting to convert")
-                                        if (d.state === "converting")
-                                            return p + (d.stage === "digest" || d.stage === "finish"
-                                                        ? qsTr("Signing… %1%").arg(Math.floor(d.percent))
-                                                        : qsTr("Converting… %1%").arg(Math.floor(d.percent)))
-                                        if (d.state === "done")
-                                            return p + (d.install ? qsTr("Ready — installing")
-                                                                  : qsTr("Package ready"))
-                                        if (d.state === "cancelled")
-                                            return p + qsTr("Cancelled")
-                                        return p + qsTr("Failed")
-                                    }
-                                    color: conv.modelData.state === "error" ? Theme.error : Theme.textSecondary
-                                    font.pixelSize: 11
-                                    elide: Text.ElideRight
-                                }
-                            }
-                            StyledToolButton {
-                                visible: conv.working || conv.waiting
-                                iconName: "close"
-                                iconSize: 15
-                                danger: true
-                                ToolTip.visible: hovered
-                                ToolTip.text: qsTr("Cancel")
-                                onClicked: games.cancelConversion(conv.modelData.id)
-                            }
-                            StyledToolButton {
-                                visible: conv.modelData.state === "done"
-                                iconName: "folder-open"
-                                iconSize: 15
-                                ToolTip.visible: hovered
-                                ToolTip.text: qsTr("Open the folder")
-                                onClicked: games.openOutputFolder()
-                            }
-                        }
-
-                        // A bar with the amber of a conversion, not the blue of a transfer.
-                        Rectangle {
-                            visible: conv.working || conv.waiting
-                            Layout.fillWidth: true
-                            height: 4
-                            radius: 2
-                            color: Theme.alpha(conv.tone, 0.18)
-                            Rectangle {
-                                width: parent.width * Math.max(0, Math.min(1, conv.modelData.percent / 100))
-                                height: parent.height
-                                radius: parent.radius
-                                color: conv.tone
-                                Behavior on width { NumberAnimation { duration: 250 } }
-                            }
-                        }
-                        Text {
-                            visible: conv.modelData.message.length > 0
-                            Layout.fillWidth: true
-                            text: conv.modelData.message
-                            color: Theme.error
-                            wrapMode: Text.WordWrap
-                            font.pixelSize: 11
-                        }
-                    }
                 }
             }
         }
@@ -204,12 +54,32 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            spacing: 10
+            spacing: 0
             model: app.queue
 
             ScrollBar.vertical: ScrollBar { }
 
-            delegate: Rectangle {
+            // The packages a conversion card already follows.
+            readonly property var followed: {
+                var keys = {}
+                for (var i = 0; i < games.conversions.length; ++i) {
+                    var k = games.conversions[i].pkgKey
+                    if (k && k.length > 0)
+                        keys[k] = true
+                }
+                return keys
+            }
+
+            header: conversionsHeader
+
+            delegate: Item {
+                id: taskSlot
+                width: list.width
+                readonly property bool followed: list.followed[model.localKey] === true
+                visible: !followed
+                height: followed ? 0 : taskCard.implicitHeight + 10
+
+            Rectangle {
                 id: taskCard
                 width: list.width
                 radius: 16
@@ -302,7 +172,7 @@ Item {
                             height: parent.height
                             radius: 4
                             color: Theme.taskColor(model.state)
-                            Behavior on width { NumberAnimation { duration: 180 } }
+                            Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
                         }
                     }
 
@@ -370,12 +240,13 @@ Item {
                     }
                 }
             }
+            }
 
             // Empty
             Item {
                 anchors.centerIn: parent
                 width: parent.width - 40
-                visible: list.count === 0 && games.conversions.length === 0
+                visible: games.conversions.length === 0 && (list.count === 0 || list.contentHeight < 2)
                 implicitHeight: emptyColumn.implicitHeight
 
                 ColumnLayout {
@@ -447,5 +318,231 @@ Item {
                 }
             }
         }
+    }
+
+    // PS1/PS2 conversions, one card each from the disc to the console: the
+    // conversion, the upload and the install, each with its own bar. The
+    // queue's own cards for that package are not shown twice.
+    Component {
+        id: conversionsHeader
+        ColumnLayout {
+            width: list.width
+            spacing: 10
+            visible: games.conversions.length > 0
+            height: visible ? implicitHeight + 10 : 0
+
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    text: qsTr("PS1/PS2 games")
+                    color: Theme.textSecondary
+                    font.pixelSize: 12
+                    font.weight: Font.DemiBold
+                }
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    chip: true
+                    visible: {
+                        for (var i = 0; i < games.conversions.length; ++i)
+                            if (root.journey(games.conversions[i]).finished)
+                                return true
+                        return false
+                    }
+                    text: qsTr("Clear finished")
+                    onClicked: games.clearFinishedConversions()
+                }
+            }
+
+            Repeater {
+                model: games.conversions
+                delegate: Rectangle {
+                    id: conv
+                    required property var modelData
+                    readonly property var j: root.journey(modelData)
+                    Layout.fillWidth: true
+                    radius: 16
+                    color: Theme.alpha(loader.tone, Theme.light ? 0.06 : 0.08)
+                    border.width: 1
+                    border.color: Theme.alpha(loader.tone, 0.45)
+                    Behavior on border.color { ColorAnimation { duration: Theme.normal } }
+                    implicitHeight: convColumn.implicitHeight + 24
+
+                    ColumnLayout {
+                        id: convColumn
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: 12
+                        spacing: 10
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+                            StageLoader {
+                                id: loader
+                                stage: conv.j.stage
+                                percent: conv.j.percent
+                                waiting: conv.j.waiting
+                                implicitWidth: 44
+                                implicitHeight: 44
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 2
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: conv.modelData.title
+                                    color: Theme.text
+                                    font.pixelSize: 14
+                                    font.weight: Font.DemiBold
+                                    elide: Text.ElideRight
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: (conv.modelData.platform === "ps2" ? "PS2" : "PS1") + "  ·  " + conv.j.text
+                                    color: conv.j.stage === "error" ? Theme.error : Theme.textSecondary
+                                    font.pixelSize: 11
+                                    elide: Text.ElideRight
+                                }
+                            }
+                            StyledToolButton {
+                                visible: conv.j.stage === "error" && conv.j.taskId.length > 0
+                                iconName: "rotate-ccw"
+                                iconSize: 15
+                                ToolTip.visible: hovered
+                                ToolTip.text: qsTr("Try again")
+                                onClicked: app.retryTask(conv.j.taskId)
+                            }
+                            StyledToolButton {
+                                visible: conv.modelData.state === "done"
+                                iconName: "folder-open"
+                                iconSize: 15
+                                ToolTip.visible: hovered
+                                ToolTip.text: qsTr("Open the folder")
+                                onClicked: games.openOutputFolder()
+                            }
+                            StyledToolButton {
+                                iconName: "close"
+                                iconSize: 15
+                                danger: !conv.j.finished
+                                ToolTip.visible: hovered
+                                ToolTip.text: conv.j.finished ? qsTr("Remove") : qsTr("Cancel")
+                                onClicked: {
+                                    if (conv.modelData.state === "waiting" || conv.modelData.state === "converting")
+                                        games.cancelConversion(conv.modelData.id)
+                                    else if (!conv.j.finished && conv.j.taskId.length > 0)
+                                        app.cancelTask(conv.j.taskId)
+                                    else
+                                        games.removeConversion(conv.modelData.id)
+                                }
+                            }
+                        }
+
+                        // The steps, side by side: convert, send, install.
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            Repeater {
+                                model: conv.j.steps
+                                ColumnLayout {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    Layout.preferredWidth: 1
+                                    spacing: 4
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        height: 6
+                                        radius: 3
+                                        color: Theme.alpha(modelData.tone, 0.16)
+                                        Rectangle {
+                                            width: parent.width * Math.max(0, Math.min(1, modelData.percent / 100))
+                                            height: parent.height
+                                            radius: parent.radius
+                                            color: modelData.tone
+                                            Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+                                        }
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: modelData.label
+                                        color: modelData.current ? Theme.text : Theme.textMuted
+                                        font.pixelSize: 10
+                                        font.weight: modelData.current ? Font.DemiBold : Font.Normal
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            visible: conv.j.message.length > 0
+                            Layout.fillWidth: true
+                            text: conv.j.message
+                            color: Theme.error
+                            wrapMode: Text.WordWrap
+                            font.pixelSize: 11
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Where a conversion is on its way: the step under way, its text, the
+    // bars of every step and whether it is over.
+    function journey(c) {
+        var t = c.transfer || {}
+        var stage = c.state === "done" ? (t.stage || "converted") : c.state
+        var pct = function (v) { return Math.floor(v || 0) }
+        var text = ""
+        switch (stage) {
+        case "waiting": text = qsTr("Waiting to convert"); break
+        case "converting":
+            text = c.stage === "digest" || c.stage === "finish"
+                 ? qsTr("Signing… %1%").arg(pct(c.percent))
+                 : qsTr("Converting… %1%").arg(pct(c.percent)); break
+        case "converted": text = c.install ? qsTr("Converted — sending next") : qsTr("Package ready"); break
+        case "sending":
+            text = t.waiting ? qsTr("Waiting to send") : qsTr("Sending to the console… %1%").arg(pct(t.percent)); break
+        case "sent": text = t.installNext ? qsTr("Sent — installing next") : qsTr("On the console"); break
+        case "installing":
+            text = t.waiting ? qsTr("Waiting to install") : qsTr("Installing… %1%").arg(pct(t.percent)); break
+        case "installed": text = qsTr("Installed"); break
+        case "cancelled": text = qsTr("Cancelled"); break
+        default: text = qsTr("Failed")
+        }
+        // A step's bar is full once a later step has started.
+        var order = ["converting", "sending", "installing"]
+        var reached = stage === "waiting" || stage === "converting" ? 0
+                    : stage === "converted" || stage === "sending" ? 1
+                    : stage === "sent" || stage === "installing" ? 2
+                    : stage === "installed" ? 3 : -1
+        var failedAt = c.state === "error" ? 0 : c.state === "cancelled" ? 0
+                     : (t.stage === "error" || t.stage === "cancelled") ? (t.mode === "install" ? 2 : 1) : -1
+        var labels = [qsTr("Convert"), qsTr("Send"), qsTr("Install")]
+        var tones = [Theme.warn, Theme.accent, Theme.ok]
+        var steps = []
+        var count = c.install || stage === "installing" || stage === "installed" ? 3 : 2
+        for (var i = 0; i < count; ++i) {
+            var p = 0
+            if (i < reached)
+                p = 100
+            else if (i === reached && i === 0)
+                p = c.percent || 0
+            else if (i === reached && stage === order[i])
+                p = t.waiting ? 0 : (t.percent || 0)
+            steps.push({ label: labels[i], percent: p,
+                         tone: i === failedAt ? Theme.error : tones[i],
+                         current: i === reached || i === failedAt })
+        }
+        var finished = stage === "installed" || stage === "error" || stage === "cancelled"
+                     || (stage === "converted" && !c.install)
+                     || (stage === "sent" && !t.installNext)
+        return { stage: stage === "converted" ? "converted" : stage,
+                 percent: stage === "converting" ? (c.percent || 0) : (t.percent || 0),
+                 waiting: stage === "waiting" || t.waiting === true,
+                 text: text, steps: steps, finished: finished,
+                 taskId: t.taskId || "",
+                 message: c.message && c.message.length > 0 ? c.message : (stage === "error" ? (t.message || "") : "") }
     }
 }

@@ -76,11 +76,17 @@ public:
 	// the console over FTP once it is built and then installs it; otherwise
 	// it stays in the output folder. `titles` (optional, same order)
 	// overrides the names.
-	Q_INVOKABLE void convert(const QStringList &paths, bool install, const QStringList &titles = {});
+	// `reuse`: a package already in the output folder is sent as it is.
+	Q_INVOKABLE void convert(const QStringList &paths, bool install, const QStringList &titles = {},
+		bool reuse = false);
+	// The package made earlier for this disc under this name, or empty.
+	Q_INVOKABLE QString existingPackage(const QString &path, const QString &title) const;
 	// The disc files themselves, over FTP, to the folder the file list is in.
 	Q_INVOKABLE void sendToConsole(const QStringList &paths);
 	Q_INVOKABLE void cancelConversion(const QString &id);
 	Q_INVOKABLE void clearFinishedConversions();
+	// Takes a finished conversion's card away.
+	Q_INVOKABLE void removeConversion(const QString &id);
 	Q_INVOKABLE void openOutputFolder() const;
 	// A folder as FolderDialog wants it (empty: the user's documents).
 	Q_INVOKABLE QUrl folderUrl(const QString &path) const;

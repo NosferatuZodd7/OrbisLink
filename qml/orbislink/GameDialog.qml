@@ -48,6 +48,7 @@ Dialog {
 
     function begin(list) {
         items = list
+        reuse = true
         titleInput.text = list.length === 1 ? list[0].title : ""
         open()
     }
@@ -65,10 +66,26 @@ Dialog {
             outputDialog.open()
             return
         }
-        games.convert(paths(), install, single ? [titleInput.text] : [])
+        games.convert(paths(), install, single ? [titleInput.text] : [], reusing)
         started()
         close()
     }
+    // Packages made before for these discs, in the output folder: they can
+    // be sent as they are instead of being made again.
+    readonly property var existingPackages: {
+        var out = []
+        if (!hasOutput)
+            return out
+        for (var i = 0; i < items.length; ++i) {
+            var file = games.existingPackage(items[i].path, single ? titleInput.text : items[i].title)
+            if (file.length > 0)
+                out.push(file)
+        }
+        return out
+    }
+    property bool reuse: true
+    readonly property bool reusing: reuse && existingPackages.length > 0
+
     // What to do once an output folder is chosen ("install", "convert" or
     // nothing, when the folder was only being changed).
     property string pendingAction: ""
@@ -223,6 +240,59 @@ Dialog {
             }
         }
 
+        // ── made before: send it as it is, or make it again
+        Rectangle {
+            visible: dialog.existingPackages.length > 0
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.dialogMargin
+            Layout.rightMargin: Theme.dialogMargin
+            radius: 14
+            color: Theme.alpha(Theme.ok, 0.08)
+            border.width: 1
+            border.color: Theme.alpha(Theme.ok, 0.35)
+            implicitHeight: existingColumn.implicitHeight + 24
+            ColumnLayout {
+                id: existingColumn
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: 14
+                anchors.rightMargin: 14
+                spacing: 10
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+                    Icon { name: "package"; size: 18; color: Theme.ok; Layout.alignment: Qt.AlignTop }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: Theme.text
+                        font.pixelSize: 12
+                        text: dialog.single
+                            ? qsTr("This game was converted before: %1 is in the folder.")
+                                .arg(dialog.existingPackages[0].split(/[\\/]/).pop())
+                            : qsTr("%n of these games were converted before; their packages are in the folder.",
+                                   "", dialog.existingPackages.length)
+                    }
+                }
+                RowLayout {
+                    spacing: 8
+                    StyledButton {
+                        chip: true
+                        iconName: dialog.reuse ? "square-check" : "square"
+                        text: qsTr("Use the existing package (send and install only)")
+                        onClicked: dialog.reuse = true
+                    }
+                    StyledButton {
+                        chip: true
+                        iconName: dialog.reuse ? "square" : "square-check"
+                        text: qsTr("Convert again")
+                        onClicked: dialog.reuse = false
+                    }
+                }
+            }
+        }
+
         // ── what is missing, or worth knowing
         Rectangle {
             visible: !dialog.allConvertible
@@ -291,6 +361,9 @@ Dialog {
                     text: !dialog.ftpUp
                         ? qsTr("The console has no FTP right now (it needs a jailbreak: GoldHEN or "
                                + "etaHEN). Convert only, and install the package later.")
+                        : dialog.reusing
+                        ? qsTr("Send and install: the package already in the folder goes to the console "
+                               + "over FTP and is installed, without converting the disc again.")
                         : dialog.installerUp
                         ? qsTr("Convert and install: the package is made here, sent to the console over "
                                + "FTP and installed. A console without a jailbreak cannot install: convert "
@@ -322,15 +395,16 @@ Dialog {
             }
             Item { Layout.fillWidth: true }
             StyledButton {
+                visible: !dialog.reusing
                 text: qsTr("Convert only")
                 enabled: dialog.allConvertible
                 onClicked: dialog.run(false)
             }
             StyledButton {
-                text: qsTr("Convert and install")
+                text: dialog.reusing ? qsTr("Send and install") : qsTr("Convert and install")
                 iconName: "package-plus"
                 primary: true
-                enabled: dialog.allConvertible && dialog.ftpUp
+                enabled: (dialog.allConvertible || dialog.reusing) && dialog.ftpUp
                 ToolTip.visible: hovered && !dialog.ftpUp
                 ToolTip.text: qsTr("The console has no FTP right now")
                 onClicked: dialog.run(true)

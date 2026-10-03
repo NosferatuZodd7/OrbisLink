@@ -20,6 +20,7 @@
 #include <QLinearGradient>
 #include <QPainter>
 #include <QPointer>
+#include <QSet>
 #include <QStandardPaths>
 #include <QUrl>
 
@@ -83,11 +84,16 @@ struct GamesController::Job
 	QString path;
 	QString listedPath;
 	bool install = false;
+	// The package already in the output folder, sent instead of making it again.
+	QString reusePath;
 	QString state = QStringLiteral("waiting"); // waiting, converting, done, error, cancelled
 	QString stage;
 	double percent = 0;
 	QString message;
 	QString pkgPath;
+	// The queue task the package had before this job (an earlier upload or
+	// install of the same file): its outcome is not this job's.
+	QString staleTaskId;
 	std::atomic<bool> cancel { false };
 #ifdef ORBISLINK_HAS_FPKG
 	fpkg::DiscInfo disc;
@@ -282,7 +288,20 @@ QString GamesController::packageNameFor(const QString &path, const QString &titl
 #endif
 }
 
-void GamesController::convert(const QStringList &paths, bool install, const QStringList &titles)
+QString GamesController::existingPackage(const QString &path, const QString &title) const
+{
+	const QString folder = outputFolder();
+	if(folder.isEmpty() || title.trimmed().isEmpty())
+		return {};
+	const QString name = packageNameFor(path, title.trimmed());
+	if(name.isEmpty())
+		return {};
+	const QString file = QDir(folder).filePath(name);
+	const QFileInfo info(file);
+	return info.isFile() && info.size() > 0 ? QDir::toNativeSeparators(file) : QString();
+}
+
+void GamesController::convert(const QStringList &paths, bool install, const QStringList &titles, bool reuse)
 {
 #ifdef ORBISLINK_HAS_FPKG
 	if(outputFolder().isEmpty())
@@ -303,6 +322,8 @@ void GamesController::convert(const QStringList &paths, bool install, const QStr
 		job->title = i < titles.size() && !titles[i].trimmed().isEmpty() ? titles[i].trimmed()
 			: game.value(QStringLiteral("title")).toString();
 		job->install = install;
+		if(reuse)
+			job->reusePath = existingPackage(job->path, job->title);
 		job->disc = fpkg::inspectDisc(job->listedPath.toStdString());
 		// The art is drawn here, on the interface's thread.
 		job->icon = drawArt(job->title, job->platform, 512, 512);
@@ -362,12 +383,23 @@ void GamesController::cancelConversion(const QString &id)
 
 void GamesController::clearFinishedConversions()
 {
+	// A package still on its way to the console keeps its card.
+	QSet<QString> travelling;
+	for(const QVariant &v : conversions_)
+	{
+		const QVariantMap m = v.toMap();
+		const QVariantMap t = m.value(QStringLiteral("transfer")).toMap();
+		const QString stage = t.value(QStringLiteral("stage")).toString();
+		if(stage == QLatin1String("sending") || stage == QLatin1String("installing")
+			|| t.value(QStringLiteral("installNext")).toBool())
+			travelling.insert(m.value(QStringLiteral("id")).toString());
+	}
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
 		jobs_.erase(std::remove_if(jobs_.begin(), jobs_.end(),
-						[](const std::shared_ptr<Job> &j) {
+						[&](const std::shared_ptr<Job> &j) {
 							return j->state != QLatin1String("waiting")
-								&& j->state != QLatin1String("converting");
+								&& j->state != QLatin1String("converting") && !travelling.contains(j->id);
 						}),
 			jobs_.end());
 	}
@@ -405,6 +437,7 @@ void GamesController::publish()
 			m[QStringLiteral("message")] = job->message;
 			m[QStringLiteral("install")] = job->install;
 			m[QStringLiteral("pkgPath")] = job->pkgPath;
+			m[QStringLiteral("staleTaskId")] = job->staleTaskId;
 			list << m;
 		}
 	}
@@ -494,6 +527,44 @@ void GamesController::updateProgress()
 		progress_ = progress;
 		emit progressChanged();
 	}
+
+	// Each conversion's card follows its package to the end: sending,
+	// installing, and how that ended.
+	QVariantList conversions = conversions_;
+	for(QVariant &v : conversions)
+	{
+		QVariantMap m = v.toMap();
+		const QString pkg = m.value(QStringLiteral("pkgPath")).toString();
+		const QString key = pkg.isEmpty() ? QString() : AppController::transferKey(pkg);
+		QVariantMap transfer = key.isEmpty() ? QVariantMap() : transfers.value(key).toMap();
+		const QString stale = m.value(QStringLiteral("staleTaskId")).toString();
+		if(!stale.isEmpty() && transfer.value(QStringLiteral("taskId")).toString() == stale)
+			transfer.clear();
+		if(transfer.value(QStringLiteral("stage")) == QLatin1String("sent") && installAfterSend_.contains(key))
+			transfer[QStringLiteral("installNext")] = true;
+		m[QStringLiteral("pkgKey")] = key;
+		m[QStringLiteral("transfer")] = transfer;
+		v = m;
+	}
+	if(conversions != conversions_)
+	{
+		conversions_ = conversions;
+		emit conversionsChanged();
+	}
+}
+
+void GamesController::removeConversion(const QString &id)
+{
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		jobs_.erase(std::remove_if(jobs_.begin(), jobs_.end(),
+						[&](const std::shared_ptr<Job> &j) {
+							return j->id == id && j->state != QLatin1String("waiting")
+								&& j->state != QLatin1String("converting");
+						}),
+			jobs_.end());
+	}
+	publish();
 }
 
 void GamesController::workerLoop()
@@ -546,10 +617,16 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 	options.now = QDateTime::currentSecsSinceEpoch();
 	const fpkg::EmulatorInfo emus = fpkg::findEmulators(settings.emulatorFolder);
 
-	logInfo("Games: converting \"" + options.title + "\" (" + job->disc.serial + ")");
 	fpkg::ClassicResult result;
 	std::string error;
-	const bool ok = fpkg::convertClassic(job->disc, emus, options,
+	const QString existing = job->reusePath;
+	if(!existing.isEmpty())
+		logInfo("Games: using the package already made for \"" + options.title + "\"");
+	else
+		logInfo("Games: converting \"" + options.title + "\" (" + job->disc.serial + ")");
+	if(!existing.isEmpty())
+		result.pkgPath = QDir::fromNativeSeparators(existing).toStdString();
+	const bool ok = !existing.isEmpty() || fpkg::convertClassic(job->disc, emus, options,
 		[&](const std::string &stage, uint64_t done, uint64_t total) {
 			{
 				std::lock_guard<std::mutex> lock(mutex_);
@@ -594,10 +671,17 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 	const QString title = job->title;
 	const QString message = QString::fromStdString(error);
 	const bool cancelled = job->cancel.load();
-	QMetaObject::invokeMethod(this, [this, ok, install, pkg, title, message, cancelled]() {
+	QMetaObject::invokeMethod(this, [this, job, ok, install, pkg, title, message, cancelled]() {
 		// Over FTP, like any file dropped on the FTP zone (same-name checks,
 		// the upload folder), and installed once it lands — unless the
 		// setting already installs every upload.
+		if(ok)
+		{
+			const QString before = app_->transfers().value(AppController::transferKey(pkg)).toMap()
+				.value(QStringLiteral("taskId")).toString();
+			std::lock_guard<std::mutex> lock(mutex_);
+			job->staleTaskId = before;
+		}
 		if(ok && install)
 		{
 			if(!app_->settings().installAfterUpload)

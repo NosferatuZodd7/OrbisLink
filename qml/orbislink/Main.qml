@@ -146,6 +146,22 @@ ApplicationWindow {
 
                 Item { Layout.fillWidth: true }
 
+                // Away from a Remote Play session that is still running: one
+                // click goes back to the picture.
+                StyledButton {
+                    readonly property bool live: typeof stream !== "undefined" && stream !== null
+                                                 && stream.streaming
+                    visible: live && window.view !== "home"
+                    text: qsTr("Back to Remote Play")
+                    iconName: "gamepad"
+                    chip: true
+                    primary: true
+                    implicitHeight: 36
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("The session is still running")
+                    onClicked: window.view = "home"
+                }
+
                 // PS1/PS2 games: a page of its own, in place of the consoles.
                 StyledButton {
                     visible: games.available
@@ -356,7 +372,9 @@ ApplicationWindow {
             // diagnostics, Windows did not deliver the event, and then the
             // problem is not here.
             app.noteDrag("entered", drag.hasUrls)
-            if (!drag.hasUrls) {
+            // A row of the FTP list being dragged: it is for the list's
+            // folders, not an upload.
+            if (!drag.hasUrls || drag.formats.indexOf("application/x-orbislink-ftp-path") >= 0) {
                 drag.accepted = false
                 return
             }

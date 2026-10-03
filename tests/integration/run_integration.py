@@ -103,7 +103,9 @@ def main() -> int:
 
     mock = subprocess.Popen(
         [sys.executable, arguments.mock, "--ftp-port", str(ftp_port),
-         "--api-port", str(api_port), "--root", console_root, "--print-ports"],
+         "--api-port", str(api_port), "--root", console_root, "--print-ports",
+         # Every upload loses its connection once on the way: it has to go on.
+         "--ftp-drop-once", str(1024 * 1024)],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
         encoding="utf-8", errors="replace", env=child_env())
     try:

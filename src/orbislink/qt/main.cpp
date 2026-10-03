@@ -235,6 +235,10 @@ int main(int argc, char **argv)
 
 	startup::markLaunchStarted();
 
+	// PS1/PS2 discs: found, sent or converted. Made before the engine, so it
+	// outlives the interface that reads it when the application closes.
+	auto games = std::make_unique<GamesController>(controller.get());
+
 	QQmlApplicationEngine engine;
 	QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
 		[](const QUrl &url) {
@@ -243,8 +247,6 @@ int main(int argc, char **argv)
 			QCoreApplication::exit(1);
 		});
 	engine.rootContext()->setContextProperty(QStringLiteral("app"), controller.get());
-	// PS1/PS2 discs: found, sent or converted.
-	auto games = std::make_unique<GamesController>(controller.get());
 	engine.rootContext()->setContextProperty(QStringLiteral("games"), games.get());
 
 #ifdef ORBISLINK_HAS_STREAM

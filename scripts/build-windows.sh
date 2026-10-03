@@ -97,6 +97,7 @@ sed 's/$/\r/' "$REPO/LICENSE" > "$STAGE/LICENSE.txt"
 sed 's/$/\r/' "$REPO/third-party/inter/LICENSE.txt" > "$STAGE/LICENSE-Inter.txt"
 sed 's/$/\r/' "$REPO/third-party/lucide/LICENSE" > "$STAGE/LICENSE-Lucide.txt"
 sed 's/$/\r/' "$REPO/third-party/liborbispkg/LICENSE" > "$STAGE/LICENSE-LibOrbisPkg.txt"
+sed 's/$/\r/' "$REPO/third-party/create-fself/LICENSE" > "$STAGE/LICENSE-create-fself.txt"
 # The project address comes from outside (ORBISLINK_REPO_URL); in CI it is the
 # repository the build ran in. When it is missing, the source code line
 # disappears instead of being left half written.

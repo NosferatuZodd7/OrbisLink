@@ -35,6 +35,7 @@ public:
 		ModeRole,
 		IconRole,
 		ActiveRole,
+		LocalKeyRole,
 	};
 
 	explicit QueueModel(QObject *parent = nullptr);
@@ -49,6 +50,8 @@ public:
 	// Chamado de qualquer thread.
 	void applySnapshot(const std::vector<QueueTask> &tasks);
 	void setIcon(const QString &taskId, const QString &dataUri);
+	// The same file, however its path is written (case aside on Windows).
+	static QString fileKey(const QString &localPath);
 
 signals:
 	void countChanged();
@@ -72,6 +75,16 @@ private:
 		bool active = false;
 		double bytesPerSecond = 0.0;
 		qint64 remainingBytes = 0;
+		QString localKey;
+		bool operator==(const Row &o) const
+		{
+			return id == o.id && title == o.title && titleId == o.titleId && category == o.category
+				&& state == o.state && stateLabel == o.stateLabel && percent == o.percent
+				&& sizeText == o.sizeText && speedText == o.speedText && etaText == o.etaText
+				&& message == o.message && mode == o.mode && active == o.active
+				&& bytesPerSecond == o.bytesPerSecond && remainingBytes == o.remainingBytes
+				&& localKey == o.localKey;
+		}
 	};
 
 	QList<Row> rows_;

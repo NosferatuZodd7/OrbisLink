@@ -117,6 +117,9 @@ public:
 	void pause(const std::string &reason = std::string());
 	void resume();
 	bool paused() const { return paused_.load(); }
+	// Paused because the console's installer stopped answering: it goes on
+	// by itself once the installer is back.
+	bool waitingForService() const { return waitingForService_.load(); }
 	std::string pauseReason() const;
 
 	bool cancel(const std::string &id);
@@ -169,6 +172,7 @@ private:
 
 	std::atomic<bool> running_ { false };
 	std::atomic<bool> paused_ { false };
+	std::atomic<bool> waitingForService_ { false };
 	std::atomic<bool> cancelCurrent_ { false };
 	std::condition_variable wakeup_;
 	std::mutex wakeupMutex_;

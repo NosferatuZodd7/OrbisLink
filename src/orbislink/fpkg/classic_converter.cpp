@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "orbislink/fpkg/classic_converter.h"
 
+#include "orbislink/fpkg/fself.h"
 #include "orbislink/fpkg/param_sfo.h"
 
 #include <algorithm>
@@ -8,6 +9,7 @@
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <sstream>
 
 namespace orbislink::fpkg {
@@ -79,6 +81,59 @@ std::vector<std::pair<std::string, std::string>> listFiles(const fs::path &dir)
 	}
 	std::sort(out.begin(), out.end());
 	return out;
+}
+
+constexpr uint64_t kLargestEmulatorFile = 256ull * 1024 * 1024;
+
+// Whether a file of the Classics folder (path inside it, lower case) goes
+// into the package. A dump of a game or a builder's work folder holds more
+// than the emulator: the donor's disc, earlier packages, notes, and the
+// files that tie it to its own licence, which the builder makes anew.
+bool isEmulatorFile(const std::string &low)
+{
+	static const char *const skippedDirs[] = {"image/", "docs/", "data/disc", "sce_sys/trophy/"};
+	for(const char *d : skippedDirs)
+		if(low.rfind(d, 0) == 0)
+			return false;
+	static const char *const madeAnew[] = {"keystone", "license.dat", "license.info", "playgo-chunk.dat",
+		"playgo-chunk.sha", "playgo-manifest.xml", "psreserved.dat", "pubtoolinfo.dat", "selfinfo.dat",
+		"imageinfo.dat", "target-deltainfo.dat", "origin-deltainfo.dat"};
+	for(const char *n : madeAnew)
+		if(low == std::string("sce_sys/") + n)
+			return false;
+	const std::string ext = fs::path(low).extension().string();
+	static const char *const skippedExtensions[] = {".pkg", ".gp4", ".iso", ".cue", ".img", ".mdf",
+		".mds", ".chd", ".zip", ".rar", ".7z", ".fself", ".elf", ".log"};
+	for(const char *e : skippedExtensions)
+		if(ext == e)
+			return false;
+	return true;
+}
+
+// Whether `path` is `dir` or below it (case aside, as on Windows).
+bool isInside(const fs::path &path, const fs::path &dir)
+{
+	auto key = [](const fs::path &p) {
+		std::string s = lower(p.lexically_normal().generic_u8string());
+		if(s.empty() || s.back() != '/')
+			s += '/';
+		return s;
+	};
+	return key(path).rfind(key(dir), 0) == 0;
+}
+
+bool looksLikeElf(const std::string &path)
+{
+	std::ifstream in(fs::u8path(path), std::ios::binary);
+	uint8_t head[0x40] = {};
+	in.read(reinterpret_cast<char *>(head), sizeof head);
+	return in && isPlainElf(head, sizeof head);
+}
+
+Bytes readAll(const std::string &path)
+{
+	std::ifstream in(fs::u8path(path), std::ios::binary);
+	return Bytes(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
 }
 
 std::string utcDate(int64_t now)
@@ -242,11 +297,26 @@ bool prepareClassic(const DiscInfo &disc, const EmulatorInfo &emulators,
 	const std::string configName = ps2 ? "config-emu-ps4.txt" : "config-title.txt";
 	std::vector<std::string> config;
 	bool hasLua = false;
+	// Packages made into a folder inside the emulator's must not end up in
+	// the next one.
+	const fs::path outputDir = fs::u8path(options.outputDir);
+	const bool outputBelowEmulator = !options.outputDir.empty() && isInside(outputDir, fs::u8path(emuDir))
+		&& !isInside(fs::u8path(emuDir), outputDir);
 	for(const auto &f : listFiles(fs::u8path(emuDir)))
 	{
 		const std::string rel = f.first;
 		const std::string low = lower(rel);
-		if(low == "sce_sys/param.sfo")
+		if(low == "sce_sys/param.sfo" || !isEmulatorFile(low))
+			continue;
+		std::error_code ec;
+		const uint64_t size = fs::file_size(fs::u8path(f.second), ec);
+		// Empty files are leftovers of a failed step; very large ones are
+		// discs or packages that do not belong to the emulator.
+		if(ec || size == 0 || size > kLargestEmulatorFile)
+			continue;
+		if(outputBelowEmulator && isInside(fs::u8path(f.second), outputDir))
+			continue;
+		if(fs::u8path(f.second).lexically_normal() == fs::u8path(disc.path).lexically_normal())
 			continue;
 		if(low == lower(configName))
 		{
@@ -263,11 +333,23 @@ bool prepareClassic(const DiscInfo &disc, const EmulatorInfo &emulators,
 			continue;
 		if(low.rfind("lua_include/", 0) == 0)
 			hasLua = true;
+		// A dump holds the executables decrypted; the console wants them
+		// fake-signed.
+		if(looksLikeElf(f.second))
+		{
+			std::string why;
+			Bytes fself = makeFself(readAll(f.second), &why);
+			if(fself.empty())
+				return fail(rel + ": " + why);
+			addMemory(req, rel, std::move(fself));
+			continue;
+		}
 		addDisk(req, rel, f.second);
 	}
 	if(ps2 && !hasLua && !emulators.luaInclude.empty())
 		for(const auto &f : listFiles(fs::u8path(emulators.luaInclude)))
-			addDisk(req, "lua_include/" + f.first, f.second);
+			if(isEmulatorFile("lua_include/" + lower(f.first)))
+				addDisk(req, "lua_include/" + f.first, f.second);
 
 	if(ps2)
 	{

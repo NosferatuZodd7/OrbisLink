@@ -21,9 +21,12 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QDirIterator>
+#include <QDrag>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QMetaObject>
+#include <QMimeData>
+#include <QPixmap>
 #include <QProcess>
 #include <QStandardPaths>
 #include <QTimer>
@@ -142,6 +145,7 @@ void AppController::rebuildBackends()
 			[this, status]() {
 				status_ = status;
 				emit statusChanged();
+				resumeWhenInstallerIsBack();
 			},
 			Qt::QueuedConnection);
 	});
@@ -217,6 +221,10 @@ void AppController::rebuildBackends()
 			[this, terminal, title, message, failed, landedIn]() {
 				refreshQueueModel();
 				emit queueStateChanged();
+				// Waiting for the installer: a fresh look at the console
+				// decides when to go on.
+				if(queue_ && queue_->waitingForService() && !installerRecheckPending_)
+					checkServicesNow();
 				if(terminal)
 					emit notify(title, message, failed);
 				// The file list shows it without anyone pressing refresh.
@@ -690,6 +698,7 @@ QString AppController::installerHint() const
 bool AppController::canInstallDirectly() const { return status_.canInstallDirectly(); }
 bool AppController::canUseFtp() const { return status_.canUseFtp(); }
 bool AppController::queuePaused() const { return queue_ && queue_->paused(); }
+bool AppController::waitingForInstaller() const { return queue_ && queue_->waitingForService(); }
 QString AppController::pauseReason() const
 {
 	return queue_ ? QString::fromStdString(queue_->pauseReason()) : QString();
@@ -783,6 +792,9 @@ void AppController::refreshQueueModel()
 		item[QStringLiteral("stage")] = installing ? QStringLiteral("installing") : QStringLiteral("sending");
 		item[QStringLiteral("percent")] = percentOf(task);
 		item[QStringLiteral("waiting")] = task.state == TaskState::Pending;
+		item[QStringLiteral("taskId")] = QString::fromStdString(task.id);
+		item[QStringLiteral("mode")] =
+			task.mode == TransferMode::DirectInstall ? QStringLiteral("install") : QStringLiteral("send");
 		transfers[key] = item;
 	}
 	for(const QueueTask &task : queue_->history())
@@ -797,6 +809,9 @@ void AppController::refreshQueueModel()
 			: task.state == TaskState::Cancelled ? QStringLiteral("cancelled") : QStringLiteral("error");
 		item[QStringLiteral("percent")] = 100.0;
 		item[QStringLiteral("message")] = translateMessage(task.message);
+		item[QStringLiteral("taskId")] = QString::fromStdString(task.id);
+		item[QStringLiteral("mode")] =
+			task.mode == TransferMode::DirectInstall ? QStringLiteral("install") : QStringLiteral("send");
 		transfers[key] = item;
 	}
 	if(transfers != transfers_)
@@ -808,11 +823,7 @@ void AppController::refreshQueueModel()
 
 QString AppController::transferKey(const QString &localPath)
 {
-	QString key = QDir::cleanPath(QDir::fromNativeSeparators(localPath));
-#ifdef Q_OS_WIN
-	key = key.toLower();
-#endif
-	return key;
+	return QueueModel::fileKey(localPath);
 }
 
 QString AppController::uploadDirectory() const
@@ -1086,6 +1097,29 @@ void AppController::resolveUploadConflicts(const QVariantList &decisions)
 	enqueueFiles(chosen, TransferMode::FtpUpload, remoteNames);
 }
 
+void AppController::resumeWhenInstallerIsBack()
+{
+	if(!queue_ || !queue_->waitingForService())
+		return;
+	if(status_.installer.state == ServiceState::Available)
+	{
+		// Checked: the installer answers again, so the queue goes on.
+		queue_->resume();
+		emit queueStateChanged();
+		emit notify(tr("Install"), tr("Remote Package Installer answers: the install goes on."), false);
+		return;
+	}
+	// Until then, ask again every few seconds.
+	if(installerRecheckPending_)
+		return;
+	installerRecheckPending_ = true;
+	QTimer::singleShot(3000, this, [this]() {
+		installerRecheckPending_ = false;
+		if(queue_ && queue_->waitingForService())
+			checkServicesNow();
+	});
+}
+
 void AppController::checkServicesNow()
 {
 	if(!console_)
@@ -1318,6 +1352,154 @@ void AppController::ftpRename(const QString &path, const QString &newName)
 	}).detach();
 }
 
+void AppController::ftpMove(const QString &path, const QString &destinationDir)
+{
+	const QString dir = destinationDir.trimmed();
+	if(dir.isEmpty() || path.isEmpty())
+	{
+		emit notify(tr("Move"), tr("Type the folder to move it to."), true);
+		return;
+	}
+	if(!ftpReady(tr("Move")))
+		return;
+	const std::string from = normalizeRemotePath(path.toStdString());
+	std::string name = from;
+	while(!name.empty() && name.back() == '/')
+		name.pop_back();
+	name = name.substr(name.find_last_of('/') + 1);
+	const std::string to = normalizeRemotePath(dir.toStdString() + "/" + name);
+	if(to == from)
+		return;
+	setFtpBusy(true);
+	std::thread([this, from, to]() {
+		const FtpResult result = ftp_->rename(from, to);
+		const QString message = translateMessage(result.message);
+		const bool ok = result.ok;
+		const QString target = QString::fromStdString(to);
+		QMetaObject::invokeMethod(
+			this,
+			[this, ok, message, target]() {
+				setFtpBusy(false);
+				setStatusMessage(ok ? tr("Moved to %1").arg(target) : tr("FTP: %1").arg(message));
+				if(!ok)
+					emit notify(tr("Move"), tr("I could not move it: %1").arg(message), true);
+				else
+					ftpRefresh();
+			},
+			Qt::QueuedConnection);
+	}).detach();
+}
+
+void AppController::ftpDownloadFolder(const QString &remotePath, const QString &name,
+	const QString &destinationDir)
+{
+	if(downloadActive_)
+	{
+		emit notify(tr("Bring to the PC"),
+			tr("A transfer is already running (%1). Wait for it to finish.").arg(downloadName_), true);
+		return;
+	}
+	if(!ftpReady(tr("Bring to the PC")))
+		return;
+	QString dir = destinationDir;
+	if(dir.startsWith(QStringLiteral("file:")))
+		dir = QUrl(dir).toLocalFile();
+	if(dir.trimmed().isEmpty())
+		dir = defaultDownloadDirectory();
+	const QString root = uniqueLocalPath(QDir(dir).filePath(name));
+	QDir().mkpath(root);
+
+	downloadCancel_.store(false);
+	downloadActive_ = true;
+	downloadName_ = name;
+	downloadProgress_ = 0.0;
+	emit downloadChanged();
+	setStatusMessage(tr("Downloading %1…").arg(name));
+
+	const std::string remoteRoot = normalizeRemotePath(remotePath.toStdString());
+	const std::string localRoot = root.toStdString();
+	std::thread([this, remoteRoot, localRoot, name, root]() {
+		// First everything that is inside, to know the total.
+		struct Item { std::string remote; std::string local; int64_t size; };
+		std::vector<Item> files;
+		std::vector<std::pair<std::string, std::string>> pending { { remoteRoot, localRoot } };
+		std::string failure;
+		while(!pending.empty() && failure.empty() && !downloadCancel_.load())
+		{
+			const auto [remoteDir, localDir] = pending.back();
+			pending.pop_back();
+			QDir().mkpath(QString::fromStdString(localDir));
+			std::vector<FtpEntry> entries;
+			const FtpResult listed = ftp_->list(remoteDir, &entries);
+			if(!listed.ok)
+			{
+				failure = listed.message;
+				break;
+			}
+			for(const FtpEntry &e : entries)
+			{
+				if(e.name == "." || e.name == "..")
+					continue;
+				const std::string local = localDir + "/" + e.name;
+				if(e.isDirectory)
+					pending.emplace_back(e.path, local);
+				else
+					files.push_back({ e.path, local, e.size });
+			}
+		}
+		int64_t total = 0;
+		for(const Item &f : files)
+			total += f.size;
+		int64_t before = 0;
+		int lastPercent = -1;
+		for(const Item &f : files)
+		{
+			if(!failure.empty() || downloadCancel_.load())
+				break;
+			const FtpResult result = ftp_->download(f.remote, f.local,
+				[&](int64_t done, int64_t) {
+					if(downloadCancel_.load())
+						return false;
+					const double fraction = total > 0 ? double(before + done) / double(total) : 0.0;
+					const int percent = static_cast<int>(fraction * 100);
+					if(percent != lastPercent)
+					{
+						lastPercent = percent;
+						QMetaObject::invokeMethod(this, [this, fraction]() {
+							downloadProgress_ = fraction;
+							emit downloadChanged();
+						}, Qt::QueuedConnection);
+					}
+					return true;
+				});
+			if(!result.ok && !result.cancelled)
+				failure = result.message;
+			before += f.size;
+		}
+		const bool cancelled = downloadCancel_.load();
+		const QString message = translateMessage(failure);
+		const int count = static_cast<int>(files.size());
+		QMetaObject::invokeMethod(this, [this, cancelled, message, name, root, count]() {
+			downloadActive_ = false;
+			downloadProgress_ = message.isEmpty() && !cancelled ? 1.0 : 0.0;
+			emit downloadChanged();
+			if(cancelled)
+				setStatusMessage(tr("Download cancelled."));
+			else if(!message.isEmpty())
+			{
+				setStatusMessage(tr("FTP: %1").arg(message));
+				emit notify(tr("Download failed"), message, true);
+			}
+			else
+			{
+				setStatusMessage(tr("Saved to %1").arg(root));
+				emit notify(tr("Download finished"),
+					tr("%1 (%n file(s)) saved to %2", "", count).arg(name, root), false);
+			}
+		}, Qt::QueuedConnection);
+	}).detach();
+}
+
 QString AppController::uniqueLocalPath(const QString &wanted)
 {
 	if(!QFileInfo::exists(wanted))
@@ -1390,6 +1572,21 @@ void AppController::ftpDownload(const QString &remotePath, const QString &name,
 		dir = defaultDownloadDirectory();
 	QDir().mkpath(dir);
 	startDownload(remotePath, name, uniqueLocalPath(QDir(dir).filePath(name)), false);
+}
+
+void AppController::startFtpDrag(const QString &remotePath, const QString &localUrl)
+{
+	// A real system drag: the file (when it is on the PC) for the desktop and
+	// other programs, and the console path for the folders of the list.
+	auto *data = new QMimeData;
+	data->setData(QStringLiteral("application/x-orbislink-ftp-path"), remotePath.toUtf8());
+	if(!localUrl.isEmpty())
+		data->setUrls({ QUrl(localUrl) });
+	auto *drag = new QDrag(this);
+	drag->setMimeData(data);
+	drag->setPixmap(QPixmap(QStringLiteral(":/icons/logo.png"))
+		.scaled(48, 48, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+	drag->exec(Qt::CopyAction | Qt::MoveAction, Qt::CopyAction);
 }
 
 void AppController::ftpPrepareForDrag(const QString &remotePath, const QString &name, qint64 size)
