@@ -37,6 +37,9 @@ class StreamController : public QObject
 	// PS5 or PS4, from what the console said in discovery.
 	Q_PROPERTY(bool consolePs5 READ consolePs5 NOTIFY consoleChanged)
 	Q_PROPERTY(QString runningApp READ runningApp NOTIFY consoleChanged)
+	// The title ID of the game open on the console ("" at the home screen):
+	// its saves are not touched while it runs.
+	Q_PROPERTY(QString runningAppTitleId READ runningAppTitleId NOTIFY consoleChanged)
 	Q_PROPERTY(bool registered READ registered NOTIFY registrationChanged)
 	// The host-id (MAC) of the console in use, once it has answered.
 	Q_PROPERTY(QString hostId READ hostId NOTIFY consoleChanged)
@@ -91,6 +94,7 @@ public:
 	QString hostId() const { return QString::fromStdString(host_.id); }
 	QVariantList registrations() const;
 	QString runningApp() const { return runningApp_; }
+	QString runningAppTitleId() const { return runningAppTitleId_; }
 	bool registered() const { return credentials_.valid; }
 	bool registering() const { return registering_; }
 	QString sessionState() const { return sessionState_; }
@@ -237,6 +241,7 @@ private:
 	QString consoleState_ = QStringLiteral("unknown");
 	QString consoleName_;
 	QString runningApp_;
+	QString runningAppTitleId_;
 	QString sessionState_ = QStringLiteral("idle");
 	QString sessionDetail_;
 	bool registering_ = false;

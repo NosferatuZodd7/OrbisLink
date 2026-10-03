@@ -81,6 +81,40 @@ Item {
         return Object.keys(seen).length > 1
     }
 
+    // The game open on the console (its title ID, from Remote Play's
+    // discovery): its saves are not copied either way while it runs, or the
+    // save comes out corrupted.
+    readonly property string openGame: typeof stream !== "undefined" && stream !== null
+                                       ? stream.runningAppTitleId : ""
+    readonly property string openGameName: typeof stream !== "undefined" && stream !== null
+                                           ? stream.runningApp : ""
+    // The keys, without the open game's saves; says so when it left some out.
+    function withoutOpenGame(keys) {
+        if (openGame.length === 0)
+            return keys
+        var kept = []
+        for (var i = 0; i < saves.saves.length; ++i) {
+            var s = saves.saves[i]
+            if (keys.indexOf(s.key) >= 0 && s.titleId !== openGame)
+                kept.push(s.key)
+        }
+        if (kept.length < keys.length)
+            toast.show(qsTr("%1 is open on the console: its saves were left alone. Close it and try again.")
+                       .arg(openGameName.length > 0 ? openGameName : openGame), true)
+        return kept
+    }
+    function backupKeys(keys) {
+        var kept = withoutOpenGame(keys)
+        if (kept.length > 0)
+            saves.backup(kept)
+    }
+    // Putting back always asks first.
+    function askRestore(keys) {
+        var kept = withoutOpenGame(keys)
+        if (kept.length > 0)
+            confirmRestore.ask(kept)
+    }
+
     function isSelected(key) { return selected[key] === true }
     function toggle(key) {
         var next = Object.assign({}, selected)
@@ -231,14 +265,14 @@ Item {
                         iconName: "download"
                         text: qsTr("Back up")
                         enabled: root.online && root.countWhere(function (s) { return s.onConsole }) > 0
-                        onClicked: saves.backup(root.selectedKeys())
+                        onClicked: root.backupKeys(root.selectedKeys())
                     }
                     StyledButton {
                         visible: root.selectedCount > 0 && !saves.busy
                         iconName: "archive-restore"
                         text: qsTr("Put back")
                         enabled: root.online && root.countWhere(function (s) { return s.inVault }) > 0
-                        onClicked: saves.restore(root.selectedKeys())
+                        onClicked: root.askRestore(root.selectedKeys())
                     }
                     StyledButton {
                         visible: root.selectedCount > 0 && !saves.busy
@@ -287,6 +321,15 @@ Item {
                             }
                         }
                         Text {
+                            visible: !saves.busy && root.openGame.length > 0
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: qsTr("%1 is open on the console: its saves stay as they are until it closes.")
+                                  .arg(root.openGameName.length > 0 ? root.openGameName : root.openGame)
+                            color: Theme.warn
+                            font.pixelSize: 12
+                        }
+                        Text {
                             visible: !saves.busy && root.counts.vault > 0 && root.online
                             text: qsTr("%n save(s) only in the vault — missing on the console.", "", root.counts.vault)
                             color: Theme.textSecondary
@@ -303,7 +346,7 @@ Item {
                             for (var i = 0; i < saves.saves.length; ++i)
                                 if (saves.saves[i].sync === "vault" && root.inAccount(saves.saves[i]))
                                     keys.push(saves.saves[i].key)
-                            saves.restore(keys)
+                            root.askRestore(keys)
                         }
                     }
                     StyledButton {
@@ -314,17 +357,13 @@ Item {
                         enabled: root.online && !saves.busy && root.pending > 0
                         // Everything, or everything of the account shown.
                         onClicked: {
-                            if (root.account === "") {
-                                saves.backup([])
-                                return
-                            }
                             var keys = []
                             for (var i = 0; i < saves.saves.length; ++i) {
                                 var s = saves.saves[i]
                                 if (s.onConsole && s.sync !== "same" && root.inAccount(s))
                                     keys.push(s.key)
                             }
-                            saves.backup(keys)
+                            root.backupKeys(keys)
                         }
                     }
                 }
@@ -501,7 +540,9 @@ Item {
                                 Image {
                                     id: saveIcon
                                     anchors.fill: parent
-                                    source: row.modelData.icon
+                                    // The save's own icon, or else the game's.
+                                    source: row.modelData.icon.toString().length > 0 ? row.modelData.icon
+                                                                                   : row.modelData.gameIcon
                                     fillMode: Image.PreserveAspectCrop
                                     asynchronous: true
                                 }
@@ -660,7 +701,8 @@ Item {
         onAccepted: saves.setVaultFolder(selectedFolder)
     }
 
-    // Deleting asks where: the console, the vault, or both.
+    // Deleting is from the vault only. The PS4 keeps a database of its saves:
+    // taking the files away over FTP would leave it with a broken entry.
     Dialog {
         id: confirmDelete
         parent: Overlay.overlay
@@ -668,10 +710,9 @@ Item {
         width: 480
         modal: true
         padding: 0
-        readonly property int onConsole: root.countWhere(function (s) { return s.onConsole })
         readonly property int inVault: root.countWhere(function (s) { return s.inVault })
-        // Saves that would be gone for good: on one side only.
-        readonly property int lastCopies: root.countWhere(function (s) { return s.onConsole !== s.inVault })
+        // Saves the vault is the only copy of.
+        readonly property int lastCopies: root.countWhere(function (s) { return s.inVault && !s.onConsole })
 
         Overlay.modal: Rectangle { color: Theme.scrim }
         background: Rectangle {
@@ -680,7 +721,7 @@ Item {
             radius: Theme.radiusDialog
         }
         header: DialogHeader {
-            title: qsTr("Delete %n save(s)?", "", root.selectedCount)
+            title: qsTr("Delete %n save(s) from the vault?", "", confirmDelete.inVault)
             dialog: confirmDelete
         }
         contentItem: ColumnLayout {
@@ -693,7 +734,9 @@ Item {
                 wrapMode: Text.WordWrap
                 color: Theme.textSecondary
                 font.pixelSize: 13
-                text: qsTr("From the console, from the vault on this PC, or from both. This cannot be undone.")
+                text: qsTr("Their copies on this PC go, every backup kept. The console's saves are not "
+                           + "touched: those are deleted on the PS4 itself (Settings → Application Saved "
+                           + "Data Management), so it stays in order.")
             }
             Text {
                 visible: confirmDelete.lastCopies > 0
@@ -703,7 +746,8 @@ Item {
                 wrapMode: Text.WordWrap
                 color: Theme.warn
                 font.pixelSize: 12
-                text: qsTr("%n of them exist in one place only: deleting there loses them.", "", confirmDelete.lastCopies)
+                text: qsTr("%n of them are no longer on the console: this is their only copy.", "",
+                           confirmDelete.lastCopies)
             }
         }
         footer: Item {
@@ -714,50 +758,129 @@ Item {
                 anchors.leftMargin: Theme.dialogMargin
                 anchors.rightMargin: Theme.dialogMargin
                 spacing: 8
+                Item { Layout.fillWidth: true }
                 StyledButton {
                     text: qsTr("Cancel")
                     onClicked: confirmDelete.close()
                 }
-                Item { Layout.fillWidth: true }
                 StyledButton {
-                    text: qsTr("Console")
-                    danger: true
-                    enabled: root.online && confirmDelete.onConsole > 0
-                    onClicked: { saves.removeFromConsole(root.selectedKeys()); confirmDelete.close() }
-                }
-                StyledButton {
-                    text: qsTr("Vault")
-                    danger: true
-                    enabled: confirmDelete.inVault > 0
-                    onClicked: { saves.removeFromVault(root.selectedKeys()); confirmDelete.close() }
-                }
-                StyledButton {
-                    text: qsTr("Both")
+                    text: qsTr("Delete from the vault")
+                    iconName: "trash"
                     danger: true
                     solid: true
-                    enabled: root.online && confirmDelete.onConsole > 0 && confirmDelete.inVault > 0
-                    onClicked: {
-                        var keys = root.selectedKeys()
-                        saves.removeFromConsole(keys)
-                        deleteVaultAfter.keys = keys
-                        deleteVaultAfter.start()
-                        confirmDelete.close()
-                    }
+                    enabled: confirmDelete.inVault > 0
+                    onClicked: { saves.removeFromVault(root.selectedKeys()); confirmDelete.close() }
                 }
             }
         }
     }
-    // One action at a time: the vault side goes once the console side is done.
-    Timer {
-        id: deleteVaultAfter
+
+    // Putting back asks first: what it does, and what it needs.
+    Dialog {
+        id: confirmRestore
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: 500
+        modal: true
+        padding: 0
         property var keys: []
-        interval: 300
-        repeat: true
-        onTriggered: {
-            if (saves.busy)
-                return
-            stop()
-            saves.removeFromVault(keys)
+        // Of those, how many the console no longer lists.
+        property int missing: 0
+        function ask(chosen) {
+            keys = chosen
+            var n = 0
+            for (var i = 0; i < saves.saves.length; ++i)
+                if (chosen.indexOf(saves.saves[i].key) >= 0 && !saves.saves[i].onConsole)
+                    ++n
+            missing = n
+            open()
+        }
+
+        Overlay.modal: Rectangle { color: Theme.scrim }
+        background: Rectangle {
+            color: Theme.dialogFill
+            border.color: Theme.border
+            radius: Theme.radiusDialog
+        }
+        header: DialogHeader {
+            title: qsTr("Put back %n save(s)?", "", confirmRestore.keys.length)
+            dialog: confirmRestore
+        }
+        contentItem: ColumnLayout {
+            spacing: 10
+            Repeater {
+                model: [
+                    qsTr("The game must be closed (the PS4 on its home screen): a save written while "
+                         + "its game runs comes out corrupted."),
+                    qsTr("The console's copy is replaced by the latest backup. They go back to the "
+                         + "console and account they came from.")
+                ]
+                RowLayout {
+                    required property string modelData
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.dialogMargin
+                    Layout.rightMargin: Theme.dialogMargin
+                    spacing: 10
+                    Icon {
+                        Layout.alignment: Qt.AlignTop
+                        Layout.topMargin: 2
+                        name: "info"
+                        size: 14
+                        color: Theme.textSecondary
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: Theme.textSecondary
+                        font.pixelSize: 13
+                        text: parent.modelData
+                    }
+                }
+            }
+            RowLayout {
+                visible: confirmRestore.missing > 0
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                spacing: 10
+                Icon {
+                    Layout.alignment: Qt.AlignTop
+                    Layout.topMargin: 2
+                    name: "warning"
+                    size: 14
+                    color: Theme.warn
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.warn
+                    font.pixelSize: 12
+                    text: qsTr("%n of them the console no longer has. The PS4 only lists saves it made "
+                               + "itself: open the game and save once in the same slot, then put it back "
+                               + "over that one.", "", confirmRestore.missing)
+                }
+            }
+        }
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                spacing: 8
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("Cancel")
+                    onClicked: confirmRestore.close()
+                }
+                StyledButton {
+                    text: qsTr("The game is closed — put back")
+                    iconName: "archive-restore"
+                    primary: true
+                    onClicked: { saves.restore(confirmRestore.keys); confirmRestore.close() }
+                }
+            }
         }
     }
 }

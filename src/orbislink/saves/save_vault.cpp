@@ -119,23 +119,65 @@ Json filesToJson(const std::vector<SaveFile> &files)
 	return list;
 }
 
-// "savedata/x" → the console path of that file.
+// "savedata/x" → the console path of that file; "meta/x" (or "meta/x/y")
+// → under the game's folder in savedata_meta.
 std::string consolePathOf(const SaveInfo &save, const std::string &relative)
 {
 	if(startsWith(relative, "savedata/"))
 		return SaveVault::consoleSaveDir(save.account, save.titleId) + "/" + relative.substr(9);
-	return SaveVault::consoleMetaDir(save.account, save.titleId, save.dir) + "/" + relative.substr(5);
+	return SaveVault::consoleMetaRoot(save.account, save.titleId) + "/" + relative.substr(5);
 }
 
 // Only plain names: a file name from the console or a vault.json must not
-// lead outside its folder.
+// lead outside its folder. "savedata/<file>", "meta/<file>" or
+// "meta/<folder>/<file>".
 bool safeRelative(const std::string &relative)
 {
-	if(!startsWith(relative, "savedata/") && !startsWith(relative, "meta/"))
+	std::string rest;
+	size_t depth = 0;
+	if(startsWith(relative, "savedata/"))
+	{
+		rest = relative.substr(9);
+		depth = 1;
+	}
+	else if(startsWith(relative, "meta/"))
+	{
+		rest = relative.substr(5);
+		depth = 2;
+	}
+	else
 		return false;
-	const std::string name = relative.substr(relative.find('/') + 1);
-	return !name.empty() && name.find('/') == std::string::npos && name.find('\\') == std::string::npos
-		&& name != "." && name != "..";
+	if(rest.find('\\') != std::string::npos)
+		return false;
+	const std::vector<std::string> parts = split(rest, '/', true);
+	if(parts.empty() || parts.size() > depth)
+		return false;
+	for(const std::string &part : parts)
+		if(part.empty() || part == "." || part == "..")
+			return false;
+	return true;
+}
+
+// The PS4 keeps its own backup copy of a save as "sce_bu_<name>": it goes
+// with the save, not as another one.
+std::string saveNameOf(const std::string &name)
+{
+	return startsWith(name, "sce_bu_") ? name.substr(7) : name;
+}
+
+// Whether an entry of the game's savedata_meta folder is the save's.
+bool metaBelongsTo(const std::string &entry, const std::string &dir)
+{
+	const std::string name = saveNameOf(entry);
+	return name == dir || startsWith(name, dir + "_") || startsWith(name, dir + ".");
+}
+
+// What a small file from the console is: a param.sfo or a PNG.
+bool startsWithBytes(const std::string &path, const char *magic, size_t length)
+{
+	std::ifstream in(fs::u8path(path), std::ios::binary);
+	std::string head(length, '\0');
+	return in.read(&head[0], static_cast<std::streamsize>(length)) && head.compare(0, length, magic, length) == 0;
 }
 
 // Makes a folder on the console unless it is there: asking an FTP server
@@ -201,10 +243,9 @@ std::string SaveVault::consoleSaveDir(const std::string &account, const std::str
 	return "/user/home/" + account + "/savedata/" + titleId;
 }
 
-std::string SaveVault::consoleMetaDir(const std::string &account, const std::string &titleId,
-	const std::string &dir)
+std::string SaveVault::consoleMetaRoot(const std::string &account, const std::string &titleId)
 {
-	return "/user/home/" + account + "/savedata_meta/user/" + titleId + "/" + dir;
+	return "/user/home/" + account + "/savedata_meta/user/" + titleId;
 }
 
 std::string SaveVault::saveFolder(const SaveInfo &save) const
@@ -323,7 +364,8 @@ std::vector<SaveInfo> SaveVault::scan(SaveRemote &remote, std::string *error, co
 		std::string listError;
 		if(!remote.list(consoleSaveDir(account, titleId), &files, &listError))
 			continue;
-		// sdimg_<dir> and <dir>.bin make one save.
+		// sdimg_<name> and <name>.bin make one save (with the PS4's own
+		// backup copy of them, sce_bu_<name>).
 		std::map<std::string, std::vector<SaveFile>> byDir;
 		for(const FtpEntry &file : files)
 		{
@@ -334,10 +376,20 @@ std::vector<SaveInfo> SaveVault::scan(SaveRemote &remote, std::string *error, co
 				dir = file.name.substr(6);
 			else if(endsWith(file.name, ".bin"))
 				dir = file.name.substr(0, file.name.size() - 4);
+			dir = saveNameOf(dir);
 			if(dir.empty())
 				continue;
 			byDir[dir].push_back({ "savedata/" + file.name, file.size, file.modified });
 		}
+		if(byDir.empty())
+			continue;
+
+		// The game's savedata_meta folder, once: each save's entries there
+		// are files (or, on some systems, folders) named after it.
+		std::vector<FtpEntry> meta;
+		std::string metaError;
+		remote.list(consoleMetaRoot(account, titleId), &meta, &metaError);
+
 		for(auto &pair : byDir)
 		{
 			SaveInfo &save = merged[account + "/" + titleId + "/" + pair.first];
@@ -347,37 +399,55 @@ std::vector<SaveInfo> SaveVault::scan(SaveRemote &remote, std::string *error, co
 			save.onConsole = true;
 			save.consoleFiles = pair.second;
 
-			std::vector<FtpEntry> meta;
-			std::string metaError;
-			remote.list(consoleMetaDir(account, titleId, save.dir), &meta, &metaError);
 			const std::string local = joinPath(joinPath(joinPath(cache, account), titleId), save.dir);
-			for(const FtpEntry &file : meta)
+			std::vector<SaveFile> metaFiles;
+			for(const FtpEntry &entry : meta)
 			{
-				if(file.isDirectory)
+				if(!metaBelongsTo(entry.name, save.dir))
 					continue;
-				const SaveFile entry { "meta/" + file.name, file.size, file.modified };
-				if(!safeRelative(entry.relative))
+				if(!entry.isDirectory)
+				{
+					metaFiles.push_back({ "meta/" + entry.name, entry.size, entry.modified });
 					continue;
-				save.consoleFiles.push_back(entry);
-				// The names and the icon, for the list.
-				const bool sfo = iequals(file.name, "param.sfo");
-				const bool icon = iequals(file.name, "icon0.png");
-				if(!sfo && !icon)
+				}
+				std::vector<FtpEntry> inside;
+				std::string insideError;
+				if(!remote.list(consoleMetaRoot(account, titleId) + "/" + entry.name, &inside, &insideError))
+					continue;
+				for(const FtpEntry &file : inside)
+					if(!file.isDirectory)
+						metaFiles.push_back({ "meta/" + entry.name + "/" + file.name, file.size, file.modified });
+			}
+			for(const SaveFile &file : metaFiles)
+			{
+				if(!safeRelative(file.relative))
+					continue;
+				save.consoleFiles.push_back(file);
+				// Small ones may be the save's param.sfo (names, account) or
+				// its icon: a look at the first bytes says.
+				if(file.size <= 0 || file.size > 512 * 1024)
 					continue;
 				ensureDir(local);
-				const std::string target = joinPath(local, file.name);
-				if(fileSize(target) != file.size || sfo)
+				std::string flat = file.relative.substr(5);
+				std::replace(flat.begin(), flat.end(), '/', '_');
+				const std::string target = joinPath(local, flat);
+				if(fileSize(target) != file.size)
 				{
 					std::string downloadError;
-					remote.download(consolePathOf(save, entry.relative), target, &downloadError);
+					remote.download(consolePathOf(save, file.relative), target, &downloadError);
 				}
-				if(sfo)
+				if(startsWithBytes(target, "\0PSF", 4))
 					readSfo(target, save);
-				else if(fileExists(target))
+				else if(startsWithBytes(target, "\x89PNG", 4) && save.iconPath.empty())
 					save.iconPath = target;
 			}
 		}
 	}
+
+	// A game's own name, for saves that do not carry one.
+	for(auto &pair : merged)
+		if(pair.second.gameTitle.empty())
+			pair.second.gameTitle = gameTitle(&remote, pair.second.titleId);
 	if(progress)
 		progress(std::string(), 1.0);
 
@@ -486,10 +556,24 @@ bool SaveVault::restore(SaveRemote &remote, const SaveInfo &save, std::string *e
 	}
 	// The folders, one level at a time: FTP servers do not make parents.
 	const std::string home = "/user/home/" + save.account;
-	for(const std::string &dir : { home, home + "/savedata", consoleSaveDir(save.account, save.titleId),
-			 home + "/savedata_meta", home + "/savedata_meta/user",
-			 home + "/savedata_meta/user/" + save.titleId,
-			 consoleMetaDir(save.account, save.titleId, save.dir) })
+	std::vector<std::string> dirs = { home, home + "/savedata", consoleSaveDir(save.account, save.titleId) };
+	std::set<std::string> metaDirs;
+	for(const SaveFile &file : save.vaultFiles)
+	{
+		if(!startsWith(file.relative, "meta/"))
+			continue;
+		metaDirs.insert(consoleMetaRoot(save.account, save.titleId));
+		const std::string rest = file.relative.substr(5);
+		if(rest.find('/') != std::string::npos)
+			metaDirs.insert(consoleMetaRoot(save.account, save.titleId) + "/" + rest.substr(0, rest.find('/')));
+	}
+	if(!metaDirs.empty())
+	{
+		dirs.push_back(home + "/savedata_meta");
+		dirs.push_back(home + "/savedata_meta/user");
+		dirs.insert(dirs.end(), metaDirs.begin(), metaDirs.end());
+	}
+	for(const std::string &dir : dirs)
 		ensureRemoteDir(remote, dir);
 
 	for(size_t i = 0; i < save.vaultFiles.size(); ++i)
@@ -500,23 +584,49 @@ bool SaveVault::restore(SaveRemote &remote, const SaveInfo &save, std::string *e
 		if(progress)
 			progress(file.relative, static_cast<double>(i) / save.vaultFiles.size());
 		if(!remote.upload(joinPath(latest, file.relative), consolePathOf(save, file.relative), error))
+		{
+			logWarning("Saves: putting back " + save.key() + " failed at " + file.relative);
 			return false;
+		}
 	}
 
-	// The console dates what was put back as written now. The backup takes
-	// those dates, so it reads as the same save and not as one changed since.
+	// What the console has now, to check every file arrived whole — a save
+	// put back in part is worse than none — and to take the console's new
+	// dates (it dates what was put back as written now), so the backup still
+	// reads as the same save and not as one changed since.
 	std::vector<SaveFile> now;
-	for(const std::string &dir : { consoleSaveDir(save.account, save.titleId),
-			 consoleMetaDir(save.account, save.titleId, save.dir) })
+	std::vector<std::pair<std::string, std::string>> listed = {
+		{ consoleSaveDir(save.account, save.titleId), "savedata/" } };
+	for(const std::string &dir : metaDirs)
+	{
+		const std::string root = consoleMetaRoot(save.account, save.titleId);
+		listed.emplace_back(dir, dir == root ? "meta/" : "meta/" + dir.substr(root.size() + 1) + "/");
+	}
+	for(const auto &where : listed)
 	{
 		std::vector<FtpEntry> entries;
 		std::string listError;
-		if(!remote.list(dir, &entries, &listError))
+		if(!remote.list(where.first, &entries, &listError))
 			continue;
-		const bool data = dir == consoleSaveDir(save.account, save.titleId);
 		for(const FtpEntry &entry : entries)
 			if(!entry.isDirectory)
-				now.push_back({ (data ? "savedata/" : "meta/") + entry.name, entry.size, entry.modified });
+				now.push_back({ where.second + entry.name, entry.size, entry.modified });
+	}
+	for(const SaveFile &file : save.vaultFiles)
+	{
+		if(!safeRelative(file.relative))
+			continue;
+		const auto found = std::find_if(now.begin(), now.end(),
+			[&](const SaveFile &fresh) { return fresh.relative == file.relative; });
+		if(found == now.end() || found->size != file.size)
+		{
+			if(error)
+				*error = "The console did not take " + file.relative + " whole ("
+					+ (found == now.end() ? std::string("missing") : std::to_string(found->size) + " of "
+						+ std::to_string(file.size) + " bytes") + ").";
+			logWarning("Saves: putting back " + save.key() + ": " + (error ? *error : std::string()));
+			return false;
+		}
 	}
 	std::vector<uint8_t> raw;
 	if(readFile(joinPath(latest, "vault.json"), &raw))
@@ -533,18 +643,29 @@ bool SaveVault::restore(SaveRemote &remote, const SaveInfo &save, std::string *e
 	}
 	if(progress)
 		progress(std::string(), 1.0);
-	logInfo("Saves: restored " + save.key());
+	logInfo("Saves: put back " + save.key());
 	return true;
 }
 
-bool SaveVault::removeFromConsole(SaveRemote &remote, const SaveInfo &save, std::string *error)
+std::string SaveVault::gameTitle(SaveRemote *remote, const std::string &titleId)
 {
-	for(const SaveFile &file : save.consoleFiles)
-		if(safeRelative(file.relative) && !remote.removeFile(consolePathOf(save, file.relative), error))
-			return false;
-	remote.removeDirectory(consoleMetaDir(save.account, save.titleId, save.dir));
-	logInfo("Saves: deleted from the console " + save.key());
-	return true;
+	const std::string dir = joinPath(joinPath(root_, ".cache"), "games");
+	const std::string local = joinPath(dir, titleId + ".sfo");
+	if(fileSize(local) <= 0 && remote)
+	{
+		ensureDir(dir);
+		std::string error;
+		if(!remote->download("/user/appmeta/" + titleId + "/param.sfo", local, &error))
+		{
+			std::error_code ignored;
+			fs::remove(fs::u8path(local), ignored);
+		}
+	}
+	std::vector<uint8_t> data;
+	Sfo sfo;
+	if(!readFile(local, &data) || !sfo.parse(data))
+		return std::string();
+	return sfo.stringValue("TITLE");
 }
 
 bool SaveVault::removeFromVault(const SaveInfo &save, std::string *error)

@@ -236,11 +236,12 @@ level, percentage…), its size and where it stands:
 | Item | Does |
 |---|---|
 | **Back up everything** | Backs up every save that is not backed up or changed, in one click. |
-| **Put back what's missing** | Puts back on the console every save only the vault has. |
+| **Put back what's missing** | Puts back on the console every save only the vault has (see below). |
 | Accounts | One chip per PSN account the saves belong to (read from each save): its name when it is one of the Account IDs kept in the app (Settings → Account IDs), else its PSID. Each save shows its account too. With one chosen, everything on the page — the counts, **Back up everything**, **Put back what's missing** — is that account's. |
 | Filters | All · Not backed up · Changed · Missing on the console. |
 | Click on a save · **Select all** | Selects; the top strip then offers **Back up**, **Put back** and **Delete…** for the selection. |
-| **Delete…** | Asks where: the console, the vault, or both (and warns when a save exists in one place only). |
+| **Put back** | Always asks first: the game has to be closed. Replaces the console's copy with the latest backup, then checks on the console that every file arrived whole (an error otherwise). |
+| **Delete…** | From the vault only (it warns when the vault holds the only copy). Saves on the console are deleted on the PS4 itself, Settings → Application Saved Data Management. |
 | Folder chip · ⚙ | Opens the vault folder · changes it. |
 | ⟳ | Reads the console again. |
 
@@ -248,8 +249,24 @@ PS1/PS2 games converted to packages keep their memory cards as ordinary
 PS4 saves, so they are in the vault like any other game.
 
 Each save keeps its last 5 backups. Saves are copied exactly as the console
-has them (no re-signing): they go back to the same console and account. The
-game should be closed before its save is put back.
+has them (no re-signing): they go back to the same console and account.
+
+What the PS4 allows, and why the page works this way:
+
+- A save is two files, `sdimg_<name>` (the encrypted image, with the save's
+  own param.sfo inside) and `<name>.bin` (its key), plus the PS4's own copy
+  of both, `sce_bu_<name>`; they are kept together. Entries named after the
+  save in `savedata_meta` go with them.
+- The game open on the console (Remote Play's discovery says which) is left
+  alone: a save copied while its game writes it comes out corrupted. The
+  page says which game is open, and leaves its saves out of backing up and
+  putting back.
+- The PS4 lists its saves in a database of its own, which copying files does
+  not touch. So a save is put back over one the console still lists; for one
+  it no longer has, open the game and save once in the same slot, then put
+  it back over that one. And nothing is deleted on the console from here:
+  files taken away over FTP leave the PS4 with an entry it reports as
+  corrupted.
 
 On the PC: `<vault>/<account>/<game>/<save>/<date>/` with the save's files
 and a `vault.json` describing them.

@@ -51,10 +51,14 @@ enum class SaveSync
 // A save of a game, on the console, in the vault, or both.
 //
 // PS4 layout: /user/home/<account>/savedata/<TITLE_ID>/ holds
-// "sdimg_<dir>" (the encrypted image) and "<dir>.bin" (its key);
-// /user/home/<account>/savedata_meta/user/<TITLE_ID>/<dir>/ holds the
-// param.sfo with the names and the icon. They are copied as they are: a
-// save only works on the console and account it came from.
+// "sdimg_<dir>" (the encrypted image, with the save's own param.sfo inside)
+// and "<dir>.bin" (its key), plus the system's backup copy of both as
+// "sce_bu_<dir>"; /user/home/<account>/savedata_meta/user/<TITLE_ID>/ holds
+// entries named after each save (its listing data and icon, where there
+// are any). They are copied as they are: a save only works on the console
+// and account it came from, and the PS4 keeps a database of its saves
+// (/system_data/savedata) that copying files does not touch — so a save is
+// only put back over one the console still lists.
 struct SaveInfo
 {
 	std::string account; // "1eb71bbd"
@@ -105,15 +109,20 @@ public:
 	bool backup(SaveRemote &remote, SaveInfo &save, std::string *error, const Progress &progress = {});
 	// Puts the latest backup back on the console, as it was.
 	bool restore(SaveRemote &remote, const SaveInfo &save, std::string *error, const Progress &progress = {});
-	bool removeFromConsole(SaveRemote &remote, const SaveInfo &save, std::string *error);
+	// No "delete from the console": the PS4 lists its saves in a database
+	// of its own, and taking the files away over FTP leaves it with an entry
+	// it reports as corrupted. Saves are deleted on the PS4 itself.
 	bool removeFromVault(const SaveInfo &save, std::string *error);
 
+	// The game's own name (from its param.sfo, read once), or "".
+	std::string gameTitle(SaveRemote *remote, const std::string &titleId);
 	// Local copy of a game's icon (downloaded once), or "" if there is none.
 	std::string gameIcon(SaveRemote *remote, const std::string &titleId);
 
 	static std::string consoleSaveDir(const std::string &account, const std::string &titleId);
-	static std::string consoleMetaDir(const std::string &account, const std::string &titleId,
-		const std::string &dir);
+	// The game's folder in savedata_meta; each save's entries in it are
+	// named after it (files, or folders on some systems).
+	static std::string consoleMetaRoot(const std::string &account, const std::string &titleId);
 
 private:
 	std::string saveFolder(const SaveInfo &save) const;

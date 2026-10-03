@@ -343,22 +343,6 @@ void SavesController::restore(const QStringList &keys)
 	});
 }
 
-void SavesController::removeFromConsole(const QStringList &keys)
-{
-	const std::vector<SaveInfo> chosen = pick(keys);
-	run(tr("Deleting from the console…"), [chosen](SaveRemote &remote, SaveVault &vault,
-											   std::vector<SaveInfo> &, bool *error) -> QString {
-		int done = 0;
-		std::string why;
-		for(const SaveInfo &save : chosen)
-			if(save.onConsole && vault.removeFromConsole(remote, save, &why))
-				++done;
-		*error = !why.empty();
-		return why.empty() ? tr("%n save(s) deleted from the console.", "", done)
-						   : tr("Not everything was deleted: %1").arg(QString::fromStdString(why));
-	});
-}
-
 void SavesController::removeFromVault(const QStringList &keys)
 {
 	const std::vector<SaveInfo> chosen = pick(keys);
