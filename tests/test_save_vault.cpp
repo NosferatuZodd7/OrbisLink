@@ -56,8 +56,12 @@ public:
 		fs::copy_file(local, at(remote), fs::copy_options::overwrite_existing, failure);
 		if(failure && error)
 			*error = failure.message();
+		// A transfer cut short that still says "done".
+		if(truncateUploads && !failure)
+			fs::resize_file(at(remote), fs::file_size(at(remote)) / 2);
 		return !failure;
 	}
+	bool truncateUploads = false;
 	bool makeDirectory(const std::string &dir) override
 	{
 		// A real FTP server refuses this, and the client retries it: slow.
@@ -97,6 +101,12 @@ void writeData(const fs::path &path, const std::vector<uint8_t> &data)
 		static_cast<std::streamsize>(data.size()));
 }
 
+void writePng(const fs::path &path)
+{
+	fs::create_directories(path.parent_path());
+	std::ofstream(path, std::ios::binary) << std::string("\x89PNG\r\n\x1a\n", 8) << std::string(56, 'p');
+}
+
 // A console with two saves of one game on one account.
 fs::path makeConsole(const fs::path &root)
 {
@@ -108,7 +118,7 @@ fs::path makeConsole(const fs::path &root)
 		writeData(home / "savedata_meta/user/CUSA00001" / dir / "param.sfo",
 			buildSfo({ { "MAINTITLE", "Orbis Racing" }, { "SUBTITLE", "Slot " + dir },
 				{ "DETAIL", "Chapter 5 - 34%" }, { "ACCOUNT_ID", "ABCDEFGH" } }));
-		writeBytes(home / "savedata_meta/user/CUSA00001" / dir / "icon0.png", 64, 'p');
+		writePng(home / "savedata_meta/user/CUSA00001" / dir / "icon0.png");
 	}
 	writeBytes(root / "user/appmeta/CUSA00001/icon0.png", 128, 'g');
 	return home;
@@ -174,8 +184,9 @@ ORBISLINK_TEST(scan_backup_change_delete_restore)
 	CHECK(find(saves, "SAVE0")->sync() == SaveSync::Changed);
 
 	// The console lost it: only the vault has it now…
-	CHECK(vault.removeFromConsole(console, *find(saves, "SAVE0"), &error));
-	CHECK(!fs::exists(f.home / "savedata/CUSA00001/sdimg_SAVE0"));
+	fs::remove(f.home / "savedata/CUSA00001/sdimg_SAVE0");
+	fs::remove(f.home / "savedata/CUSA00001/SAVE0.bin");
+	fs::remove_all(f.home / "savedata_meta/user/CUSA00001/SAVE0");
 	saves = vault.scan(console, &error);
 	const SaveInfo *lost = find(saves, "SAVE0");
 	CHECK(lost != nullptr);
@@ -196,6 +207,75 @@ ORBISLINK_TEST(scan_backup_change_delete_restore)
 	saves = vault.scan(console, &error);
 	CHECK(find(saves, "SAVE0")->sync() == SaveSync::ConsoleOnly);
 	CHECK(vault.vaultSaves().empty());
+}
+
+// The layout seen on a real console: the PS4's own backup copy of each
+// save ("sce_bu_"), and savedata_meta entries that are files, not folders.
+ORBISLINK_TEST(real_layout_with_system_backups_and_meta_files)
+{
+	Fixture f;
+	const fs::path data = f.home / "savedata/CUSA00009";
+	writeBytes(data / "sdimg_RDR2SAVE0.SAV", 2048, 'a');
+	writeBytes(data / "RDR2SAVE0.SAV.bin", 96, 'b');
+	writeBytes(data / "sdimg_sce_bu_RDR2SAVE0.SAV", 2048, 'c');
+	writeBytes(data / "sce_bu_RDR2SAVE0.SAV.bin", 96, 'd');
+	writeData(f.home / "savedata_meta/user/CUSA00009/RDR2SAVE0.SAV",
+		buildSfo({ { "MAINTITLE", "Red Dead" }, { "SUBTITLE", "Chapter 2" } }));
+	writeBytes(f.home / "savedata_meta/user/CUSA00009/sce_bu_RDR2SAVE0.SAV", 300, 'm');
+	writeBytes(f.home / "savedata_meta/user/CUSA00009/OTHERSAVE", 300, 'o');
+	writeData(f.consoleRoot / "user/appmeta/CUSA00009/param.sfo", buildSfo({ { "TITLE", "Red Dead Redemption 2" } }));
+
+	FolderRemote console(f.consoleRoot);
+	SaveVault vault((f.base / "vault").string());
+	std::string error;
+	std::vector<SaveInfo> saves = vault.scan(console, &error);
+	// One save, not two: the system's copy goes with it.
+	int found = 0;
+	const SaveInfo *save = nullptr;
+	for(const SaveInfo &s : saves)
+		if(s.titleId == "CUSA00009")
+		{
+			++found;
+			save = &s;
+		}
+	CHECK_EQ(found, 1);
+	CHECK_EQ(save->dir, std::string("RDR2SAVE0.SAV"));
+	// 4 data files and its 2 meta files, not the other save's.
+	CHECK_EQ(save->consoleFiles.size(), static_cast<size_t>(6));
+	CHECK_EQ(save->saveTitle, std::string("Chapter 2"));
+
+	SaveInfo copy = *save;
+	CHECK(vault.backup(console, copy, &error));
+	// Overwritten in the console with something else, then put back.
+	writeBytes(data / "sdimg_RDR2SAVE0.SAV", 4096, 'z');
+	saves = vault.scan(console, &error);
+	for(const SaveInfo &s : saves)
+		if(s.titleId == "CUSA00009")
+		{
+			CHECK(s.sync() == SaveSync::Changed);
+			CHECK(vault.restore(console, s, &error));
+			CHECK_EQ(console.redundantMakeDirectory, 0);
+		}
+	CHECK_EQ(fs::file_size(data / "sdimg_RDR2SAVE0.SAV"), static_cast<uintmax_t>(2048));
+	saves = vault.scan(console, &error);
+	for(const SaveInfo &s : saves)
+		if(s.titleId == "CUSA00009")
+			CHECK(s.sync() == SaveSync::Same);
+}
+
+// A file that does not arrive whole is an error, not a quiet success.
+ORBISLINK_TEST(a_short_upload_is_reported)
+{
+	Fixture f;
+	FolderRemote console(f.consoleRoot);
+	SaveVault vault((f.base / "vault").string());
+	std::string error;
+	SaveInfo save = *find(vault.scan(console, &error), "SAVE0");
+	CHECK(vault.backup(console, save, &error));
+	console.truncateUploads = true;
+	error.clear();
+	CHECK(!vault.restore(console, *find(vault.scan(console, &error), "SAVE0"), &error));
+	CHECK(error.find("whole") != std::string::npos);
 }
 
 ORBISLINK_TEST(only_the_last_backups_are_kept)

@@ -365,6 +365,7 @@ void StreamController::applyHost(const HostInfo &info)
 	consoleState_ = info.found ? stateName(info.state) : QStringLiteral("offline");
 	consoleName_ = QString::fromStdString(info.name);
 	runningApp_ = QString::fromStdString(info.runningAppName);
+	runningAppTitleId_ = QString::fromStdString(info.runningAppTitleId);
 	loadCredentials();
 	emit consoleChanged();
 	emit registrationChanged();

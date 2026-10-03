@@ -53,7 +53,6 @@ public:
 	Q_INVOKABLE void backup(const QStringList &keys);
 	// Puts the latest backup of each back on the console.
 	Q_INVOKABLE void restore(const QStringList &keys);
-	Q_INVOKABLE void removeFromConsole(const QStringList &keys);
 	Q_INVOKABLE void removeFromVault(const QStringList &keys);
 	Q_INVOKABLE void setVaultFolder(const QString &folder);
 	Q_INVOKABLE void openVaultFolder() const;
