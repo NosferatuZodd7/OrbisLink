@@ -69,4 +69,24 @@ ORBISLINK_TEST(hand_edited_settings_leave_no_repeated_keys)
 	CHECK_EQ(keyMap.bindings().at("square"), static_cast<int>(Qt::Key_C));
 }
 
+ORBISLINK_TEST(controller_buttons_swap_and_only_changes_are_kept)
+{
+	PadMap::Map map = PadMap::effective({});
+	CHECK_EQ(map.at("a"), std::string("cross"));
+	CHECK(PadMap::changes(map).empty());
+
+	// The physical ✕ button now presses ◯: the ◯ button takes ✕.
+	map = PadMap::remapped(map, "circle", "a");
+	CHECK_EQ(map.at("a"), std::string("circle"));
+	CHECK_EQ(map.at("b"), std::string("cross"));
+	const PadMap::Map changed = PadMap::changes(map);
+	CHECK_EQ(changed.size(), static_cast<size_t>(2));
+
+	// Kept in the settings and read back, it is the same map.
+	CHECK(PadMap::effective(changed) == map);
+
+	// An unknown physical button changes nothing.
+	CHECK(PadMap::remapped(map, "cross", "paddle9") == map);
+}
+
 TEST_MAIN()

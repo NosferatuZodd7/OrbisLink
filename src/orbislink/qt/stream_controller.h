@@ -67,6 +67,11 @@ class StreamController : public QObject
 	Q_PROPERTY(bool fullscreenOnConnect READ fullscreenOnConnect NOTIFY settingsApplied)
 	Q_PROPERTY(QString savedAccountId READ accountId NOTIFY settingsApplied)
 	Q_PROPERTY(QVariantMap keyBindings READ keyBindings NOTIFY keyBindingsChanged)
+	// Physical controller button → action ("a" → "cross"…), all of them.
+	Q_PROPERTY(QVariantMap padBindings READ padBindings NOTIFY keyBindingsChanged)
+	// The actions the physical controller is pressing right now ("cross",
+	// "l2", "lstick_left"…), for the key map window to light them up.
+	Q_PROPERTY(QStringList padPressed READ padPressed NOTIFY padPressedChanged)
 	// The state of the other saved consoles, by address:
 	// { state, name, ps5, registered, hostId }.
 	Q_PROPERTY(QVariantMap consoleStates READ consoleStates NOTIFY consoleStatesChanged)
@@ -163,6 +168,13 @@ public:
 	// Returns false for a key that cannot be used (Esc, F11).
 	Q_INVOKABLE bool setKeyBinding(const QString &action, int key);
 	Q_INVOKABLE void resetKeyBindings();
+	QVariantMap padBindings() const;
+	QStringList padPressed() const { return padPressed_; }
+	// Moves `action` to the physical button `physical`; the two swap.
+	Q_INVOKABLE void setPadBinding(const QString &action, const QString &physical);
+	// Reads the controller while the key map window is open, even without
+	// a session, so its buttons light up there.
+	Q_INVOKABLE void setInputPreview(bool on);
 	// The key name as the system writes it ("Enter", "Space", "Q").
 	Q_INVOKABLE QString keyName(int key) const;
 
@@ -203,11 +215,15 @@ signals:
 	void gamepadChanged();
 	void settingsApplied();
 	void keyBindingsChanged();
+	void padPressedChanged();
+	// A physical controller button went down (its SDL name).
+	void padButtonDown(const QString &physical);
 	void consoleStatesChanged();
 	void scanChanged();
 	// Request to save the keys in the settings; whoever stores them connects
 	// here, and the new map comes back through applySettings().
 	void keyBindingsEdited(const std::map<std::string, int> &bindings);
+	void padBindingsEdited(const std::map<std::string, std::string> &bindings);
 	void notify(const QString &title, const QString &message, bool error);
 	void loginPinRequested(bool incorrect);
 
@@ -266,6 +282,9 @@ private:
 	void resetInput();
 	StreamSession::ControllerState keyState_;
 	StreamSession::ControllerState padState_;
+	QStringList padPressed_;
+	bool inputPreview_ = false;
+	void updatePadPressed();
 	int padTouchIds_[2] = { -1, -1 };
 	// A touchpad click with no finger on the pad (the T key, or a controller
 	// whose touches do not come in): a finger is put on the left half first

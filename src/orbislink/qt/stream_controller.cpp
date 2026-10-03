@@ -102,7 +102,8 @@ StreamController::StreamController(QObject *parent)
 				}
 				else
 				{
-					gamepad_.stop();
+					if(!inputPreview_)
+						gamepad_.stop();
 					hardwareDecoder_ = false;
 					touchEnd();
 					resetInput();
@@ -157,8 +158,10 @@ StreamController::StreamController(QObject *parent)
 	connect(&gamepad_, &Gamepad::stateChanged, this,
 		[this](const StreamSession::ControllerState &state) {
 			padState_ = state;
+			updatePadPressed();
 			sendInput();
 		});
+	connect(&gamepad_, &Gamepad::buttonDown, this, &StreamController::padButtonDown);
 	connect(&gamepad_, &Gamepad::touchChanged, this, &StreamController::padTouch);
 	connect(&gamepad_, &Gamepad::connectedChanged, this, &StreamController::gamepadChanged);
 
@@ -247,6 +250,7 @@ void StreamController::applySettings(const Settings &settings)
 		if(console.address == settings.consoleAddress && !console.accountId.empty())
 			accountId_ = QString::fromStdString(console.accountId);
 	keyboard_.setBindings(settings.keyboardBindings);
+	gamepad_.setButtonMap(settings.padBindings);
 	emit settingsApplied();
 	emit keyBindingsChanged();
 }
@@ -268,7 +272,70 @@ bool StreamController::setKeyBinding(const QString &action, int key)
 	return true;
 }
 
-void StreamController::resetKeyBindings() { emit keyBindingsEdited({}); }
+void StreamController::resetKeyBindings()
+{
+	emit keyBindingsEdited({});
+	emit padBindingsEdited({});
+}
+
+QVariantMap StreamController::padBindings() const
+{
+	QVariantMap map;
+	for(const auto &pair : gamepad_.buttonMap())
+		map.insert(QString::fromStdString(pair.first), QString::fromStdString(pair.second));
+	return map;
+}
+
+void StreamController::setPadBinding(const QString &action, const QString &physical)
+{
+	// Only what differs from the defaults is kept.
+	emit padBindingsEdited(PadMap::changes(
+		PadMap::remapped(gamepad_.buttonMap(), action.toStdString(), physical.toStdString())));
+}
+
+void StreamController::setInputPreview(bool on)
+{
+	inputPreview_ = on;
+	if(on)
+		gamepad_.start();
+	else if(!streaming_)
+		gamepad_.stop();
+}
+
+void StreamController::updatePadPressed()
+{
+	QStringList pressed;
+	for(const KeyboardMap::Action &action : KeyboardMap::actions())
+		if(action.button != 0 && (padState_.buttons & action.button))
+			pressed << QString::fromLatin1(action.id);
+	// The triggers and sticks, past a dead zone.
+	constexpr int kStick = 16000;
+	if(padState_.l2 > 40)
+		pressed << QStringLiteral("l2");
+	if(padState_.r2 > 40)
+		pressed << QStringLiteral("r2");
+	if(padState_.leftX < -kStick)
+		pressed << QStringLiteral("lstick_left");
+	if(padState_.leftX > kStick)
+		pressed << QStringLiteral("lstick_right");
+	if(padState_.leftY < -kStick)
+		pressed << QStringLiteral("lstick_up");
+	if(padState_.leftY > kStick)
+		pressed << QStringLiteral("lstick_down");
+	if(padState_.rightX < -kStick)
+		pressed << QStringLiteral("rstick_left");
+	if(padState_.rightX > kStick)
+		pressed << QStringLiteral("rstick_right");
+	if(padState_.rightY < -kStick)
+		pressed << QStringLiteral("rstick_up");
+	if(padState_.rightY > kStick)
+		pressed << QStringLiteral("rstick_down");
+	if(pressed != padPressed_)
+	{
+		padPressed_ = pressed;
+		emit padPressedChanged();
+	}
+}
 
 QString StreamController::keyName(int key) const
 {

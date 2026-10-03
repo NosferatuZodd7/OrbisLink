@@ -475,9 +475,21 @@ Item {
         padding: 0
         // While waiting for a new key, Esc cancels the choice and does not
         // close the window.
-        closePolicy: keyboardMap.chosen.length > 0
+        closePolicy: keyboardMap.chosen.length > 0 || keyboardMap.padChosen.length > 0
                      ? Popup.NoAutoClose : Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        onClosed: keyboardMap.editing = false
+        // Open, the window reads the controller (even without a session) and
+        // the keyboard, so what is pressed lights up in the drawings.
+        onOpened: {
+            if (root.built)
+                stream.setInputPreview(true)
+            keyboardMap.forceActiveFocus()
+        }
+        onClosed: {
+            keyboardMap.editing = false
+            keyboardMap.pressedKeys = ({})
+            if (root.built)
+                stream.setInputPreview(false)
+        }
 
         Overlay.modal: Rectangle { color: Theme.scrim }
 
@@ -513,9 +525,10 @@ Item {
                     text: qsTr("Reset")
                     minimumWidth: 100
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Go back to the default keys")
+                    ToolTip.text: qsTr("Go back to the default keys and controller buttons")
                     onClicked: {
                         keyboardMap.chosen = ""
+                        keyboardMap.padChosen = ""
                         stream.resetKeyBindings()
                     }
                 }
@@ -574,6 +587,11 @@ Item {
                         width: 280
                         height: 211
                         highlight: keyboardMap.highlight
+                        lit: keyboardMap.litTargets
+                        // With a controller connected, its buttons can be moved
+                        // by clicking one here and pressing the new one on it.
+                        clickable: keyboardMap.editing && root.built && stream.gamepadName.length > 0
+                        onActionClicked: (action) => keyboardMap.choosePad(action)
                     }
 
                     Rectangle {
@@ -606,12 +624,26 @@ Item {
                             font.bold: parent.full
                             text: parent.full ? keyboardMap.message
                                 : keyboardMap.editing
-                                  ? qsTr("Click the key you want to change, then press the new key. "
-                                         + "If it already does something, the two swap.")
-                                  : qsTr("Hover over a key to see on the controller which button it "
-                                         + "presses. Greyed-out keys do nothing.")
+                                  ? (root.built && stream.gamepadName.length > 0
+                                     ? qsTr("Keyboard: click a key, then press the new one. Controller: "
+                                            + "click a button on the drawing, then press it on your "
+                                            + "controller. Taken already? The two swap.")
+                                     : qsTr("Click the key you want to change, then press the new key. "
+                                            + "If it already does something, the two swap."))
+                                  : qsTr("Press a key or a controller button and both light up. Hover "
+                                         + "over a key to see which button it presses.")
                         }
                     }
+                }
+
+                Text {
+                    visible: keyboardMap.padChanges.length > 0
+                    Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    text: qsTr("Controller buttons changed: %1").arg(keyboardMap.padChanges)
+                    color: Theme.textSecondary
+                    font.pixelSize: 11
                 }
 
                 Item { Layout.preferredHeight: 4 }

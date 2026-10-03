@@ -16,14 +16,80 @@ Item {
     id: keyMap
 
     // The button under the mouse, for the controller drawing to light up.
-    property string highlight: chosen.length > 0 ? actions[chosen].target : hoverHighlight
+    property string highlight: chosen.length > 0 ? actions[chosen].target
+                             : padChosen.length > 0 ? actions[padChosen].target : hoverHighlight
     property string hoverHighlight: ""
     property string description: ""
 
     property bool editing: false
     // The action waiting for a new key ("" when none).
     property string chosen: ""
+    // The action waiting for a button on the physical controller.
+    property string padChosen: ""
     property string notice: ""
+
+    // Live: the keys held on the keyboard, and the actions held on the
+    // controller. Both light up their keys and the controller drawing.
+    property var pressedKeys: ({})
+    readonly property var padActions: hasStream ? stream.padPressed : []
+    readonly property var litActions: {
+        var list = padActions.slice()
+        for (var code in pressedKeys) {
+            var action = byKey[code]
+            if (action !== undefined && list.indexOf(action) < 0)
+                list.push(action)
+        }
+        return list
+    }
+    // The controller parts those actions light.
+    readonly property var litTargets: {
+        var list = []
+        for (var i = 0; i < litActions.length; ++i) {
+            var known = actions[litActions[i]]
+            if (known && list.indexOf(known.target) < 0)
+                list.push(known.target)
+        }
+        return list
+    }
+    // Physical button → the PS button printed on it, to name it.
+    readonly property var padDefaults: ({
+        "a": "cross", "b": "circle", "x": "square", "y": "triangle", "dpup": "dpad_up",
+        "dpdown": "dpad_down", "dpleft": "dpad_left", "dpright": "dpad_right", "leftshoulder": "l1",
+        "rightshoulder": "r1", "leftstick": "l3", "rightstick": "r3", "start": "options",
+        "back": "share", "guide": "ps", "touchpad": "touchpad"
+    })
+    // What was changed on the controller, as "◯ → ✕   ·   L1 → R1".
+    readonly property string padChanges: {
+        if (!hasStream)
+            return ""
+        var lines = []
+        var map = stream.padBindings
+        for (var physical in map) {
+            var printed = padDefaults[physical]
+            if (printed && map[physical] !== printed && actions[printed] && actions[map[physical]])
+                lines.push(actions[printed].sign + " → " + actions[map[physical]].sign)
+        }
+        return lines.join("   ·   ")
+    }
+
+    function choosePad(action) {
+        notice = ""
+        chosen = ""
+        padChosen = padChosen === action ? "" : action
+        forceActiveFocus()
+    }
+
+    Connections {
+        target: keyMap.hasStream ? stream : null
+        function onPadButtonDown(physical) {
+            if (!keyMap.editing || keyMap.padChosen.length === 0)
+                return
+            stream.setPadBinding(keyMap.padChosen, physical)
+            keyMap.notice = qsTr("Done: that controller button now presses %1.")
+                .arg(keyMap.actions[keyMap.padChosen].sign)
+            keyMap.padChosen = ""
+        }
+    }
 
     readonly property bool hasStream: typeof stream !== "undefined" && stream !== null
     readonly property var bindings: hasStream ? stream.keyBindings : ({})
@@ -41,6 +107,9 @@ Item {
         if (chosen.length > 0)
             return qsTr("Changing %1: press the new key, or click a key in the drawing. Esc "
                         + "cancels.").arg(actions[chosen].name)
+        if (padChosen.length > 0)
+            return qsTr("Changing %1 on the controller: press the controller button that should do "
+                        + "it. Esc cancels.").arg(actions[padChosen].name)
         if (notice.length > 0)
             return notice
         return description
@@ -150,14 +219,26 @@ Item {
         }
     }
 
-    onEditingChanged: { chosen = ""; notice = "" }
+    onEditingChanged: { chosen = ""; padChosen = ""; notice = "" }
     onChosenChanged: if (chosen.length > 0) forceActiveFocus()
 
     // The new key comes from here. The event is accepted so the dialog does
     // not use it (Enter does not press a button, Esc does not close the window).
     Keys.onPressed: function (event) {
-        if (!editing || chosen.length === 0)
+        if (editing && padChosen.length > 0 && event.key === Qt.Key_Escape) {
+            padChosen = ""
+            event.accepted = true
             return
+        }
+        if (!editing || chosen.length === 0) {
+            // Not choosing: the key just lights up while it is held.
+            if (!event.isAutoRepeat && event.key !== Qt.Key_Escape) {
+                var held = Object.assign({}, pressedKeys)
+                held[event.key] = true
+                pressedKeys = held
+            }
+            return
+        }
         if (event.isAutoRepeat) {
             event.accepted = true
             return
@@ -165,6 +246,15 @@ Item {
         assign(event.key)
         event.accepted = true
     }
+
+    Keys.onReleased: function (event) {
+        if (event.isAutoRepeat || pressedKeys[event.key] === undefined)
+            return
+        var held = Object.assign({}, pressedKeys)
+        delete held[event.key]
+        pressedKeys = held
+    }
+    onActiveFocusChanged: if (!activeFocus) pressedKeys = ({})
 
     Repeater {
         model: keyMap.keys
@@ -181,6 +271,9 @@ Item {
                 : (action.length > 0 ? keyMap.actions[action] : undefined)
             readonly property bool useful: binding !== undefined
             readonly property bool chosenHere: action.length > 0 && keyMap.chosen === action
+            // Held right now: on the keyboard, or its action on the controller.
+            readonly property bool held: keyMap.pressedKeys[code] === true
+                                         || (action.length > 0 && keyMap.padActions.indexOf(action) >= 0)
             // In edit mode, any key on the drawing responds to the mouse: it is
             // a possible destination for the chosen action.
             readonly property bool hover: area.containsMouse
@@ -195,17 +288,18 @@ Item {
             // On the light theme the panel is white, like the dialog: the useful
             // keys get an icy grey and a dark edge, otherwise the dimmed ones
             // would be the ones standing out.
-            color: chosenHere || hover ? Theme.accentFill
+            color: held ? Theme.alpha(Theme.accent, 0.42)
+                 : chosenHere || hover ? Theme.accentFill
                  : !useful ? "transparent"
                  : Theme.light ? "#EEF1F6"
                  : Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b, 0.9)
-            border.width: chosenHere ? 2 : 1
-            border.color: chosenHere || hover ? Theme.accent
+            border.width: chosenHere || held ? 2 : 1
+            border.color: chosenHere || hover || held ? Theme.accent
                         : !useful ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.10)
                         : Theme.light ? Qt.rgba(0, 0, 0, 0.22)
                         : Theme.glassEdge
-            scale: hover || chosenHere ? 1.06 : 1.0
-            z: hover || chosenHere ? 1 : 0
+            scale: held ? 0.94 : hover || chosenHere ? 1.06 : 1.0
+            z: hover || chosenHere || held ? 1 : 0
             Behavior on scale { NumberAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
             Behavior on color { ColorAnimation { duration: Theme.fast } }
 

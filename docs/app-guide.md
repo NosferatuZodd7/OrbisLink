@@ -99,7 +99,7 @@ The picture fills the stage. Moving the mouse shows the toolbar:
 
 | Button | Does |
 |---|---|
-| 🎮 | Keyboard map: which key presses which button. The touchpad key (T) puts a finger on the left half of the touchpad and then clicks — Select in PS2 games. A controller's own touchpad is passed on as it is (left half Select, right half Start). Keyboard and controller can be used together. **Change keys** to rebind (click a key, press the new one; two keys swap); **Reset** goes back to the defaults. |
+| 🎮 | Keyboard map: which key presses which button. The touchpad key (T) puts a finger on the left half of the touchpad and then clicks — Select in PS2 games. A controller's own touchpad is passed on as it is (left half Select, right half Start). Keyboard and controller can be used together. Live: a key held on the keyboard, or a button held on the controller, lights up its key and its part of the controller drawing. **Change keys** to rebind: click a key and press the new one; with a controller connected, click a button on the controller drawing and press the controller button that should do it (L2/R2 are triggers and stay). Two keys, or two buttons, swap. **Reset** goes back to the defaults of both. |
 | Speaker | Mutes / unmutes the console's sound. |
 | ▭ 16:9 / 4:3 / Fill | The picture's shape, one click to the next: as the console sends it (16:9), 4:3 with bars at the sides (PS1/PS2 games come stretched), or stretched to the window. Kept for next time. |
 | Microphone | Sends / stops the PC microphone. |

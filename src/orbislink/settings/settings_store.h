@@ -98,6 +98,8 @@ struct Settings
 	// Keyboard as controller: action → key (Qt::Key). Only what was changed;
 	// the rest keep their default key.
 	std::map<std::string, int> keyboardBindings;
+	// Physical controller button (SDL name) → action, only what was changed.
+	std::map<std::string, std::string> padBindings;
 
 	// Application
 	std::string theme = "dark";      // "dark", "glass" or "light"

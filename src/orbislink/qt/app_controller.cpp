@@ -2400,6 +2400,13 @@ void AppController::saveKeyBindings(const std::map<std::string, int> &bindings)
 	emit settingsChanged();
 }
 
+void AppController::savePadBindings(const std::map<std::string, std::string> &bindings)
+{
+	settings_.padBindings = bindings;
+	store_.save(settings_);
+	emit settingsChanged();
+}
+
 void AppController::saveUpdateSettings(bool checkForUpdates, const QString &repository,
 	const QString &channel)
 {

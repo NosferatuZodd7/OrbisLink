@@ -2,6 +2,7 @@
 #include "orbislink/qt/gamepad.h"
 
 #include "orbislink/common/log.h"
+#include "orbislink/qt/input_map.h"
 
 #ifdef ORBISLINK_HAS_GAMEPAD
 #include <chiaki/controller.h>
@@ -10,6 +11,8 @@
 #endif
 
 namespace orbislink {
+
+void Gamepad::setButtonMap(const ButtonMap &overrides) { map_ = PadMap::effective(overrides); }
 
 bool Gamepad::supported()
 {
@@ -24,30 +27,13 @@ bool Gamepad::supported()
 
 namespace {
 
-uint32_t buttonFor(SDL_GameControllerButton button)
+// The chiaki button an action id presses (0 for none).
+uint32_t buttonOfAction(const std::string &action)
 {
-	switch(button)
-	{
-		case SDL_CONTROLLER_BUTTON_A: return CHIAKI_CONTROLLER_BUTTON_CROSS;
-		case SDL_CONTROLLER_BUTTON_B: return CHIAKI_CONTROLLER_BUTTON_MOON;
-		case SDL_CONTROLLER_BUTTON_X: return CHIAKI_CONTROLLER_BUTTON_BOX;
-		case SDL_CONTROLLER_BUTTON_Y: return CHIAKI_CONTROLLER_BUTTON_PYRAMID;
-		case SDL_CONTROLLER_BUTTON_DPAD_LEFT: return CHIAKI_CONTROLLER_BUTTON_DPAD_LEFT;
-		case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: return CHIAKI_CONTROLLER_BUTTON_DPAD_RIGHT;
-		case SDL_CONTROLLER_BUTTON_DPAD_UP: return CHIAKI_CONTROLLER_BUTTON_DPAD_UP;
-		case SDL_CONTROLLER_BUTTON_DPAD_DOWN: return CHIAKI_CONTROLLER_BUTTON_DPAD_DOWN;
-		case SDL_CONTROLLER_BUTTON_LEFTSHOULDER: return CHIAKI_CONTROLLER_BUTTON_L1;
-		case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER: return CHIAKI_CONTROLLER_BUTTON_R1;
-		case SDL_CONTROLLER_BUTTON_LEFTSTICK: return CHIAKI_CONTROLLER_BUTTON_L3;
-		case SDL_CONTROLLER_BUTTON_RIGHTSTICK: return CHIAKI_CONTROLLER_BUTTON_R3;
-		case SDL_CONTROLLER_BUTTON_START: return CHIAKI_CONTROLLER_BUTTON_OPTIONS;
-		case SDL_CONTROLLER_BUTTON_BACK: return CHIAKI_CONTROLLER_BUTTON_SHARE;
-		case SDL_CONTROLLER_BUTTON_GUIDE: return CHIAKI_CONTROLLER_BUTTON_PS;
-#if SDL_VERSION_ATLEAST(2, 0, 14)
-		case SDL_CONTROLLER_BUTTON_TOUCHPAD: return CHIAKI_CONTROLLER_BUTTON_TOUCHPAD;
-#endif
-		default: return 0;
-	}
+	for(const KeyboardMap::Action &candidate : KeyboardMap::actions())
+		if(action == candidate.id)
+			return candidate.button;
+	return 0;
 }
 
 // SDL triggers range from 0 to 32767; the console expects 0 to 255.
@@ -68,6 +54,7 @@ bool equals(const StreamSession::ControllerState &a, const StreamSession::Contro
 
 Gamepad::Gamepad(QObject *parent) : QObject(parent)
 {
+	setButtonMap({});
 	// 8 ms: 125 reads per second, twice the frame rate, which is more
 	// than enough without overworking the CPU.
 	timer_.setInterval(8);
@@ -85,6 +72,9 @@ void Gamepad::start()
 	{
 		// No video or audio: just controllers. SDL opens no window.
 		SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+		// SDL would take over SIGINT/SIGTERM for its own quit event, and
+		// the app would no longer close when asked to.
+		SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
 		if(SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) != 0)
 		{
 			logWarning(std::string("Remote Play: SDL did not start (") + SDL_GetError()
@@ -109,6 +99,7 @@ void Gamepad::stop()
 		emit connectedChanged(name_);
 	}
 	haveLast_ = false;
+	down_.clear();
 	if(initialised_)
 	{
 		SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
@@ -149,6 +140,7 @@ void Gamepad::poll()
 			for(int finger = 0; finger < 2; ++finger)
 				emit touchChanged(finger, false, 0.0, 0.0);
 			haveLast_ = false;
+			down_.clear();
 		}
 #if SDL_VERSION_ATLEAST(2, 0, 14)
 		if((event.type == SDL_CONTROLLERTOUCHPADDOWN || event.type == SDL_CONTROLLERTOUCHPADMOTION
@@ -187,11 +179,24 @@ void Gamepad::poll()
 
 	auto *pad = static_cast<SDL_GameController *>(controller_);
 	StreamSession::ControllerState state;
+	std::set<std::string> down;
 	for(int button = 0; button < SDL_CONTROLLER_BUTTON_MAX; ++button)
 	{
-		if(SDL_GameControllerGetButton(pad, static_cast<SDL_GameControllerButton>(button)))
-			state.buttons |= buttonFor(static_cast<SDL_GameControllerButton>(button));
+		const auto which = static_cast<SDL_GameControllerButton>(button);
+		if(!SDL_GameControllerGetButton(pad, which))
+			continue;
+		const char *name = SDL_GameControllerGetStringForButton(which);
+		if(!name)
+			continue;
+		down.insert(name);
+		const auto mapped = map_.find(name);
+		if(mapped != map_.end())
+			state.buttons |= buttonOfAction(mapped->second);
 	}
+	for(const std::string &name : down)
+		if(!down_.count(name))
+			emit buttonDown(QString::fromStdString(name));
+	down_ = std::move(down);
 	state.leftX = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTX);
 	state.leftY = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTY);
 	state.rightX = SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_RIGHTX);
@@ -208,7 +213,7 @@ void Gamepad::poll()
 
 #else // no SDL
 
-Gamepad::Gamepad(QObject *parent) : QObject(parent) {}
+Gamepad::Gamepad(QObject *parent) : QObject(parent) { setButtonMap({}); }
 Gamepad::~Gamepad() = default;
 void Gamepad::start() {}
 void Gamepad::stop() {}
