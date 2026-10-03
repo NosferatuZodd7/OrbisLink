@@ -64,9 +64,11 @@ QtObject {
     // out from the others at a glance. Text on it is dark.
     property color hen: "#F5B700"
     readonly property color textOnHen: "#1C1500"
+    // Set when the person chose their own jailbreak colour.
+    property bool henCustom: false
     // The badge's fill: the bright gold on every theme (the light theme's
-    // line gold is darker, to show on white).
-    readonly property color henFill: light ? "#F5B700" : hen
+    // line gold is darker, to show on white) — or the colour chosen.
+    readonly property color henFill: light && !henCustom ? "#F5B700" : hen
 
     // ── Lines
     // The frame of every surface: white at low opacity on the dark themes, a
@@ -162,7 +164,57 @@ QtObject {
         return Qt.rgba(c.r, c.g, c.b, a)
     }
 
-    function apply(which) {
+    // Between two colours: 0 is a, 1 is b. The alpha is a's.
+    function mix(a, b, t) {
+        return Qt.rgba(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, a.a)
+    }
+    function withAlpha(c, a) { return Qt.rgba(c.r, c.g, c.b, a) }
+
+    // The base theme, then the colours the person changed (Settings →
+    // Personalisation) on top. Each chosen colour also moves the shades
+    // made from it, so the whole stays in tune.
+    function apply(which, custom) {
+        applyBase(which)
+        henCustom = false
+        if (!custom)
+            return
+        if (custom.background) {
+            background = custom.background
+            backgroundDeep = Qt.darker(custom.background, light ? 1.04 : 1.45)
+            stageIdle = withAlpha(Qt.darker(custom.background, light ? 1.0 : 1.3), stageIdle.a)
+        }
+        if (custom.panel) {
+            var top = cardTop.a, bottom = cardBottom.a
+            panel = custom.panel
+            panelAlt = light ? Qt.darker(custom.panel, 1.03) : Qt.lighter(custom.panel, 1.3)
+            cardBottom = withAlpha(light ? Qt.darker(custom.panel, 1.02) : Qt.lighter(custom.panel, 1.25), bottom)
+            cardTop = withAlpha(light ? custom.panel : Qt.lighter(custom.panel, 1.5), top)
+        }
+        if (custom.text) {
+            text = custom.text
+            textMuted = mix(Qt.color(custom.text), background, 0.42)
+        }
+        if (custom.accent) {
+            accent = custom.accent
+            accentSoft = custom.accent
+            accentHover = light ? Qt.darker(custom.accent, 1.1) : Qt.lighter(custom.accent, 1.2)
+            cardActiveBottom = withAlpha(mix(cardBottom, Qt.color(custom.accent), light ? 0.14 : 0.42),
+                                         cardActiveBottom.a)
+        }
+        if (custom.hen) {
+            hen = custom.hen
+            henCustom = true
+            cardHenBottom = withAlpha(mix(cardBottom, Qt.color(custom.hen), light ? 0.16 : 0.2),
+                                      cardHenBottom.a)
+            cardHenActiveBottom = withAlpha(mix(cardBottom, Qt.color(custom.hen), light ? 0.3 : 0.32),
+                                            cardHenActiveBottom.a)
+        }
+        if (custom.ok) ok = custom.ok
+        if (custom.warn) warn = custom.warn
+        if (custom.error) error = custom.error
+    }
+
+    function applyBase(which) {
         name = which === "glass" || which === "light" ? which : "dark"
         if (name === "light") {
             background = "#EEF3F9"

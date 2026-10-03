@@ -504,7 +504,7 @@ ApplicationWindow {
             return
         }
         var values = app.settingsMap()
-        Theme.apply(values.theme)
+        Theme.apply(values.theme, app.themeColors)
         applySystemFrame()
     }
 
@@ -526,6 +526,7 @@ ApplicationWindow {
     Connections {
         target: app
         function onSettingsChanged() { window.applyTheme() }
+        function onThemeColorsChanged() { window.applyTheme() }
     }
 
     Component.onCompleted: {

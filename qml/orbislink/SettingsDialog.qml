@@ -381,6 +381,7 @@ Dialog {
                         { icon: "id-card", label: qsTr("Account IDs (PSID)") },
                         { icon: "server", label: qsTr("Console in use") },
                         { icon: "cast", label: qsTr("Remote Play") },
+                        { icon: "sparkles", label: qsTr("Personalisation") },
                         { icon: "sliders", label: qsTr("General") }
                     ]
 
@@ -751,6 +752,250 @@ Dialog {
                     StyledCheck {
                         id: touchpadBox
                         text: qsTr("Mouse acts as the touchpad while streaming")
+                    }
+                }
+                Item { Layout.preferredHeight: 8 }
+            }
+
+            SettingsPage {
+                id: lookPage
+                title: qsTr("Personalisation")
+
+                // The colours one can change; everything else is made from them.
+                readonly property var colourKeys: [
+                    { key: "accent", label: qsTr("Accent"),
+                      hint: qsTr("Buttons, selection, links and the console in use") },
+                    { key: "hen", label: qsTr("Jailbreak"),
+                      hint: qsTr("GoldHEN, etaHEN, HEN: the console chip, badges and cards") },
+                    { key: "ok", label: qsTr("Available"),
+                      hint: qsTr("Services that answer, finished tasks") },
+                    { key: "warn", label: qsTr("Checking"),
+                      hint: qsTr("Services being checked, warnings") },
+                    { key: "error", label: qsTr("Error"),
+                      hint: qsTr("Errors, services that do not answer") },
+                    { key: "background", label: qsTr("Window background"), hint: "" },
+                    { key: "panel", label: qsTr("Panels"),
+                      hint: qsTr("Top bar, side panel, dialogs and cards") },
+                    { key: "text", label: qsTr("Text"), hint: "" }
+                ]
+
+                // While dragging in the picker the colour changes on screen at
+                // once; it is written to the settings a moment after it stops.
+                property string pendingKey: ""
+                property string pendingColour: ""
+                Timer {
+                    id: commitColour
+                    interval: 80
+                    onTriggered: app.setThemeColor(lookPage.pendingKey, lookPage.pendingColour)
+                }
+
+                ColorPicker {
+                    id: colourPicker
+                    property string key: ""
+                    onPicked: (value) => {
+                        lookPage.pendingKey = key
+                        lookPage.pendingColour = value.toString()
+                        commitColour.restart()
+                    }
+                }
+
+                GroupTitle { text: qsTr("Colours") }
+                SettingsGroup {
+                    Repeater {
+                        model: lookPage.colourKeys
+                        RowLayout {
+                            id: colourRow
+                            required property var modelData
+                            readonly property bool changed: app.themeColors[modelData.key] !== undefined
+                            Layout.fillWidth: true
+                            spacing: 12
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 2
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: colourRow.modelData.label
+                                    color: Theme.text
+                                    font.pixelSize: 13
+                                    font.weight: Font.Medium
+                                }
+                                Text {
+                                    visible: text.length > 0
+                                    Layout.fillWidth: true
+                                    text: colourRow.modelData.hint
+                                    color: Theme.textMuted
+                                    font.pixelSize: 11
+                                    elide: Text.ElideRight
+                                }
+                            }
+                            StyledToolButton {
+                                visible: colourRow.changed
+                                iconName: "rotate-ccw"
+                                iconSize: 15
+                                ToolTip.visible: hovered
+                                ToolTip.text: qsTr("Back to the theme's colour")
+                                onClicked: app.setThemeColor(colourRow.modelData.key, "")
+                            }
+                            // The swatch: the colour in use and its code; a click opens the picker.
+                            Rectangle {
+                                id: swatch
+                                Layout.preferredWidth: 118
+                                Layout.preferredHeight: 34
+                                radius: 10
+                                color: Theme.controlFill
+                                border.width: 1
+                                border.color: swatchArea.containsMouse ? Theme.alpha(Theme.accent, 0.6)
+                                                                       : Theme.glassEdge
+                                readonly property color shown: Theme[colourRow.modelData.key]
+                                Row {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    x: 6
+                                    spacing: 8
+                                    Rectangle {
+                                        width: 22
+                                        height: 22
+                                        radius: 7
+                                        color: swatch.shown
+                                        border.width: 1
+                                        border.color: Qt.rgba(0.5, 0.5, 0.5, 0.4)
+                                    }
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: Qt.rgba(swatch.shown.r, swatch.shown.g, swatch.shown.b, 1)
+                                              .toString().toUpperCase()
+                                        color: Theme.text
+                                        font.family: Theme.fontMono
+                                        font.pixelSize: 12
+                                    }
+                                }
+                                MouseArea {
+                                    id: swatchArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        colourPicker.key = colourRow.modelData.key
+                                        colourPicker.load(Qt.rgba(swatch.shown.r, swatch.shown.g,
+                                                                  swatch.shown.b, 1))
+                                        colourPicker.parent = swatch
+                                        colourPicker.x = swatch.width - colourPicker.width
+                                        colourPicker.y = swatch.height + 6
+                                        colourPicker.open()
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            color: Theme.textMuted
+                            font.pixelSize: 11
+                            text: qsTr("The colours go on top of the theme picked in the top bar "
+                                       + "(dark, glass or light) and change at once.")
+                        }
+                        StyledButton {
+                            text: qsTr("Theme's colours")
+                            chip: true
+                            iconName: "rotate-ccw"
+                            enabled: Object.keys(app.themeColors).length > 0
+                            onClicked: app.resetThemeColors()
+                        }
+                    }
+                }
+
+                GroupTitle { text: qsTr("Saved looks") }
+                SettingsGroup {
+                    Text {
+                        visible: app.themePresets.length === 0
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: Theme.textMuted
+                        font.pixelSize: 12
+                        text: qsTr("None yet. Give the look in use a name below to keep it.")
+                    }
+
+                    Repeater {
+                        model: app.themePresets
+                        RowLayout {
+                            id: presetRow
+                            required property var modelData
+                            Layout.fillWidth: true
+                            spacing: 12
+                            // Its colours at a glance (the theme's own where it kept none).
+                            Row {
+                                spacing: 3
+                                Repeater {
+                                    model: ["accent", "hen", "background", "panel"]
+                                    Rectangle {
+                                        required property string modelData
+                                        width: 14
+                                        height: 26
+                                        radius: 4
+                                        color: presetRow.modelData.colors[modelData] || Theme.controlFill
+                                        border.width: 1
+                                        border.color: Theme.glassEdge
+                                    }
+                                }
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 1
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: presetRow.modelData.name
+                                    color: Theme.text
+                                    font.pixelSize: 13
+                                    font.weight: Font.Medium
+                                    elide: Text.ElideRight
+                                }
+                                Text {
+                                    text: presetRow.modelData.theme === "light" ? qsTr("Light theme")
+                                        : presetRow.modelData.theme === "glass" ? qsTr("Glass theme")
+                                        : qsTr("Dark theme")
+                                    color: Theme.textMuted
+                                    font.pixelSize: 11
+                                }
+                            }
+                            StyledButton {
+                                text: qsTr("Apply")
+                                chip: true
+                                onClicked: app.applyThemePreset(presetRow.modelData.name)
+                            }
+                            StyledToolButton {
+                                iconName: "trash"
+                                iconSize: 15
+                                danger: true
+                                ToolTip.visible: hovered
+                                ToolTip.text: qsTr("Delete this look")
+                                onClicked: app.deleteThemePreset(presetRow.modelData.name)
+                            }
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        StyledField {
+                            id: presetName
+                            Layout.fillWidth: true
+                            placeholderText: qsTr("Name of the look in use")
+                            onAccepted: saveLook.clicked()
+                        }
+                        StyledButton {
+                            id: saveLook
+                            text: qsTr("Save look")
+                            iconName: "save"
+                            enabled: presetName.text.trim().length > 0
+                            onClicked: {
+                                app.saveThemePreset(presetName.text)
+                                presetName.text = ""
+                            }
+                        }
                     }
                 }
                 Item { Layout.preferredHeight: 8 }

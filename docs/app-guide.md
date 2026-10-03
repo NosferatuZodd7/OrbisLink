@@ -220,6 +220,7 @@ as `image/disc01.iso`. PS1 discs as PS Classics fPKG Builder does.
 | Account IDs (PSID) | PSN accounts for Remote Play registration. |
 | Console in use | Which console; FTP port, user, upload folder, connections, advanced mode (protected system folders); installer port and install options; local HTTP server. |
 | Remote Play | Resolution, frame rate, bitrate, hardware decoding, rumble, touchpad from the mouse, full screen on connect. |
+| Personalisation | The app's colours, on top of the theme picked in the top bar: accent, jailbreak (GoldHEN gold), available, checking, error, window background, panels, text. A click on a colour opens a picker (square, hue strip, hex code, suggestions); ↺ puts the theme's colour back. **Saved looks**: give the theme and colours in use a name to keep them; **Apply** brings one back, 🗑 deletes it. Changes show at once. |
 | General | Language, theme, updates (channel: stable or testing), advanced options. |
 
 ## What needs what

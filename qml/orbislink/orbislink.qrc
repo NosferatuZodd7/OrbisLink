@@ -16,6 +16,7 @@
         <file alias="FtpBrowser.qml">FtpBrowser.qml</file>
         <file alias="FtpFolderPicker.qml">FtpFolderPicker.qml</file>
         <file alias="SettingsDialog.qml">SettingsDialog.qml</file>
+        <file alias="ColorPicker.qml">ColorPicker.qml</file>
         <file alias="FirstRunWizard.qml">FirstRunWizard.qml</file>
         <file alias="DiagnosticsDialog.qml">DiagnosticsDialog.qml</file>
         <file alias="UpdateDialog.qml">UpdateDialog.qml</file>
