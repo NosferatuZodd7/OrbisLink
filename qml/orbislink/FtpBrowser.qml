@@ -602,7 +602,7 @@ Item {
         StyledMenuItem {
             text: qsTr("Move to…")
             iconName: "folder-open"
-            onTriggered: renameDialog.openMove(rowMenu.targetPath, app.ftpPath)
+            onTriggered: folderPicker.openFor(rowMenu.targetPath, rowMenu.targetName, app.ftpPath)
         }
         StyledMenuItem {
             text: qsTr("Delete on the console")
@@ -628,8 +628,6 @@ Item {
     Dialog {
         id: renameDialog
         property string targetPath: ""
-        // "rename": a new name; "move": the console folder to move it to.
-        property string mode: "rename"
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: 440
@@ -637,18 +635,8 @@ Item {
         padding: 0
 
         function open(path, name) {
-            mode = "rename"
             targetPath = path
             nameInput.text = name
-            visible = true
-            nameInput.forceActiveFocus()
-            nameInput.selectAll()
-        }
-
-        function openMove(path, folder) {
-            mode = "move"
-            targetPath = path
-            nameInput.text = folder
             visible = true
             nameInput.forceActiveFocus()
             nameInput.selectAll()
@@ -657,10 +645,7 @@ Item {
         function confirm() {
             if (nameInput.text.trim().length === 0)
                 return
-            if (mode === "move")
-                app.ftpMove(targetPath, nameInput.text.trim())
-            else
-                app.ftpRename(targetPath, nameInput.text.trim())
+            app.ftpRename(targetPath, nameInput.text.trim())
             close()
         }
 
@@ -673,7 +658,7 @@ Item {
         }
 
         header: DialogHeader {
-            title: renameDialog.mode === "move" ? qsTr("Move to the folder") : qsTr("Rename")
+            title: qsTr("Rename")
             dialog: renameDialog
         }
 
@@ -701,7 +686,7 @@ Item {
                     onClicked: renameDialog.close()
                 }
                 StyledButton {
-                    text: renameDialog.mode === "move" ? qsTr("Move") : qsTr("Rename")
+                    text: qsTr("Rename")
                     primary: true
                     minimumWidth: 110
                     enabled: nameInput.text.trim().length > 0
@@ -709,6 +694,12 @@ Item {
                 }
             }
         }
+    }
+
+    // "Move to…": the console's folders as a tree.
+    FtpFolderPicker {
+        id: folderPicker
+        onChosen: (path) => app.ftpMove(movingPath, path)
     }
 
     // Deleting on the console always asks first.

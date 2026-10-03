@@ -182,6 +182,12 @@ public:
 	Q_INVOKABLE void ftpDelete(const QString &path, bool isDirectory);
 	Q_INVOKABLE void ftpMakeDirectory(const QString &name);
 	Q_INVOKABLE void ftpRename(const QString &path, const QString &newName);
+	// The folders inside `path` on the console, for the folder picker,
+	// without touching the file list; the answer comes in ftpFoldersListed.
+	Q_INVOKABLE void ftpListFolders(const QString &path);
+	// Creates a folder (full path) on the console; the answer comes in
+	// ftpFolderCreated.
+	Q_INVOKABLE void ftpCreateFolder(const QString &path);
 	// Starts dragging a row of the FTP list (localUrl: its copy on the PC,
 	// if there is one).
 	Q_INVOKABLE void startFtpDrag(const QString &remotePath, const QString &localUrl);
@@ -301,6 +307,8 @@ signals:
 	void queueStateChanged();
 	void statusMessageChanged();
 	void ftpPathChanged();
+	void ftpFoldersListed(const QString &path, const QStringList &folders, const QString &error);
+	void ftpFolderCreated(const QString &path, const QString &error);
 	void ftpBusyChanged();
 	void ftpUploadsChanged();
 	void ftpReachableChanged();
