@@ -21,6 +21,20 @@ Item {
     readonly property var uploadsHere: app.ftpUploads.filter(function (upload) {
         return upload.directory === root.shownDirectory
     })
+    // The same folder, with or without the trailing slash.
+    function samePath(a, b) {
+        var strip = function (p) { return p.length > 1 && p.endsWith("/") ? p.slice(0, -1) : p }
+        return strip(a) === strip(b)
+    }
+    // Re-read whenever the pinned list changes (isFtpPinned is a call).
+    readonly property int pinnedVersion: app.ftpShortcuts.length
+    readonly property bool pinnedHere: {
+        for (var i = 0; i < app.ftpShortcuts.length; ++i)
+            if (samePath(app.ftpShortcuts[i], app.ftpPath))
+                return true
+        return false
+    }
+
     function beingUploaded(name) {
         for (var i = 0; i < uploadsHere.length; ++i)
             if (uploadsHere[i].name === name)
@@ -98,16 +112,77 @@ Item {
             }
         }
 
+        // Pinned folders, as tags: a click opens one, its ✕ unpins it; the
+        // last tag pins the folder that is open.
         Flow {
             Layout.fillWidth: true
             spacing: 6
             Repeater {
                 model: app.ftpShortcuts
-                delegate: StyledButton {
-                    text: modelData
-                    chip: true
-                    onClicked: app.ftpNavigate(modelData)
+                delegate: Rectangle {
+                    id: tag
+                    required property string modelData
+                    readonly property bool here: root.samePath(modelData, app.ftpPath)
+                    implicitWidth: tagRow.implicitWidth + 22
+                    implicitHeight: 30
+                    radius: height / 2
+                    color: here ? Theme.alpha(Theme.accent, 0.16)
+                         : tagHover.hovered ? Theme.controlHover : Theme.controlFill
+                    border.width: 1
+                    border.color: here || tagHover.hovered ? Theme.alpha(Theme.accent, 0.6) : Theme.glassEdge
+                    Behavior on color { ColorAnimation { duration: Theme.fast } }
+
+                    HoverHandler { id: tagHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: app.ftpNavigate(tag.modelData) }
+
+                    Row {
+                        id: tagRow
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: 11
+                        spacing: 6
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            name: "folder"
+                            size: 13
+                            color: tag.here ? Theme.accent : Theme.textSecondary
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: tag.modelData
+                            color: Theme.text
+                            font.pixelSize: 12
+                            font.weight: Font.Medium
+                        }
+                        // Unpin: a small round ✕, clearer once the tag is under the mouse.
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 16
+                            height: 16
+                            radius: 8
+                            color: unpinHover.hovered ? Theme.alpha(Theme.error, 0.22) : "transparent"
+                            opacity: tagHover.hovered ? 1.0 : 0.45
+                            Behavior on opacity { NumberAnimation { duration: Theme.fast } }
+                            Icon {
+                                anchors.centerIn: parent
+                                name: "close"
+                                size: 11
+                                color: unpinHover.hovered ? Theme.error : Theme.textSecondary
+                            }
+                            HoverHandler { id: unpinHover; cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: app.unpinFtpFolder(tag.modelData) }
+                            ToolTip.visible: unpinHover.hovered
+                            ToolTip.delay: 400
+                            ToolTip.text: qsTr("Remove from the top")
+                        }
+                    }
                 }
+            }
+            StyledButton {
+                chip: true
+                iconName: "pin"
+                text: qsTr("Pin this folder")
+                visible: app.ftpPath.length > 0 && !root.pinnedHere
+                onClicked: app.pinFtpFolder(app.ftpPath)
             }
         }
 
@@ -481,6 +556,15 @@ Item {
             visible: rowMenu.targetIsDirectory
             height: visible ? implicitHeight : 0
             onTriggered: app.ftpNavigate(rowMenu.targetPath)
+        }
+        StyledMenuItem {
+            readonly property bool pinned: rowMenu.targetIsDirectory && root.pinnedVersion >= 0
+                                            && app.isFtpPinned(rowMenu.targetPath)
+            text: pinned ? qsTr("Remove from the top") : qsTr("Pin to the top")
+            iconName: pinned ? "pin-off" : "pin"
+            visible: rowMenu.targetIsDirectory
+            height: visible ? implicitHeight : 0
+            onTriggered: pinned ? app.unpinFtpFolder(rowMenu.targetPath) : app.pinFtpFolder(rowMenu.targetPath)
         }
         StyledMenuItem {
             text: qsTr("Use as the upload folder")

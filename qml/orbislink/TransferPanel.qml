@@ -293,35 +293,69 @@ Item {
             Layout.preferredHeight: 1
             color: Theme.border
         }
+        // Everything here keeps its place: the button is pinned to the right
+        // with one width for Pause and Resume, and each figure has its own
+        // column that shortens its text instead of pushing the others.
         Item {
             Layout.fillWidth: true
-            implicitHeight: 48
+            implicitHeight: 54
 
-            RowLayout {
-                anchors.fill: parent
+            StyledButton {
+                id: pauseButton
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenterOffset: 3
+                chip: true
+                minimumWidth: Math.max(pauseWidth.implicitWidth, resumeWidth.implicitWidth) + 14 + 8 + 24
+                iconName: app.queuePaused ? "play" : "pause"
+                text: app.queuePaused ? qsTr("Resume") : qsTr("Pause")
+                onClicked: app.queuePaused ? app.resumeQueue() : app.pauseQueue()
+                enabled: app.queue.count > 0
+                // The widest of the two labels sets the width.
+                Text { id: pauseWidth; visible: false; text: qsTr("Pause"); font: pauseButton.font }
+                Text { id: resumeWidth; visible: false; text: qsTr("Resume"); font: pauseButton.font }
+            }
+
+            Row {
+                anchors.left: parent.left
                 anchors.leftMargin: 4
-                anchors.rightMargin: 0
-                anchors.topMargin: 8
-                spacing: 14
+                anchors.right: pauseButton.left
+                anchors.rightMargin: 12
+                anchors.verticalCenter: pauseButton.verticalCenter
+                spacing: 12
 
-                Text {
-                    text: qsTr("Speed: %1").arg(app.queue.totalSpeedText)
-                    color: Theme.textSecondary
-                    font.pixelSize: 12
+                component Figure: Column {
+                    property alias label: figureLabel.text
+                    property alias value: figureValue.text
+                    spacing: 1
+                    Text {
+                        id: figureLabel
+                        width: parent.width
+                        color: Theme.textMuted
+                        font.pixelSize: 10
+                        font.weight: Font.Medium
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        id: figureValue
+                        width: parent.width
+                        color: Theme.text
+                        font.pixelSize: 12
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                    }
                 }
-                Text {
-                    text: app.queue.totalText === "—" ? qsTr("Left: %1").arg(app.queue.remainingText)
-                          : qsTr("Left: %1 of %2").arg(app.queue.remainingText).arg(app.queue.totalText)
-                    color: Theme.textSecondary
-                    font.pixelSize: 12
+
+                Figure {
+                    width: Math.min(84, (parent.width - parent.spacing) * 0.4)
+                    label: qsTr("Speed")
+                    value: app.queue.totalSpeedText
                 }
-                Item { Layout.fillWidth: true }
-                StyledButton {
-                    chip: true
-                    iconName: app.queuePaused ? "play" : "pause"
-                    text: app.queuePaused ? qsTr("Resume") : qsTr("Pause")
-                    onClicked: app.queuePaused ? app.resumeQueue() : app.pauseQueue()
-                    enabled: app.queue.count > 0
+                Figure {
+                    width: parent.width - parent.spacing - Math.min(84, (parent.width - parent.spacing) * 0.4)
+                    label: qsTr("Left")
+                    value: app.queue.totalText === "—" ? app.queue.remainingText
+                           : qsTr("%1 of %2").arg(app.queue.remainingText).arg(app.queue.totalText)
                 }
             }
         }

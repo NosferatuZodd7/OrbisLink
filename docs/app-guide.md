@@ -91,7 +91,7 @@ The picture fills the stage. Moving the mouse shows the toolbar:
 
 | Button | Does |
 |---|---|
-| 🎮 | Keyboard map: which key presses which button. The touchpad key (T) clicks the touchpad with a finger on its left half — Select in PS2 games. **Change keys** to rebind (click a key, press the new one; two keys swap); **Reset** goes back to the defaults. |
+| 🎮 | Keyboard map: which key presses which button. The touchpad key (T) puts a finger on the left half of the touchpad and then clicks — Select in PS2 games. A controller's own touchpad is passed on as it is (left half Select, right half Start). Keyboard and controller can be used together. **Change keys** to rebind (click a key, press the new one; two keys swap); **Reset** goes back to the defaults. |
 | Speaker | Mutes / unmutes the console's sound. |
 | Microphone | Sends / stops the PC microphone. |
 | Full screen | Full screen on / off (F11; Esc leaves the session). |
@@ -110,7 +110,7 @@ speed and time left.
 | ⟲ | Tries a failed or cancelled task again. |
 | ✕ | Cancels a running task; removes a finished one. |
 
-Footer: total speed, what is left, **Pause / Resume** for the whole queue.
+Footer: total speed, what is left of the total, **Pause / Resume** for the whole queue. Each has a fixed place: the button stays on the right whatever the figures say.
 
 Every upload and install is followed here, never in the Files tab: sending
 opens this tab, and the file list keeps showing the console's folders (a file
@@ -132,7 +132,7 @@ The console's files. Needs FTP.
 | Action | Does |
 |---|---|
 | Path field, ↑, ⟳ | Where you are; one level up; list again. |
-| Shortcut chips | `/data/`, `/data/pkg/`, `/data/GoldHEN/`, `/user/app/`, `/mnt/usb0/`. |
+| Pinned folders (tags) | Click: opens it. ✕: removes it from the top. **Pin this folder** pins the one that is open (also *Pin to the top* in a folder's menu). They start as `/data/`, `/data/pkg/`, `/data/GoldHEN/`, `/user/app/`, `/mnt/usb0/` and are kept in the settings. |
 | One click on a folder | Opens it. |
 | One click on a file, or ⋮, or right click | The file's menu. |
 | 🗑 | Deletes on the console (asks first). |
@@ -140,7 +140,7 @@ The console's files. Needs FTP.
 | Drag a file out of the window | Copies it to where it is dropped (a file over 64 MB is fetched first with *Get it ready to drag*). |
 | New folder + **Create** | Makes a folder here. |
 
-Row menu: Open · Use as the upload folder · Download to the desktop ·
+Row menu: Open · Pin to the top / Remove from the top (folders) · Use as the upload folder · Download to the desktop ·
 Download to… (files and whole folders) · Get it ready to drag · Show the local
 copy · Copy the path · Rename… · **Move to…** (a folder tree of the console:
 quick access on the left, folders that open on the right, **New folder**,

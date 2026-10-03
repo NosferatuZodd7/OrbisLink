@@ -41,6 +41,10 @@ signals:
 	// Emitted only when something changes.
 	void stateChanged(const StreamSession::ControllerState &state);
 	void connectedChanged(const QString &name);
+	// A finger (0 or 1) on the controller's own touchpad, where it is
+	// (0 to 1 both ways). PS2 games read it: a click on the left half is
+	// Select, on the right half Start.
+	void touchChanged(int finger, bool down, double x, double y);
 
 private:
 	void poll();

@@ -63,6 +63,9 @@ struct Settings
 	// Installation
 	TransferMode defaultMode = TransferMode::DirectInstall;
 	std::string ftpUploadDirectory = "/data/pkg/";
+	// The folders pinned at the top of the Files tab, in order.
+	std::vector<std::string> ftpPinnedFolders { "/data/", "/data/pkg/", "/data/GoldHEN/", "/user/app/",
+		"/mnt/usb0/" };
 	bool checkAlreadyInstalled = true;
 	bool installAfterUpload = false;
 	// After uploading via FTP and installing, delete the copy on the

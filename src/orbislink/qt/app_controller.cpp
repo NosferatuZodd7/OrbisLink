@@ -713,12 +713,57 @@ QString AppController::httpServerAddress() const
 		.arg(httpServer_->port());
 }
 
+namespace {
+
+// A folder as the pinned chips show it: "/data/pkg/" (the root stays "/").
+std::string pinnedForm(const std::string &path)
+{
+	const std::string folder = normalizeRemotePath(path);
+	return folder == "/" ? folder : folder + "/";
+}
+
+} // namespace
+
 QStringList AppController::ftpShortcuts() const
 {
 	QStringList shortcuts;
-	for(const std::string &path : FtpClient::shortcutPaths())
-		shortcuts << QString::fromStdString(path);
+	for(const std::string &path : settings_.ftpPinnedFolders)
+		shortcuts << QString::fromStdString(pinnedForm(path));
 	return shortcuts;
+}
+
+bool AppController::isFtpPinned(const QString &path) const
+{
+	const std::string folder = pinnedForm(path.toStdString());
+	for(const std::string &pinned : settings_.ftpPinnedFolders)
+		if(pinnedForm(pinned) == folder)
+			return true;
+	return false;
+}
+
+void AppController::pinFtpFolder(const QString &path)
+{
+	if(path.trimmed().isEmpty() || isFtpPinned(path))
+		return;
+	settings_.ftpPinnedFolders.push_back(pinnedForm(path.toStdString()));
+	store_.save(settings_);
+	emit ftpShortcutsChanged();
+	setStatusMessage(tr("%1 pinned to the top.").arg(QString::fromStdString(pinnedForm(path.toStdString()))));
+}
+
+void AppController::unpinFtpFolder(const QString &path)
+{
+	const std::string folder = pinnedForm(path.toStdString());
+	auto &pinned = settings_.ftpPinnedFolders;
+	const auto before = pinned.size();
+	pinned.erase(std::remove_if(pinned.begin(), pinned.end(),
+					 [&](const std::string &p) { return pinnedForm(p) == folder; }),
+		pinned.end());
+	if(pinned.size() == before)
+		return;
+	store_.save(settings_);
+	emit ftpShortcutsChanged();
+	setStatusMessage(tr("%1 removed from the top.").arg(QString::fromStdString(folder)));
 }
 
 QString AppController::version() const { return QCoreApplication::applicationVersion(); }
