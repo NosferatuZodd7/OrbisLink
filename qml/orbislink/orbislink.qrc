@@ -8,8 +8,15 @@
         <file alias="DropOverlay.qml">DropOverlay.qml</file>
         <file alias="DropZone.qml">DropZone.qml</file>
         <file alias="TransferPanel.qml">TransferPanel.qml</file>
+        <file alias="GamesView.qml">GamesView.qml</file>
+        <file alias="GameCard.qml">GameCard.qml</file>
+        <file alias="StageLoader.qml">StageLoader.qml</file>
+        <file alias="GameDialog.qml">GameDialog.qml</file>
+        <file alias="ConsoleChip.qml">ConsoleChip.qml</file>
         <file alias="FtpBrowser.qml">FtpBrowser.qml</file>
+        <file alias="FtpFolderPicker.qml">FtpFolderPicker.qml</file>
         <file alias="SettingsDialog.qml">SettingsDialog.qml</file>
+        <file alias="ColorPicker.qml">ColorPicker.qml</file>
         <file alias="FirstRunWizard.qml">FirstRunWizard.qml</file>
         <file alias="DiagnosticsDialog.qml">DiagnosticsDialog.qml</file>
         <file alias="UpdateDialog.qml">UpdateDialog.qml</file>
@@ -31,7 +38,12 @@
         <file alias="ControllerSketch.qml">ControllerSketch.qml</file>
         <file alias="StyledMenuItem.qml">StyledMenuItem.qml</file>
         <file alias="Theme.qml">Theme.qml</file>
-        <file alias="GlassSurface.qml">GlassSurface.qml</file>
+        <file alias="Icon.qml">Icon.qml</file>
+        <file alias="UploadConflictDialog.qml">UploadConflictDialog.qml</file>
+        <file alias="SkeletonRow.qml">SkeletonRow.qml</file>
+        <file alias="DialogHeader.qml">DialogHeader.qml</file>
+        <file alias="HudButton.qml">HudButton.qml</file>
+        <file alias="Icons.js">Icons.js</file>
         <file alias="GlassBackground.qml">GlassBackground.qml</file>
         <file alias="qmldir">qmldir</file>
     </qresource>

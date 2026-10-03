@@ -4,6 +4,7 @@
 
 #include "orbislink/common/log.h"
 #include "orbislink/qt/app_controller.h"
+#include "orbislink/qt/games_controller.h"
 #include "orbislink/settings/settings_store.h"
 #include "orbislink/qt/ftp_model.h"
 #include "orbislink/qt/queue_model.h"
@@ -17,6 +18,8 @@
 #include "orbislink/qt/startup.h"
 #include "orbislink/qt/window_chrome.h"
 
+#include <QFont>
+#include <QFontDatabase>
 #include <QGuiApplication>
 #include <QLibraryInfo>
 #include <QLocale>
@@ -76,6 +79,16 @@ int main(int argc, char **argv)
 	// from the .rc resource; this is the one the running application shows.
 	app.setWindowIcon(QIcon(QStringLiteral(":/icons/mark.png")));
 	QQuickStyle::setStyle(QStringLiteral("Basic"));
+	// Inter is shipped with the app, so the interface looks the same on every
+	// system instead of taking whatever font each one has.
+	for(const char *weight : {"Regular", "Medium", "SemiBold", "Bold"})
+		QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/Inter-%1.ttf").arg(QLatin1String(weight)));
+	{
+		QFont uiFont(QStringLiteral("Inter"));
+		uiFont.setPixelSize(13);
+		uiFont.setHintingPreference(QFont::PreferNoHinting);
+		app.setFont(uiFont);
+	}
 	qInfo("OrbisLink %s starting.", ORBISLINK_VERSION_STRING);
 	// Files from different versions in the same folder are a likely cause of
 	// crashes: it happens when installing over the top with the application
@@ -106,10 +119,12 @@ int main(int argc, char **argv)
 	bool demoFullscreen = false;
 	bool demoWizard = false;
 	bool demoUpdate = false;
+	bool demoGames = false;
 	QString demoTheme;
 	bool printDiagnostics = false;
 	bool selfTestDrag = false;
 	QStringList enqueuePaths;
+	QStringList uploadPaths;
 	const QStringList arguments = app.arguments();
 	for(int i = 1; i < arguments.size(); ++i)
 	{
@@ -138,6 +153,8 @@ int main(int argc, char **argv)
 			demoWizard = true;
 		else if(argument == QStringLiteral("--demo-update"))
 			demoUpdate = true;
+		else if(argument == QStringLiteral("--demo-games"))
+			demoGames = true;
 		else if(argument == QStringLiteral("--demo-theme") && i + 1 < arguments.size())
 			demoTheme = arguments[++i];
 		else if(argument == QStringLiteral("--print-diagnostics"))
@@ -146,6 +163,8 @@ int main(int argc, char **argv)
 			selfTestDrag = true;
 		else if(argument == QStringLiteral("--enqueue") && i + 1 < arguments.size())
 			enqueuePaths << arguments[++i];
+		else if(argument == QStringLiteral("--enqueue-ftp") && i + 1 < arguments.size())
+			uploadPaths << arguments[++i];
 	}
 
 	// Translations. The source language is English; Portuguese is chosen in
@@ -199,6 +218,11 @@ int main(int argc, char **argv)
 	}
 	if(!enqueuePaths.isEmpty())
 		controller->addPaths(enqueuePaths, 0);
+	// The same as dropping on "Send over FTP", after the window is up (the
+	// question about names already taken needs it).
+	if(!uploadPaths.isEmpty())
+		QTimer::singleShot(1500, controller.get(),
+			[&controller, uploadPaths]() { controller->addPaths(uploadPaths, 1); });
 
 	// Important notices also go to the system, so they arrive with the
 	// window minimised. Where there is no notification area, this does
@@ -211,6 +235,10 @@ int main(int argc, char **argv)
 
 	startup::markLaunchStarted();
 
+	// PS1/PS2 discs: found, sent or converted. Made before the engine, so it
+	// outlives the interface that reads it when the application closes.
+	auto games = std::make_unique<GamesController>(controller.get());
+
 	QQmlApplicationEngine engine;
 	QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
 		[](const QUrl &url) {
@@ -219,6 +247,7 @@ int main(int argc, char **argv)
 			QCoreApplication::exit(1);
 		});
 	engine.rootContext()->setContextProperty(QStringLiteral("app"), controller.get());
+	engine.rootContext()->setContextProperty(QStringLiteral("games"), games.get());
 
 #ifdef ORBISLINK_HAS_STREAM
 	// Remote Play is a separate controller, but it follows the console
@@ -236,6 +265,10 @@ int main(int argc, char **argv)
 	QObject::connect(stream.get(), &StreamController::keyBindingsEdited, controller.get(),
 		[&controller](const std::map<std::string, int> &bindings) {
 			controller->saveKeyBindings(bindings);
+		});
+	QObject::connect(stream.get(), &StreamController::padBindingsEdited, controller.get(),
+		[&controller](const std::map<std::string, std::string> &bindings) {
+			controller->savePadBindings(bindings);
 		});
 	// The "Remote Play" indicator in the top bar shows what the console
 	// answered to discovery, instead of staying grey forever.
@@ -261,6 +294,7 @@ int main(int argc, char **argv)
 #endif
 	engine.rootContext()->setContextProperty(QStringLiteral("demoOverlay"), demoOverlay);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoTab"), demoTab);
+	engine.rootContext()->setContextProperty(QStringLiteral("demoGames"), demoGames);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoSettings"), demoSettings);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoMenu"), demoMenu);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoRegister"), demoRegister);

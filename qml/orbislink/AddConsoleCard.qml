@@ -9,27 +9,40 @@ Item {
 
     signal add()
 
-    // Follows the scale of the console cards (drawn 330 tall).
-    readonly property real scaleFactor: height / 330
-    implicitWidth: 250
-    implicitHeight: 330
+    // A square, the size of a console card.
+    implicitWidth: 256
+    implicitHeight: 256
 
-    // The same motion as the console cards: grows and lifts with the mouse
-    // over it, sinks when pressed.
-    scale: area.pressed ? Theme.pressScale : (area.containsMouse ? 1.03 : 1.0)
+    // The same motion as the console cards: lifts with the mouse over it,
+    // sinks when pressed.
+    scale: area.pressed ? Theme.pressScale : area.containsMouse ? 1.02 : 1.0
     Behavior on scale { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
     transform: Translate {
-        y: area.containsMouse && !area.pressed ? -4 : 0
+        y: area.containsMouse && !area.pressed ? -6 : 0
         Behavior on y { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
     }
 
     Rectangle {
         anchors.fill: parent
-        radius: 30 * card.scaleFactor
-        color: area.containsMouse ? Qt.rgba(Theme.cardGlow.r, Theme.cardGlow.g, Theme.cardGlow.b,
-                                            Theme.light ? 0.06 : 0.08)
-                                  : "transparent"
+        radius: Theme.radius
+        color: area.containsMouse ? Theme.alpha(Theme.accent, Theme.light ? 0.10 : 0.14)
+                                  : Theme.alpha(Theme.panel, Theme.light ? 0.5 : 0.25)
         Behavior on color { ColorAnimation { duration: Theme.cardEase } }
+    }
+
+    // A soft glow around it with the mouse over it, like the console cards.
+    Repeater {
+        model: 3
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: -(index + 1) * 3
+            radius: Theme.radius + (index + 1) * 3
+            color: "transparent"
+            border.width: 3
+            border.color: Theme.alpha(Theme.accent, 0.16 - index * 0.045)
+            opacity: area.containsMouse ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: Theme.cardEase } }
+        }
     }
 
     // The dashed border, drawn dash by dash along the rounded outline
@@ -39,7 +52,7 @@ Item {
         anchors.fill: parent
         readonly property color tone: area.containsMouse
             ? Theme.cardGlow
-            : Qt.rgba(Theme.cardTextMuted.r, Theme.cardTextMuted.g, Theme.cardTextMuted.b, 0.6)
+            : Theme.alpha(Theme.cardTextMuted, 0.55)
         onToneChanged: requestPaint()
         onWidthChanged: requestPaint()
         onHeightChanged: requestPaint()
@@ -47,7 +60,7 @@ Item {
             var ctx = getContext("2d")
             ctx.reset()
             var m = 1.5, w = width - 2 * m, h = height - 2 * m
-            var r = Math.min(30 * card.scaleFactor, w / 2, h / 2)
+            var r = Math.min(Theme.radius, w / 2, h / 2)
             // The outline as a sequence of points, every 1 px.
             var dots = []
             function line(x0, y0, x1, y1) {
@@ -88,28 +101,14 @@ Item {
 
     Column {
         anchors.centerIn: parent
-        spacing: 20 * card.scaleFactor
+        spacing: 14
 
-        // The "+" inside a thin circle.
-        Rectangle {
+        Icon {
             anchors.horizontalCenter: parent.horizontalCenter
-            width: 84 * card.scaleFactor
-            height: width
-            radius: width / 2
-            color: "transparent"
-            border.width: 2
-            border.color: area.containsMouse ? Theme.cardGlow : Theme.cardTextMuted
-            Behavior on border.color { ColorAnimation { duration: Theme.cardEase } }
-            Rectangle {
-                anchors.centerIn: parent
-                width: parent.width * 0.4; height: 2; radius: 1
-                color: parent.border.color
-            }
-            Rectangle {
-                anchors.centerIn: parent
-                width: 2; height: parent.height * 0.4; radius: 1
-                color: parent.border.color
-            }
+            name: "plus-circle"
+            size: 48
+            strokeWidth: 1.4
+            color: area.containsMouse ? Theme.accent : Theme.text
         }
 
         Text {
@@ -118,8 +117,8 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
             text: qsTr("Add console")
-            color: area.containsMouse ? Theme.cardGlow : Theme.onIdleStage
-            font.pixelSize: Math.max(11, Math.round(20 * card.scaleFactor))
+            color: area.containsMouse ? Theme.accent : Theme.text
+            font.pixelSize: 15
             font.weight: Font.DemiBold
         }
     }

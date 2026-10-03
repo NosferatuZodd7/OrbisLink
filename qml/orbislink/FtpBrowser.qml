@@ -9,6 +9,47 @@ Item {
     id: root
 
     // Last folder chosen in "Download to…".
+    // The uploads going into the folder on screen: they show in the list
+    // right away, faded, with a thin progress bar, and become normal rows
+    // once they arrive (the list refreshes itself then).
+    readonly property string shownDirectory: {
+        var path = app.ftpPath
+        while (path.length > 1 && path.charAt(path.length - 1) === "/")
+            path = path.substring(0, path.length - 1)
+        return path
+    }
+    readonly property var uploadsHere: app.ftpUploads.filter(function (upload) {
+        return upload.directory === root.shownDirectory
+    })
+    // The same folder, with or without the trailing slash.
+    function samePath(a, b) {
+        var strip = function (p) { return p.length > 1 && p.endsWith("/") ? p.slice(0, -1) : p }
+        return strip(a) === strip(b)
+    }
+    // Re-read whenever the pinned list changes (isFtpPinned is a call).
+    readonly property int pinnedVersion: app.ftpShortcuts.length
+    readonly property bool pinnedHere: {
+        for (var i = 0; i < app.ftpShortcuts.length; ++i)
+            if (samePath(app.ftpShortcuts[i], app.ftpPath))
+                return true
+        return false
+    }
+
+    function beingUploaded(name) {
+        for (var i = 0; i < uploadsHere.length; ++i)
+            if (uploadsHere[i].name === name)
+                return true
+        return false
+    }
+
+    // A file or a whole folder to the PC (empty destination: the desktop).
+    function download(path, name, isDirectory, destination) {
+        if (isDirectory)
+            app.ftpDownloadFolder(path, name, destination)
+        else
+            app.ftpDownload(path, name, destination)
+    }
+
     property url lastDestination
 
     // Lists when the tab appears for the first time.
@@ -40,8 +81,10 @@ Item {
             spacing: 6
 
             StyledToolButton {
-                text: "↑"
-                implicitWidth: 30
+                iconName: "arrow-up"
+                iconSize: 16
+                implicitWidth: 32
+                implicitHeight: 32
                 onClicked: app.ftpUp()
                 enabled: !app.ftpBusy
             }
@@ -53,30 +96,93 @@ Item {
                 font.pixelSize: 12
                 selectByMouse: true
                 background: Rectangle {
-                    color: Theme.panelAltFill
-                    border.color: Theme.border
-                    radius: 6
+                    color: Theme.controlFill
+                    border.color: pathField.activeFocus ? Theme.accent : Theme.border
+                    radius: 10
                 }
                 onAccepted: app.ftpNavigate(text)
             }
             StyledToolButton {
-                text: "⟳"
-                implicitWidth: 30
+                iconName: "refresh"
+                iconSize: 16
+                implicitWidth: 32
+                implicitHeight: 32
                 onClicked: app.ftpRefresh()
                 enabled: !app.ftpBusy
             }
         }
 
+        // Pinned folders, as tags: a click opens one, its ✕ unpins it; the
+        // last tag pins the folder that is open.
         Flow {
             Layout.fillWidth: true
             spacing: 6
             Repeater {
                 model: app.ftpShortcuts
-                delegate: StyledButton {
-                    text: modelData
-                    chip: true
-                    onClicked: app.ftpNavigate(modelData)
+                delegate: Rectangle {
+                    id: tag
+                    required property string modelData
+                    readonly property bool here: root.samePath(modelData, app.ftpPath)
+                    implicitWidth: tagRow.implicitWidth + 22
+                    implicitHeight: 30
+                    radius: height / 2
+                    color: here ? Theme.alpha(Theme.accent, 0.16)
+                         : tagHover.hovered ? Theme.controlHover : Theme.controlFill
+                    border.width: 1
+                    border.color: here || tagHover.hovered ? Theme.alpha(Theme.accent, 0.6) : Theme.glassEdge
+                    Behavior on color { ColorAnimation { duration: Theme.fast } }
+
+                    HoverHandler { id: tagHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: app.ftpNavigate(tag.modelData) }
+
+                    Row {
+                        id: tagRow
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: 11
+                        spacing: 6
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            name: "folder"
+                            size: 13
+                            color: tag.here ? Theme.accent : Theme.textSecondary
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: tag.modelData
+                            color: Theme.text
+                            font.pixelSize: 12
+                            font.weight: Font.Medium
+                        }
+                        // Unpin: a small round ✕, clearer once the tag is under the mouse.
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 16
+                            height: 16
+                            radius: 8
+                            color: unpinHover.hovered ? Theme.alpha(Theme.error, 0.22) : "transparent"
+                            opacity: tagHover.hovered ? 1.0 : 0.45
+                            Behavior on opacity { NumberAnimation { duration: Theme.fast } }
+                            Icon {
+                                anchors.centerIn: parent
+                                name: "close"
+                                size: 11
+                                color: unpinHover.hovered ? Theme.error : Theme.textSecondary
+                            }
+                            HoverHandler { id: unpinHover; cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: app.unpinFtpFolder(tag.modelData) }
+                            ToolTip.visible: unpinHover.hovered
+                            ToolTip.delay: 400
+                            ToolTip.text: qsTr("Remove from the top")
+                        }
+                    }
                 }
+            }
+            StyledButton {
+                chip: true
+                iconName: "pin"
+                text: qsTr("Pin this folder")
+                visible: app.ftpPath.length > 0 && !root.pinnedHere
+                onClicked: app.pinFtpFolder(app.ftpPath)
             }
         }
 
@@ -98,7 +204,28 @@ Item {
                 delegate: ItemDelegate {
                     id: row
                     width: files.width
-                    height: 32
+                    // A file still arriving is listed like the others; its
+                    // progress is in the queue.
+                    readonly property bool arriving: root.beingUploaded(model.name)
+                    height: 34
+                    // The Basic style pads 12px all round, which in a 34px row
+                    // squeezes the content into a sliver and leaves it off the
+                    // lit box. The row sets its own.
+                    topPadding: 0
+                    bottomPadding: 0
+                    leftPadding: 12
+                    rightPadding: 6
+
+                    // The row under the mouse lights up; folders open with a
+                    // double click, so they get the hand.
+                    background: Rectangle {
+                        radius: 8
+                        color: row.hovered ? Theme.controlHover : "transparent"
+                        Behavior on color { ColorAnimation { duration: Theme.fast } }
+                    }
+                    HoverHandler {
+                        cursorShape: model.isDirectory ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    }
 
                     // Filled in as soon as the file is in the local cache:
                     // that is what allows dragging it out of the window.
@@ -119,23 +246,14 @@ Item {
                                 return
                             row.localUrl = localUrl
                             row.preparing = false
+                            // Still holding the button: the drag goes on.
+                            if (dragArea.pressed && dragArea.dragged)
+                                app.startFtpDrag(model.path, localUrl)
                         }
                         function onDownloadChanged() {
                             if (row.preparing && !app.downloadActive)
                                 row.preparing = false
                         }
-                    }
-
-                    // Dragging out hands a local file to the system; that
-                    // is why the proxy only exists after the copy.
-                    Item {
-                        id: dragProxy
-                        Drag.active: dragArea.drag.active
-                        Drag.dragType: Drag.Automatic
-                        Drag.supportedActions: Qt.CopyAction
-                        Drag.mimeData: ({ "text/uri-list": row.localUrl })
-                        // Without an image, the cursor drags an invisible nothing.
-                        Drag.imageSource: "qrc:/icons/logo.png"
                     }
 
                     contentItem: RowLayout {
@@ -148,9 +266,10 @@ Item {
                             RowLayout {
                                 anchors.fill: parent
                                 spacing: 8
-                                Text {
-                                    text: model.isDirectory ? "📁" : (row.localUrl.length > 0 ? "📥" : "📄")
-                                    font.pixelSize: 13
+                                Icon {
+                                    name: model.isDirectory ? "folder" : (row.localUrl.length > 0 ? "download" : "file")
+                                    size: 15
+                                    color: model.isDirectory ? Theme.accent : Theme.textSecondary
                                 }
                                 Text {
                                     Layout.fillWidth: true
@@ -165,51 +284,102 @@ Item {
                                 id: dragArea
                                 anchors.fill: parent
                                 acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                cursorShape: row.localUrl.length > 0 ? Qt.OpenHandCursor : Qt.ArrowCursor
-                                drag.target: row.localUrl.length > 0 ? dragProxy : null
-                                drag.threshold: 10
+                                cursorShape: model.isDirectory ? Qt.PointingHandCursor
+                                           : row.localUrl.length > 0 ? Qt.OpenHandCursor : Qt.ArrowCursor
                                 // Otherwise the list steals the gesture and treats
                                 // it as scrolling instead of dragging the file.
-                                preventStealing: row.localUrl.length > 0
+                                preventStealing: true
+                                property point pressedAt
+                                property bool dragged: false
 
-                                onClicked: (mouse) => {
-                                    if (mouse.button === Qt.RightButton)
-                                        rowMenu.popupFor(model.path, model.name, model.isDirectory, model.size, model.sizeText, row)
+                                onPressed: (mouse) => {
+                                    pressedAt = Qt.point(mouse.x, mouse.y)
+                                    dragged = false
                                 }
-                                onDoubleClicked: {
-                                    if (model.isDirectory)
+                                // One click opens a folder; on a file it shows
+                                // what can be done with it.
+                                onClicked: (mouse) => {
+                                    if (dragged)
+                                        return
+                                    if (mouse.button === Qt.LeftButton && model.isDirectory)
                                         app.ftpNavigate(model.path)
                                     else
-                                        app.ftpDownload(model.path, model.name, "")
+                                        rowMenu.popupFor(model.path, model.name, model.isDirectory, model.size, model.sizeText, row)
                                 }
-                                onPressAndHold: rowMenu.popupFor(model.path, model.name, model.isDirectory, model.size, model.sizeText, row)
-                                // Dragging a file that is not on the PC yet starts
-                                // by fetching it; when it arrives, it is dragged.
-                                onPositionChanged: {
-                                    if (!pressed || model.isDirectory || row.localUrl.length > 0)
+                                onPressAndHold: {
+                                    if (!dragged)
+                                        rowMenu.popupFor(model.path, model.name, model.isDirectory, model.size, model.sizeText, row)
+                                }
+                                // Dragging: onto a folder of the list it moves
+                                // there; out of the window it needs the file on
+                                // the PC, so a small file not fetched yet is
+                                // fetched first and the drag goes on when it
+                                // arrives. A big one is dragged at once, for
+                                // the folders of the list ("Get it ready to
+                                // drag" brings it to the PC first).
+                                onPositionChanged: (mouse) => {
+                                    if (!pressed || dragged || !(mouse.buttons & Qt.LeftButton))
                                         return
+                                    if (Math.abs(mouse.x - pressedAt.x) + Math.abs(mouse.y - pressedAt.y) < 10)
+                                        return
+                                    dragged = true
+                                    if (model.isDirectory || row.localUrl.length > 0
+                                            || model.size > 64 * 1024 * 1024) {
+                                        app.startFtpDrag(model.path, row.localUrl)
+                                        return
+                                    }
                                     if (row.preparing || app.downloadActive)
                                         return
                                     row.preparing = true
                                     app.ftpPrepareForDrag(model.path, model.name, model.size)
                                 }
                             }
+
+                            // A folder takes what is dropped on it from the list.
+                            DropArea {
+                                anchors.fill: parent
+                                enabled: model.isDirectory
+                                keys: ["application/x-orbislink-ftp-path"]
+                                onEntered: (drag) => {
+                                    const from = drag.getDataAsString("application/x-orbislink-ftp-path")
+                                    if (from === model.path)
+                                        drag.accepted = false
+                                }
+                                onDropped: (drop) => {
+                                    const from = drop.getDataAsString("application/x-orbislink-ftp-path")
+                                    if (from.length > 0 && from !== model.path) {
+                                        app.ftpMove(from, model.path)
+                                        drop.accept(Qt.MoveAction)
+                                    }
+                                }
+                                Rectangle {
+                                    anchors.fill: parent
+                                    anchors.margins: -4
+                                    radius: 8
+                                    visible: parent.containsDrag
+                                    color: Theme.alpha(Theme.accent, 0.12)
+                                    border.width: 1
+                                    border.color: Theme.accent
+                                }
+                            }
                         }
 
                         Text {
-                            text: row.preparing ? qsTr("getting it…") : model.sizeText
-                            color: row.preparing ? Theme.accent : Theme.textMuted
+                            text: row.preparing ? qsTr("getting it…") : row.arriving ? qsTr("arriving…") : model.sizeText
+                            color: row.preparing || row.arriving ? Theme.accent : Theme.textMuted
                             font.pixelSize: 11
                         }
                         StyledToolButton {
-                            text: "⋮"
-                            implicitWidth: 22; implicitHeight: 22
+                            iconName: "more"
+                            iconSize: 14
+                            implicitWidth: 26; implicitHeight: 26
                             onClicked: rowMenu.popupFor(model.path, model.name, model.isDirectory, model.size, model.sizeText, row)
                         }
                         StyledToolButton {
-                            text: "✕"
+                            iconName: "trash"
+                            iconSize: 14
                             danger: true
-                            implicitWidth: 24; implicitHeight: 22
+                            implicitWidth: 26; implicitHeight: 26
                             onClicked: confirmDelete.open(model.path, model.isDirectory, model.name)
                         }
                     }
@@ -273,9 +443,9 @@ Item {
                 color: Theme.text
                 font.pixelSize: 12
                 background: Rectangle {
-                    color: Theme.panelAltFill
-                    border.color: Theme.border
-                    radius: 6
+                    color: Theme.controlFill
+                    border.color: newFolderName.activeFocus ? Theme.accent : Theme.border
+                    radius: 10
                 }
             }
             StyledButton {
@@ -312,38 +482,61 @@ Item {
         bottomPadding: 8
 
         background: Rectangle {
-            implicitWidth: 320
-            color: Theme.dialogFill
+            implicitWidth: 300
+            color: Theme.menuFill
             border.color: Theme.glassEdge
             border.width: 1
-            radius: Theme.radiusSmall
+            radius: 14
+
+            // A soft shadow, so the menu reads as floating over the list.
+            Repeater {
+                model: 3
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: -(index + 1) * 3
+                    radius: parent.radius + (index + 1) * 3
+                    color: "transparent"
+                    border.width: 3
+                    border.color: Qt.rgba(0, 0, 0, Theme.light ? 0.04 - index * 0.012 : 0.16 - index * 0.05)
+                    z: -1
+                }
+            }
         }
 
         // Header with the name and size, so there is no doubt about which
         // file the menu is acting on.
         Rectangle {
-            implicitHeight: 50
+            implicitHeight: 56
             implicitWidth: rowMenu.width
             color: "transparent"
-            ColumnLayout {
+            RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 20
-                anchors.rightMargin: 20
+                anchors.leftMargin: 16
+                anchors.rightMargin: 16
                 anchors.topMargin: 6
                 anchors.bottomMargin: 6
-                spacing: 3
-                Text {
-                    Layout.fillWidth: true
-                    text: rowMenu.targetName
-                    color: Theme.text
-                    font.pixelSize: 11
-                    font.bold: true
-                    elide: Text.ElideMiddle
+                spacing: 12
+                Icon {
+                    name: rowMenu.targetIsDirectory ? "folder" : "file"
+                    size: 20
+                    color: rowMenu.targetIsDirectory ? Theme.accent : Theme.textSecondary
                 }
-                Text {
-                    text: rowMenu.targetIsDirectory ? qsTr("folder") : rowMenu.targetSizeText
-                    color: Theme.textMuted
-                    font.pixelSize: 10
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Text {
+                        Layout.fillWidth: true
+                        text: rowMenu.targetName
+                        color: Theme.text
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideMiddle
+                    }
+                    Text {
+                        text: rowMenu.targetIsDirectory ? qsTr("folder") : rowMenu.targetSizeText
+                        color: Theme.textSecondary
+                        font.pixelSize: 11
+                    }
                 }
             }
         }
@@ -359,32 +552,42 @@ Item {
 
         StyledMenuItem {
             text: qsTr("Open")
+            iconName: "folder"
             visible: rowMenu.targetIsDirectory
             height: visible ? implicitHeight : 0
             onTriggered: app.ftpNavigate(rowMenu.targetPath)
         }
         StyledMenuItem {
+            readonly property bool pinned: rowMenu.targetIsDirectory && root.pinnedVersion >= 0
+                                            && app.isFtpPinned(rowMenu.targetPath)
+            text: pinned ? qsTr("Remove from the top") : qsTr("Pin to the top")
+            iconName: pinned ? "pin-off" : "pin"
+            visible: rowMenu.targetIsDirectory
+            height: visible ? implicitHeight : 0
+            onTriggered: pinned ? app.unpinFtpFolder(rowMenu.targetPath) : app.pinFtpFolder(rowMenu.targetPath)
+        }
+        StyledMenuItem {
             text: qsTr("Use as the upload folder")
+            iconName: "upload"
             visible: rowMenu.targetIsDirectory
             height: visible ? implicitHeight : 0
             onTriggered: app.setFtpUploadDirectory(rowMenu.targetPath)
         }
         StyledMenuItem {
             text: qsTr("Download to the desktop")
-            visible: !rowMenu.targetIsDirectory
-            height: visible ? implicitHeight : 0
+            iconName: "download"
             enabled: !app.downloadActive
-            onTriggered: app.ftpDownload(rowMenu.targetPath, rowMenu.targetName, "")
+            onTriggered: root.download(rowMenu.targetPath, rowMenu.targetName, rowMenu.targetIsDirectory, "")
         }
         StyledMenuItem {
             text: qsTr("Download to…")
-            visible: !rowMenu.targetIsDirectory
-            height: visible ? implicitHeight : 0
+            iconName: "save"
             enabled: !app.downloadActive
             onTriggered: destinationDialog.open()
         }
         StyledMenuItem {
             text: qsTr("Get it ready to drag")
+            iconName: "hard-drive"
             visible: !rowMenu.targetIsDirectory && (rowMenu.targetRow ? rowMenu.targetRow.localUrl.length === 0 : false)
             height: visible ? implicitHeight : 0
             enabled: !app.downloadActive
@@ -396,6 +599,7 @@ Item {
         }
         StyledMenuItem {
             text: qsTr("Show the local copy")
+            iconName: "external-link"
             visible: rowMenu.targetRow ? rowMenu.targetRow.localUrl.length > 0 : false
             height: visible ? implicitHeight : 0
             onTriggered: app.openLocalFolder(rowMenu.targetRow.localUrl)
@@ -412,14 +616,23 @@ Item {
 
         StyledMenuItem {
             text: qsTr("Copy the path")
+            iconName: "copy"
             onTriggered: app.copyToClipboard(rowMenu.targetPath)
         }
         StyledMenuItem {
             text: qsTr("Rename…")
+            iconName: "pencil"
             onTriggered: renameDialog.open(rowMenu.targetPath, rowMenu.targetName)
         }
         StyledMenuItem {
+            text: qsTr("Move to…")
+            iconName: "folder-open"
+            onTriggered: folderPicker.openFor(rowMenu.targetPath, rowMenu.targetName, app.ftpPath)
+        }
+        StyledMenuItem {
             text: qsTr("Delete on the console")
+            iconName: "trash"
+            danger: true
             onTriggered: confirmDelete.open(rowMenu.targetPath, rowMenu.targetIsDirectory,
                 rowMenu.targetName)
         }
@@ -433,7 +646,7 @@ Item {
             : "file://" + app.defaultDownloadDirectory()
         onAccepted: {
             root.lastDestination = selectedFolder
-            app.ftpDownload(rowMenu.targetPath, rowMenu.targetName, selectedFolder)
+            root.download(rowMenu.targetPath, rowMenu.targetName, rowMenu.targetIsDirectory, selectedFolder)
         }
     }
 
@@ -442,10 +655,9 @@ Item {
         property string targetPath: ""
         parent: Overlay.overlay
         anchors.centerIn: parent
-        width: 380
+        width: 440
         modal: true
-        title: qsTr("Rename")
-        standardButtons: Dialog.Ok | Dialog.Cancel
+        padding: 0
 
         function open(path, name) {
             targetPath = path
@@ -455,22 +667,67 @@ Item {
             nameInput.selectAll()
         }
 
-        contentItem: TextField {
-            id: nameInput
-            color: Theme.text
-            font.pixelSize: 12
-            selectByMouse: true
-            background: Rectangle {
-                color: Theme.panelAltFill
-                border.color: nameInput.activeFocus ? Theme.accent : Theme.border
-                radius: 6
-            }
+        function confirm() {
+            if (nameInput.text.trim().length === 0)
+                return
+            app.ftpRename(targetPath, nameInput.text.trim())
+            close()
         }
 
-        onAccepted: app.ftpRename(targetPath, nameInput.text)
+        Overlay.modal: Rectangle { color: Theme.scrim }
+
+        background: Rectangle {
+            color: Theme.dialogFill
+            border.color: Theme.border
+            radius: Theme.radiusDialog
+        }
+
+        header: DialogHeader {
+            title: qsTr("Rename")
+            dialog: renameDialog
+        }
+
+        contentItem: StyledField {
+            id: nameInput
+            leftInset: Theme.dialogMargin
+            rightInset: Theme.dialogMargin
+            leftPadding: Theme.dialogMargin + 14
+            rightPadding: Theme.dialogMargin + 14
+            onAccepted: renameDialog.confirm()
+        }
+
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                spacing: 10
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("Cancel")
+                    minimumWidth: 100
+                    onClicked: renameDialog.close()
+                }
+                StyledButton {
+                    text: qsTr("Rename")
+                    primary: true
+                    minimumWidth: 110
+                    enabled: nameInput.text.trim().length > 0
+                    onClicked: renameDialog.confirm()
+                }
+            }
+        }
     }
 
-    // Destructive operations require confirmation (§5.5).
+    // "Move to…": the console's folders as a tree.
+    FtpFolderPicker {
+        id: folderPicker
+        onChosen: (path) => app.ftpMove(movingPath, path)
+    }
+
+    // Deleting on the console always asks first.
     Dialog {
         id: confirmDelete
         property string targetPath: ""
@@ -480,7 +737,7 @@ Item {
         anchors.centerIn: parent
         // Fixed width: without it the dialog sizes itself by the text and the
         // text by the dialog, and Qt warns about the loop.
-        width: 400
+        width: 460
         modal: true
         padding: 0
 
@@ -498,56 +755,82 @@ Item {
         background: Rectangle {
             color: Theme.dialogFill
             border.color: Theme.border
-            radius: Theme.radius
+            radius: Theme.radiusDialog
         }
 
-        header: Rectangle {
-            implicitHeight: 48
-            color: "transparent"
-            Text {
-                anchors.fill: parent
-                anchors.leftMargin: 18
-                anchors.rightMargin: 18
-                verticalAlignment: Text.AlignVCenter
-                text: confirmDelete.targetIsDirectory ? qsTr("Delete the folder on the console?")
-                                                      : qsTr("Delete on the console?")
-                color: Theme.text
-                font.pixelSize: 15
-                font.bold: true
+        header: DialogHeader {
+            title: confirmDelete.targetIsDirectory ? qsTr("Delete the folder on the console?") : qsTr("Delete on the console?")
+            dialog: confirmDelete
+        }
+
+        contentItem: RowLayout {
+            spacing: 16
+
+            // The trash can in a soft red circle: what is about to happen.
+            Rectangle {
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.alignment: Qt.AlignTop
+                Layout.topMargin: 10
+                implicitWidth: 44
+                implicitHeight: 44
+                radius: 22
+                color: Theme.alpha(Theme.error, 0.14)
+                Icon {
+                    anchors.centerIn: parent
+                    name: "trash"
+                    size: 20
+                    color: Theme.error
+                }
             }
-            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.border }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.rightMargin: Theme.dialogMargin
+                Layout.topMargin: 8
+                Layout.bottomMargin: 8
+                spacing: 6
+                Text {
+                    Layout.fillWidth: true
+                    text: confirmDelete.targetName
+                    color: Theme.text
+                    font.pixelSize: 14
+                    font.weight: Font.DemiBold
+                    wrapMode: Text.WrapAnywhere
+                    maximumLineCount: 3
+                    elide: Text.ElideMiddle
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: confirmDelete.targetIsDirectory
+                        ? qsTr("The folder and everything inside it are deleted from the console. "
+                               + "This cannot be undone.")
+                        : qsTr("The file is deleted from the console. This cannot be undone.")
+                    color: Theme.textSecondary
+                    font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                }
+            }
         }
 
-        contentItem: Text {
-            leftPadding: 18
-            rightPadding: 18
-            topPadding: 14
-            bottomPadding: 14
-            text: confirmDelete.targetIsDirectory
-                ? qsTr("Delete \"%1\" and everything inside it? There is no undo.")
-                    .arg(confirmDelete.targetName)
-                : qsTr("Delete \"%1\"? There is no undo.").arg(confirmDelete.targetName)
-            color: Theme.text
-            font.pixelSize: 12
-            wrapMode: Text.WordWrap
-        }
-
-        footer: Rectangle {
-            implicitHeight: 56
-            color: "transparent"
-            Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.border }
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
             RowLayout {
                 anchors.fill: parent
-                anchors.margins: 12
-                spacing: 8
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                spacing: 10
                 Item { Layout.fillWidth: true }
                 StyledButton {
                     text: qsTr("Cancel")
+                    minimumWidth: 100
                     onClicked: confirmDelete.close()
                 }
                 StyledButton {
                     text: qsTr("Delete")
+                    iconName: "trash"
                     danger: true
+                    solid: true
                     minimumWidth: 110
                     onClicked: {
                         app.ftpDelete(confirmDelete.targetPath, confirmDelete.targetIsDirectory)

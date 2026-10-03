@@ -27,7 +27,7 @@ Dialog {
     background: Rectangle {
         color: Theme.dialogFill
         border.color: Theme.border
-        radius: Theme.radius
+        radius: Theme.radiusDialog
     }
 
     header: Rectangle {
@@ -58,7 +58,6 @@ Dialog {
     footer: Rectangle {
         implicitHeight: Theme.dialogFooter
         color: "transparent"
-        Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.border }
         RowLayout {
             anchors.fill: parent
             anchors.margins: Theme.dialogInner

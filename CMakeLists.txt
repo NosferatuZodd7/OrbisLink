@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 cmake_minimum_required(VERSION 3.16)
-project(OrbisLink VERSION 1.1.0 LANGUAGES C CXX)
+project(OrbisLink VERSION 1.2.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -91,6 +91,36 @@ if(ORBISLINK_ENABLE_STREAM)
 	target_compile_definitions(orbislink_stream PUBLIC ORBISLINK_HAS_STREAM=1)
 endif()
 
+# PS1/PS2 discs into PS4 packages: the fake PKG builder (ported from
+# LibOrbisPkg, LGPL-3.0) needs OpenSSL, which Remote Play already brings.
+find_package(OpenSSL QUIET)
+if(OpenSSL_FOUND)
+	add_library(orbislink_fpkg STATIC
+		src/orbislink/fpkg/classic_converter.cpp
+		src/orbislink/fpkg/classics_assets.cpp
+		src/orbislink/fpkg/disc_scanner.cpp
+		src/orbislink/fpkg/fpkg_crypto.cpp
+		src/orbislink/fpkg/fpkg_keys.cpp
+		src/orbislink/fpkg/param_sfo.cpp
+		src/orbislink/fpkg/pfs_builder.cpp
+		src/orbislink/fpkg/pkg_builder.cpp
+		src/orbislink/fpkg/targz.cpp
+	)
+	target_include_directories(orbislink_fpkg PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+	target_link_libraries(orbislink_fpkg PUBLIC OpenSSL::Crypto Threads::Threads)
+	target_compile_definitions(orbislink_fpkg PUBLIC ORBISLINK_HAS_FPKG=1)
+	if(MSVC)
+		target_compile_options(orbislink_fpkg PRIVATE /W4)
+	else()
+		target_compile_options(orbislink_fpkg PRIVATE -Wall -Wextra)
+		if(ORBISLINK_WARNINGS_AS_ERRORS)
+			target_compile_options(orbislink_fpkg PRIVATE -Werror)
+		endif()
+	endif()
+	add_executable(orbislink-fpkg tools/fpkg/main.cpp)
+	target_link_libraries(orbislink-fpkg PRIVATE orbislink_fpkg)
+endif()
+
 target_compile_definitions(orbislink_core PUBLIC
 	ORBISLINK_REPOSITORY_STRING="${ORBISLINK_REPOSITORY}")
 target_include_directories(orbislink_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -143,6 +173,7 @@ if(ORBISLINK_BUILD_GUI)
 		qt_add_executable(orbislink-gui
 			src/orbislink/qt/main.cpp
 			src/orbislink/qt/app_controller.cpp
+			src/orbislink/qt/games_controller.cpp
 			src/orbislink/qt/queue_model.cpp
 			src/orbislink/qt/ftp_model.cpp
 			src/orbislink/qt/startup.cpp
@@ -158,6 +189,7 @@ if(ORBISLINK_BUILD_GUI)
 			$<$<BOOL:${ORBISLINK_ENABLE_STREAM}>:${CMAKE_CURRENT_SOURCE_DIR}/src/orbislink/qt/video_bridge.cpp>
 			qml/orbislink/orbislink.qrc
 			src/icons/icons.qrc
+			third-party/inter/fonts.qrc
 			translations/translations.qrc
 			$<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/icons/orbislink.rc>
 		)
@@ -165,6 +197,9 @@ if(ORBISLINK_BUILD_GUI)
 			ORBISLINK_VERSION_STRING="${ORBISLINK_VERSION_NAME}")
 		target_link_libraries(orbislink-gui PRIVATE
 			orbislink_core Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2)
+		if(TARGET orbislink_fpkg)
+			target_link_libraries(orbislink-gui PRIVATE orbislink_fpkg)
+		endif()
 		if(ORBISLINK_ENABLE_STREAM)
 			target_link_libraries(orbislink-gui PRIVATE orbislink_stream Qt6::Multimedia)
 			target_compile_definitions(orbislink-gui PRIVATE ORBISLINK_HAS_STREAM=1)

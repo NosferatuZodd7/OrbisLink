@@ -31,7 +31,7 @@ public:
 	std::atomic<int> stepBytes { 4096 };
 	std::vector<std::string> lastUrls;
 
-	std::string name() const override { return "Instalador de teste"; }
+	std::string name() const override { return "Test installer"; }
 	std::string endpoint() const override { return "http://fake"; }
 	bool probe(std::string *detail) override
 	{
@@ -408,6 +408,33 @@ ORBISLINK_TEST(persistence_restores_interrupted_tasks_as_pending)
 	CHECK_EQ(tasks[0].title, std::string("Persisted Game"));
 	CHECK(tasks[0].category == PkgCategory::Game);
 	CHECK_EQ(tasks[0].totalBytes, fileSize(game.path));
+	std::remove(path.c_str());
+}
+
+ORBISLINK_TEST(upload_keeps_the_name_chosen_for_the_console)
+{
+	// A name already taken on the console, sent under another one: the
+	// choice survives saving and loading the queue.
+	PkgFile game("rename-game.pkg", gameOptions("CUSA00015", "Renamed Game"));
+	PkgFile other("rename-other.pkg", gameOptions("CUSA00016", "Other Game"));
+
+	InstallQueue original(InstallQueue::Dependencies {}, Settings {});
+	const std::vector<std::string> names { "rename-game-1.pkg", "" };
+	original.enqueue({ game.path, other.path }, TransferMode::FtpUpload, nullptr, &names);
+	const std::string path = ".orbislink-test-queue-names.json";
+	CHECK(original.save(path));
+
+	InstallQueue restored(InstallQueue::Dependencies {}, Settings {});
+	CHECK(restored.load(path));
+	const auto tasks = restored.tasks();
+	CHECK_EQ(tasks.size(), static_cast<size_t>(2));
+	for(const QueueTask &task : tasks)
+	{
+		if(task.title == "Renamed Game")
+			CHECK_EQ(task.remoteName, std::string("rename-game-1.pkg"));
+		else
+			CHECK(task.remoteName.empty());
+	}
 	std::remove(path.c_str());
 }
 

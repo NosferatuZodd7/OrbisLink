@@ -13,6 +13,7 @@
 
 QT_BEGIN_NAMESPACE
 class QAudioSink;
+class QMediaDevices;
 class QTimer;
 QT_END_NAMESPACE
 
@@ -122,6 +123,9 @@ private:
 	QIODevice *pushTarget_ = nullptr;
 	QByteArray scratch_;
 	QString deviceName_;
+	// Watches for outputs coming and going: a PC that had none when the
+	// session started gets sound as soon as one appears.
+	QMediaDevices *devices_ = nullptr;
 	QString state_ = QStringLiteral("stopped");
 	QString sinkState_ = QStringLiteral("no-sink");
 	qint64 samplesPlayed_ = 0;

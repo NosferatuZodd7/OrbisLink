@@ -132,7 +132,19 @@ qint64 PcmQueue::readData(char *data, qint64 maxSize)
 	return maxSize;
 }
 
-AudioOutput::AudioOutput(QObject *parent) : QObject(parent), queue_(this) {}
+AudioOutput::AudioOutput(QObject *parent)
+	: QObject(parent), queue_(this), devices_(new QMediaDevices(this))
+{
+	connect(devices_, &QMediaDevices::audioOutputsChanged, this, [this]() {
+		{
+			QMutexLocker lock(&mutex_);
+			if(state_ != QLatin1String("no-device") || !configured_ || sink_)
+				return;
+		}
+		logInfo("Remote Play: the sound outputs changed; trying again.");
+		ensureStarted();
+	});
+}
 
 AudioOutput::~AudioOutput() { stop(); }
 
@@ -186,11 +198,22 @@ void AudioOutput::ensureStarted()
 			return;
 
 		device = QMediaDevices::defaultAudioOutput();
+		const QList<QAudioDevice> outputs = QMediaDevices::audioOutputs();
+		// Windows can have outputs and still no default one (the default
+		// was unplugged or disabled): then the first one there is.
+		if(device.isNull() && !outputs.isEmpty())
+		{
+			device = outputs.first();
+			logWarning("Remote Play: the system has no default sound output; using \""
+				+ device.description().toStdString() + "\", the first of "
+				+ std::to_string(outputs.size()) + ".");
+		}
 		if(device.isNull())
 		{
 			state_ = QStringLiteral("no-device");
-			logWarning("Remote Play: no audio output; the stream has no sound. "
-				"Is the Qt multimedia backend missing?");
+			logWarning("Remote Play: no audio output; the stream has no sound. The system lists "
+				"no sound outputs — none enabled in the sound settings, or the Qt multimedia "
+				"backend is missing.");
 		}
 		else
 		{
@@ -390,8 +413,9 @@ QString AudioOutput::pipelineSummary() const
 	else if(queue_.pushedBytes() == 0)
 		verdict = QStringLiteral("the decoder did not deliver a single frame");
 	else if(deviceName_.isEmpty())
-		verdict = QStringLiteral("there is no sound output on this PC — is the Qt "
-			"multimedia backend missing?");
+		verdict = QStringLiteral("there is no sound output on this PC (%1 listed) — none "
+			"enabled in the sound settings, or the Qt multimedia backend is missing")
+				.arg(QMediaDevices::audioOutputs().size());
 	else if(queue_.pulledBytes() == 0)
 		verdict = QStringLiteral("sound reaches the queue but never goes out to the card");
 	else

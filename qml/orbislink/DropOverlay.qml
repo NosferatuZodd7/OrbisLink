@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Drag-and-drop overlay (§5.7): two zones, one per mode.
+// Drag-and-drop overlay: two zones, one per mode, on a glass card over the
+// dimmed window.
 // The stream keeps running underneath — nothing is paused.
 //
 // There is no DropArea here. One DropArea per zone does not work: the
@@ -70,70 +71,99 @@ Item {
     }
 
     anchors.fill: parent
-    anchors.topMargin: 56
-    anchors.bottomMargin: 26
     visible: opacity > 0
     opacity: active ? 1 : 0
-    Behavior on opacity { NumberAnimation { duration: 120 } }
+    Behavior on opacity { NumberAnimation { duration: 140 } }
 
+    // The whole window dims; the picture keeps going underneath.
     Rectangle {
         anchors.fill: parent
-        color: "#0b0d12"
-        opacity: 0.88
+        color: Qt.rgba(4 / 255, 8 / 255, 14 / 255, 0.78)
     }
 
-    ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: 28
-        spacing: 18
+    Rectangle {
+        id: sheet
+        anchors.centerIn: parent
+        width: Math.min(parent.width - 80, 760)
+        height: Math.min(parent.height - 80, 440)
+        radius: 26
+        color: Qt.rgba(22 / 255, 34 / 255, 54 / 255, 0.92)
+        border.width: 1
+        border.color: Qt.rgba(1, 1, 1, 0.14)
+        scale: root.active ? 1.0 : 0.96
+        Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-        Text {
-            Layout.fillWidth: true
-            horizontalAlignment: Text.AlignHCenter
-            text: qsTr("Drop to…")
-            color: Theme.onStage
-            font.pixelSize: 22
-            font.bold: true
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            spacing: 18
-
-            DropZone {
-                id: installZone
-                objectName: "installZone"
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                title: qsTr("Install directly")
-                subtitle: qsTr("The console downloads from this PC and installs")
-                glyph: "⤓"
-                enabledZone: app.canInstallDirectly
-                disabledReason: app.installerHint
-                highlighted: root.zoneUnderPointer === 0
-            }
-
-            DropZone {
-                id: ftpZone
-                objectName: "ftpZone"
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                title: qsTr("Send over FTP")
-                subtitle: qsTr("Copies to %1").arg(app.ftpPath)
-                glyph: "⇪"
-                enabledZone: app.canUseFtp
-                disabledReason: app.ftpHint
-                highlighted: root.zoneUnderPointer === 1
+        Rectangle {
+            anchors.fill: parent
+            radius: parent.radius
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.07) }
+                GradientStop { position: 0.5; color: "transparent" }
             }
         }
 
-        Text {
-            Layout.fillWidth: true
-            horizontalAlignment: Text.AlignHCenter
-            text: qsTr("Takes several files and folders (it looks for .pkg inside)")
-            color: Theme.onStageMuted
-            font.pixelSize: 12
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 28
+            spacing: 16
+
+            Icon {
+                Layout.alignment: Qt.AlignHCenter
+                name: "package"
+                size: 40
+                strokeWidth: 1.5
+                color: Theme.onStage
+            }
+
+            Text {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                text: qsTr("Drop to…")
+                color: Theme.onStage
+                font.pixelSize: 22
+                font.weight: Font.DemiBold
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: 16
+
+                DropZone {
+                    id: ftpZone
+                    objectName: "ftpZone"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    title: qsTr("Send over FTP")
+                    subtitle: qsTr("Copies to %1").arg(app.ftpPath)
+                    glyph: "cloud-upload"
+                    enabledZone: app.canUseFtp
+                    disabledReason: app.ftpHint
+                    highlighted: root.zoneUnderPointer === 1
+                }
+
+                DropZone {
+                    id: installZone
+                    objectName: "installZone"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    title: qsTr("Install directly")
+                    subtitle: qsTr("The console downloads from this PC and installs")
+                    glyph: "download"
+                    enabledZone: app.canInstallDirectly
+                    disabledReason: app.installerHint
+                    highlighted: root.zoneUnderPointer === 0
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                text: qsTr("Takes several files and folders (it looks for .pkg inside)")
+                color: Theme.onStageMuted
+                font.pixelSize: 12
+            }
         }
     }
 }

@@ -233,6 +233,17 @@ ORBISLINK_TEST(console_list)
 	withHost.consoles = { entry };
 	CHECK_EQ(Settings::fromJson(withHost.toJson()).consoles[0].hostId, std::string("AABBCCDDEEFF"));
 	CHECK(Settings::fromJson(withType.toJson()).consoles[0].hostId.empty());
+
+	// The preferred start: FTP is kept; Remote Play is the default and
+	// reads back as empty.
+	Settings withStart;
+	ConsoleEntry ftpOnly;
+	ftpOnly.name = "PS4";
+	ftpOnly.address = "10.0.0.3";
+	ftpOnly.startMode = "ftp";
+	withStart.consoles = { ftpOnly };
+	CHECK_EQ(Settings::fromJson(withStart.toJson()).consoles[0].startMode, std::string("ftp"));
+	CHECK(Settings::fromJson(withType.toJson()).consoles[0].startMode.empty());
 }
 
 ORBISLINK_TEST(saved_account_ids_round_trip_and_include_those_in_use)
@@ -257,6 +268,35 @@ ORBISLINK_TEST(saved_account_ids_round_trip_and_include_those_in_use)
 	const Settings reloaded = Settings::fromJson(named.toJson());
 	CHECK_EQ(reloaded.accounts.size(), size_t(1));
 	CHECK_EQ(reloaded.accounts[0].label, std::string("Main"));
+}
+
+ORBISLINK_TEST(theme_colours_presets_and_pad_map_round_trip)
+{
+	Settings settings;
+	settings.themeColors = { { "accent", "#FF00AA" }, { "hen", "#22CCEE" } };
+	settings.themePresets.push_back({ "Night", "glass", { { "panel", "#101010" } } });
+	settings.padBindings = { { "a", "circle" }, { "b", "cross" } };
+	settings.ftpPinnedFolders = { "/data/", "/data/OrbisLinkFPKG/" };
+	bool ok = false;
+	const Settings restored = Settings::fromJson(settings.toJson(), &ok);
+	CHECK(ok);
+	CHECK(restored.themeColors == settings.themeColors);
+	CHECK_EQ(restored.themePresets.size(), static_cast<size_t>(1));
+	CHECK_EQ(restored.themePresets[0].name, std::string("Night"));
+	CHECK_EQ(restored.themePresets[0].theme, std::string("glass"));
+	CHECK(restored.themePresets[0].colors == settings.themePresets[0].colors);
+	CHECK(restored.padBindings == settings.padBindings);
+	CHECK(restored.ftpPinnedFolders == settings.ftpPinnedFolders);
+}
+
+ORBISLINK_TEST(hand_edited_theme_colours_are_checked)
+{
+	bool ok = false;
+	const Settings restored = Settings::fromJson(
+		R"({"theme_colors":{"accent":"#12AB3F","hen":"gold","ok":"#12345","error":"#GGGGGG"}})", &ok);
+	CHECK(ok);
+	CHECK_EQ(restored.themeColors.size(), static_cast<size_t>(1));
+	CHECK_EQ(restored.themeColors.at("accent"), std::string("#12AB3F"));
 }
 
 TEST_MAIN()

@@ -8,11 +8,30 @@ ApplicationWindow {
     id: window
     width: 1280
     height: 800
+    // The top bar fits from here, at its most compact.
+    minimumWidth: 880
+    minimumHeight: 560
     visible: true
     color: Theme.background
     title: qsTr("OrbisLink — %1").arg(app.consoleName)
 
     property bool panelVisible: true
+    // What the console in use offers besides Remote Play. When it has neither
+    // FTP nor the installer (a PS5 with no jailbreak), the side panel has
+    // nothing to show and stays closed — unless there are still items in the
+    // queue to follow.
+    readonly property bool ftpAbsent: app.ftpState === "unavailable" || app.ftpState === "not-applicable"
+    readonly property bool installerAbsent: app.installerState === "unavailable"
+                                            || app.installerState === "not-applicable"
+    readonly property bool panelAllowed: !(ftpAbsent && installerAbsent) || app.queue.count > 0
+    // Whether the side panel is on screen; without it the page takes the
+    // window's right gutter, so it lines up with the top bar.
+    readonly property bool panelShown: panelVisible && panelAllowed && !streamFullscreen
+                                         || games.conversions.length > 0
+    // What the main area shows: the consoles ("home") or the PS1/PS2 games.
+    property string view: typeof demoGames !== "undefined" && demoGames ? "games" : "home"
+    readonly property string panelLockReason: qsTr("This console only offers Remote Play: it has "
+        + "neither FTP nor the remote installer running (a jailbreak adds them).")
     // Full screen for the stream: hides the top bar and the side panel,
     // and the window takes up the whole screen.
     property bool streamFullscreen: false
@@ -24,10 +43,15 @@ ApplicationWindow {
         window.visibility = isActive ? Window.FullScreen : Window.Windowed
     }
 
-    // F9 abre/fecha o painel lateral (§5.7).
+    // F9 shows and hides the side panel.
     Shortcut {
         sequence: "F9"
-        onActivated: window.panelVisible = !window.panelVisible
+        onActivated: {
+            if (window.panelAllowed)
+                window.panelVisible = !window.panelVisible
+            else
+                toast.show(window.panelLockReason, false)
+        }
     }
     Shortcut {
         sequence: "Ctrl+,"
@@ -53,22 +77,22 @@ ApplicationWindow {
         anchors.fill: parent
         spacing: 0
 
-        // ───────────────────────────── barra superior
+        // ───────────────────────────── top bar
         Item {
             Layout.fillWidth: true
             // In full screen only the picture matters.
             visible: !window.streamFullscreen
-            implicitHeight: visible ? 76 : 0
+            implicitHeight: visible ? 84 : 0
 
-            // Floating bar: it does not touch the window edges and has no
-            // line underneath — separation comes from depth.
+            // A floating bar: it does not touch the window edges.
             Rectangle {
+                id: topBar
                 anchors.fill: parent
                 anchors.leftMargin: Theme.gutter
                 anchors.rightMargin: Theme.gutter
                 anchors.topMargin: 14
-                anchors.bottomMargin: 6
-                radius: Theme.radiusControl + 4
+                anchors.bottomMargin: 8
+                radius: 18
                 color: Theme.panelFill
                 border.width: 1
                 border.color: Theme.glassEdge
@@ -76,85 +100,177 @@ ApplicationWindow {
                 Rectangle {
                     anchors.fill: parent
                     radius: parent.radius
+                    visible: Theme.glassHighlight > 0
                     gradient: Gradient {
-                        GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.glassHighlight) }
-                        GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.05) }
+                        GradientStop { position: 0.0; color: Theme.glassSheen }
+                        GradientStop { position: 1.0; color: "transparent" }
                     }
                 }
             }
 
             RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Theme.gutter + 20
-                anchors.rightMargin: Theme.gutter + 12
-                anchors.topMargin: 14
-                anchors.bottomMargin: 6
-                spacing: 14
+                id: barRow
+                anchors.fill: topBar
+                anchors.leftMargin: 14
+                anchors.rightMargin: 12
+                spacing: 10
 
-                Image {
-                    source: "qrc:/icons/mark.png"
-                    sourceSize.width: 28
-                    sourceSize.height: 28
+                // A narrow window squeezes the bar instead of pushing its
+                // right end out: 1 — the services become dots and the page
+                // buttons icons; 2 — the console's name and address go too
+                // (the console chip still shows it). It widens again only
+                // with room to spare, so it never flickers between the two.
+                property int squeeze: 0
+                readonly property real saving1: remotePlayDot.labelWidth + ftpDot.labelWidth
+                    + installerDot.labelWidth + gamesText.width + 8
+                    + (backButton.visible ? backText.width + 8 : 0)
+                readonly property real saving2: consoleInfo.implicitWidth + spacing + 2
+                function fit() {
+                    var need = implicitWidth
+                    if (need > width + 0.5 && squeeze < 2)
+                        squeeze += 1
+                    else if (squeeze === 2 && need + saving2 + 16 <= width)
+                        squeeze = 1
+                    else if (squeeze === 1 && need + saving1 + 16 <= width)
+                        squeeze = 0
+                }
+                onWidthChanged: Qt.callLater(fit)
+                onImplicitWidthChanged: Qt.callLater(fit)
+                Component.onCompleted: Qt.callLater(fit)
+                TextMetrics { id: gamesText; font.pixelSize: 12; font.weight: Font.Medium; text: qsTr("PS1/PS2 Games") }
+                TextMetrics { id: backText; font.pixelSize: 12; font.weight: Font.DemiBold; text: qsTr("Back to Remote Play") }
+
+                // The app's symbol as the console's avatar.
+                Rectangle {
                     Layout.alignment: Qt.AlignVCenter
+                    implicitWidth: 38
+                    implicitHeight: 38
+                    radius: 19
+                    color: Theme.accentFill
+                    border.width: 1
+                    border.color: Theme.alpha(Theme.accent, 0.35)
+                    Image {
+                        anchors.centerIn: parent
+                        source: "qrc:/icons/mark.png"
+                        sourceSize.width: 48
+                        sourceSize.height: 48
+                        width: 24
+                        height: 24
+                    }
                 }
 
                 ColumnLayout {
-                    spacing: 0
+                    id: consoleInfo
+                    visible: barRow.squeeze < 2
+                    spacing: 1
+                    Layout.leftMargin: 2
                     Text {
                         text: app.consoleName
                         color: Theme.text
-                        font.pixelSize: 16
+                        font.pixelSize: 15
                         font.weight: Font.DemiBold
-                        font.letterSpacing: -0.4
                     }
                     Text {
                         text: app.consoleAddress.length > 0 ? app.consoleAddress
                                                             : qsTr("no address set")
                         color: Theme.textSecondary
-                        font.pixelSize: 11
-                        font.letterSpacing: -0.1
+                        font.pixelSize: 12
                     }
                 }
 
                 Item { Layout.fillWidth: true }
 
+                // Away from a Remote Play session that is still running: one
+                // click goes back to the picture.
+                StyledButton {
+                    id: backButton
+                    readonly property bool live: typeof stream !== "undefined" && stream !== null
+                                                 && stream.streaming
+                    visible: live && window.view !== "home"
+                    text: barRow.squeeze > 0 ? "" : qsTr("Back to Remote Play")
+                    iconName: "gamepad"
+                    chip: true
+                    primary: true
+                    implicitHeight: 36
+                    ToolTip.visible: hovered
+                    ToolTip.text: barRow.squeeze > 0 ? qsTr("Back to Remote Play") + " — " + qsTr("The session is still running")
+                                                     : qsTr("The session is still running")
+                    onClicked: window.view = "home"
+                }
+
+                // PS1/PS2 games: a page of its own, in place of the consoles.
+                StyledButton {
+                    visible: games.available
+                    text: barRow.squeeze > 0 ? "" : qsTr("PS1/PS2 Games")
+                    iconName: "disc"
+                    chip: true
+                    primary: window.view === "games"
+                    implicitHeight: 36
+                    ToolTip.visible: hovered
+                    ToolTip.text: (barRow.squeeze > 0 ? qsTr("PS1/PS2 Games") + " — " : "")
+                                  + (window.view === "games" ? qsTr("Back to the consoles")
+                                     : qsTr("Find PS1 and PS2 discs on this PC, convert them into packages and install them on the console"))
+                    onClicked: window.view = window.view === "games" ? "home" : "games"
+                }
+                Item { implicitWidth: 6 }
+
+                // The console everything goes to.
+                ConsoleChip {
+                    onShowConsoles: window.view = "home"
+                }
+
                 ServiceIndicator {
+                    id: remotePlayDot
+                    compact: barRow.squeeze > 0
                     label: qsTr("Remote Play")
                     state_: app.remotePlayState
                     hint: app.remotePlayHint
                 }
                 ServiceIndicator {
+                    id: ftpDot
+                    compact: barRow.squeeze > 0
                     label: qsTr("FTP")
                     state_: app.ftpState
                     hint: app.ftpHint
                 }
                 ServiceIndicator {
+                    id: installerDot
+                    compact: barRow.squeeze > 0
                     label: qsTr("Installer")
                     state_: app.installerState
                     hint: app.installerHint
                 }
 
+                Item { implicitWidth: 6 }
+
                 StyledToolButton {
-                    text: "⟳"
+                    iconName: "refresh"
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Check the services now")
                     onClicked: app.checkServicesNow()
                 }
                 StyledToolButton {
-                    text: "☰"
+                    iconName: "panel"
+                    active: window.panelVisible && window.panelAllowed
+                    opacity: window.panelAllowed ? 1.0 : 0.4
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Side panel (F9)")
-                    onClicked: window.panelVisible = !window.panelVisible
+                    ToolTip.text: window.panelAllowed ? qsTr("Side panel (F9)") : window.panelLockReason
+                    onClicked: {
+                        if (window.panelAllowed)
+                            window.panelVisible = !window.panelVisible
+                        else
+                            toast.show(window.panelLockReason, false)
+                    }
                 }
                 StyledToolButton {
-                    text: "📋"
+                    iconName: "log"
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Log and diagnostics (Ctrl+L)")
                     onClicked: diagnosticsDialog.open()
                 }
                 ThemeSwitcher {}
                 StyledToolButton {
-                    text: "⚙"
+                    iconName: "settings"
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Settings (Ctrl+,)")
                     onClicked: { settingsDialog.loadValues(); settingsDialog.open() }
@@ -162,28 +278,42 @@ ApplicationWindow {
             }
         }
 
-        // ───────────────────────────── corpo
+        // ───────────────────────────── body
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 0
 
-            StreamArea {
+            GamesView {
+                visible: window.view === "games"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                onBack: window.view = "home"
+            }
+
+            StreamArea {
+                visible: window.view !== "games"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                // Back to the home page: whatever was open on top of the
+                // cards gets out of the way of the console just registered.
+                onRegisteredHere: {
+                    settingsDialog.close()
+                    firstRunWizard.close()
+                }
             }
 
             Item {
                 Layout.fillHeight: true
-                Layout.preferredWidth: 440
-                visible: window.panelVisible && !window.streamFullscreen
+                Layout.preferredWidth: 380
+                visible: window.panelShown
 
                 Rectangle {
                     anchors.fill: parent
                     anchors.rightMargin: Theme.gutter
-                    anchors.topMargin: 6
-                    anchors.bottomMargin: Theme.gutter
-                    anchors.leftMargin: 6
+                    anchors.topMargin: 4
+                    anchors.bottomMargin: 4
+                    anchors.leftMargin: 8
                     radius: Theme.radius
                     color: Theme.panelFill
                     border.width: 1
@@ -193,74 +323,88 @@ ApplicationWindow {
                     Rectangle {
                         anchors.fill: parent
                         radius: parent.radius
+                        visible: Theme.glassHighlight > 0
                         gradient: Gradient {
-                            GradientStop {
-                                position: 0.0
-                                color: Qt.rgba(1, 1, 1, Theme.glassHighlight)
-                            }
+                            GradientStop { position: 0.0; color: Theme.glassSheen }
                             GradientStop { position: 0.4; color: "transparent" }
                         }
                     }
 
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 14
-                    spacing: 10
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        spacing: 12
 
-                    TabBar {
-                        id: tabs
-                        Layout.fillWidth: true
-                        currentIndex: demoTab
-                        background: Rectangle { color: "transparent" }
+                        // Queue and files as a segmented control.
+                        // Without FTP on the console there is only the queue: no tabs.
+                        TabBar {
+                            id: tabs
+                            visible: !window.ftpAbsent
+                            Layout.fillWidth: true
+                            currentIndex: demoTab
+                            padding: 4
+                            spacing: 4
+                            background: Rectangle {
+                                radius: 12
+                                color: Theme.controlFill
+                                border.width: 1
+                                border.color: Theme.glassEdge
+                            }
 
-                        StyledTab {
-                            text: app.queue.count > 0 ? qsTr("Queue (%1)").arg(app.queue.count)
-                                                      : qsTr("Queue")
+                            StyledTab {
+                                text: transferPanel.cardCount > 0 ? qsTr("Queue (%1)").arg(transferPanel.cardCount)
+                                                                  : qsTr("Queue")
+                            }
+                            StyledTab { text: qsTr("Files (FTP)") }
                         }
-                        StyledTab { text: qsTr("Files (FTP)") }
-                    }
 
-                    StackLayout {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        currentIndex: tabs.currentIndex
+                        StackLayout {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            currentIndex: window.ftpAbsent ? 0 : tabs.currentIndex
 
-                        TransferPanel { }
-                        FtpBrowser { }
+                            TransferPanel { id: transferPanel }
+                            FtpBrowser { }
+                        }
                     }
-                }
                 }
             }
         }
 
-        // ───────────────────────────── barra de estado
+        // ───────────────────────────── status line
         Item {
             Layout.fillWidth: true
             visible: !window.streamFullscreen
-            implicitHeight: visible ? 34 : 0
+            implicitHeight: visible ? 40 : 0
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: Theme.gutter + 20
-                anchors.rightMargin: Theme.gutter + 20
-                spacing: 14
+                anchors.leftMargin: Theme.gutter + 6
+                anchors.rightMargin: Theme.gutter + 6
+                spacing: 16
 
+                Icon {
+                    visible: app.statusMessage.length > 0
+                    name: "check-circle"
+                    size: 14
+                    color: Theme.ok
+                }
                 Text {
                     Layout.fillWidth: true
                     text: app.statusMessage
                     color: Theme.textSecondary
-                    font.pixelSize: 11
+                    font.pixelSize: 12
                     elide: Text.ElideRight
                 }
                 Text {
                     text: qsTr("Local HTTP: %1").arg(app.httpServerAddress)
                     color: Theme.textSecondary
-                    font.pixelSize: 11
+                    font.pixelSize: 12
                 }
                 Text {
                     text: "v" + app.version
-                    color: Qt.rgba(Theme.textMuted.r, Theme.textMuted.g, Theme.textMuted.b, 0.3)
-                    font.pixelSize: 11
+                    color: Theme.alpha(Theme.textSecondary, 0.7)
+                    font.pixelSize: 12
                 }
             }
         }
@@ -276,7 +420,9 @@ ApplicationWindow {
             // diagnostics, Windows did not deliver the event, and then the
             // problem is not here.
             app.noteDrag("entered", drag.hasUrls)
-            if (!drag.hasUrls) {
+            // A row of the FTP list being dragged: it is for the list's
+            // folders, not an upload.
+            if (!drag.hasUrls || drag.formats.indexOf("application/x-orbislink-ftp-path") >= 0) {
                 drag.accepted = false
                 return
             }
@@ -309,12 +455,19 @@ ApplicationWindow {
         }
     }
     DiagnosticsDialog { id: diagnosticsDialog }
+    UploadConflictDialog { id: uploadConflictDialog }
     FirstRunWizard { id: firstRunWizard }
     UpdateDialog { id: updateDialog }
 
     Connections {
         target: app
         function onUpdateAvailable(version) { updateDialog.open() }
+        function onUploadConflicts(conflicts) { uploadConflictDialog.begin(conflicts) }
+        // Files were queued: show where they can be followed.
+        function onShowPanel(which) {
+            window.panelVisible = true
+            tabs.currentIndex = which === "files" ? 1 : 0
+        }
     }
 
     // Only for screenshots and for the full-screen test.
@@ -351,7 +504,7 @@ ApplicationWindow {
             return
         }
         var values = app.settingsMap()
-        Theme.apply(values.theme)
+        Theme.apply(values.theme, app.themeColors)
         applySystemFrame()
     }
 
@@ -373,6 +526,7 @@ ApplicationWindow {
     Connections {
         target: app
         function onSettingsChanged() { window.applyTheme() }
+        function onThemeColorsChanged() { window.applyTheme() }
     }
 
     Component.onCompleted: {
