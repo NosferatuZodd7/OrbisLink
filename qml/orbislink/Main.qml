@@ -8,6 +8,9 @@ ApplicationWindow {
     id: window
     width: 1280
     height: 800
+    // The top bar fits from here, at its most compact.
+    minimumWidth: 880
+    minimumHeight: 560
     visible: true
     color: Theme.background
     title: qsTr("OrbisLink — %1").arg(app.consoleName)
@@ -103,10 +106,36 @@ ApplicationWindow {
             }
 
             RowLayout {
+                id: barRow
                 anchors.fill: topBar
                 anchors.leftMargin: 14
                 anchors.rightMargin: 12
                 spacing: 10
+
+                // A narrow window squeezes the bar instead of pushing its
+                // right end out: 1 — the services become dots and the page
+                // buttons icons; 2 — the console's name and address go too
+                // (the console chip still shows it). It widens again only
+                // with room to spare, so it never flickers between the two.
+                property int squeeze: 0
+                readonly property real saving1: remotePlayDot.labelWidth + ftpDot.labelWidth
+                    + installerDot.labelWidth + gamesText.width + 8
+                    + (backButton.visible ? backText.width + 8 : 0)
+                readonly property real saving2: consoleInfo.implicitWidth + spacing + 2
+                function fit() {
+                    var need = implicitWidth
+                    if (need > width + 0.5 && squeeze < 2)
+                        squeeze += 1
+                    else if (squeeze === 2 && need + saving2 + 16 <= width)
+                        squeeze = 1
+                    else if (squeeze === 1 && need + saving1 + 16 <= width)
+                        squeeze = 0
+                }
+                onWidthChanged: Qt.callLater(fit)
+                onImplicitWidthChanged: Qt.callLater(fit)
+                Component.onCompleted: Qt.callLater(fit)
+                TextMetrics { id: gamesText; font.pixelSize: 12; font.weight: Font.Medium; text: qsTr("PS1/PS2 Games") }
+                TextMetrics { id: backText; font.pixelSize: 12; font.weight: Font.DemiBold; text: qsTr("Back to Remote Play") }
 
                 // The app's symbol as the console's avatar.
                 Rectangle {
@@ -128,6 +157,8 @@ ApplicationWindow {
                 }
 
                 ColumnLayout {
+                    id: consoleInfo
+                    visible: barRow.squeeze < 2
                     spacing: 1
                     Layout.leftMargin: 2
                     Text {
@@ -149,30 +180,33 @@ ApplicationWindow {
                 // Away from a Remote Play session that is still running: one
                 // click goes back to the picture.
                 StyledButton {
+                    id: backButton
                     readonly property bool live: typeof stream !== "undefined" && stream !== null
                                                  && stream.streaming
                     visible: live && window.view !== "home"
-                    text: qsTr("Back to Remote Play")
+                    text: barRow.squeeze > 0 ? "" : qsTr("Back to Remote Play")
                     iconName: "gamepad"
                     chip: true
                     primary: true
                     implicitHeight: 36
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("The session is still running")
+                    ToolTip.text: barRow.squeeze > 0 ? qsTr("Back to Remote Play") + " — " + qsTr("The session is still running")
+                                                     : qsTr("The session is still running")
                     onClicked: window.view = "home"
                 }
 
                 // PS1/PS2 games: a page of its own, in place of the consoles.
                 StyledButton {
                     visible: games.available
-                    text: qsTr("PS1/PS2 Games")
+                    text: barRow.squeeze > 0 ? "" : qsTr("PS1/PS2 Games")
                     iconName: "disc"
                     chip: true
                     primary: window.view === "games"
                     implicitHeight: 36
                     ToolTip.visible: hovered
-                    ToolTip.text: window.view === "games" ? qsTr("Back to the consoles")
-                                                          : qsTr("Find PS1 and PS2 discs on this PC, convert them into packages and install them on the console")
+                    ToolTip.text: (barRow.squeeze > 0 ? qsTr("PS1/PS2 Games") + " — " : "")
+                                  + (window.view === "games" ? qsTr("Back to the consoles")
+                                     : qsTr("Find PS1 and PS2 discs on this PC, convert them into packages and install them on the console"))
                     onClicked: window.view = window.view === "games" ? "home" : "games"
                 }
                 Item { implicitWidth: 6 }
@@ -183,16 +217,22 @@ ApplicationWindow {
                 }
 
                 ServiceIndicator {
+                    id: remotePlayDot
+                    compact: barRow.squeeze > 0
                     label: qsTr("Remote Play")
                     state_: app.remotePlayState
                     hint: app.remotePlayHint
                 }
                 ServiceIndicator {
+                    id: ftpDot
+                    compact: barRow.squeeze > 0
                     label: qsTr("FTP")
                     state_: app.ftpState
                     hint: app.ftpHint
                 }
                 ServiceIndicator {
+                    id: installerDot
+                    compact: barRow.squeeze > 0
                     label: qsTr("Installer")
                     state_: app.installerState
                     hint: app.installerHint

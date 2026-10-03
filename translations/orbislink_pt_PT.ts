@@ -1570,97 +1570,102 @@
 <context>
     <name>Main</name>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="13"/>
+        <location filename="../qml/orbislink/Main.qml" line="16"/>
         <source>OrbisLink — %1</source>
         <translation>OrbisLink — %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="27"/>
+        <location filename="../qml/orbislink/Main.qml" line="30"/>
         <source>This console only offers Remote Play: it has neither FTP nor the remote installer running (a jailbreak adds them).</source>
         <translation>Esta consola só oferece Remote Play: não tem FTP nem o instalador remoto a correr (um jailbreak acrescenta-os).</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="141"/>
+        <location filename="../qml/orbislink/Main.qml" line="172"/>
         <source>no address set</source>
         <translation>sem endereço definido</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="155"/>
+        <location filename="../qml/orbislink/Main.qml" line="138"/>
+        <location filename="../qml/orbislink/Main.qml" line="187"/>
+        <location filename="../qml/orbislink/Main.qml" line="193"/>
         <source>Back to Remote Play</source>
         <translation>Voltar ao Remote Play</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="161"/>
+        <location filename="../qml/orbislink/Main.qml" line="193"/>
+        <location filename="../qml/orbislink/Main.qml" line="194"/>
         <source>The session is still running</source>
         <translation>A sessão continua ativa</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="168"/>
+        <location filename="../qml/orbislink/Main.qml" line="137"/>
+        <location filename="../qml/orbislink/Main.qml" line="201"/>
+        <location filename="../qml/orbislink/Main.qml" line="207"/>
         <source>PS1/PS2 Games</source>
         <translation>Jogos PS1/PS2</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="174"/>
+        <location filename="../qml/orbislink/Main.qml" line="208"/>
         <source>Back to the consoles</source>
         <translation>Voltar às consolas</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="175"/>
+        <location filename="../qml/orbislink/Main.qml" line="209"/>
         <source>Find PS1 and PS2 discs on this PC, convert them into packages and install them on the console</source>
         <translation>Encontra discos de PS1 e PS2 neste PC, converte-os em pacotes e instala-os na consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="186"/>
+        <location filename="../qml/orbislink/Main.qml" line="222"/>
         <source>Remote Play</source>
         <translation>Remote Play</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="191"/>
+        <location filename="../qml/orbislink/Main.qml" line="229"/>
         <source>FTP</source>
         <translation>FTP</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="196"/>
+        <location filename="../qml/orbislink/Main.qml" line="236"/>
         <source>Installer</source>
         <translation>Instalador</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="206"/>
+        <location filename="../qml/orbislink/Main.qml" line="246"/>
         <source>Check the services now</source>
         <translation>Verificar serviços agora</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="214"/>
+        <location filename="../qml/orbislink/Main.qml" line="254"/>
         <source>Side panel (F9)</source>
         <translation>Painel lateral (F9)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="225"/>
+        <location filename="../qml/orbislink/Main.qml" line="265"/>
         <source>Log and diagnostics (Ctrl+L)</source>
         <translation>Registo e diagnóstico (Ctrl+L)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="232"/>
+        <location filename="../qml/orbislink/Main.qml" line="272"/>
         <source>Settings (Ctrl+,)</source>
         <translation>Definições (Ctrl+,)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="312"/>
+        <location filename="../qml/orbislink/Main.qml" line="352"/>
         <source>Queue (%1)</source>
         <translation>Fila (%1)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="313"/>
+        <location filename="../qml/orbislink/Main.qml" line="353"/>
         <source>Queue</source>
         <translation>Fila</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="315"/>
+        <location filename="../qml/orbislink/Main.qml" line="355"/>
         <source>Files (FTP)</source>
         <translation>Ficheiros (FTP)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="357"/>
+        <location filename="../qml/orbislink/Main.qml" line="397"/>
         <source>Local HTTP: %1</source>
         <translation>HTTP local: %1</translation>
     </message>

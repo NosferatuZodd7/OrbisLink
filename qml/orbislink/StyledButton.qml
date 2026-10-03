@@ -24,7 +24,8 @@ Button {
     // than its text.
     property int minimumWidth: 0
 
-    readonly property real iconSpace: iconName.length > 0 ? (chip ? 14 : 16) + 8 : 0
+    // Icon and text, or the icon alone when there is no text.
+    readonly property real iconSpace: iconName.length > 0 ? (chip ? 14 : 16) + (text.length > 0 ? 8 : 0) : 0
     implicitWidth: Math.max(minimumWidth, keyLabel.implicitWidth + iconSpace + leftPadding + rightPadding)
     implicitHeight: chip ? 30 : Theme.controlHeight
     // Side padding only: 20 above plus 20 below would not fit in the height.
@@ -115,6 +116,7 @@ Button {
             }
             Text {
                 id: keyLabel
+                visible: text.length > 0
                 anchors.verticalCenter: parent.verticalCenter
                 width: Math.min(implicitWidth, Math.max(0, button.availableWidth - button.iconSpace))
                 text: button.text

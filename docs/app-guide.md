@@ -41,6 +41,11 @@ Three jobs, around one PlayStation at a time — the **console in use**:
 
 ## Top bar
 
+In a narrow window the bar squeezes instead of overflowing: first the
+service pills become dots and the page buttons icons (names in their
+tooltips), then the console's name and address on the left go (the console
+chip still shows it). The window cannot be made narrower than where that fits.
+
 | Item | What it shows | Click |
 |---|---|---|
 | Logo, name, IP | The console in use. | — |

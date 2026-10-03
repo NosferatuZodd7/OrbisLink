@@ -10,8 +10,12 @@ Item {
     property string label: ""
     property string state_: "unknown"
     property string hint: ""
+    // Narrow window: the dot alone; the name moves to the tooltip.
+    property bool compact: false
+    // What the name takes up, so the top bar knows what compact saves.
+    readonly property real labelWidth: nameText.implicitWidth + row.spacing
 
-    implicitWidth: row.implicitWidth + 28
+    implicitWidth: compact ? implicitHeight : row.implicitWidth + 28
     implicitHeight: 32
 
     readonly property color tone: Theme.stateColor(root.state_)
@@ -52,6 +56,8 @@ Item {
         }
 
         Text {
+            id: nameText
+            visible: !root.compact
             anchors.verticalCenter: parent.verticalCenter
             text: root.label
             color: Theme.text
@@ -60,8 +66,9 @@ Item {
         }
     }
 
-    ToolTip.visible: hoverHandler.hovered && root.hint.length > 0
-    ToolTip.text: root.hint
+    ToolTip.visible: hoverHandler.hovered && (root.compact || root.hint.length > 0)
+    ToolTip.text: root.compact ? (root.hint.length > 0 ? root.label + " — " + root.hint : root.label)
+                               : root.hint
     ToolTip.delay: 200
     HoverHandler { id: hoverHandler }
 }
