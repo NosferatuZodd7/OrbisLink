@@ -708,4 +708,242 @@ std::string SaveVault::gameIcon(SaveRemote *remote, const std::string &titleId)
 	return local;
 }
 
+// ── FolderRemote
+
+std::string FolderRemote::at(const std::string &path) const
+{
+	std::string rel = path;
+	while(!rel.empty() && rel.front() == '/')
+		rel.erase(rel.begin());
+	return rel.empty() ? root_ : joinPath(root_, rel);
+}
+
+bool FolderRemote::list(const std::string &dir, std::vector<FtpEntry> *entries, std::string *error)
+{
+	entries->clear();
+	std::error_code failure;
+	fs::directory_iterator it(fs::u8path(at(dir)), failure);
+	if(failure)
+	{
+		if(error)
+			*error = failure.message();
+		return false;
+	}
+	for(const auto &entry : it)
+	{
+		FtpEntry item;
+		item.name = entry.path().filename().u8string();
+		item.path = (dir == "/" ? std::string() : dir) + "/" + item.name;
+		std::error_code ignored;
+		item.isDirectory = entry.is_directory(ignored);
+		item.size = item.isDirectory ? 0 : static_cast<int64_t>(entry.file_size(ignored));
+		entries->push_back(item);
+	}
+	return true;
+}
+
+bool FolderRemote::download(const std::string &remote, const std::string &local, std::string *error)
+{
+	std::error_code failure;
+	fs::copy_file(fs::u8path(at(remote)), fs::u8path(local), fs::copy_options::overwrite_existing, failure);
+	if(failure && error)
+		*error = failure.message();
+	return !failure;
+}
+
+bool FolderRemote::upload(const std::string &local, const std::string &remote, std::string *error)
+{
+	std::error_code failure;
+	fs::copy_file(fs::u8path(local), fs::u8path(at(remote)), fs::copy_options::overwrite_existing, failure);
+	if(failure && error)
+		*error = failure.message();
+	return !failure;
+}
+
+bool FolderRemote::makeDirectory(const std::string &dir)
+{
+	std::error_code ignored;
+	return fs::create_directory(fs::u8path(at(dir)), ignored);
+}
+
+bool FolderRemote::removeFile(const std::string &path, std::string *error)
+{
+	std::error_code failure;
+	fs::remove(fs::u8path(at(path)), failure);
+	if(failure && error)
+		*error = failure.message();
+	return !failure;
+}
+
+bool FolderRemote::removeDirectory(const std::string &path)
+{
+	std::error_code ignored;
+	return fs::remove(fs::u8path(at(path)), ignored);
+}
+
+// ── The PS4's USB layout
+
+namespace {
+
+std::string usbRoot(const std::string &base)
+{
+	return (base == "/" ? std::string() : base) + "/PS4/SAVEDATA";
+}
+
+bool isPsid(const std::string &name)
+{
+	return name.size() == 16 && std::all_of(name.begin(), name.end(),
+		[](char c) { return std::isxdigit(static_cast<unsigned char>(c)) != 0; });
+}
+
+// The PSID's bytes as param.sfo stores them (little-endian), in hex: the
+// PSID folder name is the number written the usual way (big-endian).
+std::string storedAccountId(const std::string &psid)
+{
+	std::string out;
+	for(size_t i = psid.size(); i >= 2; i -= 2)
+		out += psid.substr(i - 2, 2);
+	return toLower(out);
+}
+
+} // namespace
+
+bool SaveVault::exportToUsb(SaveRemote &target, const std::string &base, const SaveInfo &save,
+	const std::string &psid, std::string *error)
+{
+	if(!isPsid(psid))
+	{
+		if(error)
+			*error = "No PSID for this save's account.";
+		return false;
+	}
+	const std::string latest = latestVersion(save);
+	const std::string image = joinPath(joinPath(latest, "savedata"), "sdimg_" + save.dir);
+	const std::string key = joinPath(joinPath(latest, "savedata"), save.dir + ".bin");
+	if(latest.empty() || !fileExists(image) || !fileExists(key))
+	{
+		if(error)
+			*error = "This save has no complete backup in the vault.";
+		return false;
+	}
+	const std::string root = usbRoot(base);
+	const std::string psidDir = root + "/" + toLower(psid);
+	const std::string titleDir = psidDir + "/" + save.titleId;
+	for(const std::string &dir : { (base == "/" ? std::string() : base) + "/PS4", root, psidDir, titleDir })
+		ensureRemoteDir(target, dir);
+	if(!target.upload(image, titleDir + "/" + save.dir, error)
+		|| !target.upload(key, titleDir + "/" + save.dir + ".bin", error))
+		return false;
+
+	// Both there, and whole.
+	std::vector<FtpEntry> entries;
+	std::string listError;
+	target.list(titleDir, &entries, &listError);
+	auto sizeOf = [&](const std::string &name) -> int64_t {
+		for(const FtpEntry &entry : entries)
+			if(entry.name == name)
+				return entry.size;
+		return -1;
+	};
+	if(sizeOf(save.dir) != fileSize(image) || sizeOf(save.dir + ".bin") != fileSize(key))
+	{
+		if(error)
+			*error = "The copy on the USB drive is not whole.";
+		return false;
+	}
+	logInfo("Saves: exported to USB " + save.key());
+	return true;
+}
+
+std::vector<UsbSave> SaveVault::usbSaves(SaveRemote &source, const std::string &base, std::string *error)
+{
+	std::vector<UsbSave> found;
+	std::vector<FtpEntry> psids;
+	if(!source.list(usbRoot(base), &psids, error))
+		return found;
+	for(const FtpEntry &psid : psids)
+	{
+		if(!psid.isDirectory || !isPsid(psid.name))
+			continue;
+		std::vector<FtpEntry> titles;
+		std::string listError;
+		if(!source.list(usbRoot(base) + "/" + psid.name, &titles, &listError))
+			continue;
+		for(const FtpEntry &title : titles)
+		{
+			if(!title.isDirectory)
+				continue;
+			std::vector<FtpEntry> files;
+			if(!source.list(usbRoot(base) + "/" + psid.name + "/" + title.name, &files, &listError))
+				continue;
+			for(const FtpEntry &file : files)
+			{
+				if(file.isDirectory || endsWith(file.name, ".bin"))
+					continue;
+				const auto key = std::find_if(files.begin(), files.end(),
+					[&](const FtpEntry &other) { return other.name == file.name + ".bin"; });
+				if(key == files.end())
+					continue;
+				found.push_back({ toLower(psid.name), title.name, file.name, file.size, key->size,
+					file.modified });
+			}
+		}
+	}
+	return found;
+}
+
+bool SaveVault::importFromUsb(SaveRemote &source, const std::string &base, const UsbSave &usb,
+	const std::string &account, std::string *error)
+{
+	SaveInfo save;
+	save.account = account;
+	save.titleId = usb.titleId;
+	save.dir = usb.dir;
+	if(!isAccountId(account) || !safeRelative("savedata/" + usb.dir) || !safeRelative("savedata/" + usb.titleId))
+	{
+		if(error)
+			*error = "Not a save this vault can keep.";
+		return false;
+	}
+	std::string version = joinPath(saveFolder(save), localStamp("%Y%m%d-%H%M%S"));
+	for(int n = 2; directoryExists(version); ++n)
+		version = joinPath(saveFolder(save), localStamp("%Y%m%d-%H%M%S") + "-" + std::to_string(n));
+	const std::string from = usbRoot(base) + "/" + usb.psid + "/" + usb.titleId + "/";
+	const std::string data = joinPath(version, "savedata");
+	ensureDir(data);
+	const std::string image = joinPath(data, "sdimg_" + usb.dir);
+	const std::string key = joinPath(data, usb.dir + ".bin");
+	if(!source.download(from + usb.dir, image, error) || !source.download(from + usb.dir + ".bin", key, error)
+		|| fileSize(image) != usb.imageSize || fileSize(key) != usb.keySize)
+	{
+		if(error && error->empty())
+			*error = "Incomplete copy from the USB drive.";
+		std::error_code ignored;
+		fs::remove_all(fs::u8path(version), ignored);
+		return false;
+	}
+	std::vector<SaveFile> files = { { "savedata/sdimg_" + usb.dir, usb.imageSize, std::string() },
+		{ "savedata/" + usb.dir + ".bin", usb.keySize, std::string() } };
+	Json info = Json::makeObject();
+	info.set("account", Json::fromString(account));
+	info.set("title_id", Json::fromString(usb.titleId));
+	info.set("dir", Json::fromString(usb.dir));
+	info.set("account_id", Json::fromString(storedAccountId(usb.psid)));
+	info.set("backed_up_at", Json::fromString(localStamp("%Y-%m-%d %H:%M")));
+	info.set("from_usb", Json::fromBool(true));
+	info.set("files", filesToJson(files));
+	std::ofstream out(fs::u8path(joinPath(version, "vault.json")), std::ios::binary | std::ios::trunc);
+	out << info.dump();
+	if(!out)
+	{
+		if(error)
+			*error = "Could not write to the vault folder.";
+		return false;
+	}
+	out.close();
+	prune(save);
+	logInfo("Saves: imported from USB " + save.key());
+	return true;
+}
+
 } // namespace orbislink

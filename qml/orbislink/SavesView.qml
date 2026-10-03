@@ -19,26 +19,42 @@ Item {
     // "all", "console" (not backed up), "changed", "vault" (missing on the console).
     property string filter: "all"
     property var selected: ({})
-    // The PSN account shown: "" every one, "-" saves with none, else a PSID.
+    // The console user shown (its folder under /user/home): "" every one.
     property string account: ""
     function inAccount(s) {
-        return account === "" || (account === "-" ? s.psid.length === 0 : s.psid === account)
+        return account === "" || s.account === account
     }
-    // Each account found in the saves: its PSID, and its name if it is one
-    // of the Account IDs kept in the app (Settings → Account IDs).
+    // Each console user found in the saves: its name (the Account ID linked
+    // to it, or the one its saves name), and its PSID as the PS4 names its
+    // USB folders, which the USB copies need.
     readonly property var accounts: {
         var seen = {}
         var list = []
         for (var i = 0; i < saves.saves.length; ++i) {
             var s = saves.saves[i]
-            var id = s.psid.length > 0 ? s.psid : "-"
-            if (seen[id] === undefined) {
-                seen[id] = list.length
-                list.push({ psid: id, name: s.psidName, count: 0 })
+            if (seen[s.account] === undefined) {
+                seen[s.account] = list.length
+                list.push({ user: s.account, name: "", psidFolder: "", linked: false, count: 0 })
             }
-            list[seen[id]].count++
+            var e = list[seen[s.account]]
+            e.count++
+            if (e.name.length === 0)
+                e.name = s.userName.length > 0 ? s.userName : s.psidName
+            if (e.psidFolder.length === 0)
+                e.psidFolder = s.psidFolder
+            if (s.linked)
+                e.linked = true
         }
         return list
+    }
+    function userLabel(e) {
+        return e.name.length > 0 ? e.name : qsTr("User %1").arg(e.user)
+    }
+    readonly property var shownUser: {
+        for (var i = 0; i < accounts.length; ++i)
+            if (accounts[i].user === account)
+                return accounts[i]
+        return null
     }
     function accountLabel(psid, name) {
         if (psid === "-" || psid.length === 0)
@@ -108,11 +124,17 @@ Item {
         if (kept.length > 0)
             saves.backup(kept)
     }
-    // Putting back always asks first.
+    // Putting back always asks first, and how.
     function askRestore(keys) {
-        var kept = withoutOpenGame(keys)
-        if (kept.length > 0)
-            confirmRestore.ask(kept)
+        if (keys.length > 0)
+            confirmRestore.ask(keys)
+    }
+    // Copies for the PS4's USB menu; when they are written, how to bring
+    // them in on the PS4.
+    property bool usbHelpPending: false
+    function exportToUsb(keys, where) {
+        usbHelpPending = true
+        saves.exportToUsb(keys, where)
     }
 
     function isSelected(key) { return selected[key] === true }
@@ -149,7 +171,16 @@ Item {
                     next[saves.saves[i].key] = true
             root.selected = next
         }
-        function onFinished(message, error) { toast.show(message, error) }
+        function onFinished(message, error) {
+            if (root.usbHelpPending && !error) {
+                root.usbHelpPending = false
+                usbHelp.message = message
+                usbHelp.open()
+                return
+            }
+            root.usbHelpPending = false
+            toast.show(message, error)
+        }
     }
 
     Rectangle {
@@ -217,6 +248,13 @@ Item {
                     onClicked: vaultFolderDialog.open()
                 }
                 StyledToolButton {
+                    iconName: "hard-drive"
+                    enabled: !saves.busy
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Bring saves from a USB drive")
+                    onClicked: usbImport.open()
+                }
+                StyledToolButton {
                     iconName: saves.busy ? "loader" : "refresh"
                     enabled: !saves.busy
                     ToolTip.visible: hovered
@@ -271,7 +309,7 @@ Item {
                         visible: root.selectedCount > 0 && !saves.busy
                         iconName: "archive-restore"
                         text: qsTr("Put back")
-                        enabled: root.online && root.countWhere(function (s) { return s.inVault }) > 0
+                        enabled: root.countWhere(function (s) { return s.inVault }) > 0
                         onClicked: root.askRestore(root.selectedKeys())
                     }
                     StyledButton {
@@ -292,6 +330,9 @@ Item {
                     ColumnLayout {
                         visible: root.selectedCount === 0 || saves.busy
                         Layout.fillWidth: true
+                        // Its width comes from the row alone: the long lines
+                        // wrap to it instead of asking for more.
+                        Layout.preferredWidth: 1
                         spacing: 4
                         Text {
                             Layout.fillWidth: true
@@ -323,14 +364,16 @@ Item {
                         Text {
                             visible: !saves.busy && root.openGame.length > 0
                             Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
-                            text: qsTr("%1 is open on the console: its saves stay as they are until it closes.")
+                            elide: Text.ElideRight
+                            text: qsTr("%1 is open: its saves wait until it closes.")
                                   .arg(root.openGameName.length > 0 ? root.openGameName : root.openGame)
                             color: Theme.warn
                             font.pixelSize: 12
                         }
                         Text {
                             visible: !saves.busy && root.counts.vault > 0 && root.online
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
                             text: qsTr("%n save(s) only in the vault — missing on the console.", "", root.counts.vault)
                             color: Theme.textSecondary
                             font.pixelSize: 12
@@ -369,17 +412,17 @@ Item {
                 }
             }
 
-            // ── whose saves: one chip per PSN account found
+            // ── whose saves: one chip per console user
             Flow {
                 Layout.fillWidth: true
-                visible: root.accounts.length > 1
-                         || (root.accounts.length === 1 && root.accounts[0].psid !== "-")
+                visible: root.accounts.length > 0
                 spacing: 6
                 StyledButton {
+                    visible: root.accounts.length > 1
                     chip: true
                     iconName: "users"
                     primary: root.account === ""
-                    text: qsTr("All accounts")
+                    text: qsTr("All users")
                     onClicked: { root.account = ""; root.selected = ({}) }
                 }
                 Repeater {
@@ -388,16 +431,29 @@ Item {
                         required property var modelData
                         chip: true
                         iconName: "user"
-                        primary: root.account === modelData.psid
-                        text: root.accountLabel(modelData.psid, modelData.name) + "  " + modelData.count
+                        primary: root.account === modelData.user
+                        text: root.userLabel(modelData) + "  " + modelData.count
                         Layout.maximumWidth: 280
-                        ToolTip.visible: hovered && modelData.psid !== "-"
-                        ToolTip.text: modelData.name.length > 0
-                                      ? qsTr("%1 — PSID %2").arg(modelData.name).arg(modelData.psid)
-                                      : qsTr("PSID %1. Add it under Settings → Account IDs to see its name here.")
-                                            .arg(modelData.psid)
-                        onClicked: { root.account = modelData.psid; root.selected = ({}) }
+                        ToolTip.visible: hovered
+                        ToolTip.text: modelData.psidFolder.length > 0
+                                      ? qsTr("Console user %1 · PSID %2").arg(modelData.user).arg(modelData.psidFolder)
+                                      : qsTr("Console user %1 · PSID unknown: link it to an Account ID to copy its saves to USB.")
+                                            .arg(modelData.user)
+                        onClicked: { root.account = modelData.user; root.selected = ({}) }
                     }
+                }
+                // The shown user's link to an Account ID: names it, and gives
+                // the PSID its USB copies go under.
+                StyledButton {
+                    readonly property var user: root.accounts.length === 1 ? root.accounts[0] : root.shownUser
+                    visible: user !== null
+                    chip: true
+                    iconName: "link"
+                    text: user === null ? "" : user.linked ? qsTr("Change the link…")
+                        : user.psidFolder.length > 0 ? qsTr("Link…") : qsTr("Link to an Account ID…")
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Which of the app's Account IDs this console user is")
+                    onClicked: linkDialog.ask(user)
                 }
             }
 
@@ -687,7 +743,7 @@ Item {
                     color: Theme.textMuted
                     font.pixelSize: 11
                     text: qsTr("Saves are kept exactly as the console has them: they go back to the same "
-                               + "console and account. Close the game before putting its save back.")
+                               + "console and account. To put one back, the PS4's own USB copy is the sure way.")
                 }
             }
         }
@@ -775,24 +831,37 @@ Item {
         }
     }
 
-    // Putting back asks first: what it does, and what it needs.
+    // Putting back asks first, and offers two ways. Through USB the PS4
+    // copies the saves back itself and lists them; straight over the
+    // console's copy is quicker, but the PS4 only keeps it for a save it
+    // still lists, and never while its game runs.
     Dialog {
         id: confirmRestore
         parent: Overlay.overlay
         anchors.centerIn: parent
-        width: 500
+        width: Math.min(560, parent.width - 32)
         modal: true
         padding: 0
         property var keys: []
         // Of those, how many the console no longer lists.
         property int missing: 0
+        // How many have no PSID known: their USB folder has no name.
+        property int noPsid: 0
         function ask(chosen) {
             keys = chosen
-            var n = 0
-            for (var i = 0; i < saves.saves.length; ++i)
-                if (chosen.indexOf(saves.saves[i].key) >= 0 && !saves.saves[i].onConsole)
-                    ++n
-            missing = n
+            var gone = 0
+            var unknown = 0
+            for (var i = 0; i < saves.saves.length; ++i) {
+                var s = saves.saves[i]
+                if (chosen.indexOf(s.key) < 0)
+                    continue
+                if (!s.onConsole)
+                    ++gone
+                if (s.psidFolder.length === 0)
+                    ++unknown
+            }
+            missing = gone
+            noPsid = unknown
             open()
         }
 
@@ -803,62 +872,313 @@ Item {
             radius: Theme.radiusDialog
         }
         header: DialogHeader {
-            title: qsTr("Put back %n save(s)?", "", confirmRestore.keys.length)
+            title: qsTr("Put back %n save(s)", "", confirmRestore.keys.length)
             dialog: confirmRestore
         }
         contentItem: ColumnLayout {
-            spacing: 10
-            Repeater {
-                model: [
-                    qsTr("The game must be closed (the PS4 on its home screen): a save written while "
-                         + "its game runs comes out corrupted."),
-                    qsTr("The console's copy is replaced by the latest backup. They go back to the "
-                         + "console and account they came from.")
-                ]
-                RowLayout {
-                    required property string modelData
-                    Layout.fillWidth: true
-                    Layout.leftMargin: Theme.dialogMargin
-                    Layout.rightMargin: Theme.dialogMargin
-                    spacing: 10
-                    Icon {
-                        Layout.alignment: Qt.AlignTop
-                        Layout.topMargin: 2
-                        name: "info"
-                        size: 14
-                        color: Theme.textSecondary
+            spacing: 12
+
+            // ── through USB: the PS4's own way
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                Layout.topMargin: 4
+                implicitHeight: usbColumn.implicitHeight + 28
+                radius: 14
+                color: Theme.accentFill
+                border.width: 1
+                border.color: Theme.alpha(Theme.accent, 0.5)
+                ColumnLayout {
+                    id: usbColumn
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 16
+                    anchors.rightMargin: 16
+                    spacing: 8
+                    RowLayout {
+                        spacing: 8
+                        Icon {
+                            name: "hard-drive"
+                            size: 16
+                            color: Theme.accent
+                        }
+                        Text {
+                            text: qsTr("Through a USB drive")
+                            color: Theme.text
+                            font.pixelSize: 14
+                            font.weight: Font.DemiBold
+                        }
+                        Text {
+                            text: qsTr("recommended")
+                            color: Theme.accent
+                            font.pixelSize: 11
+                            font.weight: Font.DemiBold
+                        }
                     }
                     Text {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         color: Theme.textSecondary
+                        font.pixelSize: 12
+                        text: qsTr("The saves are written as the PS4 copies saves to USB, and the PS4 copies "
+                                   + "them back itself — so it lists them again, even the ones it lost.")
+                    }
+                    Text {
+                        visible: confirmRestore.noPsid > 0
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: Theme.warn
+                        font.pixelSize: 12
+                        text: qsTr("%n of them have no PSID known: link their console user to an Account ID "
+                                   + "first (the user chips at the top).", "", confirmRestore.noPsid)
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        StyledButton {
+                            primary: true
+                            iconName: "hard-drive"
+                            text: qsTr("To the USB drive in the PS4")
+                            enabled: root.online
+                            ToolTip.visible: hovered && !root.online
+                            ToolTip.text: qsTr("The console's FTP is not answering.")
+                            onClicked: {
+                                root.exportToUsb(confirmRestore.keys, "console")
+                                confirmRestore.close()
+                            }
+                        }
+                        StyledButton {
+                            iconName: "folder-open"
+                            text: qsTr("To a folder on this PC…")
+                            onClicked: {
+                                usbFolderDialog.keys = confirmRestore.keys
+                                usbFolderDialog.open()
+                                confirmRestore.close()
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── straight over the console's copy
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                implicitHeight: overColumn.implicitHeight + 28
+                radius: 14
+                color: Theme.panelAltFill
+                border.width: 1
+                border.color: Theme.glassEdge
+                ColumnLayout {
+                    id: overColumn
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 16
+                    anchors.rightMargin: 16
+                    spacing: 8
+                    RowLayout {
+                        spacing: 8
+                        Icon {
+                            name: "archive-restore"
+                            size: 16
+                            color: Theme.textSecondary
+                        }
+                        Text {
+                            text: qsTr("Straight onto the console")
+                            color: Theme.text
+                            font.pixelSize: 14
+                            font.weight: Font.DemiBold
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
+                        text: qsTr("Replaces the console's copy over FTP. Only for saves the console still "
+                                   + "lists, with the game closed (the PS4 on its home screen).")
+                    }
+                    Text {
+                        visible: confirmRestore.missing > 0
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: Theme.warn
+                        font.pixelSize: 12
+                        text: qsTr("%n of them the console no longer lists: this way it would not see them. "
+                                   + "Use the USB drive.", "", confirmRestore.missing)
+                    }
+                    StyledButton {
+                        iconName: "archive-restore"
+                        text: qsTr("The game is closed — overwrite")
+                        enabled: root.online && confirmRestore.missing < confirmRestore.keys.length
+                        onClicked: {
+                            var kept = root.withoutOpenGame(confirmRestore.keys)
+                            if (kept.length > 0)
+                                saves.restore(kept)
+                            confirmRestore.close()
+                        }
+                    }
+                }
+            }
+            Item { implicitHeight: 4 }
+        }
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("Cancel")
+                    onClicked: confirmRestore.close()
+                }
+            }
+        }
+    }
+
+    // Where on this PC: a USB drive's root, or any folder to copy onto one.
+    FolderDialog {
+        id: usbFolderDialog
+        property var keys: []
+        // "export" (keys) or "import".
+        property string purpose: "export"
+        title: purpose === "export" ? qsTr("USB drive (or folder) to copy the saves to")
+                                    : qsTr("USB drive (or folder) with the PS4's copies")
+        onAccepted: {
+            if (purpose === "export")
+                root.exportToUsb(keys, selectedFolder.toString())
+            else
+                saves.importFromUsb(selectedFolder.toString())
+            purpose = "export"
+        }
+        onRejected: purpose = "export"
+    }
+
+    // The copies are on the drive: what to do on the PS4.
+    Dialog {
+        id: usbHelp
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(520, parent.width - 32)
+        modal: true
+        padding: 0
+        property string message: ""
+
+        Overlay.modal: Rectangle { color: Theme.scrim }
+        background: Rectangle {
+            color: Theme.dialogFill
+            border.color: Theme.border
+            radius: Theme.radiusDialog
+        }
+        header: DialogHeader {
+            title: qsTr("Now on the PS4")
+            dialog: usbHelp
+        }
+        contentItem: ColumnLayout {
+            spacing: 10
+            Repeater {
+                model: [
+                    qsTr("If the drive is on this PC, plug it into the PS4."),
+                    qsTr("Sign in as the user the saves belong to."),
+                    qsTr("Settings → Application Saved Data Management → Saved Data on USB Storage → "
+                         + "Copy to System Storage."),
+                    qsTr("Pick the game, tick the saves and choose Copy. Close the game first.")
+                ]
+                RowLayout {
+                    required property string modelData
+                    required property int index
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.dialogMargin
+                    Layout.rightMargin: Theme.dialogMargin
+                    spacing: 10
+                    Rectangle {
+                        Layout.alignment: Qt.AlignTop
+                        implicitWidth: 22
+                        implicitHeight: 22
+                        radius: 11
+                        color: Theme.accentFill
+                        Text {
+                            anchors.centerIn: parent
+                            text: parent.parent.index + 1
+                            color: Theme.accent
+                            font.pixelSize: 11
+                            font.weight: Font.DemiBold
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: Theme.text
                         font.pixelSize: 13
                         text: parent.modelData
                     }
                 }
             }
-            RowLayout {
-                visible: confirmRestore.missing > 0
+            Text {
                 Layout.fillWidth: true
                 Layout.leftMargin: Theme.dialogMargin
                 Layout.rightMargin: Theme.dialogMargin
-                spacing: 10
-                Icon {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.topMargin: 2
-                    name: "warning"
-                    size: 14
-                    color: Theme.warn
+                wrapMode: Text.WordWrap
+                color: Theme.textMuted
+                font.pixelSize: 11
+                text: qsTr("A save only opens on the console and account it came from.")
+            }
+        }
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("Got it")
+                    primary: true
+                    onClicked: usbHelp.close()
                 }
-                Text {
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    color: Theme.warn
-                    font.pixelSize: 12
-                    text: qsTr("%n of them the console no longer has. The PS4 only lists saves it made "
-                               + "itself: open the game and save once in the same slot, then put it back "
-                               + "over that one.", "", confirmRestore.missing)
-                }
+            }
+        }
+    }
+
+    // Saves the PS4 copied to a USB drive, into the vault.
+    Dialog {
+        id: usbImport
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(500, parent.width - 32)
+        modal: true
+        padding: 0
+
+        Overlay.modal: Rectangle { color: Theme.scrim }
+        background: Rectangle {
+            color: Theme.dialogFill
+            border.color: Theme.border
+            radius: Theme.radiusDialog
+        }
+        header: DialogHeader {
+            title: qsTr("Bring saves from a USB drive")
+            dialog: usbImport
+        }
+        contentItem: ColumnLayout {
+            spacing: 10
+            Text {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                Layout.topMargin: 4
+                wrapMode: Text.WordWrap
+                color: Theme.textSecondary
+                font.pixelSize: 13
+                text: qsTr("Saves the PS4 copied to a USB drive (Settings → Application Saved Data Management "
+                           + "→ Saved Data in System Storage → Copy to USB Storage) go into the vault, under "
+                           + "the console user whose PSID they have.")
             }
         }
         footer: Item {
@@ -871,14 +1191,128 @@ Item {
                 spacing: 8
                 Item { Layout.fillWidth: true }
                 StyledButton {
-                    text: qsTr("Cancel")
-                    onClicked: confirmRestore.close()
+                    iconName: "folder-open"
+                    text: qsTr("From a folder on this PC…")
+                    onClicked: {
+                        usbFolderDialog.purpose = "import"
+                        usbFolderDialog.open()
+                        usbImport.close()
+                    }
                 }
                 StyledButton {
-                    text: qsTr("The game is closed — put back")
-                    iconName: "archive-restore"
                     primary: true
-                    onClicked: { saves.restore(confirmRestore.keys); confirmRestore.close() }
+                    iconName: "hard-drive"
+                    text: qsTr("From the PS4's USB drive")
+                    enabled: root.online
+                    onClicked: { saves.importFromUsb("console"); usbImport.close() }
+                }
+            }
+        }
+    }
+
+    // Which of the app's Account IDs a console user is.
+    Dialog {
+        id: linkDialog
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(460, parent.width - 32)
+        modal: true
+        padding: 0
+        property var user: null
+        function ask(u) {
+            user = u
+            open()
+        }
+
+        Overlay.modal: Rectangle { color: Theme.scrim }
+        background: Rectangle {
+            color: Theme.dialogFill
+            border.color: Theme.border
+            radius: Theme.radiusDialog
+        }
+        header: DialogHeader {
+            title: linkDialog.user ? qsTr("Console user %1").arg(linkDialog.user.user) : ""
+            dialog: linkDialog
+        }
+        contentItem: ColumnLayout {
+            spacing: 6
+            Text {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                Layout.topMargin: 4
+                Layout.bottomMargin: 4
+                wrapMode: Text.WordWrap
+                color: Theme.textSecondary
+                font.pixelSize: 13
+                text: app.accounts.length > 0
+                      ? qsTr("Which Account ID is this user? Its saves take its name, and its USB copies its PSID.")
+                      : qsTr("No Account IDs kept in the app yet: add them under Settings → Account IDs.")
+            }
+            Repeater {
+                model: app.accounts
+                Rectangle {
+                    required property var modelData
+                    readonly property bool current: linkDialog.user !== null && linkDialog.user.linked
+                                                    && linkDialog.user.name === modelData.label
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.dialogMargin
+                    Layout.rightMargin: Theme.dialogMargin
+                    implicitHeight: 44
+                    radius: 10
+                    color: current ? Theme.accentFill : pick.containsMouse ? Theme.controlHover : Theme.panelAltFill
+                    border.width: 1
+                    border.color: current ? Theme.alpha(Theme.accent, 0.6) : Theme.glassEdge
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 12
+                        anchors.rightMargin: 12
+                        spacing: 10
+                        Icon {
+                            name: parent.parent.current ? "check" : "user"
+                            size: 15
+                            color: parent.parent.current ? Theme.accent : Theme.textSecondary
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            text: parent.parent.modelData.label
+                            color: Theme.text
+                            font.pixelSize: 13
+                            font.weight: Font.Medium
+                        }
+                    }
+                    MouseArea {
+                        id: pick
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            saves.linkAccount(linkDialog.user.user, parent.modelData.accountId)
+                            linkDialog.close()
+                        }
+                    }
+                }
+            }
+            Item { implicitHeight: 4 }
+        }
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                spacing: 8
+                StyledButton {
+                    visible: linkDialog.user !== null && linkDialog.user.linked
+                    text: qsTr("Unlink")
+                    onClicked: { saves.linkAccount(linkDialog.user.user, ""); linkDialog.close() }
+                }
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("Close")
+                    onClicked: linkDialog.close()
                 }
             }
         }

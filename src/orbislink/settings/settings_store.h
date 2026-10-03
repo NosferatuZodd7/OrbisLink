@@ -145,6 +145,9 @@ struct Settings
 	std::string convertOutputFolder;
 	// The save vault on this PC (empty: Documents/OrbisLink/Saves).
 	std::string saveVaultFolder;
+	// Console user folder ("1a2b3c4d") → its owner's Account ID (base64),
+	// which gives the PSID the PS4's USB copies are filed under.
+	std::map<std::string, std::string> saveAccountLinks;
 
 	std::string toJson() const;
 	static Settings fromJson(const std::string &text, bool *ok = nullptr);

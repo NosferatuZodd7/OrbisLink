@@ -16,10 +16,10 @@ namespace fs = std::filesystem;
 namespace {
 
 // The "console": a folder whose paths are the console's.
-class FolderRemote : public SaveRemote
+class TestConsole : public SaveRemote
 {
 public:
-	explicit FolderRemote(fs::path root) : root_(std::move(root)) {}
+	explicit TestConsole(fs::path root) : root_(std::move(root)) {}
 
 	fs::path at(const std::string &path) const { return root_ / path.substr(1); }
 
@@ -152,7 +152,7 @@ struct Fixture
 ORBISLINK_TEST(scan_backup_change_delete_restore)
 {
 	Fixture f;
-	FolderRemote console(f.consoleRoot);
+	TestConsole console(f.consoleRoot);
 	SaveVault vault((f.base / "vault").string());
 
 	std::string error;
@@ -225,7 +225,7 @@ ORBISLINK_TEST(real_layout_with_system_backups_and_meta_files)
 	writeBytes(f.home / "savedata_meta/user/CUSA00009/OTHERSAVE", 300, 'o');
 	writeData(f.consoleRoot / "user/appmeta/CUSA00009/param.sfo", buildSfo({ { "TITLE", "Red Dead Redemption 2" } }));
 
-	FolderRemote console(f.consoleRoot);
+	TestConsole console(f.consoleRoot);
 	SaveVault vault((f.base / "vault").string());
 	std::string error;
 	std::vector<SaveInfo> saves = vault.scan(console, &error);
@@ -267,7 +267,7 @@ ORBISLINK_TEST(real_layout_with_system_backups_and_meta_files)
 ORBISLINK_TEST(a_short_upload_is_reported)
 {
 	Fixture f;
-	FolderRemote console(f.consoleRoot);
+	TestConsole console(f.consoleRoot);
 	SaveVault vault((f.base / "vault").string());
 	std::string error;
 	SaveInfo save = *find(vault.scan(console, &error), "SAVE0");
@@ -281,7 +281,7 @@ ORBISLINK_TEST(a_short_upload_is_reported)
 ORBISLINK_TEST(only_the_last_backups_are_kept)
 {
 	Fixture f;
-	FolderRemote console(f.consoleRoot);
+	TestConsole console(f.consoleRoot);
 	SaveVault vault((f.base / "vault").string());
 	std::string error;
 	SaveInfo save = *find(vault.scan(console, &error), "SAVE1");
@@ -295,7 +295,7 @@ ORBISLINK_TEST(only_the_last_backups_are_kept)
 ORBISLINK_TEST(vault_files_cannot_point_outside_their_folder)
 {
 	Fixture f;
-	FolderRemote console(f.consoleRoot);
+	TestConsole console(f.consoleRoot);
 	SaveVault vault((f.base / "vault").string());
 	std::string error;
 	SaveInfo save = *find(vault.scan(console, &error), "SAVE0");
@@ -311,6 +311,44 @@ ORBISLINK_TEST(vault_files_cannot_point_outside_their_folder)
 	CHECK_EQ(saves.size(), static_cast<size_t>(1));
 	CHECK_EQ(saves[0].vaultFiles.size(), static_cast<size_t>(1));
 	CHECK_EQ(saves[0].vaultFiles[0].relative, std::string("savedata/sdimg_SAVE0"));
+}
+
+// The PS4's own USB layout: what is exported is what the PS4 copies back
+// (PS4/SAVEDATA/<PSID>/<TITLE>/<name> and <name>.bin), and what the PS4
+// exported comes into the vault.
+ORBISLINK_TEST(usb_layout_export_and_import)
+{
+	Fixture f;
+	TestConsole console(f.consoleRoot);
+	SaveVault vault((f.base / "vault").string());
+	std::string error;
+	SaveInfo save = *find(vault.scan(console, &error), "SAVE0");
+	CHECK(vault.backup(console, save, &error));
+
+	const fs::path usb = f.base / "usb";
+	fs::create_directories(usb);
+	orbislink::FolderRemote drive(usb.string());
+	CHECK(!vault.exportToUsb(drive, "/", save, "nothex", &error));
+	CHECK(vault.exportToUsb(drive, "/", save, "1C020A82BB40E5FE", &error));
+	const fs::path title = usb / "PS4/SAVEDATA/1c020a82bb40e5fe/CUSA00001";
+	CHECK_EQ(fs::file_size(title / "SAVE0"), static_cast<uintmax_t>(4096));
+	CHECK_EQ(fs::file_size(title / "SAVE0.bin"), static_cast<uintmax_t>(96));
+
+	// Read back, and taken into another vault as that account's.
+	const std::vector<UsbSave> found = vault.usbSaves(drive, "/", &error);
+	CHECK_EQ(found.size(), static_cast<size_t>(1));
+	CHECK_EQ(found[0].psid, std::string("1c020a82bb40e5fe"));
+	CHECK_EQ(found[0].dir, std::string("SAVE0"));
+	SaveVault other((f.base / "vault2").string());
+	CHECK(other.importFromUsb(drive, "/", found[0], "1eb71bbd", &error));
+	const std::vector<SaveInfo> kept = other.vaultSaves();
+	CHECK_EQ(kept.size(), static_cast<size_t>(1));
+	CHECK_EQ(kept[0].titleId, std::string("CUSA00001"));
+	CHECK_EQ(kept[0].vaultBytes(), static_cast<int64_t>(4096 + 96));
+	// The PSID kept as param.sfo stores it (little-endian).
+	CHECK_EQ(kept[0].accountId, std::string("fee540bb820a021c"));
+	// An account folder that is not a console user's is refused.
+	CHECK(!other.importFromUsb(drive, "/", found[0], "../x", &error));
 }
 
 TEST_MAIN()
