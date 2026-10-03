@@ -40,6 +40,8 @@ Popup {
 
     width: 268
     padding: 14
+    // Never past the window's edges (nor under the taskbar).
+    margins: 10
     modal: false
     // With the focus, Esc closes only the picker and not the window under it.
     focus: true
