@@ -225,7 +225,7 @@ ApplicationWindow {
                         ToolTip.visible: hovered
                         ToolTip.text: qsTr("Save vault") + " — "
                                       + (window.view === "saves" ? qsTr("Back to the consoles")
-                                         : qsTr("Back up the console's saves on this PC and put them back"))
+                                         : qsTr("Back up the console's saves on this PC"))
                         onClicked: window.view = window.view === "saves" ? "home" : "saves"
                     }
                 }

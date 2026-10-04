@@ -34,58 +34,26 @@ public:
 			item.path = dir + "/" + item.name;
 			item.isDirectory = entry.is_directory();
 			item.size = item.isDirectory ? 0 : static_cast<int64_t>(entry.file_size());
-			const auto stamp = written_.find(item.path);
-			item.modified = stamp != written_.end() ? stamp->second : "Oct 03 18:42";
+			item.modified = "Oct 03 18:42";
 			entries->push_back(item);
 		}
 		return true;
 	}
+	bool truncateDownloads = false;
 	bool download(const std::string &remote, const std::string &local, std::string *error) override
 	{
 		std::error_code failure;
 		fs::copy_file(at(remote), local, fs::copy_options::overwrite_existing, failure);
 		if(failure && error)
 			*error = failure.message();
-		return !failure;
-	}
-	bool upload(const std::string &local, const std::string &remote, std::string *error) override
-	{
-		// Like a console: what is written gets the time it was written.
-		written_[remote] = "Oct 04 0" + std::to_string(++writes_ % 10) + ":00";
-		std::error_code failure;
-		fs::copy_file(local, at(remote), fs::copy_options::overwrite_existing, failure);
-		if(failure && error)
-			*error = failure.message();
 		// A transfer cut short that still says "done".
-		if(truncateUploads && !failure)
-			fs::resize_file(at(remote), fs::file_size(at(remote)) / 2);
+		if(truncateDownloads && !failure)
+			fs::resize_file(local, fs::file_size(local) / 2);
 		return !failure;
-	}
-	bool truncateUploads = false;
-	bool makeDirectory(const std::string &dir) override
-	{
-		// A real FTP server refuses this, and the client retries it: slow.
-		if(fs::exists(at(dir)))
-			++redundantMakeDirectory;
-		std::error_code ignored;
-		return fs::create_directory(at(dir), ignored);
-	}
-	int redundantMakeDirectory = 0;
-	bool removeFile(const std::string &path, std::string *) override
-	{
-		std::error_code ignored;
-		return fs::remove(at(path), ignored);
-	}
-	bool removeDirectory(const std::string &path) override
-	{
-		std::error_code ignored;
-		return fs::remove(at(path), ignored);
 	}
 
 private:
 	fs::path root_;
-	std::map<std::string, std::string> written_;
-	int writes_ = 0;
 };
 
 void writeBytes(const fs::path &path, size_t size, char fill)
@@ -149,11 +117,16 @@ struct Fixture
 
 } // namespace
 
-ORBISLINK_TEST(scan_backup_change_delete_restore)
+// The console's ACCOUNT_ID "ABCDEFGH" as a PSID folder: its bytes the
+// other way round.
+const char *kPsid = "4847464544434241";
+
+ORBISLINK_TEST(scan_backup_change_delete)
 {
 	Fixture f;
 	TestConsole console(f.consoleRoot);
-	SaveVault vault((f.base / "vault").string());
+	const fs::path root = f.base / "vault";
+	SaveVault vault(root.string());
 
 	std::string error;
 	std::vector<SaveInfo> saves = vault.scan(console, &error);
@@ -164,15 +137,21 @@ ORBISLINK_TEST(scan_backup_change_delete_restore)
 	CHECK_EQ(save0->saveTitle, std::string("Slot SAVE0"));
 	CHECK_EQ(save0->detail, std::string("Chapter 5 - 34%"));
 	CHECK(save0->sync() == SaveSync::ConsoleOnly);
-	// The account it belongs to, as the bytes are stored.
+	// The account it belongs to, as the bytes are stored, and as the PS4
+	// names its folder.
 	CHECK_EQ(save0->accountId, std::string("4142434445464748"));
-	CHECK_EQ(save0->consoleFiles.size(), static_cast<size_t>(4));
+	CHECK_EQ(save0->psid, std::string(kPsid));
 	CHECK(!save0->iconPath.empty());
 	CHECK(!vault.gameIcon(&console, "CUSA00001").empty());
 
-	// Backed up: the same on both sides.
+	// Backed up as the PS4 copies saves to USB: PS4/SAVEDATA/<PSID>/<game>.
 	SaveInfo copy = *save0;
 	CHECK(vault.backup(console, copy, &error));
+	const fs::path kept = root / "PS4/SAVEDATA" / kPsid / "CUSA00001";
+	CHECK_EQ(fs::file_size(kept / "SAVE0"), static_cast<uintmax_t>(4096));
+	CHECK_EQ(fs::file_size(kept / "SAVE0.bin"), static_cast<uintmax_t>(96));
+	CHECK(fs::exists(root / ".vault" / kPsid / "CUSA00001/SAVE0/info.json"));
+	CHECK(fs::exists(root / ".vault" / kPsid / "CUSA00001/SAVE0/icon0.png"));
 	saves = vault.scan(console, &error);
 	CHECK(find(saves, "SAVE0")->sync() == SaveSync::Same);
 	CHECK_EQ(find(saves, "SAVE0")->versions, 1);
@@ -183,7 +162,7 @@ ORBISLINK_TEST(scan_backup_change_delete_restore)
 	saves = vault.scan(console, &error);
 	CHECK(find(saves, "SAVE0")->sync() == SaveSync::Changed);
 
-	// The console lost it: only the vault has it now…
+	// The console lost it: the vault still has it, names and all.
 	fs::remove(f.home / "savedata/CUSA00001/sdimg_SAVE0");
 	fs::remove(f.home / "savedata/CUSA00001/SAVE0.bin");
 	fs::remove_all(f.home / "savedata_meta/user/CUSA00001/SAVE0");
@@ -191,27 +170,21 @@ ORBISLINK_TEST(scan_backup_change_delete_restore)
 	const SaveInfo *lost = find(saves, "SAVE0");
 	CHECK(lost != nullptr);
 	CHECK(lost->sync() == SaveSync::VaultOnly);
-	CHECK_EQ(lost->accountId, std::string("4142434445464748"));
+	CHECK_EQ(lost->account, std::string("1eb71bbd"));
 	CHECK_EQ(lost->gameTitle, std::string("Orbis Racing"));
+	CHECK_EQ(lost->saveTitle, std::string("Slot SAVE0"));
 
-	// …and it goes back as it was backed up.
-	CHECK(vault.restore(console, *lost, &error));
-	CHECK_EQ(console.redundantMakeDirectory, 0);
-	CHECK_EQ(fs::file_size(f.home / "savedata/CUSA00001/sdimg_SAVE0"), static_cast<uintmax_t>(4096));
-	CHECK(fs::exists(f.home / "savedata_meta/user/CUSA00001/SAVE0/param.sfo"));
-	saves = vault.scan(console, &error);
-	CHECK(find(saves, "SAVE0")->sync() == SaveSync::Same);
-
-	// Out of the vault: back to "never backed up".
-	CHECK(vault.removeFromVault(*find(saves, "SAVE0"), &error));
-	saves = vault.scan(console, &error);
-	CHECK(find(saves, "SAVE0")->sync() == SaveSync::ConsoleOnly);
+	// Out of the vault: nothing of it left.
+	CHECK(vault.removeFromVault(*lost, &error));
 	CHECK(vault.vaultSaves().empty());
+	CHECK(!fs::exists(root / "PS4/SAVEDATA" / kPsid));
+	CHECK(!fs::exists(root / ".vault" / kPsid));
 }
 
 // The layout seen on a real console: the PS4's own backup copy of each
 // save ("sce_bu_"), and savedata_meta entries that are files, not folders.
-ORBISLINK_TEST(real_layout_with_system_backups_and_meta_files)
+// No ACCOUNT_ID to be read: the console user's link gives the PSID.
+ORBISLINK_TEST(real_layout_with_system_backups_and_a_linked_user)
 {
 	Fixture f;
 	const fs::path data = f.home / "savedata/CUSA00009";
@@ -221,68 +194,80 @@ ORBISLINK_TEST(real_layout_with_system_backups_and_meta_files)
 	writeBytes(data / "sce_bu_RDR2SAVE0.SAV.bin", 96, 'd');
 	writeData(f.home / "savedata_meta/user/CUSA00009/RDR2SAVE0.SAV",
 		buildSfo({ { "MAINTITLE", "Red Dead" }, { "SUBTITLE", "Chapter 2" } }));
-	writeBytes(f.home / "savedata_meta/user/CUSA00009/sce_bu_RDR2SAVE0.SAV", 300, 'm');
 	writeBytes(f.home / "savedata_meta/user/CUSA00009/OTHERSAVE", 300, 'o');
 	writeData(f.consoleRoot / "user/appmeta/CUSA00009/param.sfo", buildSfo({ { "TITLE", "Red Dead Redemption 2" } }));
 
 	TestConsole console(f.consoleRoot);
-	SaveVault vault((f.base / "vault").string());
+	const fs::path root = f.base / "vault";
+	SaveVault vault(root.string());
 	std::string error;
+	auto rdr = [&](const std::vector<SaveInfo> &saves) {
+		const SaveInfo *found = nullptr;
+		int count = 0;
+		for(const SaveInfo &s : saves)
+			if(s.titleId == "CUSA00009")
+			{
+				++count;
+				found = &s;
+			}
+		CHECK_EQ(count, 1); // one save, not two: the system's copy goes with it
+		return found;
+	};
 	std::vector<SaveInfo> saves = vault.scan(console, &error);
-	// One save, not two: the system's copy goes with it.
-	int found = 0;
-	const SaveInfo *save = nullptr;
-	for(const SaveInfo &s : saves)
-		if(s.titleId == "CUSA00009")
-		{
-			++found;
-			save = &s;
-		}
-	CHECK_EQ(found, 1);
-	CHECK_EQ(save->dir, std::string("RDR2SAVE0.SAV"));
-	// 4 data files and its 2 meta files, not the other save's.
-	CHECK_EQ(save->consoleFiles.size(), static_cast<size_t>(6));
-	CHECK_EQ(save->saveTitle, std::string("Chapter 2"));
+	SaveInfo save = *rdr(saves);
+	CHECK_EQ(save.dir, std::string("RDR2SAVE0.SAV"));
+	CHECK_EQ(save.saveTitle, std::string("Chapter 2"));
+	CHECK(save.psid.empty());
+	// Whose it is is not known: not backed up, and said why.
+	CHECK(!vault.backup(console, save, &error));
+	CHECK(error.find("link") != std::string::npos);
 
-	SaveInfo copy = *save;
-	CHECK(vault.backup(console, copy, &error));
-	// Overwritten in the console with something else, then put back.
-	writeBytes(data / "sdimg_RDR2SAVE0.SAV", 4096, 'z');
-	saves = vault.scan(console, &error);
-	for(const SaveInfo &s : saves)
-		if(s.titleId == "CUSA00009")
-		{
-			CHECK(s.sync() == SaveSync::Changed);
-			CHECK(vault.restore(console, s, &error));
-			CHECK_EQ(console.redundantMakeDirectory, 0);
-		}
+	vault.setLinks({ { "1eb71bbd", "1C020A82BB40E5FE" } });
+	save = *rdr(vault.scan(console, &error));
+	CHECK_EQ(save.psid, std::string("1c020a82bb40e5fe"));
+	CHECK(vault.backup(console, save, &error));
+	// The image and its key, named as on a PS4's USB drive; not the
+	// system's copies.
+	const fs::path kept = root / "PS4/SAVEDATA/1c020a82bb40e5fe/CUSA00009";
+	int files = 0;
+	for(const auto &entry : fs::directory_iterator(kept))
+	{
+		++files;
+		CHECK(entry.path().filename() == "RDR2SAVE0.SAV" || entry.path().filename() == "RDR2SAVE0.SAV.bin");
+	}
+	CHECK_EQ(files, 2);
+	CHECK(rdr(vault.scan(console, &error))->sync() == SaveSync::Same);
+	// The console's files are as they were.
 	CHECK_EQ(fs::file_size(data / "sdimg_RDR2SAVE0.SAV"), static_cast<uintmax_t>(2048));
-	saves = vault.scan(console, &error);
-	for(const SaveInfo &s : saves)
-		if(s.titleId == "CUSA00009")
-			CHECK(s.sync() == SaveSync::Same);
 }
 
-// A file that does not arrive whole is an error, not a quiet success.
-ORBISLINK_TEST(a_short_upload_is_reported)
+// A file that does not arrive whole is an error, and the backup there was
+// stays as it was.
+ORBISLINK_TEST(a_short_download_is_reported)
 {
 	Fixture f;
 	TestConsole console(f.consoleRoot);
-	SaveVault vault((f.base / "vault").string());
+	const fs::path root = f.base / "vault";
+	SaveVault vault(root.string());
 	std::string error;
 	SaveInfo save = *find(vault.scan(console, &error), "SAVE0");
 	CHECK(vault.backup(console, save, &error));
-	console.truncateUploads = true;
+	writeBytes(f.home / "savedata/CUSA00001/sdimg_SAVE0", 8192, 'y');
+	console.truncateDownloads = true;
 	error.clear();
-	CHECK(!vault.restore(console, *find(vault.scan(console, &error), "SAVE0"), &error));
-	CHECK(error.find("whole") != std::string::npos);
+	save = *find(vault.scan(console, &error), "SAVE0");
+	CHECK(!vault.backup(console, save, &error));
+	CHECK(error.find("Incomplete") != std::string::npos);
+	CHECK_EQ(fs::file_size(root / "PS4/SAVEDATA" / kPsid / "CUSA00001/SAVE0"), static_cast<uintmax_t>(4096));
+	CHECK_EQ(find(vault.vaultSaves(), "SAVE0")->versions, 1);
 }
 
 ORBISLINK_TEST(only_the_last_backups_are_kept)
 {
 	Fixture f;
 	TestConsole console(f.consoleRoot);
-	SaveVault vault((f.base / "vault").string());
+	const fs::path root = f.base / "vault";
+	SaveVault vault(root.string());
 	std::string error;
 	SaveInfo save = *find(vault.scan(console, &error), "SAVE1");
 	for(int i = 0; i < SaveVault::kVersionsKept + 2; ++i)
@@ -290,65 +275,83 @@ ORBISLINK_TEST(only_the_last_backups_are_kept)
 	const std::vector<SaveInfo> kept = vault.vaultSaves();
 	CHECK_EQ(kept.size(), static_cast<size_t>(1));
 	CHECK_EQ(kept[0].versions, SaveVault::kVersionsKept);
+	// The earlier ones, each with the image and its key.
+	int earlier = 0;
+	for(const auto &entry : fs::directory_iterator(root / ".vault" / kPsid / "CUSA00001/SAVE1"))
+		if(entry.is_directory())
+		{
+			++earlier;
+			CHECK(fs::exists(entry.path() / "SAVE1"));
+			CHECK(fs::exists(entry.path() / "SAVE1.bin"));
+		}
+	CHECK_EQ(earlier, SaveVault::kVersionsKept - 1);
 }
 
-ORBISLINK_TEST(vault_files_cannot_point_outside_their_folder)
+// Saves copied in by hand from a PS4's USB drive are in the vault too.
+ORBISLINK_TEST(saves_copied_from_a_usb_drive_are_read)
 {
 	Fixture f;
-	TestConsole console(f.consoleRoot);
-	SaveVault vault((f.base / "vault").string());
-	std::string error;
-	SaveInfo save = *find(vault.scan(console, &error), "SAVE0");
-	CHECK(vault.backup(console, save, &error));
-
-	// A hand-edited vault.json naming a file outside the save.
-	const fs::path folder = f.base / "vault/1eb71bbd/CUSA00001/SAVE0";
-	const fs::path version = fs::directory_iterator(folder)->path();
-	std::ofstream(version / "vault.json", std::ios::binary | std::ios::trunc)
-		<< R"({"files":[{"relative":"savedata/../../../escape","size":1},)"
-		   R"({"relative":"savedata/sdimg_SAVE0","size":4096}]})";
+	const fs::path root = f.base / "vault";
+	writeBytes(root / "PS4/SAVEDATA/1c020a82bb40e5fe/CUSA36843/PREBOOT.SAV", 3000, 'p');
+	writeBytes(root / "PS4/SAVEDATA/1c020a82bb40e5fe/CUSA36843/PREBOOT.SAV.bin", 96, 'k');
+	// Not a save: no key next to it.
+	writeBytes(root / "PS4/SAVEDATA/1c020a82bb40e5fe/CUSA36843/notes.txt", 10, 'n');
+	SaveVault vault(root.string());
+	vault.setLinks({ { "1eb71bbd", "1c020a82bb40e5fe" } });
 	const std::vector<SaveInfo> saves = vault.vaultSaves();
 	CHECK_EQ(saves.size(), static_cast<size_t>(1));
-	CHECK_EQ(saves[0].vaultFiles.size(), static_cast<size_t>(1));
-	CHECK_EQ(saves[0].vaultFiles[0].relative, std::string("savedata/sdimg_SAVE0"));
+	CHECK_EQ(saves[0].dir, std::string("PREBOOT.SAV"));
+	CHECK_EQ(saves[0].account, std::string("1eb71bbd"));
+	CHECK_EQ(saves[0].vaultBytes(), static_cast<int64_t>(3000 + 96));
+
+	// Linked to the console user, it is the same save as the console's.
+	TestConsole console(f.consoleRoot);
+	writeBytes(f.home / "savedata/CUSA36843/sdimg_PREBOOT.SAV", 3000, 'p');
+	writeBytes(f.home / "savedata/CUSA36843/PREBOOT.SAV.bin", 96, 'k');
+	std::string error;
+	const SaveInfo *both = find(vault.scan(console, &error), "PREBOOT.SAV");
+	CHECK(both != nullptr);
+	CHECK(both->sync() == SaveSync::Same);
 }
 
-// The PS4's own USB layout: what is exported is what the PS4 copies back
-// (PS4/SAVEDATA/<PSID>/<TITLE>/<name> and <name>.bin), and what the PS4
-// exported comes into the vault.
-ORBISLINK_TEST(usb_layout_export_and_import)
+// Backups made before the PS4 layout move over, every version, once their
+// PSID is known.
+ORBISLINK_TEST(earlier_backups_move_to_the_ps4_layout)
 {
 	Fixture f;
-	TestConsole console(f.consoleRoot);
-	SaveVault vault((f.base / "vault").string());
-	std::string error;
-	SaveInfo save = *find(vault.scan(console, &error), "SAVE0");
-	CHECK(vault.backup(console, save, &error));
+	const fs::path root = f.base / "vault";
+	const fs::path folder = root / "1eb71bbd/CUSA00001/SAVE0";
+	for(const std::string stamp : { "20261001-100000", "20261002-100000" })
+	{
+		writeBytes(folder / stamp / "savedata/sdimg_SAVE0", stamp == "20261001-100000" ? 1000 : 2000, 'x');
+		writeBytes(folder / stamp / "savedata/SAVE0.bin", 96, 'k');
+		writeBytes(folder / stamp / "savedata/sdimg_sce_bu_SAVE0", 10, 's');
+		writePng(folder / stamp / "meta/icon0.png");
+		std::ofstream(folder / stamp / "vault.json", std::ios::binary)
+			<< R"({"account":"1eb71bbd","title_id":"CUSA00001","dir":"SAVE0","game_title":"Orbis Racing",)"
+			   R"("save_title":"Career","account_id":"","backed_up_at":"2026-10-02 10:00","files":[)"
+			   R"({"relative":"savedata/sdimg_SAVE0","size":2000,"modified":"Oct 02 10:00"},)"
+			   R"({"relative":"savedata/SAVE0.bin","size":96,"modified":"Oct 02 10:00"}]})";
+	}
+	SaveVault vault(root.string());
+	// Whose they are is not known yet: shown as they are, left in place.
+	std::vector<SaveInfo> saves = vault.vaultSaves();
+	CHECK_EQ(saves.size(), static_cast<size_t>(1));
+	CHECK_EQ(saves[0].versions, 2);
+	CHECK(fs::exists(folder));
 
-	const fs::path usb = f.base / "usb";
-	fs::create_directories(usb);
-	orbislink::FolderRemote drive(usb.string());
-	CHECK(!vault.exportToUsb(drive, "/", save, "nothex", &error));
-	CHECK(vault.exportToUsb(drive, "/", save, "1C020A82BB40E5FE", &error));
-	const fs::path title = usb / "PS4/SAVEDATA/1c020a82bb40e5fe/CUSA00001";
-	CHECK_EQ(fs::file_size(title / "SAVE0"), static_cast<uintmax_t>(4096));
-	CHECK_EQ(fs::file_size(title / "SAVE0.bin"), static_cast<uintmax_t>(96));
-
-	// Read back, and taken into another vault as that account's.
-	const std::vector<UsbSave> found = vault.usbSaves(drive, "/", &error);
-	CHECK_EQ(found.size(), static_cast<size_t>(1));
-	CHECK_EQ(found[0].psid, std::string("1c020a82bb40e5fe"));
-	CHECK_EQ(found[0].dir, std::string("SAVE0"));
-	SaveVault other((f.base / "vault2").string());
-	CHECK(other.importFromUsb(drive, "/", found[0], "1eb71bbd", &error));
-	const std::vector<SaveInfo> kept = other.vaultSaves();
-	CHECK_EQ(kept.size(), static_cast<size_t>(1));
-	CHECK_EQ(kept[0].titleId, std::string("CUSA00001"));
-	CHECK_EQ(kept[0].vaultBytes(), static_cast<int64_t>(4096 + 96));
-	// The PSID kept as param.sfo stores it (little-endian).
-	CHECK_EQ(kept[0].accountId, std::string("fee540bb820a021c"));
-	// An account folder that is not a console user's is refused.
-	CHECK(!other.importFromUsb(drive, "/", found[0], "../x", &error));
+	vault.setLinks({ { "1eb71bbd", "1c020a82bb40e5fe" } });
+	saves = vault.vaultSaves();
+	CHECK_EQ(saves.size(), static_cast<size_t>(1));
+	CHECK_EQ(saves[0].psid, std::string("1c020a82bb40e5fe"));
+	CHECK_EQ(saves[0].account, std::string("1eb71bbd"));
+	CHECK_EQ(saves[0].saveTitle, std::string("Career"));
+	CHECK_EQ(saves[0].versions, 2);
+	CHECK(!saves[0].iconPath.empty());
+	CHECK_EQ(fs::file_size(root / "PS4/SAVEDATA/1c020a82bb40e5fe/CUSA00001/SAVE0"), static_cast<uintmax_t>(2000));
+	CHECK_EQ(fs::file_size(root / ".vault/1c020a82bb40e5fe/CUSA00001/SAVE0/20261001-100000/SAVE0"),
+		static_cast<uintmax_t>(1000));
+	CHECK(!fs::exists(root / "1eb71bbd"));
 }
 
 TEST_MAIN()

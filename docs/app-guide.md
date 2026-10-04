@@ -14,8 +14,8 @@ Three jobs, around one PlayStation at a time — the **console in use**:
    or by direct install, and files back from it.
 3. **PS1/PS2 games** — disc images on the PC turned into PS4 packages, then
    (optionally) sent and installed.
-4. **Save vault** — every save on the console backed up on the PC, and put
-   back when the console loses it.
+4. **Save vault** — every save on the console read and backed up on the PC,
+   kept as the PS4 keeps saves on a USB drive.
 
 ## Words used in the app
 
@@ -218,63 +218,58 @@ as `image/disc01.iso`. PS1 discs as PS Classics fPKG Builder does.
 
 ## Save vault
 
-A place on this PC with a copy of every save on the console, to put back
-whatever the console loses. It needs the console's FTP (GoldHEN, etaHEN);
-without it, the page shows what the vault holds.
+A place on this PC with a copy of every save on the console. The console is
+only read — nothing is written or deleted there. It needs the console's FTP
+(GoldHEN, etaHEN); without it, the page shows what the vault holds.
 
-Opening the page reads the console: every account, every game with saves,
-and each save with its icon, its name, what the game wrote about it (chapter,
-level, percentage…), its size and where it stands:
+Opening the page reads the console: every user, every game with saves, and
+each save with its icon, its name, what the game wrote about it (chapter,
+level, percentage…) where the console lets that be read, its size and where
+it stands:
 
 | Badge | Means |
 |---|---|
 | ✓ In the vault | The console's save is the one backed up. |
 | ↺ Changed since the backup | The game wrote to it after the last backup. |
 | ⇧ Not backed up | Only on the console. |
-| 🗄 Only in the vault | The console no longer has it: it can be put back. |
+| 🗄 Only on this PC | The console no longer has it; the vault keeps it. |
 
 | Item | Does |
 |---|---|
 | **Back up everything** | Backs up every save that is not backed up or changed, in one click. |
-| **Put back what's missing** | Puts back on the console every save only the vault has (see below). |
-| Users | One chip per console user (its folder on the console), named after the Account ID linked to it, or the one its saves name (read from each save), else "User <id>". The tooltip shows its PSID as the PS4 names its USB folders. **Link…** says which of the Account IDs kept in the app (Settings → Account IDs) the user is: it names the saves, and gives the PSID when the saves do not carry one. Each save shows its account too. With one chosen, everything on the page — the counts, **Back up everything**, **Put back what's missing** — is that user's. |
-| Filters | All · Not backed up · Changed · Missing on the console. |
-| Click on a save · **Select all** | Selects; the top strip then offers **Back up**, **Put back** and **Delete…** for the selection. |
-| **Put back** | Always asks first, and offers two ways. **Through a USB drive** (recommended): the latest backups are written in the PS4's own USB layout, to the USB drive plugged into the PS4 (over FTP, `/mnt/usb0`) or to a folder / USB drive on this PC; a window then lists the steps on the PS4 (Settings → Application Saved Data Management → Saved Data on USB Storage → Copy to System Storage). **Straight onto the console**: replaces the console's copy over FTP, then checks every file arrived whole; only for saves the console still lists, game closed. |
-| 🖴 (header) | **Bring saves from a USB drive**: the saves the PS4 copied to a USB drive (Copy to USB Storage), from the drive in the PS4 or a folder on this PC, go into the vault under the console user with their PSID. Ones already in the vault as they are are skipped. |
-| **Delete…** | From the vault only (it warns when the vault holds the only copy). Saves on the console are deleted on the PS4 itself, Settings → Application Saved Data Management. |
+| Users | One chip per console user (its folder on the console), named after the Account ID linked to it, or the one its saves name, else "User <id>". The tooltip shows its PSID. **Link…** says which of the Account IDs kept in the app (Settings → Account IDs) the user is: it names the saves and gives the PSID they are kept under. A save whose PSID is not known yet asks for the link when it is backed up, then goes. With one user chosen, everything on the page is that user's. |
+| Filters | All · Not backed up · Changed · Only on this PC. |
+| Click on a save · **Select all** | Selects; the top strip then offers **Back up** and **Delete…** for the selection. |
+| **Delete…** | From the vault only (it warns when the vault holds the only copy). |
 | Folder chip · ⚙ | Opens the vault folder · changes it. |
 | ⟳ | Reads the console again. |
 
 PS1/PS2 games converted to packages keep their memory cards as ordinary
 PS4 saves, so they are in the vault like any other game.
 
-Each save keeps its last 5 backups. Saves are copied exactly as the console
-has them (no re-signing): they go back to the same console and account.
+The vault is laid out as the PS4 lays out the saves it copies to a USB
+drive:
+
+```
+<vault>/PS4/SAVEDATA/<PSID>/<game>/<save>       the encrypted image
+<vault>/PS4/SAVEDATA/<PSID>/<game>/<save>.bin   its key
+<vault>/.vault/<PSID>/<game>/<save>/            names, dates, icon, and the 4 backups before
+```
+
+The PSID is the owner's PSN account in 16 hex digits, as the PS4 names it.
+Saves copied in by hand from a PS4's USB drive (its `PS4` folder into the
+vault folder) show up as well. Backups made by earlier versions move to this
+layout once their PSID is known.
 
 What the PS4 allows, and why the page works this way:
 
-- A save is two files, `sdimg_<name>` (the encrypted image, with the save's
-  own param.sfo inside) and `<name>.bin` (its key), plus the PS4's own copy
-  of both, `sce_bu_<name>`; they are kept together. Entries named after the
-  save in `savedata_meta` go with them.
+- A save is two files on the console, `sdimg_<name>` (the encrypted image,
+  with the save's own param.sfo inside) and `<name>.bin` (its key); the
+  system's own copy of them (`sce_bu_<name>`) is not kept.
 - The game open on the console (Remote Play's discovery says which) is left
-  alone: a save copied while its game writes it comes out corrupted. The
-  page says which game is open, and leaves its saves out of backing up and
-  putting back.
-- The PS4 lists its saves in a database of its own, which copying files does
-  not touch. That is why the USB route is the recommended one: the PS4 copies
-  the save in itself and lists it, even one it lost. Over FTP a save only
-  takes over one the console still lists. And nothing is deleted on the
-  console from here: files taken away over FTP leave the PS4 with an entry
-  it reports as corrupted.
-- The PS4's USB layout is `PS4/SAVEDATA/<PSID>/<game>/<save>` (the image)
-  and `<save>.bin` (its key), the PSID being the owner's 16 hex digits. The
-  vault writes the console's own image and key there under those names;
-  the PS4 copies back only to the user and console the save belongs to.
-
-On the PC: `<vault>/<account>/<game>/<save>/<date>/` with the save's files
-and a `vault.json` describing them.
+  alone: a save read while its game writes it can come out half-written.
+- Saves are kept as the console has them: encrypted, for the console and
+  account they came from.
 
 ## Settings
 
@@ -297,9 +292,8 @@ and a `vault.json` describing them.
 | Install directly | yes | — | yes | — |
 | Files tab (browsing also works while an upload runs) | yes | yes | — | — |
 | Remote Play | yes | — | — | yes |
-| Save vault: back up, put back, delete on the console | yes | yes | — | — |
-| Save vault: put back through the USB drive in the PS4, bring from it | yes | yes | — | — |
-| Save vault: see or delete what the PC holds; copy to or bring from a folder / USB drive on the PC | no | — | — | — |
+| Save vault: back up | yes | yes | — | — |
+| Save vault: see or delete what the PC holds | no | — | — | — |
 
 ## Where it lives in the code
 

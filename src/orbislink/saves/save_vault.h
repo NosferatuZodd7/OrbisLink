@@ -20,42 +20,6 @@ public:
 	// Empty and true for a folder that is not there.
 	virtual bool list(const std::string &dir, std::vector<FtpEntry> *entries, std::string *error) = 0;
 	virtual bool download(const std::string &remote, const std::string &local, std::string *error) = 0;
-	virtual bool upload(const std::string &local, const std::string &remote, std::string *error) = 0;
-	virtual bool makeDirectory(const std::string &dir) = 0;
-	virtual bool removeFile(const std::string &path, std::string *error) = 0;
-	virtual bool removeDirectory(const std::string &path) = 0;
-};
-
-// A folder on this PC seen as a console (paths as on it, under `root`): for
-// a USB drive or folder in the PS4's own USB layout.
-class FolderRemote : public SaveRemote
-{
-public:
-	explicit FolderRemote(std::string root) : root_(std::move(root)) {}
-	bool list(const std::string &dir, std::vector<FtpEntry> *entries, std::string *error) override;
-	bool download(const std::string &remote, const std::string &local, std::string *error) override;
-	bool upload(const std::string &local, const std::string &remote, std::string *error) override;
-	bool makeDirectory(const std::string &dir) override;
-	bool removeFile(const std::string &path, std::string *error) override;
-	bool removeDirectory(const std::string &path) override;
-
-private:
-	std::string at(const std::string &path) const;
-	std::string root_;
-};
-
-// A save in the PS4's USB layout — what the PS4 writes when it copies saves
-// to a USB drive, and what it can copy back to its storage, registering
-// them itself: PS4/SAVEDATA/<PSID in hex>/<TITLE_ID>/<dir> (the image) and
-// <dir>.bin (its key).
-struct UsbSave
-{
-	std::string psid;    // 16 hex digits, as the folder is named
-	std::string titleId;
-	std::string dir;
-	int64_t imageSize = 0;
-	int64_t keySize = 0;
-	std::string modified;
 };
 
 // One file of a save, as the console lists it. `relative` is
@@ -77,23 +41,20 @@ enum class SaveSync
 	Same,        // the console's save is the one in the vault
 	Changed,     // both have it, but the console's changed since the backup
 	ConsoleOnly, // never backed up
-	VaultOnly,   // in the vault, gone from the console: can be put back
+	VaultOnly,   // in the vault, gone from the console
 };
 
 // A save of a game, on the console, in the vault, or both.
 //
-// PS4 layout: /user/home/<account>/savedata/<TITLE_ID>/ holds
-// "sdimg_<dir>" (the encrypted image, with the save's own param.sfo inside)
-// and "<dir>.bin" (its key), plus the system's backup copy of both as
-// "sce_bu_<dir>"; /user/home/<account>/savedata_meta/user/<TITLE_ID>/ holds
-// entries named after each save (its listing data and icon, where there
-// are any). They are copied as they are: a save only works on the console
-// and account it came from, and the PS4 keeps a database of its saves
-// (/system_data/savedata) that copying files does not touch — so a save is
-// only put back over one the console still lists.
+// PS4 layout: /user/home/<user>/savedata/<TITLE_ID>/ holds "sdimg_<dir>"
+// (the encrypted image, with the save's own param.sfo inside) and
+// "<dir>.bin" (its key), plus the system's backup copy of both as
+// "sce_bu_<dir>"; /user/home/<user>/savedata_meta/user/<TITLE_ID>/ holds
+// entries named after each save (its listing data and icon, where the
+// server lets them be read).
 struct SaveInfo
 {
-	std::string account; // "1eb71bbd"
+	std::string account; // the console user's folder, "1a2b3c4d"; "" when not known
 	std::string titleId; // "CUSA00001"
 	std::string dir;     // "SAVEDATA00"
 	std::string gameTitle;
@@ -102,6 +63,10 @@ struct SaveInfo
 	// The PSN account it belongs to: param.sfo's ACCOUNT_ID, its 8 bytes in
 	// hex as stored (little-endian, like the Account ID of Remote Play).
 	std::string accountId;
+	// The owner's PSID as the PS4 names its folders of saves (16 hex digits,
+	// the number written the usual way): from the console user's link to an
+	// Account ID, else from the save's ACCOUNT_ID. "" while not known.
+	std::string psid;
 	bool onConsole = false;
 	bool inVault = false;
 	std::vector<SaveFile> consoleFiles;
@@ -110,18 +75,22 @@ struct SaveInfo
 	int versions = 0;                 // backups kept
 	std::string iconPath;             // local copy of the save's icon, if any
 
-	std::string key() const { return account + "/" + titleId + "/" + dir; }
+	std::string key() const { return (account.empty() ? psid : account) + "/" + titleId + "/" + dir; }
 	int64_t consoleBytes() const;
 	int64_t vaultBytes() const;
 	SaveSync sync() const;
 };
 
-// The vault: a folder on this PC with every save backed up, by account,
-// game and save, each with the last few backups.
+// The vault: a folder on this PC with every save backed up, laid out as
+// the PS4 lays out the saves it copies to a USB drive.
 //
-// <root>/<account>/<TITLE_ID>/<dir>/<YYYYMMDD-HHMMSS>/
-//     savedata/…   meta/…   vault.json
-// <root>/.cache/   game icons and the console's param.sfo/icons
+// <root>/PS4/SAVEDATA/<PSID>/<TITLE_ID>/<dir>      the latest backup's image
+// <root>/PS4/SAVEDATA/<PSID>/<TITLE_ID>/<dir>.bin  and its key
+// <root>/.vault/<PSID>/<TITLE_ID>/<dir>/info.json  names, dates, sizes, user
+// <root>/.vault/<PSID>/<TITLE_ID>/<dir>/<YYYYMMDD-HHMMSS>/  earlier backups
+// <root>/.cache/                                   game icons and names
+//
+// Saves are only read from the console: nothing is written there.
 class SaveVault
 {
 public:
@@ -131,32 +100,19 @@ public:
 	explicit SaveVault(std::string root);
 	const std::string &root() const { return root_; }
 
+	// Console user folder → PSID (16 hex digits): whose saves are whose.
+	void setLinks(std::map<std::string, std::string> psidOfUser);
+
 	// The vault alone, from the PC.
-	std::vector<SaveInfo> vaultSaves() const;
+	std::vector<SaveInfo> vaultSaves();
 	// The console's saves merged with the vault's.
 	std::vector<SaveInfo> scan(SaveRemote &remote, std::string *error, const Progress &progress = {});
 
-	// Copies the save from the console into a new backup (older ones beyond
-	// kVersionsKept go). The info is updated.
+	// Copies the save's image and key from the console into the vault (the
+	// backup before goes with the earlier ones; beyond kVersionsKept, the
+	// oldest go). Needs the save's PSID. The info is updated.
 	bool backup(SaveRemote &remote, SaveInfo &save, std::string *error, const Progress &progress = {});
-	// Puts the latest backup back on the console, as it was.
-	bool restore(SaveRemote &remote, const SaveInfo &save, std::string *error, const Progress &progress = {});
-	// No "delete from the console": the PS4 lists its saves in a database
-	// of its own, and taking the files away over FTP leaves it with an entry
-	// it reports as corrupted. Saves are deleted on the PS4 itself.
 	bool removeFromVault(const SaveInfo &save, std::string *error);
-
-	// The latest backup in the PS4's USB layout under `base` (the root of a
-	// USB drive: "/mnt/usb0" on the console, "/" for a FolderRemote), for
-	// the PS4 to copy back itself. `psid`: the owner's PSID, 16 hex digits.
-	bool exportToUsb(SaveRemote &target, const std::string &base, const SaveInfo &save,
-		const std::string &psid, std::string *error);
-	// The saves in the PS4's USB layout under `base`.
-	std::vector<UsbSave> usbSaves(SaveRemote &source, const std::string &base, std::string *error);
-	// A save from there into the vault, as a backup of `account` (the
-	// console's user folder its owner has).
-	bool importFromUsb(SaveRemote &source, const std::string &base, const UsbSave &save,
-		const std::string &account, std::string *error);
 
 	// The game's own name (from its param.sfo, read once), or "".
 	std::string gameTitle(SaveRemote *remote, const std::string &titleId);
@@ -167,14 +123,21 @@ public:
 	// The game's folder in savedata_meta; each save's entries in it are
 	// named after it (files, or folders on some systems).
 	static std::string consoleMetaRoot(const std::string &account, const std::string &titleId);
+	// ACCOUNT_ID as stored (little-endian hex) → the PSID folder name.
+	static std::string psidOfAccountId(const std::string &storedHex);
 
 private:
-	std::string saveFolder(const SaveInfo &save) const;
-	std::string latestVersion(const SaveInfo &save) const;
-	void readVault(std::map<std::string, SaveInfo> &out) const;
-	void prune(const SaveInfo &save) const;
+	std::string psidFor(const SaveInfo &save) const;
+	std::string userOf(const std::string &psid) const;
+	std::string imageDir(const std::string &psid, const std::string &titleId) const;
+	std::string infoDir(const std::string &psid, const std::string &titleId, const std::string &dir) const;
+	void readVault(std::map<std::string, SaveInfo> &out);
+	void readLegacy(std::map<std::string, SaveInfo> &out) const;
+	void migrateLegacy();
+	void prune(const std::string &infoFolder) const;
 
 	std::string root_;
+	std::map<std::string, std::string> links_;
 };
 
 } // namespace orbislink
