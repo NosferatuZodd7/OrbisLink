@@ -160,6 +160,15 @@ std::string curlMessage(CURLcode code, const char *errorBuffer)
 	return detail;
 }
 
+// A failure to read: the server refusing, or the file not being there, is
+// its answer and not a dropped connection.
+FtpResult readFailure(CURLcode code, const char *errorBuffer)
+{
+	FtpResult result = FtpResult::failure(curlMessage(code, errorBuffer));
+	result.final = code == CURLE_REMOTE_ACCESS_DENIED || code == CURLE_REMOTE_FILE_NOT_FOUND;
+	return result;
+}
+
 } // namespace
 
 // Room for one more transfer (upload or download). Listing, renaming and
@@ -300,7 +309,7 @@ FtpResult FtpClient::withRetries(const std::string &what, const std::function<Ft
 			std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
 		}
 		result = operation();
-		if(result.ok || result.cancelled)
+		if(result.ok || result.cancelled || result.final)
 			break;
 	}
 	if(!result.ok && !result.cancelled)
@@ -377,7 +386,7 @@ FtpResult FtpClient::list(const std::string &remoteDir, std::vector<FtpEntry> *e
 		const CURLcode code = curl_easy_perform(curl);
 		curl_easy_cleanup(curl);
 		if(code != CURLE_OK)
-			return FtpResult::failure(curlMessage(code, errorBuffer));
+			return readFailure(code, errorBuffer);
 		if(entries)
 			*entries = parseListing(listing, dir);
 		return FtpResult::success();
@@ -412,7 +421,7 @@ FtpResult FtpClient::remoteSize(const std::string &remotePath, int64_t *size)
 			curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &remote);
 		curl_easy_cleanup(curl);
 		if(code != CURLE_OK)
-			return FtpResult::failure(curlMessage(code, errorBuffer));
+			return readFailure(code, errorBuffer);
 		if(size)
 			*size = static_cast<int64_t>(remote);
 		return FtpResult::success();
@@ -447,6 +456,11 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 	FtpResult result;
 	int failuresWithoutHeadway = 0;
 	bool appendWorks = true;
+	// Going on from what the console has is only right once those bytes are
+	// this file's: asked to resume, or written by an attempt of this call.
+	// Before that, what is there may be the file being replaced — appending
+	// to it would leave the right size and the wrong content.
+	bool remoteIsOurs = resume;
 	for(int attempt = 0;; ++attempt)
 	{
 		if(attempt > 0)
@@ -464,7 +478,7 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 			}
 			int64_t remote = -1;
 			alreadyThere = 0;
-			if(appendWorks && querySize(path, &remote) && remote > 0 && remote < localSize)
+			if(remoteIsOurs && appendWorks && querySize(path, &remote) && remote > 0 && remote < localSize)
 				alreadyThere = remote;
 			if(alreadyThere > 0)
 				logInfo("FTP: " + what + " goes on from " + std::to_string(alreadyThere) + " bytes.");
@@ -474,6 +488,8 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 		result = uploadOnce(localPath, path, progress, localSize, alreadyThere, &reached);
 		if(result.ok || result.cancelled)
 			break;
+		if(reached > alreadyThere)
+			remoteIsOurs = true;
 		if(alreadyThere > 0 && reached == alreadyThere)
 			appendWorks = false; // the server may not take APPE: start over next time
 		const bool headway = reached > alreadyThere + (1 << 20);
@@ -614,7 +630,7 @@ FtpResult FtpClient::download(const std::string &remotePath, const std::string &
 			return result;
 		}
 		if(code != CURLE_OK)
-			return FtpResult::failure(curlMessage(code, errorBuffer));
+			return readFailure(code, errorBuffer);
 		return FtpResult::success();
 	});
 }

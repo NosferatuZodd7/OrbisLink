@@ -228,9 +228,10 @@ as `image/disc01.iso`. PS1 discs as PS Classics fPKG Builder does.
 
 ## Save vault
 
-A place on this PC with a copy of every save on the console. The console is
-only read — nothing is written or deleted there. It needs the console's FTP
-(GoldHEN, etaHEN); without it, the page shows what the vault holds.
+A place on this PC with a copy of every save on the console, to put back
+whatever the console loses. It needs the console's FTP (GoldHEN, etaHEN);
+without it, the page shows what the vault holds. Backing up only reads the
+console; putting back writes the save where the console keeps it.
 
 Opening the page reads the console: every user, every game with saves, and
 each save with its icon, its name, what the game wrote about it (chapter,
@@ -247,9 +248,11 @@ it stands:
 | Item | Does |
 |---|---|
 | **Back up everything** | Backs up every save that is not backed up or changed, in one click. |
+| **Put back what's missing** | Puts back every save only the vault has (see below). |
 | Users | One chip per console user (its folder on the console), named after the Account ID linked to it, or the one its saves name, else "User <id>". The tooltip shows its PSID. **Link…** says which of the Account IDs kept in the app (Settings → Account IDs) the user is: it names the saves and gives the PSID they are kept under. A save whose PSID is not known yet asks for the link when it is backed up, then goes. With one user chosen, everything on the page is that user's. |
 | Filters | All · Not backed up · Changed · Only on this PC. |
-| Click on a save · **Select all** | Selects; the top strip then offers **Back up** and **Delete…** for the selection. |
+| Click on a save · **Select all** | Selects; the top strip then offers **Back up**, **Put back** and **Delete…** for the selection. |
+| **Put back** | Always asks first: the game has to be closed. Each save goes back to the console user it came from, replacing the console's copy with the latest backup, and is checked to have arrived whole (an error otherwise). A save the console no longer listed is also added back to its list of saves (below). |
 | **Delete…** | From the vault only (it warns when the vault holds the only copy). |
 | Folder chip · ⚙ | Opens the vault folder · changes it. |
 | ⟳ | Reads the console again. |
@@ -271,13 +274,29 @@ Saves copied in by hand from a PS4's USB drive (its `PS4` folder into the
 vault folder) show up as well. Backups made by earlier versions move to this
 layout once their PSID is known.
 
+Putting back a save the console lost: the PS4 keeps a list of each user's
+saves (`/system_data/savedata/<user>/db/user/savedata.db`, SQLite), and a
+save whose files are there but has no row in it is not shown. So, after
+putting the files back, the app reads that list, adds the missing rows —
+the same row Apollo Save Tool adds when it creates a save: game, save,
+names, size in 32 KiB blocks, owner's account and user — checks the result
+with SQLite and writes it back, reading it again to make sure it is
+exactly the edited one (otherwise the console's own goes back). A row
+already there is only no longer marked broken. The list as the console had
+it is kept first in `<vault>/.vault/console-lists/<user>/` (the last 5). If
+a save does not show yet, restart the console.
+
 What the PS4 allows, and why the page works this way:
 
 - A save is two files on the console, `sdimg_<name>` (the encrypted image,
   with the save's own param.sfo inside) and `<name>.bin` (its key); the
   system's own copy of them (`sce_bu_<name>`) is not kept.
 - The game open on the console (Remote Play's discovery says which) is left
-  alone: a save read while its game writes it can come out half-written.
+  alone: a save copied while its game writes it comes out corrupted, either
+  way.
+- A save counts as on the console only with its own image and key: with
+  only the system's copies (`sce_bu_`) left, the console shows it broken,
+  and it is offered for putting back.
 - Saves are kept as the console has them: encrypted, for the console and
   account they came from.
 
@@ -302,7 +321,7 @@ What the PS4 allows, and why the page works this way:
 | Install directly | yes | — | yes | — |
 | Files tab (browsing also works while an upload runs) | yes | yes | — | — |
 | Remote Play | yes | — | — | yes |
-| Save vault: back up | yes | yes | — | — |
+| Save vault: back up, put back | yes | yes | — | — |
 | Save vault: see or delete what the PC holds | no | — | — | — |
 
 ## Where it lives in the code

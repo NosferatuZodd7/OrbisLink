@@ -144,7 +144,7 @@
     <message>
         <location filename="../qml/orbislink/AccountManager.qml" line="243"/>
         <source>4 digits: the account&apos;s passcode, sent when the console asks for it while connecting. 8 digits: the pairing PIN, filled in when this account registers (the console shows a new one each time).</source>
-        <translation>4 digits: the account's passcode, sent when the console asks for it while connecting. 8 digits: the pairing PIN, filled in when this account registers (the console shows a new one each time).</translation>
+        <translation>4 digits: the account&apos;s passcode, sent when the console asks for it while connecting. 8 digits: the pairing PIN, filled in when this account registers (the console shows a new one each time).</translation>
     </message>
     <message>
         <location filename="../qml/orbislink/AccountManager.qml" line="254"/>
@@ -177,7 +177,7 @@
     <message>
         <location filename="../qml/orbislink/AccountPickerDialog.qml" line="100"/>
         <source>Remote Play uses this account&apos;s own registration on the console and its own PIN.</source>
-        <translation>Remote Play uses this account's own registration on the console and its own PIN.</translation>
+        <translation>Remote Play uses this account&apos;s own registration on the console and its own PIN.</translation>
     </message>
     <message>
         <location filename="../qml/orbislink/AccountPickerDialog.qml" line="170"/>
@@ -548,7 +548,7 @@
     <message>
         <location filename="../qml/orbislink/ConsoleManager.qml" line="360"/>
         <source>Removes this PC&apos;s Remote Play registrations on this console, every account&apos;s. Connecting again will need a new PIN.</source>
-        <translation>Removes this PC's Remote Play registrations on this console, every account's. Connecting again will need a new PIN.</translation>
+        <translation>Removes this PC&apos;s Remote Play registrations on this console, every account&apos;s. Connecting again will need a new PIN.</translation>
     </message>
     <message>
         <location filename="../qml/orbislink/ConsoleManager.qml" line="369"/>
@@ -1790,33 +1790,33 @@
         <translation>The console is off or not on the network.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="427"/>
-        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="656"/>
-        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="669"/>
-        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="682"/>
-        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="696"/>
+        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="436"/>
+        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="672"/>
+        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="685"/>
+        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="698"/>
+        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="712"/>
         <source>Protected system area: turn on Advanced mode in the settings.</source>
         <translation>Protected system area: turn on Advanced mode in the settings.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="431"/>
+        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="440"/>
         <source>Local file not accessible</source>
         <translation>Local file not accessible</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="522"/>
+        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="538"/>
         <source>Could not open the file</source>
         <translation>Could not open the file</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="462"/>
-        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="563"/>
-        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="613"/>
+        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="476"/>
+        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="579"/>
+        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="629"/>
         <source>Operation cancelled.</source>
         <translation>Operation cancelled.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="585"/>
+        <location filename="../src/orbislink/ftp/ftp_client.cpp" line="601"/>
         <source>Could not write to the file</source>
         <translation>Could not write to the file</translation>
     </message>
@@ -2370,37 +2370,37 @@
         <translation>%1 is open on the console: its saves were left alone. Close it and try again.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="225"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="232"/>
         <source>Back to the consoles</source>
         <translation>Back to the consoles</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="231"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="238"/>
         <source>Save vault</source>
         <translation>Save vault</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="238"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="245"/>
         <source>%1 on the console · %2 in the vault</source>
         <translation>%1 on the console · %2 in the vault</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="252"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="259"/>
         <source>Open the vault folder (right click to change it)</source>
         <translation>Open the vault folder (right click to change it)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="262"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="269"/>
         <source>Change the vault folder</source>
         <translation>Change the vault folder</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="269"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="276"/>
         <source>Read the console again</source>
         <translation>Read the console again</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/SavesView.qml" line="304"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="311"/>
         <source>%n selected</source>
         <translation>
             <numerusform>%n selected</numerusform>
@@ -2408,27 +2408,32 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="312"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="319"/>
         <source>Back up</source>
         <translation>Back up</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="320"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="326"/>
+        <source>Put back</source>
+        <translation>Put back</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SavesView.qml" line="334"/>
         <source>Delete…</source>
         <translation>Delete…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="327"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="341"/>
         <source>Clear the selection</source>
         <translation>Clear the selection</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="344"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="358"/>
         <source>The console&apos;s FTP is not answering: this is what the vault holds.</source>
         <translation>The console&apos;s FTP is not answering: this is what the vault holds.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/SavesView.qml" line="346"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="360"/>
         <source>%n save(s) on the console not backed up yet.</source>
         <translation>
             <numerusform>%n save on the console not backed up yet.</numerusform>
@@ -2436,22 +2441,22 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="347"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="361"/>
         <source>Everything on the console is in the vault.</source>
         <translation>Everything on the console is in the vault.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="348"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="362"/>
         <source>Read the console to see its saves.</source>
         <translation>Read the console to see its saves.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="369"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="383"/>
         <source>%1 is open: its saves wait until it closes.</source>
         <translation>%1 is open: its saves wait until it closes.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/SavesView.qml" line="378"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="392"/>
         <source>%n save(s) the console no longer has are kept here.</source>
         <translation>
             <numerusform>%n save the console no longer has is kept here.</numerusform>
@@ -2459,124 +2464,173 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="413"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="399"/>
+        <source>Put back what&apos;s missing</source>
+        <translation>Put back what's missing</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SavesView.qml" line="440"/>
         <source>All users</source>
         <translation>All users</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="427"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="454"/>
         <source>Console user %1 · PSID %2</source>
         <translation>Console user %1 · PSID %2</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="457"/>
-        <location filename="../qml/orbislink/SavesView.qml" line="678"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="484"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="705"/>
         <source>Only on this PC</source>
         <translation>Only on this PC</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="864"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="765"/>
+        <source>Backups are kept as the PS4 copies saves to a USB drive: PS4/SAVEDATA/&lt;PSID&gt;/&lt;game&gt;, in the vault folder. A save only goes back to the console user it came from.</source>
+        <translation>Backups are kept as the PS4 copies saves to a USB drive: PS4/SAVEDATA/&lt;PSID&gt;/&lt;game&gt;, in the vault folder. A save only goes back to the console user it came from.</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../qml/orbislink/SavesView.qml" line="892"/>
+        <source>Put back %n save(s)?</source>
+        <translation>
+            <numerusform>Put back %n save?</numerusform>
+            <numerusform>Put back %n saves?</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SavesView.qml" line="899"/>
+        <source>The game must be closed (the console on its home screen): a save written while its game runs comes out corrupted.</source>
+        <translation>The game must be closed (the console on its home screen): a save written while its game runs comes out corrupted.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SavesView.qml" line="901"/>
+        <source>Each goes back to the console user it came from, replacing the console&apos;s copy with the latest backup, and is checked to have arrived whole.</source>
+        <translation>Each goes back to the console user it came from, replacing the console's copy with the latest backup, and is checked to have arrived whole.</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../qml/orbislink/SavesView.qml" line="944"/>
+        <source>%n of them the console no longer has: they are added back to its list of saves too, so it shows them again. A copy of that list stays on this PC first.</source>
+        <translation>
+            <numerusform>%n of them the console no longer has: it is added back to its list of saves too, so it shows it again. A copy of that list stays on this PC first.</numerusform>
+            <numerusform>%n of them the console no longer has: they are added back to its list of saves too, so it shows them again. A copy of that list stays on this PC first.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../qml/orbislink/SavesView.qml" line="967"/>
+        <source>%n of them have no console user yet: link their PSID to a console user first (the user chips at the top).</source>
+        <translation>
+            <numerusform>%n of them has no console user yet: link its PSID to a console user first (the user chips at the top).</numerusform>
+            <numerusform>%n of them have no console user yet: link their PSID to a console user first (the user chips at the top).</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SavesView.qml" line="987"/>
+        <source>The game is closed — put back</source>
+        <translation>The game is closed — put back</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SavesView.qml" line="1033"/>
         <source>To back up this user&apos;s saves, say which Account ID it is: they are kept under its PSID, as the PS4 keeps them on a USB drive.</source>
         <translation>To back up this user&apos;s saves, say which Account ID it is: they are kept under its PSID, as the PS4 keeps them on a USB drive.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="865"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1034"/>
         <source>Which Account ID is this user? Its saves take its name, and are kept under its PSID.</source>
         <translation>Which Account ID is this user? Its saves take its name, and are kept under its PSID.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="440"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="467"/>
         <source>Change the link…</source>
         <translation>Change the link…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="441"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="468"/>
         <source>Link…</source>
         <translation>Link…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="441"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="468"/>
         <source>Link to an Account ID…</source>
         <translation>Link to an Account ID…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="443"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="470"/>
         <source>Which of the app&apos;s Account IDs this console user is</source>
         <translation>Which of the app&apos;s Account IDs this console user is</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="848"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1017"/>
         <source>Console user %1</source>
         <translation>Console user %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="866"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1035"/>
         <source>No Account IDs kept in the app yet: add them under Settings → Account IDs.</source>
         <translation>No Account IDs kept in the app yet: add them under Settings → Account IDs.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="925"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1094"/>
         <source>Unlink</source>
         <translation>Unlink</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="930"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1099"/>
         <source>Close</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="385"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="412"/>
         <source>Back up everything</source>
         <translation>Back up everything</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="428"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="455"/>
         <source>Console user %1 · PSID unknown: link it to an Account ID to back up its saves.</source>
         <translation>Console user %1 · PSID unknown: link it to an Account ID to back up its saves.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="454"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="481"/>
         <source>All</source>
         <translation>All</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="455"/>
-        <location filename="../qml/orbislink/SavesView.qml" line="679"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="482"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="706"/>
         <source>Not backed up</source>
         <translation>Not backed up</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="456"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="483"/>
         <source>Changed</source>
         <translation>Changed</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="472"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="499"/>
         <source>Select none</source>
         <translation>Select none</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="472"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="499"/>
         <source>Select all</source>
         <translation>Select all</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="539"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="566"/>
         <source>Account %1</source>
         <translation>Account %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="676"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="703"/>
         <source>In the vault</source>
         <translation>In the vault</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="677"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="704"/>
         <source>Changed since the backup</source>
         <translation>Changed since the backup</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/SavesView.qml" line="686"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="713"/>
         <source>Last backup: %1 (%n kept)</source>
         <translation>
             <numerusform>Last backup: %1 (%n kept)</numerusform>
@@ -2584,37 +2638,32 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="714"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="741"/>
         <source>Reading the console&apos;s saves…</source>
         <translation>Reading the console&apos;s saves…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="715"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="742"/>
         <source>Nothing here.</source>
         <translation>Nothing here.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="716"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="743"/>
         <source>No saves found on the console or in the vault.</source>
         <translation>No saves found on the console or in the vault.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="717"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="744"/>
         <source>Connect to a console with FTP (GoldHEN, etaHEN) to see its saves.</source>
         <translation>Connect to a console with FTP (GoldHEN, etaHEN) to see its saves.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="738"/>
-        <source>The console is only read. Backups are kept as the PS4 copies saves to a USB drive: PS4/SAVEDATA/&lt;PSID&gt;/&lt;game&gt;, in the vault folder.</source>
-        <translation>The console is only read. Backups are kept as the PS4 copies saves to a USB drive: PS4/SAVEDATA/&lt;PSID&gt;/&lt;game&gt;, in the vault folder.</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="748"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="775"/>
         <source>Folder for the save vault</source>
         <translation>Folder for the save vault</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/SavesView.qml" line="773"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="800"/>
         <source>Delete %n save(s) from the vault?</source>
         <translation>
             <numerusform>Delete %n save from the vault?</numerusform>
@@ -2622,12 +2671,12 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="786"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="813"/>
         <source>Their copies on this PC go, every backup kept. The console&apos;s saves are not touched: those are deleted on the PS4 itself (Settings → Application Saved Data Management), so it stays in order.</source>
         <translation>Their copies on this PC go, every backup kept. The console&apos;s saves are not touched: those are deleted on the PS4 itself (Settings → Application Saved Data Management), so it stays in order.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/SavesView.qml" line="798"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="825"/>
         <source>%n of them are no longer on the console: this is their only copy.</source>
         <translation>
             <numerusform>%n of them is no longer on the console: this is its only copy.</numerusform>
@@ -2635,12 +2684,13 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="816"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="843"/>
         <source>Delete from the vault</source>
         <translation>Delete from the vault</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="812"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="839"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="983"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
@@ -3803,7 +3853,7 @@
     <message>
         <location filename="../src/orbislink/qt/app_controller.cpp" line="309"/>
         <source>The Remote Play PIN is 4 digits (the account&apos;s passcode) or 8 (the pairing PIN the console shows).</source>
-        <translation>The Remote Play PIN is 4 digits (the account's passcode) or 8 (the pairing PIN the console shows).</translation>
+        <translation>The Remote Play PIN is 4 digits (the account&apos;s passcode) or 8 (the pairing PIN the console shows).</translation>
     </message>
     <message>
         <location filename="../src/orbislink/qt/app_controller.cpp" line="320"/>
@@ -4318,42 +4368,42 @@
 <context>
     <name>orbislink::SavesController</name>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="260"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="277"/>
         <source>Reading the console&apos;s saves… %1</source>
         <translation>Reading the console&apos;s saves… %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="268"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="285"/>
         <source>The console&apos;s saves could not be read: %1</source>
         <translation>The console&apos;s saves could not be read: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="293"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="310"/>
         <source>Reading the console&apos;s saves…</source>
         <translation>Reading the console&apos;s saves…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="310"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="327"/>
         <source>Backing up…</source>
         <translation>Backing up…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="319"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="336"/>
         <source>Backing up %1 (%2 of %3)…</source>
         <translation>Backing up %1 (%2 of %3)…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="331"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="348"/>
         <source>Everything on the console is already in the vault.</source>
         <translation>Everything on the console is already in the vault.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="333"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="350"/>
         <source>%1 of %2 saves backed up. Not done: %3</source>
         <translation>%1 of %2 saves backed up. Not done: %3</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="334"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="351"/>
         <source>%n save(s) backed up in the vault.</source>
         <translation>
             <numerusform>%n save backed up in the vault.</numerusform>
@@ -4361,17 +4411,78 @@
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="350"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="358"/>
+        <source>Putting saves back…</source>
+        <translation>Putting saves back…</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="370"/>
+        <source>Putting back %1 (%2 of %3)…</source>
+        <translation>Putting back %1 (%2 of %3)…</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="391"/>
+        <source>Adding them to the console&apos;s list of saves…</source>
+        <translation>Adding them to the console's list of saves…</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="401"/>
+        <source>%n save(s) put back on the console.</source>
+        <translation>
+            <numerusform>%n save put back on the console.</numerusform>
+            <numerusform>%n saves put back on the console.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="402"/>
+        <source>%1 of %2 saves put back. Not done: %3</source>
+        <translation>%1 of %2 saves put back. Not done: %3</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="405"/>
+        <source>%n added to the console&apos;s list of saves; if one does not show yet, restart the console.</source>
+        <translation>
+            <numerusform>%n added to the console's list of saves; if it does not show yet, restart the console.</numerusform>
+            <numerusform>%n added to the console's list of saves; if one does not show yet, restart the console.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="408"/>
+        <source>Their files are back, but the console&apos;s list of saves could not be updated: %1</source>
+        <translation>Their files are back, but the console's list of saves could not be updated: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="430"/>
+        <source>it could not be read (%1)</source>
+        <translation>it could not be read (%1)</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="436"/>
+        <source>no room for a copy on this PC</source>
+        <translation>no room for a copy on this PC</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="458"/>
+        <source>it could not be written back (%1)</source>
+        <translation>it could not be written back (%1)</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="482"/>
+        <source>the edited list did not arrive whole, so the console&apos;s own was put back</source>
+        <translation>the edited list did not arrive whole, so the console's own was put back</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="507"/>
         <source>Not everything was deleted: %1</source>
         <translation>Not everything was deleted: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="341"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="498"/>
         <source>Deleting from the vault…</source>
         <translation>Deleting from the vault…</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="349"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="506"/>
         <source>%n save(s) deleted from the vault.</source>
         <translation>
             <numerusform>%n save deleted from the vault.</numerusform>

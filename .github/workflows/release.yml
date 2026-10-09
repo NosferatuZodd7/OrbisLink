@@ -357,12 +357,17 @@ jobs:
           # without error, and only blows up on the machine of whoever installs it.
           $required = @('orbislink-gui.exe','Qt6Core.dll','Qt6Quick.dll','Qt6Qml.dll',
                         'libcurl.dll','MSVCP140.dll','VCRUNTIME140.dll','VCRUNTIME140_1.dll',
-                        'Qt6Multimedia.dll')
+                        'Qt6Multimedia.dll','Qt6Sql.dll')
           $missing = $required | Where-Object { -not (Test-Path "dist/gui/$_") }
           Get-ChildItem dist/gui | Select-Object Name, Length | Format-Table -AutoSize
           if ($missing) { throw "Files missing from the package: $($missing -join ', ')" }
           if (-not (Test-Path "dist/gui/platforms/qwindows.dll")) {
             throw "The platforms/qwindows.dll platform plugin is missing"
+          }
+          # Putting back a save the console lost edits its list of saves
+          # (SQLite): without the driver that step fails on the user's PC.
+          if (-not (Test-Path "dist/gui/sqldrivers/qsqlite.dll")) {
+            throw "The sqldrivers/qsqlite.dll plugin is missing"
           }
           # Without QtMultimedia's QML module VideoOutput does not exist and the
           # Remote Play window stays black without saying why. Where it

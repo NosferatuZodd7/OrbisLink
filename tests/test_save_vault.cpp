@@ -34,11 +34,35 @@ public:
 			item.path = dir + "/" + item.name;
 			item.isDirectory = entry.is_directory();
 			item.size = item.isDirectory ? 0 : static_cast<int64_t>(entry.file_size());
-			item.modified = "Oct 03 18:42";
+			const auto stamp = written_.find(item.path);
+			item.modified = stamp != written_.end() ? stamp->second : "Oct 03 18:42";
 			entries->push_back(item);
 		}
 		return true;
 	}
+	bool upload(const std::string &local, const std::string &remote, std::string *error) override
+	{
+		// Like a console: what is written gets the time it was written.
+		written_[remote] = "Oct 04 0" + std::to_string(++writes_ % 10) + ":00";
+		std::error_code failure;
+		fs::copy_file(local, at(remote), fs::copy_options::overwrite_existing, failure);
+		if(failure && error)
+			*error = failure.message();
+		// A transfer cut short that still says "done".
+		if(truncateUploads && !failure)
+			fs::resize_file(at(remote), fs::file_size(at(remote)) / 2);
+		return !failure;
+	}
+	bool truncateUploads = false;
+	bool makeDirectory(const std::string &dir) override
+	{
+		// A real FTP server refuses this, and the client retries it: slow.
+		if(fs::exists(at(dir)))
+			++redundantMakeDirectory;
+		std::error_code ignored;
+		return fs::create_directory(at(dir), ignored);
+	}
+	int redundantMakeDirectory = 0;
 	bool truncateDownloads = false;
 	bool download(const std::string &remote, const std::string &local, std::string *error) override
 	{
@@ -54,6 +78,8 @@ public:
 
 private:
 	fs::path root_;
+	std::map<std::string, std::string> written_;
+	int writes_ = 0;
 };
 
 void writeBytes(const fs::path &path, size_t size, char fill)
@@ -181,6 +207,80 @@ ORBISLINK_TEST(scan_backup_change_delete)
 	CHECK(!fs::exists(root / ".vault" / kPsid));
 }
 
+// A save the console lost goes back as it was backed up, to its own user,
+// whole, and then reads as the same save again.
+ORBISLINK_TEST(a_lost_save_goes_back_whole)
+{
+	Fixture f;
+	TestConsole console(f.consoleRoot);
+	SaveVault vault((f.base / "vault").string());
+	std::string error;
+	SaveInfo save = *find(vault.scan(console, &error), "SAVE0");
+	CHECK(vault.backup(console, save, &error));
+
+	// Lost: files, game folder and all.
+	fs::remove_all(f.home / "savedata/CUSA00001");
+	fs::remove_all(f.home / "savedata_meta/user/CUSA00001/SAVE0");
+	std::vector<SaveInfo> saves = vault.scan(console, &error);
+	const SaveInfo *lost = find(saves, "SAVE0");
+	CHECK(lost->sync() == SaveSync::VaultOnly);
+
+	CHECK(vault.restore(console, *lost, std::string(), &error));
+	CHECK_EQ(console.redundantMakeDirectory, 0);
+	CHECK_EQ(fs::file_size(f.home / "savedata/CUSA00001/sdimg_SAVE0"), static_cast<uintmax_t>(4096));
+	CHECK_EQ(fs::file_size(f.home / "savedata/CUSA00001/SAVE0.bin"), static_cast<uintmax_t>(96));
+	saves = vault.scan(console, &error);
+	CHECK(find(saves, "SAVE0")->sync() == SaveSync::Same);
+
+	// The row the console's list of saves needs for it.
+	const SaveDbEntry row = vault.dbEntry(*find(saves, "SAVE0"), std::string());
+	CHECK_EQ(row.titleId, std::string("CUSA00001"));
+	CHECK_EQ(row.dir, std::string("SAVE0"));
+	CHECK_EQ(row.mainTitle, std::string("Orbis Racing"));
+	CHECK_EQ(row.subTitle, std::string("Slot SAVE0"));
+	CHECK_EQ(row.userId, static_cast<uint32_t>(0x1eb71bbd));
+	CHECK_EQ(row.accountId, static_cast<int64_t>(0x4847464544434241LL));
+	CHECK_EQ(SaveVault::saveDbPath("1eb71bbd"), std::string("/system_data/savedata/1eb71bbd/db/user/savedata.db"));
+}
+
+// What does not arrive whole is an error; a user the console does not have
+// is refused before anything is written.
+ORBISLINK_TEST(putting_back_checks_the_user_and_the_sizes)
+{
+	Fixture f;
+	TestConsole console(f.consoleRoot);
+	SaveVault vault((f.base / "vault").string());
+	std::string error;
+	SaveInfo save = *find(vault.scan(console, &error), "SAVE1");
+	CHECK(vault.backup(console, save, &error));
+	save = *find(vault.scan(console, &error), "SAVE1");
+
+	CHECK(!vault.restore(console, save, "deadbeef", &error));
+	CHECK(error.find("deadbeef") != std::string::npos);
+
+	console.truncateUploads = true;
+	error.clear();
+	CHECK(!vault.restore(console, save, std::string(), &error));
+	CHECK(error.find("whole") != std::string::npos);
+}
+
+// The image's size in 32 KiB blocks is what the list of saves records.
+ORBISLINK_TEST(the_save_list_row_counts_blocks_of_32_kib)
+{
+	Fixture f;
+	writeBytes(f.home / "savedata/CUSA00007/sdimg_BIG", 98304, 'b');
+	writeBytes(f.home / "savedata/CUSA00007/BIG.bin", 96, 'k');
+	TestConsole console(f.consoleRoot);
+	SaveVault vault((f.base / "vault").string());
+	vault.setLinks({ { "1eb71bbd", "1c020a82bb40e5fe" } });
+	std::string error;
+	SaveInfo save = *find(vault.scan(console, &error), "BIG");
+	CHECK(vault.backup(console, save, &error));
+	const SaveDbEntry row = vault.dbEntry(*find(vault.vaultSaves(), "BIG"), "1eb71bbd");
+	CHECK_EQ(row.blocks, static_cast<int64_t>(3));
+	CHECK_EQ(row.accountId, static_cast<int64_t>(0x1c020a82bb40e5feLL));
+}
+
 // The layout seen on a real console: the PS4's own backup copy of each
 // save ("sce_bu_"), and savedata_meta entries that are files, not folders.
 // No ACCOUNT_ID to be read: the console user's link gives the PSID.
@@ -239,6 +339,13 @@ ORBISLINK_TEST(real_layout_with_system_backups_and_a_linked_user)
 	CHECK(rdr(vault.scan(console, &error))->sync() == SaveSync::Same);
 	// The console's files are as they were.
 	CHECK_EQ(fs::file_size(data / "sdimg_RDR2SAVE0.SAV"), static_cast<uintmax_t>(2048));
+
+	// Its own image gone, only the system's copies left: the save is
+	// missing from the console, and the vault's copy is what is left.
+	fs::remove(data / "sdimg_RDR2SAVE0.SAV");
+	const SaveInfo *broken = rdr(vault.scan(console, &error));
+	CHECK(broken->sync() == SaveSync::VaultOnly);
+	CHECK_EQ(broken->account, std::string("1eb71bbd"));
 }
 
 // A file that does not arrive whole is an error, and the backup there was

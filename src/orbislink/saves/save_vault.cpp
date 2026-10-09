@@ -251,6 +251,22 @@ std::vector<std::string> historyOf(const std::string &infoFolder)
 	return versions;
 }
 
+// Makes a folder on the console unless it is there: asking an FTP server
+// to make one that exists is an error, and the client retries it.
+void ensureRemoteDir(SaveRemote &remote, const std::string &dir)
+{
+	const size_t slash = dir.find_last_of('/');
+	const std::string parent = slash == 0 ? "/" : dir.substr(0, slash);
+	const std::string name = dir.substr(slash + 1);
+	std::vector<FtpEntry> entries;
+	std::string error;
+	if(remote.list(parent, &entries, &error))
+		for(const FtpEntry &entry : entries)
+			if(entry.isDirectory && entry.name == name)
+				return;
+	remote.makeDirectory(dir);
+}
+
 // Takes away a folder if nothing is left in it.
 void removeIfEmpty(const fs::path &folder)
 {
@@ -659,7 +675,17 @@ std::vector<SaveInfo> SaveVault::scan(SaveRemote &remote, std::string *error, co
 
 		for(auto &pair : byDir)
 		{
-			SaveInfo &save = merged[account + "/" + titleId + "/" + pair.first];
+			// Without its own image and key the save is not there, even when
+			// the system's backup copies of them are: the console shows it
+			// broken, and it is what putting back is for.
+			const std::string key = account + "/" + titleId + "/" + pair.first;
+			if(!findFile(pair.second, imageRelative(pair.first)) || !findFile(pair.second, keyRelative(pair.first)))
+			{
+				if(merged.count(key))
+					merged[key].account = account;
+				continue;
+			}
+			SaveInfo &save = merged[key];
 			save.account = account;
 			save.titleId = titleId;
 			save.dir = pair.first;
@@ -830,6 +856,115 @@ bool SaveVault::backup(SaveRemote &remote, SaveInfo &save, std::string *error, c
 		progress(std::string(), 1.0);
 	logInfo("Saves: backed up " + save.key() + " to PS4/SAVEDATA/" + psid);
 	return true;
+}
+
+bool SaveVault::restore(SaveRemote &remote, const SaveInfo &save, const std::string &account, std::string *error,
+	const Progress &progress)
+{
+	auto fail = [error](const std::string &why) {
+		if(error)
+			*error = why;
+		return false;
+	};
+	const std::string user = account.empty() ? save.account : account;
+	if(!isAccountId(user))
+		return fail("No console user for this save: link its PSID to a console user first.");
+	if(!save.inVault || !isPsid(save.psid) || !plainName(save.dir) || !plainName(save.titleId))
+		return fail("This save has no backup in the vault.");
+	const std::string image = joinPath(imageDir(save.psid, save.titleId), save.dir);
+	const std::string key = image + ".bin";
+	if(!fileExists(image) || !fileExists(key))
+		return fail("This save's backup is not whole in the vault.");
+
+	// It goes back to the user it belongs to, who must be on this console.
+	std::vector<FtpEntry> users;
+	std::string listError;
+	if(!remote.list("/user/home", &users, &listError))
+		return fail(listError.empty() ? std::string("The console's users could not be read.") : listError);
+	if(std::none_of(users.begin(), users.end(),
+		   [&user](const FtpEntry &entry) { return entry.isDirectory && entry.name == user; }))
+		return fail("This console has no user " + user + ": a save only goes back to its own.");
+
+	// The folders, one level at a time: FTP servers do not make parents.
+	const std::string target = consoleSaveDir(user, save.titleId);
+	ensureRemoteDir(remote, "/user/home/" + user + "/savedata");
+	ensureRemoteDir(remote, target);
+	const std::pair<std::string, std::string> files[] = {
+		{ image, target + "/sdimg_" + save.dir }, { key, target + "/" + save.dir + ".bin" } };
+	for(size_t i = 0; i < 2; ++i)
+	{
+		if(progress)
+			progress(files[i].second, i / 2.0);
+		if(!remote.upload(files[i].first, files[i].second, error))
+		{
+			logWarning("Saves: putting back " + save.key() + " failed at " + files[i].second);
+			return false;
+		}
+	}
+
+	// Both there, and whole: a save put back in part is worse than none.
+	std::vector<FtpEntry> now;
+	remote.list(target, &now, &listError);
+	auto listed = [&now](const std::string &name) -> const FtpEntry * {
+		for(const FtpEntry &entry : now)
+			if(!entry.isDirectory && entry.name == name)
+				return &entry;
+		return nullptr;
+	};
+	const std::pair<std::string, int64_t> expected[] = {
+		{ "sdimg_" + save.dir, fileSize(image) }, { save.dir + ".bin", fileSize(key) } };
+	for(const auto &want : expected)
+	{
+		const FtpEntry *entry = listed(want.first);
+		if(!entry || entry->size != want.second)
+		{
+			const std::string got = entry ? std::to_string(entry->size) + " of " + std::to_string(want.second) + " bytes"
+										  : std::string("missing");
+			logWarning("Saves: putting back " + save.key() + ": " + want.first + " " + got);
+			return fail("The console did not take " + want.first + " whole (" + got + ").");
+		}
+	}
+
+	// The console dates what was put back as written now: the backup takes
+	// those dates, so it still reads as the same save and not as changed.
+	const std::string info = infoDir(save.psid, save.titleId, save.dir);
+	Json json = readJson(joinPath(info, "info.json"));
+	if(json.isObject())
+	{
+		std::vector<SaveFile> fresh;
+		for(const auto &want : expected)
+			if(const FtpEntry *entry = listed(want.first))
+				fresh.push_back({ "savedata/" + want.first, entry->size, entry->modified });
+		json.set("files", filesToJson(fresh));
+		writeJson(joinPath(info, "info.json"), json);
+	}
+	if(progress)
+		progress(std::string(), 1.0);
+	logInfo("Saves: put back " + save.key() + " for user " + user);
+	return true;
+}
+
+std::string SaveVault::saveDbPath(const std::string &account)
+{
+	return "/system_data/savedata/" + account + "/db/user/savedata.db";
+}
+
+SaveDbEntry SaveVault::dbEntry(const SaveInfo &save, const std::string &account) const
+{
+	SaveDbEntry entry;
+	const std::string user = account.empty() ? save.account : account;
+	entry.titleId = save.titleId;
+	entry.dir = save.dir;
+	entry.mainTitle = save.gameTitle;
+	entry.subTitle = save.saveTitle;
+	entry.detail = save.detail;
+	if(const SaveFile *image = findFile(save.vaultFiles, imageRelative(save.dir)))
+		entry.blocks = image->size / 32768;
+	if(isPsid(save.psid))
+		entry.accountId = static_cast<int64_t>(std::stoull(save.psid, nullptr, 16));
+	if(isAccountId(user))
+		entry.userId = static_cast<uint32_t>(std::stoul(user, nullptr, 16));
+	return entry;
 }
 
 std::string SaveVault::gameTitle(SaveRemote *remote, const std::string &titleId)

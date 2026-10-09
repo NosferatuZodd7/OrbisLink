@@ -20,6 +20,24 @@ public:
 	// Empty and true for a folder that is not there.
 	virtual bool list(const std::string &dir, std::vector<FtpEntry> *entries, std::string *error) = 0;
 	virtual bool download(const std::string &remote, const std::string &local, std::string *error) = 0;
+	virtual bool upload(const std::string &local, const std::string &remote, std::string *error) = 0;
+	virtual bool makeDirectory(const std::string &dir) = 0;
+};
+
+// The row the PS4 keeps for a save in its list of saves
+// (/system_data/savedata/<user>/db/user/savedata.db, table "savedata"): a
+// save whose files are there but has no row is not shown by the console.
+// What Apollo Save Tool writes when it creates a save.
+struct SaveDbEntry
+{
+	std::string titleId;
+	std::string dir;
+	std::string mainTitle;
+	std::string subTitle;
+	std::string detail;
+	int64_t blocks = 0;     // of 32 KiB: the image's size / 32768
+	int64_t accountId = 0;  // the owner's PSID, as a number
+	uint32_t userId = 0;    // the console user's folder, as a number
 };
 
 // One file of a save, as the console lists it. `relative` is
@@ -90,7 +108,10 @@ struct SaveInfo
 // <root>/.vault/<PSID>/<TITLE_ID>/<dir>/<YYYYMMDD-HHMMSS>/  earlier backups
 // <root>/.cache/                                   game icons and names
 //
-// Saves are only read from the console: nothing is written there.
+// Backing up only reads the console. Putting a save back writes its image
+// and key where the console keeps them (never while its game runs); a save
+// the console no longer lists also needs its row in the console's list of
+// saves (see SaveDbEntry), which the caller adds.
 class SaveVault
 {
 public:
@@ -112,6 +133,14 @@ public:
 	// backup before goes with the earlier ones; beyond kVersionsKept, the
 	// oldest go). Needs the save's PSID. The info is updated.
 	bool backup(SaveRemote &remote, SaveInfo &save, std::string *error, const Progress &progress = {});
+	// Puts the latest backup's image and key back on the console, in the
+	// folder of `account` (the console user it belongs to; the save's own
+	// when empty), and checks that both arrived whole.
+	bool restore(SaveRemote &remote, const SaveInfo &save, const std::string &account, std::string *error,
+		const Progress &progress = {});
+	// The row for the console's list of saves, for a save just put back.
+	SaveDbEntry dbEntry(const SaveInfo &save, const std::string &account) const;
+	static std::string saveDbPath(const std::string &account);
 	bool removeFromVault(const SaveInfo &save, std::string *error);
 
 	// The game's own name (from its param.sfo, read once), or "".
