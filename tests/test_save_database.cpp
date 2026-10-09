@@ -13,6 +13,7 @@
 #include <QFile>
 #include <QSqlDatabase>
 #include <QSqlQuery>
+#include <QSqlRecord>
 #include <QVariant>
 
 using namespace orbislink;
@@ -63,19 +64,16 @@ Row read(const QString &path, const QString &title, const QString &dir)
 		db.setDatabaseName(path);
 		db.open();
 		QSqlQuery q(db);
-		q.prepare(QStringLiteral("SELECT title_id, dir_name, main_title, sub_title, detail, blocks, free_blocks, "
-								 "size_kib, account_id, user_id, is_broken, game_title_id, mtime FROM savedata "
-								 "WHERE title_id = ? AND dir_name = ?"));
+		q.prepare(QStringLiteral("SELECT * FROM savedata WHERE title_id = ? AND dir_name = ?"));
 		q.addBindValue(title);
 		q.addBindValue(dir);
 		q.exec();
-		const char *names[] = { "title_id", "dir_name", "main_title", "sub_title", "detail", "blocks",
-			"free_blocks", "size_kib", "account_id", "user_id", "is_broken", "game_title_id", "mtime" };
 		while(q.next())
 		{
 			++row.count;
-			for(int i = 0; i < 13; ++i)
-				row.values[QString::fromLatin1(names[i])] = q.value(i);
+			const QSqlRecord record = q.record();
+			for(int i = 0; i < record.count(); ++i)
+				row.values[record.fieldName(i)] = q.value(i);
 		}
 		db.close();
 	}
@@ -173,6 +171,40 @@ ORBISLINK_TEST(an_unknown_layout_changes_nothing)
 	outcome = SaveDatabase::registerSaves(other, { entry("CUSA00001", "SAVEDATA00") });
 	CHECK(!outcome.ok);
 	QFile::remove(other);
+}
+
+// A PS5's list of PS4 saves has one more column: it is filled as the PS5
+// fills it.
+ORBISLINK_TEST(a_ps5_list_of_ps4_saves_takes_the_row_too)
+{
+	const QString path = makeDatabase(QStringLiteral(", system_blocks INTEGER"));
+	const SaveDatabase::Outcome outcome = SaveDatabase::registerSaves(path, { entry("CUSA00001", "SAVEDATA00") });
+	CHECK(outcome.ok);
+	CHECK_EQ(outcome.added, 1);
+	const Row row = read(path, QStringLiteral("CUSA00001"), QStringLiteral("SAVEDATA00"));
+	CHECK(!row.values[QStringLiteral("system_blocks")].isNull());
+	CHECK_EQ(row.values[QStringLiteral("system_blocks")].toInt(), 0);
+	QFile::remove(path);
+}
+
+// Whose saves a console user's list holds: the account most rows name.
+ORBISLINK_TEST(the_owner_is_the_account_most_saves_name)
+{
+	const QString path = makeDatabase();
+	CHECK_EQ(SaveDatabase::owner(path), 0LL);
+	SaveDatabase::registerSaves(path, { entry("CUSA00001", "A"), entry("CUSA00001", "B") });
+	CHECK_EQ(SaveDatabase::owner(path), 0x0123456789ABCDEFLL);
+	// Every row of another account: no longer most of them.
+	SaveDbEntry other = entry("CUSA00003", "C");
+	other.accountId = 0x0FEDCBA987654321LL;
+	SaveDbEntry another = entry("CUSA00003", "D");
+	another.accountId = 0x0FEDCBA987654321LL;
+	SaveDatabase::registerSaves(path, { other, another });
+	CHECK_EQ(SaveDatabase::owner(path), 0LL);
+	// Read only: nothing was changed by asking.
+	CHECK_EQ(read(path, QStringLiteral("CUSA00003"), QStringLiteral("C")).count, 1);
+	CHECK_EQ(SaveDatabase::owner(QDir::temp().filePath(QStringLiteral("orbislink-no-such-list.db"))), 0LL);
+	QFile::remove(path);
 }
 
 int main(int argc, char **argv)

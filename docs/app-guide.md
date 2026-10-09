@@ -15,7 +15,8 @@ Three jobs, around one PlayStation at a time — the **console in use**:
 3. **PS1/PS2 games** — disc images on the PC turned into PS4 packages, then
    (optionally) sent and installed.
 4. **Save vault** — every save on the console read and backed up on the PC,
-   kept as the PS4 keeps saves on a USB drive.
+   kept as the PS4 keeps saves on a USB drive, and sent to any console of
+   the same PSN account (PS4 or PS5).
 
 ## Words used in the app
 
@@ -228,33 +229,37 @@ as `image/disc01.iso`. PS1 discs as PS Classics fPKG Builder does.
 
 ## Save vault
 
-A place on this PC with a copy of every save on the console, to put back
-whatever the console loses. It needs the console's FTP (GoldHEN, etaHEN);
-without it, the page shows what the vault holds. Backing up only reads the
-console; putting back writes the save where the console keeps it.
+A place on this PC with a copy of every save, to put back whatever a console
+loses and to take a save from one console to another of the same PSN
+account (a PS4 game's save goes from a PS4 to a PS5 and back). It needs the
+console's FTP (GoldHEN, etaHEN); without it, the page shows what the PC
+holds. Backing up only reads the console; sending writes the save where the
+console keeps it.
 
-Opening the page reads the console: every user, every game with saves, and
-each save with its icon, its name, what the game wrote about it (chapter,
-level, percentage…) where the console lets that be read, its size and where
-it stands:
+Opening the page reads a console — the one in use, or another picked in the
+header: every user, every game with saves, and each save with its icon, its
+name, what the game wrote about it (chapter, level, percentage…) where the
+console lets that be read, its size and where it stands:
 
 | Badge | Means |
 |---|---|
-| ✓ In the vault | The console's save is the one backed up. |
-| ↺ Changed since the backup | The game wrote to it after the last backup. |
+| ✓ On the PC | The console's save is the one backed up (or the copy sent there). |
+| ↺ Changed since the backup | The console's save is not the PC's: the game wrote to it after the last backup, or it is that console's own save of that name. |
+| ↓ The PC has a newer one | The console has the copy of an earlier backup; a newer one came from another console. **Back up** leaves it out (it would put the earlier save over the newer one): send the PC's copy instead. |
 | ⇧ Not backed up | Only on the console. |
-| 🗄 Only on this PC | The console no longer has it; the vault keeps it. |
+| 🗄 Only on the PC | Not on this console: it lost it, or it was never there (another console's). |
 
 | Item | Does |
 |---|---|
-| **Back up everything** | Backs up every save that is not backed up or changed, in one click. |
-| **Put back what's missing** | Puts back every save only the vault has (see below). |
-| Users | One chip per console user (its folder on the console), named after the Account ID linked to it, or the one its saves name, else "User <id>". The tooltip shows its PSID. **Link…** says which of the Account IDs kept in the app (Settings → Account IDs) the user is: it names the saves and gives the PSID they are kept under. A save whose PSID is not known yet asks for the link when it is backed up, then goes. With one user chosen, everything on the page is that user's. |
-| Filters | All · Not backed up · Changed · Only on this PC. |
-| Click on a save · **Select all** | Selects; the top strip then offers **Back up**, **Put back** and **Delete…** for the selection. |
-| **Put back** | Always asks first: the game has to be closed. Each save goes back to the console user it came from, replacing the console's copy with the latest backup, and is checked to have arrived whole (an error otherwise). A save the console no longer listed is also added back to its list of saves (below). |
-| **Delete…** | From the vault only (it warns when the vault holds the only copy). |
-| Folder chip · ⚙ | Opens the vault folder · changes it. |
+| Console chip (header) | The console whose saves are shown. With more than one console, a click lists them all (with PS4/PS5, and "no FTP" for those whose FTP does not answer) to show another one's saves. |
+| **Back up all to PC** | Backs up every save that is not backed up or changed, in one click. |
+| **Send what's missing** | Sends back every save this console had and lost (see below). |
+| Owners | One chip per owner — the PSN account (PSID) — named after the Account ID kept in the app, else the console's name for its user (`username.dat`), else the PSID; or one per console user whose PSID is not known yet. **Link…** says which of the Account IDs kept in the app (Settings → Account IDs) a console user is. Most of the time it is not needed: a console user's PSID is read from the console's own list of saves, and from the saves themselves where the console lets them be read. A save whose PSID is still not known asks for the link when it is backed up, then goes. With one owner chosen, everything on the page is that owner's. |
+| Filters | All · Not backed up · Changed (and older) · Only on the PC. |
+| Click on a save · **Select all** | Selects; the top strip then offers **Back up to PC**, **Send to <console>** and **Delete…** for the selection. |
+| **Send to <console>** | Named after the console it sends to: the one shown, or another picked with the arrow next to it (only consoles whose FTP answers). Always asks first, naming the console and its type: the game has to be closed. For each owner, it shows who gets the saves there: the user of that console with the same PSID. When none is known, it lists that console's users whose PSID is not known, to say which one it is (kept from then on). Each save replaces that user's copy with the latest backup and is checked to have arrived whole (an error otherwise); one the console does not list is also added to its list of saves (below). On a PS5, a PS4 game's saves are those of its PS4 version (CUSA); its PS5 version keeps saves of its own. |
+| **Delete…** | From the PC only (it warns when a save is not on the console, as the PC's may be its only copy). |
+| Folder chip · ⚙ | Opens the folder on the PC · changes it. |
 | ⟳ | Reads the console again. |
 
 PS1/PS2 games converted to packages keep their memory cards as ordinary
@@ -266,39 +271,44 @@ drive:
 ```
 <vault>/PS4/SAVEDATA/<PSID>/<game>/<save>       the encrypted image
 <vault>/PS4/SAVEDATA/<PSID>/<game>/<save>.bin   its key
-<vault>/.vault/<PSID>/<game>/<save>/            names, dates, icon, and the 4 backups before
+<vault>/.vault/<PSID>/<game>/<save>/            names, dates, icon, the 4 backups before,
+                                                and which console users have which copy
 ```
 
 The PSID is the owner's PSN account in 16 hex digits, as the PS4 names it.
-Saves copied in by hand from a PS4's USB drive (its `PS4` folder into the
-vault folder) show up as well. Backups made by earlier versions move to this
-layout once their PSID is known.
+One save of a game is one save whatever console it is on: the PS4's and the
+PS5's copies of it are the same backup. Saves copied in by hand from a PS4's
+USB drive (its `PS4` folder into the vault folder) show up as well. Backups
+made by earlier versions move to this layout once their PSID is known.
 
-Putting back a save the console lost: the PS4 keeps a list of each user's
-saves (`/system_data/savedata/<user>/db/user/savedata.db`, SQLite), and a
-save whose files are there but has no row in it is not shown. So, after
-putting the files back, the app reads that list, adds the missing rows —
-the same row Apollo Save Tool adds when it creates a save: game, save,
-names, size in 32 KiB blocks, owner's account and user — checks the result
-with SQLite and writes it back, reading it again to make sure it is
-exactly the edited one (otherwise the console's own goes back). A row
-already there is only no longer marked broken. The list as the console had
-it is kept first in `<vault>/.vault/console-lists/<user>/` (the last 5). If
-a save does not show yet, restart the console.
+Sending a save a console does not list: each console keeps a list of each
+user's saves (`/system_data/savedata/<user>/db/user/savedata.db`, SQLite —
+a PS5 keeps its list of PS4 saves there too), and a save whose files are
+there but has no row in it is not shown. So, after sending the files, the
+app reads that list, adds the missing rows — the same row Apollo Save Tool
+adds when it creates a save: game, save, names, size in 32 KiB blocks,
+owner's account and user — checks the result with SQLite and writes it
+back, reading it again to make sure it is exactly the edited one (otherwise
+the console's own goes back). A row already there is only no longer marked
+broken. The list as the console had it is kept first in
+`<vault>/.vault/console-lists/<user>/` (the last 5). If a save does not show
+yet, restart the console. A PS5 user that never had a PS4 save has no such
+list yet: start a PS4 game there once and save, then send again.
 
-What the PS4 allows, and why the page works this way:
+What the consoles allow, and why the page works this way:
 
 - A save is two files on the console, `sdimg_<name>` (the encrypted image,
   with the save's own param.sfo inside) and `<name>.bin` (its key); the
   system's own copy of them (`sce_bu_<name>`) is not kept.
-- The game open on the console (Remote Play's discovery says which) is left
-  alone: a save copied while its game writes it comes out corrupted, either
-  way.
+- The game open on the console in use (Remote Play's discovery says which)
+  is left alone: a save copied while its game writes it comes out
+  corrupted, either way.
 - A save counts as on the console only with its own image and key: with
   only the system's copies (`sce_bu_`) left, the console shows it broken,
-  and it is offered for putting back.
-- Saves are kept as the console has them: encrypted, for the console and
-  account they came from.
+  and it is offered for sending back.
+- Saves are kept as the console has them: encrypted, for the account they
+  came from. They go only to a console user of that account (the same PSID),
+  on any console.
 
 ## Settings
 
@@ -321,7 +331,7 @@ What the PS4 allows, and why the page works this way:
 | Install directly | yes | — | yes | — |
 | Files tab (browsing also works while an upload runs) | yes | yes | — | — |
 | Remote Play | yes | — | — | yes |
-| Save vault: back up, put back | yes | yes | — | — |
+| Save vault: back up, send to a console | yes | yes | — | — |
 | Save vault: see or delete what the PC holds | no | — | — | — |
 
 ## Where it lives in the code

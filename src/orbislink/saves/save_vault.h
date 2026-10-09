@@ -58,8 +58,28 @@ enum class SaveSync
 {
 	Same,        // the console's save is the one in the vault
 	Changed,     // both have it, but the console's changed since the backup
+	Older,       // the console has an earlier backup of it: the vault's is newer
 	ConsoleOnly, // never backed up
-	VaultOnly,   // in the vault, gone from the console
+	VaultOnly,   // in the vault, not on this console
+};
+
+// A copy of a backup known to be on a console: put there from the vault
+// (or backed up from there). Its files as that console lists them say
+// whether it is still that copy.
+struct SaveCopy
+{
+	std::string user;  // the console user's folder it is in
+	std::string stamp; // the backup it is a copy of
+	std::vector<SaveFile> files;
+};
+
+// A user of a console: its folder under /user/home, its name and its PSID.
+struct ConsoleUser
+{
+	std::string folder; // "1a2b3c4d"
+	std::string name;   // from the console's username.dat; "" if it has none
+	std::string psid;   // 16 hex digits; "" while not known
+	bool linked = false; // the PSID is the user's link to an Account ID
 };
 
 // A save of a game, on the console, in the vault, or both.
@@ -90,10 +110,16 @@ struct SaveInfo
 	std::vector<SaveFile> consoleFiles;
 	std::vector<SaveFile> vaultFiles; // as they were at the latest backup
 	std::string backedUpAt;           // "2026-10-03 18:42"
+	std::string stamp;                // the latest backup's, "20261003-184200"
 	int versions = 0;                 // backups kept
 	std::string iconPath;             // local copy of the save's icon, if any
+	// Where copies of its backups went, and every console user it has been on.
+	std::vector<SaveCopy> copies;
+	std::vector<std::string> users;
 
-	std::string key() const { return (account.empty() ? psid : account) + "/" + titleId + "/" + dir; }
+	// One save whichever console it is on: its owner's PSID, the game and
+	// its name (the console user's folder while the PSID is not known).
+	std::string key() const { return (psid.empty() ? account : psid) + "/" + titleId + "/" + dir; }
 	int64_t consoleBytes() const;
 	int64_t vaultBytes() const;
 	SaveSync sync() const;
@@ -104,13 +130,18 @@ struct SaveInfo
 //
 // <root>/PS4/SAVEDATA/<PSID>/<TITLE_ID>/<dir>      the latest backup's image
 // <root>/PS4/SAVEDATA/<PSID>/<TITLE_ID>/<dir>.bin  and its key
-// <root>/.vault/<PSID>/<TITLE_ID>/<dir>/info.json  names, dates, sizes, user
+// <root>/.vault/<PSID>/<TITLE_ID>/<dir>/info.json  names, dates, sizes, users
 // <root>/.vault/<PSID>/<TITLE_ID>/<dir>/<YYYYMMDD-HHMMSS>/  earlier backups
 // <root>/.cache/                                   game icons and names
 //
+// A save is its owner's (the PSID), not a console's: the same PSN account
+// on a PS4 and a PS5 has one save of a game, which goes to either. A PS5
+// keeps a PS4 game's saves as the PS4 does (/user/home/<user>/savedata, and
+// its list of them in /system_data/savedata), and reads them.
+//
 // Backing up only reads the console. Putting a save back writes its image
 // and key where the console keeps them (never while its game runs); a save
-// the console no longer lists also needs its row in the console's list of
+// the console does not list also needs its row in the console's list of
 // saves (see SaveDbEntry), which the caller adds.
 class SaveVault
 {
@@ -122,20 +153,29 @@ public:
 	const std::string &root() const { return root_; }
 
 	// Console user folder → PSID (16 hex digits): whose saves are whose.
+	// Folders of every console: each console's are its own.
 	void setLinks(std::map<std::string, std::string> psidOfUser);
 
 	// The vault alone, from the PC.
 	std::vector<SaveInfo> vaultSaves();
-	// The console's saves merged with the vault's.
+	// The console's saves merged with the vault's. A save of the vault not on
+	// this console takes the console user it would go to (the one with its
+	// PSID), or none.
 	std::vector<SaveInfo> scan(SaveRemote &remote, std::string *error, const Progress &progress = {});
+	// The console's users, with their names and PSIDs (linked, else known
+	// from their saves): as the last scan found them.
+	const std::vector<ConsoleUser> &users() const { return users_; }
+	// The console's users, read now: their names, and the PSIDs linked.
+	std::vector<ConsoleUser> readUsers(SaveRemote &remote, std::string *error);
 
 	// Copies the save's image and key from the console into the vault (the
 	// backup before goes with the earlier ones; beyond kVersionsKept, the
 	// oldest go). Needs the save's PSID. The info is updated.
 	bool backup(SaveRemote &remote, SaveInfo &save, std::string *error, const Progress &progress = {});
-	// Puts the latest backup's image and key back on the console, in the
-	// folder of `account` (the console user it belongs to; the save's own
-	// when empty), and checks that both arrived whole.
+	// Puts the latest backup's image and key on the console, in the folder of
+	// `account` (the console user it goes to; the save's own when empty), and
+	// checks that both arrived whole. The console may be another one than
+	// the save was backed up from: its user with the same PSID.
 	bool restore(SaveRemote &remote, const SaveInfo &save, const std::string &account, std::string *error,
 		const Progress &progress = {});
 	// The row for the console's list of saves, for a save just put back.
@@ -156,6 +196,7 @@ public:
 	static std::string psidOfAccountId(const std::string &storedHex);
 
 private:
+	bool listUsers(SaveRemote &remote, std::vector<ConsoleUser> *users, std::string *error);
 	std::string psidFor(const SaveInfo &save) const;
 	std::string userOf(const std::string &psid) const;
 	std::string imageDir(const std::string &psid, const std::string &titleId) const;
@@ -167,6 +208,7 @@ private:
 
 	std::string root_;
 	std::map<std::string, std::string> links_;
+	std::vector<ConsoleUser> users_;
 };
 
 } // namespace orbislink

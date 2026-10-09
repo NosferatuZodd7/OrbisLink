@@ -119,6 +119,73 @@ Json filesToJson(const std::vector<SaveFile> &files)
 	return list;
 }
 
+std::vector<SaveFile> filesFromJson(const Json &list)
+{
+	std::vector<SaveFile> files;
+	for(const Json &item : list.items())
+		files.push_back({ item["relative"].toString(), item["size"].toInt(), item["modified"].toString() });
+	return files;
+}
+
+// The copies known on consoles: the most recent few, one per console user.
+constexpr size_t kCopiesKept = 16;
+
+Json copiesToJson(const std::vector<SaveCopy> &copies)
+{
+	Json list = Json::makeArray();
+	for(const SaveCopy &copy : copies)
+	{
+		Json item = Json::makeObject();
+		item.set("user", Json::fromString(copy.user));
+		item.set("stamp", Json::fromString(copy.stamp));
+		item.set("files", filesToJson(copy.files));
+		list.push(std::move(item));
+	}
+	return list;
+}
+
+std::vector<SaveCopy> copiesFromJson(const Json &list)
+{
+	std::vector<SaveCopy> copies;
+	for(const Json &item : list.items())
+		copies.push_back({ item["user"].toString(), item["stamp"].toString(), filesFromJson(item["files"]) });
+	return copies;
+}
+
+// This user's copy is now this one; the other users' stay.
+void recordCopy(std::vector<SaveCopy> &copies, SaveCopy copy)
+{
+	copies.erase(std::remove_if(copies.begin(), copies.end(),
+					 [&copy](const SaveCopy &c) { return c.user == copy.user; }),
+		copies.end());
+	copies.push_back(std::move(copy));
+	if(copies.size() > kCopiesKept)
+		copies.erase(copies.begin(), copies.end() - kCopiesKept);
+}
+
+Json stringsToJson(const std::vector<std::string> &values)
+{
+	Json list = Json::makeArray();
+	for(const std::string &value : values)
+		list.push(Json::fromString(value));
+	return list;
+}
+
+std::vector<std::string> stringsFromJson(const Json &list)
+{
+	std::vector<std::string> values;
+	for(const Json &item : list.items())
+		if(!item.toString().empty())
+			values.push_back(item.toString());
+	return values;
+}
+
+void addUser(std::vector<std::string> &users, const std::string &user)
+{
+	if(!user.empty() && std::find(users.begin(), users.end(), user) == users.end())
+		users.push_back(user);
+}
+
 // "savedata/x" → the console path of that file; "meta/x" (or "meta/x/y")
 // → under the game's folder in savedata_meta.
 std::string consolePathOf(const SaveInfo &save, const std::string &relative)
@@ -293,23 +360,42 @@ int64_t SaveInfo::vaultBytes() const
 	return total;
 }
 
+namespace {
+
+// Whether the console's files are these: the encrypted image and its key
+// decide, they are what is kept.
+bool sameFiles(const std::vector<SaveFile> &console, const std::vector<SaveFile> &kept, const std::string &dir)
+{
+	for(const std::string &relative : { imageRelative(dir), keyRelative(dir) })
+	{
+		const SaveFile *a = findFile(console, relative);
+		const SaveFile *b = findFile(kept, relative);
+		if(!a && !b)
+			continue;
+		if(!a || !b || a->size != b->size || !sameModified(b->modified, a->modified))
+			return false;
+	}
+	return true;
+}
+
+} // namespace
+
 SaveSync SaveInfo::sync() const
 {
 	if(onConsole && !inVault)
 		return SaveSync::ConsoleOnly;
 	if(!onConsole)
 		return SaveSync::VaultOnly;
-	// The encrypted image and its key decide: they are what is kept.
-	for(const std::string &relative : { imageRelative(dir), keyRelative(dir) })
-	{
-		const SaveFile *console = findFile(consoleFiles, relative);
-		const SaveFile *kept = findFile(vaultFiles, relative);
-		if(!console && !kept)
-			continue;
-		if(!console || !kept || console->size != kept->size || !sameModified(kept->modified, console->modified))
-			return SaveSync::Changed;
-	}
-	return SaveSync::Same;
+	// The copy this console user was last known to have: backed up from
+	// there, or put there from the vault; of the latest backup, or of one
+	// before it (another console's since).
+	for(const SaveCopy &copy : copies)
+		if(copy.user == account && sameFiles(consoleFiles, copy.files, dir))
+			return copy.stamp == stamp ? SaveSync::Same : SaveSync::Older;
+	// None known for this user: as the latest backup or not, when it can be
+	// that copy (one never there is another console's own save of that name).
+	const bool beenHere = users.empty() || std::find(users.begin(), users.end(), account) != users.end();
+	return beenHere && sameFiles(consoleFiles, vaultFiles, dir) ? SaveSync::Same : SaveSync::Changed;
 }
 
 SaveVault::SaveVault(std::string root) : root_(std::move(root)) {}
@@ -407,6 +493,7 @@ void SaveVault::readVault(std::map<std::string, SaveInfo> &out)
 				save.inVault = true;
 				const std::string info = infoDir(psid, save.titleId, save.dir);
 				const Json json = readJson(joinPath(info, "info.json"));
+				std::vector<SaveFile> listed;
 				if(json.isObject())
 				{
 					save.account = json["account"].toString();
@@ -415,15 +502,19 @@ void SaveVault::readVault(std::map<std::string, SaveInfo> &out)
 					save.detail = json["detail"].toString();
 					save.accountId = json["account_id"].toString();
 					save.backedUpAt = json["backed_up_at"].toString();
+					save.stamp = json["stamp"].toString();
+					listed = filesFromJson(json["files"]);
+					save.copies = copiesFromJson(json["copies"]);
+					save.users = stringsFromJson(json["users"]);
+					// Kept before copies were: the one it was backed up from.
+					if(!json.contains("copies") && isAccountId(save.account))
+						save.copies.push_back({ save.account, save.stamp, listed });
+					addUser(save.users, isAccountId(save.account) ? save.account : std::string());
 				}
 				if(!isAccountId(save.account))
 					save.account = userOf(psid);
 				// The files as they are, with the console's dates when the
 				// sizes still match what info.json says.
-				std::vector<SaveFile> listed;
-				if(json.isObject())
-					for(const Json &item : json["files"].items())
-						listed.push_back({ item["relative"].toString(), item["size"].toInt(), item["modified"].toString() });
 				const std::pair<std::string, fs::path> files[] = {
 					{ imageRelative(name), file.path() }, { keyRelative(name), key } };
 				for(const auto &pair : files)
@@ -610,32 +701,95 @@ std::vector<SaveInfo> SaveVault::vaultSaves()
 	return list;
 }
 
+namespace {
+
+// The name a console keeps for its user (username.dat: up to 16 bytes,
+// padded with zeros), if it reads as one.
+std::string readUserName(const std::string &path)
+{
+	std::vector<uint8_t> data;
+	if(!readFile(path, &data) || data.empty() || data.size() > 64)
+		return std::string();
+	std::string name;
+	for(uint8_t byte : data)
+	{
+		if(byte == 0)
+			break;
+		if(byte < 0x20 || byte == 0x7F)
+			return std::string();
+		name += static_cast<char>(byte);
+	}
+	return trim(name);
+}
+
+} // namespace
+
+bool SaveVault::listUsers(SaveRemote &remote, std::vector<ConsoleUser> *users, std::string *error)
+{
+	users->clear();
+	std::vector<FtpEntry> entries;
+	if(!remote.list("/user/home", &entries, error))
+		return false;
+	const std::string cache = joinPath(joinPath(root_, ".cache"), "console");
+	for(const FtpEntry &entry : entries)
+	{
+		if(!entry.isDirectory || !isAccountId(entry.name))
+			continue;
+		ConsoleUser user;
+		user.folder = entry.name;
+		// The name the console shows (a PS5 keeps it there; a PS4 may not).
+		const std::string folder = joinPath(cache, entry.name);
+		ensureDir(folder);
+		const std::string local = joinPath(folder, "username.dat");
+		std::string why;
+		std::error_code ignored;
+		if(remote.download("/user/home/" + entry.name + "/username.dat", local, &why))
+			user.name = readUserName(local);
+		else
+			fs::remove(fs::u8path(local), ignored);
+		const auto link = links_.find(entry.name);
+		if(link != links_.end())
+		{
+			user.psid = link->second;
+			user.linked = true;
+		}
+		users->push_back(user);
+	}
+	return true;
+}
+
+std::vector<ConsoleUser> SaveVault::readUsers(SaveRemote &remote, std::string *error)
+{
+	std::vector<ConsoleUser> users;
+	listUsers(remote, &users, error);
+	return users;
+}
+
 std::vector<SaveInfo> SaveVault::scan(SaveRemote &remote, std::string *error, const Progress &progress)
 {
-	std::map<std::string, SaveInfo> saves;
-	readVault(saves);
-	// What the vault knew stays; the console's side is filled in below.
-	std::map<std::string, SaveInfo> merged = saves;
+	std::map<std::string, SaveInfo> merged;
+	readVault(merged);
 
-	std::vector<FtpEntry> accounts;
-	if(!remote.list("/user/home", &accounts, error))
+	if(!listUsers(remote, &users_, error))
 		return {};
 	const std::string cache = joinPath(joinPath(root_, ".cache"), "console");
 
 	std::vector<std::pair<std::string, std::string>> titles; // account, title
-	for(const FtpEntry &account : accounts)
+	for(const ConsoleUser &user : users_)
 	{
-		if(!account.isDirectory || !isAccountId(account.name))
-			continue;
 		std::vector<FtpEntry> games;
 		std::string listError;
-		if(!remote.list("/user/home/" + account.name + "/savedata", &games, &listError))
+		if(!remote.list("/user/home/" + user.folder + "/savedata", &games, &listError))
 			continue;
 		for(const FtpEntry &game : games)
 			if(game.isDirectory && plainName(game.name))
-				titles.emplace_back(account.name, game.name);
+				titles.emplace_back(user.folder, game.name);
 	}
 
+	std::vector<SaveInfo> found;
+	// Saves whose own image or key is gone, only the system's copies left:
+	// game/name → the user they are in.
+	std::map<std::string, std::string> brokenHere;
 	for(size_t t = 0; t < titles.size(); ++t)
 	{
 		const std::string &account = titles[t].first;
@@ -678,14 +832,12 @@ std::vector<SaveInfo> SaveVault::scan(SaveRemote &remote, std::string *error, co
 			// Without its own image and key the save is not there, even when
 			// the system's backup copies of them are: the console shows it
 			// broken, and it is what putting back is for.
-			const std::string key = account + "/" + titleId + "/" + pair.first;
 			if(!findFile(pair.second, imageRelative(pair.first)) || !findFile(pair.second, keyRelative(pair.first)))
 			{
-				if(merged.count(key))
-					merged[key].account = account;
+				brokenHere[titleId + "/" + pair.first] = account;
 				continue;
 			}
-			SaveInfo &save = merged[key];
+			SaveInfo save;
 			save.account = account;
 			save.titleId = titleId;
 			save.dir = pair.first;
@@ -730,11 +882,109 @@ std::vector<SaveInfo> SaveVault::scan(SaveRemote &remote, std::string *error, co
 				}
 				if(startsWithBytes(target, "\0PSF", 4))
 					readSfo(target, save);
-				else if(startsWithBytes(target, "\x89PNG", 4) && (save.iconPath.empty() || !save.inVault))
+				else if(startsWithBytes(target, "\x89PNG", 4) && save.iconPath.empty())
 					save.iconPath = target;
 			}
 			save.psid = psidFor(save);
+			found.push_back(std::move(save));
 		}
+	}
+
+	// A user's PSID where no link says it: what its saves' ACCOUNT_ID says,
+	// when most of them agree.
+	std::map<std::string, std::map<std::string, int>> votes;
+	for(const SaveInfo &save : found)
+	{
+		const std::string own = psidOfAccountId(save.accountId);
+		if(!own.empty())
+			++votes[save.account][own];
+	}
+	for(ConsoleUser &user : users_)
+	{
+		if(!user.psid.empty())
+			continue;
+		int total = 0;
+		std::pair<std::string, int> best;
+		for(const auto &vote : votes[user.folder])
+		{
+			total += vote.second;
+			if(vote.second > best.second)
+				best = vote;
+		}
+		if(best.second * 2 > total)
+			user.psid = best.first;
+	}
+	auto psidOfUser = [this](const std::string &folder) {
+		for(const ConsoleUser &user : users_)
+			if(user.folder == folder)
+				return user.psid;
+		return std::string();
+	};
+
+	// One save whichever console it is on: the console's is the vault's of
+	// the same PSID, game and name.
+	for(SaveInfo &save : found)
+	{
+		if(save.psid.empty())
+			save.psid = psidOfUser(save.account);
+		// Still not known: the vault's save of this user, game and name.
+		if(save.psid.empty())
+			for(const auto &pair : merged)
+			{
+				const SaveInfo &kept = pair.second;
+				if(kept.inVault && isPsid(kept.psid) && kept.titleId == save.titleId && kept.dir == save.dir
+					&& std::find(kept.users.begin(), kept.users.end(), save.account) != kept.users.end())
+				{
+					save.psid = kept.psid;
+					break;
+				}
+			}
+		const auto it = merged.find(save.key());
+		if(it == merged.end())
+		{
+			merged[save.key()] = std::move(save);
+			continue;
+		}
+		SaveInfo &kept = it->second;
+		kept.account = save.account;
+		kept.onConsole = true;
+		kept.consoleFiles = save.consoleFiles;
+		if(!save.gameTitle.empty())
+			kept.gameTitle = save.gameTitle;
+		if(!save.saveTitle.empty())
+			kept.saveTitle = save.saveTitle;
+		if(!save.detail.empty())
+			kept.detail = save.detail;
+		if(!save.accountId.empty())
+			kept.accountId = save.accountId;
+		if(!save.iconPath.empty() && (kept.iconPath.empty() || !kept.inVault))
+			kept.iconPath = save.iconPath;
+	}
+
+	// A save of the vault not on this console: the user here it would go
+	// to. The one with its PSID; else one it was on, or whose folder still
+	// has the system's copies of it, while that user's PSID is not known.
+	for(auto &pair : merged)
+	{
+		SaveInfo &save = pair.second;
+		if(save.onConsole)
+			continue;
+		std::string user;
+		for(const ConsoleUser &candidate : users_)
+			if(!save.psid.empty() && candidate.psid == save.psid)
+				user = candidate.folder;
+		if(user.empty())
+		{
+			std::vector<std::string> been = save.users;
+			addUser(been, save.account);
+			const auto broken = brokenHere.find(save.titleId + "/" + save.dir);
+			if(broken != brokenHere.end())
+				addUser(been, broken->second);
+			for(const ConsoleUser &candidate : users_)
+				if(candidate.psid.empty() && std::find(been.begin(), been.end(), candidate.folder) != been.end())
+					user = candidate.folder;
+		}
+		save.account = user;
 	}
 
 	// A game's own name, for saves that do not carry one.
@@ -823,10 +1073,35 @@ bool SaveVault::backup(SaveRemote &remote, SaveInfo &save, std::string *error, c
 		return false;
 	}
 
-	const std::string stamp = localStamp("%Y%m%d-%H%M%S");
 	save.backedUpAt = localStamp("%Y-%m-%d %H:%M");
 	save.psid = psid;
 	save.vaultFiles = { *image, *key };
+	// The copies on other consoles are of the backups before this one now.
+	save.copies.clear();
+	save.users.clear();
+	if(before.isObject())
+	{
+		save.copies = copiesFromJson(before["copies"]);
+		save.users = stringsFromJson(before["users"]);
+		if(!before.contains("copies") && isAccountId(before["account"].toString()))
+			save.copies.push_back({ before["account"].toString(), before["stamp"].toString(),
+				filesFromJson(before["files"]) });
+		addUser(save.users, isAccountId(before["account"].toString()) ? before["account"].toString() : std::string());
+	}
+	// Its own name: a copy of an earlier backup must not read as of this one.
+	const std::string now = localStamp("%Y%m%d-%H%M%S");
+	std::string stamp = now;
+	auto taken = [&](const std::string &candidate) {
+		if(before.isObject() && before["stamp"].toString() == candidate)
+			return true;
+		return std::any_of(save.copies.begin(), save.copies.end(),
+			[&candidate](const SaveCopy &copy) { return copy.stamp == candidate; });
+	};
+	for(int n = 2; taken(stamp); ++n)
+		stamp = now + "-" + std::to_string(n);
+	save.stamp = stamp;
+	recordCopy(save.copies, { save.account, stamp, save.vaultFiles });
+	addUser(save.users, save.account);
 	Json json = Json::makeObject();
 	json.set("account", Json::fromString(save.account));
 	json.set("title_id", Json::fromString(save.titleId));
@@ -838,6 +1113,8 @@ bool SaveVault::backup(SaveRemote &remote, SaveInfo &save, std::string *error, c
 	json.set("backed_up_at", Json::fromString(save.backedUpAt));
 	json.set("stamp", Json::fromString(stamp));
 	json.set("files", filesToJson(save.vaultFiles));
+	json.set("copies", copiesToJson(save.copies));
+	json.set("users", stringsToJson(save.users));
 	if(!writeJson(joinPath(info, "info.json"), json))
 	{
 		if(error)
@@ -925,8 +1202,9 @@ bool SaveVault::restore(SaveRemote &remote, const SaveInfo &save, const std::str
 		}
 	}
 
-	// The console dates what was put back as written now: the backup takes
-	// those dates, so it still reads as the same save and not as changed.
+	// The console dates what was put there as written now: that user's copy
+	// is recorded with those dates, so it reads as the latest backup and
+	// not as changed, on this console and on the others.
 	const std::string info = infoDir(save.psid, save.titleId, save.dir);
 	Json json = readJson(joinPath(info, "info.json"));
 	if(json.isObject())
@@ -935,7 +1213,16 @@ bool SaveVault::restore(SaveRemote &remote, const SaveInfo &save, const std::str
 		for(const auto &want : expected)
 			if(const FtpEntry *entry = listed(want.first))
 				fresh.push_back({ "savedata/" + want.first, entry->size, entry->modified });
-		json.set("files", filesToJson(fresh));
+		std::vector<SaveCopy> copies = copiesFromJson(json["copies"]);
+		std::vector<std::string> been = stringsFromJson(json["users"]);
+		const std::string from = json["account"].toString();
+		if(!json.contains("copies") && isAccountId(from))
+			copies.push_back({ from, json["stamp"].toString(), filesFromJson(json["files"]) });
+		addUser(been, isAccountId(from) ? from : std::string());
+		recordCopy(copies, { user, json["stamp"].toString(), fresh });
+		addUser(been, user);
+		json.set("copies", copiesToJson(copies));
+		json.set("users", stringsToJson(been));
 		writeJson(joinPath(info, "info.json"), json);
 	}
 	if(progress)

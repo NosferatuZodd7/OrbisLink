@@ -54,6 +54,8 @@ public:
 		return !failure;
 	}
 	bool truncateUploads = false;
+	// A file the console's game wrote, at that time.
+	void touch(const std::string &remote, const std::string &when) { written_[remote] = when; }
 	bool makeDirectory(const std::string &dir) override
 	{
 		// A real FTP server refuses this, and the client retries it: slow.
@@ -287,14 +289,16 @@ ORBISLINK_TEST(the_save_list_row_counts_blocks_of_32_kib)
 ORBISLINK_TEST(real_layout_with_system_backups_and_a_linked_user)
 {
 	Fixture f;
-	const fs::path data = f.home / "savedata/CUSA00009";
+	// A user with only this save: nothing says whose it is.
+	const fs::path home = f.consoleRoot / "user/home/2c4d6e8f";
+	const fs::path data = home / "savedata/CUSA00009";
 	writeBytes(data / "sdimg_RDR2SAVE0.SAV", 2048, 'a');
 	writeBytes(data / "RDR2SAVE0.SAV.bin", 96, 'b');
 	writeBytes(data / "sdimg_sce_bu_RDR2SAVE0.SAV", 2048, 'c');
 	writeBytes(data / "sce_bu_RDR2SAVE0.SAV.bin", 96, 'd');
-	writeData(f.home / "savedata_meta/user/CUSA00009/RDR2SAVE0.SAV",
+	writeData(home / "savedata_meta/user/CUSA00009/RDR2SAVE0.SAV",
 		buildSfo({ { "MAINTITLE", "Red Dead" }, { "SUBTITLE", "Chapter 2" } }));
-	writeBytes(f.home / "savedata_meta/user/CUSA00009/OTHERSAVE", 300, 'o');
+	writeBytes(home / "savedata_meta/user/CUSA00009/OTHERSAVE", 300, 'o');
 	writeData(f.consoleRoot / "user/appmeta/CUSA00009/param.sfo", buildSfo({ { "TITLE", "Red Dead Redemption 2" } }));
 
 	TestConsole console(f.consoleRoot);
@@ -322,7 +326,7 @@ ORBISLINK_TEST(real_layout_with_system_backups_and_a_linked_user)
 	CHECK(!vault.backup(console, save, &error));
 	CHECK(error.find("link") != std::string::npos);
 
-	vault.setLinks({ { "1eb71bbd", "1C020A82BB40E5FE" } });
+	vault.setLinks({ { "2c4d6e8f", "1C020A82BB40E5FE" } });
 	save = *rdr(vault.scan(console, &error));
 	CHECK_EQ(save.psid, std::string("1c020a82bb40e5fe"));
 	CHECK(vault.backup(console, save, &error));
@@ -343,9 +347,109 @@ ORBISLINK_TEST(real_layout_with_system_backups_and_a_linked_user)
 	// Its own image gone, only the system's copies left: the save is
 	// missing from the console, and the vault's copy is what is left.
 	fs::remove(data / "sdimg_RDR2SAVE0.SAV");
-	const SaveInfo *broken = rdr(vault.scan(console, &error));
+	saves = vault.scan(console, &error);
+	const SaveInfo *broken = rdr(saves);
 	CHECK(broken->sync() == SaveSync::VaultOnly);
-	CHECK_EQ(broken->account, std::string("1eb71bbd"));
+	CHECK_EQ(broken->account, std::string("2c4d6e8f"));
+}
+
+// The same PSN account on a PS4 and a PS5: a save backed up from one goes to
+// the other's user with that PSID, and each console's copy is known to be
+// the latest backup or an earlier one.
+ORBISLINK_TEST(a_save_goes_to_another_console_of_the_same_psid)
+{
+	Fixture f;
+	TestConsole ps4(f.consoleRoot);
+	const fs::path ps5Root = f.base / "ps5";
+	const fs::path ps5Home = ps5Root / "user/home/5a6b7c8d";
+	fs::create_directories(ps5Home);
+	fs::create_directories(ps5Root / "user/home/6c7d8e9f");
+	TestConsole ps5(ps5Root);
+	SaveVault vault((f.base / "vault").string());
+	vault.setLinks({ { "5a6b7c8d", kPsid }, { "6c7d8e9f", "1c020a82bb40e5fe" } });
+	std::string error;
+	SaveInfo save = *find(vault.scan(ps4, &error), "SAVE0");
+	CHECK(vault.backup(ps4, save, &error));
+
+	// On the PS5, it is not there yet: it would go to the user with its PSID.
+	std::vector<SaveInfo> saves = vault.scan(ps5, &error);
+	const SaveInfo *there = find(saves, "SAVE0");
+	CHECK(there->sync() == SaveSync::VaultOnly);
+	CHECK_EQ(there->account, std::string("5a6b7c8d"));
+	CHECK(vault.restore(ps5, *there, there->account, &error));
+	CHECK_EQ(fs::file_size(ps5Home / "savedata/CUSA00001/sdimg_SAVE0"), static_cast<uintmax_t>(4096));
+	CHECK(!fs::exists(ps5Root / "user/home/6c7d8e9f/savedata"));
+	// One save on both, the latest backup on both.
+	saves = vault.scan(ps5, &error);
+	CHECK(find(saves, "SAVE0")->sync() == SaveSync::Same);
+	CHECK_EQ(find(saves, "SAVE0")->key(), std::string(kPsid) + "/CUSA00001/SAVE0");
+	CHECK(find(vault.scan(ps4, &error), "SAVE0")->sync() == SaveSync::Same);
+
+	// Played on the PS5, backed up from there: the PS4's copy is the earlier one.
+	writeBytes(ps5Home / "savedata/CUSA00001/sdimg_SAVE0", 4096, 'z');
+	ps5.touch("/user/home/5a6b7c8d/savedata/CUSA00001/sdimg_SAVE0", "Oct 05 21:30");
+	saves = vault.scan(ps5, &error);
+	save = *find(saves, "SAVE0");
+	CHECK(save.sync() == SaveSync::Changed);
+	CHECK(vault.backup(ps5, save, &error));
+	saves = vault.scan(ps4, &error);
+	save = *find(saves, "SAVE0");
+	CHECK(save.sync() == SaveSync::Older);
+	CHECK_EQ(save.versions, 2);
+	// Sent there too: the latest everywhere.
+	CHECK(vault.restore(ps4, save, save.account, &error));
+	CHECK(find(vault.scan(ps4, &error), "SAVE0")->sync() == SaveSync::Same);
+	CHECK(find(vault.scan(ps5, &error), "SAVE0")->sync() == SaveSync::Same);
+	std::ifstream in(f.home / "savedata/CUSA00001/sdimg_SAVE0", std::ios::binary);
+	CHECK_EQ(static_cast<char>(in.get()), 'z');
+
+	// The PS5's own save of another game, of that name, size and minute: not
+	// the PC's copy, which was never there.
+	writeBytes(f.home / "savedata/CUSA00002/sdimg_SAVE9", 4096, 'a');
+	writeBytes(f.home / "savedata/CUSA00002/SAVE9.bin", 96, 'b');
+	save = *find(vault.scan(ps4, &error), "SAVE9");
+	CHECK(vault.backup(ps4, save, &error));
+	writeBytes(ps5Home / "savedata/CUSA00002/sdimg_SAVE9", 4096, 'c');
+	writeBytes(ps5Home / "savedata/CUSA00002/SAVE9.bin", 96, 'd');
+	CHECK(find(vault.scan(ps5, &error), "SAVE9")->sync() == SaveSync::Changed);
+	CHECK(find(vault.scan(ps4, &error), "SAVE9")->sync() == SaveSync::Same);
+
+	// A user of another PSID is never given it.
+	vault.setLinks({ { "6c7d8e9f", "1c020a82bb40e5fe" } });
+	fs::remove_all(ps5Home);
+	saves = vault.scan(ps5, &error);
+	CHECK(find(saves, "SAVE0")->account.empty());
+}
+
+// A save that does not say whose it is, in the folder of a user whose other
+// saves do: that user's. The console's users, with their names.
+ORBISLINK_TEST(a_users_psid_comes_from_its_other_saves)
+{
+	Fixture f;
+	writeBytes(f.home / "savedata/CUSA00009/sdimg_QUIET", 2048, 'a');
+	writeBytes(f.home / "savedata/CUSA00009/QUIET.bin", 96, 'b');
+	fs::create_directories(f.consoleRoot / "user/home/2c4d6e8f");
+	std::ofstream(f.home / "username.dat", std::ios::binary) << std::string("Player One") << std::string(6, '\0');
+	TestConsole console(f.consoleRoot);
+	SaveVault vault((f.base / "vault").string());
+	std::string error;
+	const std::vector<SaveInfo> saves = vault.scan(console, &error);
+	CHECK_EQ(find(saves, "QUIET")->psid, std::string(kPsid));
+	CHECK_EQ(vault.users().size(), static_cast<size_t>(2));
+	for(const ConsoleUser &user : vault.users())
+	{
+		if(user.folder == "1eb71bbd")
+		{
+			CHECK_EQ(user.name, std::string("Player One"));
+			CHECK_EQ(user.psid, std::string(kPsid));
+			CHECK(!user.linked);
+		}
+		else
+		{
+			CHECK(user.name.empty());
+			CHECK(user.psid.empty());
+		}
+	}
 }
 
 // A file that does not arrive whole is an error, and the backup there was
