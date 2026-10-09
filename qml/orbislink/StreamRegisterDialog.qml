@@ -2,6 +2,8 @@
 //
 // Registering this PC on the console. Without it there is no Remote Play:
 // the console only accepts sessions from devices it has authorised itself.
+// Each account registers by itself: this registration belongs to the
+// account chosen here, and only that account's sessions use it.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -31,9 +33,24 @@ Dialog {
         radius: Theme.radiusDialog
     }
 
+    // The account being registered starts as the one chosen to connect, with
+    // its own saved pairing PIN when it has one (eight digits).
+    function pinOf(accountId) {
+        var accounts = app.accounts
+        for (var i = 0; i < accounts.length; ++i)
+            if (accounts[i].accountId === accountId)
+                return accounts[i].remotePlayPin.length === 8 ? accounts[i].remotePlayPin : ""
+        return ""
+    }
     onOpened: {
-        pinField.text = ""
+        var chosen = ready ? stream.savedAccountId : ""
         savedBox.currentIndex = 0
+        var accounts = app.accounts
+        for (var i = 0; i < accounts.length; ++i)
+            if (accounts[i].accountId === chosen)
+                savedBox.currentIndex = i + 1
+        accountField.text = chosen
+        pinField.text = pinOf(chosen)
         pinField.forceActiveFocus()
     }
 
@@ -126,6 +143,15 @@ Dialog {
                     text: qsTr("The 8-digit PIN it shows lasts only a few minutes. If it fails, "
                                + "ask the console for another.")
                 }
+                Text {
+                    visible: app.accounts.length > 1
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.textMuted
+                    font.pixelSize: 11
+                    text: qsTr("This registration belongs to the account below only; each account "
+                               + "registers by itself.")
+                }
             }
         }
 
@@ -160,8 +186,11 @@ Dialog {
                 Layout.fillWidth: true
                 model: [qsTr("Choose…")].concat(app.accounts.map(function (a) { return a.label }))
                 onActivated: function (index) {
-                    if (index > 0)
+                    if (index > 0) {
                         accountField.text = app.accounts[index - 1].accountId
+                        // That account's own PIN, never the previous one's.
+                        pinField.text = dialog.pinOf(app.accounts[index - 1].accountId)
+                    }
                 }
             }
 

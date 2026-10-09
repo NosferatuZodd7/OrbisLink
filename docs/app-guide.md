@@ -95,6 +95,16 @@ centred and wrap onto more rows.
 One click, one request: after a click the card takes no other until the
 console has answered (Remote Play connected or failed, FTP found or not).
 
+**Which account.** With two or more Account IDs saved, connecting first asks
+which one to use (the one this console used last is chosen already); with
+one, that one is used. Each account has its own registration on each
+console and its own Remote Play PIN — a session never uses another
+account's. An account not registered on the console yet goes to
+registration first, with its own 8-digit PIN filled in when it has one
+saved. When the console asks for the account's passcode while connecting,
+the 4-digit PIN saved for that account is sent once; if it has none, or the
+console refuses it, the PIN is asked for.
+
 **Add console**: name, IP and type; it is probed straight away.
 
 ## Remote Play session
@@ -276,7 +286,7 @@ What the PS4 allows, and why the page works this way:
 | Section | Holds |
 |---|---|
 | Consoles | Saved consoles: name, IP, type; add / remove. |
-| Account IDs (PSID) | PSN accounts for Remote Play registration. |
+| Account IDs (PSID) | PSN accounts for Remote Play: name, Account ID and its own **Remote Play PIN** (optional: 4 digits, the account's passcode, sent when the console asks for it; 8 digits, the pairing PIN, filled in when the account registers — the console shows a new one each time). Each row says which consoles the account is registered on. Editing one account's PIN never changes another's. |
 | Console in use | Which console; FTP port, user, upload folder, connections, advanced mode (protected system folders); installer port and install options; local HTTP server. |
 | Remote Play | Resolution, frame rate, bitrate, hardware decoding, rumble, touchpad from the mouse, full screen on connect. |
 | Personalisation | The app's colours, on top of the theme picked in the top bar: accent, jailbreak (GoldHEN gold), available, checking, error, window background, panels, text. A click on a colour opens a picker (square, hue strip, hex code, suggestions); ↺ puts the theme's colour back. **Saved looks**: give the theme and colours in use a name to keep them; **Apply** brings one back (it is then the one ✨ in the top bar brings), 🗑 deletes it. Changes show at once. |

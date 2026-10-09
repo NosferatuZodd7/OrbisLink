@@ -98,6 +98,7 @@ std::string Settings::toJson() const
 		Json input = Json::makeObject();
 		input.set("label", Json::fromString(account.label));
 		input.set("account_id", Json::fromString(account.accountId));
+		input.set("remote_play_pin", Json::fromString(account.remotePlayPin));
 		savedAccounts.push(std::move(input));
 	}
 	root.set("accounts", savedAccounts);
@@ -233,6 +234,7 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 			SavedAccount account;
 			account.label = input["label"].toString();
 			account.accountId = input["account_id"].toString();
+			account.remotePlayPin = input["remote_play_pin"].toString();
 			settings.accounts.push_back(account);
 		}
 	}
@@ -385,20 +387,21 @@ void normaliseAccounts(Settings &settings)
 				return &account;
 		return nullptr;
 	};
-	auto add = [&](const std::string &rawId, const std::string &label) {
+	auto add = [&](const std::string &rawId, const std::string &label, const std::string &pin) {
 		const std::string id = trim(rawId);
 		if(id.empty() || find(id))
 			return;
 		SavedAccount account;
 		account.accountId = id;
 		account.label = trim(label).empty() ? "PSN account " + std::to_string(clean.size() + 1) : trim(label);
+		account.remotePlayPin = trim(pin);
 		clean.push_back(account);
 	};
 	for(const SavedAccount &account : settings.accounts)
-		add(account.accountId, account.label);
+		add(account.accountId, account.label, account.remotePlayPin);
 	for(const ConsoleEntry &console : settings.consoles)
-		add(console.accountId, console.name);
-	add(settings.streamAccountId, std::string());
+		add(console.accountId, console.name, std::string());
+	add(settings.streamAccountId, std::string(), std::string());
 	settings.accounts = clean;
 }
 

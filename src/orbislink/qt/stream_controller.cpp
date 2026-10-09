@@ -90,9 +90,14 @@ StreamController::StreamController(QObject *parent)
 					lastSessionEndMs_ = QDateTime::currentMSecsSinceEpoch();
 				sessionState_ = slug;
 				sessionDetail_ = message;
+				const bool wasStreaming = streaming_;
 				streaming_ = state == SessionState::Connected;
 				if(streaming_)
 				{
+					// The account the console just let in becomes this
+					// console's usual one: the picker offers it first.
+					if(!wasStreaming && !credentials_.accountId.empty())
+						emit accountIdAccepted(QString::fromStdString(credentials_.accountId));
 					gamepad_.start();
 					hardwareDecoder_ = lastHardwareDecoder_ = session_->usingHardwareDecoder();
 					lastFrameCount_ = video_.framesDelivered();
@@ -150,7 +155,7 @@ StreamController::StreamController(QObject *parent)
 
 	session_->setLoginPinCallback([this](bool incorrect) {
 		QMetaObject::invokeMethod(
-			this, [this, incorrect]() { emit loginPinRequested(incorrect); },
+			this, [this, incorrect]() { answerLoginPin(incorrect); },
 			Qt::QueuedConnection);
 	});
 
@@ -249,6 +254,24 @@ void StreamController::applySettings(const Settings &settings)
 	for(const ConsoleEntry &console : settings.consoles)
 		if(console.address == settings.consoleAddress && !console.accountId.empty())
 			accountId_ = QString::fromStdString(console.accountId);
+	accountNames_.clear();
+	accountPins_.clear();
+	for(const SavedAccount &account : settings.accounts)
+	{
+		accountNames_[account.accountId] = account.label;
+		accountPins_[account.accountId] = account.remotePlayPin;
+	}
+	// Registrations made before each account had its own belong to the
+	// account the console registered with (the one stored with it).
+	consoleHostIds_.clear();
+	for(const ConsoleEntry &console : settings.consoles)
+	{
+		consoleHostIds_[console.address] = console.hostId;
+		if(!console.hostId.empty() && !console.accountId.empty())
+			store_.adopt(console.hostId, console.accountId);
+	}
+	loadCredentials();
+	emit registrationChanged();
 	keyboard_.setBindings(settings.keyboardBindings);
 	gamepad_.setButtonMap(settings.padBindings);
 	emit settingsApplied();
@@ -356,7 +379,68 @@ QString StreamController::keyName(int key) const
 
 void StreamController::loadCredentials()
 {
-	credentials_ = store_.load(host_.id);
+	// The chosen account's own registration on this console, never
+	// another account's. With no account at all, the console's as before.
+	const std::string account = accountId_.toStdString();
+	credentials_ = account.empty() ? store_.load(host_.id) : store_.load(host_.id, account);
+}
+
+QString StreamController::accountName() const
+{
+	const auto found = accountNames_.find(accountId_.toStdString());
+	return found == accountNames_.end() ? QString() : QString::fromStdString(found->second);
+}
+
+QStringList StreamController::registeredAccounts() const
+{
+	QStringList out;
+	std::string hostId = host_.id;
+	if(hostId.empty())
+	{
+		const auto known = consoleHostIds_.find(address_.toStdString());
+		if(known != consoleHostIds_.end())
+			hostId = known->second;
+	}
+	if(hostId.empty())
+		return out;
+	for(const StreamCredentials &credentials : store_.forHost(hostId))
+		if(!credentials.accountId.empty())
+			out << QString::fromStdString(credentials.accountId);
+	return out;
+}
+
+QString StreamController::accountPin(const QString &accountId) const
+{
+	const AccountId parsed = parseAccountId(accountId.toStdString());
+	const auto found = accountPins_.find(parsed.valid ? parsed.base64 : accountId.toStdString());
+	return found == accountPins_.end() ? QString() : QString::fromStdString(found->second);
+}
+
+void StreamController::useAccount(const QString &accountId)
+{
+	const AccountId parsed = parseAccountId(accountId.toStdString());
+	const QString chosen = parsed.valid ? QString::fromStdString(parsed.base64) : accountId.trimmed();
+	if(chosen == accountId_)
+		return;
+	accountId_ = chosen;
+	loadCredentials();
+	emit settingsApplied();
+	emit registrationChanged();
+}
+
+void StreamController::answerLoginPin(bool incorrect)
+{
+	// Only this account's PIN, and only once: a PIN the console refused is
+	// not sent again, and another account's is never tried.
+	const QString pin = accountPin(accountId_);
+	if(!incorrect && !loginPinSent_ && pin.length() == 4)
+	{
+		loginPinSent_ = true;
+		logInfo("Remote Play: the console asked for the account's PIN; sending the one saved for this account.");
+		session_->setLoginPin(pin.toStdString());
+		return;
+	}
+	emit loginPinRequested(incorrect);
 }
 
 void StreamController::applyHost(const HostInfo &info)
@@ -650,8 +734,11 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 					registering_ = false;
 					if(ok)
 					{
-						credentials_ = credentials;
-						store_.save(credentials);
+						// The registration belongs to the account it was made with.
+						StreamCredentials stored = credentials;
+						stored.accountId = accountToSave.toStdString();
+						credentials_ = stored;
+						store_.save(stored);
 						// Stored only after the console accepts it: a wrong
 						// ID does not get in the way of the next attempt.
 						if(!accountToSave.isEmpty())
@@ -694,7 +781,8 @@ void StreamController::forgetConsole()
 {
 	if(!credentials_.valid)
 		return;
-	forgetRegistration(QString::fromStdString(credentials_.hostId));
+	forgetRegistration(QString::fromStdString(credentials_.hostId),
+		QString::fromStdString(credentials_.accountId));
 }
 
 QVariantList StreamController::registrations() const
@@ -706,17 +794,22 @@ QVariantList StreamController::registrations() const
 		entry[QStringLiteral("hostId")] = QString::fromStdString(credentials.hostId);
 		entry[QStringLiteral("name")] = QString::fromStdString(credentials.nickname);
 		entry[QStringLiteral("ps5")] = credentials.ps5;
+		entry[QStringLiteral("accountId")] = QString::fromStdString(credentials.accountId);
+		const auto name = accountNames_.find(credentials.accountId);
+		entry[QStringLiteral("accountName")] = name == accountNames_.end()
+			? QString() : QString::fromStdString(name->second);
 		items.append(entry);
 	}
 	return items;
 }
 
-void StreamController::forgetRegistration(const QString &hostId)
+void StreamController::forgetRegistration(const QString &hostId, const QString &accountId)
 {
 	const std::string id = hostId.toStdString();
-	if(id.empty() || !store_.forget(id))
+	const std::string account = accountId.toStdString();
+	if(id.empty() || !store_.forget(id, account))
 		return;
-	if(iequals(credentials_.hostId, id))
+	if(iequals(credentials_.hostId, id) && (account.empty() || credentials_.accountId == account))
 		credentials_ = {};
 	emit registrationChanged();
 	emit notify(tr("Remote Play"), tr("Registration removed from this PC."), false);
@@ -755,6 +848,7 @@ void StreamController::startStream()
 {
 	if(!retryingInUse_)
 		inUseRetries_ = 0;
+	loginPinSent_ = false;
 	if(streaming_)
 	{
 		emit notify(tr("Remote Play"), tr("The session is already running."), false);

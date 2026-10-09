@@ -168,6 +168,68 @@ ORBISLINK_TEST(forget_deletes_only_the_requested_console)
 	std::remove(path.c_str());
 }
 
+// Two PSN accounts on one console: each has its own registration, and
+// asking for one never hands back the other's.
+ORBISLINK_TEST(each_account_keeps_its_own_registration_on_a_console)
+{
+	const std::string path = tempFile();
+	CredentialStore store(path);
+	StreamCredentials first = sample("AABBCCDDEEFF", "Living room");
+	first.accountId = "AQIDBAUGBwg=";
+	StreamCredentials second = sample("AABBCCDDEEFF", "Living room");
+	second.accountId = "CAcGBQQDAgE=";
+	second.registKey = "5e6f7a8b";
+	CHECK(store.save(first));
+	CHECK(store.save(second));
+
+	CHECK_EQ(store.all().size(), size_t(2));
+	CHECK_EQ(store.forHost("aabbccddeeff").size(), size_t(2));
+	CHECK_EQ(store.load("AABBCCDDEEFF", "AQIDBAUGBwg=").registKey, std::string("1a2b3c4d"));
+	CHECK_EQ(store.load("AABBCCDDEEFF", "CAcGBQQDAgE=").registKey, std::string("5e6f7a8b"));
+	CHECK_EQ(store.load("AABBCCDDEEFF", "CAcGBQQDAgE=").accountId, std::string("CAcGBQQDAgE="));
+	// An account that never registered there gets nothing, not another's.
+	CHECK(!store.load("AABBCCDDEEFF", "AAAAAAAAAAA=").valid);
+
+	// Registering the second account again replaces only its own.
+	second.registKey = "99999999";
+	CHECK(store.save(second));
+	CHECK_EQ(store.all().size(), size_t(2));
+	CHECK_EQ(store.load("AABBCCDDEEFF", "AQIDBAUGBwg=").registKey, std::string("1a2b3c4d"));
+	CHECK_EQ(store.load("AABBCCDDEEFF", "CAcGBQQDAgE=").registKey, std::string("99999999"));
+
+	// Forgetting one account leaves the other; forgetting the console, all.
+	CHECK(store.forget("AABBCCDDEEFF", "AQIDBAUGBwg="));
+	CHECK(!store.load("AABBCCDDEEFF", "AQIDBAUGBwg=").valid);
+	CHECK(store.load("AABBCCDDEEFF", "CAcGBQQDAgE=").valid);
+	CHECK(store.forget("AABBCCDDEEFF"));
+	CHECK(store.all().empty());
+
+	std::remove(path.c_str());
+}
+
+// A registration stored before accounts were told apart goes to the
+// account it was made with, once, and stays readable as before meanwhile.
+ORBISLINK_TEST(an_older_registration_is_adopted_by_its_account)
+{
+	const std::string path = tempFile();
+	CredentialStore store(path);
+	CHECK(store.save(sample("AABBCCDDEEFF", "Living room")));
+
+	CHECK(store.load("AABBCCDDEEFF").valid);
+	CHECK(!store.load("AABBCCDDEEFF", "AQIDBAUGBwg=").valid);
+
+	CHECK(store.adopt("AABBCCDDEEFF", "AQIDBAUGBwg="));
+	CHECK(store.load("AABBCCDDEEFF", "AQIDBAUGBwg=").valid);
+	// Only once, and never for a second account.
+	CHECK(!store.adopt("AABBCCDDEEFF", "AQIDBAUGBwg="));
+	CHECK(!store.adopt("AABBCCDDEEFF", "CAcGBQQDAgE="));
+	CHECK(!store.load("AABBCCDDEEFF", "CAcGBQQDAgE=").valid);
+	// Read back from the file as well.
+	CHECK_EQ(CredentialStore(path).load("AABBCCDDEEFF", "AQIDBAUGBwg=").registKey, std::string("1a2b3c4d"));
+
+	std::remove(path.c_str());
+}
+
 ORBISLINK_TEST(wakeup_credential_comes_from_the_registration_key)
 {
 	StreamCredentials c = sample("AABBCCDDEEFF", "Living room");

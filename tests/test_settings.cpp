@@ -270,6 +270,43 @@ ORBISLINK_TEST(saved_account_ids_round_trip_and_include_those_in_use)
 	CHECK_EQ(reloaded.accounts[0].label, std::string("Main"));
 }
 
+// Each account keeps its own Remote Play PIN: saved, read back, and never
+// shared with another account.
+ORBISLINK_TEST(each_account_keeps_its_own_remote_play_pin)
+{
+	Settings settings;
+	SavedAccount first;
+	first.label = "Main";
+	first.accountId = "AQIDBAUGBwg=";
+	first.remotePlayPin = "1234";
+	SavedAccount second;
+	second.label = "Second";
+	second.accountId = "CAcGBQQDAgE=";
+	second.remotePlayPin = "87654321";
+	SavedAccount third;
+	third.label = "Third";
+	third.accountId = "AAAAAAAAAAE=";
+	settings.accounts = { first, second, third };
+
+	Settings reloaded = Settings::fromJson(settings.toJson());
+	CHECK_EQ(reloaded.accounts.size(), size_t(3));
+	CHECK_EQ(reloaded.accounts[0].remotePlayPin, std::string("1234"));
+	CHECK_EQ(reloaded.accounts[1].remotePlayPin, std::string("87654321"));
+	CHECK(reloaded.accounts[2].remotePlayPin.empty());
+
+	// Changing one leaves the others as they were.
+	reloaded.accounts[0].remotePlayPin = "4321";
+	const Settings again = Settings::fromJson(reloaded.toJson());
+	CHECK_EQ(again.accounts[0].remotePlayPin, std::string("4321"));
+	CHECK_EQ(again.accounts[1].remotePlayPin, std::string("87654321"));
+	CHECK(again.accounts[2].remotePlayPin.empty());
+
+	// Never in a diagnostics report.
+	const std::string redacted = redactSensitive(settings.toJson());
+	CHECK(redacted.find("87654321") == std::string::npos);
+	CHECK(redacted.find("\"1234\"") == std::string::npos);
+}
+
 ORBISLINK_TEST(theme_colours_presets_and_pad_map_round_trip)
 {
 	Settings settings;

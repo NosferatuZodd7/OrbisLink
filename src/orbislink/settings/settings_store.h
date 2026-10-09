@@ -53,6 +53,10 @@ struct SavedAccount
 	std::string label;
 	// In base64, the only form Remote Play accepts.
 	std::string accountId;
+	// This account's Remote Play PIN, only ever used for this account: four
+	// digits are its passcode, answered when the console asks for it while
+	// connecting; eight are the pairing PIN, filled in when registering it.
+	std::string remotePlayPin;
 };
 
 struct Settings

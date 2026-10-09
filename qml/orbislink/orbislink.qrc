@@ -4,6 +4,7 @@
         <file alias="Main.qml">Main.qml</file>
         <file alias="StreamArea.qml">StreamArea.qml</file>
         <file alias="StreamRegisterDialog.qml">StreamRegisterDialog.qml</file>
+        <file alias="AccountPickerDialog.qml">AccountPickerDialog.qml</file>
         <file alias="StreamVideo.qml">StreamVideo.qml</file>
         <file alias="DropOverlay.qml">DropOverlay.qml</file>
         <file alias="DropZone.qml">DropZone.qml</file>
