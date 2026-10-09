@@ -51,12 +51,28 @@ Item {
     // answers), blue otherwise.
     readonly property color tone: ftpAvailable ? Theme.hen : Theme.accent
 
+    // The saved accounts ([{ label, accountId }]), the one Remote Play uses
+    // on this console (base64) and the ones registered on it. Only the
+    // console in use offers the choice.
+    property var accounts: []
+    property string account: ""
+    property var registeredAccounts: []
+    readonly property bool showsAccount: current && available && accounts.length > 0
+    readonly property string accountLabel: {
+        for (var i = 0; i < accounts.length; ++i)
+            if (accounts[i].accountId === account)
+                return accounts[i].label.length > 0 ? accounts[i].label : qsTr("Account %1").arg(i + 1)
+        return qsTr("Choose an account")
+    }
+
     signal connect()
     signal cancel()
     signal edit()
     signal choose()
     signal remove()
     signal openFtp()
+    signal chooseAccount(string accountId)
+    signal manageAccounts()
 
     // The ✕ asks for a second click before removing.
     property bool confirmRemoval: false
@@ -421,11 +437,125 @@ Item {
             font.pixelSize: Theme.fontCardTitle
             font.weight: Font.DemiBold
         }
-        Text {
-            visible: card.address.length > 0
-            text: card.address
-            color: Theme.cardTextMuted
-            font.pixelSize: 13
+        // The IP, and on the console in use the account Remote Play goes in
+        // with: a click opens the list.
+        Item {
+            width: parent.width
+            height: Math.max(ipText.implicitHeight, accountChip.visible ? accountChip.height : 0)
+            visible: card.address.length > 0 || accountChip.visible
+
+            Text {
+                id: ipText
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.min(implicitWidth, parent.width - (accountChip.visible ? accountChip.width + 8 : 0))
+                elide: Text.ElideRight
+                text: card.address
+                color: Theme.cardTextMuted
+                font.pixelSize: 13
+            }
+
+            Rectangle {
+                id: accountChip
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                visible: card.showsAccount
+                height: 24
+                // Measured apart: the label's width must not depend on the
+                // chip's, which depends on the label.
+                readonly property real chrome: 9 + 12 + 10 + 2 * accountRow.spacing + 9
+                width: Math.min(chrome + Math.ceil(labelMetrics.advanceWidth), parent.width * 0.6)
+                radius: 12
+                color: chipArea.containsMouse || accountMenu.visible ? Theme.alpha(card.tone, 0.16)
+                                                                     : Theme.controlFill
+                border.width: 1
+                border.color: chipArea.containsMouse || accountMenu.visible ? Theme.alpha(card.tone, 0.45)
+                                                                            : Theme.glassEdge
+                Behavior on color { ColorAnimation { duration: Theme.fast } }
+
+                Row {
+                    id: accountRow
+                    anchors.verticalCenter: parent.verticalCenter
+                    x: 9
+                    spacing: 5
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "user"
+                        size: 12
+                        color: Theme.textSecondary
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: accountChip.width - accountChip.chrome
+                        elide: Text.ElideRight
+                        text: card.accountLabel
+                        color: Theme.cardText
+                        font.pixelSize: 11
+                        font.weight: Font.Medium
+                    }
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "chevron-down"
+                        size: 10
+                        color: Theme.textSecondary
+                    }
+                }
+
+                TextMetrics {
+                    id: labelMetrics
+                    font.pixelSize: 11
+                    font.weight: Font.Medium
+                    text: card.accountLabel
+                }
+
+                MouseArea {
+                    id: chipArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: accountMenu.popup(accountChip, 0, accountChip.height + 4)
+                }
+                ToolTip.visible: chipArea.containsMouse && !accountMenu.visible
+                ToolTip.text: qsTr("The account (PSID) Remote Play uses on this console")
+
+                Menu {
+                    id: accountMenu
+                    topPadding: 8
+                    bottomPadding: 8
+                    background: Rectangle {
+                        implicitWidth: 280
+                        color: Theme.menuFill
+                        border.color: Theme.glassEdge
+                        border.width: 1
+                        radius: 14
+                    }
+
+                    Instantiator {
+                        model: card.accounts
+                        delegate: StyledMenuItem {
+                            readonly property bool chosen: modelData.accountId === card.account
+                            readonly property bool registeredHere:
+                                card.registeredAccounts.indexOf(modelData.accountId) >= 0
+                            iconName: chosen ? "check" : "user"
+                            text: (modelData.label.length > 0 ? modelData.label : qsTr("Account %1").arg(index + 1))
+                                  + (registeredHere ? "" : "  ·  " + qsTr("not registered here"))
+                            onTriggered: if (!chosen) card.chooseAccount(modelData.accountId)
+                        }
+                        onObjectAdded: function (index, object) { accountMenu.insertItem(index, object) }
+                        onObjectRemoved: function (index, object) { accountMenu.removeItem(object) }
+                    }
+                    MenuSeparator {
+                        padding: 6
+                        leftPadding: 16
+                        rightPadding: 16
+                        contentItem: Rectangle { implicitHeight: 1; color: Theme.glassEdge }
+                    }
+                    StyledMenuItem {
+                        iconName: "users"
+                        text: qsTr("Manage accounts…")
+                        onTriggered: card.manageAccounts()
+                    }
+                }
+            }
         }
     }
 

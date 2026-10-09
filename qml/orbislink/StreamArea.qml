@@ -20,18 +20,25 @@ Item {
         app.selectConsole(address)
         root.connectConsole()
     }
-    // Every connection starts here. With two or more saved accounts, which
-    // one is asked first; with one, that one; the session then uses that
-    // account's own registration and PIN (never another account's).
+    // Every connection starts here, with the account shown on the card; with
+    // two or more saved accounts and none chosen for this console, which one
+    // is asked first. The session then uses that account's own registration
+    // and PIN (never another account's).
     function connectConsole() {
         if (stream.streaming || stream.sessionState === "connecting" || stream.connectStage.length > 0)
             return
         var accounts = app.accounts
-        if (accounts.length >= 2) {
+        // The account on the card goes in; the question comes only when the
+        // console has none of the saved ones yet.
+        var chosen = false
+        for (var i = 0; i < accounts.length; ++i)
+            if (accounts[i].accountId === stream.savedAccountId)
+                chosen = true
+        if (accounts.length >= 2 && !chosen) {
             accountPicker.ask()
             return
         }
-        if (accounts.length === 1)
+        if (accounts.length >= 1 && !chosen)
             stream.useAccount(accounts[0].accountId)
         stream.connectOneClick()
     }
@@ -231,6 +238,20 @@ Item {
                             stream.stopStream()
                     }
                     onEdit: registerDialog.open()
+                    accounts: app.accounts
+                    account: root.built ? stream.savedAccountId : ""
+                    registeredAccounts: root.built ? stream.registeredAccounts : []
+                    // The choice is this console's from now on: the next
+                    // connection goes in with it, without asking.
+                    onChooseAccount: function (accountId) {
+                        stream.useAccount(accountId)
+                        app.rememberAccountId(accountId)
+                    }
+                    onManageAccounts: {
+                        settingsDialog.loadValues()
+                        settingsDialog.section = 1
+                        settingsDialog.open()
+                    }
                     // Another console: it becomes the console in use and connects
                     // right away, in the same click (see chooseAndConnect).
                     onChoose: root.chooseAndConnect(modelData.address)
