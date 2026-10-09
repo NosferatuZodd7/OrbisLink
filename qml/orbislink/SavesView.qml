@@ -397,6 +397,7 @@ Item {
                     Text {
                         visible: root.selectedCount > 0 && !saves.busy
                         Layout.fillWidth: true
+                        Layout.minimumWidth: implicitWidth
                         text: qsTr("%n selected", "", root.selectedCount)
                         color: Theme.text
                         font.pixelSize: 14
@@ -416,12 +417,15 @@ Item {
                         spacing: 2
                         StyledButton {
                             id: sendButton
+                            // A long console name is cut, not the row.
+                            width: Math.min(implicitWidth, 320)
                             iconName: "upload"
                             text: root.sendConsole !== null ? qsTr("Send to %1").arg(root.sendConsole.name)
                                                            : qsTr("Send to a console")
                             enabled: root.sendConsole !== null && root.countWhere(function (s) { return s.inVault }) > 0
-                            ToolTip.visible: hovered && root.sendConsole === null
-                            ToolTip.text: qsTr("No console's FTP is answering.")
+                            // The whole name when it is cut.
+                            ToolTip.visible: hovered && (root.sendConsole === null || implicitWidth > width)
+                            ToolTip.text: root.sendConsole === null ? qsTr("No console's FTP is answering.") : text
                             onClicked: root.askSend(root.selectedKeys(), root.sendConsole.address)
                         }
                         StyledToolButton {
@@ -433,11 +437,12 @@ Item {
                             onClicked: targetMenu.popup(sendButton, 0, sendButton.height + 4)
                         }
                     }
-                    StyledButton {
+                    StyledToolButton {
                         visible: root.selectedCount > 0 && !saves.busy
                         danger: true
                         iconName: "trash"
-                        text: qsTr("Delete…")
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Delete from the PC…")
                         onClicked: confirmDelete.open()
                     }
                     StyledToolButton {
