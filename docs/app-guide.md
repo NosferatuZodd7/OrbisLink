@@ -95,13 +95,14 @@ centred and wrap onto more rows.
 | 🔗 | Registers this PC for Remote Play (the console shows an 8-digit PIN). |
 | ✕ | Removes the console from the list (asks first). |
 | Gold badge | The console has a jailbreak (FTP answers). |
+| 👤 Account ⌄ (console in use) | The account (PSID) Remote Play goes in with on this console. A click lists the saved accounts — the one in use ticked, the ones this PC is not registered with on this console marked — and **Manage accounts…** (Settings → Account IDs). The choice is kept for this console. |
 
 One click, one request: after a click the card takes no other until the
 console has answered (Remote Play connected or failed, FTP found or not).
 
-**Which account.** With two or more Account IDs saved, connecting first asks
-which one to use (the one this console used last is chosen already); with
-one, that one is used. Each account has its own registration on each
+**Which account.** Connecting uses the account shown on the card. Only
+when the console has none of the saved accounts yet, and two or more are
+saved, connecting first asks which one; with one, that one is used. Each account has its own registration on each
 console and its own Remote Play PIN — a session never uses another
 account's. An account not registered on the console yet goes to
 registration first, with its own 8-digit PIN filled in when it has one

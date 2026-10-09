@@ -305,114 +305,140 @@
 <context>
     <name>ConsoleCard</name>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="132"/>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="484"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="148"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="614"/>
         <source>Remote Play is not in this build</source>
         <translation>Remote Play is not in this build</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="133"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="149"/>
         <source>Click ✕ again to remove</source>
         <translation>Click ✕ again to remove</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="137"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="153"/>
         <source>Searching for the console…</source>
         <translation>Searching for the console…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="134"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="150"/>
         <source>Connecting…</source>
         <translation>Connecting…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="135"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="64"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="539"/>
+        <source>Account %1</source>
+        <translation>Account %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="65"/>
+        <source>Choose an account</source>
+        <translation>Choose an account</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="151"/>
         <source>Waking the console…</source>
         <translation>Waking the console…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="136"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="152"/>
         <source>Checking the console…</source>
         <translation>Checking the console…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="138"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="154"/>
         <source>Not responding</source>
         <translation>Not responding</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="139"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="155"/>
         <source>Checking…</source>
         <translation>Checking…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="140"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="156"/>
         <source>Not registered for Remote Play</source>
         <translation>Not registered for Remote Play</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="141"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="157"/>
         <source>In rest mode</source>
         <translation>In rest mode</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="142"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="158"/>
         <source>Ready</source>
         <translation>Ready</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="327"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="343"/>
         <source>In use</source>
         <translation>In use</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="327"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="343"/>
         <source>Registered</source>
         <translation>Registered</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="364"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="380"/>
         <source>This console has a jailbreak: its FTP server answers, so files and packages can be sent to it.</source>
         <translation>This console has a jailbreak: its FTP server answers, so files and packages can be sent to it.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="378"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="394"/>
         <source>Register this PC again</source>
         <translation>Register this PC again</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="379"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="395"/>
         <source>Register this PC on the console</source>
         <translation>Register this PC on the console</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="392"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="408"/>
         <source>Remove this console from the list</source>
         <translation>Remove this console from the list</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="409"/>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="419"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="425"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="435"/>
         <source>Console</source>
         <translation>Console</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="478"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="518"/>
+        <source>The account (PSID) Remote Play uses on this console</source>
+        <translation>The account (PSID) Remote Play uses on this console</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="540"/>
+        <source>not registered here</source>
+        <translation>not registered here</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="554"/>
+        <source>Manage accounts…</source>
+        <translation>Manage accounts…</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="608"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="478"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="608"/>
         <source>Remote Play</source>
         <translation>Remote Play</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="494"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="624"/>
         <source>FTP</source>
         <translation>FTP</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ConsoleCard.qml" line="498"/>
+        <location filename="../qml/orbislink/ConsoleCard.qml" line="628"/>
         <source>Browse the console&apos;s files over FTP, without Remote Play</source>
         <translation>Browse the console&apos;s files over FTP, without Remote Play</translation>
     </message>
@@ -3574,232 +3600,232 @@
 <context>
     <name>StreamArea</name>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="275"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="296"/>
         <source>This package was built without chiaki-ng. Everything else — installing pkg files and FTP — still works.</source>
         <translation>This package was built without chiaki-ng. Everything else — installing pkg files and FTP — still works.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="280"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="301"/>
         <source>Check the IP in the settings, and that the console is on the same network.</source>
         <translation>Check the IP in the settings, and that the console is on the same network.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="284"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="305"/>
         <source>On the PS5: Settings → System → Remote Play → Link Device. An 8-digit PIN appears.</source>
         <translation>On the PS5: Settings → System → Remote Play → Link Device. An 8-digit PIN appears.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="286"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="307"/>
         <source>On the console: Settings → Remote Play Connection Settings → Add Device. An 8-digit PIN appears.</source>
         <translation>On the console: Settings → Remote Play Connection Settings → Add Device. An 8-digit PIN appears.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="289"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="310"/>
         <source>Running: %1</source>
         <translation>Running: %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="351"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="372"/>
         <source>%1×%2</source>
         <translation>%1×%2</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="353"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="374"/>
         <source> · %1 fps</source>
         <translation> · %1 fps</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="379"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="400"/>
         <source>Controller: %1. Click for the keyboard map.</source>
         <translation>Controller: %1. Click for the keyboard map.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="380"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="401"/>
         <source>No controller connected. Click for the keyboard map.</source>
         <translation>No controller connected. Click for the keyboard map.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="407"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="428"/>
         <source>Sound</source>
         <translation>Sound</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="408"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="429"/>
         <source>No sound</source>
         <translation>No sound</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="409"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="430"/>
         <source>Sound: off</source>
         <translation>Sound: off</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="410"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="431"/>
         <source>Sound: on</source>
         <translation>Sound: on</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="425"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="446"/>
         <source>This PC has no active sound output.</source>
         <translation>This PC has no active sound output.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="427"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="448"/>
         <source>The sound card refused the stream — see Ctrl+L.</source>
         <translation>The sound card refused the stream — see Ctrl+L.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="429"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="450"/>
         <source>Coming out of %1</source>
         <translation>Coming out of %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="430"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="451"/>
         <source>No sound has arrived from the console yet.</source>
         <translation>No sound has arrived from the console yet.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="554"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="575"/>
         <source>Keyboard map</source>
         <translation>Keyboard map</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="579"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="600"/>
         <source>Go back to the default keys and controller buttons</source>
         <translation>Go back to the default keys and controller buttons</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="688"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="709"/>
         <source>Press a key or a controller button and both light up. Hover over a key to see which button it presses.</source>
         <translation>Press a key or a controller button and both light up. Hover over a key to see which button it presses.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="699"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="720"/>
         <source>Controller buttons changed: %1</source>
         <translation>Controller buttons changed: %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="362"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="383"/>
         <source>graphics card</source>
         <translation>graphics card</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="135"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="142"/>
         <source>The console is not streaming this screen</source>
         <translation>The console is not streaming this screen</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="144"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="151"/>
         <source>Video apps such as YouTube or Netflix are not sent over Remote Play. Close the app or press the PS button for the home screen; the picture comes back by itself.</source>
         <translation>Video apps such as YouTube or Netflix are not sent over Remote Play. Close the app or press the PS button for the home screen; the picture comes back by itself.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="362"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="383"/>
         <source>processor</source>
         <translation>processor</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="440"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="461"/>
         <source>Send your microphone to the console</source>
         <translation>Send your microphone to the console</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="441"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="462"/>
         <source>Capturing from %1. Click to mute, or right-click to turn it off.</source>
         <translation>Capturing from %1. Click to mute, or right-click to turn it off.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="476"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="497"/>
         <source>Fill</source>
         <translation>Fill</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="493"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="514"/>
         <source>Picture shape: 16:9 as the console sends it, 4:3 for PS1/PS2 games, or Fill to stretch it to the window. Click to change.</source>
         <translation>Picture shape: 16:9 as the console sends it, 4:3 for PS1/PS2 games, or Fill to stretch it to the window. Click to change.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="497"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="518"/>
         <source>Leave full screen</source>
         <translation>Leave full screen</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="497"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="518"/>
         <source>Full screen</source>
         <translation>Full screen</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="502"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="523"/>
         <source>End the session</source>
         <translation>End the session</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="569"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="590"/>
         <source>Done</source>
         <translation>Done</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="569"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="590"/>
         <source>Change keys</source>
         <translation>Change keys</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="576"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="597"/>
         <source>Reset</source>
         <translation>Reset</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="617"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="638"/>
         <source>Controller connected: %1. The keyboard works too:</source>
         <translation>Controller connected: %1. The keyboard works too:</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="619"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="640"/>
         <source>No controller connected — plug one in over USB and it is picked up on its own. Meanwhile, the keyboard:</source>
         <translation>No controller connected — plug one in over USB and it is picked up on its own. Meanwhile, the keyboard:</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="683"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="704"/>
         <source>Keyboard: click a key, then press the new one. Controller: click a button on the drawing, then press it on your controller. Taken already? The two swap.</source>
         <translation>Keyboard: click a key, then press the new one. Controller: click a button on the drawing, then press it on your controller. Taken already? The two swap.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="686"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="707"/>
         <source>Click the key you want to change, then press the new key. If it already does something, the two swap.</source>
         <translation>Click the key you want to change, then press the new key. If it already does something, the two swap.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="834"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="855"/>
         <source>Console PIN</source>
         <translation>Console PIN</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="849"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="870"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="854"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="875"/>
         <source>Send</source>
         <translation>Send</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="876"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="897"/>
         <source>The console refused that PIN. If the one saved for this account changed, correct it in Settings → Account IDs.</source>
         <translation>The console refused that PIN. If the one saved for this account changed, correct it in Settings → Account IDs.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="878"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="899"/>
         <source>That PIN was wrong. Try again.</source>
         <translation>That PIN was wrong. Try again.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="880"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="901"/>
         <source>The console is asking for the login PIN of %1.</source>
         <translation>The console is asking for the login PIN of %1.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="881"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="902"/>
         <source>The console is asking for the account&apos;s login PIN.</source>
         <translation>The console is asking for the account&apos;s login PIN.</translation>
     </message>
