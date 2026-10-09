@@ -633,6 +633,64 @@ class DiscoveryServer:
                 pass
 
 
+class PayloadLoader:
+    """Payload loader port (the PS5's ELF loader on 9021, GoldHEN's
+    BinLoader on 9090): takes a payload, says how big it was and, like the
+    PS5's loader, hands what the "payload" prints back over the same
+    connection before closing it."""
+
+    def __init__(self, port: int, host: str = "127.0.0.1") -> None:
+        self.port = port
+        self.host = host
+        self._socket: socket.socket | None = None
+        self._running = False
+
+    def start(self) -> None:
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._socket.bind((self.host, self.port))
+        self._socket.listen(4)
+        self.port = self._socket.getsockname()[1]
+        self._running = True
+        threading.Thread(target=self._loop, daemon=True).start()
+
+    def stop(self) -> None:
+        self._running = False
+        if self._socket:
+            self._socket.close()
+
+    def _loop(self) -> None:
+        while self._running:
+            try:
+                conn, _ = self._socket.accept()
+            except OSError:
+                return
+            threading.Thread(target=self._serve, args=(conn,), daemon=True).start()
+
+    @staticmethod
+    def _serve(conn: socket.socket) -> None:
+        received = bytearray()
+        # The sender keeps the connection open to hear back: the payload has
+        # arrived once nothing more comes for a moment.
+        conn.settimeout(0.6)
+        try:
+            while True:
+                chunk = conn.recv(65536)
+                if not chunk:
+                    break
+                received += chunk
+        except socket.timeout:
+            pass
+        kind = "ELF" if received[:4] == b"\x7fELF" else "binary"
+        try:
+            conn.sendall(f"[loader] {kind} payload, {len(received)} bytes\n".encode())
+            time.sleep(0.2)
+            conn.sendall(b"payload: hello from the fake console\n")
+        except OSError:
+            pass
+        conn.close()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Fake console for OrbisLink")
     parser.add_argument("--ftp-port", type=int, default=2121)
@@ -651,6 +709,8 @@ def main() -> int:
                              "(987 is the real one, but needs privileges)")
     parser.add_argument("--discovery-state", default="ready", choices=["ready", "standby"],
                         help="state the fake console reports")
+    parser.add_argument("--loader-port", type=int, default=0, metavar="PORT",
+                        help="takes payloads on this port and answers like the PS5's ELF loader")
     parser.add_argument("--print-ports", action="store_true",
                         help="prints the chosen ports as JSON and keeps running")
     arguments = parser.parse_args()
@@ -680,7 +740,14 @@ def main() -> int:
             print("No permission for the discovery port; Remote Play disabled.", flush=True)
             discovery = None
 
+    loader = None
+    if arguments.loader_port:
+        loader = PayloadLoader(arguments.loader_port, arguments.host)
+        loader.start()
+
     info = {"ftp_port": ftp.port, "api_port": api.server_address[1], "root": root}
+    if loader:
+        info["loader_port"] = loader.port
     if discovery:
         info["discovery_port"] = discovery.port
     if arguments.print_ports:
@@ -699,6 +766,8 @@ def main() -> int:
         ftp.stop()
         if discovery:
             discovery.stop()
+        if loader:
+            loader.stop()
     return 0
 
 
