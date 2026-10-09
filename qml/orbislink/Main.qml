@@ -221,7 +221,7 @@ ApplicationWindow {
                     }
                     StyledToolButton {
                         visible: typeof store !== "undefined" && store !== null
-                        iconName: "package"
+                        iconName: "store"
                         active: window.view === "store"
                         ToolTip.visible: hovered
                         ToolTip.text: qsTr("Homebrew store") + " — "
