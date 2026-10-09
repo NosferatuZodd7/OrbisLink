@@ -5,10 +5,14 @@
 #include "orbislink/common/util.h"
 #include "orbislink/ftp/ftp_client.h"
 #include "orbislink/qt/app_controller.h"
+#include "orbislink/qt/save_database.h"
 
 #include <QByteArray>
+#include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QMetaObject>
 #include <QStandardPaths>
 
@@ -41,6 +45,14 @@ public:
 			*error = result.message;
 		return result.ok;
 	}
+	bool upload(const std::string &local, const std::string &remote, std::string *error) override
+	{
+		const FtpResult result = ftp_.upload(local, remote);
+		if(!result.ok && error)
+			*error = result.message;
+		return result.ok;
+	}
+	bool makeDirectory(const std::string &dir) override { return ftp_.makeDirectory(dir).ok; }
 
 private:
 	FtpClient &ftp_;
@@ -232,7 +244,12 @@ void SavesController::run(const QString &what, Job job)
 		worker_.join();
 
 	const bool online = app_->canUseFtp();
-	const FtpClient::Config config = app_->ftpClientConfig();
+	FtpClient::Config config = app_->ftpClientConfig();
+	// This connection only ever writes where saves live and the console's
+	// list of saves (/system_data/savedata/<user>/db/user/savedata.db), both
+	// chosen here and never typed in: the guard on system folders, meant for
+	// the file browser, does not apply to it.
+	config.advancedMode = true;
 	const std::string root = vaultFolder().toStdString();
 	// Console user → PSID folder, from the links to the app's Account IDs.
 	std::map<std::string, std::string> links;
@@ -333,6 +350,146 @@ void SavesController::backup(const QStringList &keys)
 			return tr("%1 of %2 saves backed up. Not done: %3").arg(done).arg(chosen.size()).arg(failed.join(QStringLiteral("; ")));
 		return tr("%n save(s) backed up in the vault.", "", done);
 	});
+}
+
+void SavesController::restore(const QStringList &keys)
+{
+	const std::vector<SaveInfo> chosen = pick(keys);
+	run(tr("Putting saves back…"), [this, chosen](SaveRemote &remote, SaveVault &vault,
+										 std::vector<SaveInfo> &, bool *error) -> QString {
+		int done = 0;
+		QStringList failed;
+		// The saves the console no longer listed, by user: their rows go into
+		// that user's list of saves afterwards, in one go.
+		std::map<std::string, std::vector<SaveDbEntry>> unlisted;
+		for(size_t i = 0; i < chosen.size(); ++i)
+		{
+			const SaveInfo &save = chosen[i];
+			if(!save.inVault)
+				continue;
+			setProgress(tr("Putting back %1 (%2 of %3)…")
+					.arg(QString::fromStdString(save.saveTitle.empty() ? save.dir : save.saveTitle))
+					.arg(i + 1).arg(chosen.size()),
+				static_cast<double>(i) / chosen.size());
+			std::string why;
+			if(vault.restore(remote, save, save.account, &why))
+			{
+				++done;
+				if(!save.onConsole)
+					unlisted[save.account].push_back(vault.dbEntry(save, save.account));
+			}
+			else
+			{
+				failed << QString::fromStdString(save.dir + ": " + why);
+			}
+		}
+
+		int listed = 0;
+		QStringList listProblems;
+		for(const auto &pair : unlisted)
+		{
+			setProgress(tr("Adding them to the console's list of saves…"), 0.95);
+			QString problem;
+			const int changed = addToConsoleList(remote, vault, pair.first, pair.second, &problem);
+			if(changed < 0)
+				listProblems << problem;
+			else
+				listed += changed;
+		}
+
+		*error = !failed.isEmpty() || !listProblems.isEmpty();
+		QString message = failed.isEmpty() ? tr("%n save(s) put back on the console.", "", done)
+			: tr("%1 of %2 saves put back. Not done: %3").arg(done).arg(chosen.size())
+				  .arg(failed.join(QStringLiteral("; ")));
+		if(listed > 0)
+			message += QStringLiteral(" ") + tr("%n added to the console's list of saves; if one does not show "
+				"yet, restart the console.", "", listed);
+		if(!listProblems.isEmpty())
+			message += QStringLiteral(" ") + tr("Their files are back, but the console's list of saves could not "
+				"be updated: %1").arg(listProblems.join(QStringLiteral("; ")));
+		return message;
+	});
+}
+
+int SavesController::addToConsoleList(SaveRemote &remote, SaveVault &vault, const std::string &user,
+	const std::vector<SaveDbEntry> &entries, QString *problem)
+{
+	// A copy of the list as the console had it stays on this PC, so nothing
+	// done here is without a way back.
+	const std::string remotePath = SaveVault::saveDbPath(user);
+	const QString folder = QDir(QString::fromStdString(vault.root()))
+		.filePath(QStringLiteral(".vault/console-lists/") + QString::fromStdString(user));
+	QDir().mkpath(folder);
+	const QString original = QDir(folder).filePath(
+		QStringLiteral("savedata-%1.db").arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss"))));
+	const QString work = QDir(folder).filePath(QStringLiteral("savedata-edited.db"));
+	std::string why;
+	if(!remote.download(remotePath, original.toStdString(), &why))
+	{
+		QFile::remove(original);
+		*problem = tr("it could not be read (%1)").arg(QString::fromStdString(why));
+		return -1;
+	}
+	QFile::remove(work);
+	if(!QFile::copy(original, work))
+	{
+		*problem = tr("no room for a copy on this PC");
+		return -1;
+	}
+	const SaveDatabase::Outcome outcome = SaveDatabase::registerSaves(work, entries);
+	if(!outcome.ok || !outcome.changed())
+	{
+		QFile::remove(work);
+		if(!outcome.ok)
+		{
+			*problem = outcome.error;
+			return -1;
+		}
+		return 0;
+	}
+
+	// Back on the console, whole — or the console's own copy goes back.
+	const qint64 size = QFileInfo(work).size();
+	if(!remote.upload(work.toStdString(), remotePath, &why))
+	{
+		QFile::remove(work);
+		std::string restoreError;
+		remote.upload(original.toStdString(), remotePath, &restoreError);
+		*problem = tr("it could not be written back (%1)").arg(QString::fromStdString(why));
+		return -1;
+	}
+	// Read back and compared byte for byte: it is small, and a list of saves
+	// that is not exactly the edited one must not stay on the console.
+	bool whole = false;
+	{
+		const QString check = QDir(folder).filePath(QStringLiteral("savedata-check.db"));
+		std::string checkError;
+		if(remote.download(remotePath, check.toStdString(), &checkError))
+		{
+			QFile a(work);
+			QFile b(check);
+			whole = a.open(QIODevice::ReadOnly) && b.open(QIODevice::ReadOnly) && a.size() == size
+				&& a.readAll() == b.readAll();
+		}
+		QFile::remove(check);
+	}
+	QFile::remove(work);
+	if(!whole)
+	{
+		std::string restoreError;
+		remote.upload(original.toStdString(), remotePath, &restoreError);
+		logWarning("Saves: the console's list of saves did not go back whole; its own copy was put back.");
+		*problem = tr("the edited list did not arrive whole, so the console's own was put back");
+		return -1;
+	}
+
+	// The last few copies are enough.
+	QStringList copies = QDir(folder).entryList({ QStringLiteral("savedata-2*.db") }, QDir::Files, QDir::Name);
+	while(copies.size() > SaveVault::kVersionsKept)
+		QFile::remove(QDir(folder).filePath(copies.takeFirst()));
+	logInfo("Saves: added " + std::to_string(outcome.added) + " row(s) to user " + user
+		+ "'s list of saves (" + std::to_string(outcome.repaired) + " no longer marked broken).");
+	return outcome.added + outcome.repaired;
 }
 
 void SavesController::removeFromVault(const QStringList &keys)

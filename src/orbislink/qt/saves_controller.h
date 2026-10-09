@@ -20,8 +20,7 @@ namespace orbislink {
 class AppController;
 
 // The save vault for QML (`saves`): the console's saves next to the ones
-// kept on this PC, backing them up and deleting backups. The console is
-// only read.
+// kept on this PC; backing them up, putting them back and deleting backups.
 // One action at a time, on a thread of its own, with its own FTP connection.
 class SavesController : public QObject
 {
@@ -52,6 +51,10 @@ public:
 	// Backs up the given saves (keys); with none, every save on the console
 	// whose backup is missing or out of date.
 	Q_INVOKABLE void backup(const QStringList &keys);
+	// Puts the latest backup of each back on the console, for its own user.
+	// One the console no longer lists also gets its row in the console's list
+	// of saves (a copy of which is kept on this PC first).
+	Q_INVOKABLE void restore(const QStringList &keys);
 	Q_INVOKABLE void removeFromVault(const QStringList &keys);
 	// Console user folder → Account ID (base64) kept in the app.
 	Q_INVOKABLE void linkAccount(const QString &user, const QString &accountId);
@@ -70,6 +73,10 @@ private:
 	void run(const QString &what, Job job);
 	void publish(const std::vector<SaveInfo> &list, SaveVault &vault, SaveRemote *remote);
 	std::vector<SaveInfo> pick(const QStringList &keys) const;
+	// Adds rows to the console user's list of saves; how many changed, or -1
+	// with the reason.
+	int addToConsoleList(SaveRemote &remote, SaveVault &vault, const std::string &user,
+		const std::vector<SaveDbEntry> &entries, QString *problem);
 	void setProgress(const QString &status, double progress);
 
 	AppController *app_;

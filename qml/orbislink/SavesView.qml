@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // The save vault: every save on the console next to the copies kept on
-// this PC. One click backs up everything new or changed. The console is
-// only read; the backups are laid out as the PS4 copies saves to a USB
-// drive (PS4/SAVEDATA/<PSID>/<game>).
+// this PC. One click backs up everything new or changed; another puts back
+// what the console lost. The backups are laid out as the PS4 copies saves
+// to a USB drive (PS4/SAVEDATA/<PSID>/<game>).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -147,6 +147,13 @@ Item {
             waitingForLink = waiting
             linkDialog.ask(user)
         }
+    }
+
+    // Putting back always asks first.
+    function askRestore(keys) {
+        var kept = withoutOpenGame(keys)
+        if (kept.length > 0)
+            confirmRestore.ask(kept)
     }
 
     function isSelected(key) { return selected[key] === true }
@@ -315,6 +322,13 @@ Item {
                     }
                     StyledButton {
                         visible: root.selectedCount > 0 && !saves.busy
+                        iconName: "archive-restore"
+                        text: qsTr("Put back")
+                        enabled: root.online && root.countWhere(function (s) { return s.inVault }) > 0
+                        onClicked: root.askRestore(root.selectedKeys())
+                    }
+                    StyledButton {
+                        visible: root.selectedCount > 0 && !saves.busy
                         danger: true
                         iconName: "trash"
                         text: qsTr("Delete…")
@@ -378,6 +392,19 @@ Item {
                             text: qsTr("%n save(s) the console no longer has are kept here.", "", root.counts.vault)
                             color: Theme.textSecondary
                             font.pixelSize: 12
+                        }
+                    }
+                    StyledButton {
+                        visible: root.online && root.counts.vault > 0 && root.selectedCount === 0
+                        text: qsTr("Put back what's missing")
+                        iconName: "archive-restore"
+                        enabled: !saves.busy
+                        onClicked: {
+                            var keys = []
+                            for (var i = 0; i < saves.saves.length; ++i)
+                                if (saves.saves[i].sync === "vault" && root.inAccount(saves.saves[i]))
+                                    keys.push(saves.saves[i].key)
+                            root.askRestore(keys)
                         }
                     }
                     StyledButton {
@@ -735,8 +762,8 @@ Item {
                     wrapMode: Text.WordWrap
                     color: Theme.textMuted
                     font.pixelSize: 11
-                    text: qsTr("The console is only read. Backups are kept as the PS4 copies saves to a USB "
-                               + "drive: PS4/SAVEDATA/<PSID>/<game>, in the vault folder.")
+                    text: qsTr("Backups are kept as the PS4 copies saves to a USB drive: PS4/SAVEDATA/<PSID>/<game>, "
+                               + "in the vault folder. A save only goes back to the console user it came from.")
                 }
             }
         }
@@ -819,6 +846,148 @@ Item {
                     solid: true
                     enabled: confirmDelete.inVault > 0
                     onClicked: { saves.removeFromVault(root.selectedKeys()); confirmDelete.close() }
+                }
+            }
+        }
+    }
+
+    // Putting back asks first: what it does, and what it needs.
+    Dialog {
+        id: confirmRestore
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(520, parent.width - 32)
+        modal: true
+        padding: 0
+        property var keys: []
+        // Of those, how many the console no longer lists, and how many have
+        // no console user to go back to.
+        property int missing: 0
+        property int noUser: 0
+        function ask(chosen) {
+            keys = chosen
+            var gone = 0
+            var unknown = 0
+            for (var i = 0; i < saves.saves.length; ++i) {
+                var s = saves.saves[i]
+                if (chosen.indexOf(s.key) < 0)
+                    continue
+                if (!s.onConsole)
+                    ++gone
+                if (s.account.length === 0)
+                    ++unknown
+            }
+            missing = gone
+            noUser = unknown
+            open()
+        }
+
+        Overlay.modal: Rectangle { color: Theme.scrim }
+        background: Rectangle {
+            color: Theme.dialogFill
+            border.color: Theme.border
+            radius: Theme.radiusDialog
+        }
+        header: DialogHeader {
+            title: qsTr("Put back %n save(s)?", "", confirmRestore.keys.length)
+            dialog: confirmRestore
+        }
+        contentItem: ColumnLayout {
+            spacing: 10
+            Repeater {
+                model: [
+                    qsTr("The game must be closed (the console on its home screen): a save written while "
+                         + "its game runs comes out corrupted."),
+                    qsTr("Each goes back to the console user it came from, replacing the console's copy "
+                         + "with the latest backup, and is checked to have arrived whole.")
+                ]
+                RowLayout {
+                    required property string modelData
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.dialogMargin
+                    Layout.rightMargin: Theme.dialogMargin
+                    spacing: 10
+                    Icon {
+                        Layout.alignment: Qt.AlignTop
+                        Layout.topMargin: 2
+                        name: "info"
+                        size: 14
+                        color: Theme.textSecondary
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: Theme.textSecondary
+                        font.pixelSize: 13
+                        text: parent.modelData
+                    }
+                }
+            }
+            RowLayout {
+                visible: confirmRestore.missing > 0
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                spacing: 10
+                Icon {
+                    Layout.alignment: Qt.AlignTop
+                    Layout.topMargin: 2
+                    name: "archive"
+                    size: 14
+                    color: Theme.accent
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.text
+                    font.pixelSize: 12
+                    text: qsTr("%n of them the console no longer has: they are added back to its list of saves "
+                               + "too, so it shows them again. A copy of that list stays on this PC first.", "",
+                               confirmRestore.missing)
+                }
+            }
+            RowLayout {
+                visible: confirmRestore.noUser > 0
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                spacing: 10
+                Icon {
+                    Layout.alignment: Qt.AlignTop
+                    Layout.topMargin: 2
+                    name: "warning"
+                    size: 14
+                    color: Theme.warn
+                }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.warn
+                    font.pixelSize: 12
+                    text: qsTr("%n of them have no console user yet: link their PSID to a console user first "
+                               + "(the user chips at the top).", "", confirmRestore.noUser)
+                }
+            }
+            Item { implicitHeight: 2 }
+        }
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                spacing: 8
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("Cancel")
+                    onClicked: confirmRestore.close()
+                }
+                StyledButton {
+                    text: qsTr("The game is closed — put back")
+                    iconName: "archive-restore"
+                    primary: true
+                    onClicked: { saves.restore(confirmRestore.keys); confirmRestore.close() }
                 }
             }
         }

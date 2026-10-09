@@ -8,6 +8,8 @@
         (files; older layouts had a folder with param.sfo and icon0.png —
         the first game keeps that one, so both are exercised)
     user/appmeta/<TITLE_ID>/icon0.png, param.sfo
+    system_data/savedata/<account>/db/user/savedata.db
+        (the console's list of saves: one row per save, as the PS4 keeps it)
 
 The "images" are random bytes: only the save vault's listing, copying and
 comparing are exercised.
@@ -16,6 +18,7 @@ Usage: make_test_saves.py <mock console root>
 """
 import os
 import pathlib
+import sqlite3
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -66,8 +69,42 @@ def main() -> int:
                 meta.mkdir(parents=True, exist_ok=True)
                 (meta / dir_name).write_bytes(sfo)
                 (meta / f"sce_bu_{dir_name}").write_bytes(sfo)
+    write_save_list(root, home)
     print(f"Saves of {len(GAMES)} games under {home}")
     return 0
+
+
+# The columns Apollo Save Tool fills when it adds a save to the list.
+SAVE_LIST_SCHEMA = (
+    "CREATE TABLE savedata(id INTEGER PRIMARY KEY, title_id TEXT NOT NULL, dir_name TEXT NOT NULL, "
+    "main_title TEXT, sub_title TEXT, detail TEXT, tmp_dir_name TEXT, is_broken INTEGER, user_param INTEGER, "
+    "blocks INTEGER, free_blocks INTEGER, size_kib INTEGER, mtime TEXT, fake_broken INTEGER, account_id INTEGER, "
+    "user_id INTEGER, faked_owner INTEGER, cloud_icon_url TEXT, cloud_revision INTEGER, game_title_id TEXT)")
+
+
+def write_save_list(root: pathlib.Path, home: pathlib.Path) -> None:
+    """One row per save found under the user's savedata folder."""
+    folder = root / "system_data" / "savedata" / ACCOUNT / "db" / "user"
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / "savedata.db"
+    if path.exists():
+        path.unlink()
+    db = sqlite3.connect(path)
+    db.execute(SAVE_LIST_SCHEMA)
+    for title in sorted((home / "savedata").iterdir()):
+        for image in sorted(title.glob("sdimg_*")):
+            name = image.name[len("sdimg_"):]
+            if name.startswith("sce_bu_"):
+                continue
+            blocks = image.stat().st_size // 32768
+            db.execute("INSERT INTO savedata(title_id, dir_name, main_title, sub_title, detail, tmp_dir_name, "
+                       "is_broken, user_param, blocks, free_blocks, size_kib, mtime, fake_broken, account_id, "
+                       "user_id, faked_owner, cloud_icon_url, cloud_revision, game_title_id) "
+                       "VALUES (?, ?, '', '', '', '', 0, 0, ?, ?, ?, '2026-10-01T12:00:00.00Z', 0, ?, ?, 0, '', 0, ?)",
+                       (title.name, name, blocks, blocks, blocks * 32,
+                        int.from_bytes(ACCOUNT_IDS[0], "little"), int(ACCOUNT, 16), title.name))
+    db.commit()
+    db.close()
 
 
 if __name__ == "__main__":

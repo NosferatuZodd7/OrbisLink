@@ -158,7 +158,9 @@ if(ORBISLINK_BUILD_CLI)
 endif()
 
 if(ORBISLINK_BUILD_GUI)
-	set(ORBISLINK_QT_COMPONENTS Core Gui Qml Quick QuickControls2)
+	# Sql (its SQLite driver) edits a copy of the PS4's list of saves when a
+	# save it lost is put back.
+	set(ORBISLINK_QT_COMPONENTS Core Gui Qml Quick QuickControls2 Sql)
 	if(ORBISLINK_ENABLE_STREAM)
 		# The Remote Play video goes through QML's VideoOutput: Qt converts
 		# the YUV on the GPU, instead of us doing it on the CPU.
@@ -176,6 +178,7 @@ if(ORBISLINK_BUILD_GUI)
 			src/orbislink/qt/app_controller.cpp
 			src/orbislink/qt/games_controller.cpp
 			src/orbislink/qt/saves_controller.cpp
+			src/orbislink/qt/save_database.cpp
 			src/orbislink/qt/queue_model.cpp
 			src/orbislink/qt/ftp_model.cpp
 			src/orbislink/qt/startup.cpp
@@ -198,7 +201,7 @@ if(ORBISLINK_BUILD_GUI)
 		target_compile_definitions(orbislink-gui PRIVATE
 			ORBISLINK_VERSION_STRING="${ORBISLINK_VERSION_NAME}")
 		target_link_libraries(orbislink-gui PRIVATE
-			orbislink_core Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2)
+			orbislink_core Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::Sql)
 		if(TARGET orbislink_fpkg)
 			target_link_libraries(orbislink-gui PRIVATE orbislink_fpkg)
 		endif()

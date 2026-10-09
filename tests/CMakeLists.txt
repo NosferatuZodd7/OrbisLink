@@ -53,6 +53,17 @@ if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET Qt6::Multimedia)
 	add_test(NAME test_pcm_queue COMMAND test_pcm_queue)
 endif()
 
+# Adding a lost save's row to a copy of the PS4's list of saves (SQLite,
+# through Qt Sql): what goes back to the console must be whole.
+if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET Qt6::Sql)
+	add_executable(test_save_database
+		test_save_database.cpp
+		${CMAKE_SOURCE_DIR}/src/orbislink/qt/save_database.cpp)
+	target_link_libraries(test_save_database PRIVATE orbislink_core Qt6::Core Qt6::Sql)
+	target_include_directories(test_save_database PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+	add_test(NAME test_save_database COMMAND test_save_database)
+endif()
+
 # Keyboard as controller: the key swap rules live on the Qt side
 # (the codes are Qt::Key) and use chiaki's buttons.
 if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET orbislink_stream)

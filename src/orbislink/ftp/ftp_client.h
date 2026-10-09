@@ -27,6 +27,9 @@ struct FtpResult
 	bool ok = false;
 	std::string message;
 	bool cancelled = false;
+	// The server's own answer, which asking again will not change: access
+	// refused, or no such file. Not retried.
+	bool final = false;
 
 	static FtpResult success() { FtpResult r; r.ok = true; return r; }
 	static FtpResult failure(std::string message)
