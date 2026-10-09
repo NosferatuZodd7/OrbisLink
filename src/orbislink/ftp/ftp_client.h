@@ -84,6 +84,9 @@ public:
 	FtpResult removeFile(const std::string &remotePath);
 	FtpResult removeDirectory(const std::string &remotePath);
 	FtpResult rename(const std::string &fromPath, const std::string &toPath);
+	// SITE CHMOD, once: a server without it says so at the first try. `mode`
+	// is octal, "777".
+	FtpResult setPermissions(const std::string &remotePath, const std::string &mode);
 
 	// Cancels the current operation; goes back to false when the operation ends.
 	void cancel();

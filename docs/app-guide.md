@@ -7,7 +7,7 @@ something else in the app, one of the two is wrong.
 
 ## What the app does
 
-Three jobs, around one PlayStation at a time — the **console in use**:
+Its jobs, around one PlayStation at a time — the **console in use**:
 
 1. **Remote Play** — the console's picture, sound and controls on the PC.
 2. **Files** — packages (`.pkg`) and any other file to the console, over FTP
@@ -17,6 +17,8 @@ Three jobs, around one PlayStation at a time — the **console in use**:
 4. **Save vault** — every save on the console read and backed up on the PC,
    kept as the PS4 keeps saves on a USB drive, and sent to any console of
    the same PSN account (PS4 or PS5).
+5. **Homebrew store** — the PS5 homebrew apps of the homebrew.page catalog,
+   looked at and installed on a jailbroken PS5 in one click.
 
 ## Words used in the app
 
@@ -57,6 +59,7 @@ narrower than where the rest fits.
 | 🎮 · **FTP** · 📦 | Remote Play, FTP (the word in small bold letters) and the installer, each with a dot at the corner: green available (with a soft ring), amber checking (it breathes), red not answering, grey not applicable. Hover: the name and why. | — |
 | ▶ | Only while a Remote Play session runs and another page is open. | Back to the picture. |
 | 💿 | PS1/PS2 games; lit while that page is open. | Opens / closes the games page. |
+| 📦 | The homebrew store; lit while that page is open (only in builds with the store). | Opens / closes the store. |
 | 🗄 | The save vault; lit while that page is open. | Opens / closes the save vault. |
 | ⟳ | | Checks the three services now. |
 | ▣ | | Shows / hides the side panel (F9). Locked while full screen. |
@@ -310,6 +313,30 @@ What the consoles allow, and why the page works this way:
   came from. They go only to a console user of that account (the same PSID),
   on any console.
 
+## Homebrew store
+
+The PS5 homebrew apps of the homebrew.page catalog — the one ProsperoStore
+reads — and installing them on a jailbroken PS5 (etaHEN's FTP on, kstuff and
+ShadowMountPlus running). The catalog is used only when its signature
+(Ed25519, either of the two keys the catalog publishes) and the SHA-256 of
+each of its files check out; a catalog older than one already seen is
+refused. When the site does not answer, the last catalog kept is shown, and
+the header says so. Each app's icon is downloaded once.
+
+| Item | Does |
+|---|---|
+| PS5 chip (header) | The PS5 apps go to: the one in use when it is a PS5, else the first PS5 whose FTP answers. With several PS5s, a click lists them to pick another. |
+| Search · chips | Search by name, author or title ID · All, by kind (apps, games, tools…), **Installed**, **Updates**. |
+| A card | Icon, name, author, version, size, and **Installed** / **Update** / **Coming soon**. A click opens it. |
+| The app's window | What it is (description), version, size, title ID, date, licence; **On the console**: whether it stays in the app sandbox, uses the network, starts helper payloads (as the catalog's scan found); **What's new**; links to its source code, catalog page and release. |
+| **Install on <PS5>** · **Update on <PS5>** · **Install again** | Downloads the app's ZIP, checks it against the catalog's SHA-256 (a mismatch is not installed), copies its folder to a staging folder on the PS5 (`/data/orbislink/staging`), sets everything in it to 777 (the console starts an app only then: CE-107750-0 otherwise; a server that cannot is said so), then moves it to `/data/homebrew/<TITLE ID>`. An update keeps the copy it replaces in `/data/orbislink/previous/<TITLE ID>`, and what the user put in the app's folder — games, saves, settings: what the new archive does not have — moves on into the new folder, as copying the new version over the old one would keep it. ShadowMountPlus puts it on the home screen: at once when its API lets the network in, else at its next scan. |
+| **Remove** | Asks ShadowMountPlus to uninstall it (when its API lets the network in), then deletes its folder. Its saves stay. Without the API, its icon goes when ShadowMountPlus removes missing games, or by deleting it on the console. |
+| **Cancel** | Stops an install under way; nothing in place changes. |
+
+No package is built: on the PS5 the app folder is the install, which is why
+apps the catalog offers only as disc images are listed but not installed.
+Building a PS5 fake package (fpkg) is not something any open tool does yet.
+
 ## Settings
 
 | Section | Holds |
@@ -333,6 +360,8 @@ What the consoles allow, and why the page works this way:
 | Remote Play | yes | — | — | yes |
 | Save vault: back up, send to a console | yes | yes | — | — |
 | Save vault: see or delete what the PC holds | no | — | — | — |
+| Homebrew store: look at the apps | no (internet) | — | — | — |
+| Homebrew store: install, update, remove | a PS5 | yes | — | — |
 
 ## Where it lives in the code
 
@@ -346,6 +375,7 @@ What the consoles allow, and why the page works this way:
 | Everything the QML calls (`app`) | `src/orbislink/qt/app_controller.*` |
 | Games (`games`) | `src/orbislink/qt/games_controller.*` |
 | Save vault (`saves`) | `SavesView.qml`, `src/orbislink/qt/saves_controller.*`, `src/orbislink/saves` |
+| Homebrew store (`store`) | `StoreView.qml`, `src/orbislink/qt/store_controller.*`, `src/orbislink/store` |
 | Remote Play (`stream`) | `src/orbislink/qt/stream_controller.*` |
 | Queue, FTP, installer | `src/orbislink/queue`, `ftp`, `installer` |
 | Package builder, disc scanner, Classics files | `src/orbislink/fpkg` |

@@ -159,6 +159,12 @@ public:
 	// How to reach the console's FTP right now, for whoever needs a
 	// connection of its own (the save vault).
 	FtpClient::Config ftpClientConfig() const;
+	// The same for any saved console (its address): the one in use as
+	// above, another on its own address and its kind's FTP port.
+	FtpClient::Config ftpClientConfigFor(const std::string &address) const;
+	// Whether that console's FTP answers: the services say for the one in
+	// use, the last probe for the others.
+	bool ftpAnswers(const std::string &address) const;
 	// Changes settings that need nothing rebuilt (folders remembered by
 	// other parts of the app) and saves them.
 	void updateSettings(const std::function<void(Settings &)> &change);

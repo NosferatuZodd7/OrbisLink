@@ -787,6 +787,26 @@ FtpClient::Config AppController::ftpClientConfig() const
 	return config;
 }
 
+FtpClient::Config AppController::ftpClientConfigFor(const std::string &address) const
+{
+	FtpClient::Config config = ftpClientConfig();
+	if(address == settings_.consoleAddress)
+		return config;
+	config.host = address;
+	config.port = settings_.ftpPort;
+	for(const ConsoleEntry &console : settings_.consoles)
+		if(console.address == address && console.type == "ps5")
+			config.port = settings_.ftpPortPs5;
+	return config;
+}
+
+bool AppController::ftpAnswers(const std::string &address) const
+{
+	if(address == settings_.consoleAddress)
+		return canUseFtp();
+	return ftpReachable_.value(QString::fromStdString(address)).toBool();
+}
+
 QVariantMap AppController::themeColors() const { return colorsToMap(settings_.themeColors); }
 
 QVariantList AppController::themePresets() const

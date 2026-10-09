@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <istream>
 #include <string>
 
 namespace orbislink::fpkg {
@@ -27,5 +28,14 @@ bool extractTarGz(const std::string &archivePath, const TarDestination &destinat
 // in memory, handing the output to `sink` as it comes.
 bool gunzip(const uint8_t *data, size_t size,
 	const std::function<bool(const uint8_t *, size_t)> &sink, std::string *error);
+
+// One raw deflate stream (RFC 1951, as in a ZIP entry), read from `in` at
+// its current position and handed to `sink` as it comes; its CRC-32 and
+// size come back. `in` may be read past the end of the stream.
+bool inflateRaw(std::istream &in, const std::function<bool(const uint8_t *, size_t)> &sink,
+	uint32_t *crc, uint64_t *size, std::string *error);
+
+// CRC-32 (the one gzip and ZIP use), carried on from `crc`.
+uint32_t crc32(uint32_t crc, const uint8_t *data, size_t size);
 
 } // namespace orbislink::fpkg

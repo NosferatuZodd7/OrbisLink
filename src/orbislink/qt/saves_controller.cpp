@@ -191,7 +191,6 @@ QVariantList SavesController::consoles() const
 	QVariantList items;
 	const Settings &settings = app_->settings();
 	const QString shown = source();
-	const QVariantMap reachable = app_->ftpReachable();
 	for(const ConsoleEntry &console : settings.consoles)
 	{
 		const QString address = QString::fromStdString(console.address);
@@ -201,7 +200,7 @@ QVariantList SavesController::consoles() const
 		item[QStringLiteral("name")] = QString::fromStdString(console.name.empty() ? console.address : console.name);
 		item[QStringLiteral("type")] = QString::fromStdString(console.type);
 		item[QStringLiteral("active")] = active;
-		item[QStringLiteral("ftp")] = active ? app_->canUseFtp() : reachable.value(address).toBool();
+		item[QStringLiteral("ftp")] = app_->ftpAnswers(console.address);
 		item[QStringLiteral("source")] = address == shown;
 		items << item;
 	}
@@ -220,13 +219,7 @@ QString SavesController::source() const
 
 QString SavesController::sourceName() const { return consoleAt(source()).name; }
 
-bool SavesController::online() const
-{
-	const QString shown = source();
-	if(shown.toStdString() == app_->settings().consoleAddress)
-		return app_->canUseFtp();
-	return app_->ftpReachable().value(shown).toBool();
-}
+bool SavesController::online() const { return app_->ftpAnswers(source().toStdString()); }
 
 void SavesController::setSource(const QString &address)
 {
@@ -261,13 +254,7 @@ SavesController::Console SavesController::consoleAt(const QString &address) cons
 				console.name = QString::fromStdString(entry.name);
 			console.type = QString::fromStdString(entry.type);
 		}
-	FtpClient::Config config = app_->ftpClientConfig();
-	if(console.address.toStdString() != settings.consoleAddress)
-	{
-		// Another console than the one in use: its own address and port.
-		config.host = console.address.toStdString();
-		config.port = console.type == QLatin1String("ps5") ? settings.ftpPortPs5 : settings.ftpPort;
-	}
+	FtpClient::Config config = app_->ftpClientConfigFor(console.address.toStdString());
 	// This connection only ever writes where saves live and the console's
 	// list of saves (/system_data/savedata/<user>/db/user/savedata.db), both
 	// chosen here and never typed in: the guard on system folders, meant for

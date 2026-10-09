@@ -53,6 +53,14 @@ if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET Qt6::Multimedia)
 	add_test(NAME test_pcm_queue COMMAND test_pcm_queue)
 endif()
 
+# The homebrew store: signed catalog, ZIP apps, install into place.
+if(TARGET orbislink_store)
+	add_executable(test_store test_store.cpp)
+	target_link_libraries(test_store PRIVATE orbislink_store)
+	target_include_directories(test_store PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+	add_test(NAME test_store COMMAND test_store)
+endif()
+
 # Adding a lost save's row to a copy of the PS4's list of saves (SQLite,
 # through Qt Sql): what goes back to the console must be whole.
 if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET Qt6::Sql)

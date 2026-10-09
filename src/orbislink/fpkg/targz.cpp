@@ -687,6 +687,41 @@ bool gunzip(const uint8_t *data, size_t size, const std::function<bool(const uin
 	return false;
 }
 
+bool inflateRaw(std::istream &in, const std::function<bool(const uint8_t *, size_t)> &sink,
+	uint32_t *crc, uint64_t *size, std::string *error)
+{
+	try
+	{
+		Input input(&in);
+		Output out(sink);
+		Bits bits(input);
+		out.startMember();
+		inflate(bits, out);
+		out.flush();
+		if(crc)
+			*crc = out.crc();
+		if(size)
+			*size = out.memberSize();
+		return true;
+	}
+	catch(const Failure &f)
+	{
+		if(error)
+			*error = f.what();
+	}
+	catch(const Cancelled &)
+	{
+		if(error)
+			*error = "cancelled";
+	}
+	return false;
+}
+
+uint32_t crc32(uint32_t crc, const uint8_t *data, size_t size)
+{
+	return crc32Update(crc, data, size);
+}
+
 bool extractTarGz(const std::string &archivePath, const TarDestination &destination,
 	const TarProgress &progress, std::string *error)
 {
