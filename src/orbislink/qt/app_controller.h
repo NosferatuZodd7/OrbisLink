@@ -6,6 +6,7 @@
 #include "orbislink/http/local_http_server.h"
 #include "orbislink/installer/rpi_client.h"
 #include "orbislink/qt/ftp_model.h"
+#include "orbislink/qt/lifeline.h"
 #include "orbislink/qt/queue_model.h"
 #include "orbislink/queue/install_queue.h"
 #include "orbislink/settings/settings_store.h"
@@ -408,10 +409,12 @@ private:
 	SettingsStore store_;
 	ConsoleStatus status_;
 
-	std::unique_ptr<ConsoleManager> console_;
+	// Shared with the threads that use them: a thread still talking to the
+	// console keeps its client alive when the services are rebuilt.
+	std::shared_ptr<ConsoleManager> console_;
 	std::unique_ptr<LocalHttpServer> httpServer_;
 	std::unique_ptr<RpiClient> installer_;
-	std::unique_ptr<FtpClient> ftp_;
+	std::shared_ptr<FtpClient> ftp_;
 	std::unique_ptr<InstallQueue> queue_;
 
 	QueueModel queueModel_;
@@ -453,7 +456,8 @@ private:
 	bool downloadActive_ = false;
 	QString downloadName_;
 	double downloadProgress_ = 0.0;
-	std::atomic<bool> downloadCancel_ { false };
+	// Each download's own flag, shared with its thread.
+	std::shared_ptr<std::atomic<bool>> downloadCancel_ = std::make_shared<std::atomic<bool>>(false);
 
 	void setUpdateState(const QString &state, const QString &message);
 	QString updateState_ = QStringLiteral("idle");
@@ -468,6 +472,8 @@ private:
 	int64_t updateAssetSize_ = 0;
 	double updateProgress_ = 0.0;
 	std::atomic<bool> updateBusy_ { false };
+	// For the threads of its own that answer after it may be gone.
+	LifelinePtr lifeline_ = std::make_shared<Lifeline>(this);
 };
 
 } // namespace orbislink

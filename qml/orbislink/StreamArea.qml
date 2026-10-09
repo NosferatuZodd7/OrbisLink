@@ -111,6 +111,42 @@ Item {
 
     readonly property bool videoReady: videoLoader.status === Loader.Ready
 
+    // The console is showing something it does not stream (YouTube, a film):
+    // the picture goes dark, and this says why instead of looking frozen.
+    Column {
+        anchors.centerIn: videoLoader
+        width: Math.min(420, videoLoader.width - 48)
+        spacing: 10
+        visible: root.streaming && stream.cantDisplay
+
+        Icon {
+            anchors.horizontalCenter: parent.horizontalCenter
+            name: "monitor"
+            size: 34
+            color: "#d0d4dc"
+        }
+        Text {
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            color: "#ffffff"
+            font.pixelSize: 15
+            font.weight: Font.DemiBold
+            text: qsTr("The console is not streaming this screen")
+        }
+        Text {
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            color: "#b8bdc8"
+            font.pixelSize: 12
+            lineHeight: 1.2
+            text: qsTr("Video apps such as YouTube or Netflix are not sent over Remote Play. "
+                       + "Close the app or press the PS button for the home screen; the "
+                       + "picture comes back by itself.")
+        }
+    }
+
     onStreamingChanged: {
         if (streaming) {
             if (videoReady)

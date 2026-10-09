@@ -118,6 +118,7 @@ StreamController::StreamController(QObject *parent)
 				}
 				if(state == SessionState::Stopped || state == SessionState::Failed)
 				{
+					cantDisplay_ = false;
 					audio_.stop();
 					video_.clear();
 					frameWidth_ = frameHeight_ = 0;
@@ -131,6 +132,26 @@ StreamController::StreamController(QObject *parent)
 	});
 
 	session_->setFrameCallback([this](AVFrame *frame) { video_.presentFrame(frame); });
+
+	session_->setDisplayCallback([this](bool blocked) {
+		QMetaObject::invokeMethod(
+			this,
+			[this, blocked]() {
+				if(cantDisplay_ == blocked)
+					return;
+				cantDisplay_ = blocked;
+				logInfo(blocked ? "Remote Play: the console is showing something it does not stream."
+								: "Remote Play: the console is streaming the picture again.");
+				emit sessionChanged();
+				if(blocked)
+					emit notify(tr("Remote Play"),
+						tr("The console is showing something it does not stream, such as a video app "
+						   "(YouTube, Netflix…). Close it or go back to the home screen and the picture "
+						   "comes back."),
+						false);
+			},
+			Qt::QueuedConnection);
+	});
 
 	session_->setRumbleCallback([this](uint8_t left, uint8_t right) {
 		QMetaObject::invokeMethod(
@@ -214,6 +235,7 @@ StreamController::StreamController(QObject *parent)
 
 StreamController::~StreamController()
 {
+	lifeline_->cut();
 	if(session_)
 		session_->stop();
 }
@@ -475,7 +497,7 @@ void StreamController::probeConsoles(const QStringList &addresses)
 	std::vector<std::string> items;
 	for(const QString &address : addresses)
 		items.push_back(address.toStdString());
-	std::thread([this, items]() {
+	std::thread([this, life = lifeline_, items]() {
 		std::vector<HostInfo> replies;
 		for(const std::string &address : items)
 		{
@@ -483,15 +505,13 @@ void StreamController::probeConsoles(const QStringList &addresses)
 			info.address = address;
 			replies.push_back(info);
 		}
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, replies]() {
 				probing_ = false;
 				for(const HostInfo &info : replies)
 					consoleStates_[QString::fromStdString(info.address)] = describeHost(info);
 				emit consoleStatesChanged();
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -502,18 +522,16 @@ void StreamController::scanNetwork()
 	scanning_ = true;
 	scanResults_.clear();
 	emit scanChanged();
-	std::thread([this]() {
+	std::thread([this, life = lifeline_]() {
 		const std::vector<HostInfo> found = StreamDiscovery::scan(2500);
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, found]() {
 				scanning_ = false;
 				scanResults_.clear();
 				for(const HostInfo &info : found)
 					scanResults_.append(describeHost(info));
 				emit scanChanged();
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -539,10 +557,9 @@ void StreamController::probe(bool reportResult)
 	emit consoleChanged();
 
 	const std::string address = address_.toStdString();
-	std::thread([this, address]() {
+	std::thread([this, life = lifeline_, address]() {
 		const HostInfo info = StreamDiscovery::probe(address, 1500);
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, info, address]() {
 				searching_ = false;
 				const bool announce = notifyWhenDone_;
@@ -576,8 +593,7 @@ void StreamController::probe(bool reportResult)
 					emit notify(tr("Search"),
 						tr("%1 found and ready.").arg(name.isEmpty() ? address_ : name),
 						false);
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -592,21 +608,19 @@ void StreamController::wakeUp()
 	const std::string address = address_.toStdString();
 	const uint64_t credential = credentials_.wakeupCredential();
 	const bool ps5 = credentials_.ps5;
-	std::thread([this, address, credential, ps5]() {
+	std::thread([this, life = lifeline_, address, credential, ps5]() {
 		std::string err;
 		const bool ok = StreamDiscovery::wakeup(address, credential, ps5, &err);
 		const QString message = ok
 			? tr("Request sent. The console takes a few seconds to wake up.")
 			: translateMessage(err);
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, ok, message]() {
 				emit notify(tr("Wake the console"), message, !ok);
 				// No notice: just woken, it is normal not to answer yet.
 				if(ok)
 					probe(false);
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -673,10 +687,9 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 		const QString accountCopy = accountIdBase64;
 		registering_ = true;
 		emit registrationChanged();
-		std::thread([this, address, pinCopy, accountCopy]() {
+		std::thread([this, life = lifeline_, address, pinCopy, accountCopy]() {
 			const HostInfo info = StreamDiscovery::probe(address, 1500);
-			QMetaObject::invokeMethod(
-				this,
+			life->post(
 				[this, info, pinCopy, accountCopy]() {
 					registering_ = false;
 					applyHost(info);
@@ -688,8 +701,7 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 						return;
 					}
 					registerConsole(pinCopy, accountCopy);
-				},
-				Qt::QueuedConnection);
+				});
 		}).detach();
 		return;
 	}
@@ -726,10 +738,9 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 	const QString accountToSave = QString::fromStdString(account.base64);
 	const bool started = registration_->start(
 		request,
-		[this, accountToSave](bool ok, StreamCredentials credentials, std::string error) {
+		[this, life = lifeline_, accountToSave](bool ok, StreamCredentials credentials, std::string error) {
 			const QString message = translateMessage(error);
-			QMetaObject::invokeMethod(
-				this,
+			life->post(
 				[this, ok, credentials, message, accountToSave]() {
 					registering_ = false;
 					if(ok)
@@ -756,8 +767,7 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 						emit notify(tr("Registration"), message, true);
 					}
 					emit registrationChanged();
-				},
-				Qt::QueuedConnection);
+				});
 		},
 		&err);
 
@@ -913,17 +923,15 @@ void StreamController::connectOneClick()
 	const quint64 run = ++oneClickRun_;
 	setConnectStage(QStringLiteral("checking"));
 	const std::string address = address_.toStdString();
-	std::thread([this, address, run]() {
+	std::thread([this, life = lifeline_, address, run]() {
 		const HostInfo info = StreamDiscovery::probe(address, 1500);
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, info, address, run]() {
 				if(run != oneClickRun_ || address != address_.toStdString())
 					return;
 				applyHost(info);
 				oneClickDecide(info);
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -997,10 +1005,9 @@ void StreamController::oneClickPoll()
 	}
 	const quint64 run = oneClickRun_;
 	const std::string address = address_.toStdString();
-	std::thread([this, address, run]() {
+	std::thread([this, life = lifeline_, address, run]() {
 		const HostInfo info = StreamDiscovery::peek(address, 1500);
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, info, address, run]() {
 				if(run != oneClickRun_ || address != address_.toStdString()
 					|| connectStage_ != QLatin1String("waking"))
@@ -1013,8 +1020,7 @@ void StreamController::oneClickPoll()
 				}
 				applyHost(info);
 				oneClickDecide(info);
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 

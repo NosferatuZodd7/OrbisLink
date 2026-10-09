@@ -124,6 +124,11 @@ The picture fills the stage. Moving the mouse shows the toolbar:
 | Full screen | Full screen on / off (F11; Esc leaves the session). |
 | **End the session** | Disconnects. |
 
+Video apps (YouTube, Netflix…) and other protected screens are not sent over
+Remote Play. While the console shows one, the picture stays dark with a
+notice saying so; the session carries on, and the picture comes back once
+the console goes back to a game or the home screen (PS button).
+
 ## Side panel
 
 ### Queue tab
