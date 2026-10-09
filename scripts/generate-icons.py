@@ -61,6 +61,7 @@ ICONS = {
     "minimize": "minimize",
     "power": "power",
     "package": "package",
+    "store": "store",
     "folder": "folder",
     "file": "file",
     "link": "link",

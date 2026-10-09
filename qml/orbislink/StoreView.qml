@@ -389,7 +389,7 @@ Item {
                     Icon {
                         anchors.horizontalCenter: parent.horizontalCenter
                         visible: !store.loading
-                        name: "package"
+                        name: "store"
                         size: 44
                         color: Theme.alpha(Theme.textSecondary, 0.7)
                     }
