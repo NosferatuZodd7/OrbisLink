@@ -15,7 +15,9 @@
 #include <QObject>
 #include <QString>
 #include <QVariantMap>
+#include <map>
 #include <memory>
+#include <string>
 
 namespace orbislink {
 
@@ -43,8 +45,11 @@ class StreamController : public QObject
 	Q_PROPERTY(bool registered READ registered NOTIFY registrationChanged)
 	// The host-id (MAC) of the console in use, once it has answered.
 	Q_PROPERTY(QString hostId READ hostId NOTIFY consoleChanged)
-	// Every console this PC is registered on: [{ hostId, name, ps5 }].
+	// Every registration of this PC: [{ hostId, name, ps5, accountId }], one
+	// per console and account.
 	Q_PROPERTY(QVariantList registrations READ registrations NOTIFY registrationChanged)
+	// The accounts (base64) this PC is registered with on the console in use.
+	Q_PROPERTY(QStringList registeredAccounts READ registeredAccounts NOTIFY registrationChanged)
 	Q_PROPERTY(bool registering READ registering NOTIFY registrationChanged)
 	Q_PROPERTY(QString sessionState READ sessionState NOTIFY sessionChanged)
 	Q_PROPERTY(QString sessionDetail READ sessionDetail NOTIFY sessionChanged)
@@ -68,7 +73,10 @@ class StreamController : public QObject
 	Q_PROPERTY(QString gamepadName READ gamepadName NOTIFY gamepadChanged)
 	Q_PROPERTY(bool hardwareDecoder READ hardwareDecoder NOTIFY sessionChanged)
 	Q_PROPERTY(bool fullscreenOnConnect READ fullscreenOnConnect NOTIFY settingsApplied)
+	// The account Remote Play uses on the console in use (base64): its own
+	// registration and its own PIN, never another account's.
 	Q_PROPERTY(QString savedAccountId READ accountId NOTIFY settingsApplied)
+	Q_PROPERTY(QString accountName READ accountName NOTIFY settingsApplied)
 	Q_PROPERTY(QVariantMap keyBindings READ keyBindings NOTIFY keyBindingsChanged)
 	// Physical controller button → action ("a" → "cross"…), all of them.
 	Q_PROPERTY(QVariantMap padBindings READ padBindings NOTIFY keyBindingsChanged)
@@ -128,6 +136,11 @@ public:
 	void setAddress(const QString &address);
 	void applySettings(const Settings &settings);
 	QString accountId() const { return accountId_; }
+	QString accountName() const;
+	QStringList registeredAccounts() const;
+	// Which saved account the next connection or registration uses (any of
+	// the three forms): its registration on the console, and its PIN.
+	Q_INVOKABLE void useAccount(const QString &accountId);
 
 	// Asks the console what state it is in (discovery) and reports the result
 	// in a notification: this is what runs when the refresh is requested.
@@ -146,8 +159,9 @@ public:
 	Q_INVOKABLE QVariantMap accountIdReversed(const QString &message) const;
 	Q_INVOKABLE void cancelRegistration();
 	Q_INVOKABLE void forgetConsole();
-	// Removes this PC's registration on the console with that host-id.
-	Q_INVOKABLE void forgetRegistration(const QString &hostId);
+	// Removes this PC's registrations on the console with that host-id
+	// (every account's), or only that account's when one is given.
+	Q_INVOKABLE void forgetRegistration(const QString &hostId, const QString &accountId = QString());
 	Q_INVOKABLE void startStream();
 	// One-click connect: asks the console how it is, wakes it if it is in
 	// rest mode, waits for it to be ready and connects. If it is not
@@ -158,6 +172,8 @@ public:
 	Q_INVOKABLE void stopStream();
 	// The console asked for the account PIN (not the registration one).
 	Q_INVOKABLE void sendLoginPin(const QString &pin);
+	// The saved PIN of an account ("" when it has none).
+	Q_INVOKABLE QString accountPin(const QString &accountId) const;
 
 	// Keyboard: QML hands over the keys while the video has focus.
 	// They return true when the key was consumed by the controller.
@@ -234,6 +250,9 @@ signals:
 private:
 	void applyHost(const HostInfo &info);
 	void loadCredentials();
+	// The console asked for the account PIN: the account's own saved one
+	// goes once, otherwise the user is asked.
+	void answerLoginPin(bool incorrect);
 	// The same as refreshConsole(), with or without a notification at the end.
 	void probe(bool reportResult);
 
@@ -300,6 +319,14 @@ private:
 	int clickTouch_ = -1;
 	quint64 clickRun_ = 0;
 	QString accountId_;
+	// Saved accounts: base64 → name and PIN, from the settings.
+	std::map<std::string, std::string> accountNames_;
+	std::map<std::string, std::string> accountPins_;
+	// The host-id each saved console last reported, by address: which
+	// accounts are registered on a console is known before it answers.
+	std::map<std::string, std::string> consoleHostIds_;
+	// The saved account's PIN was already sent in this session.
+	bool loginPinSent_ = false;
 	bool searching_ = false;
 	bool notifyWhenDone_ = false;
 

@@ -314,11 +314,13 @@ public:
 	// new IP is empty or already belongs to another console.
 	Q_INVOKABLE bool updateConsole(const QString &oldAddress, const QString &name,
 		const QString &address);
-	// Saves an Account ID (base64) under a name. With `oldAccountId` it edits
-	// that entry, and the consoles using it follow. Returns false, with the
-	// reason in the status bar, when the ID is empty or already saved.
+	// Saves an Account ID (base64) under a name, with its own Remote Play PIN
+	// (digits, or empty for none). With `oldAccountId` it edits that entry,
+	// and the consoles using it follow. Returns false, with the reason in
+	// the status bar, when the ID is empty or already saved, or the PIN is
+	// not 4 or 8 digits.
 	Q_INVOKABLE bool saveAccount(const QString &oldAccountId, const QString &label,
-		const QString &accountId);
+		const QString &accountId, const QString &remotePlayPin = QString());
 	// Removes a saved Account ID; the consoles using it are left without one.
 	Q_INVOKABLE void removeAccount(const QString &accountId);
 	// Chooses which saved Account ID a console registers with ("" for none).

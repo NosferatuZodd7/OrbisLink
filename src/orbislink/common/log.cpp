@@ -169,7 +169,7 @@ std::string redactSensitive(const std::string &text)
 		{
 			// Keys/secrets in key=value pairs or JSON.
 			compiled.emplace_back(
-				R"((?:"?)(account_?id|psn_?account_?id|rp_?key|rp_?regist_?key|regist_?key|morning|apssid|ap_?bssid|ap_?key|ap_?name|user_?credential|password|token)("?\s*[:=]\s*)("?)([^",}\s]+))",
+				R"((?:"?)(account_?id|psn_?account_?id|rp_?key|rp_?regist_?key|regist_?key|remote_?play_?pin|login_?pin|morning|apssid|ap_?bssid|ap_?key|ap_?name|user_?credential|password|token)("?\s*[:=]\s*)("?)([^",}\s]+))",
 				std::regex::icase);
 		}
 		catch(const std::exception &)

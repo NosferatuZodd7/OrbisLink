@@ -283,20 +283,31 @@ QVariantList AppController::accounts() const
 		QVariantMap entry;
 		entry[QStringLiteral("label")] = QString::fromStdString(account.label);
 		entry[QStringLiteral("accountId")] = QString::fromStdString(account.accountId);
+		entry[QStringLiteral("remotePlayPin")] = QString::fromStdString(account.remotePlayPin);
 		entry[QStringLiteral("usedBy")] = usedBy;
 		items.append(entry);
 	}
 	return items;
 }
 
-bool AppController::saveAccount(const QString &oldAccountId, const QString &label, const QString &accountId)
+bool AppController::saveAccount(const QString &oldAccountId, const QString &label, const QString &accountId,
+	const QString &remotePlayPin)
 {
 	const std::string from = trim(oldAccountId.toStdString());
 	const std::string id = trim(accountId.toStdString());
 	std::string name = trim(label.toStdString());
+	const std::string pin = trim(remotePlayPin.toStdString());
 	if(id.empty())
 	{
 		setStatusMessage(tr("The Account ID is empty or not valid."));
+		return false;
+	}
+	// The passcode has four digits, the pairing PIN eight.
+	if(!pin.empty() && ((pin.size() != 4 && pin.size() != 8)
+						   || pin.find_first_not_of("0123456789") != std::string::npos))
+	{
+		setStatusMessage(tr("The Remote Play PIN is 4 digits (the account's passcode) or 8 (the "
+			"pairing PIN the console shows)."));
 		return false;
 	}
 	SavedAccount *target = nullptr;
@@ -317,6 +328,7 @@ bool AppController::saveAccount(const QString &oldAccountId, const QString &labe
 	{
 		target->label = name;
 		target->accountId = id;
+		target->remotePlayPin = pin;
 		// Consoles using the old ID follow the edit.
 		for(ConsoleEntry &console : settings_.consoles)
 			if(console.accountId == from)
@@ -329,6 +341,7 @@ bool AppController::saveAccount(const QString &oldAccountId, const QString &labe
 		SavedAccount account;
 		account.label = name;
 		account.accountId = id;
+		account.remotePlayPin = pin;
 		settings_.accounts.push_back(account);
 	}
 	store_.save(settings_);

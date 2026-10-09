@@ -18,6 +18,21 @@ Item {
     // so the connection would only start on a second click.
     function chooseAndConnect(address) {
         app.selectConsole(address)
+        root.connectConsole()
+    }
+    // Every connection starts here. With two or more saved accounts, which
+    // one is asked first; with one, that one; the session then uses that
+    // account's own registration and PIN (never another account's).
+    function connectConsole() {
+        if (stream.streaming || stream.sessionState === "connecting" || stream.connectStage.length > 0)
+            return
+        var accounts = app.accounts
+        if (accounts.length >= 2) {
+            accountPicker.ask()
+            return
+        }
+        if (accounts.length === 1)
+            stream.useAccount(accounts[0].accountId)
         stream.connectOneClick()
     }
     // Whether a saved console answers on FTP: for the one in use, what the
@@ -172,7 +187,7 @@ Item {
                     connecting: modelData.active && root.sessionState === "connecting"
                     searching: modelData.active && root.built && stream.searching
                     stage: modelData.active && root.built ? stream.connectStage : ""
-                    onConnect: stream.connectOneClick()
+                    onConnect: root.connectConsole()
                     onCancel: {
                         if (stream.connectStage.length > 0)
                             stream.cancelOneClick()
@@ -736,6 +751,14 @@ Item {
     // ───────────────────────────── registration
     StreamRegisterDialog { id: registerDialog }
 
+    AccountPickerDialog {
+        id: accountPicker
+        onChosen: function (accountId) {
+            stream.useAccount(accountId)
+            stream.connectOneClick()
+        }
+    }
+
     // The card the eye should go to after registering.
     property string spotlightAddress: ""
     Timer {
@@ -813,8 +836,13 @@ Item {
                 Layout.topMargin: Theme.dialogInner
                 wrapMode: Text.WordWrap
                 text: loginPinDialog.incorrect
-                      ? qsTr("That PIN was wrong. Try again.")
-                      : qsTr("The console is asking for the account's login PIN.")
+                      ? (root.built && stream.accountPin(stream.savedAccountId).length === 4
+                         ? qsTr("The console refused that PIN. If the one saved for this account changed, "
+                                + "correct it in Settings → Account IDs.")
+                         : qsTr("That PIN was wrong. Try again."))
+                      : root.built && stream.accountName.length > 0
+                        ? qsTr("The console is asking for the login PIN of %1.").arg(stream.accountName)
+                        : qsTr("The console is asking for the account's login PIN.")
                 color: loginPinDialog.incorrect ? Theme.error : Theme.textSecondary
                 font.pixelSize: 12
             }
