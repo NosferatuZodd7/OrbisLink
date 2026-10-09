@@ -415,6 +415,15 @@ jobs:
         with:
           name: orbislink-gui-windows-x64
           path: dist/gui
+      # The symbols of this exact build, kept apart from the download: a crash
+      # report names "orbislink-gui.exe+0x…" offsets, and only these turn them
+      # back into function names.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: orbislink-gui-windows-x64-symbols
+          path: build/orbislink-gui.pdb
+          if-no-files-found: warn
+          retention-days: 90
 
   windows:
     name: Windows x64 (mingw-w64 + NSIS)

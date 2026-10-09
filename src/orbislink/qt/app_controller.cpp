@@ -81,12 +81,10 @@ AppController::AppController(QObject *parent)
 
 	// Everything written to the log also goes to the diagnostics window.
 	// The message arriving here is already masked.
-	Logger::instance().setSink([this](LogLevel level, const std::string &message) {
+	Logger::instance().setSink([this, life = lifeline_](LogLevel level, const std::string &message) {
 		const QString levelName = QString::fromLatin1(logLevelName(level));
 		const QString lineText = QString::fromStdString(message);
-		QMetaObject::invokeMethod(
-			this, [this, levelName, lineText]() { emit logLine(levelName, lineText); },
-			Qt::QueuedConnection);
+		life->post([this, levelName, lineText]() { emit logLine(levelName, lineText); });
 	});
 
 	qInfo("Startup: preparing the services");
@@ -98,6 +96,12 @@ AppController::AppController(QObject *parent)
 
 AppController::~AppController()
 {
+	// Threads still running answer to nobody from here on, and the log
+	// stops pointing at this object: a line written by a late thread would
+	// otherwise post to freed memory and crash the app on its way out.
+	lifeline_->cut();
+	Logger::instance().setSink(nullptr);
+	downloadCancel_->store(true);
 	if(queue_)
 	{
 		queue_->save(SettingsStore::defaultQueuePath());
@@ -129,7 +133,7 @@ void AppController::rebuildBackends()
 	// The services talk to the console in use, on its FTP port.
 	Settings effective = settings_;
 	effective.ftpPort = activeFtpPort();
-	console_ = std::make_unique<ConsoleManager>(effective);
+	console_ = std::make_shared<ConsoleManager>(effective);
 	// The new manager is born knowing nothing about Remote Play; give it
 	// what was already known, otherwise the indicator goes blank mid-session.
 	if(!lastRemotePlayState_.isEmpty())
@@ -140,15 +144,12 @@ void AppController::rebuildBackends()
 			reportRemotePlayState(stateCopy, detailCopy);
 		});
 	}
-	console_->setListener([this](const ConsoleStatus &status) {
-		QMetaObject::invokeMethod(
-			this,
-			[this, status]() {
-				status_ = status;
-				emit statusChanged();
-				resumeWhenInstallerIsBack();
-			},
-			Qt::QueuedConnection);
+	console_->setListener([this, life = lifeline_](const ConsoleStatus &status) {
+		life->post([this, status]() {
+			status_ = status;
+			emit statusChanged();
+			resumeWhenInstallerIsBack();
+		});
 	});
 
 	qInfo("Services: local HTTP server");
@@ -195,7 +196,7 @@ void AppController::rebuildBackends()
 	ftpConfig.port = activeFtpPort();
 	ftpConfig.maxConnections = settings_.ftpMaxConnections;
 	ftpConfig.advancedMode = settings_.ftpAdvancedMode;
-	ftp_ = std::make_unique<FtpClient>(ftpConfig);
+	ftp_ = std::make_shared<FtpClient>(ftpConfig);
 
 	InstallQueue::Dependencies deps;
 	deps.httpServer = httpServer_.get();
@@ -205,7 +206,7 @@ void AppController::rebuildBackends()
 	qInfo("Services: install queue");
 	queue_ = std::make_unique<InstallQueue>(deps, effective);
 	queue_->load(SettingsStore::defaultQueuePath());
-	queue_->setListener([this](const QueueTask &task) {
+	queue_->setListener([this, life = lifeline_](const QueueTask &task) {
 		const bool terminal = task.isTerminal();
 		const QString title = QString::fromStdString(task.title);
 		const QString message = translateMessage(task.message);
@@ -217,8 +218,7 @@ void AppController::rebuildBackends()
 			const std::string &path = task.remotePath;
 			landedIn = QString::fromStdString(path.substr(0, path.find_last_of('/') + 1));
 		}
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, terminal, title, message, failed, landedIn]() {
 				refreshQueueModel();
 				emit queueStateChanged();
@@ -233,8 +233,7 @@ void AppController::rebuildBackends()
 					&& normalizeRemotePath(landedIn.toStdString())
 						== normalizeRemotePath(ftpPath_.toStdString()))
 					refreshFtpListing(false);
-			},
-			Qt::QueuedConnection);
+			});
 	});
 	queue_->start();
 	refreshQueueModel();
@@ -562,7 +561,7 @@ void AppController::probeFtp(const QStringList &addresses)
 		targets.emplace_back(trimmedAddress, port);
 	}
 	const QVariantMap known = jailbreaks_;
-	std::thread([this, targets, known]() {
+	std::thread([this, life = lifeline_, targets, known]() {
 		QVariantMap answers;
 		QVariantMap found;
 		for(const auto &target : targets)
@@ -575,8 +574,7 @@ void AppController::probeFtp(const QStringList &addresses)
 			if(reachable && !known.contains(address))
 				found[address] = QString::fromStdString(detectJailbreak(target.first, target.second));
 		}
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, answers, found]() {
 				probingFtp_ = false;
 				QVariantMap merged = ftpReachable_;
@@ -591,8 +589,7 @@ void AppController::probeFtp(const QStringList &addresses)
 					jailbreaks_ = jailbreaks;
 					emit ftpReachableChanged();
 				}
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -1100,7 +1097,7 @@ void AppController::dropUrls(const QList<QUrl> &urls, int mode)
 void AppController::registerIcons(const QStringList &paths, const QStringList &taskIds)
 {
 	// Extracts ICON0.PNG on a worker thread: it is disk reading.
-	std::thread([this, paths, taskIds]() {
+	std::thread([this, life = lifeline_, paths, taskIds]() {
 		PkgInspector inspector;
 		for(int i = 0; i < paths.size() && i < taskIds.size(); ++i)
 		{
@@ -1112,9 +1109,7 @@ void AppController::registerIcons(const QStringList &paths, const QStringList &t
 			const QString dataUri = QStringLiteral("data:image/png;base64,")
 				+ QString::fromLatin1(png.toBase64());
 			const QString taskId = taskIds[i];
-			QMetaObject::invokeMethod(
-				this, [this, taskId, dataUri]() { queueModel_.setIcon(taskId, dataUri); },
-				Qt::QueuedConnection);
+			life->post([this, taskId, dataUri]() { queueModel_.setIcon(taskId, dataUri); });
 		}
 	}).detach();
 }
@@ -1233,11 +1228,10 @@ void AppController::checkUploadConflicts(const QStringList &files)
 {
 	const std::string directory = uploadDirectory().toStdString();
 	setStatusMessage(tr("Checking what is already on the console…"));
-	std::thread([this, files, directory]() {
+	std::thread([this, life = lifeline_, ftp = ftp_, files, directory]() {
 		std::vector<FtpEntry> entries;
-		const FtpResult result = ftp_->list(directory, &entries);
-		QMetaObject::invokeMethod(
-			this,
+		const FtpResult result = ftp->list(directory, &entries);
+		life->post(
 			[this, files, entries, result]() {
 				// Without a listing there is nothing to compare with: the files
 				// go as they always did (the upload itself will report a problem).
@@ -1295,8 +1289,7 @@ void AppController::checkUploadConflicts(const QStringList &files)
 				setStatusMessage(tr("%n file(s) already on the console.", "",
 					static_cast<int>(conflicts.size())));
 				emit uploadConflicts(conflicts);
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -1363,7 +1356,7 @@ void AppController::checkServicesNow()
 {
 	if(!console_)
 		return;
-	std::thread([this]() { console_->checkNow(); }).detach();
+	std::thread([console = console_]() { console->checkNow(); }).detach();
 }
 
 void AppController::cancelTask(const QString &id)
@@ -1484,12 +1477,11 @@ void AppController::refreshFtpListing(bool announce)
 		return;
 	setFtpBusy(true);
 	const std::string path = ftpPath_.toStdString();
-	std::thread([this, path, announce]() {
+	std::thread([this, life = lifeline_, ftp = ftp_, path, announce]() {
 		std::vector<FtpEntry> entries;
-		const FtpResult result = ftp_->list(path, &entries);
+		const FtpResult result = ftp->list(path, &entries);
 		const QString error = translateMessage(result.message);
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, entries, result, error, announce]() {
 				if(result.ok)
 				{
@@ -1509,8 +1501,7 @@ void AppController::refreshFtpListing(bool announce)
 						tr("I could not list %1: %2").arg(ftpPath_).arg(error), true);
 				}
 				setFtpBusy(false);
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -1520,12 +1511,11 @@ void AppController::ftpDelete(const QString &path, bool isDirectory)
 		return;
 	setFtpBusy(true);
 	const std::string target = path.toStdString();
-	std::thread([this, target, isDirectory]() {
-		const FtpResult result = isDirectory ? ftp_->removeDirectory(target) : ftp_->removeFile(target);
+	std::thread([this, life = lifeline_, ftp = ftp_, target, isDirectory]() {
+		const FtpResult result = isDirectory ? ftp->removeDirectory(target) : ftp->removeFile(target);
 		const QString message = translateMessage(result.message);
 		const bool ok = result.ok;
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, ok, message]() {
 				setFtpBusy(false);
 				setStatusMessage(ok ? tr("Deleted.") : tr("FTP: %1").arg(message));
@@ -1535,8 +1525,7 @@ void AppController::ftpDelete(const QString &path, bool isDirectory)
 					!ok);
 				if(ok)
 					ftpRefresh();
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -1552,12 +1541,11 @@ void AppController::ftpMakeDirectory(const QString &name)
 	setFtpBusy(true);
 	const std::string target =
 		normalizeRemotePath((ftpPath_ + "/" + name.trimmed()).toStdString());
-	std::thread([this, target]() {
-		const FtpResult result = ftp_->makeDirectory(target);
+	std::thread([this, life = lifeline_, ftp = ftp_, target]() {
+		const FtpResult result = ftp->makeDirectory(target);
 		const QString message = translateMessage(result.message);
 		const bool ok = result.ok;
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, ok, message]() {
 				setFtpBusy(false);
 				setStatusMessage(ok ? tr("Folder created.") : tr("FTP: %1").arg(message));
@@ -1566,8 +1554,7 @@ void AppController::ftpMakeDirectory(const QString &name)
 					!ok);
 				if(ok)
 					ftpRefresh();
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -1592,12 +1579,11 @@ void AppController::ftpRename(const QString &path, const QString &newName)
 	const std::string from = path.toStdString();
 	const std::string to = normalizeRemotePath(from + "/../" + trimmed.toStdString());
 	setFtpBusy(true);
-	std::thread([this, from, to]() {
-		const FtpResult result = ftp_->rename(from, to);
+	std::thread([this, life = lifeline_, ftp = ftp_, from, to]() {
+		const FtpResult result = ftp->rename(from, to);
 		const QString message = translateMessage(result.message);
 		const bool ok = result.ok;
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, ok, message]() {
 				setFtpBusy(false);
 				setStatusMessage(ok ? tr("Renamed.") : tr("FTP: %1").arg(message));
@@ -1606,8 +1592,7 @@ void AppController::ftpRename(const QString &path, const QString &newName)
 						tr("I could not rename it: %1").arg(message), true);
 				if(ok)
 					ftpRefresh();
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -1630,13 +1615,12 @@ void AppController::ftpMove(const QString &path, const QString &destinationDir)
 	if(to == from)
 		return;
 	setFtpBusy(true);
-	std::thread([this, from, to]() {
-		const FtpResult result = ftp_->rename(from, to);
+	std::thread([this, life = lifeline_, ftp = ftp_, from, to]() {
+		const FtpResult result = ftp->rename(from, to);
 		const QString message = translateMessage(result.message);
 		const bool ok = result.ok;
 		const QString target = QString::fromStdString(to);
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, ok, message, target]() {
 				setFtpBusy(false);
 				setStatusMessage(ok ? tr("Moved to %1").arg(target) : tr("FTP: %1").arg(message));
@@ -1644,8 +1628,7 @@ void AppController::ftpMove(const QString &path, const QString &destinationDir)
 					emit notify(tr("Move"), tr("I could not move it: %1").arg(message), true);
 				else
 					ftpRefresh();
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -1668,7 +1651,7 @@ void AppController::ftpDownloadFolder(const QString &remotePath, const QString &
 	const QString root = uniqueLocalPath(QDir(dir).filePath(name));
 	QDir().mkpath(root);
 
-	downloadCancel_.store(false);
+	downloadCancel_ = std::make_shared<std::atomic<bool>>(false);
 	downloadActive_ = true;
 	downloadName_ = name;
 	downloadProgress_ = 0.0;
@@ -1677,19 +1660,19 @@ void AppController::ftpDownloadFolder(const QString &remotePath, const QString &
 
 	const std::string remoteRoot = normalizeRemotePath(remotePath.toStdString());
 	const std::string localRoot = root.toStdString();
-	std::thread([this, remoteRoot, localRoot, name, root]() {
+	std::thread([this, life = lifeline_, ftp = ftp_, cancel = downloadCancel_, remoteRoot, localRoot, name, root]() {
 		// First everything that is inside, to know the total.
 		struct Item { std::string remote; std::string local; int64_t size; };
 		std::vector<Item> files;
 		std::vector<std::pair<std::string, std::string>> pending { { remoteRoot, localRoot } };
 		std::string failure;
-		while(!pending.empty() && failure.empty() && !downloadCancel_.load())
+		while(!pending.empty() && failure.empty() && !cancel->load())
 		{
 			const auto [remoteDir, localDir] = pending.back();
 			pending.pop_back();
 			QDir().mkpath(QString::fromStdString(localDir));
 			std::vector<FtpEntry> entries;
-			const FtpResult listed = ftp_->list(remoteDir, &entries);
+			const FtpResult listed = ftp->list(remoteDir, &entries);
 			if(!listed.ok)
 			{
 				failure = listed.message;
@@ -1713,21 +1696,21 @@ void AppController::ftpDownloadFolder(const QString &remotePath, const QString &
 		int lastPercent = -1;
 		for(const Item &f : files)
 		{
-			if(!failure.empty() || downloadCancel_.load())
+			if(!failure.empty() || cancel->load())
 				break;
-			const FtpResult result = ftp_->download(f.remote, f.local,
+			const FtpResult result = ftp->download(f.remote, f.local,
 				[&](int64_t done, int64_t) {
-					if(downloadCancel_.load())
+					if(cancel->load())
 						return false;
 					const double fraction = total > 0 ? double(before + done) / double(total) : 0.0;
 					const int percent = static_cast<int>(fraction * 100);
 					if(percent != lastPercent)
 					{
 						lastPercent = percent;
-						QMetaObject::invokeMethod(this, [this, fraction]() {
+						life->post([this, fraction]() {
 							downloadProgress_ = fraction;
 							emit downloadChanged();
-						}, Qt::QueuedConnection);
+						});
 					}
 					return true;
 				});
@@ -1735,10 +1718,10 @@ void AppController::ftpDownloadFolder(const QString &remotePath, const QString &
 				failure = result.message;
 			before += f.size;
 		}
-		const bool cancelled = downloadCancel_.load();
+		const bool cancelled = cancel->load();
 		const QString message = translateMessage(failure);
 		const int count = static_cast<int>(files.size());
-		QMetaObject::invokeMethod(this, [this, cancelled, message, name, root, count]() {
+		life->post([this, cancelled, message, name, root, count]() {
 			downloadActive_ = false;
 			downloadProgress_ = message.isEmpty() && !cancelled ? 1.0 : 0.0;
 			emit downloadChanged();
@@ -1755,7 +1738,7 @@ void AppController::ftpDownloadFolder(const QString &remotePath, const QString &
 				emit notify(tr("Download finished"),
 					tr("%1 (%n file(s)) saved to %2", "", count).arg(name, root), false);
 			}
-		}, Qt::QueuedConnection);
+		});
 	}).detach();
 }
 
@@ -1841,17 +1824,17 @@ void AppController::ftpListFolders(const QString &path)
 		return;
 	}
 	const std::string dir = normalizeRemotePath(path.toStdString());
-	std::thread([this, path, dir]() {
+	std::thread([this, life = lifeline_, ftp = ftp_, path, dir]() {
 		std::vector<FtpEntry> entries;
-		const FtpResult result = ftp_->list(dir, &entries);
+		const FtpResult result = ftp->list(dir, &entries);
 		QStringList folders;
 		for(const FtpEntry &e : entries)
 			if(e.isDirectory || e.isSymlink)
 				folders << QString::fromStdString(e.name);
 		const QString error = result.ok ? QString() : translateMessage(result.message);
-		QMetaObject::invokeMethod(this, [this, path, folders, error]() {
+		life->post([this, path, folders, error]() {
 			emit ftpFoldersListed(path, folders, error);
-		}, Qt::QueuedConnection);
+		});
 	}).detach();
 }
 
@@ -1863,14 +1846,14 @@ void AppController::ftpCreateFolder(const QString &path)
 		return;
 	}
 	const std::string target = normalizeRemotePath(path.toStdString());
-	std::thread([this, path, target]() {
-		const FtpResult result = ftp_->makeDirectory(target);
+	std::thread([this, life = lifeline_, ftp = ftp_, path, target]() {
+		const FtpResult result = ftp->makeDirectory(target);
 		const QString error = result.ok ? QString() : translateMessage(result.message);
-		QMetaObject::invokeMethod(this, [this, path, error]() {
+		life->post([this, path, error]() {
 			emit ftpFolderCreated(path, error);
 			if(error.isEmpty())
 				refreshFtpListing(false);
-		}, Qt::QueuedConnection);
+		});
 	}).detach();
 }
 
@@ -1923,7 +1906,7 @@ void AppController::startDownload(const QString &remotePath, const QString &name
 		return;
 	}
 
-	downloadCancel_.store(false);
+	downloadCancel_ = std::make_shared<std::atomic<bool>>(false);
 	downloadActive_ = true;
 	downloadName_ = name;
 	downloadProgress_ = 0.0;
@@ -1932,12 +1915,12 @@ void AppController::startDownload(const QString &remotePath, const QString &name
 
 	const std::string remote = remotePath.toStdString();
 	const std::string local = localPath.toStdString();
-	std::thread([this, remote, local, remotePath, localPath, name, forDrag]() {
+	std::thread([this, life = lifeline_, ftp = ftp_, cancel = downloadCancel_, remote, local, remotePath, localPath, name, forDrag]() {
 		int64_t lastReported = -1;
-		const FtpResult result = ftp_->download(
+		const FtpResult result = ftp->download(
 			remote, local,
-			[this, &lastReported](int64_t done, int64_t total) {
-				if(downloadCancel_.load())
+			[this, life, cancel, &lastReported](int64_t done, int64_t total) {
+				if(cancel->load())
 					return false;
 				// The UI is only woken on each percentage point: in a
 				// gigabyte transfer this is called thousands of times.
@@ -1946,22 +1929,19 @@ void AppController::startDownload(const QString &remotePath, const QString &name
 				{
 					lastReported = percent;
 					const double fraction = total > 0 ? double(done) / double(total) : 0.0;
-					QMetaObject::invokeMethod(
-						this,
+					life->post(
 						[this, fraction]() {
 							downloadProgress_ = fraction;
 							emit downloadChanged();
-						},
-						Qt::QueuedConnection);
+						});
 				}
 				return true;
 			});
 
 		const bool ok = result.ok;
-		const bool cancelled = result.cancelled || downloadCancel_.load();
+		const bool cancelled = result.cancelled || cancel->load();
 		const QString message = translateMessage(result.message);
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, ok, cancelled, message, name, remotePath, localPath, forDrag]() {
 				downloadActive_ = false;
 				downloadProgress_ = ok ? 1.0 : 0.0;
@@ -1990,8 +1970,7 @@ void AppController::startDownload(const QString &remotePath, const QString &name
 					emit notify(tr("Download finished"),
 						tr("%1 saved to %2").arg(name, QFileInfo(localPath).path()), false);
 				}
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -2002,7 +1981,7 @@ void AppController::cancelDownload()
 	// It is enough for the progress callback to return false: it aborts
 	// only this transfer. FtpClient::cancel() is for the whole client and
 	// would also kill a queue upload running at the same time.
-	downloadCancel_.store(true);
+	downloadCancel_->store(true);
 }
 
 void AppController::openLocalFolder(const QString &path) const
@@ -2121,21 +2100,17 @@ void AppController::probeConsole(const QString &address, int ftpPort, int instal
 	const uint16_t rpi = port(installerPort, 12800);
 	const uint64_t generation = ++probeGeneration_;
 
-	std::thread([this, address, host, ftp, rpi, generation]() {
+	std::thread([this, life = lifeline_, address, host, ftp, rpi, generation]() {
 		// Short timeout: this runs while typing, it must not drag on.
 		const ProbeResult probe = probeConsoleServices(host, ftp, rpi, 1200);
-		if(generation != probeGeneration_.load())
-			return;
 		const QString detail =
 			QString::fromStdString(probe.ftpOk ? probe.ftpDetail : probe.installerDetail);
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, address, probe, detail, generation]() {
 				if(generation != probeGeneration_.load())
 					return;
 				emit consoleProbed(address, probe.ftpOk, probe.installerOk, detail);
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -2245,10 +2220,9 @@ void AppController::checkForUpdatesNow(bool silentWhenUpToDate)
 
 	setUpdateState(QStringLiteral("checking"), tr("Looking for new versions…"));
 
-	std::thread([this, config, silentWhenUpToDate]() {
+	std::thread([this, life = lifeline_, config, silentWhenUpToDate]() {
 		const UpdateCheckResult result = UpdateChecker(config).check();
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, result, silentWhenUpToDate]() {
 				updateBusy_.store(false);
 				const QString text = translateMessage(result.message);
@@ -2279,8 +2253,7 @@ void AppController::checkForUpdatesNow(bool silentWhenUpToDate)
 				updateProgress_ = 0.0;
 				setUpdateState(QStringLiteral("available"), text);
 				emit updateAvailable(updateVersion_);
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -2342,7 +2315,7 @@ void AppController::installUpdate()
 	updateProgress_ = 0.0;
 	setUpdateState(QStringLiteral("downloading"), tr("Downloading %1…").arg(updateAssetName_));
 
-	std::thread([this, url, destination, shaUrl, expectedSha]() {
+	std::thread([this, life = lifeline_, url, destination, shaUrl, expectedSha]() {
 		HttpClient client(20000);
 
 		// The hash may come in a separate asset. It is fetched before
@@ -2367,17 +2340,15 @@ void AppController::installUpdate()
 
 		const auto outcome = client.download(
 			url.toStdString(), destination.toStdString(),
-			[this](int64_t received, int64_t total) {
+			[this, life](int64_t received, int64_t total) {
 				const double fraction = total > 0
 					? static_cast<double>(received) / static_cast<double>(total)
 					: 0.0;
-				QMetaObject::invokeMethod(
-					this,
+				life->post(
 					[this, fraction]() {
 						updateProgress_ = fraction;
 						emit updateChanged();
-					},
-					Qt::QueuedConnection);
+					});
 				return true;
 			});
 
@@ -2395,8 +2366,7 @@ void AppController::installUpdate()
 			}
 		}
 
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, destination, err, expected]() {
 				updateBusy_.store(false);
 				if(!err.isEmpty())
@@ -2428,8 +2398,7 @@ void AppController::installUpdate()
 				}
 				logInfo("Update installer launched; closing the app.");
 				QTimer::singleShot(500, qApp, &QCoreApplication::quit);
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 

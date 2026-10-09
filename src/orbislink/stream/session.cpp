@@ -70,6 +70,7 @@ struct StreamSession::Impl
 	AudioSettingsCallback onAudioSettings;
 	AudioCallback onAudio;
 	RumbleCallback onRumble;
+	DisplayCallback onDisplay;
 
 	FrameCallback onFrame;
 	StateCallback onState;
@@ -210,6 +211,27 @@ void audioFrame(int16_t *buffer, size_t samples, void *user)
 		callback(buffer, samples);
 }
 
+// The console is showing something it will not stream, or the picture is
+// back. Runs on chiaki's control thread.
+//
+// chiaki calls this without checking it was set: a session without it
+// jumps to address 0 the moment the console says "can't display" — which
+// a PS5 does as soon as it is showing YouTube or another video app.
+void displayChanged(void *user, bool cantDisplay)
+{
+	auto *impl = static_cast<StreamSession::Impl *>(user);
+	StreamSession::DisplayCallback callback;
+	{
+		std::lock_guard<std::mutex> lock(impl->mutex);
+		callback = impl->onDisplay;
+	}
+	StreamTrace::instance().note(cantDisplay
+		? "the console is showing something that cannot be streamed"
+		: "the console can show the picture again");
+	if(callback)
+		callback(cantDisplay);
+}
+
 void eventCallback(ChiakiEvent *event, void *user)
 {
 	auto *impl = static_cast<StreamSession::Impl *>(user);
@@ -307,6 +329,12 @@ void StreamSession::setRumbleCallback(RumbleCallback callback)
 {
 	std::lock_guard<std::mutex> lock(impl_->mutex);
 	impl_->onRumble = std::move(callback);
+}
+
+void StreamSession::setDisplayCallback(DisplayCallback callback)
+{
+	std::lock_guard<std::mutex> lock(impl_->mutex);
+	impl_->onDisplay = std::move(callback);
 }
 
 int StreamSession::startTouch(uint16_t x, uint16_t y)
@@ -497,6 +525,10 @@ bool StreamSession::start(const Config &config, std::string *error)
 	}
 
 	chiaki_session_set_event_cb(&impl_->session, eventCallback, impl_.get());
+	ChiakiCtrlDisplaySink displaySink {};
+	displaySink.user = impl_.get();
+	displaySink.cantdisplay_cb = displayChanged;
+	chiaki_session_ctrl_set_display_sink(&impl_->session, &displaySink);
 
 	// Audio: chiaki delivers Opus, its decoder returns PCM.
 	chiaki_opus_decoder_init(&impl_->audioDecoder, chiakiLog());
@@ -532,6 +564,15 @@ bool StreamSession::start(const Config &config, std::string *error)
 		chiaki_session_fini(&impl_->session);
 		chiaki_ffmpeg_decoder_fini(&impl_->decoder);
 		impl_->decoderReady = false;
+		// The audio parts too: stop() does nothing for a session that never
+		// started, and the next start would set them up over the old ones.
+		chiaki_opus_decoder_fini(&impl_->audioDecoder);
+		impl_->audioReady = false;
+		{
+			std::lock_guard<std::mutex> micLock(impl_->micMutex);
+			chiaki_opus_encoder_fini(&impl_->audioEncoder);
+			impl_->encoderReady = false;
+		}
 		impl_->publish(SessionState::Failed, chiaki_error_string(started));
 		if(error)
 			*error = chiaki_error_string(started);

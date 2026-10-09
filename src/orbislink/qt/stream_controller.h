@@ -5,6 +5,7 @@
 #include "orbislink/qt/audio_output.h"
 #include "orbislink/qt/gamepad.h"
 #include "orbislink/qt/input_map.h"
+#include "orbislink/qt/lifeline.h"
 #include "orbislink/qt/video_bridge.h"
 #include "orbislink/stream/credentials.h"
 #include "orbislink/stream/discovery.h"
@@ -54,6 +55,10 @@ class StreamController : public QObject
 	Q_PROPERTY(QString sessionState READ sessionState NOTIFY sessionChanged)
 	Q_PROPERTY(QString sessionDetail READ sessionDetail NOTIFY sessionChanged)
 	Q_PROPERTY(bool streaming READ streaming NOTIFY sessionChanged)
+	// The console is showing something it does not stream (a video app such
+	// as YouTube, a protected screen): the picture stays dark until it
+	// goes back to a game or the home screen.
+	Q_PROPERTY(bool cantDisplay READ cantDisplay NOTIFY sessionChanged)
 	Q_PROPERTY(int frameWidth READ frameWidth NOTIFY videoChanged)
 	Q_PROPERTY(int frameHeight READ frameHeight NOTIFY videoChanged)
 	// The measured fps, not the requested ones. What is asked of the console
@@ -108,6 +113,7 @@ public:
 	QString sessionState() const { return sessionState_; }
 	QString sessionDetail() const { return sessionDetail_; }
 	bool streaming() const { return streaming_; }
+	bool cantDisplay() const { return cantDisplay_; }
 	int frameWidth() const { return frameWidth_; }
 	int frameHeight() const { return frameHeight_; }
 	int measuredFps() const { return measuredFps_; }
@@ -265,6 +271,7 @@ private:
 	QString sessionDetail_;
 	bool registering_ = false;
 	bool streaming_ = false;
+	bool cantDisplay_ = false;
 	int frameWidth_ = 0;
 	int frameHeight_ = 0;
 	// The size of the last session's picture, kept for the diagnostics.
@@ -345,6 +352,8 @@ private:
 	bool scanning_ = false;
 	QVariantList scanResults_;
 	QVariantMap describeHost(const HostInfo &info);
+	// For the threads of its own that answer after it may be gone.
+	LifelinePtr lifeline_ = std::make_shared<Lifeline>(this);
 };
 
 } // namespace orbislink
