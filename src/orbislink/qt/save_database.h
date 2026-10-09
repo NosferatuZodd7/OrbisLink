@@ -28,6 +28,10 @@ public:
 	// Adds the rows to the database file at `path`, checks it is still whole
 	// and closes it. On any failure nothing is kept (one transaction).
 	static Outcome registerSaves(const QString &path, const std::vector<SaveDbEntry> &entries);
+
+	// Whose saves the list holds: the PSN account (its PSID as a number) most
+	// of its rows name, or 0 when none does or they do not agree. Only read.
+	static int64_t owner(const QString &path);
 };
 
 } // namespace orbislink

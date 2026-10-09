@@ -3,7 +3,6 @@
 
 #include "orbislink/common/log.h"
 #include "orbislink/common/util.h"
-#include "orbislink/ftp/ftp_client.h"
 #include "orbislink/qt/app_controller.h"
 #include "orbislink/qt/save_database.h"
 
@@ -17,7 +16,9 @@
 #include <QStandardPaths>
 
 #include <algorithm>
-#include <map>
+#include <cinttypes>
+#include <cstdio>
+#include <memory>
 #include <set>
 #include <utility>
 
@@ -64,6 +65,7 @@ QString syncName(SaveSync sync)
 	{
 		case SaveSync::Same: return QStringLiteral("same");
 		case SaveSync::Changed: return QStringLiteral("changed");
+		case SaveSync::Older: return QStringLiteral("older");
 		case SaveSync::ConsoleOnly: return QStringLiteral("console");
 		case SaveSync::VaultOnly: return QStringLiteral("vault");
 	}
@@ -88,6 +90,24 @@ QString psidFolderFromBase64(const QString &accountId)
 		return QString();
 	std::reverse(bytes.begin(), bytes.end());
 	return QString::fromLatin1(bytes.toHex());
+}
+
+// And back: the Account ID (base64) of a PSID folder.
+QString accountIdFromPsidFolder(const QString &folder)
+{
+	QByteArray bytes = QByteArray::fromHex(folder.toLatin1());
+	if(folder.size() != 16 || bytes.size() != 8)
+		return QString();
+	std::reverse(bytes.begin(), bytes.end());
+	return QString::fromLatin1(bytes.toBase64());
+}
+
+// A PSID as a number (as the console's list of saves keeps it) → its folder.
+std::string psidFolderOf(int64_t number)
+{
+	char text[17] = {};
+	std::snprintf(text, sizeof(text), "%016" PRIx64, static_cast<uint64_t>(number));
+	return text;
 }
 
 QString labelOfAccount(const QString &accountId, const Settings &settings)
@@ -124,12 +144,18 @@ QString sizeText(int64_t bytes)
 SavesController::SavesController(AppController *app, QObject *parent) : QObject(parent), app_(app)
 {
 	connect(app_, &AppController::settingsChanged, this, &SavesController::vaultFolderChanged);
+	// Which consoles there are, and whose FTP answers.
+	connect(app_, &AppController::settingsChanged, this, &SavesController::consolesChanged);
+	connect(app_, &AppController::statusChanged, this, &SavesController::consolesChanged);
+	connect(app_, &AppController::ftpReachableChanged, this, &SavesController::consolesChanged);
 }
 
 SavesController::~SavesController()
 {
 	if(worker_.joinable())
 		worker_.join();
+	if(inspector_.joinable())
+		inspector_.join();
 }
 
 QString SavesController::vaultFolder() const
@@ -160,6 +186,169 @@ void SavesController::openVaultFolder() const
 	QDesktopServices::openUrl(vaultUrl());
 }
 
+QVariantList SavesController::consoles() const
+{
+	QVariantList items;
+	const Settings &settings = app_->settings();
+	const QString shown = source();
+	const QVariantMap reachable = app_->ftpReachable();
+	for(const ConsoleEntry &console : settings.consoles)
+	{
+		const QString address = QString::fromStdString(console.address);
+		const bool active = console.address == settings.consoleAddress;
+		QVariantMap item;
+		item[QStringLiteral("address")] = address;
+		item[QStringLiteral("name")] = QString::fromStdString(console.name.empty() ? console.address : console.name);
+		item[QStringLiteral("type")] = QString::fromStdString(console.type);
+		item[QStringLiteral("active")] = active;
+		item[QStringLiteral("ftp")] = active ? app_->canUseFtp() : reachable.value(address).toBool();
+		item[QStringLiteral("source")] = address == shown;
+		items << item;
+	}
+	return items;
+}
+
+QString SavesController::source() const
+{
+	const Settings &settings = app_->settings();
+	if(!source_.isEmpty())
+		for(const ConsoleEntry &console : settings.consoles)
+			if(QString::fromStdString(console.address) == source_)
+				return source_;
+	return QString::fromStdString(settings.consoleAddress);
+}
+
+QString SavesController::sourceName() const { return consoleAt(source()).name; }
+
+bool SavesController::online() const
+{
+	const QString shown = source();
+	if(shown.toStdString() == app_->settings().consoleAddress)
+		return app_->canUseFtp();
+	return app_->ftpReachable().value(shown).toBool();
+}
+
+void SavesController::setSource(const QString &address)
+{
+	const QString chosen = address.trimmed();
+	const QString active = QString::fromStdString(app_->settings().consoleAddress);
+	const QString next = chosen == active ? QString() : chosen;
+	if(next == source_)
+		return;
+	source_ = next;
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		current_.clear();
+	}
+	saves_.clear();
+	users_.clear();
+	scanned_ = false;
+	emit consolesChanged();
+	emit savesChanged();
+	refresh();
+}
+
+SavesController::Console SavesController::consoleAt(const QString &address) const
+{
+	const Settings &settings = app_->settings();
+	Console console;
+	console.address = address.isEmpty() ? source() : address;
+	console.name = console.address;
+	for(const ConsoleEntry &entry : settings.consoles)
+		if(QString::fromStdString(entry.address) == console.address)
+		{
+			if(!entry.name.empty())
+				console.name = QString::fromStdString(entry.name);
+			console.type = QString::fromStdString(entry.type);
+		}
+	FtpClient::Config config = app_->ftpClientConfig();
+	if(console.address.toStdString() != settings.consoleAddress)
+	{
+		// Another console than the one in use: its own address and port.
+		config.host = console.address.toStdString();
+		config.port = console.type == QLatin1String("ps5") ? settings.ftpPortPs5 : settings.ftpPort;
+	}
+	// This connection only ever writes where saves live and the console's
+	// list of saves (/system_data/savedata/<user>/db/user/savedata.db), both
+	// chosen here and never typed in: the guard on system folders, meant for
+	// the file browser, does not apply to it.
+	config.advancedMode = true;
+	console.config = config;
+	return console;
+}
+
+std::map<std::string, std::string> SavesController::links() const
+{
+	std::map<std::string, std::string> links;
+	for(const auto &pair : app_->settings().saveAccountLinks)
+	{
+		const QString folder = psidFolderFromBase64(QString::fromStdString(pair.second));
+		if(!folder.isEmpty())
+			links[pair.first] = folder.toStdString();
+	}
+	return links;
+}
+
+std::map<std::string, std::string> SavesController::learnOwners(SaveRemote &remote, std::vector<ConsoleUser> &users,
+	const QString &type, const QString &scratch)
+{
+	std::map<std::string, std::string> found;
+	QDir().mkpath(scratch);
+	for(ConsoleUser &user : users)
+	{
+		if(!user.psid.empty())
+			continue;
+		// Its list of PS4 saves (a PS5 keeps one too), else a PS5's own.
+		std::vector<std::string> lists = { SaveVault::saveDbPath(user.folder) };
+		if(type != QLatin1String("ps4"))
+			lists.push_back("/system_data/savedata_prospero/" + user.folder + "/db/user/savedata.db");
+		for(const std::string &path : lists)
+		{
+			const QString local = QDir(scratch).filePath(QString::fromStdString(user.folder) + QStringLiteral(".db"));
+			std::string why;
+			const int64_t owner = remote.download(path, local.toStdString(), &why) ? SaveDatabase::owner(local) : 0;
+			QFile::remove(local);
+			if(owner != 0)
+			{
+				user.psid = psidFolderOf(owner);
+				found[user.folder] = user.psid;
+				break;
+			}
+		}
+	}
+	if(found.empty())
+		return found;
+	// Kept: the same link the user would make by hand, never over one made.
+	QMetaObject::invokeMethod(this, [this, found]() {
+		app_->updateSettings([&found](Settings &s) {
+			for(const auto &pair : found)
+			{
+				const QString accountId = accountIdFromPsidFolder(QString::fromStdString(pair.second));
+				if(!accountId.isEmpty() && !s.saveAccountLinks.count(pair.first))
+					s.saveAccountLinks[pair.first] = accountId.toStdString();
+			}
+		});
+	}, Qt::QueuedConnection);
+	for(const auto &pair : found)
+		logInfo("Saves: console user " + pair.first + " is PSID " + pair.second + ", from its list of saves.");
+	return found;
+}
+
+QVariantList SavesController::userItems(const std::vector<ConsoleUser> &users) const
+{
+	QVariantList items;
+	for(const ConsoleUser &user : users)
+	{
+		QVariantMap item;
+		item[QStringLiteral("user")] = QString::fromStdString(user.folder);
+		item[QStringLiteral("name")] = QString::fromStdString(user.name);
+		item[QStringLiteral("psidFolder")] = QString::fromStdString(user.psid);
+		item[QStringLiteral("linked")] = user.linked;
+		items << item;
+	}
+	return items;
+}
+
 void SavesController::setProgress(const QString &status, double progress)
 {
 	QMetaObject::invokeMethod(this, [this, status, progress]() {
@@ -184,6 +373,10 @@ void SavesController::publish(const std::vector<SaveInfo> &list, SaveVault &vaul
 {
 	QVariantList items;
 	std::map<std::string, std::string> gameIcons;
+	std::map<std::string, std::string> userNames;
+	if(remote)
+		for(const ConsoleUser &user : vault.users())
+			userNames[user.folder] = user.name;
 	for(const SaveInfo &save : list)
 	{
 		if(!gameIcons.count(save.titleId))
@@ -200,16 +393,33 @@ void SavesController::publish(const std::vector<SaveInfo> &list, SaveVault &vaul
 		item[QStringLiteral("detail")] = QString::fromStdString(save.detail);
 		const QString psid = psidOf(save.accountId);
 		item[QStringLiteral("psid")] = psid;
-		item[QStringLiteral("psidName")] = psidName(psid, app_->settings());
+		// The PSID its backups are kept under (PS4/SAVEDATA/<PSID>), and the
+		// name of that PSN account in the app.
+		const QString folder = QString::fromStdString(save.psid);
+		item[QStringLiteral("psidFolder")] = folder;
+		QString owner = psidName(psid, app_->settings());
+		if(owner.isEmpty() && !folder.isEmpty())
+			owner = psidName(accountIdFromPsidFolder(folder), app_->settings());
+		item[QStringLiteral("psidName")] = owner;
 		// Whose console user folder it is: the Account ID linked to it.
 		const auto link = app_->settings().saveAccountLinks.find(save.account);
 		const QString linked = link == app_->settings().saveAccountLinks.end() ? QString()
 			: QString::fromStdString(link->second);
 		item[QStringLiteral("userName")] = linked.isEmpty() ? QString() : labelOfAccount(linked, app_->settings());
 		item[QStringLiteral("linked")] = !linked.isEmpty();
-		// The PSID its backups are kept under (PS4/SAVEDATA/<PSID>).
-		item[QStringLiteral("psidFolder")] = QString::fromStdString(save.psid);
+		// The console's name for the user it is in (or would go to).
+		const auto named = userNames.find(save.account);
+		item[QStringLiteral("consoleUser")] = named == userNames.end() ? QString() : QString::fromStdString(named->second);
+		// Saves are grouped by owner: the PSID, or the console user while it
+		// is not known.
+		item[QStringLiteral("group")] = !folder.isEmpty() ? folder
+			: QStringLiteral("user:") + QString::fromStdString(save.account);
 		item[QStringLiteral("sync")] = syncName(save.sync());
+		// On this console before (what it lost), or never (from another).
+		bool wasHere = save.onConsole;
+		for(const std::string &user : save.users)
+			wasHere = wasHere || userNames.count(user) > 0;
+		item[QStringLiteral("wasHere")] = wasHere;
 		item[QStringLiteral("onConsole")] = save.onConsole;
 		item[QStringLiteral("inVault")] = save.inVault;
 		item[QStringLiteral("size")] = sizeText(save.onConsole ? save.consoleBytes() : save.vaultBytes());
@@ -222,12 +432,22 @@ void SavesController::publish(const std::vector<SaveInfo> &list, SaveVault &vaul
 			: QUrl::fromLocalFile(QString::fromStdString(game));
 		items << item;
 	}
-	QMetaObject::invokeMethod(this, [this, items, list]() {
+	const std::vector<ConsoleUser> users = remote ? vault.users() : std::vector<ConsoleUser>();
+	QMetaObject::invokeMethod(this, [this, items, list, users]() {
 		{
 			std::lock_guard<std::mutex> lock(mutex_);
 			current_ = list;
 		}
 		saves_ = items;
+		users_ = userItems(users);
+		// The names the app gives those PSIDs.
+		for(QVariant &entry : users_)
+		{
+			QVariantMap user = entry.toMap();
+			user[QStringLiteral("accountLabel")] =
+				psidName(accountIdFromPsidFolder(user.value(QStringLiteral("psidFolder")).toString()), app_->settings());
+			entry = user;
+		}
 		emit savesChanged();
 	}, Qt::QueuedConnection);
 }
@@ -243,27 +463,30 @@ void SavesController::run(const QString &what, Job job)
 	if(worker_.joinable())
 		worker_.join();
 
-	const bool online = app_->canUseFtp();
-	FtpClient::Config config = app_->ftpClientConfig();
-	// This connection only ever writes where saves live and the console's
-	// list of saves (/system_data/savedata/<user>/db/user/savedata.db), both
-	// chosen here and never typed in: the guard on system folders, meant for
-	// the file browser, does not apply to it.
-	config.advancedMode = true;
+	const bool reachable = online();
+	const Console shown = consoleAt(source());
 	const std::string root = vaultFolder().toStdString();
-	// Console user → PSID folder, from the links to the app's Account IDs.
-	std::map<std::string, std::string> links;
-	for(const auto &pair : app_->settings().saveAccountLinks)
-	{
-		const QString folder = psidFolderFromBase64(QString::fromStdString(pair.second));
-		if(!folder.isEmpty())
-			links[pair.first] = folder.toStdString();
-	}
-	worker_ = std::thread([this, job, online, config, root, links]() {
-		FtpClient ftp(config);
+	const std::map<std::string, std::string> known = links();
+	const QString scratch = QDir(vaultFolder()).filePath(QStringLiteral(".cache/owners"));
+	worker_ = std::thread([this, job, reachable, shown, root, known, scratch]() {
+		FtpClient ftp(shown.config);
 		FtpRemote remote(ftp);
 		SaveVault vault(root);
-		vault.setLinks(links);
+		vault.setLinks(known);
+		if(reachable)
+		{
+			// Whose each console user is, first: the saves are filed by it.
+			std::string usersError;
+			std::vector<ConsoleUser> users = vault.readUsers(remote, &usersError);
+			const std::map<std::string, std::string> learned = learnOwners(remote, users, shown.type, scratch);
+			if(!learned.empty())
+			{
+				std::map<std::string, std::string> all = known;
+				for(const auto &pair : learned)
+					all.emplace(pair.first, pair.second);
+				vault.setLinks(all);
+			}
+		}
 		QString message;
 		bool error = false;
 		std::vector<SaveInfo> list;
@@ -271,7 +494,7 @@ void SavesController::run(const QString &what, Job job)
 			message = job(remote, vault, list, &error);
 		// Every action ends with a fresh look at both sides.
 		std::string scanError;
-		if(online)
+		if(reachable)
 		{
 			list = vault.scan(remote, &scanError, [this](const std::string &title, double fraction) {
 				setProgress(tr("Reading the console's saves… %1").arg(QString::fromStdString(title)), fraction);
@@ -291,10 +514,10 @@ void SavesController::run(const QString &what, Job job)
 		{
 			list = vault.vaultSaves();
 		}
-		publish(list, vault, online ? &remote : nullptr);
-		QMetaObject::invokeMethod(this, [this, message, error, online]() {
+		publish(list, vault, reachable && scanError.empty() ? &remote : nullptr);
+		QMetaObject::invokeMethod(this, [this, message, error, reachable]() {
 			busy_ = false;
-			scanned_ = scanned_ || online;
+			scanned_ = scanned_ || reachable;
 			status_.clear();
 			progress_ = 0.0;
 			emit busyChanged();
@@ -315,16 +538,17 @@ void SavesController::backup(const QStringList &keys)
 	std::vector<SaveInfo> chosen;
 	if(keys.isEmpty())
 	{
+		// What is new or changed; never an earlier copy over a newer backup.
 		std::lock_guard<std::mutex> lock(mutex_);
 		for(const SaveInfo &save : current_)
-			if(save.onConsole && save.sync() != SaveSync::Same)
+			if(save.onConsole && (save.sync() == SaveSync::Changed || save.sync() == SaveSync::ConsoleOnly))
 				chosen.push_back(save);
 	}
 	else
 	{
 		chosen = pick(keys);
 	}
-	run(tr("Backing up…"), [this, chosen](SaveRemote &remote, SaveVault &vault, std::vector<SaveInfo> &,
+	run(tr("Backing up to the PC…"), [this, chosen](SaveRemote &remote, SaveVault &vault, std::vector<SaveInfo> &,
 							   bool *error) -> QString {
 		int done = 0;
 		QStringList failed;
@@ -345,38 +569,82 @@ void SavesController::backup(const QStringList &keys)
 		}
 		*error = !failed.isEmpty();
 		if(chosen.empty())
-			return tr("Everything on the console is already in the vault.");
+			return tr("Everything on the console is already on the PC.");
 		if(!failed.isEmpty())
 			return tr("%1 of %2 saves backed up. Not done: %3").arg(done).arg(chosen.size()).arg(failed.join(QStringLiteral("; ")));
-		return tr("%n save(s) backed up in the vault.", "", done);
+		return tr("%n save(s) backed up to the PC.", "", done);
 	});
 }
 
-void SavesController::restore(const QStringList &keys)
+void SavesController::send(const QStringList &keys, const QString &address)
 {
 	const std::vector<SaveInfo> chosen = pick(keys);
-	run(tr("Putting saves back…"), [this, chosen](SaveRemote &remote, SaveVault &vault,
-										 std::vector<SaveInfo> &, bool *error) -> QString {
+	const Console to = consoleAt(address);
+	const bool elsewhere = to.address != source();
+	const QString scratch = QDir(vaultFolder()).filePath(QStringLiteral(".cache/owners"));
+	run(tr("Sending to %1…").arg(to.name), [this, chosen, to, elsewhere, scratch](SaveRemote &here, SaveVault &vault,
+												  std::vector<SaveInfo> &, bool *error) -> QString {
+		// Another console than the one shown: a connection of its own, and
+		// its users, by PSID.
+		std::unique_ptr<FtpClient> ftp;
+		std::unique_ptr<FtpRemote> there;
+		SaveRemote *remote = &here;
+		std::map<std::string, std::string> psidOfUser;
+		if(elsewhere)
+		{
+			ftp = std::make_unique<FtpClient>(to.config);
+			there = std::make_unique<FtpRemote>(*ftp);
+			remote = there.get();
+			std::string usersError;
+			std::vector<ConsoleUser> users = vault.readUsers(*remote, &usersError);
+			if(!usersError.empty())
+			{
+				*error = true;
+				return tr("%1 could not be read: %2").arg(to.name, QString::fromStdString(usersError));
+			}
+			learnOwners(*remote, users, to.type, scratch);
+			for(const ConsoleUser &user : users)
+				psidOfUser[user.folder] = user.psid;
+		}
+
 		int done = 0;
+		int noUser = 0;
 		QStringList failed;
-		// The saves the console no longer listed, by user: their rows go into
-		// that user's list of saves afterwards, in one go.
-		std::map<std::string, std::vector<SaveDbEntry>> unlisted;
+		// What went to each user, for that user's list of saves afterwards.
+		std::map<std::string, std::vector<SaveDbEntry>> sent;
 		for(size_t i = 0; i < chosen.size(); ++i)
 		{
 			const SaveInfo &save = chosen[i];
 			if(!save.inVault)
 				continue;
-			setProgress(tr("Putting back %1 (%2 of %3)…")
-					.arg(QString::fromStdString(save.saveTitle.empty() ? save.dir : save.saveTitle))
+			std::string user = save.account;
+			if(elsewhere)
+			{
+				// Its user there: the one with its PSID; else one it was on
+				// before whose PSID is not known.
+				user.clear();
+				for(const auto &pair : psidOfUser)
+					if(!save.psid.empty() && pair.second == save.psid)
+						user = pair.first;
+				if(user.empty())
+					for(const std::string &been : save.users)
+						if(psidOfUser.count(been) && psidOfUser[been].empty())
+							user = been;
+			}
+			if(user.empty())
+			{
+				++noUser;
+				continue;
+			}
+			setProgress(tr("Sending %1 to %2 (%3 of %4)…")
+					.arg(QString::fromStdString(save.saveTitle.empty() ? save.dir : save.saveTitle), to.name)
 					.arg(i + 1).arg(chosen.size()),
 				static_cast<double>(i) / chosen.size());
 			std::string why;
-			if(vault.restore(remote, save, save.account, &why))
+			if(vault.restore(*remote, save, user, &why))
 			{
 				++done;
-				if(!save.onConsole)
-					unlisted[save.account].push_back(vault.dbEntry(save, save.account));
+				sent[user].push_back(vault.dbEntry(save, user));
 			}
 			else
 			{
@@ -384,30 +652,106 @@ void SavesController::restore(const QStringList &keys)
 			}
 		}
 
+		// Each in the console's list of saves: a row for those it does not
+		// list (rows it has are left as they are).
 		int listed = 0;
 		QStringList listProblems;
-		for(const auto &pair : unlisted)
+		for(const auto &pair : sent)
 		{
 			setProgress(tr("Adding them to the console's list of saves…"), 0.95);
 			QString problem;
-			const int changed = addToConsoleList(remote, vault, pair.first, pair.second, &problem);
+			const int changed = addToConsoleList(*remote, vault, pair.first, pair.second, &problem);
 			if(changed < 0)
 				listProblems << problem;
 			else
 				listed += changed;
 		}
 
-		*error = !failed.isEmpty() || !listProblems.isEmpty();
-		QString message = failed.isEmpty() ? tr("%n save(s) put back on the console.", "", done)
-			: tr("%1 of %2 saves put back. Not done: %3").arg(done).arg(chosen.size())
+		*error = !failed.isEmpty() || noUser > 0 || !listProblems.isEmpty();
+		QString message = failed.isEmpty() ? tr("%n save(s) sent to %1.", "", done).arg(to.name)
+			: tr("%1 of %2 saves sent to %3. Not done: %4").arg(done).arg(chosen.size()).arg(to.name)
 				  .arg(failed.join(QStringLiteral("; ")));
+		if(noUser > 0)
+			message += QStringLiteral(" ") + tr("%n not sent: no user on %1 has their PSID. Link one first.", "", noUser)
+				.arg(to.name);
 		if(listed > 0)
 			message += QStringLiteral(" ") + tr("%n added to the console's list of saves; if one does not show "
 				"yet, restart the console.", "", listed);
 		if(!listProblems.isEmpty())
-			message += QStringLiteral(" ") + tr("Their files are back, but the console's list of saves could not "
+		{
+			message += QStringLiteral(" ") + tr("Their files are there, but the console's list of saves could not "
 				"be updated: %1").arg(listProblems.join(QStringLiteral("; ")));
+			if(to.type == QLatin1String("ps5"))
+				message += QStringLiteral(" ") + tr("On a PS5, start the PS4 game once and save, then send again.");
+		}
 		return message;
+	});
+}
+
+void SavesController::inspectTarget(const QString &address)
+{
+	const Console to = consoleAt(address);
+	QVariantMap pending;
+	pending[QStringLiteral("address")] = to.address;
+	pending[QStringLiteral("name")] = to.name;
+	pending[QStringLiteral("type")] = to.type;
+	pending[QStringLiteral("ready")] = false;
+	pending[QStringLiteral("ok")] = false;
+	pending[QStringLiteral("users")] = QVariantList();
+	target_ = pending;
+	emit targetChanged();
+	// One at a time: the latest asked for is read when the one under way ends.
+	if(inspecting_)
+	{
+		nextInspection_ = to.address;
+		return;
+	}
+	inspecting_ = true;
+	if(inspector_.joinable())
+		inspector_.join();
+	const std::string root = vaultFolder().toStdString();
+	const std::map<std::string, std::string> known = links();
+	const QString scratch = QDir(vaultFolder()).filePath(QStringLiteral(".cache/owners"));
+	inspector_ = std::thread([this, to, pending, root, known, scratch]() {
+		FtpClient ftp(to.config);
+		FtpRemote remote(ftp);
+		SaveVault vault(root);
+		vault.setLinks(known);
+		std::string error;
+		std::vector<ConsoleUser> users = vault.readUsers(remote, &error);
+		if(error.empty())
+			learnOwners(remote, users, to.type, scratch);
+		QVariantMap result = pending;
+		result[QStringLiteral("ready")] = true;
+		result[QStringLiteral("ok")] = error.empty();
+		result[QStringLiteral("error")] = QString::fromStdString(error);
+		const QVariantList items = userItems(users);
+		QMetaObject::invokeMethod(this, [this, result, items]() mutable {
+			inspecting_ = false;
+			if(inspector_.joinable())
+				inspector_.join();
+			if(target_.value(QStringLiteral("address")) == result.value(QStringLiteral("address")))
+			{
+				QVariantList named = items;
+				for(QVariant &entry : named)
+				{
+					QVariantMap user = entry.toMap();
+					user[QStringLiteral("accountLabel")] = psidName(
+						accountIdFromPsidFolder(user.value(QStringLiteral("psidFolder")).toString()), app_->settings());
+					entry = user;
+				}
+				result[QStringLiteral("users")] = named;
+				target_ = result;
+				emit targetChanged();
+			}
+			if(!nextInspection_.isEmpty())
+			{
+				const QString next = nextInspection_;
+				nextInspection_.clear();
+				if(target_.value(QStringLiteral("address")).toString() == next)
+					inspectTarget(next);
+			}
+		}, Qt::QueuedConnection);
 	});
 }
 
@@ -440,6 +784,9 @@ int SavesController::addToConsoleList(SaveRemote &remote, SaveVault &vault, cons
 	if(!outcome.ok || !outcome.changed())
 	{
 		QFile::remove(work);
+		// Nothing changed: the copy taken first is not needed either.
+		if(outcome.ok)
+			QFile::remove(original);
 		if(!outcome.ok)
 		{
 			*problem = outcome.error;
@@ -495,7 +842,7 @@ int SavesController::addToConsoleList(SaveRemote &remote, SaveVault &vault, cons
 void SavesController::removeFromVault(const QStringList &keys)
 {
 	const std::vector<SaveInfo> chosen = pick(keys);
-	run(tr("Deleting from the vault…"), [chosen](SaveRemote &, SaveVault &vault, std::vector<SaveInfo> &,
+	run(tr("Deleting from the PC…"), [chosen](SaveRemote &, SaveVault &vault, std::vector<SaveInfo> &,
 											 bool *error) -> QString {
 		int done = 0;
 		std::string why;
@@ -503,7 +850,7 @@ void SavesController::removeFromVault(const QStringList &keys)
 			if(save.inVault && vault.removeFromVault(save, &why))
 				++done;
 		*error = !why.empty();
-		return why.empty() ? tr("%n save(s) deleted from the vault.", "", done)
+		return why.empty() ? tr("%n save(s) deleted from the PC.", "", done)
 						   : tr("Not everything was deleted: %1").arg(QString::fromStdString(why));
 	});
 }
@@ -518,6 +865,37 @@ void SavesController::linkAccount(const QString &user, const QString &accountId)
 	});
 	// The names and PSIDs on the page come from the link.
 	refresh();
+}
+
+void SavesController::linkPsid(const QString &user, const QString &psidFolder)
+{
+	const QString folder = psidFolder.trimmed().toLower();
+	const QString accountId = accountIdFromPsidFolder(folder);
+	if(accountId.isEmpty() || user.isEmpty())
+		return;
+	app_->updateSettings([&](Settings &s) { s.saveAccountLinks[user.toStdString()] = accountId.toStdString(); });
+	// The console being sent to knows it now.
+	QVariantList users = target_.value(QStringLiteral("users")).toList();
+	for(QVariant &entry : users)
+	{
+		QVariantMap item = entry.toMap();
+		if(item.value(QStringLiteral("user")).toString() == user)
+		{
+			item[QStringLiteral("psidFolder")] = folder;
+			item[QStringLiteral("linked")] = true;
+			item[QStringLiteral("accountLabel")] = psidName(accountId, app_->settings());
+			entry = item;
+		}
+	}
+	target_[QStringLiteral("users")] = users;
+	emit targetChanged();
+	// A user of the console shown: its saves are filed under it now.
+	for(const QVariant &entry : users_)
+		if(entry.toMap().value(QStringLiteral("user")).toString() == user)
+		{
+			refresh();
+			break;
+		}
 }
 
 } // namespace orbislink

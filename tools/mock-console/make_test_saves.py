@@ -10,11 +10,17 @@
     user/appmeta/<TITLE_ID>/icon0.png, param.sfo
     system_data/savedata/<account>/db/user/savedata.db
         (the console's list of saves: one row per save, as the PS4 keeps it)
+    user/home/<account>/username.dat
+        (the user's name, as a PS5 keeps it)
+
+With --ps5, a PS5 of the same PSN account instead: its own user folder for
+it (with one PS4 game's save, and its list of PS4 saves, as a PS5 keeps
+them) and a second user whose account is not known.
 
 The "images" are random bytes: only the save vault's listing, copying and
 comparing are exercised.
 
-Usage: make_test_saves.py <mock console root>
+Usage: make_test_saves.py <mock console root> [--ps5]
 """
 import os
 import pathlib
@@ -37,12 +43,44 @@ GAMES = [
 ]
 
 
+# The PS5's users: the same PSN account as the PS4's, and a guest.
+PS5_ACCOUNT = "5a6b7c8d"
+PS5_GUEST = "6c7d8e9f"
+
+
+def write_name(home: pathlib.Path, name: str) -> None:
+    home.mkdir(parents=True, exist_ok=True)
+    (home / "username.dat").write_bytes(name.encode() + bytes(16 - len(name)))
+
+
+def make_ps5(root: pathlib.Path) -> int:
+    home = root / "user" / "home" / PS5_ACCOUNT
+    write_name(home, "PlayerOne")
+    write_name(root / "user" / "home" / PS5_GUEST, "Guest")
+    title_id, game, saves = GAMES[1]
+    appmeta = root / "user" / "appmeta" / title_id
+    appmeta.mkdir(parents=True, exist_ok=True)
+    (appmeta / "icon0.png").write_bytes(build_icon_png(128, 1))
+    (appmeta / "param.sfo").write_bytes(build_sfo({"TITLE": game, "TITLE_ID": title_id}))
+    data = home / "savedata" / title_id
+    data.mkdir(parents=True, exist_ok=True)
+    for dir_name, _title, _detail in saves:
+        (data / f"sdimg_{dir_name}").write_bytes(os.urandom(64 * 1024))
+        (data / f"{dir_name}.bin").write_bytes(os.urandom(96))
+    write_save_list(root, home, PS5_ACCOUNT, ps5=True)
+    print(f"A PS5 with user {PS5_ACCOUNT} (the PS4's account) and {PS5_GUEST}")
+    return 0
+
+
 def main() -> int:
-    if len(sys.argv) != 2:
+    if len(sys.argv) not in (2, 3) or (len(sys.argv) == 3 and sys.argv[2] != "--ps5"):
         print(__doc__)
         return 2
     root = pathlib.Path(sys.argv[1])
+    if len(sys.argv) == 3:
+        return make_ps5(root)
     home = root / "user" / "home" / ACCOUNT
+    write_name(home, "PlayerOne")
     for seed, (title_id, game, saves) in enumerate(GAMES):
         appmeta = root / "user" / "appmeta" / title_id
         appmeta.mkdir(parents=True, exist_ok=True)
@@ -69,7 +107,7 @@ def main() -> int:
                 meta.mkdir(parents=True, exist_ok=True)
                 (meta / dir_name).write_bytes(sfo)
                 (meta / f"sce_bu_{dir_name}").write_bytes(sfo)
-    write_save_list(root, home)
+    write_save_list(root, home, ACCOUNT)
     print(f"Saves of {len(GAMES)} games under {home}")
     return 0
 
@@ -82,15 +120,16 @@ SAVE_LIST_SCHEMA = (
     "user_id INTEGER, faked_owner INTEGER, cloud_icon_url TEXT, cloud_revision INTEGER, game_title_id TEXT)")
 
 
-def write_save_list(root: pathlib.Path, home: pathlib.Path) -> None:
+def write_save_list(root: pathlib.Path, home: pathlib.Path, account: str, ps5: bool = False) -> None:
     """One row per save found under the user's savedata folder."""
-    folder = root / "system_data" / "savedata" / ACCOUNT / "db" / "user"
+    folder = root / "system_data" / "savedata" / account / "db" / "user"
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / "savedata.db"
     if path.exists():
         path.unlink()
     db = sqlite3.connect(path)
-    db.execute(SAVE_LIST_SCHEMA)
+    # A PS5's list of PS4 saves has one more column.
+    db.execute(SAVE_LIST_SCHEMA[:-1] + ", system_blocks INTEGER)" if ps5 else SAVE_LIST_SCHEMA)
     for title in sorted((home / "savedata").iterdir()):
         for image in sorted(title.glob("sdimg_*")):
             name = image.name[len("sdimg_"):]
@@ -102,7 +141,7 @@ def write_save_list(root: pathlib.Path, home: pathlib.Path) -> None:
                        "user_id, faked_owner, cloud_icon_url, cloud_revision, game_title_id) "
                        "VALUES (?, ?, '', '', '', '', 0, 0, ?, ?, ?, '2026-10-01T12:00:00.00Z', 0, ?, ?, 0, '', 0, ?)",
                        (title.name, name, blocks, blocks, blocks * 32,
-                        int.from_bytes(ACCOUNT_IDS[0], "little"), int(ACCOUNT, 16), title.name))
+                        int.from_bytes(ACCOUNT_IDS[0], "little"), int(account, 16), title.name))
     db.commit()
     db.close()
 

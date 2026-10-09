@@ -45,6 +45,8 @@ class FtpSession(threading.Thread):
     # resuming (--ftp-drop-once).
     drop_after = 0
     dropped: set = set()
+    # The address the console listens on (--host): data connections too.
+    host = "127.0.0.1"
 
     def __init__(self, conn: socket.socket, root: str) -> None:
         super().__init__(daemon=True)
@@ -93,7 +95,7 @@ class FtpSession(threading.Thread):
             self.data_listener.close()
         listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        listener.bind(("127.0.0.1", 0))
+        listener.bind((self.host, 0))
         listener.listen(1)
         self.data_listener = listener
         return listener.getsockname()[1]
@@ -164,7 +166,7 @@ class FtpSession(threading.Thread):
             self.send("250 Folder changed")
         elif command == "PASV":
             port = self.make_passive()
-            self.send(f"227 Entering Passive Mode (127,0,0,1,{port >> 8},{port & 0xFF})")
+            self.send(f"227 Entering Passive Mode ({self.host.replace('.', ',')},{port >> 8},{port & 0xFF})")
         elif command == "EPSV":
             port = self.make_passive()
             self.send(f"229 Entering Extended Passive Mode (|||{port}|)")
@@ -298,12 +300,13 @@ class FtpSession(threading.Thread):
 
 
 class FtpServer(threading.Thread):
-    def __init__(self, port: int, root: str) -> None:
+    def __init__(self, port: int, root: str, host: str = "127.0.0.1") -> None:
         super().__init__(daemon=True)
         self.root = root
+        FtpSession.host = host
         self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.listener.bind(("127.0.0.1", port))
+        self.listener.bind((host, port))
         self.listener.listen(8)
         self.port = self.listener.getsockname()[1]
         self.running = True
@@ -563,10 +566,13 @@ class DiscoveryServer:
     is in rest mode.
     """
 
-    def __init__(self, port: int, state: str = "ready", name: str = "Living room PS4") -> None:
+    def __init__(self, port: int, state: str = "ready", name: str = "Living room PS4",
+                 host: str = "127.0.0.1") -> None:
         self.port = port
         self.state = state
         self.name = name
+        # Only its own address: another fake console may answer on the next.
+        self.host = host
         self._socket: socket.socket | None = None
         self._thread: threading.Thread | None = None
         self._running = False
@@ -574,7 +580,7 @@ class DiscoveryServer:
     def start(self) -> None:
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._socket.bind(("0.0.0.0", self.port))
+        self._socket.bind((self.host, self.port))
         self.port = self._socket.getsockname()[1]
         self._running = True
         self._thread = threading.Thread(target=self._loop, daemon=True)
@@ -621,6 +627,8 @@ def main() -> int:
     parser.add_argument("--ftp-port", type=int, default=2121)
     parser.add_argument("--api-port", type=int, default=12800)
     parser.add_argument("--root", default=None, help="folder acting as the console file system")
+    parser.add_argument("--host", default="127.0.0.1",
+                        help="loopback address to listen on: 127.0.0.2 and so on make a second console")
     parser.add_argument("--slow", type=float, default=0.0, metavar="SECONDS",
                         help="delay per downloaded block (for demos)")
     parser.add_argument("--ftp-slow", type=float, default=0.0, metavar="SECONDS",
@@ -644,17 +652,17 @@ def main() -> int:
 
     FtpSession.upload_delay = arguments.ftp_slow
     FtpSession.drop_after = arguments.ftp_drop_once
-    ftp = FtpServer(arguments.ftp_port, root)
+    ftp = FtpServer(arguments.ftp_port, root, arguments.host)
     ftp.start()
 
     InstallerApiHandler.state = InstallerState(downloads, chunk_delay=arguments.slow)
-    api = ThreadingHttpServer(("127.0.0.1", arguments.api_port), InstallerApiHandler)
+    api = ThreadingHttpServer((arguments.host, arguments.api_port), InstallerApiHandler)
     api_thread = threading.Thread(target=api.serve_forever, daemon=True)
     api_thread.start()
 
     discovery = None
     if arguments.discovery_port:
-        discovery = DiscoveryServer(arguments.discovery_port, arguments.discovery_state)
+        discovery = DiscoveryServer(arguments.discovery_port, arguments.discovery_state, host=arguments.host)
         try:
             discovery.start()
         except PermissionError:
@@ -667,8 +675,8 @@ def main() -> int:
     if arguments.print_ports:
         print(json.dumps(info), flush=True)
     else:
-        print(f"Fake console: FTP on 127.0.0.1:{info['ftp_port']}, "
-              f"API on 127.0.0.1:{info['api_port']} (root: {root})", flush=True)
+        print(f"Fake console: FTP on {arguments.host}:{info['ftp_port']}, "
+              f"API on {arguments.host}:{info['api_port']} (root: {root})", flush=True)
 
     try:
         while True:

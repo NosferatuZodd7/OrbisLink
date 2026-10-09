@@ -50,6 +50,8 @@ QMap<QString, QVariant> rowFor(const SaveDbEntry &entry)
 	row[QStringLiteral("cloud_icon_url")] = QString();
 	row[QStringLiteral("cloud_revision")] = 0;
 	row[QStringLiteral("game_title_id")] = QString::fromStdString(entry.titleId);
+	// A PS5's list of PS4 saves has this one too.
+	row[QStringLiteral("system_blocks")] = 0;
 	// Text columns take '' rather than NULL, as in the console's own rows.
 	for(auto it = row.begin(); it != row.end(); ++it)
 		if(it.value().typeId() == QMetaType::QString && it.value().toString().isNull())
@@ -208,6 +210,48 @@ SaveDatabase::Outcome SaveDatabase::registerSaves(const QString &path, const std
 	}
 	QSqlDatabase::removeDatabase(connection);
 	return outcome;
+}
+
+int64_t SaveDatabase::owner(const QString &path)
+{
+	if(!QSqlDatabase::isDriverAvailable(QStringLiteral("QSQLITE")))
+		return 0;
+	int64_t found = 0;
+	const QString connection =
+		QStringLiteral("orbislink-savedata-") + QUuid::createUuid().toString(QUuid::WithoutBraces);
+	{
+		QSqlDatabase db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), connection);
+		db.setDatabaseName(path);
+		db.setConnectOptions(QStringLiteral("QSQLITE_OPEN_READONLY"));
+		if(db.open())
+		{
+			QSqlQuery query(db);
+			if(query.exec(QStringLiteral("SELECT account_id, COUNT(*) FROM savedata WHERE account_id IS NOT NULL "
+										 "AND account_id != 0 GROUP BY account_id ORDER BY COUNT(*) DESC")))
+			{
+				int64_t best = 0;
+				int bestCount = 0;
+				int total = 0;
+				while(query.next())
+				{
+					const int count = query.value(1).toInt();
+					if(total == 0)
+					{
+						best = query.value(0).toLongLong();
+						bestCount = count;
+					}
+					total += count;
+				}
+				// Most of them, not merely the most.
+				if(bestCount * 2 > total)
+					found = best;
+			}
+			query.finish();
+			db.close();
+		}
+	}
+	QSqlDatabase::removeDatabase(connection);
+	return found;
 }
 
 } // namespace orbislink
