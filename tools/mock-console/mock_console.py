@@ -27,6 +27,7 @@ import os
 import shutil
 import socket
 import socketserver
+import stat
 import struct
 import sys
 import tempfile
@@ -103,8 +104,8 @@ class FtpSession(threading.Thread):
     @staticmethod
     def listing_line(path: str, name: str) -> str:
         stats = os.stat(path)
-        is_dir = os.path.isdir(path)
-        perms = "drwxr-xr-x" if is_dir else "-rw-r--r--"
+        # As they are: SITE CHMOD changes them, as on the consoles' servers.
+        perms = stat.filemode(stats.st_mode)
         stamp = time.strftime("%b %d %H:%M", time.localtime(stats.st_mtime))
         return f"{perms}   1 ps4      ps4      {stats.st_size:>12} {stamp} {name}"
 
@@ -220,6 +221,16 @@ class FtpSession(threading.Thread):
                 except OSError:
                     self.send("550 Could not rename")
                 self.rename_from = None
+        elif command == "SITE":
+            parts = argument.split(" ", 2)
+            if len(parts) == 3 and parts[0].upper() == "CHMOD":
+                try:
+                    os.chmod(self.local_path(parts[2]), int(parts[1], 8))
+                    self.send("200 SITE CHMOD command ok")
+                except (OSError, ValueError):
+                    self.send("550 Could not change the permissions")
+            else:
+                self.send("500 SITE command not understood")
         elif command == "NOOP":
             self.send("200 Ok")
         elif command == "QUIT":

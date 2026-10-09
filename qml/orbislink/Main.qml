@@ -220,6 +220,16 @@ ApplicationWindow {
                         onClicked: window.view = window.view === "games" ? "home" : "games"
                     }
                     StyledToolButton {
+                        visible: typeof store !== "undefined" && store !== null
+                        iconName: "package"
+                        active: window.view === "store"
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Homebrew store") + " — "
+                                      + (window.view === "store" ? qsTr("Back to the consoles")
+                                         : qsTr("Find PS5 homebrew apps and install them on the console"))
+                        onClicked: window.view = window.view === "store" ? "home" : "store"
+                    }
+                    StyledToolButton {
                         iconName: "archive"
                         active: window.view === "saves"
                         ToolTip.visible: hovered
@@ -294,8 +304,20 @@ ApplicationWindow {
                 onBack: window.view = "home"
             }
 
+            Loader {
+                // Only in builds with the store.
+                active: typeof store !== "undefined" && store !== null
+                visible: window.view === "store"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                sourceComponent: StoreView {
+                    visible: window.view === "store"
+                    onBack: window.view = "home"
+                }
+            }
+
             StreamArea {
-                visible: window.view !== "games" && window.view !== "saves"
+                visible: window.view !== "games" && window.view !== "saves" && window.view !== "store"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 // Back to the home page: whatever was open on top of the

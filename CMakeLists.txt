@@ -122,6 +122,27 @@ if(OpenSSL_FOUND)
 	target_link_libraries(orbislink-fpkg PRIVATE orbislink_fpkg)
 endif()
 
+# The PS5 homebrew store: the signed catalog of homebrew.page (Ed25519,
+# through OpenSSL) and its ZIP apps (the inflater of the fpkg library).
+if(TARGET orbislink_fpkg)
+	add_library(orbislink_store STATIC
+		src/orbislink/store/store_catalog.cpp
+		src/orbislink/store/store_installer.cpp
+		src/orbislink/store/zip_reader.cpp
+	)
+	target_include_directories(orbislink_store PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+	target_link_libraries(orbislink_store PUBLIC orbislink_core orbislink_fpkg OpenSSL::Crypto)
+	target_compile_definitions(orbislink_store PUBLIC ORBISLINK_HAS_STORE=1)
+	if(MSVC)
+		target_compile_options(orbislink_store PRIVATE /W4)
+	else()
+		target_compile_options(orbislink_store PRIVATE -Wall -Wextra)
+		if(ORBISLINK_WARNINGS_AS_ERRORS)
+			target_compile_options(orbislink_store PRIVATE -Werror)
+		endif()
+	endif()
+endif()
+
 target_compile_definitions(orbislink_core PUBLIC
 	ORBISLINK_REPOSITORY_STRING="${ORBISLINK_REPOSITORY}")
 target_include_directories(orbislink_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -204,6 +225,10 @@ if(ORBISLINK_BUILD_GUI)
 			orbislink_core Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::Sql)
 		if(TARGET orbislink_fpkg)
 			target_link_libraries(orbislink-gui PRIVATE orbislink_fpkg)
+		endif()
+		if(TARGET orbislink_store)
+			target_sources(orbislink-gui PRIVATE src/orbislink/qt/store_controller.cpp)
+			target_link_libraries(orbislink-gui PRIVATE orbislink_store)
 		endif()
 		if(ORBISLINK_ENABLE_STREAM)
 			target_link_libraries(orbislink-gui PRIVATE orbislink_stream Qt6::Multimedia)

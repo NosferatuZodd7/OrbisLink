@@ -6,6 +6,9 @@
 #include "orbislink/qt/app_controller.h"
 #include "orbislink/qt/games_controller.h"
 #include "orbislink/qt/saves_controller.h"
+#ifdef ORBISLINK_HAS_STORE
+#include "orbislink/qt/store_controller.h"
+#endif
 #include "orbislink/settings/settings_store.h"
 #include "orbislink/qt/ftp_model.h"
 #include "orbislink/qt/queue_model.h"
@@ -241,6 +244,10 @@ int main(int argc, char **argv)
 	auto games = std::make_unique<GamesController>(controller.get());
 	// The save vault, the same way.
 	auto saves = std::make_unique<SavesController>(controller.get());
+#ifdef ORBISLINK_HAS_STORE
+	// The PS5 homebrew store, the same way.
+	auto store = std::make_unique<StoreController>(controller.get());
+#endif
 
 	QQmlApplicationEngine engine;
 	QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
@@ -252,6 +259,11 @@ int main(int argc, char **argv)
 	engine.rootContext()->setContextProperty(QStringLiteral("app"), controller.get());
 	engine.rootContext()->setContextProperty(QStringLiteral("games"), games.get());
 	engine.rootContext()->setContextProperty(QStringLiteral("saves"), saves.get());
+#ifdef ORBISLINK_HAS_STORE
+	engine.rootContext()->setContextProperty(QStringLiteral("store"), store.get());
+#else
+	engine.rootContext()->setContextProperty(QStringLiteral("store"), QVariant());
+#endif
 
 #ifdef ORBISLINK_HAS_STREAM
 	// Remote Play is a separate controller, but it follows the console

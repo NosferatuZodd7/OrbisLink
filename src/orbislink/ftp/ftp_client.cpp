@@ -718,4 +718,17 @@ FtpResult FtpClient::rename(const std::string &fromPath, const std::string &toPa
 	});
 }
 
+FtpResult FtpClient::setPermissions(const std::string &remotePath, const std::string &mode)
+{
+	const std::string path = normalizeRemotePath(remotePath);
+	if(mode.empty() || mode.size() > 4 || mode.find_first_not_of("01234567") != std::string::npos)
+		return FtpResult::failure("not an octal mode: " + mode);
+	if(!isWriteAllowed(path))
+		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
+			"mode in the settings."));
+	const Config cfg = config();
+	return runQuoteCommands(cfg, cfg.host, { "SITE CHMOD " + mode + " " + path },
+		"ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/");
+}
+
 } // namespace orbislink
