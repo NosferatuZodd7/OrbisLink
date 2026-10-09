@@ -6,6 +6,7 @@
 #include "orbislink/qt/app_controller.h"
 #include "orbislink/qt/games_controller.h"
 #include "orbislink/qt/saves_controller.h"
+#include "orbislink/qt/payloads_controller.h"
 #ifdef ORBISLINK_HAS_STORE
 #include "orbislink/qt/store_controller.h"
 #endif
@@ -244,6 +245,8 @@ int main(int argc, char **argv)
 	auto games = std::make_unique<GamesController>(controller.get());
 	// The save vault, the same way.
 	auto saves = std::make_unique<SavesController>(controller.get());
+	// The payloads and plugins of a jailbroken console, the same way.
+	auto payloads = std::make_unique<PayloadsController>(controller.get());
 #ifdef ORBISLINK_HAS_STORE
 	// The PS5 homebrew store, the same way.
 	auto store = std::make_unique<StoreController>(controller.get());
@@ -259,6 +262,7 @@ int main(int argc, char **argv)
 	engine.rootContext()->setContextProperty(QStringLiteral("app"), controller.get());
 	engine.rootContext()->setContextProperty(QStringLiteral("games"), games.get());
 	engine.rootContext()->setContextProperty(QStringLiteral("saves"), saves.get());
+	engine.rootContext()->setContextProperty(QStringLiteral("payloads"), payloads.get());
 #ifdef ORBISLINK_HAS_STORE
 	engine.rootContext()->setContextProperty(QStringLiteral("store"), store.get());
 #else

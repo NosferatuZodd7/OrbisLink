@@ -238,6 +238,15 @@ ApplicationWindow {
                                          : qsTr("Back up the console's saves on this PC"))
                         onClicked: window.view = window.view === "saves" ? "home" : "saves"
                     }
+                    StyledToolButton {
+                        iconName: "zap"
+                        active: window.view === "payloads"
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Payloads") + " — "
+                                      + (window.view === "payloads" ? qsTr("Back to the consoles")
+                                         : qsTr("See and manage the console's payloads and plugins, and run one now"))
+                        onClicked: window.view = window.view === "payloads" ? "home" : "payloads"
+                    }
                 }
 
                 BarDivider {}
@@ -304,6 +313,13 @@ ApplicationWindow {
                 onBack: window.view = "home"
             }
 
+            PayloadsView {
+                visible: window.view === "payloads"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                onBack: window.view = "home"
+            }
+
             Loader {
                 // Only in builds with the store.
                 active: typeof store !== "undefined" && store !== null
@@ -318,6 +334,7 @@ ApplicationWindow {
 
             StreamArea {
                 visible: window.view !== "games" && window.view !== "saves" && window.view !== "store"
+                         && window.view !== "payloads"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 // Back to the home page: whatever was open on top of the

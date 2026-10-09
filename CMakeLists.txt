@@ -65,6 +65,8 @@ add_library(orbislink_core STATIC
 	src/orbislink/installer/rpi_client.cpp
 	src/orbislink/net/http_client.cpp
 	src/orbislink/net/net_utils.cpp
+	src/orbislink/net/payload_sender.cpp
+	src/orbislink/payloads/payload_layout.cpp
 	src/orbislink/net/socket_compat.cpp
 	src/orbislink/pkg/pkg_inspector.cpp
 	src/orbislink/pkg/sfo_parser.cpp
@@ -199,6 +201,7 @@ if(ORBISLINK_BUILD_GUI)
 			src/orbislink/qt/app_controller.cpp
 			src/orbislink/qt/games_controller.cpp
 			src/orbislink/qt/saves_controller.cpp
+			src/orbislink/qt/payloads_controller.cpp
 			src/orbislink/qt/save_database.cpp
 			src/orbislink/qt/queue_model.cpp
 			src/orbislink/qt/ftp_model.cpp

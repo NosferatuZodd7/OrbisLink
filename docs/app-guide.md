@@ -59,8 +59,9 @@ narrower than where the rest fits.
 | 🎮 · **FTP** · 📦 | Remote Play, FTP (the word in small bold letters) and the installer, each with a dot at the corner: green available (with a soft ring), amber checking (it breathes), red not answering, grey not applicable. Hover: the name and why. | — |
 | ▶ | Only while a Remote Play session runs and another page is open. | Back to the picture. |
 | 💿 | PS1/PS2 games; lit while that page is open. | Opens / closes the games page. |
-| 📦 | The homebrew store; lit while that page is open (only in builds with the store). | Opens / closes the store. |
+| 🏪 | The homebrew store; lit while that page is open (only in builds with the store). | Opens / closes the store. |
 | 🗄 | The save vault; lit while that page is open. | Opens / closes the save vault. |
+| ⚡ | The payload manager; lit while that page is open. | Opens / closes the payloads page. |
 | ⟳ | | Checks the three services now. |
 | ▣ | | Shows / hides the side panel (F9). Locked while full screen. |
 | 🗎 | | Log and diagnostics (Ctrl+L): log, copy, save a diagnostics file. |
@@ -343,6 +344,35 @@ No package is built: on the PS5 the app folder is the install, which is why
 apps the catalog offers only as disc images are listed but not installed.
 Building a PS5 fake package (fpkg) is not something any open tool does yet.
 
+## Payloads
+
+What a jailbroken console keeps in its payload and plugin folders, read
+over its FTP, for the console in use or another picked in the header. What
+the page shows follows the console: a PS4 is GoldHEN's, a PS5 etaHEN's and
+the autoloader's.
+
+| Console | Folder | What it is | Starts by itself when switched on |
+|---|---|---|---|
+| PS4 | `/data/GoldHEN/payloads` | `goldhen.bin` is GoldHEN itself: the PPPwn loader starts it at every boot (marked **the jailbreak**; deleting it asks twice as clearly). | — |
+| PS4 | `/data/payloads` | The payload library Payload Guest lists. | — |
+| PS4 | `/data/GoldHEN/plugins` | `.prx` plugins. | Loads with every game: its line in `[default]` of `/data/GoldHEN/plugins.ini` says `=true` (the per-game sections are left alone). |
+| PS5 | `/data/etaHEN/payloads`, `/data/etaHEN/plugins` | etaHEN's payloads (`.elf`) and plugins (`.plugin`). | Starts when etaHEN loads: a `<name>.auto_start` file sits next to it, which is how etaHEN marks it. |
+| PS5 | `/data/ps5_autoloader` | The autoloader's files. | Listed in its `autoload.txt` (one file name per line, in order; `!<ms>` lines wait between them). Switching one off takes its wait out with it. |
+
+| Item | Does |
+|---|---|
+| Console chip (header) | The console shown; with several, a click lists them (those without FTP say so). |
+| **Send from this PC…** | Runs a payload from this PC on the console now, without copying it: choose the file, the port is filled in for it (PS4: GoldHEN's BinLoader, 9090, on in GoldHEN's settings; PS5: ELF to 9021 — etaHEN's loader or elfldr —, `.bin` to the exploit's 9020, `.lua` 9026, `.jar` 9025, `.js` 50000) and can be changed. |
+| ⟳ | Reads the console again. |
+| **Add…** (each folder) | Copies files from this PC into it; a folder the console does not have yet is made. |
+| Switch (each file) | Whether it starts by itself, as the table above says. |
+| ▶ | Runs that payload now: fetched from the console and sent to its loader port. |
+| ⬇ · ✎ · 🗑 | Downloads it to this PC's downloads folder · renames it (its auto-start follows: the marker, its line in `autoload.txt` or `plugins.ini`) · deletes it, with its auto-start, after asking. |
+| **Settings files** · **Edit** | `/data/GoldHEN/plugins.ini` (PS4); `/data/etaHEN/config.ini` and `/data/ps5_autoloader/autoload.txt` (PS5), opened as text; **Save on the console** writes it back (a file not there yet is made). |
+| **What the console answered** | What a payload sent prints, as the PS5's ELF loader passes it back (GoldHEN's BinLoader says nothing); **Clear** empties it. |
+
+Without FTP the page says so; payloads from this PC can still be sent.
+
 ## Settings
 
 | Section | Holds |
@@ -368,6 +398,8 @@ Building a PS5 fake package (fpkg) is not something any open tool does yet.
 | Save vault: see or delete what the PC holds | no | — | — | — |
 | Homebrew store: look at the apps | no (internet) | — | — | — |
 | Homebrew store: install, update, remove | a PS5 | yes | — | — |
+| Payloads: see, add, rename, delete, auto-start, edit settings | yes | yes | — | — |
+| Payloads: run one now | yes | to run one from the console | — | — |
 
 ## Where it lives in the code
 
@@ -382,6 +414,7 @@ Building a PS5 fake package (fpkg) is not something any open tool does yet.
 | Games (`games`) | `src/orbislink/qt/games_controller.*` |
 | Save vault (`saves`) | `SavesView.qml`, `src/orbislink/qt/saves_controller.*`, `src/orbislink/saves` |
 | Homebrew store (`store`) | `StoreView.qml`, `src/orbislink/qt/store_controller.*`, `src/orbislink/store` |
+| Payloads (`payloads`) | `PayloadsView.qml`, `src/orbislink/qt/payloads_controller.*`, `src/orbislink/payloads/payload_layout.*` (folders, `autoload.txt`, `plugins.ini`), `src/orbislink/net/payload_sender.*` (to a loader port) |
 | Remote Play (`stream`) | `src/orbislink/qt/stream_controller.*` |
 | Queue, FTP, installer | `src/orbislink/queue`, `ftp`, `installer` |
 | Package builder, disc scanner, Classics files | `src/orbislink/fpkg` |
