@@ -186,6 +186,10 @@ ORBISLINK_TEST(knows_where_each_console_keeps_its_payloads)
 	CHECK_EQ(ps5[0].path, std::string("/data/etaHEN/payloads"));
 	CHECK(ps5[0].autoStart == AutoStart::Marker);
 	CHECK_EQ(ps5[2].configPath, std::string("/data/ps5_autoloader/autoload.txt"));
+	// PLK's Payload Manager: a folder per payload, its own autoload list.
+	CHECK_EQ(ps5.size(), size_t(4));
+	CHECK(ps5[3].nested);
+	CHECK_EQ(ps5[3].configPath, std::string("/data/pldmgr/autoload.txt"));
 
 	CHECK_EQ(loaderPort(Kind::Ps4, "goldhen.bin"), 9090);
 	CHECK_EQ(loaderPort(Kind::Ps5, "kstuff.ELF"), 9021);

@@ -314,6 +314,7 @@ ORBISLINK_TEST(theme_colours_presets_and_pad_map_round_trip)
 	settings.themePresets.push_back({ "Night", "glass", { { "panel", "#101010" } } });
 	settings.padBindings = { { "a", "circle" }, { "b", "cross" } };
 	settings.ftpPinnedFolders = { "/data/", "/data/OrbisLinkFPKG/" };
+	settings.ftpPinnedFoldersPs5 = { "/data/etaHEN/", "/mnt/ext1/" };
 	bool ok = false;
 	const Settings restored = Settings::fromJson(settings.toJson(), &ok);
 	CHECK(ok);
@@ -324,6 +325,13 @@ ORBISLINK_TEST(theme_colours_presets_and_pad_map_round_trip)
 	CHECK(restored.themePresets[0].colors == settings.themePresets[0].colors);
 	CHECK(restored.padBindings == settings.padBindings);
 	CHECK(restored.ftpPinnedFolders == settings.ftpPinnedFolders);
+	CHECK(restored.ftpPinnedFoldersPs5 == settings.ftpPinnedFoldersPs5);
+
+	// Settings saved before the PS5 had its own: its defaults, the PS4's kept.
+	const Settings older = Settings::fromJson(R"({"ftp_pinned_folders":["/data/"]})", &ok);
+	CHECK(ok);
+	CHECK_EQ(older.ftpPinnedFolders.size(), static_cast<size_t>(1));
+	CHECK_EQ(older.ftpPinnedFoldersPs5.size(), Settings().ftpPinnedFoldersPs5.size());
 }
 
 ORBISLINK_TEST(hand_edited_theme_colours_are_checked)

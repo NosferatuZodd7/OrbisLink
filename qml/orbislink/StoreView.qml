@@ -70,6 +70,14 @@ Item {
         return k === "app" ? qsTr("Apps") : k === "game" ? qsTr("Games") : k === "tool" ? qsTr("Tools")
              : k === "emulator" ? qsTr("Emulators") : k.charAt(0).toUpperCase() + k.slice(1)
     }
+    // "45% · 3.2 MB/s" while bytes move (the download, the copy to the
+    // PS5); "" in the stages that have none to count.
+    function progressLine() {
+        if (store.amountText.length === 0)
+            return ""
+        var percent = qsTr("%1%").arg(Math.floor(Math.min(1, store.progress) * 100))
+        return store.speedText.length > 0 ? percent + "  ·  " + store.speedText : percent
+    }
     function stageText(stage) {
         return stage === "download" ? qsTr("Downloading…")
              : stage === "verify" ? qsTr("Checking the download…")
@@ -368,7 +376,17 @@ Item {
                                             height: parent.height
                                             radius: parent.radius
                                             color: Theme.accent
+                                            Behavior on width { NumberAnimation { duration: 200 } }
                                         }
+                                    }
+                                    // How far, and how fast; the stage when there is nothing to count.
+                                    Text {
+                                        visible: cell.busy
+                                        Layout.fillWidth: true
+                                        elide: Text.ElideRight
+                                        text: root.progressLine().length > 0 ? root.progressLine() : root.stageText(store.stage)
+                                        color: Theme.textSecondary
+                                        font.pixelSize: 11
                                     }
                                 }
                             }
@@ -441,6 +459,43 @@ Item {
         padding: 0
         readonly property var app: store.detail
         readonly property bool busy: store.working.length > 0 && store.working === app.titleId
+        // What ShadowMountPlus said about this app, when it was asked.
+        readonly property var check: store.homeCheck.titleId === app.titleId ? store.homeCheck : ({})
+        readonly property bool checking: check.busy === true
+        function verdictText(c) {
+            switch (c.verdict) {
+            case "registered":
+                return qsTr("ShadowMountPlus registered it: it is on the home screen (at the end, or in the "
+                            + "game library). If not, restart the console once.")
+            case "settling":
+                return qsTr("ShadowMountPlus saw it while its files were still changing; it looks again every "
+                            + "15 seconds.")
+            case "bad-metadata":
+                return qsTr("ShadowMountPlus cannot read its sce_sys/param.json. Install it again.")
+            case "failed":
+                return qsTr("The console refused to register it%1. The app may need a newer ShadowMountPlus "
+                            + "(see its notes above); update it and install again.")
+                       .arg(c.code !== undefined && c.code.length > 0 ? " (" + c.code + ")" : "")
+            case "gave-up":
+                return c.rescanned
+                    ? qsTr("ShadowMountPlus had given up on it after failed tries; it was asked to try again now.")
+                    : qsTr("ShadowMountPlus gave up on it after failed tries. Restart the console, or let "
+                           + "OrbisLink ask it to try again: api_bind_address=0.0.0.0 in "
+                           + "/data/shadowmount/config.ini.")
+            case "duplicate":
+                return qsTr("Another copy with the same title ID is in a folder ShadowMountPlus checks (another "
+                            + "drive, or etaHEN/games): ShadowMountPlus keeps that one. Remove one of them.")
+            case "not-seen":
+                return qsTr("ShadowMountPlus has not mentioned it. Is it running? (\"ShadowMount+\" shows on the "
+                            + "console when it starts.) It checks /data/homebrew every 15 seconds.")
+            case "no-log":
+                return qsTr("This PS5 has no ShadowMountPlus log: it is not installed, or its log is off. It is "
+                            + "what puts these apps on the home screen.")
+            case "no-ftp":
+                return qsTr("This PS5's FTP is not answering.")
+            }
+            return ""
+        }
         // The same app as listed now (installed, update), with what was read.
         readonly property var listed: {
             for (var i = 0; i < store.apps.length; ++i)
@@ -534,12 +589,59 @@ Item {
                             font.pixelSize: 12
                             font.weight: Font.DemiBold
                         }
+                        // Installed but not on the home screen: ShadowMountPlus,
+                        // which puts it there, says why in its log.
+                        StyledButton {
+                            visible: detailDialog.listed.installed === true && !detailDialog.busy
+                            chip: true
+                            iconName: detailDialog.checking ? "loader" : "info"
+                            text: qsTr("Not on the home screen?")
+                            enabled: !detailDialog.checking
+                            onClicked: store.checkHomeScreen(detailDialog.listed.titleId)
+                        }
                         Text {
                             Layout.fillWidth: true
                             visible: detailDialog.app.prerelease === true
                             text: qsTr("A pre-release: it may not be finished.")
                             color: Theme.warn
                             font.pixelSize: 12
+                        }
+                    }
+                }
+                // ShadowMountPlus's word on it.
+                Rectangle {
+                    visible: detailDialog.check.verdict !== undefined && !detailDialog.checking
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.dialogMargin
+                    Layout.rightMargin: Theme.dialogMargin
+                    implicitHeight: checkColumn.implicitHeight + 24
+                    radius: 10
+                    color: Theme.panelAltFill
+                    border.width: 1
+                    border.color: detailDialog.check.verdict === "registered" ? Theme.alpha(Theme.ok, 0.5)
+                                : Theme.alpha(Theme.warn, 0.5)
+                    ColumnLayout {
+                        id: checkColumn
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: 12
+                        spacing: 6
+                        Text {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: detailDialog.verdictText(detailDialog.check)
+                            color: Theme.text
+                            font.pixelSize: 12
+                        }
+                        Text {
+                            visible: detailDialog.check.lines !== undefined && detailDialog.check.lines.length > 0
+                            Layout.fillWidth: true
+                            wrapMode: Text.WrapAnywhere
+                            text: detailDialog.check.lines !== undefined ? detailDialog.check.lines.slice(-10).join("\n") : ""
+                            color: Theme.textSecondary
+                            font.pixelSize: 11
+                            font.family: Theme.fontMono
                         }
                     }
                 }
@@ -675,32 +777,6 @@ Item {
                         onClicked: Qt.openUrlExternally(detailDialog.app.releaseUrl)
                     }
                 }
-                // Installing: how far it got.
-                ColumnLayout {
-                    visible: detailDialog.busy
-                    Layout.fillWidth: true
-                    Layout.leftMargin: Theme.dialogMargin
-                    Layout.rightMargin: Theme.dialogMargin
-                    spacing: 6
-                    Text {
-                        text: root.stageText(store.stage)
-                        color: Theme.text
-                        font.pixelSize: 12
-                    }
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: 6
-                        radius: 3
-                        color: Theme.alpha(Theme.accent, 0.18)
-                        Rectangle {
-                            width: parent.width * Math.max(0.02, Math.min(1, store.progress))
-                            height: parent.height
-                            radius: parent.radius
-                            color: Theme.accent
-                            Behavior on width { NumberAnimation { duration: 200 } }
-                        }
-                    }
-                }
                 Item { implicitHeight: 4 }
             }
         }
@@ -720,7 +796,49 @@ Item {
                     enabled: store.canInstall && store.working.length === 0
                     onClicked: store.uninstall(detailDialog.listed.titleId)
                 }
-                Item { Layout.fillWidth: true }
+                Item {
+                    visible: !detailDialog.busy
+                    Layout.fillWidth: true
+                }
+                // Installing: how far it got, always in sight however long
+                // the description above is.
+                ColumnLayout {
+                    visible: detailDialog.busy
+                    Layout.fillWidth: true
+                    Layout.rightMargin: 8
+                    spacing: 6
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        Text {
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            text: root.stageText(store.stage)
+                                  + (store.amountText.length > 0 ? "  ·  " + store.amountText : "")
+                            color: Theme.text
+                            font.pixelSize: 12
+                        }
+                        Text {
+                            text: root.progressLine()
+                            color: Theme.text
+                            font.pixelSize: 12
+                            font.weight: Font.DemiBold
+                        }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 6
+                        radius: 3
+                        color: Theme.alpha(Theme.accent, 0.18)
+                        Rectangle {
+                            width: parent.width * Math.max(0.02, Math.min(1, store.progress))
+                            height: parent.height
+                            radius: parent.radius
+                            color: Theme.accent
+                            Behavior on width { NumberAnimation { duration: 200 } }
+                        }
+                    }
+                }
                 StyledButton {
                     visible: detailDialog.busy
                     text: qsTr("Cancel")

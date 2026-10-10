@@ -35,6 +35,7 @@ Item {
         case "etahen-payloads": return qsTr("etaHEN payloads")
         case "etahen-plugins": return qsTr("etaHEN plugins")
         case "autoloader": return qsTr("Autoloader")
+        case "pldmgr": return qsTr("Payload Manager (PLDMGR)")
         }
         return id
     }
@@ -52,6 +53,9 @@ Item {
             return qsTr("Switched on: it starts every time etaHEN loads.")
         case "autoloader":
             return qsTr("Switched on: it is in autoload.txt and starts after the exploit, in that order.")
+        case "pldmgr":
+            return qsTr("PLK's Payload Manager. Switched on: it is in its autoload list and starts when the "
+                        + "Payload Manager loads, in that order.")
         }
         return ""
     }

@@ -242,7 +242,7 @@ const Folder *PayloadsController::folderOf(const std::string &path, std::vector<
 {
 	const std::string parent = parentOf(path);
 	for(const Folder &folder : all)
-		if(folder.path == parent)
+		if(folder.path == parent || (folder.nested && parentOf(parent) == folder.path))
 			return &folder;
 	return nullptr;
 }
@@ -274,6 +274,23 @@ void PayloadsController::run(const QString &what, Job job, bool rescan)
 			{
 				std::vector<FtpEntry> entries;
 				const bool exists = ftp.list(folder.path, &entries).ok;
+				// A folder per payload (PLDMGR): what is in each, with its
+				// ".json" left out.
+				if(exists && folder.nested)
+				{
+					std::vector<FtpEntry> inside;
+					for(const FtpEntry &entry : entries)
+					{
+						if(!entry.isDirectory || entry.name == "." || entry.name == "..")
+							continue;
+						std::vector<FtpEntry> files;
+						if(ftp.list(entry.path, &files).ok)
+							for(const FtpEntry &file : files)
+								if(!file.isDirectory && !endsWith(file.name, ".json"))
+									inside.push_back(file);
+					}
+					entries = inside;
+				}
 				std::string list;
 				if(exists && !folder.configPath.empty())
 					readRemoteText(ftp, folder.configPath, &list, nullptr);
@@ -365,16 +382,25 @@ void PayloadsController::upload(const QString &folderId, const QStringList &file
 	if(found == all.end() || files.isEmpty())
 		return;
 	const std::string folder = found->path;
+	const bool nested = found->nested;
 	QStringList locals;
 	for(const QString &file : files)
 		locals << localPathOf(file);
-	run(tr("Sending to the console…"), [folder, locals](FtpClient &ftp, bool *error) {
+	run(tr("Sending to the console…"), [folder, nested, locals](FtpClient &ftp, bool *error) {
+		ftp.makeDirectory(parentOf(folder));
 		ftp.makeDirectory(folder);
 		int sent = 0;
 		QString problem;
 		for(const QString &local : locals)
 		{
-			const std::string remote = folder + "/" + QFileInfo(local).fileName().toStdString();
+			// PLDMGR keeps each payload in a folder of its own name.
+			std::string into = folder;
+			if(nested)
+			{
+				into = folder + "/" + QFileInfo(local).completeBaseName().toStdString();
+				ftp.makeDirectory(into);
+			}
+			const std::string remote = into + "/" + QFileInfo(local).fileName().toStdString();
 			const FtpResult result = ftp.upload(local.toStdString(), remote);
 			if(result.ok)
 				++sent;
@@ -405,6 +431,12 @@ void PayloadsController::remove(const QString &path)
 		// Nothing is left pointing at it.
 		if(copy.autoStart == AutoStart::Marker)
 			ftp.removeFile(remote + ".auto_start");
+		if(copy.nested)
+		{
+			// Its PLDMGR details, and its folder once empty.
+			ftp.removeFile(remote + ".json");
+			ftp.removeDirectory(parentOf(remote));
+		}
 		if(copy.autoStart == AutoStart::List || copy.autoStart == AutoStart::Ini)
 		{
 			std::string text;
@@ -440,6 +472,8 @@ void PayloadsController::rename(const QString &path, const QString &newName)
 		}
 		if(copy.autoStart == AutoStart::Marker)
 			ftp.rename(from + ".auto_start", to + ".auto_start");
+		if(copy.nested)
+			ftp.rename(from + ".json", to + ".json");
 		if(copy.autoStart == AutoStart::List || copy.autoStart == AutoStart::Ini)
 		{
 			std::string text;

@@ -165,8 +165,8 @@ The console's files. Needs FTP.
 
 | Action | Does |
 |---|---|
-| Path field, ↑, ⟳ | Where you are; one level up; list again. |
-| Pinned folders (tags) | Click: opens it. ✕: removes it from the top. **Pin this folder** pins the one that is open (also *Pin to the top* in a folder's menu). They start as `/data/`, `/data/pkg/`, `/data/GoldHEN/`, `/user/app/`, `/mnt/usb0/` and are kept in the settings. |
+| Path field, ↑, ⟳ | Where you are; one level up; list again. A folder the console does not have (the PS4's `/data/pkg/` on a PS5) opens the nearest one up that it has, and the status line says so. |
+| Pinned folders (tags) | Click: opens it. ✕: removes it from the top. **Pin this folder** pins the one that is open (also *Pin to the top* in a folder's menu). A PS4 and a PS5 each keep their own, in the settings: a PS4's start as `/data/`, `/data/pkg/`, `/data/GoldHEN/`, `/user/app/`, `/mnt/usb0/`; a PS5's as `/data/`, `/data/etaHEN/`, `/data/homebrew/`, `/mnt/usb0/`, `/mnt/ext0/`. |
 | One click on a folder | Opens it. |
 | One click on a file, or ⋮, or right click | The file's menu. |
 | 🗑 | Deletes on the console (asks first). |
@@ -336,9 +336,11 @@ the header says so. Each app's icon is downloaded once.
 | Search · chips | Search by name, author or title ID · All, by kind (apps, games, tools…), **Installed**, **Updates**. |
 | A card | Icon, name, author, version, size, and **Installed** / **Update** / **Coming soon**. A click opens it. |
 | The app's window | What it is (description), version, size, title ID, date, licence; **On the console**: whether it stays in the app sandbox, uses the network, starts helper payloads (as the catalog's scan found); **What's new**; links to its source code, catalog page and release. |
-| **Install on <PS5>** · **Update on <PS5>** · **Install again** | Downloads the app's ZIP, checks it against the catalog's SHA-256 (a mismatch is not installed), copies its folder to a staging folder on the PS5 (`/data/orbislink/staging`), sets everything in it to 777 (the console starts an app only then: CE-107750-0 otherwise; a server that cannot is said so), then moves it to `/data/homebrew/<TITLE ID>`. An update keeps the copy it replaces in `/data/orbislink/previous/<TITLE ID>`, and what the user put in the app's folder — games, saves, settings: what the new archive does not have — moves on into the new folder, as copying the new version over the old one would keep it. ShadowMountPlus puts it on the home screen: at once when its API lets the network in, else at its next scan. |
+| **Install on <PS5>** · **Update on <PS5>** · **Install again** | Downloads the app's ZIP, checks it against the catalog's SHA-256 (a mismatch is not installed), copies its folder to a staging folder on the PS5 (`/data/orbislink/staging`), sets everything in it to 777 (the console starts an app only then: CE-107750-0 otherwise; a server that cannot is said so), then moves it to `/data/homebrew/<TITLE ID>`. An update keeps the copy it replaces in `/data/orbislink/previous/<TITLE ID>`, and what the user put in the app's folder — games, saves, settings: what the new archive does not have — moves on into the new folder, as copying the new version over the old one would keep it. ShadowMountPlus puts it on the home screen: at once when its API lets the network in, else at its next scan (every 15 seconds). |
+| **Not on the home screen?** (an installed app) | Reads ShadowMountPlus's log on the PS5 (`/data/shadowmount/debug.log`, over FTP) and says what it did with the app: registered it, saw it while it was still changing, could not read its `param.json`, had it refused by the console (with the code), gave up after failed tries, kept another copy with the same title ID, or never saw it (not running, or no log); the log lines about it are shown. It also asks ShadowMountPlus to look again, retrying what it gave up on — when its API lets the network in. Every install asks the same. |
 | **Remove** | Asks ShadowMountPlus to uninstall it (when its API lets the network in), then deletes its folder. Its saves stay. Without the API, its icon goes when ShadowMountPlus removes missing games, or by deleting it on the console. |
-| **Cancel** | Stops an install under way; nothing in place changes. |
+| Progress | On the card and at the foot of the app's window: the stage (downloading, copying to the PS5, putting it in place), the percentage, the speed over the last seconds, and how much of how much. The copy counts the app's files as they reach the PS5. |
+| **Cancel** | Stops an install under way, mid-file too; nothing in place changes. |
 
 No package is built: on the PS5 the app folder is the install, which is why
 apps the catalog offers only as disc images are listed but not installed.
@@ -358,6 +360,7 @@ the autoloader's.
 | PS4 | `/data/GoldHEN/plugins` | `.prx` plugins. | Loads with every game: its line in `[default]` of `/data/GoldHEN/plugins.ini` says `=true` (the per-game sections are left alone). |
 | PS5 | `/data/etaHEN/payloads`, `/data/etaHEN/plugins` | etaHEN's payloads (`.elf`) and plugins (`.plugin`). | Starts when etaHEN loads: a `<name>.auto_start` file sits next to it, which is how etaHEN marks it. |
 | PS5 | `/data/ps5_autoloader` | The autoloader's files. | Listed in its `autoload.txt` (one file name per line, in order; `!<ms>` lines wait between them). Switching one off takes its wait out with it. |
+| PS5 | `/data/pldmgr/payloads` | PLK's Payload Manager (PLDMGR): a folder per payload, a `.json` of its details beside each file (added files get a folder of their own; deleting or renaming takes the `.json` along). | Listed in `/data/pldmgr/autoload.txt`, the same format: it starts when the Payload Manager loads. |
 
 | Item | Does |
 |---|---|
@@ -368,7 +371,7 @@ the autoloader's.
 | Switch (each file) | Whether it starts by itself, as the table above says. |
 | ▶ | Runs that payload now: fetched from the console and sent to its loader port. |
 | ⬇ · ✎ · 🗑 | Downloads it to this PC's downloads folder · renames it (its auto-start follows: the marker, its line in `autoload.txt` or `plugins.ini`) · deletes it, with its auto-start, after asking. |
-| **Settings files** · **Edit** | `/data/GoldHEN/plugins.ini` (PS4); `/data/etaHEN/config.ini` and `/data/ps5_autoloader/autoload.txt` (PS5), opened as text; **Save on the console** writes it back (a file not there yet is made). |
+| **Settings files** · **Edit** | `/data/GoldHEN/plugins.ini` (PS4); `/data/etaHEN/config.ini`, `/data/ps5_autoloader/autoload.txt`, `/data/pldmgr/autoload.txt` and `/data/pldmgr/pldmgr_config.txt` (PS5), opened as text; **Save on the console** writes it back (a file not there yet is made). |
 | **What the console answered** | What a payload sent prints, as the PS5's ELF loader passes it back (GoldHEN's BinLoader says nothing); **Clear** empties it. |
 
 Without FTP the page says so; payloads from this PC can still be sent.

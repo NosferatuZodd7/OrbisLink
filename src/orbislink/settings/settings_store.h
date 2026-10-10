@@ -75,9 +75,12 @@ struct Settings
 	// Installation
 	TransferMode defaultMode = TransferMode::DirectInstall;
 	std::string ftpUploadDirectory = "/data/pkg/";
-	// The folders pinned at the top of the Files tab, in order.
+	// The folders pinned at the top of the Files tab, in order: a PS4's
+	// and a PS5's, which keep things in different places.
 	std::vector<std::string> ftpPinnedFolders { "/data/", "/data/pkg/", "/data/GoldHEN/", "/user/app/",
 		"/mnt/usb0/" };
+	std::vector<std::string> ftpPinnedFoldersPs5 { "/data/", "/data/etaHEN/", "/data/homebrew/",
+		"/mnt/usb0/", "/mnt/ext0/" };
 	bool checkAlreadyInstalled = true;
 	bool installAfterUpload = false;
 	// After uploading via FTP and installing, delete the copy on the

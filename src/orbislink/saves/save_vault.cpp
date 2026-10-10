@@ -1258,7 +1258,7 @@ std::string SaveVault::gameTitle(SaveRemote *remote, const std::string &titleId)
 {
 	const std::string dir = joinPath(joinPath(root_, ".cache"), "games");
 	const std::string local = joinPath(dir, titleId + ".sfo");
-	if(fileSize(local) <= 0 && remote)
+	if(fileSize(local) <= 0 && remote && !missingMeta_.count(titleId + ".sfo"))
 	{
 		ensureDir(dir);
 		std::string error;
@@ -1266,6 +1266,7 @@ std::string SaveVault::gameTitle(SaveRemote *remote, const std::string &titleId)
 		{
 			std::error_code ignored;
 			fs::remove(fs::u8path(local), ignored);
+			missingMeta_.insert(titleId + ".sfo");
 		}
 	}
 	std::vector<uint8_t> data;
@@ -1319,7 +1320,7 @@ std::string SaveVault::gameIcon(SaveRemote *remote, const std::string &titleId)
 	const std::string local = joinPath(dir, titleId + ".png");
 	if(fileSize(local) > 0)
 		return local;
-	if(!remote)
+	if(!remote || missingMeta_.count(titleId + ".png"))
 		return std::string();
 	ensureDir(dir);
 	std::string error;
@@ -1327,6 +1328,7 @@ std::string SaveVault::gameIcon(SaveRemote *remote, const std::string &titleId)
 	{
 		std::error_code ignored;
 		fs::remove(fs::u8path(local), ignored);
+		missingMeta_.insert(titleId + ".png");
 		return std::string();
 	}
 	return local;

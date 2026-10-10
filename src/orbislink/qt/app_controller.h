@@ -113,6 +113,9 @@ public:
 	bool canUseFtp() const;
 	// The console in use is a PS5 (by the type that was stored).
 	bool activeIsPs5() const;
+	// The Files tab's pinned folders of the console in use: a PS4's or a PS5's.
+	std::vector<std::string> &pinnedFolders();
+	const std::vector<std::string> &pinnedFolders() const;
 	// The FTP port of the console in use (the PS4 one or the PS5 one).
 	uint16_t activeFtpPort() const;
 	// The Account ID of the console in use, or the last accepted one if it
