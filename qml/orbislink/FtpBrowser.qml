@@ -574,6 +574,15 @@ Item {
             onTriggered: app.setFtpUploadDirectory(rowMenu.targetPath)
         }
         StyledMenuItem {
+            // A package already on a PS5 installs from there, as it is.
+            text: qsTr("Install on the console")
+            iconName: "package"
+            visible: app.installsFromConsole && !rowMenu.targetIsDirectory
+                     && rowMenu.targetName.toLowerCase().endsWith(".pkg")
+            height: visible ? implicitHeight : 0
+            onTriggered: app.installFromConsole(rowMenu.targetPath)
+        }
+        StyledMenuItem {
             text: qsTr("Download to the desktop")
             iconName: "download"
             enabled: !app.downloadActive

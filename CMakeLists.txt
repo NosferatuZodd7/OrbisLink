@@ -66,6 +66,7 @@ add_library(orbislink_core STATIC
 	src/orbislink/net/http_client.cpp
 	src/orbislink/net/net_utils.cpp
 	src/orbislink/net/payload_sender.cpp
+	src/orbislink/payloads/payload_catalog.cpp
 	src/orbislink/payloads/payload_layout.cpp
 	src/orbislink/net/socket_compat.cpp
 	src/orbislink/pkg/pkg_inspector.cpp

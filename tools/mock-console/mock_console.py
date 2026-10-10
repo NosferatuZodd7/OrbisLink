@@ -33,6 +33,7 @@ import sys
 import tempfile
 import threading
 import time
+import urllib.parse
 import urllib.request
 
 # ---------------------------------------------------------------- FTP
@@ -477,6 +478,11 @@ class InstallerState:
 class InstallerApiHandler(http.server.BaseHTTPRequestHandler):
     state: InstallerState = None  # type: ignore[assignment]
     protocol_version = "HTTP/1.1"
+    # Answers like etaHEN's DPI v2 (PS5) instead of Remote Package Installer.
+    dpi_v2 = False
+    root = ""
+    # Paths on the console DPI v2 was asked to install.
+    installed_paths: list[str] = []
 
     def log_message(self, *args) -> None:  # silences the per-line log
         pass
@@ -494,11 +500,50 @@ class InstallerApiHandler(http.server.BaseHTTPRequestHandler):
         # Real format: hexadecimal without quotes (deliberately not valid JSON).
         self._reply('{ "status": "fail", "error_code": 0x%08X }' % code)
 
+    def _text(self, body: str, content_type: str = "text/plain") -> None:
+        payload = body.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(payload)
+
     def do_GET(self) -> None:  # noqa: N802
+        if InstallerApiHandler.dpi_v2:
+            self._text("<!DOCTYPE html><html><head><title>etaHEN DPIv2</title></head></html>", "text/html")
+            return
         self._reply('{ "status": "success" }')
+
+    def _dpi_v2_post(self, raw: str) -> None:
+        # A form with "url": an http:// address or a path on the console.
+        if "application/x-www-form-urlencoded" not in self.headers.get("Content-Type", ""):
+            # A JSON request is dropped without a reply, as libmicrohttpd does.
+            self.close_connection = True
+            return
+        fields = urllib.parse.parse_qs(raw)
+        url = (fields.get("url") or [""])[0]
+        if not url:
+            self._text("No data received")
+            return
+        if url.startswith("http://") or url.startswith("https://"):
+            InstallerApiHandler.state.start_install([url])
+        else:
+            local = os.path.join(InstallerApiHandler.root, url.lstrip("/"))
+            if not os.path.isfile(local):
+                code = 0x8099001B  # SCE_BGFT_ERROR_PARAM_URI_NOENT
+                self._text("FAILED: Install failed with error SCE_BGFT_ERROR_PARAM_URI_NOENT, code %d "
+                           "(0x%X) for URL: %s" % (code - (1 << 32), code, url))
+                return
+            InstallerApiHandler.installed_paths.append(url)
+            print(f"DPI v2: installing {url}", flush=True)
+        self._text(f"SUCCESS: Direct install console Task started for URL: {url}")
 
     def do_POST(self) -> None:  # noqa: N802
         length = int(self.headers.get("Content-Length", "0"))
+        if InstallerApiHandler.dpi_v2:
+            self._dpi_v2_post(self.rfile.read(length).decode("utf-8") if length else "")
+            return
         raw = self.rfile.read(length).decode("utf-8") if length else "{}"
         try:
             request = json.loads(raw)
@@ -711,6 +756,8 @@ def main() -> int:
                         help="state the fake console reports")
     parser.add_argument("--loader-port", type=int, default=0, metavar="PORT",
                         help="takes payloads on this port and answers like the PS5's ELF loader")
+    parser.add_argument("--dpi-v2", action="store_true",
+                        help="answer on the API port like etaHEN's DPI v2 (PS5)")
     parser.add_argument("--print-ports", action="store_true",
                         help="prints the chosen ports as JSON and keeps running")
     arguments = parser.parse_args()
@@ -727,6 +774,8 @@ def main() -> int:
     ftp.start()
 
     InstallerApiHandler.state = InstallerState(downloads, chunk_delay=arguments.slow)
+    InstallerApiHandler.dpi_v2 = arguments.dpi_v2
+    InstallerApiHandler.root = root
     api = ThreadingHttpServer((arguments.host, arguments.api_port), InstallerApiHandler)
     api_thread = threading.Thread(target=api.serve_forever, daemon=True)
     api_thread.start()

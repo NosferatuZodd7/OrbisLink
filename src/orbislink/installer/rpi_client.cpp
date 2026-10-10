@@ -9,6 +9,7 @@
 #include "orbislink/net/http_client.h"
 
 #include <chrono>
+#include <cstdlib>
 #include <thread>
 
 namespace orbislink {
@@ -42,8 +43,74 @@ bool RpiClient::probe(std::string *detail)
 	return false;
 }
 
+RpiClient::Protocol RpiClient::protocol()
+{
+	if(!config_.ps5)
+		return Protocol::Rpi;
+	const int known = protocol_.load();
+	if(known != static_cast<int>(Protocol::Unknown))
+		return static_cast<Protocol>(known);
+
+	// Remote Package Installer's API answers JSON; DPI v2 drops a JSON
+	// request and shows its page at "/".
+	HttpClient client(config_.timeoutMs < 4000 ? config_.timeoutMs : 4000);
+	const HttpResponse api = client.post(endpoint() + "/api/is_exists", R"({ "title_id": "CUSA00000" })");
+	if(api.transportOk && Json::parse(api.body).isObject())
+	{
+		protocol_.store(static_cast<int>(Protocol::Rpi));
+		return Protocol::Rpi;
+	}
+	const HttpResponse page = client.get(endpoint() + "/");
+	if(page.transportOk && page.body.find("DPIv2") != std::string::npos)
+	{
+		logInfo("Installer: etaHEN's DPI v2 answers on " + endpoint() + ".");
+		protocol_.store(static_cast<int>(Protocol::DpiV2));
+		return Protocol::DpiV2;
+	}
+	// Nothing told apart (or nothing answered): asked again next time.
+	return Protocol::Rpi;
+}
+
+InstallerResult RpiClient::installDpiV2(const std::string &url)
+{
+	HttpClient client(config_.timeoutMs);
+	const HttpResponse response =
+		client.post(endpoint() + "/", "url=" + urlEncodePath(url), "application/x-www-form-urlencoded");
+	if(!response.transportOk)
+	{
+		protocol_.store(static_cast<int>(Protocol::Unknown));
+		return InstallerResult::failure(
+			std::string(QT_TRANSLATE_NOOP("Messages",
+				"Remote installer unavailable. Open Remote Package Installer on the console."))
+			+ " (" + response.error + ")");
+	}
+	InstallerResult result;
+	result.httpStatus = response.status;
+	result.rawBody = response.body;
+	if(startsWith(response.body, "SUCCESS"))
+	{
+		result.ok = true;
+		return result;
+	}
+	// "FAILED: Install failed with error <name>, code <n> (0x<hex>) for …"
+	const size_t hex = response.body.find("(0x");
+	if(hex != std::string::npos)
+	{
+		result.errorCode = static_cast<uint32_t>(std::strtoul(response.body.c_str() + hex + 3, nullptr, 16));
+		result.message = describeConsoleError(result.errorCode);
+	}
+	else
+		result.message = QT_TRANSLATE_NOOP("Messages", "The remote installer rejected the request.");
+	logError("Remote installer (DPI v2): " + url + " -> " + response.body.substr(0, 200));
+	return result;
+}
+
 InstallerResult RpiClient::call(const std::string &path, const std::string &jsonBody, std::string *body)
 {
+	if(protocol() == Protocol::DpiV2)
+		return InstallerResult::failure(QT_TRANSLATE_NOOP("Messages",
+			"etaHEN's DPI v2 only starts installs: this is not something it does."));
+
 	HttpClient client(config_.timeoutMs);
 	const std::string url = endpoint() + path;
 
@@ -64,6 +131,7 @@ InstallerResult RpiClient::call(const std::string &path, const std::string &json
 
 	if(!response.transportOk)
 	{
+		protocol_.store(static_cast<int>(Protocol::Unknown));
 		return InstallerResult::failure(
 			std::string(QT_TRANSLATE_NOOP("Messages",
 				"Remote installer unavailable. Open Remote Package Installer on the console."))
@@ -117,6 +185,21 @@ InstallerResult RpiClient::installDirect(const std::vector<std::string> &package
 {
 	if(packageUrls.empty())
 		return InstallerResult::failure(QT_TRANSLATE_NOOP("Messages", "No package given to install."));
+
+	if(protocol() == Protocol::DpiV2)
+	{
+		// One install per request; no task to follow.
+		InstallerResult result = InstallerResult::success();
+		for(const std::string &url : packageUrls)
+		{
+			result = installDpiV2(url);
+			if(!result.ok)
+				break;
+		}
+		if(handle)
+			handle->taskId = -1;
+		return result;
+	}
 
 	Json request = Json::makeObject();
 	request.set("type", Json::fromString("direct"));

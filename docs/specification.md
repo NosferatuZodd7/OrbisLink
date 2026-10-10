@@ -117,6 +117,14 @@ timeout; 3 attempts with 1 s, 2 s and 4 s back-off. Errors described by
 [`error_codes.md`](error_codes.md); unknown codes are shown in hexadecimal.
 `IInstallerBackend` allows other installers.
 
+On a PS5 the port may be etaHEN's DPI v2 instead (`Source Code/util/source/
+DirectPKGInstaller.cpp` in etaHEN): a POST with the form field `url` — an
+http:// address or a path on the console — answered `SUCCESS: …` or
+`FAILED: … (0x8099…)` in plain text; a JSON request is dropped. The client
+asks once (`/api/is_exists` as JSON, then the page at `/`, whose title says
+DPI v2) and speaks whichever answers. DPI v2 reports no progress: a direct
+install is then followed by the bytes the local HTTP server has served.
+
 ### 5.5 FtpClient
 
 libcurl, anonymous, passive. List (tolerant parser for Unix-style and

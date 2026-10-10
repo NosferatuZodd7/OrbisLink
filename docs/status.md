@@ -34,9 +34,10 @@ Last review: v1.1.0.
 | ✅ | Dragging files and folders onto the window (looks for .pkg files inside) |
 | ✅ | Choosing between installing and uploading over FTP when dropping |
 | 🟡 | A 10 GB+ install on a real console |
-| ✅ | Installing automatically after the FTP upload (the file stays on the console and is installed from the PC, because the installer only downloads over HTTP) |
+| ✅ | Installing automatically after the FTP upload (on a PS4 the file stays on the console and is installed from the PC, because the installer only downloads over HTTP; on a PS5 it is installed by its path there) |
 | ✅ | Deleting the uploaded copy from the console after installing |
-| 🟡 | Installing on a PS5 through etaHEN's DPI v2 (same API as the PS4 installer; not yet confirmed on a real PS5) |
+| 🟡 | Installing on a PS5 through etaHEN's DPI v2: its own protocol (a form with `url`, a path on the console or an http:// address; a text reply), told apart from Remote Package Installer's JSON API by asking; checked against etaHEN's source and the fake console, not yet on a real PS5 |
+| ✅ | Error 0x80990015 (a task left by an earlier try): the task is removed and the install asked again |
 
 ## 2. FTP
 

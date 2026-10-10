@@ -159,6 +159,21 @@ Send, Install — instead of separate queue cards (see *PS1/PS2 Games*);
 closing it takes its finished queue tasks along. A package sent and then
 installed is one card too (the install's). The tab's number counts cards.
 
+Installs and removals from the **Homebrew store** have their cards here too,
+under *Homebrew store*: the app's icon, the PS5, the stage, the bar, the
+percentage, the speed, how much of how much and the time left; ✕ cancels one
+under way or removes a finished one, **Clear finished** clears them all.
+
+On a PS5 whose installer is etaHEN's **DPI v2** (it only starts installs and
+reports nothing back), a direct install is followed by what the PC has served:
+the card is done once the console has taken the whole package, and the
+console finishes the install on its own (its notifications show it).
+
+A task the console still keeps from an earlier try (error 0x80990015,
+*TASK_DUPLICATED*) is removed and the install asked for again, when the
+installer can find it (Remote Package Installer's API); otherwise the card
+says to delete it from the console's Downloads list.
+
 ### Files (FTP) tab
 
 The console's files. Needs FTP.
@@ -174,7 +189,8 @@ The console's files. Needs FTP.
 | Drag a file out of the window | Copies it to where it is dropped (a file over 64 MB is fetched first with *Get it ready to drag*). |
 | New folder + **Create** | Makes a folder here. |
 
-Row menu: Open · Pin to the top / Remove from the top (folders) · Use as the upload folder · Download to the desktop ·
+Row menu: Open · Pin to the top / Remove from the top (folders) · **Install on the console** (a `.pkg` on a
+PS5: installed from where it is, as Prospero Manager's *already on the PS5* does) · Use as the upload folder · Download to the desktop ·
 Download to… (files and whole folders) · Get it ready to drag · Show the local
 copy · Copy the path · Rename… · **Move to…** (a folder tree of the console:
 quick access on the left, folders that open on the right, **New folder**,
@@ -186,8 +202,13 @@ Dragging `.pkg` files (or folders with them) over the window shows two zones:
 
 | Zone | Does | Needs |
 |---|---|---|
-| **Send over FTP** | Copies them to the folder the Files tab is in. | FTP |
+| **Send over FTP** | Copies them to the folder the Files tab is in. Any other file dropped (a disc image for the USB drive, a payload) is copied as it is; only a damaged `.pkg` is turned away. | FTP |
 | **Install directly** | The console downloads them from this PC and installs. | Installer |
+
+On a PS5, a package sent with *install after sending* (and a converted game's
+**Send and install**) is installed from where it was put, by its path on the
+console — nothing is sent twice. If the console's installer does not take a
+path, it is installed from this PC instead.
 
 If a file with the same name is already on the console: **Replace**,
 **Keep both** (new name) or **Skip**.
@@ -337,9 +358,10 @@ the header says so. Each app's icon is downloaded once.
 | A card | Icon, name, author, version, size, and **Installed** / **Update** / **Coming soon**. A click opens it. |
 | The app's window | What it is (description), version, size, title ID, date, licence; **On the console**: whether it stays in the app sandbox, uses the network, starts helper payloads (as the catalog's scan found); **What's new**; links to its source code, catalog page and release. |
 | **Install on <PS5>** · **Update on <PS5>** · **Install again** | Downloads the app's ZIP, checks it against the catalog's SHA-256 (a mismatch is not installed), copies its folder to a staging folder on the PS5 (`/data/orbislink/staging`), sets everything in it to 777 (the console starts an app only then: CE-107750-0 otherwise; a server that cannot is said so), then moves it to `/data/homebrew/<TITLE ID>`. An update keeps the copy it replaces in `/data/orbislink/previous/<TITLE ID>`, and what the user put in the app's folder — games, saves, settings: what the new archive does not have — moves on into the new folder, as copying the new version over the old one would keep it. ShadowMountPlus puts it on the home screen: at once when its API lets the network in, else at its next scan (every 15 seconds). |
+| After an install | ShadowMountPlus is asked to look at once (its API); when its API does not let the network in, ShadowMountPlus is **started again**: its file on the console (etaHEN's payloads or plugins, the autoloader, PLDMGR), else the payload library's, goes to the ELF loader (9021). A new ShadowMountPlus asks the one running to stop and scans everything at once. |
 | **Not on the home screen?** (an installed app) | Reads ShadowMountPlus's log on the PS5 (`/data/shadowmount/debug.log`, over FTP) and says what it did with the app: registered it, saw it while it was still changing, could not read its `param.json`, had it refused by the console (with the code), gave up after failed tries, kept another copy with the same title ID, or never saw it (not running, or no log); the log lines about it are shown. It also asks ShadowMountPlus to look again, retrying what it gave up on — when its API lets the network in. Every install asks the same. |
 | **Remove** | Asks ShadowMountPlus to uninstall it (when its API lets the network in), then deletes its folder. Its saves stay. Without the API, its icon goes when ShadowMountPlus removes missing games, or by deleting it on the console. |
-| Progress | On the card and at the foot of the app's window: the stage (downloading, copying to the PS5, putting it in place), the percentage, the speed over the last seconds, and how much of how much. The copy counts the app's files as they reach the PS5. |
+| Progress | On the card, at the foot of the app's window and as a card in the Queue tab: the stage (downloading, copying to the PS5, putting it in place, starting ShadowMountPlus again), the percentage, the speed over the last seconds, how much of how much and the time left. The copy counts the app's files as they reach the PS5. |
 | **Cancel** | Stops an install under way, mid-file too; nothing in place changes. |
 
 No package is built: on the PS5 the app folder is the install, which is why
@@ -373,8 +395,28 @@ the autoloader's.
 | ⬇ · ✎ · 🗑 | Downloads it to this PC's downloads folder · renames it (its auto-start follows: the marker, its line in `autoload.txt` or `plugins.ini`) · deletes it, with its auto-start, after asking. |
 | **Settings files** · **Edit** | `/data/GoldHEN/plugins.ini` (PS4); `/data/etaHEN/config.ini`, `/data/ps5_autoloader/autoload.txt`, `/data/pldmgr/autoload.txt` and `/data/pldmgr/pldmgr_config.txt` (PS5), opened as text; **Save on the console** writes it back (a file not there yet is made). |
 | **What the console answered** | What a payload sent prints, as the PS5's ELF loader passes it back (GoldHEN's BinLoader says nothing); **Clear** empties it. |
+| **Order and waits…** (the autoloader, PLDMGR) | The autoload list as steps: ↑ ↓ change the order, *wait … ms* is the pause before that one (`!<ms>` in the file; 1000 is one second), ✕ takes it out of the list, **Add a file from the folder** puts one at the end. **Save on the console** writes the list back; comment lines in it stay at the top. |
+
+A PLDMGR payload's version, from its `.json`, shows beside its name.
 
 Without FTP the page says so; payloads from this PC can still be sent.
+
+### Library (PS5)
+
+The community's PS5 payloads: the list PLK's Payload Manager reads
+(itsPLK/ps5-payloads-mirror), each payload's latest release mirrored, with
+its SHA-256 and where it comes from. The list is read when the tab first
+opens (⟳ reads it again) and kept: when the site does not answer, the last
+one is shown and said so. A payload is downloaded once to this PC and used
+only if its SHA-256 matches the list.
+
+| Item | Does |
+|---|---|
+| Search · chips | By name or description · All, by category, **Installed**, **Updates**. |
+| A row | Name, version, description, category and date; **Installed**, or **Update: v1.10 → v1.11** when a copy on the console is older (its version from PLDMGR's `.json`, else from its file name). *in …* says which folders have it. |
+| ↗ | Its author's page. |
+| ▶ | Runs it now, without installing it: downloaded (or this PC's copy) and sent to the loader port for it (ELF 9021, `.bin` 9020). What it prints shows above the list. |
+| **Install…** · **Update…** · **Install again…** | Puts it in a folder on the console: etaHEN's payloads, the autoloader or PLDMGR (in PLDMGR, in a folder of its name with the same `.json` PLDMGR writes). An older copy in that folder is replaced, and whether it started by itself carries over (its marker, or its place in `autoload.txt`). Needs FTP. |
 
 ## Settings
 
@@ -403,6 +445,8 @@ Without FTP the page says so; payloads from this PC can still be sent.
 | Homebrew store: install, update, remove | a PS5 | yes | — | — |
 | Payloads: see, add, rename, delete, auto-start, edit settings | yes | yes | — | — |
 | Payloads: run one now | yes | to run one from the console | — | — |
+| Payloads library: look, run one now | internet | — | — | — |
+| Payloads library: install, update | yes | yes | — | — |
 
 ## Where it lives in the code
 

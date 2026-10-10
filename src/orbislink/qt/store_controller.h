@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #pragma once
 
+#include "orbislink/ftp/ftp_client.h"
 #include "orbislink/store/store_catalog.h"
 
 #include <QObject>
@@ -62,6 +63,11 @@ class StoreController : public QObject
 	// "settling", "bad-metadata", "failed", "gave-up", "duplicate",
 	// "not-seen", "no-log", "no-ftp"), code, lines, rescanned }.
 	Q_PROPERTY(QVariantMap homeCheck READ homeCheck NOTIFY homeCheckChanged)
+	// The installs and removals of this session, for the queue panel, the
+	// latest first: [{ id, titleId, name, icon, kind ("install"/"remove"),
+	// state ("working"/"done"/"error"/"cancelled"), stageText, percent,
+	// speedText, amountText, etaText, message }].
+	Q_PROPERTY(QVariantList jobs READ jobs NOTIFY jobsChanged)
 
 public:
 	explicit StoreController(AppController *app, QObject *parent = nullptr);
@@ -82,6 +88,7 @@ public:
 	QString targetName() const;
 	bool canInstall() const;
 	QVariantMap homeCheck() const { return homeCheck_; }
+	QVariantList jobs() const { return jobs_; }
 
 	// Reads the catalog again, and what the PS5 has installed.
 	Q_INVOKABLE void refresh();
@@ -97,6 +104,8 @@ public:
 	// Reads ShadowMountPlus's log on the PS5 for this app (homeCheck), and
 	// asks it to look again, retrying what it gave up on.
 	Q_INVOKABLE void checkHomeScreen(const QString &titleId);
+	Q_INVOKABLE void removeJob(const QString &id);
+	Q_INVOKABLE void clearFinishedJobs();
 
 signals:
 	void appsChanged();
@@ -105,6 +114,7 @@ signals:
 	void progressChanged();
 	void consolesChanged();
 	void homeCheckChanged();
+	void jobsChanged();
 	// The outcome of an install or a removal, for a notice.
 	void finished(const QString &message, bool error);
 
@@ -115,13 +125,19 @@ private:
 	};
 	void publish();
 	void readInstalled(const std::string &address);
-	void startWork(const QString &titleId, const QString &what, std::function<void()> work);
+	void startWork(const QString &titleId, const QString &what, const QString &kind, std::function<void()> work);
+	// The job under way takes these fields.
+	void updateJob(const QVariantMap &fields);
 	// From the worker: the stage and its bytes (total 0 when it has none).
 	void setProgress(const QString &stage, int64_t done, int64_t total);
 	void resetProgress();
 	std::string cacheDir() const;
 	// ShadowMountPlus's API on the PS5, when it lets the network in.
 	bool askShadowMount(const std::string &address, const std::string &route, const std::string &body) const;
+	// ShadowMountPlus started again, which also scans everything at once (a
+	// new copy hands over from the one running): its file from the console,
+	// else from the payload library, to the ELF loader. On the worker.
+	bool restartShadowMount(const FtpClient::Config &config, const std::string &address) const;
 
 	AppController *app_;
 	std::unique_ptr<store::StoreCatalog> catalog_;
@@ -155,6 +171,8 @@ private:
 	std::thread worker_;
 	QVariantMap homeCheck_;
 	std::thread checker_;
+	QVariantList jobs_;
+	QString jobId_;
 };
 
 } // namespace orbislink

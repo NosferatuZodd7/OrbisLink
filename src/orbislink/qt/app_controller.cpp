@@ -189,6 +189,7 @@ void AppController::rebuildBackends()
 	RpiClient::Config rpiConfig;
 	rpiConfig.host = settings_.consoleAddress;
 	rpiConfig.port = settings_.installerPort;
+	rpiConfig.ps5 = activeIsPs5();
 	installer_ = std::make_unique<RpiClient>(rpiConfig);
 
 	FtpClient::Config ftpConfig;
@@ -1199,6 +1200,30 @@ void AppController::enqueueFiles(const QStringList &files, TransferMode transfer
 	// Uploads and installs alike are followed in the queue, with their
 	// bars; the file list keeps showing the console's folders.
 	emit showPanel(QStringLiteral("queue"));
+}
+
+void AppController::installFromConsole(const QString &remotePath)
+{
+	if(!installer_ || remotePath.isEmpty())
+		return;
+	const RpiClient::Config config = installer_->config();
+	const QString name = QFileInfo(remotePath).fileName();
+	setStatusMessage(tr("Asking the console to install %1…").arg(name));
+	std::thread([this, life = lifeline_, config, remotePath, name]() {
+		RpiClient installer(config);
+		InstallTaskHandle handle;
+		const InstallerResult started = installer.installDirect({ remotePath.toStdString() }, &handle);
+		if(started.ok)
+			logInfo("Installing " + remotePath.toStdString() + " on the console.");
+		const QString message = started.ok
+			? tr("%1: the console is installing it. Follow it in its notifications.").arg(name)
+			: tr("%1 was not installed: %2").arg(name, translateMessage(started.message));
+		const bool failed = !started.ok;
+		life->post([this, message, failed]() {
+			setStatusMessage(message);
+			emit notify(tr("Install"), message, failed);
+		});
+	}).detach();
 }
 
 void AppController::sendAndInstall(const QString &pkg, const QString &directory)

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "orbislink/common/util.h"
 #include "orbislink/http/local_http_server.h"
+#include "orbislink/installer/error_codes.h"
+#include "orbislink/net/http_client.h"
 #include "orbislink/queue/install_queue.h"
 #include "test_fixtures.h"
 #include "test_support.h"
@@ -24,6 +26,15 @@ public:
 	std::atomic<bool> available { true };
 	std::atomic<bool> alreadyInstalled { false };
 	std::atomic<int> failWithCode { 0 };
+	// The first installs answer "task duplicated", as when an earlier try
+	// left its task in the console's downloads.
+	std::atomic<int> duplicatedTimes { 0 };
+	// What find_task answers (-1: no such task).
+	std::atomic<int> staleTask { -1 };
+	std::atomic<int> unregisterCalls { 0 };
+	std::string foundFor;
+	// Like etaHEN's DPI v2: starts installs and says nothing more.
+	std::atomic<bool> onlyStarts { false };
 	std::atomic<int> installCalls { 0 };
 	std::atomic<int> stopCalls { 0 };
 	std::atomic<int64_t> totalBytes { 0 };
@@ -44,6 +55,14 @@ public:
 	{
 		if(!available.load())
 			return InstallerResult::failure("Remote installer unavailable. Open Remote Package Installer on the console.");
+		if(duplicatedTimes.load() > 0)
+		{
+			--duplicatedTimes;
+			InstallerResult result;
+			result.errorCode = kBgftTaskDuplicated;
+			result.message = describeConsoleError(kBgftTaskDuplicated);
+			return result;
+		}
 		if(failWithCode.load() != 0)
 		{
 			InstallerResult result;
@@ -96,19 +115,25 @@ public:
 		return InstallerResult::success();
 	}
 
-	InstallerResult findTask(const std::string &, TaskSubType, int *) override
+	InstallerResult findTask(const std::string &contentId, TaskSubType, int *taskId) override
 	{
-		return InstallerResult::failure("not used");
+		if(staleTask.load() < 0)
+			return InstallerResult::failure("no such task");
+		foundFor = contentId;
+		if(taskId)
+			*taskId = staleTask.load();
+		return InstallerResult::success();
 	}
 	InstallerResult startTask(int) override { return InstallerResult::success(); }
 	InstallerResult stopTask(int) override { ++stopCalls; return InstallerResult::success(); }
 	InstallerResult pauseTask(int) override { return InstallerResult::success(); }
 	InstallerResult resumeTask(int) override { return InstallerResult::success(); }
-	InstallerResult unregisterTask(int) override { return InstallerResult::success(); }
+	InstallerResult unregisterTask(int) override { ++unregisterCalls; return InstallerResult::success(); }
 	InstallerResult uninstallGame(const std::string &) override { return InstallerResult::success(); }
 	InstallerResult uninstallPatch(const std::string &) override { return InstallerResult::success(); }
 	InstallerResult uninstallAdditionalContent(const std::string &) override { return InstallerResult::success(); }
 	InstallerResult uninstallTheme(const std::string &) override { return InstallerResult::success(); }
+	bool followsTasks() const override { return !onlyStarts.load(); }
 };
 
 struct PkgFile
@@ -217,6 +242,30 @@ ORBISLINK_TEST(refuses_invalid_files)
 	CHECK_EQ(rejected.size(), static_cast<size_t>(1));
 	CHECK(rejected[0].find("valid PS4 pkg") != std::string::npos);
 	removeTempFile(path);
+}
+
+ORBISLINK_TEST(copies_any_file_over_ftp_but_installs_only_packages)
+{
+	const std::string iso = writeTempFile("Some Game (Europe).iso", std::vector<uint8_t>(4096, 0x58));
+	PkgOptions broken;
+	broken.validMagic = false;
+	const std::string badPkg = writeTempFile("broken-copy.pkg", buildPkg(broken));
+
+	InstallQueue queue(InstallQueue::Dependencies {}, Settings {});
+	std::vector<std::string> rejected;
+	// Over FTP an ISO goes as it is; a broken .pkg is still turned away.
+	const auto ids = queue.enqueue({ iso, badPkg }, TransferMode::FtpUpload, &rejected);
+	CHECK_EQ(ids.size(), static_cast<size_t>(1));
+	CHECK_EQ(rejected.size(), static_cast<size_t>(1));
+	const auto tasks = queue.tasks();
+	CHECK_EQ(tasks.size(), static_cast<size_t>(1));
+	CHECK_EQ(tasks[0].title, baseName(iso));
+	CHECK(tasks[0].title.find("Some Game (Europe).iso") != std::string::npos);
+	CHECK_EQ(tasks[0].totalBytes, static_cast<int64_t>(4096));
+	// And never to be installed directly.
+	CHECK(queue.enqueue({ iso }, TransferMode::DirectInstall).empty());
+	removeTempFile(iso);
+	removeTempFile(badPkg);
 }
 
 ORBISLINK_TEST(direct_install_end_to_end)
@@ -348,6 +397,127 @@ ORBISLINK_TEST(pauses_the_queue_when_the_installer_goes_down)
 		return queue.task(id, &current) && current.state == TaskState::Completed;
 	}));
 	queue.stop();
+	server.stop();
+}
+
+ORBISLINK_TEST(removes_a_task_left_on_the_console_and_tries_again)
+{
+	PkgFile game("duplicated-game.pkg", gameOptions("CUSA00014", "Left Behind"));
+
+	LocalHttpServer server;
+	LocalHttpServer::Config config;
+	config.bindAddress = "127.0.0.1";
+	config.port = 0;
+	config.autoSelectPort = false;
+	CHECK(server.start(config, nullptr));
+
+	FakeInstaller installer;
+	installer.duplicatedTimes.store(1);
+	installer.staleTask.store(7);
+	installer.totalBytes.store(fileSize(game.path));
+
+	InstallQueue::Dependencies deps;
+	deps.httpServer = &server;
+	deps.installer = &installer;
+	Settings settings;
+	settings.checkAlreadyInstalled = false;
+
+	InstallQueue queue(deps, settings, fastTuning());
+	const std::string id = queue.enqueueOne(game.path, TransferMode::DirectInstall);
+	queue.start();
+	CHECK(waitFor([&]() {
+		QueueTask task;
+		return queue.task(id, &task) && task.isTerminal();
+	}));
+	queue.stop();
+
+	QueueTask task;
+	CHECK(queue.task(id, &task));
+	CHECK(task.state == TaskState::Completed);
+	CHECK_EQ(installer.foundFor, std::string("UP0001-CUSA00014_00-ORBISLINKTEST001"));
+	CHECK_EQ(installer.unregisterCalls.load(), 1);
+	CHECK_EQ(installer.installCalls.load(), 1);
+	server.stop();
+}
+
+ORBISLINK_TEST(says_what_to_do_when_the_left_task_cannot_be_found)
+{
+	PkgFile game("duplicated2-game.pkg", gameOptions("CUSA00015", "Still There"));
+
+	LocalHttpServer server;
+	LocalHttpServer::Config config;
+	config.bindAddress = "127.0.0.1";
+	config.port = 0;
+	config.autoSelectPort = false;
+	CHECK(server.start(config, nullptr));
+
+	FakeInstaller installer;
+	installer.duplicatedTimes.store(5);
+
+	InstallQueue::Dependencies deps;
+	deps.httpServer = &server;
+	deps.installer = &installer;
+	Settings settings;
+	settings.checkAlreadyInstalled = false;
+
+	InstallQueue queue(deps, settings, fastTuning());
+	const std::string id = queue.enqueueOne(game.path, TransferMode::DirectInstall);
+	queue.start();
+	CHECK(waitFor([&]() {
+		QueueTask task;
+		return queue.task(id, &task) && task.isTerminal();
+	}));
+	queue.stop();
+
+	QueueTask task;
+	CHECK(queue.task(id, &task));
+	CHECK(task.state == TaskState::Error);
+	CHECK_EQ(task.errorCode, kBgftTaskDuplicated);
+	CHECK(task.message.find("Downloads list") != std::string::npos);
+	CHECK_EQ(installer.unregisterCalls.load(), 0);
+	CHECK_EQ(installer.duplicatedTimes.load(), 4);
+	server.stop();
+}
+
+ORBISLINK_TEST(an_install_without_progress_is_followed_by_what_the_pc_serves)
+{
+	PkgFile game("served-game.pkg", gameOptions("CUSA00016", "Served Game"));
+
+	LocalHttpServer server;
+	LocalHttpServer::Config config;
+	config.bindAddress = "127.0.0.1";
+	config.port = 0;
+	config.autoSelectPort = false;
+	CHECK(server.start(config, nullptr));
+
+	FakeInstaller installer;
+	installer.onlyStarts.store(true);
+
+	InstallQueue::Dependencies deps;
+	deps.httpServer = &server;
+	deps.installer = &installer;
+	Settings settings;
+	settings.checkAlreadyInstalled = false;
+
+	InstallQueue queue(deps, settings, fastTuning());
+	const std::string id = queue.enqueueOne(game.path, TransferMode::DirectInstall);
+	queue.start();
+	CHECK(waitFor([&]() { return installer.installCalls.load() == 1; }));
+	// The console takes the whole package from the PC.
+	const HttpResponse taken = HttpClient(4000).get(installer.lastUrls.at(0));
+	CHECK(taken.transportOk);
+	CHECK_EQ(static_cast<int64_t>(taken.body.size()), fileSize(game.path));
+	CHECK(waitFor([&]() {
+		QueueTask task;
+		return queue.task(id, &task) && task.isTerminal();
+	}));
+	queue.stop();
+
+	QueueTask task;
+	CHECK(queue.task(id, &task));
+	CHECK(task.state == TaskState::Completed);
+	CHECK_EQ(task.doneBytes, task.totalBytes);
+	CHECK(task.message.find("notifications") != std::string::npos);
 	server.stop();
 }
 

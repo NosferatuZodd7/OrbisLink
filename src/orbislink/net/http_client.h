@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -38,6 +39,8 @@ public:
 	{
 		bool followRedirects = true;
 		std::vector<std::string> headers;
+		// Set: the request stops ("cancelled") once it turns true.
+		const std::atomic<bool> *cancel = nullptr;
 	};
 	HttpResponse fetch(const std::string &url, const FetchOptions &options) const;
 

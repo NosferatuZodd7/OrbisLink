@@ -5,12 +5,16 @@
 #include "orbislink/common/util.h"
 #include "orbislink/ftp/ftp_client.h"
 #include "orbislink/net/http_client.h"
+#include "orbislink/net/payload_sender.h"
+#include "orbislink/payloads/payload_layout.h"
 #include "orbislink/qt/app_controller.h"
+#include "orbislink/qt/payloads_controller.h"
 #include "orbislink/store/shadowmount_log.h"
 #include "orbislink/store/store_installer.h"
 #include "orbislink/update/sha256.h"
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QMetaObject>
@@ -126,6 +130,17 @@ StoreController::StoreController(AppController *app, QObject *parent) : QObject(
 	connect(app_, &AppController::settingsChanged, this, &StoreController::consolesChanged);
 	connect(app_, &AppController::statusChanged, this, &StoreController::consolesChanged);
 	connect(app_, &AppController::ftpReachableChanged, this, &StoreController::consolesChanged);
+	// The card of the job that ended says how it went.
+	connect(this, &StoreController::finished, this, [this](const QString &message, bool error) {
+		QVariantMap fields = { { QStringLiteral("state"), !error ? QStringLiteral("done")
+														  : cancel_ ? QStringLiteral("cancelled") : QStringLiteral("error") },
+			{ QStringLiteral("message"), message }, { QStringLiteral("speedText"), QString() },
+			{ QStringLiteral("etaText"), QString() } };
+		if(!error)
+			fields[QStringLiteral("percent")] = 100.0;
+		updateJob(fields);
+		jobId_.clear();
+	});
 }
 
 StoreController::~StoreController()
@@ -245,12 +260,24 @@ void StoreController::setProgress(const QString &stage, int64_t done, int64_t to
 		? QStringLiteral("%1 / %2").arg(QString::fromStdString(humanBytes(done)),
 			QString::fromStdString(humanBytes(total)))
 		: QString();
-	QMetaObject::invokeMethod(this, [this, stage, fraction, speedText, amountText]() {
+	const QString etaText = speed > 0 && total > done
+		? QString::fromStdString(humanDuration(static_cast<int64_t>(static_cast<double>(total - done) / speed)))
+		: QString();
+	QMetaObject::invokeMethod(this, [this, stage, fraction, speedText, amountText, etaText]() {
 		stage_ = stage;
 		progress_ = fraction;
 		speedText_ = speedText;
 		amountText_ = amountText;
 		emit progressChanged();
+		const QString stageText = stage == QLatin1String("download") ? tr("Downloading…")
+			: stage == QLatin1String("verify") ? tr("Checking the download…")
+			: stage == QLatin1String("unpack") ? tr("Copying to the PS5…")
+			: stage == QLatin1String("finish") ? tr("Putting it in place…")
+			: stage == QLatin1String("shadowmount") ? tr("Starting ShadowMountPlus again…")
+			: stage;
+		updateJob({ { QStringLiteral("stageText"), stageText }, { QStringLiteral("percent"), fraction * 100.0 },
+			{ QStringLiteral("speedText"), speedText }, { QStringLiteral("amountText"), amountText },
+			{ QStringLiteral("etaText"), etaText } });
 	}, Qt::QueuedConnection);
 }
 
@@ -424,7 +451,8 @@ void StoreController::showDetails(const QString &titleId)
 	});
 }
 
-void StoreController::startWork(const QString &titleId, const QString &what, std::function<void()> work)
+void StoreController::startWork(const QString &titleId, const QString &what, const QString &kind,
+	std::function<void()> work)
 {
 	if(!working_.isEmpty())
 		return;
@@ -437,12 +465,135 @@ void StoreController::startWork(const QString &titleId, const QString &what, std
 	cancel_ = false;
 	emit stateChanged();
 	emit progressChanged();
+
+	// Its card in the queue panel, beside the packages'.
+	QVariantMap job;
+	jobId_ = QStringLiteral("%1-%2").arg(titleId).arg(QDateTime::currentMSecsSinceEpoch());
+	job[QStringLiteral("id")] = jobId_;
+	job[QStringLiteral("titleId")] = titleId;
+	job[QStringLiteral("name")] = titleId;
+	for(const QVariant &entry : apps_)
+	{
+		const QVariantMap app = entry.toMap();
+		if(app.value(QStringLiteral("titleId")).toString() != titleId)
+			continue;
+		job[QStringLiteral("name")] = app.value(QStringLiteral("name"));
+		job[QStringLiteral("icon")] = app.value(QStringLiteral("icon"));
+		job[QStringLiteral("version")] = app.value(QStringLiteral("version"));
+	}
+	job[QStringLiteral("kind")] = kind;
+	job[QStringLiteral("state")] = QStringLiteral("working");
+	job[QStringLiteral("stageText")] = what;
+	job[QStringLiteral("percent")] = 0.0;
+	job[QStringLiteral("console")] = targetName();
+	jobs_.prepend(job);
+	emit jobsChanged();
+	emit app_->showPanel(QStringLiteral("queue"));
+
 	if(worker_.joinable())
 		worker_.join();
 	worker_ = std::thread([work]() { work(); });
 }
 
 void StoreController::cancel() { cancel_ = true; }
+
+void StoreController::updateJob(const QVariantMap &fields)
+{
+	for(QVariant &entry : jobs_)
+	{
+		QVariantMap job = entry.toMap();
+		if(job.value(QStringLiteral("id")).toString() != jobId_)
+			continue;
+		for(auto it = fields.cbegin(); it != fields.cend(); ++it)
+			job[it.key()] = it.value();
+		entry = job;
+		emit jobsChanged();
+		return;
+	}
+}
+
+void StoreController::removeJob(const QString &id)
+{
+	for(int i = 0; i < jobs_.size(); ++i)
+		if(jobs_[i].toMap().value(QStringLiteral("id")).toString() == id
+			&& jobs_[i].toMap().value(QStringLiteral("state")).toString() != QLatin1String("working"))
+		{
+			jobs_.removeAt(i);
+			emit jobsChanged();
+			return;
+		}
+}
+
+void StoreController::clearFinishedJobs()
+{
+	QVariantList kept;
+	for(const QVariant &entry : jobs_)
+		if(entry.toMap().value(QStringLiteral("state")).toString() == QLatin1String("working"))
+			kept << entry;
+	if(kept.size() == jobs_.size())
+		return;
+	jobs_ = kept;
+	emit jobsChanged();
+}
+
+bool StoreController::restartShadowMount(const FtpClient::Config &config, const std::string &address) const
+{
+	// Its file on the console, where the payload managers keep it.
+	FtpClient ftp(config);
+	std::vector<std::string> folders = { "/data/etaHEN/payloads", "/data/etaHEN/plugins", "/data/ps5_autoloader",
+		"/data/shadowmount" };
+	std::vector<FtpEntry> pldmgr;
+	if(ftp.list("/data/pldmgr/payloads", &pldmgr).ok)
+		for(const FtpEntry &entry : pldmgr)
+			if(entry.isDirectory && entry.name != "." && entry.name != "..")
+				folders.push_back(entry.path);
+	std::string found;
+	for(const std::string &folder : folders)
+	{
+		std::vector<FtpEntry> entries;
+		if(!ftp.list(folder, &entries).ok)
+			continue;
+		for(const FtpEntry &entry : entries)
+			if(!entry.isDirectory && startsWith(toLower(entry.name), "shadowmount") && endsWith(toLower(entry.name), ".elf"))
+				found = entry.path;
+		if(!found.empty())
+			break;
+	}
+	std::vector<uint8_t> bytes;
+	if(!found.empty())
+	{
+		const QString local = QDir(QDir::tempPath()).filePath(
+			QStringLiteral("orbislink-smp-%1.elf").arg(QCoreApplication::applicationPid()));
+		if(ftp.download(found, local.toStdString()).ok)
+		{
+			QFile file(local);
+			if(file.open(QIODevice::ReadOnly))
+			{
+				const QByteArray data = file.readAll();
+				bytes.assign(data.constData(), data.constData() + data.size());
+			}
+		}
+		QFile::remove(local);
+	}
+	QString why;
+	if(bytes.empty() && !PayloadsController::fetchFromLibrary(QStringLiteral("ShadowMountPlus"), &cancel_, &bytes, nullptr, &why))
+	{
+		logWarning("Store: ShadowMountPlus could not be started again: " + why.toStdString());
+		return false;
+	}
+	PayloadSender::Options options;
+	options.listenMs = 1500;
+	options.cancel = &cancel_;
+	const PayloadSender::Result sent = PayloadSender::send(address, payloads::loaderPort(payloads::Kind::Ps5, "ShadowMountPlus.elf"), bytes, options);
+	if(!sent.sent)
+	{
+		logWarning("Store: ShadowMountPlus could not be started again: " + sent.error);
+		return false;
+	}
+	logInfo("Store: ShadowMountPlus started again (" + (found.empty() ? std::string("from the payload library") : found)
+		+ ") to scan for the new app.");
+	return true;
+}
 
 bool StoreController::askShadowMount(const std::string &address, const std::string &route,
 	const std::string &body) const
@@ -530,7 +681,7 @@ void StoreController::install(const QString &titleId)
 	const QString console = targetName();
 	const FtpClient::Config config = app_->ftpClientConfigFor(address);
 	const std::string cache = cacheDir();
-	startWork(titleId, tr("Getting %1…").arg(name), [this, id, address, name, console, config, cache]() {
+	startWork(titleId, tr("Getting %1…").arg(name), QStringLiteral("install"), [this, id, address, name, console, config, cache]() {
 		auto finish = [this, id](const QString &message, bool error, const std::string &version) {
 			QMetaObject::invokeMethod(this, [this, id, message, error, version]() {
 				if(!error)
@@ -613,11 +764,20 @@ void StoreController::install(const QString &titleId)
 		// Look now, and try again titles it gave up on (an earlier failed
 		// try leaves them out until it is reset or restarted).
 		const bool scanned = askShadowMount(address, "/api/v1/scan", "{\"reset_attempts\":true}");
+		// Its API only listens on the PS5 itself unless told otherwise: then
+		// ShadowMountPlus is started again, which scans at once.
+		bool restarted = false;
+		if(!scanned)
+		{
+			setProgress(QStringLiteral("shadowmount"), 0, 0);
+			restarted = restartShadowMount(config, address);
+		}
 		QString message = tr("%1 is on %2 (%3).")
 			.arg(name, console, QString::fromStdString(installer.installRoot() + "/" + id))
 			+ QStringLiteral(" ") + (scanned ? tr("ShadowMountPlus puts it on the home screen now.")
-											 : tr("ShadowMountPlus puts it on the home screen at its next scan, within a minute; if it does "
-												 "not, \"Not on the home screen?\" in its window says why."));
+				: restarted ? tr("ShadowMountPlus was started again: it puts it on the home screen in a few seconds.")
+							: tr("ShadowMountPlus puts it on the home screen at its next scan, within a minute; if it does "
+								 "not, \"Not on the home screen?\" in its window says why."));
 		if(!report.carried.empty())
 			message += QStringLiteral(" ") + tr("Your files in its folder (%n) went on into the new version.", "",
 				static_cast<int>(report.carried.size()));
@@ -648,7 +808,7 @@ void StoreController::uninstall(const QString &titleId)
 	const std::string address = target().toStdString();
 	const QString console = targetName();
 	const FtpClient::Config config = app_->ftpClientConfigFor(address);
-	startWork(titleId, tr("Removing %1…").arg(name), [this, id, address, name, console, config]() {
+	startWork(titleId, tr("Removing %1…").arg(name), QStringLiteral("remove"), [this, id, address, name, console, config]() {
 		// ShadowMountPlus first, when it lets this ask: it takes the app off
 		// the home screen.
 		const bool unregistered = askShadowMount(address, "/api/v1/games/uninstall", "{\"title_id\":\"" + id + "\"}");
