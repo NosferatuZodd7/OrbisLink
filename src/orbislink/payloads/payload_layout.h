@@ -26,6 +26,9 @@ namespace orbislink {
 //                            sits next to it. Settings: /data/etaHEN/config.ini.
 //   /data/ps5_autoloader     ELFs and autoload.txt: one file name per line,
 //                            in order, "!<ms>" lines waiting between them.
+//   /data/pldmgr/payloads    PLK's Payload Manager (PLDMGR): a folder per
+//                            payload, "<file>.json" beside it; its own
+//                            /data/pldmgr/autoload.txt, the same format.
 //   ELF payloads go to the ELF loader on port 9021.
 namespace payloads {
 
@@ -55,6 +58,8 @@ struct Folder
 	std::string configPath;
 	// A file in it the jailbreak itself depends on.
 	std::string criticalFile;
+	// The files sit one level down, a folder each (PLDMGR).
+	bool nested = false;
 };
 
 std::vector<Folder> folders(Kind kind);

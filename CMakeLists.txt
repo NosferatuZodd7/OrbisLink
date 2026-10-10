@@ -129,6 +129,7 @@ endif()
 if(TARGET orbislink_fpkg)
 	add_library(orbislink_store STATIC
 		src/orbislink/store/store_catalog.cpp
+		src/orbislink/store/shadowmount_log.cpp
 		src/orbislink/store/store_installer.cpp
 		src/orbislink/store/zip_reader.cpp
 	)

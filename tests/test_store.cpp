@@ -5,6 +5,7 @@
 // and the folder lands where ShadowMountPlus looks, open to everyone.
 
 #include "orbislink/ftp/ftp_client.h"
+#include "orbislink/store/shadowmount_log.h"
 #include "orbislink/store/store_catalog.h"
 #include "orbislink/store/store_installer.h"
 #include "orbislink/store/zip_reader.h"
@@ -90,13 +91,24 @@ public:
 			*error = failure.message();
 		return !failure;
 	}
-	bool upload(const std::string &local, const std::string &remote, std::string *error) override
+	bool upload(const std::string &local, const std::string &remote, std::string *error,
+		const Transfer &progress) override
 	{
 		std::error_code failure;
 		fs::copy_file(local, at(remote), fs::copy_options::overwrite_existing, failure);
 		if(failure && error)
 			*error = failure.message();
 		++uploads;
+		if(!failure && progress)
+		{
+			const int64_t size = static_cast<int64_t>(fs::file_size(at(remote)));
+			if(!progress(size / 2, size) || !progress(size, size))
+			{
+				if(error)
+					*error = "cancelled";
+				return false;
+			}
+		}
 		return !failure;
 	}
 	bool makeDirectory(const std::string &dir) override
@@ -275,13 +287,26 @@ ORBISLINK_TEST(an_app_goes_into_place_whole_and_open_to_everyone)
 	CHECK(!fs::exists(consoleRoot / "data/homebrew/PPSA99998"));
 
 	std::vector<std::string> stages;
+	uint64_t sent = 0;
+	uint64_t whole = 0;
+	bool forward = true;
 	CHECK(installer.install(console, zip, "PPSA99999", (dir / "work").string(),
-		[&stages](const std::string &stage, double) {
+		[&](const std::string &stage, uint64_t done, uint64_t total) {
 			if(stages.empty() || stages.back() != stage)
 				stages.push_back(stage);
+			if(stage == "unpack")
+			{
+				// Bytes only go forward, and never past the whole.
+				forward = forward && done >= sent && done <= total;
+				sent = done;
+				whole = total;
+			}
 			return true;
 		},
 		&error, &report));
+	CHECK(forward);
+	CHECK(whole > 0);
+	CHECK_EQ(sent, whole);
 	CHECK(report.permissionsSet);
 	CHECK(!report.replaced);
 	const fs::path app = consoleRoot / "data/homebrew/PPSA99999";
@@ -298,6 +323,14 @@ ORBISLINK_TEST(an_app_goes_into_place_whole_and_open_to_everyone)
 	CHECK_EQ(installed.size(), size_t(1));
 	CHECK_EQ(installed[0].titleId, std::string("PPSA99999"));
 	CHECK_EQ(installed[0].contentVersion, std::string("01.000.020"));
+
+	// Cancelled halfway through the copy: the one installed stays as it was.
+	CHECK(!installer.install(console, zip, "PPSA99999", (dir / "work").string(),
+		[](const std::string &stage, uint64_t done, uint64_t) { return stage != "unpack" || done == 0; },
+		&error, &report));
+	CHECK_EQ(error, std::string("cancelled"));
+	CHECK(readAll(app / "eboot.bin") == expectedEboot());
+	CHECK(!fs::exists(consoleRoot / "data/orbislink/staging/PPSA99999"));
 
 	// An update keeps the copy it replaces, and what the user put in the
 	// app's folder (what the archive does not have) goes on into the new
@@ -334,6 +367,38 @@ ORBISLINK_TEST(an_app_goes_into_place_whole_and_open_to_everyone)
 	CHECK(installer.uninstall(console, "PPSA99999", &error));
 	CHECK(!installer.uninstall(console, "../etc", &error));
 	fs::remove_all(dir);
+}
+
+ORBISLINK_TEST(reads_why_shadowmount_left_an_app_out)
+{
+	// Lines as ShadowMountPlus writes them (src/sm_scan.c, sm_install.c).
+	const std::string log =
+		"[SCAN] scanning /data/homebrew\n"
+		"  [SKIP] source not stable yet: Porpoise (/data/homebrew/PPSA99764)\n"
+		"  [REG] Prepared: Porpoise (PPSA99764)\n"
+		"  [REG] FAIL: 0x80990001\n"
+		"  [REG] Installed: Other App (PPSA99001)\n"
+		"  [SKIP] mount/register retry limit reached (2/2): Third (PPSA99002)\n";
+	const ShadowMountReport failed = readShadowMountLog(log, "PPSA99764");
+	CHECK(failed.verdict == ShadowMountReport::Verdict::Failed);
+	CHECK_EQ(failed.code, std::string("0x80990001"));
+	// The failure line names no title: it comes with the line before it.
+	CHECK_EQ(failed.lines.size(), size_t(3));
+
+	CHECK(readShadowMountLog(log, "PPSA99001").verdict == ShadowMountReport::Verdict::Registered);
+	CHECK(readShadowMountLog(log, "PPSA99002").verdict == ShadowMountReport::Verdict::GaveUp);
+	CHECK(readShadowMountLog(log, "PPSA12345").verdict == ShadowMountReport::Verdict::NotSeen);
+	CHECK(readShadowMountLog(log, "PPSA12345").lines.empty());
+
+	// What it said last counts: failed once, registered on a later scan.
+	const ShadowMountReport later = readShadowMountLog(log + "  [REG] Installed: Porpoise (PPSA99764)\n", "PPSA99764");
+	CHECK(later.verdict == ShadowMountReport::Verdict::Registered);
+	CHECK(later.code.empty());
+
+	CHECK(readShadowMountLog("  [SCAN] missing/invalid param.json: /data/homebrew/PPSA99003\n", "PPSA99003").verdict
+		== ShadowMountReport::Verdict::BadMetadata);
+	CHECK(readShadowMountLog("Duplicate titleId PPSA99004 ignored\r\n", "PPSA99004").verdict
+		== ShadowMountReport::Verdict::Duplicate);
 }
 
 TEST_MAIN()

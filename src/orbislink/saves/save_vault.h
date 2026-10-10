@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -209,6 +210,9 @@ private:
 	std::string root_;
 	std::map<std::string, std::string> links_;
 	std::vector<ConsoleUser> users_;
+	// Game metadata the console was asked for and does not have (a game
+	// whose saves stayed after it was deleted): asked once, not per save.
+	std::set<std::string> missingMeta_;
 };
 
 } // namespace orbislink

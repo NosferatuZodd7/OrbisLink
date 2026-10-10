@@ -312,8 +312,16 @@ FtpResult FtpClient::withRetries(const std::string &what, const std::function<Ft
 		if(result.ok || result.cancelled || result.final)
 			break;
 	}
+	// The server saying the file or folder is not there is its answer, often
+	// an expected one (a game without metadata, a folder another console
+	// has): whoever asked decides whether it is an error.
 	if(!result.ok && !result.cancelled)
-		logError("FTP: " + what + " failed: " + result.message);
+	{
+		if(result.final)
+			logInfo("FTP: " + what + ": the console answered \"" + result.message + "\"");
+		else
+			logError("FTP: " + what + " failed: " + result.message);
+	}
 	return result;
 }
 

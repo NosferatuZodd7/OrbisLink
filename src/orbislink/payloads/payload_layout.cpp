@@ -135,6 +135,8 @@ std::vector<Folder> folders(Kind kind)
 		{ "etahen-plugins", "/data/etaHEN/plugins", { ".plugin", ".elf" }, AutoStart::Marker, "", "" },
 		{ "autoloader", "/data/ps5_autoloader", { ".elf", ".bin", ".lua", ".js", ".jar" }, AutoStart::List,
 			"/data/ps5_autoloader/autoload.txt", "" },
+		{ "pldmgr", "/data/pldmgr/payloads", { ".elf", ".bin" }, AutoStart::List, "/data/pldmgr/autoload.txt", "",
+			true },
 	};
 }
 
@@ -142,7 +144,8 @@ std::vector<std::string> configFiles(Kind kind)
 {
 	if(kind == Kind::Ps4)
 		return { "/data/GoldHEN/plugins.ini" };
-	return { "/data/etaHEN/config.ini", "/data/ps5_autoloader/autoload.txt" };
+	return { "/data/etaHEN/config.ini", "/data/ps5_autoloader/autoload.txt", "/data/pldmgr/autoload.txt",
+		"/data/pldmgr/pldmgr_config.txt" };
 }
 
 uint16_t loaderPort(Kind kind, const std::string &fileName)

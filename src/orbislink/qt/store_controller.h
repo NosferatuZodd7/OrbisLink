@@ -9,6 +9,7 @@
 #include <QVariantMap>
 
 #include <atomic>
+#include <deque>
 #include <functional>
 #include <map>
 #include <memory>
@@ -45,12 +46,22 @@ class StoreController : public QObject
 	Q_PROPERTY(QString working READ working NOTIFY stateChanged)
 	Q_PROPERTY(QString stage READ stage NOTIFY progressChanged)
 	Q_PROPERTY(double progress READ progress NOTIFY progressChanged)
+	// While bytes move (the download, the copy to the PS5): the speed,
+	// steadied over the last seconds ("3.2 MB/s", "" until it is known),
+	// and how much of how much ("12.3 MB / 26.0 MB").
+	Q_PROPERTY(QString speedText READ speedText NOTIFY progressChanged)
+	Q_PROPERTY(QString amountText READ amountText NOTIFY progressChanged)
 	// The PS5s apps can go to: [{ address, name, ftp, target }], and the one
 	// they go to.
 	Q_PROPERTY(QVariantList consoles READ consoles NOTIFY consolesChanged)
 	Q_PROPERTY(QString target READ target NOTIFY consolesChanged)
 	Q_PROPERTY(QString targetName READ targetName NOTIFY consolesChanged)
 	Q_PROPERTY(bool canInstall READ canInstall NOTIFY consolesChanged)
+	// Why an installed app is or is not on the PS5's home screen, from
+	// ShadowMountPlus's own log: { titleId, busy, verdict ("registered",
+	// "settling", "bad-metadata", "failed", "gave-up", "duplicate",
+	// "not-seen", "no-log", "no-ftp"), code, lines, rescanned }.
+	Q_PROPERTY(QVariantMap homeCheck READ homeCheck NOTIFY homeCheckChanged)
 
 public:
 	explicit StoreController(AppController *app, QObject *parent = nullptr);
@@ -64,10 +75,13 @@ public:
 	QString working() const { return working_; }
 	QString stage() const { return stage_; }
 	double progress() const { return progress_; }
+	QString speedText() const { return speedText_; }
+	QString amountText() const { return amountText_; }
 	QVariantList consoles() const;
 	QString target() const;
 	QString targetName() const;
 	bool canInstall() const;
+	QVariantMap homeCheck() const { return homeCheck_; }
 
 	// Reads the catalog again, and what the PS5 has installed.
 	Q_INVOKABLE void refresh();
@@ -80,6 +94,9 @@ public:
 	Q_INVOKABLE void cancel();
 	// The PS5 apps go to (its address).
 	Q_INVOKABLE void setTarget(const QString &address);
+	// Reads ShadowMountPlus's log on the PS5 for this app (homeCheck), and
+	// asks it to look again, retrying what it gave up on.
+	Q_INVOKABLE void checkHomeScreen(const QString &titleId);
 
 signals:
 	void appsChanged();
@@ -87,6 +104,7 @@ signals:
 	void detailChanged();
 	void progressChanged();
 	void consolesChanged();
+	void homeCheckChanged();
 	// The outcome of an install or a removal, for a notice.
 	void finished(const QString &message, bool error);
 
@@ -98,10 +116,12 @@ private:
 	void publish();
 	void readInstalled(const std::string &address);
 	void startWork(const QString &titleId, const QString &what, std::function<void()> work);
-	void setProgress(const QString &stage, double progress);
+	// From the worker: the stage and its bytes (total 0 when it has none).
+	void setProgress(const QString &stage, int64_t done, int64_t total);
+	void resetProgress();
 	std::string cacheDir() const;
 	// ShadowMountPlus's API on the PS5, when it lets the network in.
-	bool askShadowMount(const std::string &address, const std::string &route, const std::string &titleId) const;
+	bool askShadowMount(const std::string &address, const std::string &route, const std::string &body) const;
 
 	AppController *app_;
 	std::unique_ptr<store::StoreCatalog> catalog_;
@@ -120,12 +140,21 @@ private:
 	QString working_;
 	QString stage_;
 	double progress_ = 0.0;
+	QString speedText_;
+	QString amountText_;
+	// The speed meter, on the worker only: recent (time, bytes) samples of
+	// the current stage, and when the window last heard.
+	QString meterStage_;
+	std::deque<std::pair<int64_t, int64_t>> samples_;
+	int64_t lastPostMs_ = 0;
 	QString target_;
 	std::atomic<bool> cancel_ { false };
 	std::atomic<bool> stopIcons_ { false };
 	std::thread loader_;
 	std::thread detailer_;
 	std::thread worker_;
+	QVariantMap homeCheck_;
+	std::thread checker_;
 };
 
 } // namespace orbislink

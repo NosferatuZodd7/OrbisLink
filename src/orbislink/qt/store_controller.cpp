@@ -6,16 +6,20 @@
 #include "orbislink/ftp/ftp_client.h"
 #include "orbislink/net/http_client.h"
 #include "orbislink/qt/app_controller.h"
+#include "orbislink/store/shadowmount_log.h"
 #include "orbislink/store/store_installer.h"
 #include "orbislink/update/sha256.h"
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QFile>
 #include <QMetaObject>
 #include <QStandardPaths>
 #include <QStringList>
 #include <QUrl>
 
+#include <algorithm>
+#include <chrono>
 #include <filesystem>
 
 namespace fs = std::filesystem;
@@ -38,9 +42,17 @@ public:
 	{
 		return answer(ftp_.download(remote, local), error);
 	}
-	bool upload(const std::string &local, const std::string &remote, std::string *error) override
+	bool upload(const std::string &local, const std::string &remote, std::string *error,
+		const store::Transfer &progress) override
 	{
-		return answer(ftp_.upload(local, remote), error);
+		const FtpResult result = ftp_.upload(local, remote, progress);
+		if(result.cancelled)
+		{
+			if(error)
+				*error = "cancelled";
+			return false;
+		}
+		return answer(result, error);
 	}
 	bool makeDirectory(const std::string &dir) override { return ftp_.makeDirectory(dir).ok; }
 	bool rename(const std::string &from, const std::string &to, std::string *error) override
@@ -119,7 +131,7 @@ StoreController::StoreController(AppController *app, QObject *parent) : QObject(
 StoreController::~StoreController()
 {
 	cancel_ = true;
-	for(std::thread *thread : { &loader_, &detailer_, &worker_ })
+	for(std::thread *thread : { &loader_, &detailer_, &worker_, &checker_ })
 		if(thread->joinable())
 			thread->join();
 }
@@ -197,13 +209,56 @@ void StoreController::setTarget(const QString &address)
 	refresh();
 }
 
-void StoreController::setProgress(const QString &stage, double progress)
+void StoreController::setProgress(const QString &stage, int64_t done, int64_t total)
 {
-	QMetaObject::invokeMethod(this, [this, stage, progress]() {
+	using namespace std::chrono;
+	const int64_t now = duration_cast<milliseconds>(steady_clock::now().time_since_epoch()).count();
+	const bool fresh = stage != meterStage_;
+	if(fresh)
+	{
+		meterStage_ = stage;
+		samples_.clear();
+	}
+	// The speed over the last three seconds: steady enough to read, quick
+	// enough to follow a change. One sample every 100 ms is plenty.
+	if(samples_.empty() || now - samples_.back().first >= 100)
+		samples_.emplace_back(now, done);
+	while(samples_.size() > 2 && now - samples_.front().first > 3000)
+		samples_.pop_front();
+	const int64_t span = now - samples_.front().first;
+	const int64_t moved = done - samples_.front().second;
+	const double speed = span >= 500 && moved > 0
+		? static_cast<double>(moved) * 1000.0 / static_cast<double>(span)
+		: 0.0;
+
+	// The window is told a few times a second, not on every block.
+	const bool last = total > 0 && done >= total;
+	if(!fresh && !last && now - lastPostMs_ < 200)
+		return;
+	lastPostMs_ = now;
+
+	const double fraction = total > 0 ? std::min(1.0, static_cast<double>(done) / static_cast<double>(total)) : 0.0;
+	const QString speedText = speed > 0
+		? QString::fromStdString(humanBytes(static_cast<int64_t>(speed))) + QStringLiteral("/s")
+		: QString();
+	const QString amountText = total > 0
+		? QStringLiteral("%1 / %2").arg(QString::fromStdString(humanBytes(done)),
+			QString::fromStdString(humanBytes(total)))
+		: QString();
+	QMetaObject::invokeMethod(this, [this, stage, fraction, speedText, amountText]() {
 		stage_ = stage;
-		progress_ = progress;
+		progress_ = fraction;
+		speedText_ = speedText;
+		amountText_ = amountText;
 		emit progressChanged();
 	}, Qt::QueuedConnection);
+}
+
+void StoreController::resetProgress()
+{
+	progress_ = 0.0;
+	speedText_.clear();
+	amountText_.clear();
 }
 
 void StoreController::publish()
@@ -375,7 +430,10 @@ void StoreController::startWork(const QString &titleId, const QString &what, std
 		return;
 	working_ = titleId;
 	stage_ = what;
-	progress_ = 0.0;
+	resetProgress();
+	meterStage_.clear();
+	samples_.clear();
+	lastPostMs_ = 0;
 	cancel_ = false;
 	emit stateChanged();
 	emit progressChanged();
@@ -387,14 +445,76 @@ void StoreController::startWork(const QString &titleId, const QString &what, std
 void StoreController::cancel() { cancel_ = true; }
 
 bool StoreController::askShadowMount(const std::string &address, const std::string &route,
-	const std::string &titleId) const
+	const std::string &body) const
 {
 	// Its API listens only on the PS5 itself unless "allow LAN access" is on;
 	// then this goes straight to it. A short wait: most do not answer.
 	HttpClient http(3000);
-	const std::string body = titleId.empty() ? std::string("{}") : "{\"title_id\":\"" + titleId + "\"}";
 	const HttpResponse response = http.post("http://" + address + ":10101" + route, body);
 	return response.transportOk && response.status == 200;
+}
+
+void StoreController::checkHomeScreen(const QString &titleId)
+{
+	if(homeCheck_.value(QStringLiteral("busy")).toBool())
+		return;
+	const std::string address = target().toStdString();
+	const std::string id = titleId.toStdString();
+	homeCheck_ = { { QStringLiteral("titleId"), titleId }, { QStringLiteral("busy"), true } };
+	emit homeCheckChanged();
+	if(checker_.joinable())
+		checker_.join();
+	const FtpClient::Config config = app_->ftpClientConfigFor(address);
+	const bool ftp = app_->ftpAnswers(address);
+	const std::string scratch = joinPath(cacheDir(), "work");
+	checker_ = std::thread([this, address, id, titleId, config, ftp, scratch]() {
+		QVariantMap result { { QStringLiteral("titleId"), titleId }, { QStringLiteral("busy"), false } };
+		// Asked to look again, its failed tries forgotten: worth it whatever
+		// the log says, when its API lets the network in.
+		result[QStringLiteral("rescanned")] =
+			askShadowMount(address, "/api/v1/scan", "{\"reset_attempts\":true}");
+		if(!ftp)
+			result[QStringLiteral("verdict")] = QStringLiteral("no-ftp");
+		else
+		{
+			FtpClient client(config);
+			std::error_code ignored;
+			fs::create_directories(fs::u8path(scratch), ignored);
+			std::string log;
+			bool found = false;
+			// The current log, after the one it rotated away.
+			for(const char *name : { "/data/shadowmount/debug.log.1", "/data/shadowmount/debug.log" })
+			{
+				const std::string local = joinPath(scratch, "shadowmount.log");
+				if(client.download(name, local).ok)
+				{
+					found = true;
+					QFile file(QString::fromStdString(local));
+					if(file.open(QIODevice::ReadOnly))
+						log += file.readAll().toStdString();
+				}
+				fs::remove(fs::u8path(local), ignored);
+			}
+			if(!found)
+				result[QStringLiteral("verdict")] = QStringLiteral("no-log");
+			else
+			{
+				const store::ShadowMountReport report = store::readShadowMountLog(log, id);
+				static const char *names[] = { "not-seen", "registered", "settling", "bad-metadata", "failed",
+					"gave-up", "duplicate" };
+				result[QStringLiteral("verdict")] = QString::fromLatin1(names[static_cast<int>(report.verdict)]);
+				result[QStringLiteral("code")] = QString::fromStdString(report.code);
+				QStringList lines;
+				for(const std::string &line : report.lines)
+					lines << QString::fromStdString(line).trimmed();
+				result[QStringLiteral("lines")] = lines;
+			}
+		}
+		QMetaObject::invokeMethod(this, [this, result]() {
+			homeCheck_ = result;
+			emit homeCheckChanged();
+		}, Qt::QueuedConnection);
+	});
 }
 
 void StoreController::install(const QString &titleId)
@@ -417,7 +537,7 @@ void StoreController::install(const QString &titleId)
 					installed_[id] = { version };
 				working_.clear();
 				stage_.clear();
-				progress_ = 0.0;
+				resetProgress();
 				publish();
 				emit stateChanged();
 				emit progressChanged();
@@ -449,7 +569,7 @@ void StoreController::install(const QString &titleId)
 				[this](int64_t done, int64_t total) {
 					if(cancel_)
 						return false;
-					setProgress(QStringLiteral("download"), total > 0 ? static_cast<double>(done) / total : 0.0);
+					setProgress(QStringLiteral("download"), done, total);
 					return true;
 				});
 			if(!result.ok)
@@ -461,7 +581,7 @@ void StoreController::install(const QString &titleId)
 			}
 			fs::rename(fs::u8path(part), fs::u8path(zip), ignored);
 		}
-		setProgress(QStringLiteral("verify"), 0.0);
+		setProgress(QStringLiteral("verify"), 0, 0);
 		if(toLower(sha256File(zip)) != expected)
 		{
 			fs::remove(fs::u8path(zip), ignored);
@@ -476,10 +596,10 @@ void StoreController::install(const QString &titleId)
 		store::StoreInstaller installer;
 		store::InstallReport report;
 		const bool ok = installer.install(remote, zip, id, joinPath(cache, "work"),
-			[this](const std::string &stage, double fraction) {
+			[this](const std::string &stage, uint64_t done, uint64_t total) {
 				if(cancel_)
 					return false;
-				setProgress(QString::fromStdString(stage), fraction);
+				setProgress(QString::fromStdString(stage), static_cast<int64_t>(done), static_cast<int64_t>(total));
 				return true;
 			},
 			&why, &report);
@@ -490,11 +610,14 @@ void StoreController::install(const QString &titleId)
 		fs::remove(fs::u8path(zip), ignored);
 		// ShadowMountPlus finds it at its next scan; sooner when its API
 		// lets this ask.
-		const bool scanned = askShadowMount(address, "/api/v1/scan", std::string());
+		// Look now, and try again titles it gave up on (an earlier failed
+		// try leaves them out until it is reset or restarted).
+		const bool scanned = askShadowMount(address, "/api/v1/scan", "{\"reset_attempts\":true}");
 		QString message = tr("%1 is on %2 (%3).")
 			.arg(name, console, QString::fromStdString(installer.installRoot() + "/" + id))
 			+ QStringLiteral(" ") + (scanned ? tr("ShadowMountPlus puts it on the home screen now.")
-											 : tr("ShadowMountPlus puts it on the home screen at its next scan."));
+											 : tr("ShadowMountPlus puts it on the home screen at its next scan, within a minute; if it does "
+												 "not, \"Not on the home screen?\" in its window says why."));
 		if(!report.carried.empty())
 			message += QStringLiteral(" ") + tr("Your files in its folder (%n) went on into the new version.", "",
 				static_cast<int>(report.carried.size()));
@@ -528,7 +651,7 @@ void StoreController::uninstall(const QString &titleId)
 	startWork(titleId, tr("Removing %1…").arg(name), [this, id, address, name, console, config]() {
 		// ShadowMountPlus first, when it lets this ask: it takes the app off
 		// the home screen.
-		const bool unregistered = askShadowMount(address, "/api/v1/games/uninstall", id);
+		const bool unregistered = askShadowMount(address, "/api/v1/games/uninstall", "{\"title_id\":\"" + id + "\"}");
 		FtpClient ftp(config);
 		FtpStoreRemote remote(ftp);
 		store::StoreInstaller installer;
@@ -547,7 +670,7 @@ void StoreController::uninstall(const QString &titleId)
 				installed_.erase(id);
 			working_.clear();
 			stage_.clear();
-			progress_ = 0.0;
+			resetProgress();
 			publish();
 			emit stateChanged();
 			emit progressChanged();

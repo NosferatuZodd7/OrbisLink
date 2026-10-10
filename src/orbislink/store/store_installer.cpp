@@ -256,12 +256,16 @@ bool StoreInstaller::install(StoreRemote &remote, const std::string &zipPath, co
 	{
 		const std::string relative = entry->name.substr(prefix.size());
 		const uint64_t before = done;
-		auto step = [&](uint64_t written) {
-			return !progress || progress("unpack", total ? static_cast<double>(before + written) / total : 1.0);
+		// Unpacking here is quick; what takes the time, and what is counted,
+		// is the copy to the console. Unpacking only listens for a cancel.
+		auto step = [&](uint64_t) { return !progress || progress("unpack", before, total); };
+		auto sending = [&](int64_t sent, int64_t) {
+			const uint64_t now = sent > 0 ? std::min<uint64_t>(static_cast<uint64_t>(sent), entry->size) : 0;
+			return !progress || progress("unpack", before + now, total);
 		};
 		std::string why;
 		if(!extractZipEntry(zipPath, *entry, temporary, step, &why)
-			|| !remote.upload(temporary, staging + "/" + relative, &why))
+			|| !remote.upload(temporary, staging + "/" + relative, &why, sending))
 		{
 			fs::remove(fs::u8path(temporary), ignored);
 			std::string cleanup;
@@ -275,7 +279,7 @@ bool StoreInstaller::install(StoreRemote &remote, const std::string &zipPath, co
 	// Open to everyone, folders and files: the console starts an app only
 	// then (CE-107750-0 otherwise). Many servers write them so already.
 	if(progress)
-		progress("finish", 0.0);
+		progress("finish", 0, 0);
 	bool chmodWorks = true;
 	std::vector<std::string> pending = { staging };
 	std::vector<FtpEntry> top;
@@ -339,7 +343,7 @@ bool StoreInstaller::install(StoreRemote &remote, const std::string &zipPath, co
 		carryOver(remote, kept, target, std::string(), shipped, report);
 	}
 	if(progress)
-		progress("finish", 1.0);
+		progress("finish", 1, 1);
 	logInfo("Store: installed " + titleId + " in " + target + (replacing ? " (previous copy kept)" : ""));
 	return true;
 }

@@ -74,6 +74,10 @@ std::string Settings::toJson() const
 	for(const std::string &folder : ftpPinnedFolders)
 		pinned.push(Json::fromString(folder));
 	root.set("ftp_pinned_folders", pinned);
+	Json pinnedPs5 = Json::makeArray();
+	for(const std::string &folder : ftpPinnedFoldersPs5)
+		pinnedPs5.push(Json::fromString(folder));
+	root.set("ftp_pinned_folders_ps5", pinnedPs5);
 	root.set("check_already_installed", Json::fromBool(checkAlreadyInstalled));
 	root.set("install_after_upload", Json::fromBool(installAfterUpload));
 	root.set("delete_from_console_after_install", Json::fromBool(deleteFromConsoleAfterInstall));
@@ -197,6 +201,13 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 		for(const Json &folder : root["ftp_pinned_folders"].items())
 			if(folder.isString() && !folder.toString().empty())
 				settings.ftpPinnedFolders.push_back(folder.toString());
+	}
+	if(root["ftp_pinned_folders_ps5"].isArray())
+	{
+		settings.ftpPinnedFoldersPs5.clear();
+		for(const Json &folder : root["ftp_pinned_folders_ps5"].items())
+			if(folder.isString() && !folder.toString().empty())
+				settings.ftpPinnedFoldersPs5.push_back(folder.toString());
 	}
 	settings.checkAlreadyInstalled =
 		root["check_already_installed"].toLooseBool(settings.checkAlreadyInstalled);

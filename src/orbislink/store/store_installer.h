@@ -19,6 +19,9 @@ struct FtpEntry;
 namespace orbislink::store {
 
 // What the installer needs from the console: its FTP.
+// A transfer under way: bytes so far and in all. Returning false cancels.
+using Transfer = std::function<bool(int64_t done, int64_t total)>;
+
 class StoreRemote
 {
 public:
@@ -26,7 +29,9 @@ public:
 	// Empty and true for a folder that is not there.
 	virtual bool list(const std::string &dir, std::vector<FtpEntry> *entries, std::string *error) = 0;
 	virtual bool download(const std::string &remote, const std::string &local, std::string *error) = 0;
-	virtual bool upload(const std::string &local, const std::string &remote, std::string *error) = 0;
+	// Cancelled through `progress`, it fails with the error "cancelled".
+	virtual bool upload(const std::string &local, const std::string &remote, std::string *error,
+		const Transfer &progress) = 0;
 	virtual bool makeDirectory(const std::string &dir) = 0;
 	virtual bool rename(const std::string &from, const std::string &to, std::string *error) = 0;
 	virtual bool removeFile(const std::string &path, std::string *error) = 0;
@@ -59,9 +64,10 @@ struct InstalledApp
 class StoreInstaller
 {
 public:
-	// The stage ("download", "verify", "unpack", "finish") and how far.
+	// The stage ("unpack", "finish") and how far, in bytes of the app's
+	// files sent to the console (total 0 when the stage has none).
 	// Returning false cancels.
-	using Progress = std::function<bool(const std::string &stage, double fraction)>;
+	using Progress = std::function<bool(const std::string &stage, uint64_t done, uint64_t total)>;
 
 	explicit StoreInstaller(std::string installRoot = "/data/homebrew");
 	const std::string &installRoot() const { return installRoot_; }

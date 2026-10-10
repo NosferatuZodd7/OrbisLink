@@ -242,6 +242,8 @@ void AppController::rebuildBackends()
 	console_->start(10);
 	emit settingsChanged();
 	emit statusChanged();
+	// The pinned folders are the console's kind's: a PS5 keeps things elsewhere.
+	emit ftpShortcutsChanged();
 }
 
 QString AppController::consoleName() const { return QString::fromStdString(settings_.consoleName); }
@@ -735,10 +737,20 @@ std::string pinnedForm(const std::string &path)
 
 } // namespace
 
+std::vector<std::string> &AppController::pinnedFolders()
+{
+	return activeIsPs5() ? settings_.ftpPinnedFoldersPs5 : settings_.ftpPinnedFolders;
+}
+
+const std::vector<std::string> &AppController::pinnedFolders() const
+{
+	return activeIsPs5() ? settings_.ftpPinnedFoldersPs5 : settings_.ftpPinnedFolders;
+}
+
 QStringList AppController::ftpShortcuts() const
 {
 	QStringList shortcuts;
-	for(const std::string &path : settings_.ftpPinnedFolders)
+	for(const std::string &path : pinnedFolders())
 		shortcuts << QString::fromStdString(pinnedForm(path));
 	return shortcuts;
 }
@@ -920,7 +932,7 @@ void AppController::deleteThemePreset(const QString &name)
 bool AppController::isFtpPinned(const QString &path) const
 {
 	const std::string folder = pinnedForm(path.toStdString());
-	for(const std::string &pinned : settings_.ftpPinnedFolders)
+	for(const std::string &pinned : pinnedFolders())
 		if(pinnedForm(pinned) == folder)
 			return true;
 	return false;
@@ -930,7 +942,7 @@ void AppController::pinFtpFolder(const QString &path)
 {
 	if(path.trimmed().isEmpty() || isFtpPinned(path))
 		return;
-	settings_.ftpPinnedFolders.push_back(pinnedForm(path.toStdString()));
+	pinnedFolders().push_back(pinnedForm(path.toStdString()));
 	store_.save(settings_);
 	emit ftpShortcutsChanged();
 	setStatusMessage(tr("%1 pinned to the top.").arg(QString::fromStdString(pinnedForm(path.toStdString()))));
@@ -939,7 +951,7 @@ void AppController::pinFtpFolder(const QString &path)
 void AppController::unpinFtpFolder(const QString &path)
 {
 	const std::string folder = pinnedForm(path.toStdString());
-	auto &pinned = settings_.ftpPinnedFolders;
+	auto &pinned = pinnedFolders();
 	const auto before = pinned.size();
 	pinned.erase(std::remove_if(pinned.begin(), pinned.end(),
 					 [&](const std::string &p) { return pinnedForm(p) == folder; }),
@@ -1479,14 +1491,33 @@ void AppController::refreshFtpListing(bool announce)
 	const std::string path = ftpPath_.toStdString();
 	std::thread([this, life = lifeline_, ftp = ftp_, path, announce]() {
 		std::vector<FtpEntry> entries;
-		const FtpResult result = ftp->list(path, &entries);
+		FtpResult result = ftp->list(path, &entries);
+		// A folder this console does not have (the PS4's /data/pkg on a
+		// PS5): the nearest one up that it has, instead of an empty list.
+		std::string shown = path;
+		while(!result.ok && result.final && shown != "/")
+		{
+			shown = normalizeRemotePath(shown + "/..");
+			entries.clear();
+			result = ftp->list(shown, &entries);
+		}
+		if(!result.ok)
+			shown = path;
 		const QString error = translateMessage(result.message);
+		const QString missing = shown != path ? QString::fromStdString(path) : QString();
+		const QString landed = QString::fromStdString(shown);
 		life->post(
-			[this, entries, result, error, announce]() {
+			[this, entries, result, error, announce, missing, landed]() {
+				if(result.ok && !missing.isEmpty())
+				{
+					ftpPath_ = landed;
+					emit ftpPathChanged();
+					setStatusMessage(tr("%1 is not on this console: showing %2.").arg(missing, landed));
+				}
 				if(result.ok)
 				{
 					ftpModel_.setEntries(entries);
-					if(announce)
+					if(announce && missing.isEmpty())
 						setStatusMessage(tr("%1: %2 entries").arg(ftpPath_).arg(entries.size()));
 				}
 				else if(!announce)
