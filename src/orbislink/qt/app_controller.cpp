@@ -1046,7 +1046,7 @@ void AppController::refreshQueueModel()
 		if(transfers.contains(key))
 			continue;
 		QVariantMap item;
-		const bool installing = task.mode == TransferMode::DirectInstall;
+		const bool installing = task.mode == TransferMode::DirectInstall || task.installedFromConsole;
 		item[QStringLiteral("stage")] = task.state == TaskState::Completed
 			? (installing ? QStringLiteral("installed") : QStringLiteral("sent"))
 			: task.state == TaskState::Cancelled ? QStringLiteral("cancelled") : QStringLiteral("error");

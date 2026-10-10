@@ -215,6 +215,9 @@ If a file with the same name is already on the console: **Replace**,
 
 ## PS1/PS2 Games page
 
+Two tabs: **PS1/PS2 on this PC** (below) and **On the console** (the console
+library, further down).
+
 1. **Choose games folder…** — the folder with the disc images (`.iso`,
    `.bin/.cue`, `.img`, also in sub-folders). The app finds which are PS1 and
    PS2 games and names them from the emulator's title list.
@@ -250,6 +253,30 @@ kept in the settings.
 
 Without a console connected, the dialog says so, the buttons that send are
 off, and **Convert only** still works.
+
+### Console library (On the console)
+
+One folder, `OrbisLinkFPKG`, where games and apps of any kind are put as they
+come, over FTP or by plugging in a drive: `/data/OrbisLinkFPKG` in the
+console's memory (made by the app the first time the tab opens),
+`/mnt/usb0`–`/mnt/usb7/OrbisLinkFPKG` on USB drives, `/mnt/ext0`–`/mnt/ext1/OrbisLinkFPKG`
+on the extended storage. The tab reads them over FTP, says what each thing
+is, and gives it the one button that makes it playable. Nothing is fetched
+whole to find out: a package's header and a disc's `SYSTEM.CNF` are read in a
+few small pieces.
+
+| It is | Shown as | The button |
+|---|---|---|
+| `.pkg` | Its title, icon, title ID, version (from its `PARAM.SFO`); **Installed** when `/user/app/<TITLE ID>` exists. | **Install** (PS5): the console installs it from where it is. A PS4 installs packages on the console from Debug Settings → Package Installer, which the row says. |
+| `.iso`, `.img`, `.bin/.cue` (a `.bin` over 32 MB; a `.cue` shows its track as one) | PS1 or PS2 disc, serial, name from the emulator's list (once it is here), from the disc itself. | **Convert and install**: the disc is brought to this PC, made into a PS4 package (as on the PC tab), sent back to the same folder and installed; the copy on the PC is deleted after. Its card in the Queue tab adds the step *Bringing it from the console*. |
+| `.ffpkg`, `.exfat`, `.ffpfs` | PS5 image, title ID from its name. | **Put on the home screen** (PS5): moved into the folder ShadowMountPlus mounts from on the same drive (`/data/homebrew`, `/mnt/usbN/homebrew`, `/mnt/extN/homebrew`; a move there is instant), then ShadowMountPlus is asked to scan, or started again. |
+| A folder with `sce_sys/param.json` (PS5) or `sce_sys/param.sfo` (PS4) | Its name, icon and title ID from there. Other folders are not listed. | **Put on the home screen**, the same way. |
+| `.elf`, `.lua`, `.js`, `.jar`, a small `.bin` | Payload. | **Run**: sent to the console's loader for it. |
+| `.zip`, `.7z`, `.rar` | Archive. | None: unpack it on the PC first. |
+
+Search, and chips: All, **Not installed**, and by kind. 🗑 deletes a file
+(after asking); what was installed from it stays installed. ⟳ reads the
+folders again.
 
 ### What the console takes, and from where
 
@@ -462,6 +489,8 @@ only if its SHA-256 matches the list.
 | Payloads: see, add, rename, delete, auto-start, edit settings | yes | yes | — | — |
 | Payloads: run one now | yes | to run one from the console | — | — |
 | Payloads library: look, run one now | internet | — | — | — |
+| Console library: see what is there, put on the home screen, run | yes | yes | — | — |
+| Console library: install a package, convert and install a disc | yes | yes | yes (waits for it) | — |
 | Payloads library: install, update | yes | yes | — | — |
 
 ## Where it lives in the code
@@ -473,6 +502,7 @@ only if its SHA-256 matches the list.
 | Queue and conversion cards | `TransferPanel.qml`, `StageLoader.qml` |
 | Files tab | `FtpBrowser.qml`, `FtpFolderPicker.qml` |
 | Games page | `GamesView.qml`, `GameCard.qml`, `GameDialog.qml` |
+| Console library (`consoleLibrary`) | `ConsoleLibrary.qml`, `src/orbislink/qt/library_controller.*`, `src/orbislink/library/console_library.*` (kinds, drives, `param.json`/`param.sfo`, reads in blocks), `src/orbislink/qt/shadowmount_control.*` (asking ShadowMountPlus to scan, or starting it again) |
 | Everything the QML calls (`app`) | `src/orbislink/qt/app_controller.*` |
 | Games (`games`) | `src/orbislink/qt/games_controller.*` |
 | Save vault (`saves`) | `SavesView.qml`, `src/orbislink/qt/saves_controller.*`, `src/orbislink/saves` |

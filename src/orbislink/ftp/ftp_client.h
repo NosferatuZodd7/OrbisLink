@@ -80,6 +80,9 @@ public:
 	FtpResult download(const std::string &remotePath, const std::string &localPath,
 		FtpProgressCallback progress = nullptr, bool resume = false);
 	FtpResult remoteSize(const std::string &remotePath, int64_t *size);
+	// `length` bytes of a file from `offset` (fewer at its end), into memory:
+	// enough to read a package's or a disc's header without fetching it.
+	FtpResult read(const std::string &remotePath, int64_t offset, size_t length, std::vector<uint8_t> *bytes);
 	FtpResult makeDirectory(const std::string &remotePath);
 	FtpResult removeFile(const std::string &remotePath);
 	FtpResult removeDirectory(const std::string &remotePath);

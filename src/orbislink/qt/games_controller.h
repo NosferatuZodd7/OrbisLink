@@ -103,6 +103,10 @@ public:
 	Q_INVOKABLE QString existingPackage(const QString &path, const QString &title) const;
 	// The disc files themselves, over FTP, to the folder the file list is in.
 	Q_INVOKABLE void sendToConsole(const QStringList &paths);
+	// A disc that is on the console (its path there): fetched to this PC,
+	// converted, and its package sent back to the same folder and installed.
+	// `platform` ("ps1"/"ps2") is what it was read as there, for the card.
+	Q_INVOKABLE void convertFromConsole(const QString &remotePath, const QString &title, const QString &platform);
 	Q_INVOKABLE void cancelConversion(const QString &id);
 	Q_INVOKABLE void clearFinishedConversions();
 	// Takes a finished conversion's card away.
@@ -111,6 +115,9 @@ public:
 	// A folder as FolderDialog wants it (empty: the user's documents).
 	Q_INVOKABLE QUrl folderUrl(const QString &path) const;
 	Q_INVOKABLE QString packageNameFor(const QString &path, const QString &title) const;
+	// A PS1/PS2 game's name from the emulator's title lists ("SLUS20946"),
+	// empty when they are not here yet or do not have it. Any thread.
+	QString classicTitle(const QString &platform, const QString &titleId) const;
 
 signals:
 	void foldersChanged();
@@ -132,6 +139,8 @@ private:
 	QVariantMap gameByPath(const QString &path) const;
 	void workerLoop();
 	void runJob(const std::shared_ptr<Job> &job);
+	// On the worker: a job's disc from the console to this PC.
+	bool fetchFromConsole(const std::shared_ptr<Job> &job, const std::function<void()> &tick);
 	void publish();
 	void updateProgress();
 

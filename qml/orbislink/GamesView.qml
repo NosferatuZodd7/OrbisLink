@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// PS1/PS2 Games: the discs found in a folder of the PC, as cards. A click
-// opens one; the box in a card's corner selects it, and with several
-// selected a bar at the bottom does the same to all of them.
+// Games. On this PC: the PS1/PS2 discs found in a folder, as cards; a click
+// opens one, the box in a card's corner selects it, and with several
+// selected a bar at the bottom does the same to all of them. On the console:
+// its library, what is in its OrbisLinkFPKG folders (ConsoleLibrary.qml).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -16,6 +17,8 @@ Item {
 
     // The "path" of each selected game.
     property var selected: []
+    // 0: the discs on this PC; 1: the console's library.
+    property int tab: 0
 
     function isSelected(path) { return selected.indexOf(path) >= 0 }
     function toggle(path) {
@@ -77,23 +80,33 @@ Item {
                 ColumnLayout {
                     spacing: 2
                     Text {
-                        text: qsTr("PS1/PS2 Games")
+                        text: root.tab === 1 ? qsTr("Console library") : qsTr("PS1/PS2 Games")
                         color: Theme.text
                         font.pixelSize: Theme.fontTitle
                         font.weight: Font.DemiBold
                     }
                     Text {
-                        text: games.gamesFolder.length === 0 ? qsTr("Choose the folder where your disc images are.")
-                              : games.scanning ? games.scanStatus
+                        text: root.tab === 1
+                              ? (consoleLibrary.scanning || consoleLibrary.busy ? consoleLibrary.status
+                                 : qsTr("%n thing(s) on %1", "", consoleLibrary.items.length).arg(app.consoleName))
+                              : games.gamesFolder.length === 0 ? qsTr("Choose the folder where your disc images are.")
                               : games.scanStatus
                         color: Theme.textSecondary
                         font.pixelSize: 12
                     }
                 }
                 Item { Layout.fillWidth: true }
+                StyledToolButton {
+                    visible: root.tab === 1
+                    iconName: consoleLibrary.scanning ? "loader" : "refresh"
+                    enabled: !consoleLibrary.scanning && !consoleLibrary.busy
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Read the console's library again")
+                    onClicked: consoleLibrary.refresh()
+                }
                 // The games folder, as a chip that changes it.
                 StyledButton {
-                    visible: games.gamesFolder.length > 0
+                    visible: root.tab === 0 && games.gamesFolder.length > 0
                     iconName: "folder-open"
                     chip: true
                     text: games.gamesFolder
@@ -103,13 +116,35 @@ Item {
                     onClicked: gamesFolderDialog.open()
                 }
                 StyledToolButton {
-                    visible: games.gamesFolder.length > 0
+                    visible: root.tab === 0 && games.gamesFolder.length > 0
                     iconName: "refresh"
                     enabled: !games.scanning
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Look again")
                     onClicked: games.rescan()
                 }
+            }
+
+            // ── the discs on this PC | the console's library
+            RowLayout {
+                Layout.fillWidth: true
+                TabBar {
+                    id: placeTabs
+                    Layout.preferredWidth: 360
+                    currentIndex: root.tab
+                    onCurrentIndexChanged: root.tab = currentIndex
+                    padding: 4
+                    spacing: 4
+                    background: Rectangle {
+                        radius: 12
+                        color: Theme.controlFill
+                        border.width: 1
+                        border.color: Theme.glassEdge
+                    }
+                    StyledTab { text: qsTr("PS1/PS2 on this PC") }
+                    StyledTab { text: qsTr("On the console") }
+                }
+                Item { Layout.fillWidth: true }
             }
 
             // ── the emulator files: downloaded once, the first time they are
@@ -120,7 +155,7 @@ Item {
                 readonly property bool busy: state_ === "downloading" || state_ === "unpacking"
                 readonly property color tone: state_ === "error" ? Theme.error : Theme.accent
                 Layout.fillWidth: true
-                visible: games.gamesFolder.length > 0 && state_ !== "ready"
+                visible: root.tab === 0 && games.gamesFolder.length > 0 && state_ !== "ready"
                 radius: 14
                 color: Theme.alpha(tone, 0.08)
                 border.width: 1
@@ -184,7 +219,7 @@ Item {
 
             // ── nothing chosen yet: centred in the page, both ways
             Item {
-                visible: games.gamesFolder.length === 0
+                visible: root.tab === 0 && games.gamesFolder.length === 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
@@ -228,9 +263,16 @@ Item {
                 }
             }
 
+            // ── the console's library
+            ConsoleLibrary {
+                visible: root.tab === 1
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+            }
+
             // ── the games: centred, as many to a row as fit
             Item {
-                visible: games.gamesFolder.length > 0
+                visible: root.tab === 0 && games.gamesFolder.length > 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
@@ -301,7 +343,7 @@ Item {
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: root.selected.length > 0 ? 20 : -height
+            anchors.bottomMargin: root.selected.length > 0 && root.tab === 0 ? 20 : -height
             Behavior on anchors.bottomMargin { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
             width: Math.min(parent.width - 48, bar.implicitWidth + 32)
             height: 60

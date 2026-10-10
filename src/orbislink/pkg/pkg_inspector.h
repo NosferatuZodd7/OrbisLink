@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -54,6 +55,10 @@ public:
 
 	// Reads only the offsets needed (the file is never loaded whole).
 	PkgInfo inspect(const std::string &path) const;
+	// The same from any source of bytes (a package on the console, read in
+	// pieces): `read` fills `buffer` with `size` bytes from `offset`.
+	using ByteReader = std::function<bool(int64_t offset, void *buffer, size_t size)>;
+	PkgInfo inspect(const std::string &path, int64_t size, const ByteReader &read) const;
 
 	// Cheap magic check, so drag and drop can filter quickly.
 	static bool hasPkgMagic(const std::string &path);

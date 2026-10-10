@@ -9,6 +9,7 @@
 #include "orbislink/payloads/payload_layout.h"
 #include "orbislink/qt/app_controller.h"
 #include "orbislink/qt/payloads_controller.h"
+#include "orbislink/qt/shadowmount_control.h"
 #include "orbislink/store/shadowmount_log.h"
 #include "orbislink/store/store_installer.h"
 #include "orbislink/update/sha256.h"
@@ -536,74 +537,7 @@ void StoreController::clearFinishedJobs()
 	emit jobsChanged();
 }
 
-bool StoreController::restartShadowMount(const FtpClient::Config &config, const std::string &address) const
-{
-	// Its file on the console, where the payload managers keep it.
-	FtpClient ftp(config);
-	std::vector<std::string> folders = { "/data/etaHEN/payloads", "/data/etaHEN/plugins", "/data/ps5_autoloader",
-		"/data/shadowmount" };
-	std::vector<FtpEntry> pldmgr;
-	if(ftp.list("/data/pldmgr/payloads", &pldmgr).ok)
-		for(const FtpEntry &entry : pldmgr)
-			if(entry.isDirectory && entry.name != "." && entry.name != "..")
-				folders.push_back(entry.path);
-	std::string found;
-	for(const std::string &folder : folders)
-	{
-		std::vector<FtpEntry> entries;
-		if(!ftp.list(folder, &entries).ok)
-			continue;
-		for(const FtpEntry &entry : entries)
-			if(!entry.isDirectory && startsWith(toLower(entry.name), "shadowmount") && endsWith(toLower(entry.name), ".elf"))
-				found = entry.path;
-		if(!found.empty())
-			break;
-	}
-	std::vector<uint8_t> bytes;
-	if(!found.empty())
-	{
-		const QString local = QDir(QDir::tempPath()).filePath(
-			QStringLiteral("orbislink-smp-%1.elf").arg(QCoreApplication::applicationPid()));
-		if(ftp.download(found, local.toStdString()).ok)
-		{
-			QFile file(local);
-			if(file.open(QIODevice::ReadOnly))
-			{
-				const QByteArray data = file.readAll();
-				bytes.assign(data.constData(), data.constData() + data.size());
-			}
-		}
-		QFile::remove(local);
-	}
-	QString why;
-	if(bytes.empty() && !PayloadsController::fetchFromLibrary(QStringLiteral("ShadowMountPlus"), &cancel_, &bytes, nullptr, &why))
-	{
-		logWarning("Store: ShadowMountPlus could not be started again: " + why.toStdString());
-		return false;
-	}
-	PayloadSender::Options options;
-	options.listenMs = 1500;
-	options.cancel = &cancel_;
-	const PayloadSender::Result sent = PayloadSender::send(address, payloads::loaderPort(payloads::Kind::Ps5, "ShadowMountPlus.elf"), bytes, options);
-	if(!sent.sent)
-	{
-		logWarning("Store: ShadowMountPlus could not be started again: " + sent.error);
-		return false;
-	}
-	logInfo("Store: ShadowMountPlus started again (" + (found.empty() ? std::string("from the payload library") : found)
-		+ ") to scan for the new app.");
-	return true;
-}
 
-bool StoreController::askShadowMount(const std::string &address, const std::string &route,
-	const std::string &body) const
-{
-	// Its API listens only on the PS5 itself unless "allow LAN access" is on;
-	// then this goes straight to it. A short wait: most do not answer.
-	HttpClient http(3000);
-	const HttpResponse response = http.post("http://" + address + ":10101" + route, body);
-	return response.transportOk && response.status == 200;
-}
 
 void StoreController::checkHomeScreen(const QString &titleId)
 {
@@ -623,7 +557,7 @@ void StoreController::checkHomeScreen(const QString &titleId)
 		// Asked to look again, its failed tries forgotten: worth it whatever
 		// the log says, when its API lets the network in.
 		result[QStringLiteral("rescanned")] =
-			askShadowMount(address, "/api/v1/scan", "{\"reset_attempts\":true}");
+			shadowmount::ask(address, "/api/v1/scan", "{\"reset_attempts\":true}");
 		if(!ftp)
 			result[QStringLiteral("verdict")] = QStringLiteral("no-ftp");
 		else
@@ -763,14 +697,14 @@ void StoreController::install(const QString &titleId)
 		// lets this ask.
 		// Look now, and try again titles it gave up on (an earlier failed
 		// try leaves them out until it is reset or restarted).
-		const bool scanned = askShadowMount(address, "/api/v1/scan", "{\"reset_attempts\":true}");
+		const bool scanned = shadowmount::ask(address, "/api/v1/scan", "{\"reset_attempts\":true}");
 		// Its API only listens on the PS5 itself unless told otherwise: then
 		// ShadowMountPlus is started again, which scans at once.
 		bool restarted = false;
 		if(!scanned)
 		{
 			setProgress(QStringLiteral("shadowmount"), 0, 0);
-			restarted = restartShadowMount(config, address);
+			restarted = shadowmount::restart(config, address, &cancel_);
 		}
 		QString message = tr("%1 is on %2 (%3).")
 			.arg(name, console, QString::fromStdString(installer.installRoot() + "/" + id))
@@ -811,7 +745,7 @@ void StoreController::uninstall(const QString &titleId)
 	startWork(titleId, tr("Removing %1…").arg(name), QStringLiteral("remove"), [this, id, address, name, console, config]() {
 		// ShadowMountPlus first, when it lets this ask: it takes the app off
 		// the home screen.
-		const bool unregistered = askShadowMount(address, "/api/v1/games/uninstall", "{\"title_id\":\"" + id + "\"}");
+		const bool unregistered = shadowmount::ask(address, "/api/v1/games/uninstall", "{\"title_id\":\"" + id + "\"}");
 		FtpClient ftp(config);
 		FtpStoreRemote remote(ftp);
 		store::StoreInstaller installer;

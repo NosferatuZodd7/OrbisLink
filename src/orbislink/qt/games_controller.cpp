@@ -2,8 +2,10 @@
 #include "orbislink/qt/games_controller.h"
 
 #include "orbislink/common/log.h"
+#include "orbislink/common/util.h"
 #include "orbislink/net/http_client.h"
 #include "orbislink/qt/app_controller.h"
+#include "orbislink/qt/translate_message.h"
 
 #ifdef ORBISLINK_HAS_FPKG
 #include "orbislink/fpkg/classic_converter.h"
@@ -158,6 +160,11 @@ struct GamesController::Job
 	// The queue task the package had before this job (an earlier upload or
 	// install of the same file): its outcome is not this job's.
 	QString staleTaskId;
+	// A disc on the console: its path there, the folder its package goes
+	// back to, and where it was fetched to on this PC (deleted after).
+	QString remotePath;
+	QString storageFolder;
+	QString fetchedFolder;
 	std::atomic<bool> cancel { false };
 #ifdef ORBISLINK_HAS_FPKG
 	fpkg::DiscInfo disc;
@@ -467,6 +474,21 @@ QVariantMap GamesController::gameByPath(const QString &path) const
 	return {};
 }
 
+QString GamesController::classicTitle(const QString &platform, const QString &titleId) const
+{
+#ifdef ORBISLINK_HAS_FPKG
+	if(titleId.isEmpty())
+		return {};
+	const fpkg::EmulatorInfo emus = fpkg::findEmulators(assetsFolder().toStdString());
+	return QString::fromStdString(fpkg::lookupTitle(
+		platform == QLatin1String("ps2") ? emus.titleDatabase : emus.ps1TitleDatabase, titleId.toStdString()));
+#else
+	Q_UNUSED(platform);
+	Q_UNUSED(titleId);
+	return {};
+#endif
+}
+
 QString GamesController::packageNameFor(const QString &path, const QString &title) const
 {
 #ifdef ORBISLINK_HAS_FPKG
@@ -552,6 +574,129 @@ void GamesController::sendToConsole(const QStringList &paths)
 	}
 	if(!files.isEmpty())
 		app_->addPaths(files, 1);
+}
+
+void GamesController::convertFromConsole(const QString &remotePath, const QString &title, const QString &platform)
+{
+#ifdef ORBISLINK_HAS_FPKG
+	// Somewhere for the package: the user's documents unless chosen.
+	if(outputFolder().isEmpty())
+	{
+		const QString fallback = QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
+			.filePath(QStringLiteral("OrbisLink/Packages"));
+		QDir().mkpath(fallback);
+		app_->updateSettings([&](Settings &s) { s.convertOutputFolder = QDir::toNativeSeparators(fallback).toStdString(); });
+	}
+	auto job = std::make_shared<Job>();
+	job->remotePath = remotePath;
+	job->path = remotePath;
+	job->listedPath = remotePath;
+	job->title = title;
+	job->platform = platform;
+	job->install = true;
+	// The package goes back where the disc was.
+	job->storageFolder = remotePath.left(remotePath.lastIndexOf(QLatin1Char('/')) + 1);
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		job->id = QString::number(nextId_++);
+		jobs_.push_back(job);
+	}
+	wakeup_.notify_all();
+	publish();
+	emit app_->showPanel(QStringLiteral("queue"));
+#else
+	Q_UNUSED(remotePath);
+	Q_UNUSED(title);
+	Q_UNUSED(platform);
+#endif
+}
+
+bool GamesController::fetchFromConsole(const std::shared_ptr<Job> &job, const std::function<void()> &tick)
+{
+#ifdef ORBISLINK_HAS_FPKG
+	const QString folder = QDir(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))
+		.filePath(QStringLiteral("from-console/%1").arg(job->id));
+	QDir(folder).removeRecursively();
+	QDir().mkpath(folder);
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		job->fetchedFolder = folder;
+		job->stage = QStringLiteral("fetch");
+		job->percent = 0;
+	}
+	tick();
+	const auto fail = [&](const QString &why) {
+		std::lock_guard<std::mutex> lock(mutex_);
+		job->state = job->cancel ? QStringLiteral("cancelled") : QStringLiteral("error");
+		job->message = job->cancel ? QString() : why;
+		return false;
+	};
+
+	FtpClient ftp(app_->ftpClientConfigFor(app_->settings().consoleAddress));
+	const std::string remote = job->remotePath.toStdString();
+	const std::string remoteFolder = remote.substr(0, remote.find_last_of('/') + 1);
+	const auto localFor = [&folder](const std::string &path) {
+		return QDir(folder).filePath(QString::fromStdString(path.substr(path.find_last_of('/') + 1)));
+	};
+	// A cue sheet brings the track it names.
+	std::vector<std::string> files = { remote };
+	if(endsWith(toLower(remote), ".cue"))
+	{
+		const QString cue = localFor(remote);
+		if(!ftp.download(remote, cue.toStdString()).ok)
+			return fail(tr("Could not read %1 on the console.").arg(QString::fromStdString(remote)));
+		QFile file(cue);
+		const std::string text = file.open(QIODevice::ReadOnly) ? file.readAll().toStdString() : std::string();
+		const std::string track = fpkg::cueImageName(text);
+		if(track.empty())
+			return fail(tr("The cue sheet names no file."));
+		files = { remoteFolder + track };
+	}
+	int64_t total = 0;
+	for(const std::string &file : files)
+	{
+		int64_t size = 0;
+		if(ftp.remoteSize(file, &size).ok)
+			total += size;
+	}
+	int64_t before = 0;
+	for(const std::string &file : files)
+	{
+		const FtpResult got = ftp.download(file, localFor(file).toStdString(), [&](int64_t done, int64_t) {
+			{
+				std::lock_guard<std::mutex> lock(mutex_);
+				job->percent = total > 0 ? 100.0 * static_cast<double>(before + done) / static_cast<double>(total) : 0;
+			}
+			tick();
+			return !job->cancel.load() && !stopping_.load();
+		});
+		if(!got.ok)
+			return fail(tr("Could not bring %1 from the console: %2")
+					.arg(QString::fromStdString(file.substr(file.find_last_of('/') + 1)), translateMessage(got.message)));
+		int64_t size = 0;
+		if(ftp.remoteSize(file, &size).ok)
+			before += size;
+	}
+
+	// Now it is read here, as a disc on this PC is.
+	const QString listed = localFor(remote);
+	const fpkg::DiscInfo disc = fpkg::inspectDisc(listed.toStdString());
+	if(!disc.problem.empty() || disc.platform.empty())
+		return fail(tr("%1 is not a PS1/PS2 disc this can convert (%2).")
+				.arg(QString::fromStdString(disc.fileName), QString::fromStdString(disc.problem)));
+	std::lock_guard<std::mutex> lock(mutex_);
+	job->disc = disc;
+	job->path = QString::fromStdString(disc.path);
+	job->listedPath = listed;
+	job->platform = QString::fromStdString(disc.platform);
+	if(job->title.trimmed().isEmpty())
+		job->title = QString::fromStdString(disc.title);
+	return true;
+#else
+	Q_UNUSED(job);
+	Q_UNUSED(tick);
+	return false;
+#endif
 }
 
 void GamesController::cancelConversion(const QString &id)
@@ -784,6 +929,23 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 	};
 	schedulePublish();
 
+	// A disc on the console comes to this PC first; the copy goes once the
+	// package is made (or the job ends).
+	struct Fetched
+	{
+		std::shared_ptr<Job> job;
+		~Fetched()
+		{
+			if(!job->fetchedFolder.isEmpty())
+				QDir(job->fetchedFolder).removeRecursively();
+		}
+	} fetched { job };
+	if(!job->remotePath.isEmpty() && !fetchFromConsole(job, schedulePublish))
+	{
+		QMetaObject::invokeMethod(this, [this]() { publish(); }, Qt::QueuedConnection);
+		return;
+	}
+
 	const Settings settings = app_->settings();
 	fpkg::ClassicOptions options;
 	options.title = job->title.toStdString();
@@ -878,11 +1040,12 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 		logWarning("Games: conversion failed — " + error);
 
 	const QString pkg = QString::fromStdString(result.pkgPath);
+	const QString sendTo = job->storageFolder.isEmpty() ? storageFolder() : job->storageFolder;
 	const bool install = job->install;
 	const QString title = job->title;
 	const QString message = QString::fromStdString(error);
 	const bool cancelled = job->cancel.load();
-	QMetaObject::invokeMethod(this, [this, job, ok, install, pkg, title, message, cancelled]() {
+	QMetaObject::invokeMethod(this, [this, job, ok, install, pkg, sendTo, title, message, cancelled]() {
 		// Over FTP into the app's own folder on the console, installed once
 		// it lands, and deleted from there after the install.
 		if(ok)
@@ -893,7 +1056,7 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 			job->staleTaskId = before;
 		}
 		if(ok && install)
-			app_->sendAndInstall(pkg, storageFolder());
+			app_->sendAndInstall(pkg, sendTo);
 		publish();
 		if(ok && !install)
 			emit app_->notify(tr("Convert"), tr("%1 is ready in the output folder.").arg(title), false);
