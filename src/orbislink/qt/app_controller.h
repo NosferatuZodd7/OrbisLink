@@ -42,6 +42,8 @@ class AppController : public QObject
 	Q_PROPERTY(QString installerState READ installerState NOTIFY statusChanged)
 	Q_PROPERTY(QString installerHint READ installerHint NOTIFY statusChanged)
 	Q_PROPERTY(bool canInstallDirectly READ canInstallDirectly NOTIFY statusChanged)
+	// A PS5: a package already on it installs by its path there.
+	Q_PROPERTY(bool installsFromConsole READ installsFromConsole NOTIFY settingsChanged)
 	Q_PROPERTY(bool canUseFtp READ canUseFtp NOTIFY statusChanged)
 	Q_PROPERTY(bool queuePaused READ queuePaused NOTIFY queueStateChanged)
 	Q_PROPERTY(QString pauseReason READ pauseReason NOTIFY queueStateChanged)
@@ -110,6 +112,7 @@ public:
 	QString installerState() const;
 	QString installerHint() const;
 	bool canInstallDirectly() const;
+	bool installsFromConsole() const { return activeIsPs5(); }
 	bool canUseFtp() const;
 	// The console in use is a PS5 (by the type that was stored).
 	bool activeIsPs5() const;
@@ -186,6 +189,8 @@ public:
 	// Dropping files: mode 0 = direct install, 1 = FTP upload.
 	Q_INVOKABLE void dropUrls(const QList<QUrl> &urls, int mode);
 	Q_INVOKABLE void addPaths(const QStringList &paths, int mode);
+	// Installs a .pkg that is already on the console (a PS5), by its path.
+	Q_INVOKABLE void installFromConsole(const QString &remotePath);
 	// The answer to uploadConflicts: one {index, action, name} per file that
 	// was already on the console; action is "overwrite", "rename" (to name)
 	// or "skip". The other files of the drop go as they were.

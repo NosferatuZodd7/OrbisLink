@@ -5,6 +5,7 @@
 // that behaves like the PS5's: it reads the ELF, then the payload talks.
 
 #include "orbislink/net/payload_sender.h"
+#include "orbislink/payloads/payload_catalog.h"
 #include "orbislink/payloads/payload_layout.h"
 #include "orbislink/net/socket_compat.h"
 #include "test_support.h"
@@ -257,6 +258,59 @@ ORBISLINK_TEST(turns_goldhen_plugins_on_and_off)
 	const std::string removed = pluginRemove(ini, "/data/GoldHEN/plugins/afr.prx");
 	CHECK(removed.find("afr.prx") == std::string::npos);
 	CHECK(removed.find("game_patch.prx=true") != std::string::npos);
+}
+
+ORBISLINK_TEST(reads_the_payload_catalog)
+{
+	using namespace payloads;
+	const std::string json = R"([
+		{"name":"kstuff-lite","filename":"kstuff-lite_v1.11.elf",
+		 "url":"https://example.org/kstuff-lite_v1.11.elf","source":"https://example.org/releases",
+		 "description":"Lite version","last_update":"2026-09-20","version":"v1.11",
+		 "category":"System & Jailbreak","checksum":"AB9A"},
+		{"name":"no-url","filename":"x.elf"},
+		{"name":"sneaky","filename":"../../etc/passwd","url":"https://example.org/x"},
+		{"name":"plain","filename":"plain.elf","url":"http://example.org/plain.elf"},
+		{"name":"ftpsrv","filename":"ftpsrv_v0.21.1.elf","url":"https://example.org/ftpsrv.elf"}
+	])";
+	std::string error;
+	const std::vector<CatalogPayload> list = parseCatalog(json, &error);
+	CHECK_EQ(list.size(), size_t(2)); // no address, a path, or not https: left out
+	CHECK_EQ(list[0].checksum, std::string("ab9a"));
+	CHECK_EQ(list[1].category, std::string("Uncategorized"));
+	CHECK(parseCatalog("not json", &error).empty());
+	CHECK(!error.empty());
+
+	CHECK(isFileOf(list[0], "kstuff-lite_v1.11.elf"));
+	CHECK(isFileOf(list[0], "KSTUFF-LITE_v1.10.elf"));
+	CHECK(isFileOf(list[0], "kstuff-lite.elf"));
+	CHECK(isFileOf(list[1], "ftpsrv.elf"));
+	CHECK(!isFileOf(list[1], "ftpsrv-drakmor_1.16.elf"));
+	CHECK(!isFileOf(list[1], "ftpsrvx.elf"));
+
+	// What PLK's Payload Manager keeps beside a payload reads back.
+	std::string name;
+	std::string version;
+	readDetails(detailsJson(list[0], "2026-10-10T12:00:00Z"), &name, &version);
+	CHECK_EQ(name, std::string("kstuff-lite"));
+	CHECK_EQ(version, std::string("v1.11"));
+}
+
+ORBISLINK_TEST(edits_an_autoload_sequence)
+{
+	using namespace payloads;
+	const std::string text = "# boot\n!3000\nkstuff.elf\n!500\n!500\nftpsrv.elf\nwebsrv.elf\n";
+	const std::vector<AutoloadStep> steps = autoloadSteps(text);
+	CHECK_EQ(steps.size(), size_t(3));
+	CHECK_EQ(steps[0].delayMs, 3000);
+	CHECK_EQ(steps[1].delayMs, 1000); // two waits in a row add up
+	CHECK_EQ(steps[2].delayMs, 0);
+
+	// Reordered and a wait changed: the comment stays on top.
+	std::vector<AutoloadStep> moved = { steps[1], steps[0], steps[2] };
+	moved[0].delayMs = 0;
+	CHECK_EQ(autoloadText(moved, text), std::string("# boot\nftpsrv.elf\n!3000\nkstuff.elf\nwebsrv.elf\n"));
+	CHECK_EQ(autoloadText({ { "a.elf", 0 } }, "x.elf\r\n"), std::string("a.elf\r\n"));
 }
 
 TEST_MAIN()

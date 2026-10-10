@@ -2,17 +2,23 @@
 #include "orbislink/qt/payloads_controller.h"
 
 #include "orbislink/common/log.h"
+#include "orbislink/net/http_client.h"
 #include "orbislink/net/payload_sender.h"
 #include "orbislink/qt/app_controller.h"
 #include "orbislink/qt/translate_message.h"
+#include "orbislink/update/sha256.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QHash>
 #include <QMetaObject>
+#include <QPair>
+#include <QSaveFile>
 #include <QSet>
+#include <QStandardPaths>
 #include <QUrl>
 
 #include <algorithm>
@@ -116,6 +122,39 @@ QString autoStartName(AutoStart style)
 	return QStringLiteral("none");
 }
 
+// "v1.10" and "1.10" are the same version.
+QString bareVersion(const QString &version)
+{
+	QString text = version.trimmed().toLower();
+	if(text.size() > 1 && text[0] == QLatin1Char('v') && text[1].isDigit())
+		text.remove(0, 1);
+	return text;
+}
+
+// The version in a file named the library's way ("kstuff-lite_v1.10.elf":
+// "v1.10"); "" when its name has none.
+QString versionInName(const CatalogPayload &payload, const QString &fileName)
+{
+	const QString name = QString::fromStdString(payload.name);
+	if(fileName.size() <= name.size() + 1 || !fileName.startsWith(name, Qt::CaseInsensitive))
+		return QString();
+	const QChar separator = fileName[name.size()];
+	if(separator != QLatin1Char('_') && separator != QLatin1Char('-'))
+		return QString();
+	const int dot = fileName.lastIndexOf(QLatin1Char('.'));
+	return dot > name.size() + 1 ? fileName.mid(name.size() + 1, dot - name.size() - 1) : QString();
+}
+
+// A folder name made of a payload's name.
+std::string folderNameOf(const std::string &name)
+{
+	std::string out = name;
+	for(char &c : out)
+		if(c == '/' || c == '\\' || c == ':')
+			c = '_';
+	return out == "." || out == ".." ? std::string("payload") : out;
+}
+
 QString uniqueLocal(const QString &dir, const QString &name)
 {
 	const QString wanted = QDir(dir).filePath(name);
@@ -140,6 +179,8 @@ PayloadsController::PayloadsController(AppController *app, QObject *parent) : QO
 	connect(app_, &AppController::settingsChanged, this, &PayloadsController::consolesChanged);
 	connect(app_, &AppController::statusChanged, this, &PayloadsController::consolesChanged);
 	connect(app_, &AppController::ftpReachableChanged, this, &PayloadsController::consolesChanged);
+	// What is installed, and which is older, follows each reading.
+	connect(this, &PayloadsController::foldersChanged, this, &PayloadsController::publishCatalog);
 }
 
 PayloadsController::~PayloadsController()
@@ -147,6 +188,8 @@ PayloadsController::~PayloadsController()
 	cancel_->store(true);
 	if(worker_.joinable())
 		worker_.join();
+	if(catalogThread_.joinable())
+		catalogThread_.join();
 	QDir(scratchDir()).removeRecursively();
 }
 
@@ -275,7 +318,8 @@ void PayloadsController::run(const QString &what, Job job, bool rescan)
 				std::vector<FtpEntry> entries;
 				const bool exists = ftp.list(folder.path, &entries).ok;
 				// A folder per payload (PLDMGR): what is in each, with its
-				// ".json" left out.
+				// ".json" left out but read: the name and version it says.
+				QHash<QString, QPair<QString, QString>> details;
 				if(exists && folder.nested)
 				{
 					std::vector<FtpEntry> inside;
@@ -284,10 +328,27 @@ void PayloadsController::run(const QString &what, Job job, bool rescan)
 						if(!entry.isDirectory || entry.name == "." || entry.name == "..")
 							continue;
 						std::vector<FtpEntry> files;
-						if(ftp.list(entry.path, &files).ok)
-							for(const FtpEntry &file : files)
-								if(!file.isDirectory && !endsWith(file.name, ".json"))
-									inside.push_back(file);
+						if(!ftp.list(entry.path, &files).ok)
+							continue;
+						QSet<QString> sidecars;
+						for(const FtpEntry &file : files)
+							if(!file.isDirectory && endsWith(file.name, ".json"))
+								sidecars.insert(QString::fromStdString(file.name));
+						for(const FtpEntry &file : files)
+						{
+							if(file.isDirectory || endsWith(file.name, ".json"))
+								continue;
+							inside.push_back(file);
+							if(!sidecars.contains(QString::fromStdString(file.name + ".json")))
+								continue;
+							std::string json;
+							std::string name;
+							std::string version;
+							if(readRemoteText(ftp, file.path + ".json", &json, nullptr))
+								readDetails(json, &name, &version);
+							details.insert(QString::fromStdString(file.path),
+								{ QString::fromStdString(name), QString::fromStdString(version) });
+						}
 					}
 					entries = inside;
 				}
@@ -323,6 +384,9 @@ void PayloadsController::run(const QString &what, Job job, bool rescan)
 					file[QStringLiteral("sendable")] = sendable(kind, entry.name);
 					file[QStringLiteral("critical")] = !folder.criticalFile.empty() && entry.name == folder.criticalFile;
 					file[QStringLiteral("port")] = loaderPort(kind, entry.name);
+					const auto said = details.constFind(QString::fromStdString(entry.path));
+					file[QStringLiteral("detailsName")] = said == details.constEnd() ? QString() : said->first;
+					file[QStringLiteral("version")] = said == details.constEnd() ? QString() : said->second;
 					files << file;
 				}
 				std::sort(files.begin(), files.end(), [](const QVariant &a, const QVariant &b) {
@@ -646,6 +710,378 @@ void PayloadsController::sendFromPc(const QString &file, int port)
 		}
 		return deliver(payload, name, chosen, host, cancel.get(), error);
 	}, false);
+}
+
+// ───────────────────────────── the library
+
+QString PayloadsController::cacheRoot()
+{
+	return QDir(QStandardPaths::writableLocation(QStandardPaths::CacheLocation)).filePath(QStringLiteral("payloads"));
+}
+
+void PayloadsController::refreshCatalog()
+{
+	if(catalogLoading_)
+		return;
+	if(catalogThread_.joinable())
+		catalogThread_.join();
+	catalogLoading_ = true;
+	catalogError_.clear();
+	emit catalogChanged();
+
+	const QString kept = QDir(cacheRoot()).filePath(QStringLiteral("catalog.json"));
+	const auto cancel = cancel_;
+	catalogThread_ = std::thread([this, kept, cancel]() {
+		HttpClient http(20000);
+		HttpClient::FetchOptions options;
+		options.cancel = cancel.get();
+		const HttpResponse reply = http.fetch(kCatalogUrl, options);
+		std::string why;
+		std::vector<CatalogPayload> list;
+		if(reply.transportOk && reply.status == 200)
+			list = parseCatalog(reply.body, &why);
+		bool offline = false;
+		QString error;
+		if(!list.empty())
+		{
+			QDir().mkpath(QFileInfo(kept).path());
+			QSaveFile file(kept);
+			if(file.open(QIODevice::WriteOnly))
+			{
+				file.write(reply.body.data(), static_cast<qint64>(reply.body.size()));
+				file.commit();
+			}
+		}
+		else
+		{
+			// The list from last time, said to be so.
+			const QByteArray saved = readLocal(kept);
+			list = parseCatalog(std::string(saved.constData(), static_cast<size_t>(saved.size())), nullptr);
+			offline = !list.empty();
+			const QString reason = !reply.transportOk ? translateMessage(reply.error)
+				: reply.status != 200 ? tr("the site answered %1").arg(reply.status)
+				: QString::fromStdString(why);
+			error = tr("The payload list could not be read: %1").arg(reason);
+			logWarning("Payloads: the payload list could not be read: " + reason.toStdString());
+		}
+		if(cancel->load())
+			return;
+		QMetaObject::invokeMethod(this, [this, list, offline, error]() {
+			catalogList_ = list;
+			catalogLoading_ = false;
+			catalogOffline_ = offline;
+			catalogError_ = error;
+			publishCatalog();
+		}, Qt::QueuedConnection);
+	});
+}
+
+const CatalogPayload *PayloadsController::catalogEntry(const QString &name) const
+{
+	for(const CatalogPayload &payload : catalogList_)
+		if(QString::fromStdString(payload.name) == name)
+			return &payload;
+	return nullptr;
+}
+
+QVariantList PayloadsController::copiesOf(const CatalogPayload &payload) const
+{
+	QVariantList copies;
+	const QString wanted = QString::fromStdString(payload.name);
+	const QString latestFile = QString::fromStdString(payload.filename);
+	for(const QVariant &f : folders_)
+	{
+		const QVariantMap folder = f.toMap();
+		for(const QVariant &v : folder.value(QStringLiteral("files")).toList())
+		{
+			const QVariantMap file = v.toMap();
+			const QString fileName = file.value(QStringLiteral("name")).toString();
+			// What PLDMGR wrote beside it says which it is; else its name.
+			const QString detailsName = file.value(QStringLiteral("detailsName")).toString();
+			const bool same = detailsName.isEmpty() ? isFileOf(payload, fileName.toStdString())
+													: detailsName.compare(wanted, Qt::CaseInsensitive) == 0;
+			if(!same)
+				continue;
+			QString version = file.value(QStringLiteral("version")).toString();
+			if(version.isEmpty())
+				version = fileName.compare(latestFile, Qt::CaseInsensitive) == 0 ? QString::fromStdString(payload.version)
+																				  : versionInName(payload, fileName);
+			QVariantMap copy;
+			copy[QStringLiteral("folder")] = folder.value(QStringLiteral("id"));
+			copy[QStringLiteral("path")] = file.value(QStringLiteral("path"));
+			copy[QStringLiteral("name")] = fileName;
+			copy[QStringLiteral("version")] = version;
+			copy[QStringLiteral("autoStart")] = file.value(QStringLiteral("autoStart"));
+			copies << copy;
+		}
+	}
+	return copies;
+}
+
+void PayloadsController::publishCatalog()
+{
+	QVariantList items;
+	const Kind kind = consoleKind();
+	for(const CatalogPayload &payload : catalogList_)
+	{
+		const QVariantList copies = copiesOf(payload);
+		const QString latest = bareVersion(QString::fromStdString(payload.version));
+		QString installedVersion;
+		bool update = false;
+		for(const QVariant &c : copies)
+		{
+			const QString version = c.toMap().value(QStringLiteral("version")).toString();
+			if(version.isEmpty())
+				continue;
+			if(installedVersion.isEmpty())
+				installedVersion = version;
+			if(bareVersion(version) != latest)
+				update = true;
+		}
+		QVariantMap item;
+		item[QStringLiteral("name")] = QString::fromStdString(payload.name);
+		item[QStringLiteral("version")] = QString::fromStdString(payload.version);
+		item[QStringLiteral("category")] = QString::fromStdString(payload.category);
+		item[QStringLiteral("description")] = QString::fromStdString(payload.description);
+		item[QStringLiteral("lastUpdate")] = QString::fromStdString(payload.lastUpdate);
+		item[QStringLiteral("source")] = QString::fromStdString(payload.source);
+		item[QStringLiteral("filename")] = QString::fromStdString(payload.filename);
+		item[QStringLiteral("port")] = loaderPort(kind, payload.filename);
+		item[QStringLiteral("sendable")] = sendable(kind, payload.filename);
+		item[QStringLiteral("installed")] = !copies.isEmpty();
+		item[QStringLiteral("installedVersion")] = installedVersion;
+		item[QStringLiteral("update")] = update;
+		item[QStringLiteral("copies")] = copies;
+		items << item;
+	}
+	catalog_ = items;
+	emit catalogChanged();
+}
+
+bool PayloadsController::fetchPayload(const CatalogPayload &payload, const std::atomic<bool> *cancel,
+	std::vector<uint8_t> *bytes, QString *error)
+{
+	const auto vouched = [&payload](const QByteArray &data) {
+		return payload.checksum.empty()
+			|| sha256Hex(std::string(data.constData(), static_cast<size_t>(data.size()))) == payload.checksum;
+	};
+	const QString kept = QDir(cacheRoot()).filePath(
+		QStringLiteral("files/%1").arg(QString::fromStdString(payload.filename)));
+	QByteArray data = readLocal(kept);
+	if(data.isEmpty() || !vouched(data))
+	{
+		HttpClient http(120000);
+		HttpClient::FetchOptions options;
+		options.cancel = cancel;
+		const HttpResponse reply = http.fetch(payload.url, options);
+		if(!reply.transportOk || reply.status != 200 || reply.body.empty())
+		{
+			*error = !reply.transportOk ? translateMessage(reply.error) : tr("the site answered %1").arg(reply.status);
+			return false;
+		}
+		data = QByteArray(reply.body.data(), static_cast<int>(reply.body.size()));
+		if(!vouched(data))
+		{
+			logWarning("Payloads: " + payload.filename + " does not match the list's SHA-256; not used.");
+			*error = tr("it is not the file the list vouches for (its checksum differs)");
+			return false;
+		}
+		QDir().mkpath(QFileInfo(kept).path());
+		QSaveFile file(kept);
+		if(file.open(QIODevice::WriteOnly))
+		{
+			file.write(data);
+			file.commit();
+		}
+	}
+	*bytes = bytesOf(data);
+	return true;
+}
+
+bool PayloadsController::fetchFromLibrary(const QString &name, const std::atomic<bool> *cancel,
+	std::vector<uint8_t> *bytes, QString *fileName, QString *error)
+{
+	const auto find = [&name](const std::vector<CatalogPayload> &list) -> const CatalogPayload * {
+		for(const CatalogPayload &payload : list)
+			if(QString::fromStdString(payload.name).compare(name, Qt::CaseInsensitive) == 0)
+				return &payload;
+		return nullptr;
+	};
+	const QByteArray kept = readLocal(QDir(cacheRoot()).filePath(QStringLiteral("catalog.json")));
+	std::vector<CatalogPayload> list = parseCatalog(std::string(kept.constData(), static_cast<size_t>(kept.size())), nullptr);
+	if(!find(list))
+	{
+		HttpClient http(20000);
+		HttpClient::FetchOptions options;
+		options.cancel = cancel;
+		const HttpResponse reply = http.fetch(kCatalogUrl, options);
+		if(reply.transportOk && reply.status == 200)
+			list = parseCatalog(reply.body, nullptr);
+	}
+	const CatalogPayload *payload = find(list);
+	if(!payload)
+	{
+		*error = tr("%1 is not in the payload list.").arg(name);
+		return false;
+	}
+	if(fileName)
+		*fileName = QString::fromStdString(payload->filename);
+	return fetchPayload(*payload, cancel, bytes, error);
+}
+
+void PayloadsController::runFromCatalog(const QString &name)
+{
+	const CatalogPayload *found = catalogEntry(name);
+	if(!found || target().isEmpty())
+		return;
+	const CatalogPayload payload = *found;
+	const QString file = QString::fromStdString(payload.filename);
+	const int port = loaderPort(consoleKind(), payload.filename);
+	const std::string host = target().toStdString();
+	const auto cancel = cancel_;
+	appendOutput({ tr("→ %1 to %2:%3").arg(file, QString::fromStdString(host)).arg(port) });
+	run(tr("Sending %1…").arg(file), [this, payload, name, file, port, host, cancel](FtpClient &, bool *error) {
+		std::vector<uint8_t> bytes;
+		QString why;
+		if(!fetchPayload(payload, cancel.get(), &bytes, &why))
+		{
+			*error = true;
+			return tr("%1 could not be downloaded: %2").arg(name, why);
+		}
+		return deliver(bytes, file, port, host, cancel.get(), error);
+	}, false);
+}
+
+void PayloadsController::installFromCatalog(const QString &name, const QString &folderId)
+{
+	const CatalogPayload *found = catalogEntry(name);
+	const std::vector<Folder> all = payloads::folders(consoleKind());
+	const auto folder = std::find_if(all.begin(), all.end(),
+		[&folderId](const Folder &f) { return f.id == folderId.toStdString(); });
+	if(!found || folder == all.end())
+		return;
+	const CatalogPayload payload = *found;
+	const Folder into = *folder;
+
+	// The copies already in that folder make way for this one, and whether
+	// they started by themselves carries over.
+	struct Older
+	{
+		std::string path;
+		bool autoStart = false;
+	};
+	std::vector<Older> older;
+	for(const QVariant &c : copiesOf(payload))
+	{
+		const QVariantMap copy = c.toMap();
+		if(copy.value(QStringLiteral("folder")).toString() == folderId)
+			older.push_back({ copy.value(QStringLiteral("path")).toString().toStdString(),
+				copy.value(QStringLiteral("autoStart")).toBool() });
+	}
+
+	const auto cancel = cancel_;
+	run(tr("Installing %1…").arg(name), [payload, name, into, older, cancel](FtpClient &ftp, bool *error) {
+		std::vector<uint8_t> bytes;
+		QString why;
+		if(!fetchPayload(payload, cancel.get(), &bytes, &why))
+		{
+			*error = true;
+			return tr("%1 could not be downloaded: %2").arg(name, why);
+		}
+		// PLDMGR keeps each payload in a folder of its name.
+		const std::string dir = into.nested ? into.path + "/" + folderNameOf(payload.name) : into.path;
+		const std::string remote = dir + "/" + payload.filename;
+		ftp.makeDirectory(parentOf(into.path));
+		ftp.makeDirectory(into.path);
+		if(into.nested)
+			ftp.makeDirectory(dir);
+		const QString local = scratchFile(QString::fromStdString(payload.filename));
+		{
+			QFile file(local);
+			if(file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+				file.write(reinterpret_cast<const char *>(bytes.data()), static_cast<qint64>(bytes.size()));
+		}
+		const FtpResult sent = ftp.upload(local.toStdString(), remote);
+		QFile::remove(local);
+		if(!sent.ok)
+		{
+			*error = true;
+			return tr("Could not copy %1 to the console: %2").arg(name, translateMessage(sent.message));
+		}
+		// What PLDMGR itself writes beside the payloads it installs.
+		if(into.nested)
+			writeRemoteText(ftp, remote + ".json",
+				detailsJson(payload, QDateTime::currentDateTimeUtc().toString(Qt::ISODate).toStdString()));
+
+		bool autoStart = false;
+		std::vector<std::string> replaced;
+		for(const Older &old : older)
+		{
+			autoStart = autoStart || old.autoStart;
+			if(old.path == remote)
+				continue;
+			replaced.push_back(nameOf(old.path));
+			ftp.removeFile(old.path);
+			if(into.autoStart == AutoStart::Marker)
+				ftp.removeFile(old.path + ".auto_start");
+			if(into.nested)
+			{
+				ftp.removeFile(old.path + ".json");
+				if(parentOf(old.path) != dir)
+					ftp.removeDirectory(parentOf(old.path));
+			}
+		}
+		if(into.autoStart == AutoStart::Marker && autoStart)
+			writeRemoteText(ftp, remote + ".auto_start", std::string());
+		if(into.autoStart == AutoStart::List && !replaced.empty())
+		{
+			// The new file takes the old one's place in the order.
+			std::string text;
+			bool exists = false;
+			readRemoteText(ftp, into.configPath, &text, &exists);
+			std::string changed = text;
+			for(const std::string &old : replaced)
+				changed = autoloadListed(changed, payload.filename) ? autoloadSet(changed, old, false)
+																   : autoloadRename(changed, old, payload.filename);
+			if(exists && changed != text)
+				writeRemoteText(ftp, into.configPath, changed);
+		}
+		logInfo("Payloads: " + payload.name + " " + payload.version + " installed in " + dir + ".");
+		return autoStart ? tr("%1 %2 is in %3, and still starts by itself.")
+							   .arg(name, QString::fromStdString(payload.version), QString::fromStdString(dir))
+						 : tr("%1 %2 is in %3.").arg(name, QString::fromStdString(payload.version),
+							   QString::fromStdString(dir));
+	}, true);
+}
+
+QVariantList PayloadsController::autoloadSteps(const QString &text) const
+{
+	QVariantList steps;
+	const QByteArray bytes = text.toUtf8();
+	for(const AutoloadStep &step :
+		payloads::autoloadSteps(std::string(bytes.constData(), static_cast<size_t>(bytes.size()))))
+	{
+		QVariantMap item;
+		item[QStringLiteral("name")] = QString::fromStdString(step.name);
+		item[QStringLiteral("delayMs")] = step.delayMs;
+		steps << item;
+	}
+	return steps;
+}
+
+QString PayloadsController::autoloadText(const QVariantList &steps, const QString &previous) const
+{
+	std::vector<AutoloadStep> list;
+	for(const QVariant &v : steps)
+	{
+		const QVariantMap step = v.toMap();
+		list.push_back({ step.value(QStringLiteral("name")).toString().trimmed().toStdString(),
+			std::max(0, step.value(QStringLiteral("delayMs")).toInt()) });
+	}
+	const QByteArray before = previous.toUtf8();
+	const std::string text =
+		payloads::autoloadText(list, std::string(before.constData(), static_cast<size_t>(before.size())));
+	return QString::fromUtf8(text.data(), static_cast<int>(text.size()));
 }
 
 } // namespace orbislink

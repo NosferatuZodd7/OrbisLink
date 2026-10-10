@@ -83,6 +83,7 @@ Item {
              : stage === "verify" ? qsTr("Checking the download…")
              : stage === "unpack" ? qsTr("Copying to the PS5…")
              : stage === "finish" ? qsTr("Putting it in place…")
+             : stage === "shadowmount" ? qsTr("Starting ShadowMountPlus again…")
              : stage
     }
 

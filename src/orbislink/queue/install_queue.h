@@ -162,6 +162,12 @@ private:
 	void workerLoop();
 	bool takeNextTask(QueueTask *task);
 	void runDirectInstall(QueueTask task);
+	// Asks the console to install `uri` (an http:// address, or on a PS5 a
+	// path there); a task left by an earlier try is cleared first.
+	InstallerResult startInstall(const QueueTask &task, const std::string &uri, InstallTaskHandle *handle);
+	// An install the installer cannot report on (etaHEN's DPI v2): followed
+	// by what the console takes from the PC.
+	void followServedInstall(QueueTask task);
 	// The install task created by "install after upload" needs to know
 	// which file to delete on the console when it finishes.
 	void setCleanupPath(const std::string &id, const std::string &remotePath);

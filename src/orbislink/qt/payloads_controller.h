@@ -2,6 +2,7 @@
 #pragma once
 
 #include "orbislink/ftp/ftp_client.h"
+#include "orbislink/payloads/payload_catalog.h"
 #include "orbislink/payloads/payload_layout.h"
 
 #include <QObject>
@@ -39,7 +40,8 @@ class PayloadsController : public QObject
 	Q_PROPERTY(bool online READ online NOTIFY consolesChanged)
 	// [{ id, path, exists, autoStart ("none"/"marker"/"list"/"ini"),
 	//    configPath, files: [{ name, path, size, autoStart, sendable,
-	//    critical, port }] }]
+	//    critical, port, detailsName, version }] }] — the last two from
+	//    PLDMGR's "<file>.json", when there is one.
 	Q_PROPERTY(QVariantList folders READ folders NOTIFY foldersChanged)
 	// [{ path, name, exists }]
 	Q_PROPERTY(QVariantList configs READ configs NOTIFY foldersChanged)
@@ -49,6 +51,15 @@ class PayloadsController : public QObject
 	// What the last payloads sent printed back (the PS5 ELF loader passes
 	// it on), and what happened while sending.
 	Q_PROPERTY(QStringList output READ output NOTIFY outputChanged)
+	// The community payload library (PS5): [{ name, version, category,
+	// description, lastUpdate, source, filename, port, sendable, installed,
+	// installedVersion, update (a copy is older), copies: [{ folder, path,
+	// name, version, autoStart }] }].
+	Q_PROPERTY(QVariantList catalog READ catalog NOTIFY catalogChanged)
+	Q_PROPERTY(bool catalogLoading READ catalogLoading NOTIFY catalogChanged)
+	Q_PROPERTY(QString catalogError READ catalogError NOTIFY catalogChanged)
+	// The list shown is the last one kept: the site did not answer.
+	Q_PROPERTY(bool catalogOffline READ catalogOffline NOTIFY catalogChanged)
 
 public:
 	explicit PayloadsController(AppController *app, QObject *parent = nullptr);
@@ -65,6 +76,10 @@ public:
 	bool busy() const { return busy_; }
 	QString status() const { return status_; }
 	QStringList output() const { return output_; }
+	QVariantList catalog() const { return catalog_; }
+	bool catalogLoading() const { return catalogLoading_; }
+	QString catalogError() const { return catalogError_; }
+	bool catalogOffline() const { return catalogOffline_; }
 
 	Q_INVOKABLE void refresh();
 	Q_INVOKABLE void setTarget(const QString &address);
@@ -88,11 +103,28 @@ public:
 	Q_INVOKABLE int portFor(const QString &fileName) const;
 	Q_INVOKABLE void clearOutput();
 
+	// The library: read again; run one now; put one in a folder (its id) on
+	// the console, replacing an older one there (its auto-start follows).
+	Q_INVOKABLE void refreshCatalog();
+	Q_INVOKABLE void runFromCatalog(const QString &name);
+	Q_INVOKABLE void installFromCatalog(const QString &name, const QString &folderId);
+	// An autoload list as steps [{ name, delayMs }] and back to text (the
+	// comment lines of `previous` kept).
+	Q_INVOKABLE QVariantList autoloadSteps(const QString &text) const;
+	Q_INVOKABLE QString autoloadText(const QVariantList &steps, const QString &previous) const;
+
+	// The library's payload of that name, whatever the case: from this PC's
+	// copy, else downloaded and checked; the list itself from the site, else
+	// the copy kept. On any thread.
+	static bool fetchFromLibrary(const QString &name, const std::atomic<bool> *cancel, std::vector<uint8_t> *bytes,
+		QString *fileName, QString *error);
+
 signals:
 	void consolesChanged();
 	void foldersChanged();
 	void busyChanged();
 	void outputChanged();
+	void catalogChanged();
 	void textLoaded(const QString &path, const QString &text, const QString &error);
 	// The outcome of an action, for a notice.
 	void finished(const QString &message, bool error);
@@ -120,6 +152,25 @@ private:
 	QStringList output_;
 	std::shared_ptr<std::atomic<bool>> cancel_ = std::make_shared<std::atomic<bool>>(false);
 	std::thread worker_;
+
+	// The library.
+	void publishCatalog();
+	// Where this PC keeps the list and the payloads it downloaded.
+	static QString cacheRoot();
+	// On the worker: the payload's file, from this PC's copy when its
+	// checksum still matches, else downloaded and checked.
+	static bool fetchPayload(const payloads::CatalogPayload &payload, const std::atomic<bool> *cancel,
+		std::vector<uint8_t> *bytes, QString *error);
+	const payloads::CatalogPayload *catalogEntry(const QString &name) const;
+	// The copies of a payload in the folders read: [{ folder, path, name,
+	// version, autoStart }].
+	QVariantList copiesOf(const payloads::CatalogPayload &payload) const;
+	std::vector<payloads::CatalogPayload> catalogList_;
+	QVariantList catalog_;
+	bool catalogLoading_ = false;
+	bool catalogOffline_ = false;
+	QString catalogError_;
+	std::thread catalogThread_;
 };
 
 } // namespace orbislink

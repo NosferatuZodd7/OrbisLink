@@ -39,13 +39,38 @@ installer's code).
 `isOutOfSpaceError()` returns `true` for `0x8002001C` — it is the code the UI
 uses for the "not enough space" message required in §7.
 
+## BGFT (`0x8099xxxx`)
+
+Source: etaHEN's error table, `Source Code/util/include/error_translator.hpp`
+(the `SCE_BGFT_ERROR_*` names; its DPI v2 installer reports with it). BGFT
+is the console's download and install task service: what both Remote Package
+Installer and etaHEN's DPI v2 hand the package to. OrbisLink describes the
+ones an install from it can meet:
+
+| Code | Name | Message shown |
+|---|---|---|
+| `0x80990004` | INVALID_ARGUMENT | The console's installer refused the request as invalid. |
+| **`0x80990015`** | **TASK_DUPLICATED** | **The console already has an install task for this package, left by an earlier try.** OrbisLink removes that task and asks again when the installer can find it (`/api/find_task`, `/api/unregister_task`); otherwise: delete it from the console's Downloads list, or restart the console. |
+| `0x80990018`, `0x8099008C` | TASK_ENTRY_NOSPC, DOWNLOAD_TASK_ENTRY_NOSPC | The console's download list is full. |
+| `0x80990027` | HTTP_STATUS | The PC's server answered with an error. |
+| `0x8099002C` | HTTP_RECV_IO | The download from the PC broke off. |
+| `0x80990038` | CONTENTID_UNMATCH | The package does not match what the console expected. |
+| `0x80990039`, `0x80990085`, `0x8099008D` | DEVICE_NOSPC, DEVICE_NOSPC_KERNEL, DOWNLOAD_DEVICE_NOSPC | Not enough space (`isOutOfSpaceError()`). |
+| `0x80990106`, `0x80990107` | DOWNLOAD_DEVICE_EXT_NOSPC, DEVICE_EXT_NOSPC | Not enough space on the extended storage (`isOutOfSpaceError()`). |
+| `0x80990045` | HTTP_NOT_CONNECTED | The console could not connect to the PC. |
+| `0x80990053` | FILE_BROKEN | The package is damaged. |
+| `0x80990079` | UNSUPPORTED_PACKAGE | The console does not take this kind of package. |
+| `0x80990082` | NEED_SYSTEM_UPDATE | The package needs a newer system software. |
+| `0x80990086` | CONTENT_ALREADY_DOWNLOADING | Already downloading. |
+| `0x80990087` | DISC_APPLICATION_ALREADY_INSTALLED | The disc version is installed. |
+| `0x80990088` | SAME_APPLICATION_ALREADY_INSTALLED | The same game is already installed. |
+| `0x8099008B` | APPLICATION_IS_RUNNING | The game is running: close it first. |
+
 ## TODO — families still to confirm
 
-The codes of the installer's own libraries are not published in any citable
-source:
+The codes of the installer's other libraries are not published in any
+citable source:
 
-* **BGFT** (`sceBgftService*`, download task management) — family
-  `0x8099xxxx` according to community reports, **not confirmed**.
 * **AppInstUtil** (`sceAppInstUtil*`, `is_exists`, uninstall) — family
   `0x8024xxxx`, **not confirmed**.
 * **libhttp** (`SCE_HTTP_ERROR_*`, used when downloading from the PC) — names

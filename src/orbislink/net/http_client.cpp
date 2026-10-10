@@ -109,6 +109,12 @@ int downloadProgress(void *userdata, curl_off_t total, curl_off_t done, curl_off
 	return 0;
 }
 
+int fetchProgress(void *userdata, curl_off_t, curl_off_t, curl_off_t, curl_off_t)
+{
+	const auto *cancel = static_cast<const std::atomic<bool> *>(userdata);
+	return cancel->load() ? 1 : 0; // non-zero aborts the transfer
+}
+
 } // namespace
 
 HttpResponse HttpClient::fetch(const std::string &url, const FetchOptions &options) const
@@ -143,6 +149,12 @@ HttpResponse HttpClient::fetch(const std::string &url, const FetchOptions &optio
 	// internet, unlike the rest of the client.
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+	if(options.cancel)
+	{
+		curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, fetchProgress);
+		curl_easy_setopt(curl, CURLOPT_XFERINFODATA, const_cast<std::atomic<bool> *>(options.cancel));
+		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+	}
 
 	const CURLcode code = curl_easy_perform(curl);
 	if(code == CURLE_OK)
@@ -151,7 +163,7 @@ HttpResponse HttpClient::fetch(const std::string &url, const FetchOptions &optio
 		curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response.status);
 	}
 	else
-		response.error = curl_easy_strerror(code);
+		response.error = options.cancel && options.cancel->load() ? "cancelled" : curl_easy_strerror(code);
 
 	if(headers)
 		curl_slist_free_all(headers);
