@@ -37,6 +37,12 @@ class GamesController : public QObject
 	Q_PROPERTY(bool available READ available CONSTANT)
 	Q_PROPERTY(QString gamesFolder READ gamesFolder NOTIFY foldersChanged)
 	Q_PROPERTY(QString outputFolder READ outputFolder NOTIFY foldersChanged)
+	// Where on the console a game goes to be installed ("internal", "usb",
+	// "ext"), its folder there, and which drives the console has:
+	// { checked, usb, ext } (checked: false until it was asked).
+	Q_PROPERTY(QString storage READ storage NOTIFY foldersChanged)
+	Q_PROPERTY(QString storageFolder READ storageFolder NOTIFY foldersChanged)
+	Q_PROPERTY(QVariantMap drives READ drives NOTIFY drivesChanged)
 	// The emulator files: "missing" (downloaded with the first conversion),
 	// "downloading", "unpacking", "ready" or "error" (assetsMessage says why).
 	Q_PROPERTY(QString assetsState READ assetsState NOTIFY assetsChanged)
@@ -60,6 +66,11 @@ public:
 	bool available() const;
 	QString gamesFolder() const;
 	QString outputFolder() const;
+	QString storage() const;
+	QString storageFolder() const;
+	QVariantMap drives() const { return drives_; }
+	// The folder a game goes to on that storage.
+	static QString folderOn(const QString &storage);
 	QString assetsState() const { return assetsState_; }
 	double assetsPercent() const { return assetsPercent_; }
 	QString assetsMessage() const { return assetsMessage_; }
@@ -73,6 +84,10 @@ public:
 	// Folders come as paths or file:// URLs (what FolderDialog gives).
 	Q_INVOKABLE void setGamesFolder(const QString &folder);
 	Q_INVOKABLE void setOutputFolder(const QString &folder);
+	Q_INVOKABLE void setStorage(const QString &storage);
+	Q_INVOKABLE QString folderFor(const QString &storage) const { return folderOn(storage); }
+	// Asks the console in use over FTP which drives it has (drives).
+	Q_INVOKABLE void checkDrives();
 	Q_INVOKABLE void rescan();
 	// Gets the emulator files now instead of with the first conversion.
 	Q_INVOKABLE void downloadAssets();
@@ -103,6 +118,7 @@ signals:
 	void conversionsChanged();
 	void progressChanged();
 	void assetsChanged();
+	void drivesChanged();
 
 private:
 	struct Job;
@@ -139,6 +155,8 @@ private:
 	std::atomic<bool> stopping_ { false };
 	std::atomic<bool> publishPending_ { false };
 	std::thread worker_;
+	std::thread drivesThread_;
+	QVariantMap drives_;
 	int nextId_ = 1;
 };
 

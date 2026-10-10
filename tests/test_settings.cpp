@@ -334,6 +334,18 @@ ORBISLINK_TEST(theme_colours_presets_and_pad_map_round_trip)
 	CHECK_EQ(older.ftpPinnedFoldersPs5.size(), Settings().ftpPinnedFoldersPs5.size());
 }
 
+ORBISLINK_TEST(install_storage_round_trip)
+{
+	CHECK_EQ(Settings().installStorage, std::string("internal"));
+	Settings settings;
+	settings.installStorage = "usb";
+	bool ok = false;
+	CHECK_EQ(Settings::fromJson(settings.toJson(), &ok).installStorage, std::string("usb"));
+	CHECK(ok);
+	// Anything else reads as the console's memory.
+	CHECK_EQ(Settings::fromJson(R"({"install_storage":"floppy"})", &ok).installStorage, std::string("internal"));
+}
+
 ORBISLINK_TEST(hand_edited_theme_colours_are_checked)
 {
 	bool ok = false;

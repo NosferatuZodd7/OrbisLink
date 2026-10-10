@@ -4,7 +4,8 @@
 // that can be done with it.
 //
 // * Convert and install: the disc becomes a PS4 package, goes to the
-//   console over FTP and is installed there.
+//   console over FTP — its own memory, a USB drive or the extended
+//   storage — and is installed there.
 // * Convert only: the package stays in the output folder (for consoles
 //   without a jailbreak, or to install later).
 // * Send disc file: the image as it is, over FTP.
@@ -37,7 +38,12 @@ Dialog {
         items = list
         reuse = true
         titleInput.text = list.length === 1 ? list[0].title : ""
+        if (ftpUp)
+            games.checkDrives()
         open()
+    }
+    function driveMissing(id) {
+        return id !== "internal" && games.drives.checked === true && games.drives[id] !== true
     }
 
     function paths() {
@@ -366,6 +372,39 @@ Dialog {
             Layout.bottomMargin: 4
             spacing: 8
             visible: dialog.ftpUp
+            // Where on the console it goes, and is installed from.
+            Flow {
+                Layout.fillWidth: true
+                spacing: 6
+                Text {
+                    height: 30
+                    verticalAlignment: Text.AlignVCenter
+                    rightPadding: 4
+                    text: qsTr("On the console:")
+                    color: Theme.textSecondary
+                    font.pixelSize: 12
+                }
+                Repeater {
+                    model: [
+                        { id: "internal", label: qsTr("Its memory"), icon: "hard-drive" },
+                        { id: "usb", label: qsTr("USB drive"), icon: "hard-drive" },
+                        { id: "ext", label: qsTr("Extended storage"), icon: "hard-drive" }
+                    ]
+                    StyledButton {
+                        required property var modelData
+                        chip: true
+                        iconName: games.storage === modelData.id ? "check" : modelData.icon
+                        primary: games.storage === modelData.id
+                        text: modelData.label + (dialog.driveMissing(modelData.id) ? "  ·  " + qsTr("not found") : "")
+                        ToolTip.visible: hovered
+                        ToolTip.text: dialog.driveMissing(modelData.id)
+                                      ? qsTr("Nothing shows on it: plug it in (an empty drive works too). Goes to %1")
+                                        .arg(games.folderFor(modelData.id))
+                                      : qsTr("Goes to %1").arg(games.folderFor(modelData.id))
+                        onClicked: games.setStorage(modelData.id)
+                    }
+                }
+            }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 10
@@ -385,17 +424,21 @@ Dialog {
                                   + "only once). ")) + (!dialog.ftpUp
                         ? qsTr("The console has no FTP right now (it needs a jailbreak: GoldHEN or "
                                + "etaHEN). Convert only, and install the package later.")
-                        : dialog.reusing
-                        ? qsTr("Send and install: the package already in the folder goes to /data/OrbisLinkFPKG "
-                               + "on the console and is installed, without converting the disc again; the "
-                               + "copy there is deleted once installed.")
-                        : dialog.installerUp
-                        ? qsTr("Convert and install: the package is made here, sent to /data/OrbisLinkFPKG "
-                               + "on the console and installed; the copy there is deleted once installed. "
-                               + "Your package stays in the folder above.")
-                        : qsTr("Convert and install: the package is made here, sent to /data/OrbisLinkFPKG "
-                               + "and then installed (the copy there is deleted afterwards) — open Remote Package Installer on the console for that last "
-                               + "step (it waits in the queue until then)."))
+                        : (dialog.reusing
+                           ? qsTr("Send and install: the package already in the folder goes to %1 on the "
+                                  + "console and is installed, without converting the disc again.")
+                           : qsTr("Convert and install: the package is made here, sent to %1 on the console "
+                                  + "and installed. Your package stays in the folder above."))
+                          .arg(games.storageFolder)
+                          + " " + (app.installsFromConsole
+                                   ? qsTr("The PS5 installs it from there; the copy stays until you delete it.")
+                                   : qsTr("The copy there is deleted once installed."))
+                          + (dialog.installerUp ? ""
+                             : " " + (app.installsFromConsole
+                                      ? qsTr("The installer is not answering: turn on DPI v2 in etaHEN (DPI_v2=1); "
+                                             + "the install waits in the queue until then.")
+                                      : qsTr("Open Remote Package Installer on the console for that last step (it "
+                                             + "waits in the queue until then)."))))
                 }
             }
         }

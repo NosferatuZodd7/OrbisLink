@@ -150,6 +150,9 @@ struct Settings
 	// PS1/PS2 games: where the discs are and where converted packages go.
 	std::string gamesFolder;
 	std::string convertOutputFolder;
+	// Where on the console a game goes to be installed: "internal"
+	// (/data), "usb" (/mnt/usb0) or "ext" (the extended storage, /mnt/ext0).
+	std::string installStorage = "internal";
 	// The save vault on this PC (empty: Documents/OrbisLink/Saves).
 	std::string saveVaultFolder;
 	// Console user folder ("1a2b3c4d") → its owner's Account ID (base64),

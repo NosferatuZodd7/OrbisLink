@@ -237,12 +237,28 @@ packages are saved (**Change…**).
 | Button | Does | Needs |
 |---|---|---|
 | **Convert only** | Makes the package in the output folder. | Nothing (no console). |
-| **Convert and install** | Makes it, sends it over FTP to `/data/OrbisLinkFPKG/` on the console (made if missing), installs it, then deletes that copy. The package stays in the output folder. | FTP of the console in use; the installer for the last step (the queue waits for it). |
+| **Convert and install** | Makes it, sends it over FTP to the folder chosen under *On the console* (made if missing) and installs it. A PS4 installs it from this PC and the copy there is then deleted; a PS5 installs it from where it was put, and the copy stays until you delete it. The package stays in the output folder. | FTP of the console in use; the installer for the last step (the queue waits for it). |
 | **Send and install** | Shown instead when the package was made before and *Use the existing package* is chosen: skips the conversion. | Same as above. |
 | **Send disc file** | Sends the disc image itself over FTP. | FTP. |
 
+**On the console:** where the package goes — **Its memory**
+(`/data/OrbisLinkFPKG/`), a **USB drive** (`/mnt/usb0/OrbisLinkFPKG/`) or the
+**Extended storage** (`/mnt/ext0/OrbisLinkFPKG/`). The dialog asks the
+console which drives it has, and marks *not found* the one that shows
+nothing (still selectable: an empty drive shows nothing too). The choice is
+kept in the settings.
+
 Without a console connected, the dialog says so, the buttons that send are
 off, and **Convert only** still works.
+
+### What the console takes, and from where
+
+| You have | What happens | From |
+|---|---|---|
+| A PS4 package (`.pkg`, fake-signed) | Installed by the installer: Remote Package Installer on a PS4, etaHEN's DPI v2 on a PS5 (PS4 packages on a PS5 need etaHEN with kstuff). | This PC (*Install directly*), or a copy on the console: its memory, a USB drive, the extended storage (PS5: **Install on the console** in the Files tab, or *Send and install*). |
+| A PS1/PS2 disc (`.iso`, `.bin/.cue`, `.img`) | Converted here into a PS4 package, then as above. The image itself is not installable; *Send disc file* only copies it. | Same. |
+| A PS5 game as a folder, or as an image (`.ffpkg`, `.exfat`, `.ffpfs`) | Not installed: ShadowMountPlus mounts it and puts it on the home screen. Copy it over FTP into a folder it looks in. | `/data/homebrew`, `/mnt/usb0`–`/mnt/usb7` and their `homebrew` folders, `/mnt/ext0`, `/mnt/ext1` and theirs (ShadowMountPlus's own list, first level of sub-folders). |
+| A homebrew app from the store | Its folder goes to `/data/homebrew`; ShadowMountPlus registers it. | The Homebrew store page. |
 
 ### Conversion card (Queue tab)
 
