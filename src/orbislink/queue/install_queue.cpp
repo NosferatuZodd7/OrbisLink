@@ -86,6 +86,7 @@ Json taskToJson(const QueueTask &task)
 	json.set("remote_directory", Json::fromString(task.remoteDirectory));
 	json.set("install_after", Json::fromBool(task.installAfter));
 	json.set("delete_after_install", Json::fromBool(task.deleteAfterInstall));
+	json.set("installed_from_console", Json::fromBool(task.installedFromConsole));
 	json.set("message", Json::fromString(task.message));
 	json.set("error_code", Json::fromInt(static_cast<int64_t>(task.errorCode)));
 	json.set("attempts", Json::fromInt(task.attempts));
@@ -115,6 +116,7 @@ QueueTask taskFromJson(const Json &json)
 	task.remoteDirectory = json["remote_directory"].toString();
 	task.installAfter = json["install_after"].toLooseBool(false);
 	task.deleteAfterInstall = json["delete_after_install"].toLooseBool(false);
+	task.installedFromConsole = json["installed_from_console"].toLooseBool(false);
 	task.message = json["message"].toString();
 	task.errorCode = static_cast<uint32_t>(json["error_code"].toInt());
 	task.attempts = static_cast<int>(json["attempts"].toInt());
@@ -1063,6 +1065,7 @@ void InstallQueue::runFtpUpload(QueueTask task)
 		if(started.ok)
 		{
 			installAfter = false;
+			task.installedFromConsole = true;
 			task.message = std::string(QT_TRANSLATE_NOOP("Messages",
 				"Sent; the console is installing it (see its notifications)")) + ": " + task.remotePath;
 			logInfo("Uploaded; the console installs " + task.remotePath + ".");

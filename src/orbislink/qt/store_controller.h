@@ -132,12 +132,7 @@ private:
 	void setProgress(const QString &stage, int64_t done, int64_t total);
 	void resetProgress();
 	std::string cacheDir() const;
-	// ShadowMountPlus's API on the PS5, when it lets the network in.
-	bool askShadowMount(const std::string &address, const std::string &route, const std::string &body) const;
-	// ShadowMountPlus started again, which also scans everything at once (a
-	// new copy hands over from the one running): its file from the console,
-	// else from the payload library, to the ELF loader. On the worker.
-	bool restartShadowMount(const FtpClient::Config &config, const std::string &address) const;
+
 
 	AppController *app_;
 	std::unique_ptr<store::StoreCatalog> catalog_;

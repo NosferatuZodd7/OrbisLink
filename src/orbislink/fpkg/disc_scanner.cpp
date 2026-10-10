@@ -42,7 +42,7 @@ uint32_t le32(const uint8_t *p)
 class SectorReader
 {
 public:
-	explicit SectorReader(const std::string &path) : in_(fs::u8path(path), std::ios::binary) {}
+	explicit SectorReader(ByteReader read) : read_(std::move(read)) {}
 
 	bool detect()
 	{
@@ -64,19 +64,13 @@ public:
 		return false;
 	}
 
-	bool read(uint64_t lba, uint8_t *out)
-	{
-		in_.clear();
-		in_.seekg(static_cast<std::streamoff>(lba * sectorSize_ + dataOffset_));
-		in_.read(reinterpret_cast<char *>(out), 2048);
-		return static_cast<bool>(in_);
-	}
+	bool read(uint64_t lba, uint8_t *out) { return read_(lba * sectorSize_ + dataOffset_, out, 2048); }
 
 	const uint8_t *pvd() const { return pvd_; }
 	uint32_t sectorSize() const { return sectorSize_; }
 
 private:
-	std::ifstream in_;
+	ByteReader read_;
 	uint32_t sectorSize_ = 2048;
 	uint32_t dataOffset_ = 0;
 	uint8_t pvd_[2048] = {};
@@ -128,9 +122,23 @@ std::string readSystemCnf(SectorReader &reader)
 std::string firstCueFile(const std::string &cuePath)
 {
 	std::ifstream in(fs::u8path(cuePath));
-	std::string line;
-	while(std::getline(in, line))
+	const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+	const std::string name = cueImageName(text);
+	return name.empty() ? std::string() : (fs::u8path(cuePath).parent_path() / fs::u8path(name)).u8string();
+}
+
+} // namespace
+
+std::string cueImageName(const std::string &cueText)
+{
+	size_t pos = 0;
+	while(pos < cueText.size())
 	{
+		size_t end = cueText.find('\n', pos);
+		if(end == std::string::npos)
+			end = cueText.size();
+		const std::string line = cueText.substr(pos, end - pos);
+		pos = end + 1;
 		const std::string t = trim(line);
 		if(lower(t.substr(0, 5)) != "file ")
 			continue;
@@ -146,12 +154,10 @@ std::string firstCueFile(const std::string &cuePath)
 			if(space != std::string::npos)
 				name.resize(space);
 		}
-		return (fs::u8path(cuePath).parent_path() / fs::u8path(name)).u8string();
+		return name;
 	}
 	return {};
 }
-
-} // namespace
 
 std::string normaliseSerial(const std::string &text)
 {
@@ -238,32 +244,58 @@ std::string titleFromFileName(const std::string &fileName, int *discNumber)
 
 DiscInfo inspectDisc(const std::string &path)
 {
-	DiscInfo info;
-	info.listedPath = path;
-	info.path = path;
-	info.fileName = fs::u8path(path).filename().u8string();
-	info.title = titleFromFileName(info.fileName, &info.discNumber);
-	std::string ext = lower(fs::u8path(path).extension().u8string());
-	if(ext == ".cue")
+	std::string image = path;
+	if(lower(fs::u8path(path).extension().u8string()) == ".cue")
 	{
-		info.path = firstCueFile(path);
-		if(info.path.empty())
+		image = firstCueFile(path);
+		if(image.empty())
 		{
+			DiscInfo info;
+			info.listedPath = path;
+			info.path = path;
+			info.fileName = fs::u8path(path).filename().u8string();
+			info.title = titleFromFileName(info.fileName, &info.discNumber);
 			info.problem = "the cue sheet names no file";
 			return info;
 		}
-		ext = lower(fs::u8path(info.path).extension().u8string());
 	}
-	info.format = ext.empty() ? std::string() : ext.substr(1);
 	std::error_code ec;
-	info.size = fs::file_size(fs::u8path(info.path), ec);
+	const uint64_t size = fs::file_size(fs::u8path(image), ec);
+	auto file = std::make_shared<std::ifstream>(fs::u8path(image), std::ios::binary);
+	DiscInfo info = inspectDisc(fs::u8path(image).filename().u8string(), ec ? 0 : size,
+		[file](uint64_t offset, uint8_t *out, size_t length) {
+			file->clear();
+			file->seekg(static_cast<std::streamoff>(offset));
+			file->read(reinterpret_cast<char *>(out), static_cast<std::streamsize>(length));
+			return static_cast<bool>(*file);
+		});
+	info.listedPath = path;
+	info.path = image;
+	// The name shown is the one found in the folder (the .cue's).
+	info.fileName = fs::u8path(path).filename().u8string();
+	info.title = titleFromFileName(info.fileName, &info.discNumber);
 	if(ec)
+		info.problem = "the file cannot be read";
+	return info;
+}
+
+DiscInfo inspectDisc(const std::string &fileName, uint64_t size, const ByteReader &read)
+{
+	DiscInfo info;
+	info.listedPath = fileName;
+	info.path = fileName;
+	info.fileName = fileName;
+	info.title = titleFromFileName(info.fileName, &info.discNumber);
+	const std::string ext = lower(fs::u8path(fileName).extension().u8string());
+	info.format = ext.empty() ? std::string() : ext.substr(1);
+	info.size = size;
+	if(size == 0)
 	{
 		info.problem = "the file cannot be read";
 		return info;
 	}
 
-	SectorReader reader(info.path);
+	SectorReader reader(read);
 	if(!reader.detect())
 	{
 		info.problem = "not a PlayStation disc image";

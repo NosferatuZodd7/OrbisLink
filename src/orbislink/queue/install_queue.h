@@ -62,6 +62,8 @@ struct QueueTask
 	std::string remoteDirectory;
 	bool installAfter = false;
 	bool deleteAfterInstall = false;
+	// Sent, and then installed by the console from where it was put (a PS5).
+	bool installedFromConsole = false;
 	std::string message;    // error or information for the UI
 	uint32_t errorCode = 0;
 	int attempts = 0;

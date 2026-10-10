@@ -113,15 +113,32 @@ bool PkgInspector::hasPkgMagic(const std::string &path)
 
 PkgInfo PkgInspector::inspect(const std::string &path) const
 {
-	PkgInfo info;
-	info.path = path;
-
 	const int64_t size = fileSize(path);
 	if(size < 0)
 	{
+		PkgInfo info;
+		info.path = path;
 		info.error = QT_TRANSLATE_NOOP("Messages", "Could not read the file.");
 		return info;
 	}
+	std::ifstream file(path, std::ios::binary);
+	if(!file)
+	{
+		PkgInfo info;
+		info.path = path;
+		info.fileSize = size;
+		info.error = QT_TRANSLATE_NOOP("Messages", "Could not open the file.");
+		return info;
+	}
+	return inspect(path, size, [&file](int64_t offset, void *buffer, size_t length) {
+		return readAt(file, offset, buffer, length);
+	});
+}
+
+PkgInfo PkgInspector::inspect(const std::string &path, int64_t size, const ByteReader &read) const
+{
+	PkgInfo info;
+	info.path = path;
 	info.fileSize = size;
 	if(size < kMinPkgSize)
 	{
@@ -129,17 +146,10 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 		return info;
 	}
 
-	std::ifstream file(path, std::ios::binary);
-	if(!file)
-	{
-		info.error = QT_TRANSLATE_NOOP("Messages", "Could not open the file.");
-		return info;
-	}
-
 	std::vector<uint8_t> header(kHeaderReadSize, 0);
 	const size_t headerBytes = static_cast<size_t>(
 		size < static_cast<int64_t>(kHeaderReadSize) ? size : static_cast<int64_t>(kHeaderReadSize));
-	if(!readAt(file, 0, header.data(), headerBytes))
+	if(!read(0, header.data(), headerBytes))
 	{
 		info.error = QT_TRANSLATE_NOOP("Messages", "Could not read the pkg header.");
 		return info;
@@ -185,7 +195,7 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 	}
 
 	std::vector<uint8_t> table(static_cast<size_t>(entryCount) * kTableEntrySize);
-	if(!readAt(file, entryTableOffset, table.data(), table.size()))
+	if(!read(entryTableOffset, table.data(), table.size()))
 	{
 		info.error = QT_TRANSLATE_NOOP("Messages", "Could not read the pkg entry table.");
 		return info;
@@ -215,7 +225,7 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 		&& static_cast<size_t>(sfoSize) <= options_.maxSfoBytes)
 	{
 		std::vector<uint8_t> sfoData(static_cast<size_t>(sfoSize));
-		if(readAt(file, sfoOffset, sfoData.data(), sfoData.size()))
+		if(read(sfoOffset, sfoData.data(), sfoData.size()))
 		{
 			Sfo sfo;
 			std::string sfoError;
@@ -239,7 +249,7 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 		&& static_cast<size_t>(iconSize) <= options_.maxIconBytes)
 	{
 		std::vector<uint8_t> icon(static_cast<size_t>(iconSize));
-		if(readAt(file, iconOffset, icon.data(), icon.size()))
+		if(read(iconOffset, icon.data(), icon.size()))
 			info.iconPng = std::move(icon);
 	}
 

@@ -31,6 +31,14 @@ struct DiscInfo
 // Reads one disc image (or cue sheet).
 DiscInfo inspectDisc(const std::string &path);
 
+// The same, from any source of bytes (a file on the console, read in
+// pieces): `read` fills `out` with `size` bytes from `offset`.
+using ByteReader = std::function<bool(uint64_t offset, uint8_t *out, size_t size)>;
+DiscInfo inspectDisc(const std::string &fileName, uint64_t size, const ByteReader &read);
+
+// The image a cue sheet names (its first FILE line), as written there.
+std::string cueImageName(const std::string &cueText);
+
 // Walks `folder` (and up to three levels below) for disc images. `progress`
 // gets each file as it is looked at; returning false stops the scan.
 std::vector<DiscInfo> scanFolder(const std::string &folder,

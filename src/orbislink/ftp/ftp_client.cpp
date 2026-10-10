@@ -645,6 +645,61 @@ FtpResult FtpClient::download(const std::string &remotePath, const std::string &
 
 namespace {
 
+struct RangeState
+{
+	std::vector<uint8_t> *bytes = nullptr;
+	size_t wanted = 0;
+};
+
+// Keeps what was asked for, then stops the transfer: a server that ignores
+// the end of the range would otherwise send the rest of the file.
+size_t appendRange(char *data, size_t size, size_t count, void *userdata)
+{
+	auto *state = static_cast<RangeState *>(userdata);
+	const size_t bytes = size * count;
+	const size_t room = state->wanted - std::min(state->wanted, state->bytes->size());
+	const size_t taken = std::min(room, bytes);
+	state->bytes->insert(state->bytes->end(), reinterpret_cast<const uint8_t *>(data),
+		reinterpret_cast<const uint8_t *>(data) + taken);
+	return state->bytes->size() >= state->wanted ? 0 : bytes;
+}
+
+} // namespace
+
+FtpResult FtpClient::read(const std::string &remotePath, int64_t offset, size_t length, std::vector<uint8_t> *bytes)
+{
+	const std::string path = normalizeRemotePath(remotePath);
+	bytes->clear();
+	if(length == 0)
+		return FtpResult::success();
+	return withRetries("read " + baseName(path), [&]() -> FtpResult {
+		Slot slot(this);
+		const Config cfg = config();
+		bytes->clear();
+		CURL *curl = curl_easy_init();
+		if(!curl)
+			return FtpResult::failure("could not initialise libcurl");
+		char errorBuffer[CURL_ERROR_SIZE] = { 0 };
+		RangeState state;
+		state.bytes = bytes;
+		state.wanted = length;
+		const std::string range = std::to_string(offset) + "-" + std::to_string(offset + static_cast<int64_t>(length) - 1);
+		applyCommonOptions(curl, cfg, errorBuffer);
+		curl_easy_setopt(curl, CURLOPT_URL, urlFor(path).c_str());
+		curl_easy_setopt(curl, CURLOPT_RANGE, range.c_str());
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, appendRange);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &state);
+		const CURLcode code = curl_easy_perform(curl);
+		curl_easy_cleanup(curl);
+		// Stopped on purpose once it had everything.
+		if(bytes->size() >= length || code == CURLE_OK)
+			return FtpResult::success();
+		return readFailure(code, errorBuffer);
+	});
+}
+
+namespace {
+
 FtpResult runQuoteCommands(const FtpClient::Config &cfg, const std::string &host,
 	const std::vector<std::string> &commands, const std::string &baseUrl)
 {
