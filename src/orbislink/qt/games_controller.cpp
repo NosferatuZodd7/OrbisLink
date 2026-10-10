@@ -188,6 +188,8 @@ GamesController::~GamesController()
 	wakeup_.notify_all();
 	if(worker_.joinable())
 		worker_.join();
+	if(drivesThread_.joinable())
+		drivesThread_.join();
 }
 
 bool GamesController::available() const
@@ -246,6 +248,56 @@ void GamesController::setOutputFolder(const QString &folder)
 {
 	const std::string path = toLocalPath(folder).toStdString();
 	app_->updateSettings([&](Settings &s) { s.convertOutputFolder = path; });
+}
+
+QString GamesController::folderOn(const QString &storage)
+{
+	if(storage == QLatin1String("usb"))
+		return QStringLiteral("/mnt/usb0/OrbisLinkFPKG/");
+	if(storage == QLatin1String("ext"))
+		return QStringLiteral("/mnt/ext0/OrbisLinkFPKG/");
+	return QString::fromLatin1(kConvertedGamesFolder);
+}
+
+QString GamesController::storage() const { return QString::fromStdString(app_->settings().installStorage); }
+
+QString GamesController::storageFolder() const { return folderOn(storage()); }
+
+void GamesController::setStorage(const QString &storage)
+{
+	const std::string chosen = storage == QLatin1String("usb") || storage == QLatin1String("ext")
+		? storage.toStdString() : std::string("internal");
+	app_->updateSettings([&](Settings &s) { s.installStorage = chosen; });
+}
+
+void GamesController::checkDrives()
+{
+	if(drivesThread_.joinable())
+		drivesThread_.join();
+	const FtpClient::Config config = app_->ftpClientConfigFor(app_->settings().consoleAddress);
+	drivesThread_ = std::thread([this, config]() {
+		// A drive is there when its mount point lists something; the
+		// folder exists, empty, when nothing is plugged in.
+		FtpClient ftp(config);
+		const auto has = [&ftp](const std::string &path) {
+			std::vector<FtpEntry> entries;
+			if(!ftp.list(path, &entries).ok)
+				return false;
+			for(const FtpEntry &entry : entries)
+				if(entry.name != "." && entry.name != "..")
+					return true;
+			return false;
+		};
+		const bool usb = has("/mnt/usb0");
+		const bool ext = !stopping_ && has("/mnt/ext0");
+		if(stopping_)
+			return;
+		QMetaObject::invokeMethod(this, [this, usb, ext]() {
+			drives_ = { { QStringLiteral("checked"), true }, { QStringLiteral("usb"), usb },
+				{ QStringLiteral("ext"), ext } };
+			emit drivesChanged();
+		}, Qt::QueuedConnection);
+	});
 }
 
 void GamesController::setAssets(const QString &state, double percent, const QString &message)
@@ -841,7 +893,7 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 			job->staleTaskId = before;
 		}
 		if(ok && install)
-			app_->sendAndInstall(pkg, QString::fromLatin1(kConvertedGamesFolder));
+			app_->sendAndInstall(pkg, storageFolder());
 		publish();
 		if(ok && !install)
 			emit app_->notify(tr("Convert"), tr("%1 is ready in the output folder.").arg(title), false);

@@ -144,6 +144,7 @@ std::string Settings::toJson() const
 	root.set("first_run_done", Json::fromBool(firstRunDone));
 	root.set("games_folder", Json::fromString(gamesFolder));
 	root.set("convert_output_folder", Json::fromString(convertOutputFolder));
+	root.set("install_storage", Json::fromString(installStorage));
 	root.set("save_vault_folder", Json::fromString(saveVaultFolder));
 	Json links = Json::makeObject();
 	for(const auto &pair : saveAccountLinks)
@@ -300,6 +301,9 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.firstRunDone = root["first_run_done"].toLooseBool(settings.firstRunDone);
 	settings.gamesFolder = root["games_folder"].toString(settings.gamesFolder);
 	settings.convertOutputFolder = root["convert_output_folder"].toString(settings.convertOutputFolder);
+	settings.installStorage = root["install_storage"].toString(settings.installStorage);
+	if(settings.installStorage != "usb" && settings.installStorage != "ext")
+		settings.installStorage = "internal";
 	settings.saveVaultFolder = root["save_vault_folder"].toString(settings.saveVaultFolder);
 	if(root["save_account_links"].isObject())
 		for(const auto &pair : root["save_account_links"].members())
