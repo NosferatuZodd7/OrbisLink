@@ -653,7 +653,7 @@ void LibraryController::remove(const QString &path)
 // ── copies to this PC ───────────────────────────────────────────────────
 
 void LibraryController::copyToPc(const QString &title, const QString &icon, const QString &folder,
-	const QVector<CopyFile> &files)
+	const QVector<CopyItem> &files)
 {
 	if(files.isEmpty() || folder.isEmpty())
 		return;
@@ -666,7 +666,7 @@ void LibraryController::copyToPc(const QString &title, const QString &icon, cons
 	job.cancel = std::make_shared<std::atomic<bool>>(false);
 
 	qint64 total = 0;
-	for(const CopyFile &file : files)
+	for(const CopyItem &file : files)
 		total += file.size;
 	QVariantMap card;
 	card[QStringLiteral("id")] = job.id;
@@ -750,12 +750,12 @@ void LibraryController::runCopy(const CopyJob &job)
 	}
 
 	qint64 total = 0;
-	for(const CopyFile &file : job.files)
+	for(const CopyItem &file : job.files)
 		total += file.size;
 	// What is already here: whole files are not copied again, and a part
 	// copied before goes on from where it stopped.
 	qint64 already = 0;
-	for(const CopyFile &file : job.files)
+	for(const CopyItem &file : job.files)
 	{
 		const QFileInfo whole(file.local);
 		if(whole.exists() && whole.size() == file.size)
@@ -788,7 +788,7 @@ void LibraryController::runCopy(const CopyJob &job)
 	shown.start();
 	for(int i = 0; i < job.files.size(); ++i)
 	{
-		const CopyFile &file = job.files[i];
+		const CopyItem &file = job.files[i];
 		const QString what = file.what == QLatin1String("update") ? tr("the update")
 			: file.what == QLatin1String("addon") ? tr("an add-on") : tr("the game");
 		const QString step = job.files.size() > 1

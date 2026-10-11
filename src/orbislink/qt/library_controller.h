@@ -85,7 +85,7 @@ public:
 	Q_INVOKABLE void clearFinishedJobs();
 
 	// One file of the console to copy to this PC.
-	struct CopyFile
+	struct CopyItem
 	{
 		QString remote;
 		QString local;
@@ -96,7 +96,7 @@ public:
 	// Copies a title's files from the console into `folder`, as they are:
 	// one card in the installs panel, one title at a time, each at the
 	// network's full speed.
-	void copyToPc(const QString &title, const QString &icon, const QString &folder, const QVector<CopyFile> &files);
+	void copyToPc(const QString &title, const QString &icon, const QString &folder, const QVector<CopyItem> &files);
 	// Stops a copy (waiting or under way); what was copied of the file
 	// under way is kept and the next copy of it goes on from there.
 	Q_INVOKABLE void cancelJob(const QString &id);
@@ -127,7 +127,7 @@ private:
 		QString id;
 		QString title;
 		QString folder;
-		QVector<CopyFile> files;
+		QVector<CopyItem> files;
 		FtpClient::Config config;
 		std::shared_ptr<std::atomic<bool>> cancel;
 	};
