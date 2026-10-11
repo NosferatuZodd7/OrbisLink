@@ -51,6 +51,8 @@ FocusScope {
         case "convert": return qsTr("Convert and install")
         case "convertOnly": return card.where === "console" ? qsTr("Only convert (the package stays in this folder)")
                                                             : qsTr("Only convert")
+        case "pack": return qsTr("Pack and install")
+        case "packOnly": return qsTr("Only pack")
         case "mount": return qsTr("Put on the home screen")
         case "run": return qsTr("Run")
         case "runPayload": return qsTr("Run on the console")
@@ -69,6 +71,8 @@ FocusScope {
         case "convertOnly": return card.where === "console"
                                    ? qsTr("Made into a PS4 package on this PC and put back beside the disc")
                                    : qsTr("Made into a PS4 package, kept in the output folder")
+        case "pack": return qsTr("Made into a .pkg on this PC (as its .gp4 says, when it has one), sent and installed")
+        case "packOnly": return qsTr("Made into a .pkg, kept in the output folder")
         case "mount": return qsTr("Moved into the folder ShadowMountPlus mounts from, on the same drive")
         case "run": return qsTr("Sent to the console's loader now")
         case "runPayload": return qsTr("Sent from this PC to the console's loader now")
@@ -82,6 +86,8 @@ FocusScope {
         case "send": case "sendFile": return "upload"
         case "convert": return "disc"
         case "convertOnly": return "package"
+        case "pack": return "package-plus"
+        case "packOnly": return "package"
         case "mount": return "home"
         case "run": case "runPayload": return "play"
         case "reveal": return "external-link"
@@ -93,7 +99,7 @@ FocusScope {
         if (card.where === "console")
             return action !== "reveal"
         return action === "install" || action === "send" || action === "sendFile"
-               || action === "convert" || action === "runPayload"
+               || action === "convert" || action === "pack" || action === "runPayload"
     }
     function kindText(card) {
         if (card.app) return card.platform === "ps4" ? qsTr("PS4 app or game folder") : qsTr("PS5 app or game folder")

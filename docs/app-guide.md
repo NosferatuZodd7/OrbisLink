@@ -305,7 +305,8 @@ A game's buttons:
 |---|---|---|
 | `.pkg` | **Install on the console** (it downloads it from this PC), **Send to the console** (FTP, to the upload folder), **Show in its folder**. | **Install** (PS5: from where it is, followed in the Queue tab; a PS4 installs from Debug Settings → Package Installer, which the details say), **Delete from the console…**. |
 | PS1/PS2 disc | **Convert and install**, **Only convert** (the package goes to the output folder), **Send the disc file**, **Show in its folder**. | **Convert and install**, **Only convert** (the package goes back beside the disc), **Delete…**. |
-| PS5 image or app folder | **Show in its folder** (a PS5 one is copied to `/data/homebrew` on the PS5; a PS4 app folder is not a package — the folder a converter leaves before packing, with its `.gp4` recipe — and installs once made into a `.pkg`). | **Put on the home screen** (PS5): moved into the folder ShadowMountPlus mounts from on the same drive, then ShadowMountPlus is asked to scan, or started again. |
+| PS4 app or game folder (`sce_sys/param.sfo`; what a converter leaves before packing, often with a `.gp4`) | **Pack and install**: made into a `.pkg` in the output folder, then sent and installed like a converted game (its card in the Queue tab: Pack, Send, Install); **Only pack**: the package stays in the output folder; **Show in its folder**. The `.gp4` in the folder (or beside it, named after it) is followed when there is one: its files, where each goes in the package, its content ID; paths of the PC it was made on are found again in the folder by their place in the package, and what it leaves out (the converter's notes) stays out. Without one, the whole folder goes in but for the tools' leftovers (`.gp4`, `.complete`, `desktop.ini`…), under the content ID of its `param.sfo`. | — (on the console, a PS4 folder is not packed: copy it to this PC first). |
+| PS5 image or app folder | **Show in its folder** (it is copied to `/data/homebrew` on the PS5, where ShadowMountPlus finds it). | **Put on the home screen** (PS5): moved into the folder ShadowMountPlus mounts from on the same drive, then ShadowMountPlus is asked to scan, or started again. |
 | Payload | **Run on the console** (sent from this PC to its loader). | **Run**, **Delete…**. |
 
 Nothing is installed, sent or run by itself: only these buttons do. Every
@@ -574,6 +575,8 @@ only if its SHA-256 matches the list.
 | Library: the console's places; put on the home screen, run | yes | yes | — | — |
 | Library: install a package, convert and install a disc | yes | yes | yes (waits for it) | — |
 | Library: only convert a console disc (the package stays in its folder) | yes | yes | — | — |
+| Library: only pack a PS4 app folder of this PC | no | — | — | — |
+| Library: pack and install a PS4 app folder of this PC | yes | yes | yes (waits for it) | — |
 | Payloads library: install, update | yes | yes | — | — |
 
 ## Where it lives in the code

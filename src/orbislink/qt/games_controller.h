@@ -112,6 +112,10 @@ public:
 	// A disc anywhere on this PC (not only in the games folder): converted
 	// and, when asked, sent and installed.
 	Q_INVOKABLE void convertFile(const QString &path, bool install);
+	// A PS4 app or game folder on this PC (what a converter leaves before
+	// packing): made into a package, following its .gp4 when it has one,
+	// and, when asked, sent and installed (library/folder_package.h).
+	Q_INVOKABLE void packFolder(const QString &folder, bool install);
 	Q_INVOKABLE void cancelConversion(const QString &id);
 	Q_INVOKABLE void clearFinishedConversions();
 	// Takes a finished conversion's card away.
@@ -146,6 +150,10 @@ private:
 	QVariantMap gameByPath(const QString &path) const;
 	void workerLoop();
 	void runJob(const std::shared_ptr<Job> &job);
+	// The end of a job: its state, then the package on its way.
+	void finishJob(const std::shared_ptr<Job> &job, bool ok, const std::string &pkgPath, const std::string &error);
+	bool runPack(const std::shared_ptr<Job> &job, const std::function<void()> &tick, std::string *pkgPath,
+		std::string *error);
 	// On the worker: a job's disc from the console to this PC.
 	bool fetchFromConsole(const std::shared_ptr<Job> &job, const std::function<void()> &tick);
 	void publish();
