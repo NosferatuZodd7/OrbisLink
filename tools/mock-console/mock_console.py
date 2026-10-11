@@ -43,6 +43,8 @@ class FtpSession(threading.Thread):
 
     # Pause after each block received, to watch uploads in progress (--ftp-slow).
     upload_delay = 0.0
+    # Pause after each block sent, to watch downloads in progress (--ftp-slow-download).
+    download_delay = 0.0
     # Cuts the data connection once per file after this many bytes, to try
     # resuming (--ftp-drop-once).
     drop_after = 0
@@ -274,7 +276,18 @@ class FtpSession(threading.Thread):
                 if self.rest_offset:
                     handle.seek(self.rest_offset)
                     self.rest_offset = 0
-                shutil.copyfileobj(handle, data.makefile("wb"))
+                if FtpSession.download_delay:
+                    out = data.makefile("wb")
+                    while True:
+                        block = handle.read(64 * 1024)
+                        if not block:
+                            break
+                        out.write(block)
+                        out.flush()
+                        time.sleep(FtpSession.download_delay)
+                    out.close()
+                else:
+                    shutil.copyfileobj(handle, data.makefile("wb"))
             self.send("226 Transfer complete")
         finally:
             data.close()
@@ -747,6 +760,8 @@ def main() -> int:
                         help="delay per downloaded block (for demos)")
     parser.add_argument("--ftp-slow", type=float, default=0.0, metavar="SECONDS",
                         help="delay per uploaded block over FTP (to watch uploads in progress)")
+    parser.add_argument("--ftp-slow-download", type=float, default=0.0, metavar="SECONDS",
+                        help="delay per downloaded block over FTP (to watch copies to the PC in progress)")
     parser.add_argument("--ftp-drop-once", type=int, default=0, metavar="BYTES",
                         help="cuts each upload once after this many bytes (to try resuming)")
     parser.add_argument("--discovery-port", type=int, default=0, metavar="PORT",
@@ -769,6 +784,7 @@ def main() -> int:
     os.makedirs(downloads, exist_ok=True)
 
     FtpSession.upload_delay = arguments.ftp_slow
+    FtpSession.download_delay = arguments.ftp_slow_download
     FtpSession.drop_after = arguments.ftp_drop_once
     ftp = FtpServer(arguments.ftp_port, root, arguments.host)
     ftp.start()

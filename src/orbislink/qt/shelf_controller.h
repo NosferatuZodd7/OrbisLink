@@ -2,6 +2,7 @@
 #pragma once
 
 #include "orbislink/ftp/ftp_client.h"
+#include "orbislink/library/installed_titles.h"
 #include "orbislink/library/shelf.h"
 
 #include <QAbstractListModel>
@@ -127,6 +128,8 @@ class ShelfController : public QObject
 	// Goes up each time a cover arrives: a binding that reads it and calls
 	// cover() is evaluated again then.
 	Q_PROPERTY(int coverRevision READ coverRevision NOTIFY coversChanged)
+	// Where games installed on the console are copied to on this PC.
+	Q_PROPERTY(QString copyFolder READ copyFolder NOTIFY copyFolderChanged)
 
 public:
 	ShelfController(AppController *app, GamesController *games, LibraryController *consoleLibrary,
@@ -158,6 +161,7 @@ public:
 	QVariantList locations() const;
 	QVariantList volumes() const;
 	int coverRevision() const { return coverRevision_; }
+	QString copyFolder() const;
 
 	// A game's cover for any page of the app, by its serial or title ID:
 	// the file URL of one the app has, or "" — and then, for a PS1/PS2 disc,
@@ -178,6 +182,22 @@ public:
 	// What a card's buttons do (the ids are in its "actions").
 	Q_INVOKABLE void act(int index, const QString &action);
 
+	// Several cards picked at once, by their keys: what can be done to all
+	// of them — { install, converts (of those, made into a package first),
+	// convertOnly, copyToPc, console: how many each fits }.
+	Q_INVOKABLE QVariantMap batchActions(const QStringList &keys) const;
+	// Does it to each that it fits: "install" (convert or pack first where it
+	// has to, then install), "convertOnly" (only make the package).
+	Q_INVOKABLE void actMany(const QStringList &keys, const QString &action);
+
+	// Games installed on the console, copied to this PC: what would be copied
+	// ({ titles, files, size, sizeText, free, freeText, enough, skipped }) and
+	// the copy itself, one card per game in the installs panel.
+	Q_INVOKABLE QVariantMap copyPlan(const QStringList &keys, bool updates, bool addons) const;
+	Q_INVOKABLE void copyToPc(const QStringList &keys, bool updates, bool addons);
+	Q_INVOKABLE void setCopyFolder(const QUrl &folder);
+	Q_INVOKABLE void openCopyFolder();
+
 	// The places: added, taken off (the folder stays), renamed, marked.
 	Q_INVOKABLE void addFolder(const QUrl &folder);
 	Q_INVOKABLE void addPlace(const QString &path, const QString &where);
@@ -195,6 +215,7 @@ signals:
 	void activeChanged();
 	void locationsChanged();
 	void coversChanged();
+	void copyFolderChanged();
 	void notice(const QString &message, bool error);
 
 private:
@@ -237,6 +258,13 @@ private:
 	void openPlace(const QString &sourceId, const QString &path);
 	void loadPlace();
 	void loadConsoleLibrary();
+	// The place of what the console has installed: read over FTP, shown as
+	// it is read; at home, its covers.
+	void loadInstalled(bool forPlace);
+	QVariantMap installedCard(const library::InstalledTitle &title, const Source &from, bool ps5) const;
+	// A card by its key, among those of the place open or of the search.
+	QVariantMap cardByKey(const QString &key) const;
+	void actOn(const QVariantMap &card, const QString &action);
 	void watchPlace();
 	void setGone(bool gone, const QString &message);
 	void setLoading(bool loading);
@@ -300,6 +328,9 @@ private:
 	QSet<QString> installed_;
 	QElapsedTimer installedAge_;
 	QSet<QString> noCover_;
+	// What the console has installed, as last read (interface thread only).
+	QVariantList installedCards_;
+	bool installedReading_ = false;
 	// Covers asked for by the pages, on their way (interface thread only).
 	QSet<QString> coverPending_;
 	int coverRevision_ = 0;

@@ -163,6 +163,7 @@ std::string Settings::toJson() const
 	root.set("library_locations", places);
 	root.set("library_locations_seeded", Json::fromBool(libraryLocationsSeeded));
 	root.set("library_only_games", Json::fromBool(libraryOnlyGames));
+	root.set("console_copy_folder", Json::fromString(consoleCopyFolder));
 	Json links = Json::makeObject();
 	for(const auto &pair : saveAccountLinks)
 		links.set(pair.first, Json::fromString(pair.second));
@@ -337,6 +338,7 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 		}
 	settings.libraryLocationsSeeded = root["library_locations_seeded"].toLooseBool(settings.libraryLocationsSeeded);
 	settings.libraryOnlyGames = root["library_only_games"].toLooseBool(settings.libraryOnlyGames);
+	settings.consoleCopyFolder = root["console_copy_folder"].toString(settings.consoleCopyFolder);
 	if(root["save_account_links"].isObject())
 		for(const auto &pair : root["save_account_links"].members())
 			if(pair.second.isString())

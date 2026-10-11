@@ -26,6 +26,56 @@ FocusScope {
     readonly property int tile: home ? 176 : 148
     readonly property int cellWidth: tile + 34
     readonly property int cellHeight: tile + 74
+    // Several picked at once, by their cards' keys, to do one thing to all.
+    property bool picking: false
+    property var picked: ({})
+    readonly property var pickedKeys: Object.keys(picked)
+    readonly property var batch: pickedKeys.length > 0 ? shelf.batchActions(pickedKeys) : ({})
+    function pickable(card) {
+        var actions = card.actions || []
+        return card.card === "title" && ["convert", "pack", "install", "convertOnly", "packOnly", "copyToPc"]
+            .some(function (a) { return actions.indexOf(a) >= 0 })
+    }
+    function togglePick(card) {
+        var next = Object.assign({}, picked)
+        if (next[card.key])
+            delete next[card.key]
+        else
+            next[card.key] = true
+        picked = next
+    }
+    function pickAll() {
+        var next = ({})
+        for (var i = 0; i < shelf.count; ++i) {
+            var card = shelf.card(i)
+            if (pickable(card))
+                next[card.key] = true
+        }
+        picked = next
+    }
+    function stopPicking() {
+        picking = false
+        picked = ({})
+    }
+    // The cards for some keys, as they are shown.
+    function cardsFor(keys) {
+        var out = []
+        for (var i = 0; i < shelf.count; ++i) {
+            var card = shelf.card(i)
+            if (keys.indexOf(card.key) >= 0)
+                out.push(card)
+        }
+        return out
+    }
+    // A button's action: the copy asks first; the rest go at once.
+    function run(action, index) {
+        if (action === "copyToPc") {
+            copyDialog.ask([shelf.card(index).key])
+            return
+        }
+        shelf.act(index, action)
+    }
+
     // A folder that holds things, none of them games, with "Only games" on.
     readonly property bool noGamesHere: !home && shelf.level !== "search" && shelf.onlyGames
                                         && shelf.total > 0 && shelf.query.length === 0 && shelf.filter === "all"
@@ -61,6 +111,7 @@ FocusScope {
         case "runPayload": return qsTr("Run on the console")
         case "reveal": return qsTr("Show in its folder")
         case "delete": return qsTr("Delete from the console…")
+        case "copyToPc": return qsTr("Copy to this PC")
         }
         return action
     }
@@ -79,6 +130,7 @@ FocusScope {
         case "mount": return qsTr("Moved into the folder ShadowMountPlus mounts from, on the same drive")
         case "run": return qsTr("Sent to the console's loader now")
         case "runPayload": return qsTr("Sent from this PC to the console's loader now")
+        case "copyToPc": return qsTr("The package the console installed it from, with its update and add-ons, copied over FTP")
         }
         return ""
     }
@@ -95,6 +147,7 @@ FocusScope {
         case "run": case "runPayload": return "play"
         case "reveal": return "external-link"
         case "delete": return "trash"
+        case "copyToPc": return "laptop"
         }
         return ""
     }
@@ -106,6 +159,8 @@ FocusScope {
     }
     function kindText(card) {
         if (card.app) return card.platform === "ps4" ? qsTr("PS4 app or game folder") : qsTr("PS5 app or game folder")
+        if (card.kind === "installed") return card.platform === "ps5" ? qsTr("Installed PS5 game or app")
+                                                                     : qsTr("Installed PS4 game or app")
         switch (card.kind) {
         case "package": return card.category === "gp" || card.category === "gpd" ? qsTr("PS4 update")
                              : card.category === "ac" ? qsTr("PS4 add-on")
@@ -142,6 +197,10 @@ FocusScope {
             return
         select(index)
         list.forceActiveFocus()
+        if (picking && pickable(card)) {
+            togglePick(card)
+            return
+        }
         if (card.card === "source" || card.card === "folder") {
             var keys = trail.slice()
             keys.push(card.key)
@@ -166,6 +225,7 @@ FocusScope {
     Connections {
         target: shelf
         function onPlaceChanged() {
+            view.stopPicking()
             view.current = 0
             list.positionViewAtBeginning()
             enter.restart()
@@ -298,6 +358,15 @@ FocusScope {
                     onClicked: shelf.onlyGames = false
                 }
             }
+            StyledButton {
+                visible: !view.home
+                chip: true
+                iconName: view.picking ? "close" : "square-check"
+                text: view.picking ? qsTr("Done") : qsTr("Select")
+                ToolTip.visible: hovered && !view.picking
+                ToolTip.text: qsTr("Pick several games and do one thing to all of them")
+                onClicked: view.picking ? view.stopPicking() : (view.picking = true)
+            }
             Item { Layout.fillWidth: true }
             StyledButton {
                 visible: !view.home
@@ -342,7 +411,8 @@ FocusScope {
                 anchors.leftMargin: -6
                 anchors.rightMargin: -6
                 topMargin: 6
-                bottomMargin: 16
+                // Room for the bar of what to do with the games picked.
+                bottomMargin: view.picking ? 88 : 16
                 clip: true
                 focus: true
                 model: shelf.rows
@@ -372,6 +442,12 @@ FocusScope {
                     case Qt.Key_Enter:
                     case Qt.Key_Space: view.activate(view.current); break
                     case Qt.Key_Escape:
+                        if (view.picking) {
+                            view.stopPicking()
+                            break
+                        }
+                        handled = view.goBack()
+                        break
                     case Qt.Key_Backspace: handled = view.goBack(); break
                     default:
                         if (event.matches(StandardKey.Find)) {
@@ -462,9 +538,82 @@ FocusScope {
                                     artSize: view.tile
                                     info: visible ? cell.modelData : ({})
                                     selected: cell.picked
+                                    picking: view.picking && view.pickable(cell.modelData)
+                                    checked: view.picked[cell.modelData.key] === true
                                     onActivated: view.activate(cell.modelData.index)
                                 }
                             }
+                        }
+                    }
+                }
+            }
+
+            // ── what to do with the games picked, floating over the cards
+            Rectangle {
+                id: pickBar
+                visible: view.picking
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 12
+                width: Math.min(parent.width - 16, pickRow.implicitWidth + 28)
+                height: 56
+                radius: 16
+                color: Theme.menuFill
+                border.width: 1
+                border.color: Theme.glassEdge
+                z: 5
+                readonly property int count: view.pickedKeys.length
+                RowLayout {
+                    id: pickRow
+                    anchors.fill: parent
+                    anchors.leftMargin: 16
+                    anchors.rightMargin: 12
+                    spacing: 8
+                    Text {
+                        Layout.fillWidth: true
+                        text: pickBar.count === 0 ? qsTr("Click the games to pick them")
+                                                  : qsTr("%n picked", "", pickBar.count)
+                        color: pickBar.count === 0 ? Theme.textSecondary : Theme.text
+                        font.pixelSize: 13
+                        font.weight: pickBar.count === 0 ? Font.Normal : Font.DemiBold
+                        elide: Text.ElideRight
+                    }
+                    StyledButton {
+                        chip: true
+                        text: qsTr("Pick all")
+                        onClicked: view.pickAll()
+                    }
+                    StyledButton {
+                        visible: (view.batch.copyToPc || 0) > 0
+                        text: qsTr("Copy to this PC (%1)").arg(view.batch.copyToPc || 0)
+                        iconName: "laptop"
+                        primary: (view.batch.install || 0) === 0
+                        enabled: app.canUseFtp
+                        onClicked: copyDialog.ask(view.pickedKeys)
+                    }
+                    StyledButton {
+                        visible: (view.batch.convertOnly || 0) > 0
+                        text: qsTr("Only convert (%1)").arg(view.batch.convertOnly || 0)
+                        iconName: "package"
+                        onClicked: {
+                            shelf.actMany(view.pickedKeys, "convertOnly")
+                            view.stopPicking()
+                        }
+                    }
+                    StyledButton {
+                        visible: (view.batch.install || 0) > 0
+                        primary: true
+                        text: (view.batch.converts || 0) > 0
+                              ? qsTr("Convert and install (%1)").arg(view.batch.install || 0)
+                              : qsTr("Install (%1)").arg(view.batch.install || 0)
+                        iconName: (view.batch.converts || 0) > 0 ? "disc" : "download"
+                        enabled: app.canUseFtp || app.canInstallDirectly
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Discs are converted and app folders packed first, one after the other; "
+                                           + "then each goes to the console and is installed")
+                        onClicked: {
+                            shelf.actMany(view.pickedKeys, "install")
+                            view.stopPicking()
                         }
                     }
                 }
@@ -759,6 +908,7 @@ FocusScope {
             [qsTr("Serial"), card.serial || ""],
             [qsTr("Version"), card.version || ""],
             [qsTr("Size"), card.sizeText || ""],
+            [qsTr("On the console"), card.partsText || ""],
             [qsTr("Changed"), card.dateText || ""],
             [qsTr("Where"), card.sourceName || ""],
             [qsTr("File"), card.name || ""]
@@ -956,7 +1106,7 @@ FocusScope {
                         ToolTip.visible: hovered && view.actionHint(modelData, details.card).length > 0
                         ToolTip.text: view.actionHint(modelData, details.card)
                         onClicked: {
-                            shelf.act(details.index, modelData)
+                            view.run(modelData, details.index)
                             details.close()
                         }
                     }
@@ -988,7 +1138,7 @@ FocusScope {
                             removal.ask(details.index, details.card)
                             return
                         }
-                        shelf.act(details.index, modelData)
+                        view.run(modelData, details.index)
                         details.close()
                     }
                 }
@@ -1058,6 +1208,211 @@ FocusScope {
                 }
             }
         }
+    }
+
+    // ── games installed on the console, copied to this PC: what, where to,
+    // and whether it fits
+    Dialog {
+        id: copyDialog
+        property var keys: []
+        property var cards: []
+        property bool updates: true
+        property bool addons: true
+        readonly property var first: cards.length > 0 ? cards[0] : ({})
+        readonly property var plan: visible && shelf.copyFolder.length >= 0
+                                    ? shelf.copyPlan(keys, updates, addons) : ({})
+        readonly property bool anyUpdate: cards.some(function (c) {
+            return (c.parts || []).some(function (p) { return p.what === "update" })
+        })
+        readonly property bool anyAddon: cards.some(function (c) {
+            return (c.parts || []).some(function (p) { return p.what === "addon" })
+        })
+        function ask(list) {
+            keys = list
+            cards = view.cardsFor(list).filter(function (c) { return (c.actions || []).indexOf("copyToPc") >= 0 })
+            updates = true
+            addons = true
+            open()
+        }
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(520, parent.width - 32)
+        modal: true
+        padding: 0
+        Overlay.modal: Rectangle { color: Theme.scrim }
+        background: Rectangle {
+            color: Theme.dialogFill
+            border.color: Theme.border
+            radius: Theme.radiusDialog
+        }
+        header: DialogHeader {
+            title: qsTr("Copy to this PC")
+            dialog: copyDialog
+        }
+        contentItem: ColumnLayout {
+            spacing: 14
+            // What: the game (or how many), and what it has.
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                spacing: 14
+                CoverArt {
+                    implicitWidth: 64
+                    implicitHeight: 64
+                    crop: true
+                    radius: 10
+                    picture: copyDialog.first.picture || ""
+                    placeholder: copyDialog.first.placeholder || "bd"
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 3
+                    Text {
+                        Layout.fillWidth: true
+                        text: copyDialog.cards.length === 1 ? (copyDialog.first.title || "")
+                                                            : qsTr("%n game(s)", "", copyDialog.cards.length)
+                        color: Theme.text
+                        font.pixelSize: 15
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: copyDialog.cards.length === 1 ? (copyDialog.first.partsText || "")
+                                                            : qsTr("%n file(s)", "", copyDialog.plan.files || 0)
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
+                        elide: Text.ElideRight
+                    }
+                }
+            }
+            ColumnLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                spacing: 4
+                visible: copyDialog.anyUpdate || copyDialog.anyAddon
+                StyledCheck {
+                    visible: copyDialog.anyUpdate
+                    text: copyDialog.cards.length === 1 ? qsTr("With its update") : qsTr("With their updates")
+                    checked: copyDialog.updates
+                    onToggled: copyDialog.updates = checked
+                }
+                StyledCheck {
+                    visible: copyDialog.anyAddon
+                    text: copyDialog.cards.length === 1 ? qsTr("With its add-ons") : qsTr("With their add-ons")
+                    checked: copyDialog.addons
+                    onToggled: copyDialog.addons = checked
+                }
+            }
+            // Where to, and whether it fits there.
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                implicitHeight: whereRow.implicitHeight + 20
+                radius: 12
+                color: Theme.panelAltFill
+                border.width: 1
+                border.color: Theme.border
+                RowLayout {
+                    id: whereRow
+                    anchors.fill: parent
+                    anchors.margins: 10
+                    anchors.leftMargin: 12
+                    spacing: 10
+                    Icon {
+                        name: "folder"
+                        size: 18
+                        color: Theme.textSecondary
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Text {
+                            Layout.fillWidth: true
+                            text: shelf.copyFolder
+                            color: Theme.text
+                            font.pixelSize: 12
+                            elide: Text.ElideMiddle
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: (copyDialog.plan.freeText || "").length > 0
+                                  ? qsTr("%1 to copy  ·  %2 free").arg(copyDialog.plan.sizeText || "")
+                                                                  .arg(copyDialog.plan.freeText)
+                                  : qsTr("%1 to copy").arg(copyDialog.plan.sizeText || "")
+                            color: copyDialog.plan.enough === false ? Theme.error : Theme.textSecondary
+                            font.pixelSize: 11
+                        }
+                    }
+                    StyledButton {
+                        text: qsTr("Change…")
+                        onClicked: copyFolderDialog.open()
+                    }
+                }
+            }
+            Text {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                visible: copyDialog.plan.enough === false
+                text: qsTr("Not enough room on that drive: free some space or choose another folder.")
+                color: Theme.error
+                font.pixelSize: 12
+                wrapMode: Text.WordWrap
+            }
+            Text {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                text: qsTr("Each game in a folder of its own, its files named after it. One game at a time, as fast as "
+                           + "the network goes; a copy stopped goes on from where it was the next time. A fake package "
+                           + "installs again on any console with a homebrew enabler; a game from the PlayStation Store "
+                           + "or a disc stays tied to its licence.")
+                color: Theme.textMuted
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
+            }
+        }
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                spacing: 8
+                StyledButton {
+                    text: qsTr("Open the folder")
+                    iconName: "folder-open"
+                    onClicked: shelf.openCopyFolder()
+                }
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("Cancel")
+                    onClicked: copyDialog.close()
+                }
+                StyledButton {
+                    text: qsTr("Copy")
+                    iconName: "laptop"
+                    primary: true
+                    enabled: (copyDialog.plan.files || 0) > 0 && copyDialog.plan.enough !== false && app.canUseFtp
+                    onClicked: {
+                        shelf.copyToPc(copyDialog.keys, copyDialog.updates, copyDialog.addons)
+                        copyDialog.close()
+                        view.stopPicking()
+                    }
+                }
+            }
+        }
+    }
+    FolderDialog {
+        id: copyFolderDialog
+        title: qsTr("Where games copied from the console go")
+        currentFolder: games.folderUrl(shelf.copyFolder)
+        onAccepted: shelf.setCopyFolder(selectedFolder)
     }
 
     // ── the places, managed: one grouped list, every row the same height and

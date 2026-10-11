@@ -603,8 +603,11 @@ FtpResult FtpClient::download(const std::string &remotePath, const std::string &
 	return withRetries("download " + baseName(path), [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
-		std::ofstream output(localPath,
-			std::ios::binary | (existing > 0 ? std::ios::app : std::ios::trunc));
+		// Big writes to the disk too, set before the file is opened.
+		std::vector<char> diskBuffer(1024 * 1024);
+		std::ofstream output;
+		output.rdbuf()->pubsetbuf(diskBuffer.data(), static_cast<std::streamsize>(diskBuffer.size()));
+		output.open(localPath, std::ios::binary | (existing > 0 ? std::ios::app : std::ios::trunc));
 		if(!output)
 			return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Messages", "Could not write to the file")) + ": " + localPath);
 
@@ -621,6 +624,9 @@ FtpResult FtpClient::download(const std::string &remotePath, const std::string &
 		curl_easy_setopt(curl, CURLOPT_URL, urlFor(path).c_str());
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeToStream);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &output);
+		// Bigger reads: fewer system calls on a fast network (512 KB is the
+		// most every libcurl takes).
+		curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, 512L * 1024);
 		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
 		curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progressCallback);
 		curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &state);

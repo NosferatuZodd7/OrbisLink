@@ -47,6 +47,7 @@ namespace {
 const char *const kPs2Covers = "https://raw.githubusercontent.com/xlenore/ps2-covers/main/covers/default/%1.jpg";
 const char *const kPs1Covers = "https://raw.githubusercontent.com/xlenore/psx-covers/main/covers/default/%1.jpg";
 const QString kConsoleLibrary = QStringLiteral("console-library");
+const QString kConsoleInstalled = QStringLiteral("console-installed");
 
 QString fileUrl(const std::string &file)
 {
@@ -490,6 +491,14 @@ void ShelfController::rebuildSources()
 		library.where = QStringLiteral("console");
 		library.available = usable;
 		sources.push_back(library);
+		Source installed;
+		installed.id = kConsoleInstalled;
+		installed.name = tr("Installed on the console");
+		installed.path = QStringLiteral("/user/app");
+		installed.kind = QStringLiteral("console");
+		installed.where = QStringLiteral("console");
+		installed.available = usable;
+		sources.push_back(installed);
 		for(const QString &drive : consoleDrives_)
 		{
 			Source item;
@@ -705,6 +714,12 @@ void ShelfController::scanConsoleDrives()
 
 void ShelfController::refreshSourcePreview(const Source &item)
 {
+	if(item.id == kConsoleInstalled)
+	{
+		if(item.available && active_)
+			loadInstalled(false);
+		return;
+	}
 	if(item.id == kConsoleLibrary)
 	{
 		if(!consoleLibrary_->scanned() && !consoleLibrary_->scanning() && consoleUsable() && active_)
@@ -1176,6 +1191,11 @@ void ShelfController::loadPlace()
 	if(item->id == kConsoleLibrary)
 	{
 		loadConsoleLibrary();
+		return;
+	}
+	if(item->id == kConsoleInstalled)
+	{
+		loadInstalled(true);
 		return;
 	}
 	if(!item->available)
@@ -1931,11 +1951,21 @@ void ShelfController::act(int index, const QString &action)
 	const QVariantMap card = rows_.card(index);
 	if(card.isEmpty())
 		return;
-	const QString path = card.value(QStringLiteral("path")).toString();
-	const QString name = card.value(QStringLiteral("name")).toString();
 	if(action == QLatin1String("open"))
 	{
 		openCard(index);
+		return;
+	}
+	actOn(card, action);
+}
+
+void ShelfController::actOn(const QVariantMap &card, const QString &action)
+{
+	const QString path = card.value(QStringLiteral("path")).toString();
+	const QString name = card.value(QStringLiteral("name")).toString();
+	if(action == QLatin1String("copyToPc"))
+	{
+		copyToPc({ card.value(QStringLiteral("key")).toString() }, true, true);
 		return;
 	}
 	if(card.value(QStringLiteral("where")).toString() == QLatin1String("console"))
@@ -1975,6 +2005,345 @@ void ShelfController::act(int index, const QString &action)
 		const QFileInfo info(path);
 		QDesktopServices::openUrl(QUrl::fromLocalFile(info.isDir() && card.value(QStringLiteral("card")) == QLatin1String("folder")
 				? info.absoluteFilePath() : info.absolutePath()));
+	}
+}
+
+// ── several at once ──────────────────────────────────────────────────────
+
+QVariantMap ShelfController::cardByKey(const QString &key) const
+{
+	for(int i = 0; i < rows_.count(); ++i)
+	{
+		const QVariantMap card = rows_.card(i);
+		if(card.value(QStringLiteral("key")).toString() == key)
+			return card;
+	}
+	for(const QVariant &entry : all_)
+		if(entry.toMap().value(QStringLiteral("key")).toString() == key)
+			return entry.toMap();
+	return QVariantMap();
+}
+
+namespace {
+
+// What "install" and "only convert" do to one card, of what it can do.
+QString batchStep(const QVariantMap &card, const QString &action)
+{
+	const QStringList actions = card.value(QStringLiteral("actions")).toStringList();
+	if(action == QLatin1String("install"))
+	{
+		for(const char *step : { "convert", "pack", "install" })
+			if(actions.contains(QLatin1String(step)))
+				return QLatin1String(step);
+		return QString();
+	}
+	if(action == QLatin1String("convertOnly"))
+	{
+		for(const char *step : { "convertOnly", "packOnly" })
+			if(actions.contains(QLatin1String(step)))
+				return QLatin1String(step);
+		return QString();
+	}
+	if(action == QLatin1String("copyToPc"))
+		return actions.contains(action) ? action : QString();
+	return QString();
+}
+
+} // namespace
+
+QVariantMap ShelfController::batchActions(const QStringList &keys) const
+{
+	int install = 0, converts = 0, convertOnly = 0, copy = 0, console = 0;
+	for(const QString &key : keys)
+	{
+		const QVariantMap card = cardByKey(key);
+		if(card.isEmpty())
+			continue;
+		const QString step = batchStep(card, QStringLiteral("install"));
+		install += step.isEmpty() ? 0 : 1;
+		converts += step == QLatin1String("convert") || step == QLatin1String("pack") ? 1 : 0;
+		convertOnly += batchStep(card, QStringLiteral("convertOnly")).isEmpty() ? 0 : 1;
+		copy += batchStep(card, QStringLiteral("copyToPc")).isEmpty() ? 0 : 1;
+		console += card.value(QStringLiteral("where")).toString() == QLatin1String("console") ? 1 : 0;
+	}
+	return { { QStringLiteral("install"), install }, { QStringLiteral("converts"), converts },
+		{ QStringLiteral("convertOnly"), convertOnly },
+		{ QStringLiteral("copyToPc"), copy }, { QStringLiteral("console"), console } };
+}
+
+void ShelfController::actMany(const QStringList &keys, const QString &action)
+{
+	if(action == QLatin1String("copyToPc"))
+	{
+		copyToPc(keys, true, true);
+		return;
+	}
+	// The packages of this PC go to the queue together, in the order picked.
+	QStringList packages;
+	int done = 0;
+	for(const QString &key : keys)
+	{
+		const QVariantMap card = cardByKey(key);
+		const QString step = card.isEmpty() ? QString() : batchStep(card, action);
+		if(step.isEmpty())
+			continue;
+		++done;
+		if(step == QLatin1String("install") && card.value(QStringLiteral("where")).toString() != QLatin1String("console"))
+			packages << card.value(QStringLiteral("path")).toString();
+		else
+			actOn(card, step);
+	}
+	if(!packages.isEmpty())
+		app_->addPaths(packages, 0);
+	if(done < keys.size())
+		emit notice(tr("%n of the games picked cannot be done that way and were left as they are.", "",
+			static_cast<int>(keys.size() - done)), false);
+}
+
+// ── what the console has installed ───────────────────────────────────────
+
+QVariantMap ShelfController::installedCard(const library::InstalledTitle &title, const Source &from, bool ps5) const
+{
+	ShelfItem item;
+	item.path = from.path.toStdString() + "/" + title.titleId;
+	item.name = title.titleId;
+	item.kind = Kind::Package;
+	item.group = "games";
+	item.title = title.title;
+	item.titleId = title.titleId;
+	item.version = title.version;
+	item.platform = title.platform;
+	item.category = title.category;
+	item.size = title.size();
+	item.readable = true;
+	const std::string picture = cache_->pictureFor(title.titleId);
+	item.pictureFile = picture;
+	QVariantMap card = cardFor(item, from, QSet<QString>(), ps5);
+	card[QStringLiteral("key")] = QStringLiteral("installed:") + QString::fromStdString(title.titleId);
+	card[QStringLiteral("kind")] = QStringLiteral("installed");
+	card[QStringLiteral("ext")] = QString();
+	// Not a file: its title ID says which it is.
+	card[QStringLiteral("name")] = QString();
+	card[QStringLiteral("installed")] = true;
+	card[QStringLiteral("sizeText")] = title.copyable() ? QString::fromStdString(humanBytes(title.size())) : QString();
+
+	QVariantList parts;
+	int addons = 0;
+	bool update = false;
+	for(const library::InstalledPart &part : title.parts)
+	{
+		const QString what = part.kind == "patch" ? QStringLiteral("update")
+			: part.kind == "addon" ? QStringLiteral("addon") : QStringLiteral("game");
+		addons += part.kind == "addon" ? 1 : 0;
+		update = update || part.kind == "patch";
+		parts << QVariantMap { { QStringLiteral("what"), what },
+			{ QStringLiteral("path"), QString::fromStdString(part.path) },
+			{ QStringLiteral("fileName"), QString::fromStdString(library::copyFileName(title, part)) },
+			{ QStringLiteral("size"), static_cast<double>(part.size) },
+			{ QStringLiteral("sizeText"), QString::fromStdString(humanBytes(part.size)) } };
+	}
+	card[QStringLiteral("parts")] = parts;
+	card[QStringLiteral("copyFolderName")] = QString::fromStdString(library::copyFolderName(title));
+	QStringList has;
+	if(title.copyable() && title.parts.front().kind == "app")
+		has << tr("the game");
+	if(update)
+		has << tr("its update");
+	if(addons > 0)
+		has << tr("%n add-on(s)", "", addons);
+	card[QStringLiteral("partsText")] = has.join(QStringLiteral(" · "));
+	card[QStringLiteral("actions")] = title.copyable() ? QStringList { QStringLiteral("copyToPc") } : QStringList();
+	card[QStringLiteral("note")] = title.copyable()
+		? tr("Copied to this PC as the console has it. A fake package (a converted game, or one made with a "
+			 "packager) installs again on any console with a homebrew enabler; a game from the PlayStation Store or "
+			 "a disc stays tied to its licence, and only a dump made on the console plays elsewhere.")
+		: tr("The console has no package of it to copy: a game ShadowMountPlus puts on the home screen is copied "
+			 "from its own folder.");
+	return card;
+}
+
+void ShelfController::loadInstalled(bool forPlace)
+{
+	const Source *found = source(kConsoleInstalled);
+	if(!found)
+		return;
+	if(forPlace)
+	{
+		if(!found->available)
+		{
+			setGone(true, tr("The console's FTP is not answering: what it has installed is read over it."));
+			return;
+		}
+		all_ = installedCards_;
+		showCards();
+		setLoading(true);
+	}
+	if(installedReading_ || !found->available)
+		return;
+	installedReading_ = true;
+	const Source copy = *found;
+	const FtpClient::Config config = ftpConfig();
+	const std::string place = "installed:" + app_->settings().consoleAddress;
+	const bool ps5 = app_->installsFromConsole();
+	std::shared_ptr<std::atomic<bool>> cancel = sourcesCancel_;
+	post(forPlace, [this, copy, config, place, ps5, cancel]() {
+		FtpClient ftp(config);
+		library::FtpSource files(ftp);
+		QVariantList cards;
+		QElapsedTimer flushed;
+		flushed.start();
+		auto show = [this](const QVariantList &list, bool last) {
+			onUi([this, list, last]() {
+				installedCards_ = list;
+				searchIndex_[kConsoleInstalled] = list;
+				if(last)
+				{
+					installedReading_ = false;
+					QVariantList previews;
+					for(const QVariant &entry : list)
+					{
+						const QVariantMap card = entry.toMap();
+						if(previews.size() >= 3 || card.value(QStringLiteral("picture")).toString().isEmpty())
+							continue;
+						previews << QVariantMap { { QStringLiteral("picture"), card.value(QStringLiteral("picture")) },
+							{ QStringLiteral("title"), card.value(QStringLiteral("title")) } };
+					}
+					sourceLooks_[kConsoleInstalled] = QVariantMap { { QStringLiteral("count"), list.size() },
+						{ QStringLiteral("previews"), previews } };
+				}
+				if(place_.sourceId == kConsoleInstalled)
+				{
+					all_ = list;
+					showCards();
+					if(last)
+						setLoading(false);
+				}
+				else if(place_.sourceId.isEmpty() && last)
+					showCards();
+			});
+		};
+		library::readInstalled(files, std::string(), cancel.get(), [&](const library::InstalledTitle &title) {
+			// Its icon, once: kept with the other pictures, by its title ID.
+			if(cache_->pictureFor(title.titleId).empty() && !title.iconPath.empty())
+			{
+				ShelfItem icon;
+				icon.path = title.iconPath;
+				icon.name = title.titleId;
+				icon.titleId = title.titleId;
+				icon.title = title.title;
+				icon.group = "games";
+				if(files.read(title.iconPath, 0, 4 * 1024 * 1024, &icon.picture) && !icon.picture.empty())
+				{
+					icon.pictureExt = ".png";
+					icon.pictureFrom = "metadata";
+					cache_->store(library::ShelfCache::keyOf(place, icon), &icon);
+				}
+			}
+			cards << installedCard(title, copy, ps5);
+			if(flushed.elapsed() > 300)
+			{
+				flushed.restart();
+				show(cards, false);
+			}
+		});
+		if(cancel->load())
+		{
+			onUi([this]() { installedReading_ = false; });
+			return;
+		}
+		cache_->save();
+		show(cards, true);
+	});
+}
+
+QString ShelfController::copyFolder() const
+{
+	const std::string chosen = app_->settings().consoleCopyFolder;
+	if(!chosen.empty())
+		return QString::fromStdString(chosen);
+	return QDir::toNativeSeparators(QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
+			.filePath(QStringLiteral("OrbisLink/From the console")));
+}
+
+void ShelfController::setCopyFolder(const QUrl &folder)
+{
+	const QString path = folder.isLocalFile() ? folder.toLocalFile() : folder.toString();
+	if(path.isEmpty())
+		return;
+	app_->updateSettings([&](Settings &s) { s.consoleCopyFolder = QDir::toNativeSeparators(path).toStdString(); });
+	emit copyFolderChanged();
+}
+
+void ShelfController::openCopyFolder()
+{
+	const QString folder = copyFolder();
+	QDir().mkpath(folder);
+	QDesktopServices::openUrl(QUrl::fromLocalFile(folder));
+}
+
+QVariantMap ShelfController::copyPlan(const QStringList &keys, bool updates, bool addons) const
+{
+	int titles = 0, files = 0, skipped = 0;
+	qint64 size = 0;
+	for(const QString &key : keys)
+	{
+		const QVariantMap card = cardByKey(key);
+		if(!card.value(QStringLiteral("actions")).toStringList().contains(QStringLiteral("copyToPc")))
+		{
+			skipped += card.isEmpty() ? 0 : 1;
+			continue;
+		}
+		int taken = 0;
+		for(const QVariant &entry : card.value(QStringLiteral("parts")).toList())
+		{
+			const QVariantMap part = entry.toMap();
+			const QString what = part.value(QStringLiteral("what")).toString();
+			if((what == QLatin1String("update") && !updates) || (what == QLatin1String("addon") && !addons))
+				continue;
+			++taken;
+			size += static_cast<qint64>(part.value(QStringLiteral("size")).toDouble());
+		}
+		files += taken;
+		titles += taken > 0 ? 1 : 0;
+	}
+	QString folder = copyFolder();
+	while(!folder.isEmpty() && !QFileInfo::exists(folder))
+		folder = QFileInfo(folder).absolutePath() == folder ? QString() : QFileInfo(folder).absolutePath();
+	const QStorageInfo space(folder.isEmpty() ? QDir::homePath() : folder);
+	const qint64 free = space.isValid() ? space.bytesAvailable() : -1;
+	return { { QStringLiteral("titles"), titles }, { QStringLiteral("files"), files },
+		{ QStringLiteral("skipped"), skipped }, { QStringLiteral("size"), static_cast<double>(size) },
+		{ QStringLiteral("sizeText"), QString::fromStdString(humanBytes(size)) },
+		{ QStringLiteral("free"), static_cast<double>(free) },
+		{ QStringLiteral("freeText"), free >= 0 ? QString::fromStdString(humanBytes(free)) : QString() },
+		{ QStringLiteral("enough"), free < 0 || free >= size } };
+}
+
+void ShelfController::copyToPc(const QStringList &keys, bool updates, bool addons)
+{
+	const QString base = copyFolder();
+	for(const QString &key : keys)
+	{
+		const QVariantMap card = cardByKey(key);
+		if(!card.value(QStringLiteral("actions")).toStringList().contains(QStringLiteral("copyToPc")))
+			continue;
+		const QString folder = QDir(base).filePath(card.value(QStringLiteral("copyFolderName")).toString());
+		QVector<LibraryController::CopyFile> files;
+		for(const QVariant &entry : card.value(QStringLiteral("parts")).toList())
+		{
+			const QVariantMap part = entry.toMap();
+			LibraryController::CopyFile file;
+			file.what = part.value(QStringLiteral("what")).toString();
+			if((file.what == QLatin1String("update") && !updates) || (file.what == QLatin1String("addon") && !addons))
+				continue;
+			file.remote = part.value(QStringLiteral("path")).toString();
+			file.local = QDir(folder).filePath(part.value(QStringLiteral("fileName")).toString());
+			file.size = static_cast<qint64>(part.value(QStringLiteral("size")).toDouble());
+			files << file;
+		}
+		if(!files.isEmpty())
+			consoleLibrary_->copyToPc(card.value(QStringLiteral("title")).toString(),
+				card.value(QStringLiteral("picture")).toString(), folder, files);
 	}
 }
 

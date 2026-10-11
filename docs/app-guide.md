@@ -178,6 +178,13 @@ going — putting an app on the home screen, running a payload — has a card
 under *Console library*, with a moving bar while it runs and what came of it
 after.
 
+A game copied from the console to this PC (**Copy to this PC**) has its card
+there too: its icon, the step (*Copying the game (1 of 3)*, the update, an
+add-on), the bar, the percentage, the speed, how much of how much and the time
+left; ✕ stops it (what was copied is kept, and copying it again goes on from
+there). Done, it says *On this PC* in green, with 📂 to open its folder.
+Copies go one game at a time, each at the full speed of the network.
+
 On a PS5 whose installer is etaHEN's **DPI v2** (it only starts installs and
 reports nothing back), a direct install is followed by what the PC has served:
 the card is done once the console has taken the whole package, and the
@@ -254,7 +261,7 @@ buttons); only the way things are laid out comes from the console.
 | Section | Places | Shows up |
 |---|---|---|
 | Favourites | Any place marked with ★. | When one is marked. |
-| Console | **Console library** (every `OrbisLinkFPKG` folder: `/data/OrbisLinkFPKG`, `/mnt/usb0`–`usb7`, `/mnt/ext0`–`ext1`), each **Console USB** / extended storage drive the console has, **data/pkg** (the console's upload folder; its path can be changed), and console folders added by hand. | With a console set; open when its FTP answers. |
+| Console | **Console library** (every `OrbisLinkFPKG` folder: `/data/OrbisLinkFPKG`, `/mnt/usb0`–`usb7`, `/mnt/ext0`–`ext1`), **Installed on the console** (see below), each **Console USB** / extended storage drive the console has, **data/pkg** (the console's upload folder; its path can be changed), and console folders added by hand. | With a console set; open when its FTP answers. |
 | USB drives | Each drive plugged into this PC (Windows: a removable drive; Linux: under `/media` or `/run/media`; macOS: under `/Volumes`). | By itself, as it is plugged in or taken out (checked every few seconds while the tab is open). |
 | This PC | **Desktop**, **Downloads**, **Documents** (put there the first time; they can be taken off), and whole drives added from the list (`C:\`, `/`). | — |
 | Your folders | Folders added by hand. | — |
@@ -286,6 +293,34 @@ read; one with none is looked through again each time it is shown, since a
 game put further down leaves the folder itself as it was. *Everything* shows all that the place holds, as
 before. A folder with things but no game says so, with **Show everything**.
 
+**Select**, beside it, picks several games at once: a round mark shows on
+each game that can be picked, a click picks it (or un-picks it), and a bar
+along the bottom says how many and what can be done to all of them —
+**Convert and install** (discs are converted and app folders packed first,
+one after the other, then each is sent and installed; just **Install** when
+they are all packages), **Only convert**, **Copy to this PC** (games installed
+on the console); **Pick all** picks every one shown. **Done** or Esc ends it,
+and so does opening another folder. A game that cannot be done the way chosen
+is left as it is, and a note says how many.
+
+**Installed on the console** lists what the console has installed, as its
+home screen does: each game or app under `/user/app`, with its name, version
+and icon (from `/user/appmeta`: `param.sfo` on a PS4, `param.json` on a
+PS5), and what it has — the game's package, its update (`/user/patch`), its
+add-ons (`/user/addcont`). **Copy to this PC** (on its details, or for
+several picked with **Select**) asks first: with the update and the add-ons
+or not, the folder they go to (**Change…**; *Documents/OrbisLink/From the
+console* until one is chosen), how much it is and how much room that drive
+has. Each game gets a folder of its own (`Demo-Game [CUSA00001]`), its files
+named after it (`Demo-Game_CUSA00001.pkg`, `…_patch_01.02.pkg`,
+`…_EXTRAPACK0000001.pkg`). The packages are copied as the console has them:
+a fake package (a converted game, or one made with a packager) installs again
+on any console with a homebrew enabler; a game from the PlayStation Store or
+a disc stays tied to its licence, and only a dump made on the console plays
+elsewhere. A title with no package on the console (one ShadowMountPlus puts
+on the home screen from its own folder) is listed but cannot be copied from
+here.
+
 A card's picture, the first found of:
 
 1. one the app already has for that game (by title ID or serial, from any copy of it seen before);
@@ -307,6 +342,7 @@ fills in as each thing is read; nothing is read whole.
 | Click on a place or folder | Opens it. |
 | Click on a game | Its details: the cover, what it is, and a grouped list (title ID, serial, version, size, date, place, file); its path along the bottom; one row of buttons — the main one on the right, the others under **…**. What needs the console is left out while its FTP does not answer, and a line says so. |
 | Only games · Everything | See above; kept in the settings. |
+| Select · Done | See above: several games picked, one thing done to all. |
 | Search field | At home: across every place marked *Search* (names two levels into each place, one on the console, none under a whole drive), by game name, file name, folder, extension or place. Inside a place: only there. Ctrl+F goes to it. |
 | Filter | All (the chip says *Filter*), Games found, PKG files, Folders, Other supported files. |
 | Sort | By type (in sections), by name, newest first. |
@@ -598,6 +634,7 @@ only if its SHA-256 matches the list.
 | Library: install a package, convert and install a disc | yes | yes | yes (waits for it) | — |
 | Library: only convert a console disc (the package stays in its folder) | yes | yes | — | — |
 | Library: only pack a PS4 app folder of this PC | no | — | — | — |
+| Library: what the console has installed; copy it to this PC | yes | yes | — | — |
 | Library: pack and install a PS4 app folder of this PC | yes | yes | yes (waits for it) | — |
 | Payloads library: install, update | yes | yes | — | — |
 
@@ -610,7 +647,7 @@ only if its SHA-256 matches the list.
 | Queue and conversion cards | `TransferPanel.qml`, `JobCard.qml` (store and library cards), `StageLoader.qml` |
 | Files tab | `FtpBrowser.qml`, `FtpFolderPicker.qml` |
 | Games page | `GamesView.qml`, `GameCard.qml`, `GameDialog.qml` |
-| Library (`shelf`) | `ShelfView.qml` (the view, keys, details, places), `SourceCard.qml`, `FolderCard.qml`, `TitleCard.qml` (the game card), `ShelfTile.qml` (what they share), `CoverArt.qml`, `DiscPlaceholder.qml`; `src/orbislink/qt/shelf_controller.*` (places, USB drives, moving around, the work thread, watching, search, filter, sort, buttons); `src/orbislink/library/shelf.*` (reading a folder of this PC or of the console, telling things apart, pictures, folder previews, the cache) |
+| Library (`shelf`) | `ShelfView.qml` (the view, keys, details, places), `SourceCard.qml`, `FolderCard.qml`, `TitleCard.qml` (the game card), `ShelfTile.qml` (what they share), `CoverArt.qml`, `DiscPlaceholder.qml`; `src/orbislink/qt/shelf_controller.*` (places, USB drives, moving around, the work thread, watching, search, filter, sort, buttons); `src/orbislink/library/shelf.*` (reading a folder of this PC or of the console, telling things apart, pictures, folder previews, the cache); `src/orbislink/library/installed_titles.*` (what the console has installed, and the names of its copies); the copies themselves in `src/orbislink/qt/library_controller.*` |
 | Console library (`consoleLibrary`) | `src/orbislink/qt/library_controller.*` (the console's `OrbisLinkFPKG` folders and the buttons for things on the console), `src/orbislink/library/console_library.*` (kinds, drives, `param.json`/`param.sfo`, reads in blocks), `src/orbislink/qt/shadowmount_control.*` (asking ShadowMountPlus to scan, or starting it again) |
 | Everything the QML calls (`app`) | `src/orbislink/qt/app_controller.*` |
 | Games (`games`) | `src/orbislink/qt/games_controller.*` |
