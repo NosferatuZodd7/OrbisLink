@@ -74,7 +74,10 @@ must already be running GoldHEN (PS4) or a jailbreak such as etaHEN (PS5).
 | PS5 — etaHEN DPI v2 installer | 12800 | `DPI_v2=1` in etaHEN's `config.ini` |
 
 The PS5 FTP port has its own setting, because it differs from the PS4's:
-with a PS5 in use, the settings show and edit the PS5 port. Installing on a
+with a PS5 in use, the settings show and edit the PS5 port. When the set
+port does not greet as FTP, the app also asks 1337, 2121 and 21 (and 9090 on
+a PS5) and moves to the one that answers as an FTP server; the diagnostics
+list what each port said. On etaHEN, 9090 is the DPI v1 installer, not FTP. Installing on a
 PS5 through DPI v2 uses the same API as on the PS4; it has not been
 confirmed on a real PS5 yet.
 

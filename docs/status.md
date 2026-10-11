@@ -45,6 +45,7 @@ Last review: v1.1.0.
 |---|---|
 | ✅ | Connection to the GoldHEN server (2121, anonymous, passive) |
 | 🟡 | Connection to etaHEN's FTP server on a PS5 (1337, its own port setting) |
+| ✅ | FTP on another port: 1337, 2121 and 21 (and 9090 on a PS5) are asked, and the one that greets as FTP is kept |
 | ✅ | List, browse, create folder, delete, rename |
 | ✅ | Upload files with progress and cancellation |
 | ✅ | Download files to the PC (menu, double click, or a chosen folder) |

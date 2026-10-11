@@ -121,6 +121,9 @@ public:
 	const std::vector<std::string> &pinnedFolders() const;
 	// The FTP port of the console in use (the PS4 one or the PS5 one).
 	uint16_t activeFtpPort() const;
+	// What the ports asked for FTP said the last time it was looked for
+	// beyond the set port, one line each, for the diagnostics.
+	QString ftpSearchReport() const;
 	// The Account ID of the console in use, or the last accepted one if it
 	// does not have one yet.
 	std::string activeAccountId() const;
@@ -271,7 +274,8 @@ public:
 
 	// One-off check of an address not saved yet: the settings dialog calls
 	// this while the IP is typed, without touching the settings in effect.
-	Q_INVOKABLE void probeConsole(const QString &address, int ftpPort, int installerPort);
+	// FTP is looked for on the other usual ports too (9090 only with `ps5`).
+	Q_INVOKABLE void probeConsole(const QString &address, int ftpPort, int installerPort, bool ps5 = false);
 
 	// Diagnostics: the live log in the window, and the report in a file
 	// that can be attached to a message.
@@ -389,8 +393,10 @@ signals:
 	// to this PC, a store install, a download): with the window in the
 	// background, a system notification says so.
 	void jobFinished(const QString &title, const QString &message, bool error);
+	// `ftpPort` is where FTP answered (0 when it did not): another port
+	// than the one asked for when FTP turned up there.
 	void consoleProbed(const QString &address, bool ftpOk, bool installerOk,
-		const QString &detail);
+		const QString &detail, int ftpPort);
 	void downloadChanged();
 	// Emitted when a file is ready in the local cache: FtpBrowser can then
 	// drag it out of the window.
@@ -406,6 +412,9 @@ private:
 	// Returns false when the operation cannot go ahead.
 	bool ftpReady(const QString &operation);
 	void resumeWhenInstallerIsBack();
+	// FTP answered on another port than the console's: that port is kept
+	// in the settings and used from now on.
+	void adoptFtpPort(uint16_t port);
 	void refreshQueueModel();
 	void setStatusMessage(const QString &message);
 	void setFtpBusy(bool busy);

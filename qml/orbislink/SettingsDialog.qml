@@ -58,6 +58,8 @@ Dialog {
     property string probeDetail: ""
     property bool probeFtpOk: false
     property bool probeInstallerOk: false
+    // Where FTP answered when it was not on the typed port (0 otherwise).
+    property int probeOtherFtpPort: 0
 
     readonly property color probeColor: probeState === "ok" ? Theme.ok
         : probeState === "partial" ? Theme.warn
@@ -105,6 +107,7 @@ Dialog {
     }
 
     function scheduleProbe() {
+        probeOtherFtpPort = 0
         if (!addressLooksComplete(addressField.text)) {
             probeState = "idle"
             probeDetail = ""
@@ -120,20 +123,24 @@ Dialog {
         // Waits for typing to stop before going to the network.
         interval: 600
         repeat: false
-        onTriggered: app.probeConsole(addressField.text.trim(),
-            parseInt(ftpPortField.text) || (dialog.consoleIsPs5 ? 1337 : 2121),
-            parseInt(installerPortField.text) || 12800)
+        onTriggered: app.probeConsole(addressField.text.trim(), dialog.typedFtpPort(),
+            parseInt(installerPortField.text) || 12800, dialog.consoleIsPs5)
+    }
+
+    function typedFtpPort() {
+        return parseInt(ftpPortField.text) || (dialog.consoleIsPs5 ? 1337 : 2121)
     }
 
     Connections {
         target: app
-        function onConsoleProbed(address, ftpOk, installerOk, detail) {
+        function onConsoleProbed(address, ftpOk, installerOk, detail, ftpPort) {
             // A reply for an address that is no longer the typed one does not count.
             if (address !== addressField.text.trim())
                 return
             dialog.probeFtpOk = ftpOk
             dialog.probeInstallerOk = installerOk
             dialog.probeDetail = detail
+            dialog.probeOtherFtpPort = ftpOk && ftpPort > 0 && ftpPort !== dialog.typedFtpPort() ? ftpPort : 0
             dialog.probeState = (ftpOk && installerOk) ? "ok"
                 : (ftpOk || installerOk) ? "partial" : "fail"
         }
@@ -607,6 +614,27 @@ Dialog {
                             color: dialog.probeState === "idle" ? Theme.textMuted : dialog.probeColor
                             font.pixelSize: 11
                             wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    // FTP was found, but on another port than the one typed.
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: dialog.probeOtherFtpPort > 0
+                        spacing: 10
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: qsTr("FTP answers on port %1, not on %2.")
+                                .arg(dialog.probeOtherFtpPort).arg(dialog.typedFtpPort())
+                            color: Theme.textSecondary
+                            font.pixelSize: 11
+                            wrapMode: Text.WordWrap
+                        }
+                        StyledButton {
+                            chip: true
+                            text: qsTr("Use port %1").arg(dialog.probeOtherFtpPort)
+                            onClicked: ftpPortField.text = String(dialog.probeOtherFtpPort)
                         }
                     }
                 }

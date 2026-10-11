@@ -11,6 +11,7 @@
 #include <atomic>
 #include <string>
 #include <thread>
+#include <vector>
 
 using namespace orbislink;
 
@@ -164,6 +165,95 @@ ORBISLINK_TEST(fails_with_nobody_on_the_other_side)
 	CHECK(!result.ftpOk);
 	CHECK(!result.installerOk);
 	CHECK(!result.anyOk());
+}
+
+ORBISLINK_TEST(finds_ftp_on_another_port_when_the_set_one_is_closed)
+{
+	FakeService ftp("220 etaHEN FTP\r\n");
+	CHECK(ftp.start());
+	const uint16_t dead = closedPort();
+
+	const ProbeResult result = probeConsoleServices("127.0.0.1", dead, closedPort(), 1500, { ftp.port() });
+
+	CHECK(result.ftpOk);
+	CHECK(result.ftpPort == ftp.port());
+	CHECK(result.ftpDetail == "220 etaHEN FTP");
+	CHECK(result.ftpPorts.size() == 2);
+	CHECK(result.ftpPorts[0].port == dead);
+	CHECK(!result.ftpPorts[0].open);
+}
+
+ORBISLINK_TEST(a_silent_port_is_not_taken_for_ftp_unless_it_is_the_set_one)
+{
+	// Takes the connection and says nothing, as etaHEN's DPI v1 does.
+	FakeService silent("");
+	CHECK(silent.start());
+
+	const ProbeResult elsewhere = probeConsoleServices("127.0.0.1", closedPort(), closedPort(), 1000, { silent.port() });
+	CHECK(!elsewhere.ftpOk);
+	CHECK(elsewhere.ftpPort == 0);
+	CHECK(elsewhere.ftpPorts.size() == 2);
+	CHECK(elsewhere.ftpPorts[1].open);
+	CHECK(!elsewhere.ftpPorts[1].ftp());
+
+	// On the set port it may be a server busy with a transfer: still FTP.
+	const ProbeResult set = probeConsoleServices("127.0.0.1", silent.port(), closedPort(), 1000);
+	CHECK(set.ftpOk);
+	CHECK(set.ftpPort == silent.port());
+	CHECK(set.ftpDetail == "connected, no banner");
+}
+
+ORBISLINK_TEST(a_port_that_greets_as_something_else_is_not_ftp)
+{
+	FakeService other("HTTP/1.1 400 Bad Request\r\n\r\n");
+	FakeService ftp("220 GoldHEN FTP Server\r\n");
+	CHECK(other.start());
+	CHECK(ftp.start());
+
+	const ProbeResult alone = probeConsoleServices("127.0.0.1", other.port(), closedPort(), 1000);
+	CHECK(!alone.ftpOk);
+	CHECK(alone.ftpDetail == "HTTP/1.1 400 Bad Request");
+
+	const ProbeResult found = probeConsoleServices("127.0.0.1", other.port(), closedPort(), 1000, { ftp.port() });
+	CHECK(found.ftpOk);
+	CHECK(found.ftpPort == ftp.port());
+}
+
+ORBISLINK_TEST(the_set_port_wins_when_several_greet)
+{
+	FakeService set("220 one\r\n");
+	FakeService other("220 two\r\n");
+	CHECK(set.start());
+	CHECK(other.start());
+
+	const ProbeResult result = probeConsoleServices("127.0.0.1", set.port(), closedPort(), 1000, { other.port() });
+	CHECK(result.ftpOk);
+	CHECK(result.ftpPort == set.port());
+	CHECK(result.ftpDetail == "220 one");
+}
+
+ORBISLINK_TEST(ftp_port_candidates_start_with_the_set_port)
+{
+	const std::vector<uint16_t> ps4 = ftpPortCandidates(2121, false);
+	CHECK(ps4.size() == 3);
+	CHECK(ps4[0] == 2121);
+	CHECK(ps4[1] == 1337);
+	CHECK(ps4[2] == 21);
+
+	// A PS5 tries 9090 as well; a PS4 never knocks on its payload loader.
+	const std::vector<uint16_t> ps5 = ftpPortCandidates(1337, true);
+	CHECK(ps5.size() == 4);
+	CHECK(ps5[0] == 1337);
+	CHECK(ps5[1] == 2121);
+	CHECK(ps5[3] == 9090);
+
+	const std::vector<uint16_t> custom = ftpPortCandidates(5000, true);
+	CHECK(custom.size() == 5);
+	CHECK(custom[0] == 5000);
+
+	CHECK(knownPortUse(9090, true).find("DPI v1") != std::string::npos);
+	CHECK(knownPortUse(1337, true).find("etaHEN") != std::string::npos);
+	CHECK(knownPortUse(4444, true).empty());
 }
 
 ORBISLINK_TEST(empty_address_does_not_go_to_the_network)
