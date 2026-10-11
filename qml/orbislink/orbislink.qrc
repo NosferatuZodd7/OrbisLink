@@ -13,7 +13,13 @@
         <file alias="GamesView.qml">GamesView.qml</file>
         <file alias="SavesView.qml">SavesView.qml</file>
         <file alias="PayloadsView.qml">PayloadsView.qml</file>
-        <file alias="ConsoleLibrary.qml">ConsoleLibrary.qml</file>
+        <file alias="ShelfView.qml">ShelfView.qml</file>
+        <file alias="ShelfTile.qml">ShelfTile.qml</file>
+        <file alias="SourceCard.qml">SourceCard.qml</file>
+        <file alias="FolderCard.qml">FolderCard.qml</file>
+        <file alias="TitleCard.qml">TitleCard.qml</file>
+        <file alias="CoverArt.qml">CoverArt.qml</file>
+        <file alias="DiscPlaceholder.qml">DiscPlaceholder.qml</file>
         <file alias="StoreView.qml">StoreView.qml</file>
         <file alias="GameCard.qml">GameCard.qml</file>
         <file alias="StageLoader.qml">StageLoader.qml</file>

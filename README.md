@@ -125,13 +125,17 @@ field from a saved one.
 
 ### Games
 
-**Games** (top bar) opens on **All games**: everything put in an
-`OrbisLinkFPKG` folder on the console — `/data/OrbisLinkFPKG`, or one on a USB
-drive or the extended storage — told apart and listed as games and apps,
-updates and add-ons, payloads and the rest, each with the button that makes it
-playable: install a package, convert a PS1/PS2 disc (and install it, or only
-leave its package there), put a PS5 image or app folder on the home screen,
-run a payload. Every install and job shows in the side panel's Queue tab.
+**Games** (top bar) opens on **All games**: a library laid out the way the
+console shows its own, covers on tiles and folders as tiles of their covers.
+Its places are the console's library (`OrbisLinkFPKG` on its memory, USB
+drives and extended storage), its data/pkg and USB drives, this PC's USB
+drives, Desktop, Downloads and Documents, whole drives and any folder added
+by hand. Each game shows its cover — its own icon, an image beside it, or the
+cover collection's by its serial — or a disc in its place, and the button
+that makes it playable: install a package, convert a PS1/PS2 disc (and
+install it, or only keep its package), put a PS5 image or app folder on the
+home screen, run a payload. Search across places, filters, sorting, arrow
+keys and Enter; every install and job shows in the side panel's Queue tab.
 
 ### PS1 and PS2 converter
 

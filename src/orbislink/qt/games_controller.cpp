@@ -578,18 +578,55 @@ void GamesController::sendToConsole(const QStringList &paths)
 		app_->addPaths(files, 1);
 }
 
+void GamesController::ensureOutputFolder()
+{
+	// Somewhere for the package: the user's documents unless chosen.
+	if(!outputFolder().isEmpty())
+		return;
+	const QString fallback = QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
+		.filePath(QStringLiteral("OrbisLink/Packages"));
+	QDir().mkpath(fallback);
+	app_->updateSettings([&](Settings &s) { s.convertOutputFolder = QDir::toNativeSeparators(fallback).toStdString(); });
+}
+
+void GamesController::convertFile(const QString &path, bool install)
+{
+#ifdef ORBISLINK_HAS_FPKG
+	ensureOutputFolder();
+	const fpkg::DiscInfo disc = fpkg::inspectDisc(path.toStdString());
+	if(disc.platform.empty())
+	{
+		emit app_->notify(tr("Convert"), tr("%1 is not a PS1/PS2 disc this can convert.")
+			.arg(QFileInfo(path).fileName()), true);
+		return;
+	}
+	auto job = std::make_shared<Job>();
+	job->path = QString::fromStdString(disc.path);
+	job->listedPath = QString::fromStdString(disc.listedPath.empty() ? path.toStdString() : disc.listedPath);
+	job->platform = QString::fromStdString(disc.platform);
+	const QString known = classicTitle(job->platform, QString::fromStdString(disc.titleId));
+	job->title = !known.isEmpty() ? known : QString::fromStdString(disc.title);
+	job->install = install;
+	job->disc = disc;
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		job->id = QString::number(nextId_++);
+		jobs_.push_back(job);
+	}
+	wakeup_.notify_all();
+	publish();
+	emit app_->showPanel(QStringLiteral("queue"));
+#else
+	Q_UNUSED(path);
+	Q_UNUSED(install);
+#endif
+}
+
 void GamesController::convertFromConsole(const QString &remotePath, const QString &title, const QString &platform,
 	bool install)
 {
 #ifdef ORBISLINK_HAS_FPKG
-	// Somewhere for the package: the user's documents unless chosen.
-	if(outputFolder().isEmpty())
-	{
-		const QString fallback = QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
-			.filePath(QStringLiteral("OrbisLink/Packages"));
-		QDir().mkpath(fallback);
-		app_->updateSettings([&](Settings &s) { s.convertOutputFolder = QDir::toNativeSeparators(fallback).toStdString(); });
-	}
+	ensureOutputFolder();
 	auto job = std::make_shared<Job>();
 	job->remotePath = remotePath;
 	job->path = remotePath;

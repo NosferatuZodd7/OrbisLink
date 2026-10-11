@@ -148,6 +148,20 @@ std::string Settings::toJson() const
 	root.set("convert_output_folder", Json::fromString(convertOutputFolder));
 	root.set("install_storage", Json::fromString(installStorage));
 	root.set("save_vault_folder", Json::fromString(saveVaultFolder));
+	Json places = Json::makeArray();
+	for(const LibraryLocation &place : libraryLocations)
+	{
+		Json item = Json::makeObject();
+		item.set("id", Json::fromString(place.id));
+		item.set("name", Json::fromString(place.name));
+		item.set("path", Json::fromString(place.path));
+		item.set("where", Json::fromString(place.where));
+		item.set("favorite", Json::fromBool(place.favorite));
+		item.set("in_search", Json::fromBool(place.inSearch));
+		places.push(std::move(item));
+	}
+	root.set("library_locations", places);
+	root.set("library_locations_seeded", Json::fromBool(libraryLocationsSeeded));
 	Json links = Json::makeObject();
 	for(const auto &pair : saveAccountLinks)
 		links.set(pair.first, Json::fromString(pair.second));
@@ -307,6 +321,20 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	if(settings.installStorage != "usb" && settings.installStorage != "ext")
 		settings.installStorage = "internal";
 	settings.saveVaultFolder = root["save_vault_folder"].toString(settings.saveVaultFolder);
+	if(root["library_locations"].isArray())
+		for(const Json &input : root["library_locations"].items())
+		{
+			LibraryLocation place;
+			place.id = input["id"].toString();
+			place.name = input["name"].toString();
+			place.path = input["path"].toString();
+			place.where = input["where"].toString("pc") == "console" ? "console" : "pc";
+			place.favorite = input["favorite"].toLooseBool(false);
+			place.inSearch = input["in_search"].toLooseBool(true);
+			if(!place.id.empty() && !place.path.empty())
+				settings.libraryLocations.push_back(place);
+		}
+	settings.libraryLocationsSeeded = root["library_locations_seeded"].toLooseBool(settings.libraryLocationsSeeded);
 	if(root["save_account_links"].isObject())
 		for(const auto &pair : root["save_account_links"].members())
 			if(pair.second.isString())

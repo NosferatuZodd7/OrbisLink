@@ -346,6 +346,39 @@ ORBISLINK_TEST(install_storage_round_trip)
 	CHECK_EQ(Settings::fromJson(R"({"install_storage":"floppy"})", &ok).installStorage, std::string("internal"));
 }
 
+ORBISLINK_TEST(library_locations_round_trip)
+{
+	Settings settings;
+	CHECK(settings.libraryLocations.empty());
+	CHECK(!settings.libraryLocationsSeeded);
+	LibraryLocation games;
+	games.id = "loc-1";
+	games.name = "My games";
+	games.path = "/media/games";
+	games.favorite = true;
+	games.inSearch = false;
+	LibraryLocation pkg;
+	pkg.id = "loc-2";
+	pkg.path = "/data/pkg/";
+	pkg.where = "console";
+	settings.libraryLocations = { games, pkg };
+	settings.libraryLocationsSeeded = true;
+	bool ok = false;
+	const Settings restored = Settings::fromJson(settings.toJson(), &ok);
+	CHECK(ok);
+	CHECK(restored.libraryLocationsSeeded);
+	CHECK_EQ(restored.libraryLocations.size(), static_cast<size_t>(2));
+	CHECK_EQ(restored.libraryLocations[0].name, std::string("My games"));
+	CHECK_EQ(restored.libraryLocations[0].path, std::string("/media/games"));
+	CHECK_EQ(restored.libraryLocations[0].where, std::string("pc"));
+	CHECK(restored.libraryLocations[0].favorite);
+	CHECK(!restored.libraryLocations[0].inSearch);
+	CHECK_EQ(restored.libraryLocations[1].where, std::string("console"));
+	CHECK(restored.libraryLocations[1].inSearch);
+	// One without a path is not a place.
+	CHECK(Settings::fromJson(R"({"library_locations":[{"id":"x","path":""}]})", &ok).libraryLocations.empty());
+}
+
 ORBISLINK_TEST(hand_edited_theme_colours_are_checked)
 {
 	bool ok = false;

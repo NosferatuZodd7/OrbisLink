@@ -7,6 +7,7 @@
 #include "orbislink/qt/games_controller.h"
 #include "orbislink/qt/saves_controller.h"
 #include "orbislink/qt/library_controller.h"
+#include "orbislink/qt/shelf_controller.h"
 #include "orbislink/qt/payloads_controller.h"
 #ifdef ORBISLINK_HAS_STORE
 #include "orbislink/qt/store_controller.h"
@@ -250,6 +251,9 @@ int main(int argc, char **argv)
 	auto payloads = std::make_unique<PayloadsController>(controller.get());
 	// What is in the console's OrbisLinkFPKG folders, the same way.
 	auto consoleLibrary = std::make_unique<LibraryController>(controller.get(), games.get());
+	// The games page's library: the console's places and this PC's, as covers.
+	auto shelf = std::make_unique<ShelfController>(controller.get(), games.get(), consoleLibrary.get(),
+		payloads.get());
 #ifdef ORBISLINK_HAS_STORE
 	// The PS5 homebrew store, the same way.
 	auto store = std::make_unique<StoreController>(controller.get());
@@ -267,6 +271,7 @@ int main(int argc, char **argv)
 	engine.rootContext()->setContextProperty(QStringLiteral("saves"), saves.get());
 	engine.rootContext()->setContextProperty(QStringLiteral("payloads"), payloads.get());
 	engine.rootContext()->setContextProperty(QStringLiteral("consoleLibrary"), consoleLibrary.get());
+	engine.rootContext()->setContextProperty(QStringLiteral("shelf"), shelf.get());
 #ifdef ORBISLINK_HAS_STORE
 	engine.rootContext()->setContextProperty(QStringLiteral("store"), store.get());
 #else

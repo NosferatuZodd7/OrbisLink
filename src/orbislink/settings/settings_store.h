@@ -49,6 +49,22 @@ struct ConsoleEntry
 	std::string startMode;
 };
 
+// A place on the games page's shelf: a folder of this PC (a drive's root
+// too) or of the console in use. Taking one off the shelf never touches
+// the folder itself.
+struct LibraryLocation
+{
+	std::string id;
+	// What the shelf calls it; the folder's own name when empty.
+	std::string name;
+	std::string path;
+	// "pc" or "console".
+	std::string where = "pc";
+	bool favorite = false;
+	// Whether the shelf's search looks in it.
+	bool inSearch = true;
+};
+
 // A PSN Account ID saved under a name of the user's choosing, so it can be
 // picked for any console instead of being typed again.
 struct SavedAccount
@@ -158,6 +174,11 @@ struct Settings
 	std::string installStorage = "internal";
 	// The save vault on this PC (empty: Documents/OrbisLink/Saves).
 	std::string saveVaultFolder;
+	// The games page's shelf: the places added to it, and whether the usual
+	// ones (the Desktop, Downloads, Documents, the console's data/pkg) were
+	// put there once — taken off, they stay off.
+	std::vector<LibraryLocation> libraryLocations;
+	bool libraryLocationsSeeded = false;
 	// Console user folder ("1a2b3c4d") → its owner's Account ID (base64),
 	// which gives the PSID its backups are filed under.
 	std::map<std::string, std::string> saveAccountLinks;
