@@ -2310,13 +2310,13 @@ QVariantMap ShelfController::copyPlan(const QStringList &keys, bool updates, boo
 	while(!folder.isEmpty() && !QFileInfo::exists(folder))
 		folder = QFileInfo(folder).absolutePath() == folder ? QString() : QFileInfo(folder).absolutePath();
 	const QStorageInfo space(folder.isEmpty() ? QDir::homePath() : folder);
-	const qint64 free = space.isValid() ? space.bytesAvailable() : -1;
+	const qint64 room = space.isValid() ? space.bytesAvailable() : -1;
 	return { { QStringLiteral("titles"), titles }, { QStringLiteral("files"), files },
 		{ QStringLiteral("skipped"), skipped }, { QStringLiteral("size"), static_cast<double>(size) },
 		{ QStringLiteral("sizeText"), QString::fromStdString(humanBytes(size)) },
-		{ QStringLiteral("free"), static_cast<double>(free) },
-		{ QStringLiteral("freeText"), free >= 0 ? QString::fromStdString(humanBytes(free)) : QString() },
-		{ QStringLiteral("enough"), free < 0 || free >= size } };
+		{ QStringLiteral("free"), static_cast<double>(room) },
+		{ QStringLiteral("freeText"), room >= 0 ? QString::fromStdString(humanBytes(room)) : QString() },
+		{ QStringLiteral("enough"), room < 0 || room >= size } };
 }
 
 void ShelfController::copyToPc(const QStringList &keys, bool updates, bool addons)
@@ -2328,11 +2328,11 @@ void ShelfController::copyToPc(const QStringList &keys, bool updates, bool addon
 		if(!card.value(QStringLiteral("actions")).toStringList().contains(QStringLiteral("copyToPc")))
 			continue;
 		const QString folder = QDir(base).filePath(card.value(QStringLiteral("copyFolderName")).toString());
-		QVector<LibraryController::CopyFile> files;
+		QVector<LibraryController::CopyItem> files;
 		for(const QVariant &entry : card.value(QStringLiteral("parts")).toList())
 		{
 			const QVariantMap part = entry.toMap();
-			LibraryController::CopyFile file;
+			LibraryController::CopyItem file;
 			file.what = part.value(QStringLiteral("what")).toString();
 			if((file.what == QLatin1String("update") && !updates) || (file.what == QLatin1String("addon") && !addons))
 				continue;
