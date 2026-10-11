@@ -109,6 +109,9 @@ public:
 	// read as there, for the card.
 	Q_INVOKABLE void convertFromConsole(const QString &remotePath, const QString &title, const QString &platform,
 		bool install = true);
+	// A disc anywhere on this PC (not only in the games folder): converted
+	// and, when asked, sent and installed.
+	Q_INVOKABLE void convertFile(const QString &path, bool install);
 	Q_INVOKABLE void cancelConversion(const QString &id);
 	Q_INVOKABLE void clearFinishedConversions();
 	// Takes a finished conversion's card away.
@@ -130,6 +133,8 @@ signals:
 	void drivesChanged();
 
 private:
+	// The output folder, made in the documents when none was chosen.
+	void ensureOutputFolder();
 	struct Job;
 	QString toLocalPath(const QString &folder) const;
 	QString assetsFolder() const;

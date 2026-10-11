@@ -512,21 +512,41 @@ void LibraryController::clearFinishedJobs()
 void LibraryController::act(const QString &path)
 {
 	const QVariantMap item = itemAt(path);
-	if(item.isEmpty())
-		return;
-	const QString action = item.value(QStringLiteral("action")).toString();
+	if(!item.isEmpty())
+		perform(item, item.value(QStringLiteral("action")).toString());
+}
+
+void LibraryController::perform(const QVariantMap &item, const QString &action)
+{
+	const QString path = item.value(QStringLiteral("path")).toString();
 	const QString name = item.value(QStringLiteral("name")).toString();
 	const QString title = item.value(QStringLiteral("title")).toString();
 	const std::string address = app_->settings().consoleAddress;
+	if(path.isEmpty())
+		return;
 
 	if(action == QLatin1String("install"))
 	{
 		app_->installFromConsole(path);
 		return;
 	}
-	if(action == QLatin1String("convert"))
+	if(action == QLatin1String("convert") || action == QLatin1String("convertOnly"))
 	{
-		convert(path, true);
+		games_->convertFromConsole(path, title, item.value(QStringLiteral("platform")).toString(),
+			action == QLatin1String("convert"));
+		return;
+	}
+	if(action == QLatin1String("delete"))
+	{
+		if(item.value(QStringLiteral("folder")).toBool())
+			return;
+		runAction(tr("Deleting %1…").arg(name), [path, name](FtpClient &ftp, bool *error) {
+			const FtpResult removed = ftp.removeFile(path.toStdString());
+			if(removed.ok)
+				return tr("%1 deleted from the console.").arg(name);
+			*error = true;
+			return tr("Could not delete %1: %2").arg(name, translateMessage(removed.message));
+		}, true);
 		return;
 	}
 	if(action == QLatin1String("mount"))
@@ -536,6 +556,11 @@ void LibraryController::act(const QString &path)
 				FtpClient &ftp, bool *error) {
 			const std::string from = path.toStdString();
 			const std::string folder = library::mountFolderFor(from);
+			if(folder.empty())
+			{
+				*error = true;
+				return tr("ShadowMountPlus does not look on the drive %1 is on.").arg(name);
+			}
 			const std::string to = folder + "/" + name.toStdString();
 			ftp.makeDirectory(folder);
 			// Never over what is already there.
@@ -598,23 +623,14 @@ void LibraryController::convert(const QString &path, bool install)
 	const QVariantMap item = itemAt(path);
 	if(item.isEmpty() || item.value(QStringLiteral("action")).toString() != QLatin1String("convert"))
 		return;
-	games_->convertFromConsole(path, item.value(QStringLiteral("title")).toString(),
-		item.value(QStringLiteral("platform")).toString(), install);
+	perform(item, install ? QStringLiteral("convert") : QStringLiteral("convertOnly"));
 }
 
 void LibraryController::remove(const QString &path)
 {
 	const QVariantMap item = itemAt(path);
-	if(item.isEmpty() || item.value(QStringLiteral("folder")).toBool())
-		return;
-	const QString name = item.value(QStringLiteral("name")).toString();
-	runAction(tr("Deleting %1…").arg(name), [path, name](FtpClient &ftp, bool *error) {
-		const FtpResult removed = ftp.removeFile(path.toStdString());
-		if(removed.ok)
-			return tr("%1 deleted from the console.").arg(name);
-		*error = true;
-		return tr("Could not delete %1: %2").arg(name, translateMessage(removed.message));
-	}, true);
+	if(!item.isEmpty())
+		perform(item, QStringLiteral("delete"));
 }
 
 } // namespace orbislink

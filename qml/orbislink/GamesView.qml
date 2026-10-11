@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Games. All games: the console's library, every game, app and payload in
-// its OrbisLinkFPKG folders with what each one can do (ConsoleLibrary.qml).
+// Games. All games: the library (ShelfView.qml), every place games can be —
+// the console's folders and drives, this PC's — shown as their covers.
 // Apart from it, the PS1/PS2 converter, for whoever wants it: the discs
 // found in a folder on this PC, as cards; a click opens one, the box in a
 // card's corner selects it, and with several selected a bar at the bottom
@@ -90,8 +90,8 @@ Item {
                     }
                     Text {
                         text: root.tab === 0
-                              ? (consoleLibrary.scanning || consoleLibrary.busy ? consoleLibrary.status
-                                 : qsTr("%n thing(s) on %1", "", consoleLibrary.items.length).arg(app.consoleName))
+                              ? (shelf.level === "home" ? qsTr("%n place(s)", "", shelf.count)
+                                 : shelf.loading ? qsTr("Reading…") : qsTr("%n item(s)", "", shelf.count))
                               : games.gamesFolder.length === 0 ? qsTr("Choose the folder where your disc images are.")
                               : games.scanStatus
                         color: Theme.textSecondary
@@ -99,14 +99,6 @@ Item {
                     }
                 }
                 Item { Layout.fillWidth: true }
-                StyledToolButton {
-                    visible: root.tab === 0
-                    iconName: consoleLibrary.scanning ? "loader" : "refresh"
-                    enabled: !consoleLibrary.scanning && !consoleLibrary.busy
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Read the console's library again")
-                    onClicked: consoleLibrary.refresh()
-                }
                 // The games folder, as a chip that changes it.
                 StyledButton {
                     visible: root.tab === 1 && games.gamesFolder.length > 0
@@ -164,7 +156,7 @@ Item {
                     color: Theme.textMuted
                     font.pixelSize: 12
                     text: root.tab === 0
-                          ? qsTr("What is in the console's OrbisLinkFPKG folders, ready to install, play or run")
+                          ? qsTr("Your games on the console and on this PC, place by place")
                           : qsTr("Optional: PS1/PS2 discs on this PC made into PS4 packages")
                 }
             }
@@ -286,11 +278,14 @@ Item {
             }
 
             // ── the console's library
-            ConsoleLibrary {
+            ShelfView {
+                id: shelfView
                 visible: root.tab === 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                onVisibleChanged: if (visible) forceActiveFocus()
             }
+            Binding { target: shelf; property: "active"; value: root.visible && root.tab === 0 }
 
             // ── the games: centred, as many to a row as fit
             Item {

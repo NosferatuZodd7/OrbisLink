@@ -70,6 +70,11 @@ public:
 	// Deletes a file from the library.
 	Q_INVOKABLE void remove(const QString &path);
 	Q_INVOKABLE void removeJob(const QString &id);
+	// Does `action` ("install", "convert", "convertOnly", "mount", "run",
+	// "delete") to a thing on the console, in this library or anywhere
+	// else there: `item` has its path, name, title, platform and, to run
+	// it, size and port.
+	void perform(const QVariantMap &item, const QString &action);
 	Q_INVOKABLE void clearFinishedJobs();
 
 signals:

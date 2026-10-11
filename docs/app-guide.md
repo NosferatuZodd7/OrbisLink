@@ -227,48 +227,96 @@ If a file with the same name is already on the console: **Replace**,
 
 Two tabs, kept apart, as converting is a choice and not a step:
 
-- **All games** (it opens on this one): the console library, everything in
-  the console's `OrbisLinkFPKG` folders with what each thing can do.
+- **All games** (it opens on this one): the library, every place games can
+  be — on the console and on this PC — shown as their covers.
 - **PS1/PS2 converter** (optional): PS1/PS2 discs on this PC made into PS4
   packages. Only in builds with the converter.
 
 | Item | Does |
 |---|---|
 | ‹ | Back to the consoles. |
-| ⟳ (All games) | Reads the console's folders again. |
 | Folder chip, ⟳ (converter) | Changes the games folder; looks again. |
 
-### All games (the console library)
+### All games (the library)
 
-One folder, `OrbisLinkFPKG`, where games and apps of any kind are put as they
-come, over FTP or by plugging in a drive: `/data/OrbisLinkFPKG` in the
-console's memory (made by the app the first time the tab opens),
-`/mnt/usb0`–`/mnt/usb7/OrbisLinkFPKG` on USB drives, `/mnt/ext0`–`/mnt/ext1/OrbisLinkFPKG`
-on the extended storage. The tab reads them over FTP, says what each thing
-is, and gives it the one button that makes it playable. Nothing is fetched
-whole to find out: a package's header and a disc's `SYSTEM.CNF` are read in a
-few small pieces.
+The library shows every place games can be the way the console shows its
+own library and folders: covers on square tiles, the one picked framed in
+the accent colour and slightly larger, a folder as a tile of the covers of
+the first games in it. It keeps the app's look (its colours, its cards, its
+buttons); only the way things are laid out comes from the console.
 
-What is there is listed in four groups, each under its heading with how many
-it holds: **Games and apps** (game and app packages, PS1/PS2 discs, PS5 images
-and app folders), **Updates and add-ons** (patch, add-on and theme packages),
-**Payloads**, and **Other files** (archives, and what could not be read).
+**Home** has the places, in sections:
 
-| It is | Shown as | The button |
+| Section | Places | Shows up |
 |---|---|---|
-| `.pkg` | Its title, icon, title ID, version (from its `PARAM.SFO`); **Installed** when `/user/app/<TITLE ID>` exists (an update: `/user/patch/<TITLE ID>`; an add-on: its label in `/user/addcont/<TITLE ID>`). | **Install** (PS5): the console installs it from where it is, followed in the Queue tab. A PS4 installs packages on the console from Debug Settings → Package Installer, which the row says. |
-| `.iso`, `.img`, `.bin/.cue` (a `.bin` over 32 MB; a `.cue` shows its track as one) | PS1 or PS2 disc, serial, name from the emulator's list (once it is here), from the disc itself. | **Convert…**, a menu: **Convert and install** — the disc is brought to this PC, made into a PS4 package (as in the converter), sent back to the same folder and installed; **Only convert** — the same, without the install: the package stays in the folder, listed next to the disc, to install when you want. The copy on the PC is deleted after. Its card in the Queue tab adds the step *Bringing it from the console*. |
-| `.ffpkg`, `.exfat`, `.ffpfs` | PS5 image, title ID from its name. | **Put on the home screen** (PS5): moved into the folder ShadowMountPlus mounts from on the same drive (`/data/homebrew`, `/mnt/usbN/homebrew`, `/mnt/extN/homebrew`; a move there is instant), then ShadowMountPlus is asked to scan, or started again. |
-| A folder with `sce_sys/param.json` (PS5) or `sce_sys/param.sfo` (PS4) | Its name, icon and title ID from there. Other folders are not listed. | **Put on the home screen**, the same way. |
-| `.elf`, `.lua`, `.js`, `.jar`, a small `.bin` | Payload. | **Run**: sent to the console's loader for it. |
-| `.zip`, `.7z`, `.rar` | Archive. | None: unpack it on the PC first. |
+| Favourites | Any place marked with ★. | When one is marked. |
+| Console | **Console library** (every `OrbisLinkFPKG` folder: `/data/OrbisLinkFPKG`, `/mnt/usb0`–`usb7`, `/mnt/ext0`–`ext1`), each **Console USB** / extended storage drive the console has, **data/pkg** (the console's upload folder; its path can be changed), and console folders added by hand. | With a console set; open when its FTP answers. |
+| USB drives | Each drive plugged into this PC (Windows: a removable drive; Linux: under `/media` or `/run/media`; macOS: under `/Volumes`). | By itself, as it is plugged in or taken out (checked every few seconds while the tab is open). |
+| This PC | **Desktop**, **Downloads**, **Documents** (put there the first time; they can be taken off), and whole drives added from the list (`C:\`, `/`). | — |
+| Your folders | Folders added by hand. | — |
 
-Every row has the same columns: the picture, what it is, the button (the
-same width on every row; **Again** on what is installed) and, at the right
-edge, 🗑, which deletes the file (after asking; what was installed from it
-stays installed). Search, and chips: All, **Not installed**, and one per
-group. The list is read again by itself once something set going from it has
-finished (a package put back, an install).
+Each place's tile shows the covers of the first games in it — taken from its
+folders when it has none at the top — and, when it holds folders, a folder
+tile among them; under it, its name and how many things it holds. A place
+that is not there now (a drive taken out, the console's FTP down) is faded
+and says *Not available*.
+
+**Inside a place** the same cards: folders first (each with a few covers of
+what is in it, a folder tile when it has folders inside, and how many things
+it holds), then the games and files, in sections — *Games and apps*,
+*Updates and add-ons*, *Payloads*, *Other files* — when sorted by type. A
+game card has its cover, its name, its platform and version, what kind of
+file it is in the corner (PKG, ISO, CUE, APP…) and a ✓ when the console in
+use has it installed. Only what the app can do something with is shown:
+packages, PS1/PS2 discs (a `.cue` and its track as one), PS5 images, app
+folders, payloads, archives and folders; pictures, documents and the rest
+are left out.
+
+A card's picture, the first found of:
+
+1. one the app already has for that game (by title ID or serial, from any copy of it seen before);
+2. an image beside it named after it (`Game.jpg`, `Game-cover.png`, `<TITLE ID>.jpg`);
+3. its own metadata: a package's `ICON0`, an app folder's `sce_sys/icon0.png`;
+4. for a PS1/PS2 disc, the cover collection by its serial (the same xlenore collections the converter and emulators use);
+5. none: a disc drawn in its place — a CD for PS1, a DVD for PS2, a Blu-ray for the rest — or a folder, payload or archive sign.
+
+Pictures and what each file is are kept (in the app's cache folder, by the
+file's path, size and date), so a folder opened again shows at once and only
+what changed is read again. A folder is shown as soon as it is listed, and
+fills in as each thing is read; nothing is read whole.
+
+| Item | Does |
+|---|---|
+| Path under the title (Library › Desktop › Retro) | Each part goes back there. |
+| ‹, Esc, Backspace | One level up (Esc in the search field clears it instead). |
+| Arrow keys, Home, End | Move the frame; Enter or Space opens the card. |
+| Click on a place or folder | Opens it. |
+| Click on a game | Its details: cover, kind, title ID, serial, version, size, date, place, file, path, and its buttons. |
+| Search field | At home: across every place marked *Search* (names two levels into each place, one on the console, none under a whole drive), by game name, file name, folder, extension or place. Inside a place: only there. Ctrl+F goes to it. |
+| Filter | All, Games found, PKG files, Folders, Other supported files. |
+| Sort | By type (in sections), by name, newest first. |
+| ⟳ | Reads the folder again (at home: every place). |
+| Folder + | Adds a place: a folder of this PC (the system's folder picker), a folder of the console (its path), Desktop, Downloads, Documents, the console's data/pkg, or a whole drive of this PC. |
+| Sliders | **Places in the library**: for each place kept, ★ favourite, a name of your own (empty: its folder's), its path (a console place's can be changed), whether the search looks in it, and 🗑 to take it off — the folder itself is never touched. |
+
+A game's buttons:
+
+| It is | On this PC | On the console |
+|---|---|---|
+| `.pkg` | **Install on the console** (it downloads it from this PC), **Send to the console** (FTP, to the upload folder), **Show in its folder**. | **Install** (PS5: from where it is, followed in the Queue tab; a PS4 installs from Debug Settings → Package Installer, which the details say), **Delete from the console…**. |
+| PS1/PS2 disc | **Convert and install**, **Only convert** (the package goes to the output folder), **Send the disc file**, **Show in its folder**. | **Convert and install**, **Only convert** (the package goes back beside the disc), **Delete…**. |
+| PS5 image or app folder | **Show in its folder** (to be copied to `/data/homebrew` on the PS5). | **Put on the home screen** (PS5): moved into the folder ShadowMountPlus mounts from on the same drive, then ShadowMountPlus is asked to scan, or started again. |
+| Payload | **Run on the console** (sent from this PC to its loader). | **Run**, **Delete…**. |
+
+Nothing is installed, sent or run by itself: only these buttons do. Every
+install, conversion and job shows in the side panel's Queue tab.
+
+Changes are followed: a folder of this PC open, and each place's top
+folder, are watched, and read again when something is added or taken away;
+a drive taken out while open says so (*… was taken out. Plug it in again and
+it opens here.*) and comes back when it is plugged in again; the console's
+places follow its FTP coming and going; the console library is read again
+after an install or a package put back.
 
 ### PS1/PS2 converter
 
@@ -516,9 +564,10 @@ only if its SHA-256 matches the list.
 | Payloads: see, add, rename, delete, auto-start, edit settings | yes | yes | — | — |
 | Payloads: run one now | yes | to run one from the console | — | — |
 | Payloads library: look, run one now | internet | — | — | — |
-| Console library: see what is there, put on the home screen, run | yes | yes | — | — |
-| Console library: install a package, convert and install a disc | yes | yes | yes (waits for it) | — |
-| Console library: only convert a disc (the package stays in its folder) | yes | yes | — | — |
+| Library: this PC's places and USB drives, their covers, search | no (internet for disc covers) | — | — | — |
+| Library: the console's places; put on the home screen, run | yes | yes | — | — |
+| Library: install a package, convert and install a disc | yes | yes | yes (waits for it) | — |
+| Library: only convert a console disc (the package stays in its folder) | yes | yes | — | — |
 | Payloads library: install, update | yes | yes | — | — |
 
 ## Where it lives in the code
@@ -530,7 +579,8 @@ only if its SHA-256 matches the list.
 | Queue and conversion cards | `TransferPanel.qml`, `JobCard.qml` (store and library cards), `StageLoader.qml` |
 | Files tab | `FtpBrowser.qml`, `FtpFolderPicker.qml` |
 | Games page | `GamesView.qml`, `GameCard.qml`, `GameDialog.qml` |
-| Console library (`consoleLibrary`) | `ConsoleLibrary.qml`, `src/orbislink/qt/library_controller.*`, `src/orbislink/library/console_library.*` (kinds, drives, `param.json`/`param.sfo`, reads in blocks), `src/orbislink/qt/shadowmount_control.*` (asking ShadowMountPlus to scan, or starting it again) |
+| Library (`shelf`) | `ShelfView.qml` (the view, keys, details, places), `SourceCard.qml`, `FolderCard.qml`, `TitleCard.qml` (the game card), `ShelfTile.qml` (what they share), `CoverArt.qml`, `DiscPlaceholder.qml`; `src/orbislink/qt/shelf_controller.*` (places, USB drives, moving around, the work thread, watching, search, filter, sort, buttons); `src/orbislink/library/shelf.*` (reading a folder of this PC or of the console, telling things apart, pictures, folder previews, the cache) |
+| Console library (`consoleLibrary`) | `src/orbislink/qt/library_controller.*` (the console's `OrbisLinkFPKG` folders and the buttons for things on the console), `src/orbislink/library/console_library.*` (kinds, drives, `param.json`/`param.sfo`, reads in blocks), `src/orbislink/qt/shadowmount_control.*` (asking ShadowMountPlus to scan, or starting it again) |
 | Everything the QML calls (`app`) | `src/orbislink/qt/app_controller.*` |
 | Games (`games`) | `src/orbislink/qt/games_controller.*` |
 | Save vault (`saves`) | `SavesView.qml`, `src/orbislink/qt/saves_controller.*`, `src/orbislink/saves` |
