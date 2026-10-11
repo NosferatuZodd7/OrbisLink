@@ -206,6 +206,14 @@ reports nothing back), a direct install is followed by what the PC has served:
 the card is done once the console has taken the whole package, and the
 console finishes the install on its own (its notifications show it).
 
+On a PS5 with no installer on port 12800 the app looks for the **Prospero
+Manager** payload (port 7070): when it answers, the installer indicator is
+green and packages go through its package API — a package already on the
+console by its path (*Send and install*, *Convert and install*, *Install on
+the console*), one on this PC by its address (*Install directly*). The card
+is done once Prospero Manager says the console has queued the install; a
+refusal comes back with the console's code.
+
 A task the console still keeps from an earlier try (error 0x80990015,
 *TASK_DUPLICATED*) is removed and the install asked for again, when the
 installer can find it (Remote Package Installer's API); otherwise the card
@@ -231,7 +239,12 @@ PS5: installed from where it is, as Prospero Manager's *already on the PS5* does
 Download to… (files and whole folders) · Get it ready to drag · Show the local
 copy · Copy the path · Rename… · **Move to…** (a folder tree of the console:
 quick access on the left, folders that open on the right, **New folder**,
-then **Move here**) · Delete on the console.
+then **Move here**) · Delete on the console. A move is a rename on the
+console; between two disks (`/data` and a USB drive, say) the console cannot
+rename, so it is copied through this PC — each file brought here, sent to its
+new place and its size checked, with the bar and **Cancel** at the foot of the
+tab — and only then is the original deleted. Nothing is overwritten: a name
+already taken there is said so.
 
 ## Dropping files on the window
 
@@ -239,7 +252,7 @@ Dragging `.pkg` files (or folders with them) over the window shows two zones:
 
 | Zone | Does | Needs |
 |---|---|---|
-| **Send over FTP** | Copies them to the folder the Files tab is in. Any other file dropped (a disc image for the USB drive, a payload) is copied as it is; only a damaged `.pkg` is turned away. | FTP |
+| **Send over FTP** | Copies them to the folder the Files tab is in (the zone names it). Any other file dropped (a disc image for the USB drive, a payload) is copied as it is; only a damaged `.pkg` is turned away. | FTP |
 | **Install directly** | The console downloads them from this PC and installs. | Installer |
 
 On a PS5, a package sent with *install after sending* (and a converted game's
@@ -574,6 +587,12 @@ the header says so. Each app's icon is downloaded once.
 | **Remove** | Asks ShadowMountPlus to uninstall it (when its API lets the network in), then deletes its folder. Its saves stay. Without the API, its icon goes when ShadowMountPlus removes missing games, or by deleting it on the console. |
 | Progress | On the card, at the foot of the app's window and as a card in the Queue tab: the stage (downloading, copying to the PS5, putting it in place, starting ShadowMountPlus again), the percentage, the speed over the last seconds, how much of how much and the time left. The copy counts the app's files as they reach the PS5. |
 | **Cancel** | Stops an install under way, mid-file too; nothing in place changes. |
+
+The app's folder in the ZIP is the one with `sce_sys/param.json` and
+`eboot.bin`, at the top or up to three folders down (a release folder with a
+data folder and the licences beside it is common); the shallowest wins, then
+the one named after the title ID, and two that tie are refused. What is
+beside it in the archive is not installed — as ProsperoStore does.
 
 No package is built: on the PS5 the app folder is the install, which is why
 apps the catalog offers only as disc images are listed but not installed.

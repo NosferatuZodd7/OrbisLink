@@ -97,8 +97,11 @@ struct ProbeResult
 // Connects to the console and returns what answered. `timeoutMs` is the FTP
 // limit; the installer gets one more second because it is a full HTTP request.
 // FTP is looked for on `ftpPort` and, at the same time, on `otherFtpPorts`.
+// On a PS5 (`ps5`), with no installer on `installerPort`, Prospero Manager's
+// package API counts as the installer.
 ProbeResult probeConsoleServices(const std::string &address, uint16_t ftpPort,
-	uint16_t installerPort, int timeoutMs = 2000, const std::vector<uint16_t> &otherFtpPorts = {});
+	uint16_t installerPort, int timeoutMs = 2000, const std::vector<uint16_t> &otherFtpPorts = {},
+	bool ps5 = false);
 
 // Remote Play state as chiaki-ng reports it.
 enum class RemotePlayState { Unknown, Ready, Standby, Offline };

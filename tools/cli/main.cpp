@@ -8,6 +8,7 @@
 #include "orbislink/common/util.h"
 #include "orbislink/console/console_manager.h"
 #include "orbislink/ftp/ftp_client.h"
+#include "orbislink/ftp/remote_move.h"
 #include "orbislink/http/local_http_server.h"
 #include "orbislink/installer/rpi_client.h"
 #include "orbislink/net/net_utils.h"
@@ -16,6 +17,7 @@
 #include "orbislink/settings/settings_store.h"
 
 #include <chrono>
+#include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <map>
@@ -88,6 +90,8 @@ Commands:
   ftp-get --host <ip> <remote> <local> Downloads a file over FTP.
   ftp-rm --host <ip> <remote>          Deletes a file on the console.
   ftp-mkdir --host <ip> <remote>       Creates a folder on the console.
+  ftp-mv --host <ip> <from> <to>      Moves a file or folder on the console
+                                      (between disks, through this PC).
 
 Common options:
   --ftp-port <n>        (default 2121)
@@ -416,6 +420,26 @@ int commandFtp(const std::string &command, const Options &options)
 			std::cerr << "FTP: " << result.message << "\n";
 			return 1;
 		}
+		return 0;
+	}
+
+	if(command == "ftp-mv")
+	{
+		if(options.positional.size() < 2)
+		{
+			std::cerr << "Give the path to move and its new path.\n";
+			return 2;
+		}
+		bool throughPc = false;
+		const std::string scratch = (std::filesystem::temp_directory_path() / "orbislink-cli-move").string();
+		const FtpResult result = moveOnConsole(client, options.positional[0], options.positional[1], scratch,
+			nullptr, &throughPc);
+		if(!result.ok)
+		{
+			std::cerr << "FTP: " << result.message << "\n";
+			return 1;
+		}
+		std::cout << (throughPc ? "Moved through this PC.\n" : "Moved.\n");
 		return 0;
 	}
 

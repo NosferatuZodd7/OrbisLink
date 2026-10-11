@@ -176,6 +176,7 @@ int main(int argc, char **argv)
 	bool selfTestDrag = false;
 	QStringList enqueuePaths;
 	QStringList uploadPaths;
+	QString ftpFolder;
 	const QStringList arguments = app.arguments();
 	for(int i = 1; i < arguments.size(); ++i)
 	{
@@ -216,6 +217,8 @@ int main(int argc, char **argv)
 			enqueuePaths << arguments[++i];
 		else if(argument == QStringLiteral("--enqueue-ftp") && i + 1 < arguments.size())
 			uploadPaths << arguments[++i];
+		else if(argument == QStringLiteral("--ftp-folder") && i + 1 < arguments.size())
+			ftpFolder = arguments[++i];
 	}
 
 	// Translations. The source language is English; Portuguese is chosen in
@@ -269,11 +272,15 @@ int main(int argc, char **argv)
 	}
 	if(!enqueuePaths.isEmpty())
 		controller->addPaths(enqueuePaths, 0);
-	// The same as dropping on "Send over FTP", after the window is up (the
-	// question about names already taken needs it).
+	// The Files tab opened on a folder (--ftp-folder), as if browsed to.
+	if(!ftpFolder.isEmpty())
+		controller->ftpNavigate(ftpFolder);
+	// The same as dropping on "Send over FTP" — into the folder the Files tab
+	// has open — after the window is up (the question about names already
+	// taken needs it).
 	if(!uploadPaths.isEmpty())
 		QTimer::singleShot(1500, controller.get(),
-			[&controller, uploadPaths]() { controller->addPaths(uploadPaths, 1); });
+			[&controller, uploadPaths]() { controller->addPaths(uploadPaths, 1, controller->ftpPath()); });
 
 	// A long job's end also goes to the system, so it arrives with the
 	// window in the background (in front, the window's own notice is

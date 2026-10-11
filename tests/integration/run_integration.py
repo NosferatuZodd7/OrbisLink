@@ -161,6 +161,51 @@ def main() -> int:
                      and os.path.isdir(os.path.join(console_root, "data", "pkg", "subfolder")),
                      "ftp-mkdir creates the folder")
 
+        # A folder that is there already is what was asked for (the PS5's
+        # ftpsrv refuses MKD for it, as the fake console does).
+        again = runner.run("ftp-mkdir", *common, "/data/pkg/subfolder")
+        runner.check(again.returncode == 0, "ftp-mkdir of a folder already there succeeds")
+
+        # Moving: on one disk a rename; onto a USB drive, where the console
+        # cannot rename, a copy through the PC, and then the original goes.
+        usb = os.path.join(console_root, "mnt", "usb0")
+        os.makedirs(os.path.join(usb, "PS2"), exist_ok=True)
+        moved_here = os.path.join(console_root, "data", "pkg", "subfolder", "game.pkg")
+        same = runner.run("ftp-mv", *common, remote, "/data/pkg/subfolder/game.pkg")
+        runner.check(same.returncode == 0 and "through" not in same.stdout
+                     and os.path.exists(moved_here) and not os.path.exists(uploaded),
+                     "ftp-mv renames on the same disk")
+        on_usb = os.path.join(usb, "PS2", "game.pkg")
+        across = runner.run("ftp-mv", *common, "/data/pkg/subfolder/game.pkg", "/mnt/usb0/PS2/game.pkg")
+        runner.check(across.returncode == 0 and "through this PC" in across.stdout
+                     and os.path.exists(on_usb) and digest(on_usb) == pkg_digest
+                     and not os.path.exists(moved_here),
+                     "ftp-mv copies a file onto another disk through the PC, then deletes the original")
+
+        bundle = os.path.join(console_root, "data", "pkg", "bundle")
+        os.makedirs(os.path.join(bundle, "inner"))
+        with open(os.path.join(bundle, "top.txt"), "w") as handle:
+            handle.write("top")
+        with open(os.path.join(bundle, "inner", "deep.txt"), "w") as handle:
+            handle.write("deep" * 1000)
+        folder = runner.run("ftp-mv", *common, "/data/pkg/bundle", "/mnt/usb0/bundle")
+        runner.check(folder.returncode == 0 and not os.path.exists(bundle)
+                     and open(os.path.join(usb, "bundle", "top.txt")).read() == "top"
+                     and open(os.path.join(usb, "bundle", "inner", "deep.txt")).read() == "deep" * 1000,
+                     "ftp-mv moves a whole folder onto another disk")
+
+        with open(os.path.join(console_root, "data", "pkg", "other.bin"), "w") as handle:
+            handle.write("other")
+        taken = runner.run("ftp-mv", *common, "/data/pkg/other.bin", "/mnt/usb0/PS2/game.pkg", expect=1)
+        runner.check(taken.returncode != 0 and digest(on_usb) == pkg_digest
+                     and os.path.exists(os.path.join(console_root, "data", "pkg", "other.bin")),
+                     "ftp-mv refuses to overwrite what is already there")
+        os.remove(os.path.join(console_root, "data", "pkg", "other.bin"))
+
+        back = runner.run("ftp-mv", *common, "/mnt/usb0/PS2/game.pkg", remote)
+        runner.check(back.returncode == 0 and os.path.exists(uploaded) and digest(uploaded) == pkg_digest,
+                     "and back again")
+
         remove = runner.run("ftp-rm", *common, remote)
         runner.check(remove.returncode == 0 and not os.path.exists(uploaded),
                      "ftp-rm deletes the file")

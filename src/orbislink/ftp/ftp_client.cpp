@@ -742,8 +742,13 @@ FtpResult FtpClient::makeDirectory(const std::string &remotePath)
 			"mode in the settings."));
 	return withRetries("create folder " + path, [&]() -> FtpResult {
 		const Config cfg = config();
-		return runQuoteCommands(cfg, cfg.host, { "MKD " + path },
-			"ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/");
+		const std::string base = "ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/";
+		const FtpResult made = runQuoteCommands(cfg, cfg.host, { "MKD " + path }, base);
+		// A folder that is there already is what was asked for. Some servers
+		// (the PS5's ftpsrv) refuse MKD for it; going into it tells.
+		if(!made.ok && runQuoteCommands(cfg, cfg.host, { "CWD " + path }, base).ok)
+			return FtpResult::success();
+		return made;
 	});
 }
 

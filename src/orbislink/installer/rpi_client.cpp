@@ -38,9 +38,28 @@ bool RpiClient::probe(std::string *detail)
 			*detail = "HTTP " + std::to_string(response.status);
 		return true;
 	}
+	// A PS5 with no installer there may have Prospero Manager running.
+	if(config_.ps5 && prosperoAnswers(detail))
+		return true;
 	if(detail)
 		*detail = response.error;
 	return false;
+}
+
+std::string RpiClient::prosperoEndpoint() const
+{
+	return "http://" + config_.host + ":" + std::to_string(config_.prosperoPort);
+}
+
+bool RpiClient::prosperoAnswers(std::string *detail)
+{
+	HttpClient client(config_.timeoutMs < 4000 ? config_.timeoutMs : 4000);
+	const HttpResponse response = client.get(prosperoEndpoint() + "/api/pkg/status");
+	if(!response.transportOk || !Json::parse(response.body)["phase"].isString())
+		return false;
+	if(detail)
+		*detail = "Prospero Manager, port " + std::to_string(config_.prosperoPort);
+	return true;
 }
 
 RpiClient::Protocol RpiClient::protocol()
@@ -66,6 +85,12 @@ RpiClient::Protocol RpiClient::protocol()
 		logInfo("Installer: etaHEN's DPI v2 answers on " + endpoint() + ".");
 		protocol_.store(static_cast<int>(Protocol::DpiV2));
 		return Protocol::DpiV2;
+	}
+	if(!api.transportOk && !page.transportOk && prosperoAnswers())
+	{
+		logInfo("Installer: Prospero Manager answers on " + prosperoEndpoint() + ".");
+		protocol_.store(static_cast<int>(Protocol::ProsperoMgr));
+		return Protocol::ProsperoMgr;
 	}
 	// Nothing told apart (or nothing answered): asked again next time.
 	return Protocol::Rpi;
@@ -105,11 +130,84 @@ InstallerResult RpiClient::installDpiV2(const std::string &url)
 	return result;
 }
 
+InstallerResult RpiClient::installProspero(const std::string &target)
+{
+	HttpClient client(config_.timeoutMs);
+	const std::string base = prosperoEndpoint();
+	const bool remote = startsWith(target, "http://") || startsWith(target, "https://");
+	Json request = Json::makeObject();
+	request.set(remote ? "url" : "path", Json::fromString(target));
+	auto unavailable = [this](const std::string &why) {
+		protocol_.store(static_cast<int>(Protocol::Unknown));
+		return InstallerResult::failure(std::string(QT_TRANSLATE_NOOP("Messages",
+			"Prospero Manager is not answering: load its payload on the console.")) + " (" + why + ")");
+	};
+	auto failed = [&target](const std::string &error) {
+		InstallerResult result;
+		result.rawBody = error;
+		const size_t hex = error.find("0x");
+		if(hex != std::string::npos)
+			result.errorCode = static_cast<uint32_t>(std::strtoul(error.c_str() + hex + 2, nullptr, 16));
+		result.message = result.errorCode != 0 ? describeConsoleError(result.errorCode) : error;
+		logError("Remote installer (Prospero Manager): " + target + " -> " + error.substr(0, 200));
+		return result;
+	};
+
+	// One install at a time there: while another is being handed over, it
+	// says so (409) and is asked again.
+	const int64_t deadline = monotonicMillis() + config_.prosperoWaitMs;
+	HttpResponse started;
+	for(;;)
+	{
+		started = client.post(base + "/api/pkg/install", request.dump());
+		if(!started.transportOk)
+			return unavailable(started.error);
+		if(started.status != 409 || monotonicMillis() > deadline)
+			break;
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+	}
+	if(started.status < 200 || started.status >= 300)
+	{
+		const std::string error = Json::parse(started.body)["error"].toString();
+		return failed(error.empty() ? "HTTP " + std::to_string(started.status) : error);
+	}
+
+	// Followed until the console has the install queued (it then shows in its
+	// notifications); a package it downloads from the PC is followed by what
+	// the PC serves once the bytes start going.
+	while(monotonicMillis() <= deadline)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(400));
+		const HttpResponse status = client.get(base + "/api/pkg/status");
+		if(!status.transportOk)
+			return unavailable(status.error);
+		const Json json = Json::parse(status.body);
+		const std::string phase = json["phase"].toString();
+		if(phase == "queued")
+		{
+			logInfo("Prospero Manager queued the install of " + target + ".");
+			InstallerResult result = InstallerResult::success();
+			result.rawBody = status.body;
+			return result;
+		}
+		if(phase == "error")
+			return failed(json["error"].toString());
+		if(remote && phase == "downloading" && json["loaded"].toInt(0) > 0)
+			return InstallerResult::success();
+	}
+	return InstallerResult::failure(QT_TRANSLATE_NOOP("Messages",
+		"Prospero Manager did not say whether the console took the install."));
+}
+
 InstallerResult RpiClient::call(const std::string &path, const std::string &jsonBody, std::string *body)
 {
-	if(protocol() == Protocol::DpiV2)
+	const Protocol spoken = protocol();
+	if(spoken == Protocol::DpiV2)
 		return InstallerResult::failure(QT_TRANSLATE_NOOP("Messages",
 			"etaHEN's DPI v2 only starts installs: this is not something it does."));
+	if(spoken == Protocol::ProsperoMgr)
+		return InstallerResult::failure(QT_TRANSLATE_NOOP("Messages",
+			"Prospero Manager only starts installs here: this is not something it does."));
 
 	HttpClient client(config_.timeoutMs);
 	const std::string url = endpoint() + path;
@@ -186,13 +284,14 @@ InstallerResult RpiClient::installDirect(const std::vector<std::string> &package
 	if(packageUrls.empty())
 		return InstallerResult::failure(QT_TRANSLATE_NOOP("Messages", "No package given to install."));
 
-	if(protocol() == Protocol::DpiV2)
+	const Protocol spoken = protocol();
+	if(spoken == Protocol::DpiV2 || spoken == Protocol::ProsperoMgr)
 	{
 		// One install per request; no task to follow.
 		InstallerResult result = InstallerResult::success();
 		for(const std::string &url : packageUrls)
 		{
-			result = installDpiV2(url);
+			result = spoken == Protocol::DpiV2 ? installDpiV2(url) : installProspero(url);
 			if(!result.ok)
 				break;
 		}

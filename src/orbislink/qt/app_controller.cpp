@@ -11,6 +11,7 @@
 
 #include "orbislink/common/log.h"
 #include "orbislink/common/util.h"
+#include "orbislink/ftp/remote_move.h"
 #include "orbislink/net/http_client.h"
 #include "orbislink/net/net_utils.h"
 #include "orbislink/pkg/pkg_inspector.h"
@@ -767,8 +768,8 @@ QString AppController::installerState() const
 QString AppController::installerHint() const
 {
 	if(activeIsPs5() && status_.installer.state != ServiceState::Available)
-		return tr("On the PS5, installing packages needs a jailbreak with an installer on port %1 — in "
-			"etaHEN, DPI v2 (DPI_v2=1 in config.ini).")
+		return tr("On the PS5, installing packages needs a jailbreak with an installer: etaHEN's DPI v2 on "
+			"port %1 (DPI_v2=1 in config.ini), or the Prospero Manager payload (port 7070).")
 			.arg(settings_.installerPort);
 	return status_.installer.state == ServiceState::Available
 		? QString::fromStdString(status_.installer.detail)
@@ -1177,7 +1178,7 @@ void AppController::dropUrls(const QList<QUrl> &urls, int mode)
 		if(url.isLocalFile())
 			paths << url.toLocalFile();
 	}
-	addPaths(paths, mode);
+	addPaths(paths, mode, mode == 1 ? ftpPath_ : QString());
 }
 
 void AppController::registerIcons(const QStringList &paths, const QStringList &taskIds)
@@ -1200,7 +1201,7 @@ void AppController::registerIcons(const QStringList &paths, const QStringList &t
 	}).detach();
 }
 
-void AppController::addPaths(const QStringList &paths, int mode)
+void AppController::addPaths(const QStringList &paths, int mode, const QString &directory)
 {
 	if(!queue_)
 		return;
@@ -1234,17 +1235,19 @@ void AppController::addPaths(const QStringList &paths, int mode)
 	if(nativePaths.empty())
 		return;
 
-	// Going over FTP: first see what is already in the upload folder.
+	// Going over FTP: first see what is already in the folder it goes to.
 	if(transferMode == TransferMode::FtpUpload && ftp_)
 	{
-		checkUploadConflicts(accepted);
+		checkUploadConflicts(accepted, directory.trimmed().isEmpty()
+				? uploadDirectory()
+				: QString::fromStdString(normalizeRemotePath(directory.toStdString())));
 		return;
 	}
 	enqueueFiles(accepted, transferMode);
 }
 
 void AppController::enqueueFiles(const QStringList &files, TransferMode transferMode,
-	const std::vector<std::string> &remoteNames)
+	const std::vector<std::string> &remoteNames, const QString &directory)
 {
 	if(!queue_ || files.isEmpty())
 		return;
@@ -1253,9 +1256,15 @@ void AppController::enqueueFiles(const QStringList &files, TransferMode transfer
 		nativePaths.push_back(file.toStdString());
 	const QStringList &accepted = files;
 
+	// Another folder than the upload folder: the uploads go there.
+	const std::string into = directory.toStdString();
+	const bool elsewhere = transferMode == TransferMode::FtpUpload && !into.empty()
+		&& normalizeRemotePath(into) != uploadDirectory().toStdString();
 	std::vector<std::string> rejected;
 	const std::vector<std::string> ids = queue_->enqueue(nativePaths, transferMode, &rejected,
-		remoteNames.empty() ? nullptr : &remoteNames);
+		remoteNames.empty() ? nullptr : &remoteNames,
+		elsewhere ? std::function<void(QueueTask &)>([&into](QueueTask &task) { task.remoteDirectory = into; })
+				  : std::function<void(QueueTask &)>());
 
 	QStringList taskIds;
 	for(const std::string &id : ids)
@@ -1362,20 +1371,20 @@ std::string freeName(const std::string &name, const std::set<std::string> &taken
 
 } // namespace
 
-void AppController::checkUploadConflicts(const QStringList &files)
+void AppController::checkUploadConflicts(const QStringList &files, const QString &into)
 {
-	const std::string directory = uploadDirectory().toStdString();
+	const std::string directory = into.toStdString();
 	setStatusMessage(tr("Checking what is already on the console…"));
-	std::thread([this, life = lifeline_, ftp = ftp_, files, directory]() {
+	std::thread([this, life = lifeline_, ftp = ftp_, files, directory, into]() {
 		std::vector<FtpEntry> entries;
 		const FtpResult result = ftp->list(directory, &entries);
 		life->post(
-			[this, files, entries, result]() {
+			[this, files, entries, result, into]() {
 				// Without a listing there is nothing to compare with: the files
 				// go as they always did (the upload itself will report a problem).
 				if(!result.ok)
 				{
-					enqueueFiles(files, TransferMode::FtpUpload);
+					enqueueFiles(files, TransferMode::FtpUpload, {}, into);
 					return;
 				}
 				std::set<std::string> taken;
@@ -1386,11 +1395,10 @@ void AppController::checkUploadConflicts(const QStringList &files)
 					sizes[entry.name] = entry.size;
 				}
 				// Uploads still in the queue for this folder will land there too.
-				const QString directory = uploadDirectory();
 				for(const QVariant &value : ftpUploads_)
 				{
 					const QVariantMap upload = value.toMap();
-					if(upload.value(QStringLiteral("directory")).toString() != directory)
+					if(upload.value(QStringLiteral("directory")).toString() != into)
 						continue;
 					const std::string name = upload.value(QStringLiteral("name")).toString().toStdString();
 					if(!taken.count(name))
@@ -1420,10 +1428,11 @@ void AppController::checkUploadConflicts(const QStringList &files)
 				}
 				if(conflicts.isEmpty())
 				{
-					enqueueFiles(files, TransferMode::FtpUpload);
+					enqueueFiles(files, TransferMode::FtpUpload, {}, into);
 					return;
 				}
 				pendingUploads_ = files;
+				pendingUploadDirectory_ = into;
 				setStatusMessage(tr("%n file(s) already on the console.", "",
 					static_cast<int>(conflicts.size())));
 				emit uploadConflicts(conflicts);
@@ -1434,7 +1443,9 @@ void AppController::checkUploadConflicts(const QStringList &files)
 void AppController::resolveUploadConflicts(const QVariantList &decisions)
 {
 	const QStringList files = pendingUploads_;
+	const QString directory = pendingUploadDirectory_;
 	pendingUploads_.clear();
+	pendingUploadDirectory_.clear();
 	std::map<int, QVariantMap> byIndex;
 	for(const QVariant &value : decisions)
 	{
@@ -1464,7 +1475,7 @@ void AppController::resolveUploadConflicts(const QVariantList &decisions)
 		setStatusMessage(tr("Nothing was sent: every file was skipped."));
 		return;
 	}
-	enqueueFiles(chosen, TransferMode::FtpUpload, remoteNames);
+	enqueueFiles(chosen, TransferMode::FtpUpload, remoteNames, directory);
 }
 
 void AppController::resumeWhenInstallerIsBack()
@@ -1771,20 +1782,71 @@ void AppController::ftpMove(const QString &path, const QString &destinationDir)
 	const std::string to = normalizeRemotePath(dir.toStdString() + "/" + name);
 	if(to == from)
 		return;
+	// Between two disks it is copied through this PC, on the transfer bar:
+	// one transfer at a time there.
+	if(downloadActive_)
+	{
+		emit notify(tr("Move"),
+			tr("A transfer is already running (%1). Wait for it to finish.").arg(downloadName_), true);
+		return;
+	}
 	setFtpBusy(true);
-	std::thread([this, life = lifeline_, ftp = ftp_, from, to]() {
-		const FtpResult result = ftp->rename(from, to);
+	downloadCancel_ = std::make_shared<std::atomic<bool>>(false);
+	const std::string scratch = QDir(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))
+									.filePath(QStringLiteral("moving"))
+									.toStdString();
+	const QString shownName = QString::fromStdString(name);
+	std::thread([this, life = lifeline_, ftp = ftp_, cancel = downloadCancel_, from, to, scratch, shownName]() {
+		int64_t lastPost = 0;
+		bool shown = false;
+		bool throughPc = false;
+		const FtpResult result = moveOnConsole(*ftp, from, to, scratch,
+			[&](int64_t done, int64_t total) {
+				if(cancel->load())
+					return false;
+				const int64_t now = monotonicMillis();
+				if(!shown || now - lastPost >= 200)
+				{
+					const double fraction = total > 0 ? static_cast<double>(done) / static_cast<double>(total) : 0.0;
+					const bool first = !shown;
+					shown = true;
+					lastPost = now;
+					life->post([this, fraction, first, shownName]() {
+						if(first)
+						{
+							downloadActive_ = true;
+							downloadMoving_ = true;
+							downloadName_ = shownName;
+							setStatusMessage(tr("Moving %1 to another disk through this PC…").arg(shownName));
+						}
+						downloadProgress_ = fraction;
+						emit downloadChanged();
+					});
+				}
+				return true;
+			},
+			&throughPc);
 		const QString message = translateMessage(result.message);
 		const bool ok = result.ok;
+		const bool cancelled = result.cancelled;
 		const QString target = QString::fromStdString(to);
 		life->post(
-			[this, ok, message, target]() {
+			[this, ok, cancelled, message, target, shown]() {
 				setFtpBusy(false);
-				setStatusMessage(ok ? tr("Moved to %1").arg(target) : tr("FTP: %1").arg(message));
-				if(!ok)
-					emit notify(tr("Move"), tr("I could not move it: %1").arg(message), true);
+				if(shown)
+				{
+					downloadActive_ = false;
+					downloadMoving_ = false;
+					downloadProgress_ = 0.0;
+					emit downloadChanged();
+				}
+				if(cancelled)
+					setStatusMessage(tr("Move cancelled: the original is where it was."));
 				else
-					ftpRefresh();
+					setStatusMessage(ok ? tr("Moved to %1").arg(target) : tr("FTP: %1").arg(message));
+				if(!ok && !cancelled)
+					emit notify(tr("Move"), tr("I could not move it: %1").arg(message), true);
+				ftpRefresh();
 			});
 	}).detach();
 }
@@ -2264,7 +2326,7 @@ void AppController::probeConsole(const QString &address, int ftpPort, int instal
 	std::thread([this, life = lifeline_, address, host, ftp, rpi, ps5, generation]() {
 		// Short timeout: this runs while typing, it must not drag on. The
 		// other FTP ports are asked at the same time, so it takes no longer.
-		const ProbeResult probe = probeConsoleServices(host, ftp, rpi, 1200, ftpPortCandidates(ftp, ps5));
+		const ProbeResult probe = probeConsoleServices(host, ftp, rpi, 1200, ftpPortCandidates(ftp, ps5), ps5);
 		const QString detail =
 			QString::fromStdString(probe.ftpOk ? probe.ftpDetail : probe.installerDetail);
 		const int foundPort = probe.ftpPort;

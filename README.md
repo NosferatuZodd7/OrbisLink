@@ -72,6 +72,7 @@ must already be running GoldHEN (PS4) or a jailbreak such as etaHEN (PS5).
 | PS4 — Remote Package Installer (flatz) | 12800 | install it and **keep the app open and in the foreground** while commands are sent |
 | PS5 — etaHEN FTP server | 1337 | `FTP=1` in etaHEN's `config.ini` |
 | PS5 — etaHEN DPI v2 installer | 12800 | `DPI_v2=1` in etaHEN's `config.ini` |
+| PS5 — Prospero Manager (when there is no DPI v2) | 7070 | load the Prospero Manager payload |
 
 The PS5 FTP port has its own setting, because it differs from the PS4's:
 with a PS5 in use, the settings show and edit the PS5 port. When the set
