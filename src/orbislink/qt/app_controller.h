@@ -70,6 +70,8 @@ class AppController : public QObject
 	Q_PROPERTY(bool downloadActive READ downloadActive NOTIFY downloadChanged)
 	Q_PROPERTY(QString downloadName READ downloadName NOTIFY downloadChanged)
 	Q_PROPERTY(double downloadProgress READ downloadProgress NOTIFY downloadChanged)
+	// The transfer is a move between two disks of the console, through this PC.
+	Q_PROPERTY(bool downloadMoving READ downloadMoving NOTIFY downloadChanged)
 	Q_PROPERTY(QStringList ftpShortcuts READ ftpShortcuts NOTIFY ftpShortcutsChanged)
 	// Remote Play picture: "fit" (as the console sends it), "4:3" or "fill".
 	Q_PROPERTY(QString streamAspect READ streamAspect WRITE setStreamAspect NOTIFY streamAspectChanged)
@@ -142,6 +144,7 @@ public:
 	bool downloadActive() const { return downloadActive_; }
 	QString downloadName() const { return downloadName_; }
 	double downloadProgress() const { return downloadProgress_; }
+	bool downloadMoving() const { return downloadMoving_; }
 	QStringList ftpShortcuts() const;
 	QString streamAspect() const { return QString::fromStdString(settings_.streamAspect); }
 	void setStreamAspect(const QString &aspect);
@@ -189,9 +192,11 @@ public:
 #endif
 	}
 
-	// Dropping files: mode 0 = direct install, 1 = FTP upload.
+	// Dropping files: mode 0 = direct install, 1 = FTP upload — into the
+	// folder open in the Files tab, which is what the drop zone says.
 	Q_INVOKABLE void dropUrls(const QList<QUrl> &urls, int mode);
-	Q_INVOKABLE void addPaths(const QStringList &paths, int mode);
+	// `directory`: where an FTP upload goes (empty: the upload folder).
+	Q_INVOKABLE void addPaths(const QStringList &paths, int mode, const QString &directory = QString());
 	// Installs a .pkg that is already on the console (a PS5), by its path.
 	Q_INVOKABLE void installFromConsole(const QString &remotePath);
 	// The answer to uploadConflicts: one {index, action, name} per file that
@@ -421,9 +426,9 @@ private:
 	static QStringList collectPkgFiles(const QStringList &paths);
 	void registerIcons(const QStringList &paths, const QStringList &taskIds);
 	void enqueueFiles(const QStringList &files, TransferMode mode,
-		const std::vector<std::string> &remoteNames = {});
-	// Lists the upload folder and, for the files already there, asks first.
-	void checkUploadConflicts(const QStringList &files);
+		const std::vector<std::string> &remoteNames = {}, const QString &directory = QString());
+	// Lists the folder the files go to and, for those already there, asks first.
+	void checkUploadConflicts(const QStringList &files, const QString &directory);
 	static std::string detectJailbreak(const std::string &address, uint16_t port);
 	void refreshFtpListing(bool announce);
 	QString uploadDirectory() const;
@@ -456,6 +461,7 @@ private:
 	bool probingFtp_ = false;
 	// The FTP drop waiting for an answer about the names already taken.
 	QStringList pendingUploads_;
+	QString pendingUploadDirectory_;
 	// Only the most recent check matters: earlier ones are discarded when
 	// they arrive, so the result never contradicts what is on screen.
 	std::atomic<uint64_t> probeGeneration_ { 0 };
@@ -479,6 +485,7 @@ private:
 	bool downloadActive_ = false;
 	QString downloadName_;
 	double downloadProgress_ = 0.0;
+	bool downloadMoving_ = false;
 	// Each download's own flag, shared with its thread.
 	std::shared_ptr<std::atomic<bool>> downloadCancel_ = std::make_shared<std::atomic<bool>>(false);
 

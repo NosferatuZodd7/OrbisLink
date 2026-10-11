@@ -60,6 +60,7 @@ add_library(orbislink_core STATIC
 	src/orbislink/common/util.cpp
 	src/orbislink/console/console_manager.cpp
 	src/orbislink/ftp/ftp_client.cpp
+	src/orbislink/ftp/remote_move.cpp
 	src/orbislink/http/local_http_server.cpp
 	src/orbislink/installer/error_codes.cpp
 	src/orbislink/installer/rpi_client.cpp

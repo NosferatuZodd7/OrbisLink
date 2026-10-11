@@ -169,32 +169,56 @@ std::vector<InstalledApp> StoreInstaller::installed(StoreRemote &remote, const s
 
 namespace {
 
-// The app folder in a ZIP: <TITLEID>/ at the top, as the catalog asks, or
-// the archive's root when eboot.bin is there; and its param.json.
-const ZipEntry *findAppIn(const std::vector<ZipEntry> &entries, std::string *prefix)
+// The app folder in a ZIP and its param.json. Developers pack it in different
+// ways: at the top, in <TITLEID>/ as the catalog asks, inside a release
+// folder beside a data folder and the licences. The app is the folder with
+// sce_sys/param.json and eboot.bin, up to three folders deep; the shallowest
+// wins, then the one named after `titleId`. Two that tie are refused, as is
+// none at all ("" with `ambiguous` set tells the two apart). What lies outside
+// it is not installed — as ProsperoStore does.
+const ZipEntry *findAppIn(const std::vector<ZipEntry> &entries, const std::string &titleId, std::string *prefix,
+	bool *ambiguous = nullptr)
 {
-	bool found = false;
-	prefix->clear();
+	static const std::string kParam = "sce_sys/param.json";
+	std::set<std::string> programs;
 	for(const ZipEntry &entry : entries)
-		if(entry.name == "eboot.bin")
-		{
-			found = true;
-			prefix->clear();
-			break;
-		}
-		else if(!found && endsWith(entry.name, "/eboot.bin")
-			&& std::count(entry.name.begin(), entry.name.end(), '/') == 1)
-		{
-			found = true;
-			*prefix = entry.name.substr(0, entry.name.size() - std::string("eboot.bin").size());
-		}
-	if(!found)
+		if(!entry.directory && (entry.name == "eboot.bin" || endsWith(entry.name, "/eboot.bin")))
+			programs.insert(entry.name.substr(0, entry.name.size() - std::string("eboot.bin").size()));
+
+	const ZipEntry *best = nullptr;
+	int bestScore = -1;
+	bool tie = false;
+	for(const ZipEntry &entry : entries)
+	{
+		if(entry.directory || !(entry.name == kParam || endsWith(entry.name, "/" + kParam)))
+			continue;
+		const std::string folder = entry.name.substr(0, entry.name.size() - kParam.size());
+		if(!programs.count(folder))
+			continue;
+		const int depth = static_cast<int>(std::count(folder.begin(), folder.end(), '/'));
+		if(depth > 3)
+			continue;
+		const bool named = !titleId.empty() && endsWith(folder, titleId + "/");
+		const int score = 4 * (8 - depth) + (named ? 1 : 0);
+		if(score < bestScore)
+			continue;
+		tie = score == bestScore;
+		bestScore = score;
+		best = &entry;
+		*prefix = folder;
+	}
+	if(ambiguous)
+		*ambiguous = tie;
+	if(!best || tie)
+	{
+		prefix->clear();
 		return nullptr;
-	const std::string wanted = *prefix + "sce_sys/param.json";
-	const auto param = std::find_if(entries.begin(), entries.end(),
-		[&wanted](const ZipEntry &e) { return e.name == wanted; });
-	return param == entries.end() ? nullptr : &*param;
+	}
+	return best;
 }
+
+const char *kNoApp = "the archive holds no app folder (eboot.bin and sce_sys/param.json)";
+const char *kTwoApps = "the archive holds more than one app folder";
 
 } // namespace
 
@@ -204,9 +228,10 @@ bool readArchiveApp(const std::string &zipPath, const std::string &scratchDir, A
 	if(!readZipDirectory(zipPath, &entries, error))
 		return false;
 	std::string prefix;
-	const ZipEntry *param = findAppIn(entries, &prefix);
+	bool ambiguous = false;
+	const ZipEntry *param = findAppIn(entries, std::string(), &prefix, &ambiguous);
 	if(!param)
-		return fail(error, "the archive holds no app folder (eboot.bin and sce_sys/param.json)");
+		return fail(error, ambiguous ? kTwoApps : kNoApp);
 	std::error_code ignored;
 	fs::create_directories(fs::u8path(scratchDir), ignored);
 	const std::string localParam = joinPath(scratchDir, "param-" + std::to_string(nowUnixSeconds()) + ".json");
@@ -251,12 +276,12 @@ bool StoreInstaller::install(StoreRemote &remote, const std::string &zipPath, co
 	if(!readZipDirectory(zipPath, &entries, error))
 		return false;
 
-	// The app folder: <TITLEID>/ at the top, as the catalog asks, or the
-	// archive's root when eboot.bin is there.
+	// The app folder (findAppIn); the rest of the archive stays out.
 	std::string prefix;
-	const ZipEntry *param = findAppIn(entries, &prefix);
+	bool ambiguous = false;
+	const ZipEntry *param = findAppIn(entries, titleId, &prefix, &ambiguous);
 	if(!param)
-		return fail(error, "the archive holds no app folder (eboot.bin and sce_sys/param.json)");
+		return fail(error, ambiguous ? kTwoApps : kNoApp);
 
 	std::error_code ignored;
 	fs::create_directories(fs::u8path(scratchDir), ignored);

@@ -401,14 +401,16 @@ Item {
             }
         }
 
-        // Transfer in progress (from the console to the PC).
+        // Transfer in progress: from the console to the PC, or a move between
+        // two disks of the console, which goes through the PC.
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
             visible: app.downloadActive
 
             Text {
-                text: qsTr("Downloading %1").arg(app.downloadName)
+                text: app.downloadMoving ? qsTr("Moving %1").arg(app.downloadName)
+                                         : qsTr("Downloading %1").arg(app.downloadName)
                 color: Theme.textMuted
                 font.pixelSize: 11
                 elide: Text.ElideMiddle

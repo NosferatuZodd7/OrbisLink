@@ -79,6 +79,14 @@ class FtpSession(threading.Thread):
             parts.append(part)
         return os.path.join(self.root, *parts)
 
+    def disk_of(self, local: str) -> str:
+        """The disk a path is on, as the console has them: each /mnt/<name> is
+        one (a USB drive, the extended storage), everything else another."""
+        relative = os.path.relpath(local, self.root).replace(os.sep, "/").split("/")
+        if len(relative) >= 2 and relative[0] == "mnt":
+            return "mnt/" + relative[1]
+        return "/"
+
     def open_data(self) -> socket.socket | None:
         if not self.data_listener:
             self.send("425 No data connection")
@@ -217,6 +225,11 @@ class FtpSession(threading.Thread):
         elif command == "RNTO":
             if not self.rename_from:
                 self.send("503 RNFR is missing")
+            elif self.disk_of(self.rename_from) != self.disk_of(self.local_path(argument)):
+                # As on a console: rename() cannot cross from one disk to
+                # another (/data and a USB drive), and the server says so.
+                self.send("550 Cross-device link")
+                self.rename_from = None
             else:
                 try:
                     os.replace(self.rename_from, self.local_path(argument))
@@ -486,6 +499,101 @@ class InstallerState:
             with self.lock:
                 task["error"] = 0x80020005  # ORBIS_KERNEL_ERROR_EIO
                 task["message"] = str(error)
+
+
+class ProsperoManagerHandler(http.server.BaseHTTPRequestHandler):
+    """Answers like the Prospero Manager payload's package API (port 7070):
+    POST /api/pkg/install with {"path"} or {"url"} starts one install at a
+    time; GET /api/pkg/status says how it went."""
+    protocol_version = "HTTP/1.1"
+    root = ""
+    lock = threading.Lock()
+    job = {"phase": "idle", "loaded": 0, "total": 0, "speed_bps": 0, "content_id": "",
+           "title": "", "error": "", "has_staged_file": False}
+    running = False
+    # How long handing a package to the console takes (seconds).
+    install_delay = 0.6
+    # Paths and addresses it was asked to install.
+    installed: list[str] = []
+
+    def log_message(self, *args) -> None:
+        pass
+
+    def _json(self, body: dict, status: int = 200) -> None:
+        payload = json.dumps(body).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def do_GET(self) -> None:  # noqa: N802
+        if self.path.split("?")[0] == "/api/pkg/status":
+            with ProsperoManagerHandler.lock:
+                self._json(dict(ProsperoManagerHandler.job))
+            return
+        self._json({"error": "not found"}, 404)
+
+    @staticmethod
+    def _content_id(data: bytes) -> str:
+        return data[0x40:0x64].split(b"\0")[0].decode("ascii", "replace") if len(data) >= 0x64 else ""
+
+    def _work(self, path: str, url: str) -> None:
+        cls = ProsperoManagerHandler
+        try:
+            if url:
+                with urllib.request.urlopen(url, timeout=30) as response:
+                    data = response.read()
+                with cls.lock:
+                    cls.job["loaded"] = cls.job["total"] = len(data)
+                    cls.job["phase"] = "installing"
+            else:
+                local = os.path.join(cls.root, path.lstrip("/"))
+                with open(local, "rb") as handle:
+                    data = handle.read(0x1000)
+            time.sleep(cls.install_delay)
+            if data[:4] != b"\x7fCNT":
+                raise ValueError("not a PKG file")
+            with cls.lock:
+                cls.job["phase"] = "queued"
+                cls.job["content_id"] = self._content_id(data)
+                cls.installed.append(url or path)
+            print(f"Prospero Manager: install queued for {url or path}", flush=True)
+        except Exception as error:  # noqa: BLE001
+            with cls.lock:
+                cls.job["phase"] = "error"
+                cls.job["error"] = "the PKG service could not queue the install (error:install:0x80990015)" \
+                    if isinstance(error, ValueError) else f"could not open the package: {error}"
+        finally:
+            with cls.lock:
+                cls.running = False
+
+    def do_POST(self) -> None:  # noqa: N802
+        length = int(self.headers.get("Content-Length", "0"))
+        raw = self.rfile.read(length).decode("utf-8") if length else "{}"
+        if self.path.split("?")[0] != "/api/pkg/install":
+            self._json({"error": "not found"}, 404)
+            return
+        try:
+            request = json.loads(raw)
+        except json.JSONDecodeError:
+            request = {}
+        path = request.get("path", "")
+        url = request.get("url", "")
+        if not path and not url:
+            self._json({"error": "missing 'path' or 'url'"}, 400)
+            return
+        cls = ProsperoManagerHandler
+        with cls.lock:
+            if cls.running:
+                self._json({"error": "a PKG install is already in progress"}, 409)
+                return
+            cls.running = True
+            cls.job = {"phase": "downloading" if url else "installing", "loaded": 0, "total": 0,
+                       "speed_bps": 0, "content_id": "", "title": "", "error": "", "has_staged_file": False}
+        threading.Thread(target=self._work, args=(path, url), daemon=True).start()
+        self._json({"ok": True, "started": True})
 
 
 class InstallerApiHandler(http.server.BaseHTTPRequestHandler):
@@ -786,6 +894,10 @@ def main() -> int:
                         help="takes payloads on this port and answers like the PS5's ELF loader")
     parser.add_argument("--dpi-v2", action="store_true",
                         help="answer on the API port like etaHEN's DPI v2 (PS5)")
+    parser.add_argument("--no-api", action="store_true",
+                        help="no installer on the API port (a PS5 without etaHEN's DPI v2)")
+    parser.add_argument("--prospero-port", type=int, default=-1, metavar="PORT",
+                        help="answers like the Prospero Manager payload's package API (7070 is the real one)")
     parser.add_argument("--print-ports", action="store_true",
                         help="prints the chosen ports as JSON and keeps running")
     arguments = parser.parse_args()
@@ -805,9 +917,16 @@ def main() -> int:
     InstallerApiHandler.state = InstallerState(downloads, chunk_delay=arguments.slow)
     InstallerApiHandler.dpi_v2 = arguments.dpi_v2
     InstallerApiHandler.root = root
-    api = ThreadingHttpServer((arguments.host, arguments.api_port), InstallerApiHandler)
-    api_thread = threading.Thread(target=api.serve_forever, daemon=True)
-    api_thread.start()
+    api = None
+    if not arguments.no_api:
+        api = ThreadingHttpServer((arguments.host, arguments.api_port), InstallerApiHandler)
+        threading.Thread(target=api.serve_forever, daemon=True).start()
+
+    prospero = None
+    if arguments.prospero_port >= 0:
+        ProsperoManagerHandler.root = root
+        prospero = ThreadingHttpServer((arguments.host, arguments.prospero_port), ProsperoManagerHandler)
+        threading.Thread(target=prospero.serve_forever, daemon=True).start()
 
     discovery = None
     if arguments.discovery_port:
@@ -823,7 +942,9 @@ def main() -> int:
         loader = PayloadLoader(arguments.loader_port, arguments.host)
         loader.start()
 
-    info = {"ftp_port": ftp.port, "api_port": api.server_address[1], "root": root}
+    info = {"ftp_port": ftp.port, "api_port": api.server_address[1] if api else 0, "root": root}
+    if prospero:
+        info["prospero_port"] = prospero.server_address[1]
     if loader:
         info["loader_port"] = loader.port
     if discovery:
@@ -840,7 +961,10 @@ def main() -> int:
     except KeyboardInterrupt:
         pass
     finally:
-        api.shutdown()
+        if api:
+            api.shutdown()
+        if prospero:
+            prospero.shutdown()
         ftp.stop()
         if discovery:
             discovery.stop()

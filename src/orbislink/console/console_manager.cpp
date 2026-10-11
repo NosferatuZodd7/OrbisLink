@@ -102,7 +102,7 @@ std::string knownPortUse(uint16_t port, bool ps5)
 }
 
 ProbeResult probeConsoleServices(const std::string &address, uint16_t ftpPort,
-	uint16_t installerPort, int timeoutMs, const std::vector<uint16_t> &otherFtpPorts)
+	uint16_t installerPort, int timeoutMs, const std::vector<uint16_t> &otherFtpPorts, bool ps5)
 {
 	ProbeResult result;
 	if(trim(address).empty())
@@ -132,6 +132,7 @@ ProbeResult probeConsoleServices(const std::string &address, uint16_t ftpPort,
 	rpiConfig.port = installerPort;
 	rpiConfig.timeoutMs = timeoutMs + 1000;
 	rpiConfig.maxAttempts = 1;
+	rpiConfig.ps5 = ps5;
 	RpiClient installer(rpiConfig);
 	std::string detail;
 	result.installerOk = installer.probe(&detail);
@@ -243,8 +244,8 @@ ConsoleStatus ConsoleManager::checkNow()
 	}
 	else
 	{
-		ProbeResult probe =
-			probeConsoleServices(cfg.consoleAddress, cfg.ftpPort, cfg.installerPort);
+		ProbeResult probe = probeConsoleServices(cfg.consoleAddress, cfg.ftpPort, cfg.installerPort, 2000, {},
+			activeConsoleIsPs5(cfg));
 
 		// The set port does not greet as FTP: once a minute at most, the
 		// other ports FTP servers use are asked too, and FTP is used where

@@ -4,6 +4,7 @@
 // signature and hashes check out, its ZIP is unpacked whole or not at all,
 // and the folder lands where ShadowMountPlus looks, open to everyone.
 
+#include "orbislink/fpkg/targz.h"
 #include "orbislink/ftp/ftp_client.h"
 #include "orbislink/store/shadowmount_log.h"
 #include "orbislink/store/store_catalog.h"
@@ -43,6 +44,45 @@ std::string readAll(const fs::path &path)
 {
 	std::ifstream in(path, std::ios::binary);
 	return std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+}
+
+// A ZIP of stored entries, written here: names ending in "/" are folders.
+std::string writeStoredZip(const fs::path &path, const std::vector<std::pair<std::string, std::string>> &files)
+{
+	auto u16 = [](std::string &out, uint32_t v) { out += char(v & 0xff); out += char((v >> 8) & 0xff); };
+	auto u32 = [&u16](std::string &out, uint32_t v) { u16(out, v & 0xffff); u16(out, v >> 16); };
+	std::string body;
+	std::string central;
+	for(const auto &file : files)
+	{
+		const uint32_t crc = fpkg::crc32(0, reinterpret_cast<const uint8_t *>(file.second.data()), file.second.size());
+		const uint32_t offset = static_cast<uint32_t>(body.size());
+		const uint32_t size = static_cast<uint32_t>(file.second.size());
+		body += "PK\x03\x04";
+		u16(body, 20); u16(body, 0); u16(body, 0); u16(body, 0); u16(body, 0);
+		u32(body, crc); u32(body, size); u32(body, size);
+		u16(body, static_cast<uint32_t>(file.first.size())); u16(body, 0);
+		body += file.first + file.second;
+		central += "PK\x01\x02";
+		u16(central, 20); u16(central, 20); u16(central, 0); u16(central, 0); u16(central, 0); u16(central, 0);
+		u32(central, crc); u32(central, size); u32(central, size);
+		u16(central, static_cast<uint32_t>(file.first.size())); u16(central, 0); u16(central, 0);
+		u16(central, 0); u16(central, 0); u32(central, 0); u32(central, offset);
+		central += file.first;
+	}
+	std::string end = "PK\x05\x06";
+	u16(end, 0); u16(end, 0);
+	u16(end, static_cast<uint32_t>(files.size())); u16(end, static_cast<uint32_t>(files.size()));
+	u32(end, static_cast<uint32_t>(central.size())); u32(end, static_cast<uint32_t>(body.size()));
+	u16(end, 0);
+	std::ofstream(path, std::ios::binary) << body << central << end;
+	return path.string();
+}
+
+std::string paramFor(const std::string &titleId)
+{
+	return R"({"titleId":")" + titleId + R"(","contentVersion":"01.000.000",)"
+		+ R"("localizedParameters":{"defaultLanguage":"en-US","en-US":{"titleName":"Nested"}}})";
 }
 
 // What the test ZIP's eboot.bin holds.
@@ -385,6 +425,80 @@ ORBISLINK_TEST(an_app_goes_into_place_whole_and_open_to_everyone)
 	CHECK(!fs::exists(app));
 	CHECK(installer.uninstall(console, "PPSA99999", &error));
 	CHECK(!installer.uninstall(console, "../etc", &error));
+	fs::remove_all(dir);
+}
+
+ORBISLINK_TEST(the_app_folder_is_found_deeper_in_the_archive)
+{
+	const fs::path dir = scratch();
+	fs::create_directories(dir / "console/data");
+	TestConsole console(dir / "console");
+	StoreInstaller installer;
+	std::string error;
+
+	// As an emulator ships: a release folder, the app two levels down, a data
+	// folder and the licences beside it.
+	const std::string nested = writeStoredZip(dir / "nested.zip", {
+		{ "Emu-1.0/", "" },
+		{ "Emu-1.0/COPYING.txt", "licence" },
+		{ "Emu-1.0/DATA/", "" },
+		{ "Emu-1.0/DATA/bios/", "" },
+		{ "Emu-1.0/DATA/gs.ini", "settings" },
+		{ "Emu-1.0/PPSA99203/", "" },
+		{ "Emu-1.0/PPSA99203/eboot.bin", "program" },
+		{ "Emu-1.0/PPSA99203/sce_sys/", "" },
+		{ "Emu-1.0/PPSA99203/sce_sys/param.json", paramFor("PPSA99203") },
+	});
+	ArchiveApp app;
+	CHECK(readArchiveApp(nested, (dir / "work").string(), &app, &error));
+	CHECK_EQ(app.titleId, std::string("PPSA99203"));
+	CHECK_EQ(app.name, std::string("Nested"));
+	CHECK(installer.install(console, nested, "PPSA99203", (dir / "work").string(), nullptr, &error));
+	const fs::path installed = dir / "console/data/homebrew/PPSA99203";
+	CHECK_EQ(readAll(installed / "eboot.bin"), std::string("program"));
+	CHECK(fs::exists(installed / "sce_sys/param.json"));
+	// Only the app's folder: what is beside it stays in the archive.
+	CHECK(!fs::exists(installed / "DATA"));
+	CHECK(!fs::exists(installed / "COPYING.txt"));
+	CHECK(!fs::exists(installed / "PPSA99203"));
+
+	// Two apps as deep as each other: the one named after the title asked
+	// for is installed; read with no title, the archive is refused.
+	const std::string two = writeStoredZip(dir / "two.zip", {
+		{ "a/PPSA00001/eboot.bin", "one" },
+		{ "a/PPSA00001/sce_sys/param.json", paramFor("PPSA00001") },
+		{ "b/PPSA00002/eboot.bin", "two" },
+		{ "b/PPSA00002/sce_sys/param.json", paramFor("PPSA00002") },
+	});
+	CHECK(!readArchiveApp(two, (dir / "work").string(), &app, &error));
+	CHECK(error.find("more than one") != std::string::npos);
+	CHECK(installer.install(console, two, "PPSA00002", (dir / "work").string(), nullptr, &error));
+	CHECK_EQ(readAll(dir / "console/data/homebrew/PPSA00002/eboot.bin"), std::string("two"));
+
+	// The shallowest wins over a copy further down (at the root, the whole
+	// archive is the app's folder).
+	const std::string shallow = writeStoredZip(dir / "shallow.zip", {
+		{ "eboot.bin", "top" },
+		{ "sce_sys/param.json", paramFor("PPSA00003") },
+		{ "backup/old/eboot.bin", "old" },
+		{ "backup/old/sce_sys/param.json", paramFor("PPSA00003") },
+	});
+	CHECK(installer.install(console, shallow, "PPSA00003", (dir / "work").string(), nullptr, &error));
+	CHECK_EQ(readAll(dir / "console/data/homebrew/PPSA00003/eboot.bin"), std::string("top"));
+
+	// More than three folders down, or param.json with no eboot.bin beside
+	// it: no app.
+	const std::string deep = writeStoredZip(dir / "deep.zip", {
+		{ "1/2/3/4/eboot.bin", "x" },
+		{ "1/2/3/4/sce_sys/param.json", paramFor("PPSA00004") },
+	});
+	CHECK(!readArchiveApp(deep, (dir / "work").string(), &app, &error));
+	CHECK(error.find("no app folder") != std::string::npos);
+	const std::string lonely = writeStoredZip(dir / "lonely.zip", {
+		{ "PPSA00005/sce_sys/param.json", paramFor("PPSA00005") },
+		{ "PPSA00005/bin/eboot.bin", "x" },
+	});
+	CHECK(!readArchiveApp(lonely, (dir / "work").string(), &app, &error));
 	fs::remove_all(dir);
 }
 

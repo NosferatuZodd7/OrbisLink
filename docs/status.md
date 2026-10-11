@@ -37,6 +37,7 @@ Last review: v1.1.0.
 | ✅ | Installing automatically after the FTP upload (on a PS4 the file stays on the console and is installed from the PC, because the installer only downloads over HTTP; on a PS5 it is installed by its path there) |
 | ✅ | Deleting the uploaded copy from the console after installing |
 | 🟡 | Installing on a PS5 through etaHEN's DPI v2: its own protocol (a form with `url`, a path on the console or an http:// address; a text reply), told apart from Remote Package Installer's JSON API by asking; checked against etaHEN's source and the fake console, not yet on a real PS5 |
+| 🟡 | Installing on a PS5 through Prospero Manager (port 7070) when there is no DPI v2: its package API (`/api/pkg/install` with a path or an address, `/api/pkg/status` until *queued*), checked against its source and the fake console, not yet on a real PS5 |
 | ✅ | Error 0x80990015 (a task left by an earlier try): the task is removed and the install asked again |
 
 ## 2. FTP
@@ -46,7 +47,9 @@ Last review: v1.1.0.
 | ✅ | Connection to the GoldHEN server (2121, anonymous, passive) |
 | 🟡 | Connection to etaHEN's FTP server on a PS5 (1337, its own port setting) |
 | ✅ | FTP on another port: 1337, 2121 and 21 (and 9090 on a PS5) are asked, and the one that greets as FTP is kept |
-| ✅ | List, browse, create folder, delete, rename |
+| ✅ | List, browse, create folder (one already there is fine), delete, rename |
+| ✅ | Move between disks (`/data` ↔ USB), where the console cannot rename: copied through the PC, checked, then the original deleted |
+| ✅ | Dropping on *Send over FTP* copies to the folder the Files tab has open |
 | ✅ | Upload files with progress and cancellation |
 | ✅ | Download files to the PC (menu, double click, or a chosen folder) |
 | ✅ | Drag from the window to the desktop (downloads to a local cache first) |
