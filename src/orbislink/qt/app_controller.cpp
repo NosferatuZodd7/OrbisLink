@@ -146,9 +146,14 @@ void AppController::rebuildBackends()
 			reportRemotePlayState(stateCopy, detailCopy);
 		});
 	}
-	console_->setListener([this, life = lifeline_](const ConsoleStatus &status) {
-		life->post([this, status]() {
+	console_->setListener([this, life = lifeline_, source = console_.get()](const ConsoleStatus &status) {
+		life->post([this, status, source]() {
 			status_ = status;
+			// Only from the manager of the console in use: a late answer from
+			// the one before a console switch speaks of another console.
+			if(source == console_.get() && status.canUseFtp() && status.ftpPort != 0
+				&& status.ftpPort != activeFtpPort())
+				adoptFtpPort(status.ftpPort);
 			emit statusChanged();
 			resumeWhenInstallerIsBack();
 		});
@@ -678,6 +683,53 @@ uint16_t AppController::activeFtpPort() const
 	return activeIsPs5() ? settings_.ftpPortPs5 : settings_.ftpPort;
 }
 
+void AppController::adoptFtpPort(uint16_t port)
+{
+	const uint16_t before = activeFtpPort();
+	(activeIsPs5() ? settings_.ftpPortPs5 : settings_.ftpPort) = port;
+	store_.save(settings_);
+	// The console manager moved to it already; the FTP client follows. The
+	// rest asks for the port each time it connects.
+	if(ftp_)
+	{
+		FtpClient::Config config = ftp_->config();
+		config.port = port;
+		ftp_->setConfig(config);
+	}
+	qInfo("FTP: using port %u from now on (it did not answer on %u)", static_cast<unsigned>(port),
+		static_cast<unsigned>(before));
+	setStatusMessage(tr("FTP answered on port %1, not on %2: OrbisLink uses port %1 from now on.")
+						 .arg(port)
+						 .arg(before));
+	emit settingsChanged();
+}
+
+QString AppController::ftpSearchReport() const
+{
+	if(status_.ftpSearch.empty())
+		return QString();
+	const bool ps5 = activeIsPs5();
+	QString report;
+	for(const PortAnswer &answer : status_.ftpSearch)
+	{
+		QString said;
+		if(!answer.open)
+			said = QStringLiteral("closed");
+		else if(answer.ftp())
+			said = QStringLiteral("FTP — ") + QString::fromStdString(answer.greeting);
+		else if(answer.greeting.empty())
+			said = QStringLiteral("open, but it did not greet as FTP");
+		else
+			said = QStringLiteral("open, not FTP — ") + QString::fromStdString(answer.greeting);
+		const std::string use = knownPortUse(answer.port, ps5);
+		report += QStringLiteral("  %1  %2").arg(answer.port, -5).arg(said, -36);
+		if(!use.empty())
+			report += QStringLiteral("  %1").arg(QString::fromStdString(use));
+		report += QLatin1Char('\n');
+	}
+	return report;
+}
+
 // On a PS5, FTP and the installer only exist with a jailbreak (etaHEN has
 // both, off by default). When they answer they are used as on the PS4;
 // when they do not, they are not "broken" — most likely they do not exist —
@@ -691,9 +743,17 @@ QString AppController::ftpState() const
 QString AppController::ftpHint() const
 {
 	if(activeIsPs5() && status_.ftp.state != ServiceState::Available)
-		return tr("On the PS5, FTP only exists with a jailbreak. In etaHEN turn it on with FTP=1 in "
-			"config.ini; it listens on port %1 (change it in the settings if yours differs).")
-			.arg(activeFtpPort());
+	{
+		QStringList tried;
+		for(const PortAnswer &answer : status_.ftpSearch)
+			tried << QString::number(answer.port);
+		if(tried.isEmpty())
+			tried << QString::number(activeFtpPort());
+		return tr("On the PS5, FTP only exists with a jailbreak: etaHEN's is on port 1337 (FTP=1 in "
+			"config.ini), the ftpsrv payload's on 2121. No FTP answered on %1. Port 9090 is etaHEN's "
+			"DPI v1 installer, not FTP.")
+			.arg(tried.join(QStringLiteral(", ")));
+	}
 	return status_.ftp.state == ServiceState::Available
 		? QString::fromStdString(status_.ftp.detail)
 		: translateMessage(status_.ftp.hint);
@@ -2191,7 +2251,7 @@ void AppController::reportRemotePlayState(const QString &state, const QString &d
 	console_->setRemotePlayState(mapped, detail.toStdString());
 }
 
-void AppController::probeConsole(const QString &address, int ftpPort, int installerPort)
+void AppController::probeConsole(const QString &address, int ftpPort, int installerPort, bool ps5)
 {
 	const std::string host = trim(address.toStdString());
 	const auto port = [](int value, uint16_t fallback) -> uint16_t {
@@ -2201,16 +2261,18 @@ void AppController::probeConsole(const QString &address, int ftpPort, int instal
 	const uint16_t rpi = port(installerPort, 12800);
 	const uint64_t generation = ++probeGeneration_;
 
-	std::thread([this, life = lifeline_, address, host, ftp, rpi, generation]() {
-		// Short timeout: this runs while typing, it must not drag on.
-		const ProbeResult probe = probeConsoleServices(host, ftp, rpi, 1200);
+	std::thread([this, life = lifeline_, address, host, ftp, rpi, ps5, generation]() {
+		// Short timeout: this runs while typing, it must not drag on. The
+		// other FTP ports are asked at the same time, so it takes no longer.
+		const ProbeResult probe = probeConsoleServices(host, ftp, rpi, 1200, ftpPortCandidates(ftp, ps5));
 		const QString detail =
 			QString::fromStdString(probe.ftpOk ? probe.ftpDetail : probe.installerDetail);
+		const int foundPort = probe.ftpPort;
 		life->post(
-			[this, address, probe, detail, generation]() {
+			[this, address, probe, detail, foundPort, generation]() {
 				if(generation != probeGeneration_.load())
 					return;
-				emit consoleProbed(address, probe.ftpOk, probe.installerOk, detail);
+				emit consoleProbed(address, probe.ftpOk, probe.installerOk, detail, foundPort);
 			});
 	}).detach();
 }

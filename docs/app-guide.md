@@ -56,7 +56,7 @@ narrower than where the rest fits.
 |---|---|---|
 | Logo, name, IP | The console in use. | — |
 | **Console chip** | See *Console chip* below. | See below. |
-| 🎮 · **FTP** · 📦 | Remote Play, FTP (the word in small bold letters) and the installer, each with a dot at the corner: green available (with a soft ring), amber checking (it breathes), red not answering, grey not applicable. Hover: the name and why. | — |
+| 🎮 · **FTP** · 📦 | Remote Play, FTP (the word in small bold letters) and the installer, each with a dot at the corner: green available (with a soft ring), amber checking (it breathes), red not answering, grey not applicable. Hover: the name and why. When FTP is silent on its port, 1337, 2121 and 21 (and 9090 on a PS5) are asked once a minute; if one greets as FTP the app keeps that port and says so in the status line. | — |
 | ▶ | Only while a Remote Play session runs and another page is open. | Back to the picture. |
 | 💿 | Games: the console's library and the PS1/PS2 converter; lit while that page is open. | Opens / closes the games page. |
 | 🏪 | The homebrew store; lit while that page is open (only in builds with the store). | Opens / closes the store. |
@@ -635,7 +635,7 @@ only if its SHA-256 matches the list.
 |---|---|
 | Consoles | Saved consoles: name, IP, type; add / remove. |
 | Account IDs (PSID) | PSN accounts for Remote Play: name, Account ID and its own **Remote Play PIN** (optional: 4 digits, the account's passcode, sent when the console asks for it; 8 digits, the pairing PIN, filled in when the account registers — the console shows a new one each time). Each row says which consoles the account is registered on. Editing one account's PIN never changes another's. |
-| Console in use | Which console; FTP port, user, upload folder, connections, advanced mode (protected system folders); installer port and install options; local HTTP server. |
+| Console in use | Which console; FTP port, user, upload folder, connections, advanced mode (protected system folders); installer port and install options; local HTTP server. While the address is typed the console is checked; when FTP answers on another port than the typed one, a line says which, with **Use port N**. |
 | Remote Play | Resolution, frame rate, bitrate, hardware decoding, rumble, touchpad from the mouse, full screen on connect. |
 | Personalisation | The app's colours, on top of the theme picked in the top bar: accent, jailbreak (GoldHEN gold), available, checking, error, window background, panels, text. A click on a colour opens a picker (square, hue strip, hex code, suggestions); ↺ puts the theme's colour back. **Saved looks**: give the theme and colours in use a name to keep them; **Apply** brings one back (it is then the one ✨ in the top bar brings), 🗑 deletes it. Changes show at once. |
 | General | Language, theme, updates (channel: stable or testing), advanced options. |
