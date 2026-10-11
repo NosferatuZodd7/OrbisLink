@@ -17,6 +17,8 @@ Item {
     readonly property bool busy: stage === "waiting" || stage === "converting"
                                  || stage === "sending" || stage === "installing"
     readonly property bool ps2: game.platform === "ps2"
+    // The game's cover, from the collection by its serial (shelf.cover).
+    readonly property string cover: shelf.coverRevision >= 0 ? shelf.cover(game.platform || "", game.serial || "") : ""
     readonly property color tone: ps2 ? Theme.accent : Theme.textSecondary
 
     signal open()
@@ -64,50 +66,64 @@ Item {
             GradientStop { position: 1.0; color: card.selected ? Theme.cardActiveBottom : Theme.cardBottom }
         }
 
-        // The platform, large, as the console cards show "PS4".
-        Text {
-            x: 20
-            y: 34
-            text: card.ps2 ? "PS2" : "PS1"
-            color: card.ps2 ? Theme.accent : Theme.cardText
-            font.pixelSize: 44
-            font.weight: Font.Black
-            font.letterSpacing: -1
+        // Its cover (a disc where there is none yet), and beside it the
+        // platform, as the console cards show "PS4", its serial and region.
+        CoverArt {
+            id: coverArt
+            x: 18
+            y: 18
+            width: 70
+            height: 96
+            crop: true
+            radius: 8
+            picture: card.cover
+            placeholder: card.ps2 ? "dvd" : "cd"
+            label: card.ps2 ? "PS2" : "PS1"
         }
-        Icon {
-            anchors.right: parent.right
-            anchors.rightMargin: 22
-            y: 46
-            name: "disc"
-            size: 30
-            color: Theme.alpha(card.tone, 0.55)
-        }
-
         Column {
-            anchors.left: parent.left
+            anchors.left: coverArt.right
+            anchors.leftMargin: 14
             anchors.right: parent.right
-            anchors.leftMargin: 20
-            anchors.rightMargin: 20
-            y: 100
-            spacing: 6
+            anchors.rightMargin: 52
+            y: 18
+            spacing: 4
             Text {
-                width: parent.width
-                text: card.game.title + (card.game.disc > 0 ? qsTr(" (disc %1)").arg(card.game.disc) : "")
-                color: Theme.cardText
-                font.pixelSize: Theme.fontCardTitle
-                font.weight: Font.DemiBold
-                wrapMode: Text.WordWrap
-                maximumLineCount: 2
-                elide: Text.ElideRight
-                lineHeight: 1.1
+                text: card.ps2 ? "PS2" : "PS1"
+                color: card.ps2 ? Theme.accent : Theme.cardText
+                font.pixelSize: 28
+                font.weight: Font.Black
+                font.letterSpacing: -0.5
             }
             Text {
                 width: parent.width
-                text: [card.game.serial, card.game.region].filter(function (s) { return s && s.length > 0 }).join("  ·  ")
+                text: card.game.serial || ""
                 color: Theme.cardTextMuted
                 font.pixelSize: 12
                 elide: Text.ElideRight
             }
+            Text {
+                width: parent.width
+                text: card.game.region || ""
+                color: Theme.cardTextMuted
+                font.pixelSize: 12
+                elide: Text.ElideRight
+            }
+        }
+
+        Text {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: 18
+            anchors.rightMargin: 18
+            y: coverArt.y + coverArt.height + 12
+            text: card.game.title + (card.game.disc > 0 ? qsTr(" (disc %1)").arg(card.game.disc) : "")
+            color: Theme.cardText
+            font.pixelSize: 15
+            font.weight: Font.DemiBold
+            wrapMode: Text.WordWrap
+            maximumLineCount: 2
+            elide: Text.ElideRight
+            lineHeight: 1.08
         }
 
         // The file, at the bottom (or, while it is on its way, where it is).

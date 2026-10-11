@@ -812,6 +812,9 @@ void GamesController::publish()
 			m[QStringLiteral("id")] = job->id;
 			m[QStringLiteral("title")] = job->title;
 			m[QStringLiteral("platform")] = job->platform;
+#ifdef ORBISLINK_HAS_FPKG
+			m[QStringLiteral("serial")] = QString::fromStdString(job->disc.serial);
+#endif
 			m[QStringLiteral("state")] = job->state;
 			m[QStringLiteral("stage")] = job->stage;
 			m[QStringLiteral("percent")] = job->percent;

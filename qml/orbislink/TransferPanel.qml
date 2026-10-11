@@ -509,13 +509,38 @@ Item {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 10
-                            StageLoader {
-                                id: loader
-                                stage: conv.j.stage
-                                percent: conv.j.percent
-                                waiting: conv.j.waiting
+                            // The game's cover, with the step under way in its corner.
+                            Item {
                                 implicitWidth: 44
                                 implicitHeight: 44
+                                CoverArt {
+                                    id: convCover
+                                    anchors.fill: parent
+                                    visible: ready
+                                    crop: true
+                                    radius: 8
+                                    picture: shelf.coverRevision >= 0
+                                             ? shelf.cover(conv.modelData.platform || "", conv.modelData.serial || "") : ""
+                                }
+                                Rectangle {
+                                    visible: convCover.ready
+                                    anchors.fill: loader
+                                    anchors.margins: -2
+                                    radius: width / 2
+                                    color: Theme.panelFill
+                                }
+                                StageLoader {
+                                    id: loader
+                                    stage: conv.j.stage
+                                    percent: conv.j.percent
+                                    waiting: conv.j.waiting
+                                    width: convCover.ready ? 22 : 44
+                                    height: width
+                                    anchors.right: parent.right
+                                    anchors.bottom: parent.bottom
+                                    anchors.rightMargin: convCover.ready ? -5 : 0
+                                    anchors.bottomMargin: convCover.ready ? -5 : 0
+                                }
                             }
                             ColumnLayout {
                                 Layout.fillWidth: true

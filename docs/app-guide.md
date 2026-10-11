@@ -291,13 +291,13 @@ fills in as each thing is read; nothing is read whole.
 | ‹, Esc, Backspace | One level up (Esc in the search field clears it instead). |
 | Arrow keys, Home, End | Move the frame; Enter or Space opens the card. |
 | Click on a place or folder | Opens it. |
-| Click on a game | Its details: cover, kind, title ID, serial, version, size, date, place, file, path, and its buttons. |
+| Click on a game | Its details: the cover, what it is, and a grouped list (title ID, serial, version, size, date, place, file); its path along the bottom; one row of buttons — the main one on the right, the others under **…**. What needs the console is left out while its FTP does not answer, and a line says so. |
 | Search field | At home: across every place marked *Search* (names two levels into each place, one on the console, none under a whole drive), by game name, file name, folder, extension or place. Inside a place: only there. Ctrl+F goes to it. |
 | Filter | All, Games found, PKG files, Folders, Other supported files. |
 | Sort | By type (in sections), by name, newest first. |
 | ⟳ | Reads the folder again (at home: every place). |
 | Folder + | Adds a place: a folder of this PC (the system's folder picker), a folder of the console (its path), Desktop, Downloads, Documents, the console's data/pkg, or a whole drive of this PC. |
-| Sliders | **Places in the library**: for each place kept, ★ favourite, a name of your own (empty: its folder's), its path (a console place's can be changed), whether the search looks in it, and 🗑 to take it off — the folder itself is never touched. |
+| Sliders | **Places in the library**: one list, every row the same height and columns — the place (its name, renamed where it is, empty for its folder's; its path under it, which a console place's can be changed in place), **Favourite** ★, **Search** (whether the search looks in it), and 🗑 to take it off — the folder itself is never touched. |
 
 A game's buttons:
 
@@ -305,7 +305,7 @@ A game's buttons:
 |---|---|---|
 | `.pkg` | **Install on the console** (it downloads it from this PC), **Send to the console** (FTP, to the upload folder), **Show in its folder**. | **Install** (PS5: from where it is, followed in the Queue tab; a PS4 installs from Debug Settings → Package Installer, which the details say), **Delete from the console…**. |
 | PS1/PS2 disc | **Convert and install**, **Only convert** (the package goes to the output folder), **Send the disc file**, **Show in its folder**. | **Convert and install**, **Only convert** (the package goes back beside the disc), **Delete…**. |
-| PS5 image or app folder | **Show in its folder** (to be copied to `/data/homebrew` on the PS5). | **Put on the home screen** (PS5): moved into the folder ShadowMountPlus mounts from on the same drive, then ShadowMountPlus is asked to scan, or started again. |
+| PS5 image or app folder | **Show in its folder** (a PS5 one is copied to `/data/homebrew` on the PS5; a PS4 app folder is not a package — the folder a converter leaves before packing, with its `.gp4` recipe — and installs once made into a `.pkg`). | **Put on the home screen** (PS5): moved into the folder ShadowMountPlus mounts from on the same drive, then ShadowMountPlus is asked to scan, or started again. |
 | Payload | **Run on the console** (sent from this PC to its loader). | **Run**, **Delete…**. |
 
 Nothing is installed, sent or run by itself: only these buttons do. Every
@@ -325,6 +325,12 @@ after an install or a package put back.
    PS2 games and names them from the emulator's title list.
 2. The first conversion downloads the Classics files once (about 109 MB);
    **Download now** does it earlier. Nothing else has to be provided.
+
+Each game's card has its cover, from the cover collection by its serial
+(cached once found; a disc stands in until then), next to its platform,
+serial and region; the game's dialog shows it too, and so does its card in
+the Queue tab while it is converted, sent and installed, with the step under
+way in its corner.
 
 | Item | Does |
 |---|---|

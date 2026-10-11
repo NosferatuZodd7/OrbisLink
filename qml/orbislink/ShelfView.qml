@@ -676,7 +676,9 @@ FocusScope {
         }
     }
 
-    // ── a game's details, and what can be done with it
+    // ── a game's details, and what can be done with it: its cover, what it
+    // is in a quiet list, and one row of buttons — the main one on the
+    // right, the rest under "…"
     Dialog {
         id: details
         property int index: -1
@@ -686,9 +688,35 @@ FocusScope {
             card = shelf.card(i)
             open()
         }
+        // What can be done now: what needs the console waits for it.
+        readonly property var usable: (card.actions || []).filter(function (a) {
+            return !view.needsConsole(a, card) || app.canUseFtp
+                   || (a === "install" && card.where !== "console" && app.canInstallDirectly)
+        })
+        readonly property var secondary: ["reveal", "sendFile", "delete"]
+        readonly property var mainActions: {
+            var main = usable.filter(function (a) { return secondary.indexOf(a) < 0 }).slice(0, 2)
+            if (main.length === 0) {
+                var shown = usable.filter(function (a) { return a !== "delete" })
+                if (shown.length > 0)
+                    main = [shown[0]]
+            }
+            return main
+        }
+        readonly property var moreActions: usable.filter(function (a) { return mainActions.indexOf(a) < 0 })
+        readonly property var facts: [
+            [qsTr("Title ID"), card.titleId || ""],
+            [qsTr("Serial"), card.serial || ""],
+            [qsTr("Version"), card.version || ""],
+            [qsTr("Size"), card.sizeText || ""],
+            [qsTr("Changed"), card.dateText || ""],
+            [qsTr("Where"), card.sourceName || ""],
+            [qsTr("File"), card.name || ""]
+        ].filter(function (pair) { return pair[1].length > 0 })
+
         parent: Overlay.overlay
         anchors.centerIn: parent
-        width: Math.min(640, parent.width - 32)
+        width: Math.min(620, parent.width - 32)
         modal: true
         padding: 0
         Overlay.modal: Rectangle { color: Theme.scrim }
@@ -701,100 +729,115 @@ FocusScope {
             title: details.card.title || ""
             dialog: details
         }
-        contentItem: RowLayout {
-            spacing: 22
+        contentItem: Item {
+            implicitHeight: Math.max(detailsCover.height, factsColumn.implicitHeight) + 8
+            // The cover, on a soft shadow.
+            Rectangle {
+                x: detailsCover.x + 2
+                y: detailsCover.y + 6
+                width: detailsCover.width
+                height: detailsCover.height
+                radius: 14
+                color: Qt.rgba(0, 0, 0, Theme.light ? 0.10 : 0.35)
+            }
             CoverArt {
-                Layout.leftMargin: Theme.dialogMargin
-                Layout.alignment: Qt.AlignTop
-                Layout.preferredWidth: 200
-                Layout.preferredHeight: 200
+                id: detailsCover
+                x: Theme.dialogMargin
+                y: 0
+                width: 188
+                height: 188
                 picture: details.card.picture || ""
                 placeholder: details.card.placeholder || "bd"
                 label: details.card.platform ? details.card.platform.toUpperCase()
                                              : details.card.ext ? details.card.ext.substring(1).toUpperCase() : ""
-                radius: 8
+                radius: 12
             }
             ColumnLayout {
-                Layout.fillWidth: true
-                Layout.rightMargin: Theme.dialogMargin
-                Layout.alignment: Qt.AlignTop
-                spacing: 8
+                id: factsColumn
+                anchors.left: detailsCover.right
+                anchors.leftMargin: 22
+                anchors.right: parent.right
+                anchors.rightMargin: Theme.dialogMargin
+                y: 0
+                spacing: 10
                 RowLayout {
                     spacing: 8
                     Text {
                         text: view.kindText(details.card)
-                        color: Theme.text
-                        font.pixelSize: 14
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
                         font.weight: Font.DemiBold
+                        font.capitalization: Font.AllUppercase
+                        font.letterSpacing: 0.6
                     }
                     Rectangle {
                         visible: details.card.installed === true
-                        implicitHeight: 20
-                        implicitWidth: installedLabel.implicitWidth + 16
-                        radius: 10
+                        implicitHeight: 18
+                        implicitWidth: installedLabel.implicitWidth + 14
+                        radius: 9
                         color: Theme.alpha(Theme.ok, 0.16)
                         Text {
                             id: installedLabel
                             anchors.centerIn: parent
                             text: qsTr("Installed")
                             color: Theme.ok
-                            font.pixelSize: 11
+                            font.pixelSize: 10
                             font.weight: Font.DemiBold
                         }
                     }
                 }
-                GridLayout {
+                // What it is, as a grouped list: the name on the left, the
+                // value on the right, a hairline between rows.
+                Rectangle {
                     Layout.fillWidth: true
-                    columns: 2
-                    columnSpacing: 12
-                    rowSpacing: 4
-                    Repeater {
-                        model: [
-                            [qsTr("Title ID"), details.card.titleId || ""],
-                            [qsTr("Serial"), details.card.serial || ""],
-                            [qsTr("Version"), details.card.version || ""],
-                            [qsTr("Size"), details.card.sizeText || ""],
-                            [qsTr("Changed"), details.card.dateText || ""],
-                            [qsTr("Where"), details.card.sourceName || ""],
-                            [qsTr("File"), details.card.name || ""]
-                        ].filter(function (pair) { return pair[1].length > 0 })
-                        delegate: Item {
-                            id: pair
-                            required property var modelData
-                            Layout.columnSpan: 2
-                            Layout.fillWidth: true
-                            implicitHeight: pairRow.implicitHeight
-                            RowLayout {
-                                id: pairRow
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                spacing: 12
+                    radius: 12
+                    color: Theme.panelAltFill
+                    border.width: 1
+                    border.color: Theme.glassEdge
+                    implicitHeight: factsList.implicitHeight
+                    Column {
+                        id: factsList
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        Repeater {
+                            model: details.facts
+                            delegate: Item {
+                                id: fact
+                                required property var modelData
+                                required property int index
+                                width: factsList.width
+                                height: 30
                                 Text {
-                                    Layout.preferredWidth: 72
-                                    text: pair.modelData[0]
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: 12
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: fact.modelData[0]
                                     color: Theme.textSecondary
                                     font.pixelSize: 12
                                 }
                                 Text {
-                                    Layout.fillWidth: true
-                                    text: pair.modelData[1]
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: 12
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: parent.width * 0.62
+                                    horizontalAlignment: Text.AlignRight
+                                    text: fact.modelData[1]
                                     color: Theme.text
                                     font.pixelSize: 12
                                     elide: Text.ElideMiddle
                                 }
+                                Rectangle {
+                                    visible: fact.index < details.facts.length - 1
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.leftMargin: 12
+                                    anchors.bottom: parent.bottom
+                                    height: 1
+                                    color: Theme.glassEdge
+                                }
                             }
                         }
                     }
-                }
-                Text {
-                    Layout.fillWidth: true
-                    text: details.card.path || ""
-                    color: Theme.textMuted
-                    font.pixelSize: 11
-                    font.family: Theme.fontMono
-                    wrapMode: Text.WrapAnywhere
-                    maximumLineCount: 3
-                    elide: Text.ElideRight
                 }
                 Text {
                     visible: (details.card.note || "").length > 0
@@ -804,46 +847,65 @@ FocusScope {
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
                 }
-                Text {
-                    visible: (details.card.actions || []).some(function (a) { return view.needsConsole(a, details.card) })
-                             && !app.canUseFtp
+                RowLayout {
+                    visible: details.usable.length < (details.card.actions || []).length
                     Layout.fillWidth: true
-                    text: qsTr("Connect a console to send, install or convert: its FTP is not answering.")
-                    color: Theme.warn
-                    font.pixelSize: 12
-                    wrapMode: Text.WordWrap
+                    spacing: 6
+                    Icon {
+                        name: "plug"
+                        size: 14
+                        color: Theme.textSecondary
+                        Layout.alignment: Qt.AlignTop
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: qsTr("More can be done with it once a console's FTP answers.")
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
+                        wrapMode: Text.WordWrap
+                    }
                 }
             }
         }
         footer: Item {
-            implicitHeight: actions.implicitHeight + Theme.dialogInner * 2
-            Flow {
-                id: actions
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
                 anchors.leftMargin: Theme.dialogMargin
                 anchors.rightMargin: Theme.dialogMargin
                 spacing: 8
-                layoutDirection: Qt.RightToLeft
+                StyledToolButton {
+                    id: moreButton
+                    visible: details.moreActions.length > 0
+                    iconName: "more"
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("More")
+                    onClicked: moreMenu.popup(moreButton, 0, -moreMenu.implicitHeight - 6)
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: (details.card.path || "").length > 0
+                    text: details.card.path || ""
+                    color: Theme.textMuted
+                    font.pixelSize: 11
+                    font.family: Theme.fontMono
+                    elide: Text.ElideMiddle
+                    HoverHandler { id: pathHover }
+                    ToolTip.visible: pathHover.hovered
+                    ToolTip.text: details.card.path || ""
+                }
                 Repeater {
-                    model: details.card.actions || []
+                    // The main one last, on the right.
+                    model: details.mainActions.slice().reverse()
                     StyledButton {
                         required property string modelData
-                        readonly property var all: details.card.actions || []
                         text: view.actionLabel(modelData, details.card)
                         iconName: view.actionIcon(modelData)
-                        danger: modelData === "delete"
-                        primary: modelData === all[0] && modelData !== "delete" && modelData !== "reveal"
-                        enabled: !view.needsConsole(modelData, details.card) || app.canUseFtp
-                                 || (modelData === "install" && details.card.where !== "console" && app.canInstallDirectly)
+                        primary: modelData === details.mainActions[0] && modelData !== "reveal"
                         ToolTip.visible: hovered && view.actionHint(modelData, details.card).length > 0
                         ToolTip.text: view.actionHint(modelData, details.card)
                         onClicked: {
-                            if (modelData === "delete") {
-                                removal.ask(details.index, details.card)
-                                return
-                            }
                             shelf.act(details.index, modelData)
                             details.close()
                         }
@@ -852,6 +914,38 @@ FocusScope {
             }
         }
         onClosed: list.forceActiveFocus()
+
+        Menu {
+            id: moreMenu
+            topPadding: 8
+            bottomPadding: 8
+            background: Rectangle {
+                implicitWidth: 260
+                color: Theme.menuFill
+                border.color: Theme.glassEdge
+                border.width: 1
+                radius: 14
+            }
+            Instantiator {
+                model: details.moreActions
+                delegate: StyledMenuItem {
+                    required property string modelData
+                    text: view.actionLabel(modelData, details.card)
+                    iconName: view.actionIcon(modelData)
+                    danger: modelData === "delete"
+                    onTriggered: {
+                        if (modelData === "delete") {
+                            removal.ask(details.index, details.card)
+                            return
+                        }
+                        shelf.act(details.index, modelData)
+                        details.close()
+                    }
+                }
+                onObjectAdded: (index, object) => moreMenu.insertItem(index, object)
+                onObjectRemoved: (index, object) => moreMenu.removeItem(object)
+            }
+        }
     }
 
     Dialog {
@@ -916,13 +1010,14 @@ FocusScope {
         }
     }
 
-    // ── the places, managed
+    // ── the places, managed: one grouped list, every row the same height and
+    // the same columns — the place, favourite, search, take it off
     Dialog {
         id: places
         parent: Overlay.overlay
         anchors.centerIn: parent
-        width: Math.min(720, parent.width - 32)
-        height: Math.min(560, parent.height - 32)
+        width: Math.min(680, parent.width - 32)
+        height: Math.min(600, parent.height - 32)
         modal: true
         padding: 0
         Overlay.modal: Rectangle { color: Theme.scrim }
@@ -935,102 +1030,181 @@ FocusScope {
             title: qsTr("Places in the library")
             dialog: places
         }
+        readonly property int columnWidth: 84
         contentItem: ColumnLayout {
-            spacing: 10
+            spacing: 8
             Text {
                 Layout.fillWidth: true
                 Layout.leftMargin: Theme.dialogMargin
                 Layout.rightMargin: Theme.dialogMargin
+                Layout.bottomMargin: 6
                 wrapMode: Text.WordWrap
                 color: Theme.textSecondary
                 font.pixelSize: 12
                 text: qsTr("Renaming or taking a place off the library never touches the folder itself. "
                            + "USB drives and the console's own library show up by themselves.")
             }
-            ListView {
-                id: placeList
+            // The columns' names, over their columns.
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin + 14
+                Layout.rightMargin: Theme.dialogMargin + 14
+                spacing: 0
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Place")
+                    color: Theme.textSecondary
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
+                    font.capitalization: Font.AllUppercase
+                    font.letterSpacing: 0.6
+                }
+                Repeater {
+                    model: [qsTr("Favourite"), qsTr("Search"), ""]
+                    Text {
+                        required property string modelData
+                        Layout.preferredWidth: places.columnWidth
+                        horizontalAlignment: Text.AlignHCenter
+                        text: modelData
+                        color: Theme.textSecondary
+                        font.pixelSize: 11
+                        font.weight: Font.DemiBold
+                        font.capitalization: Font.AllUppercase
+                        font.letterSpacing: 0.6
+                    }
+                }
+            }
+            Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.leftMargin: Theme.dialogMargin
-                Layout.rightMargin: Theme.dialogMargin - 8
+                Layout.rightMargin: Theme.dialogMargin
+                radius: 14
+                color: Theme.panelAltFill
+                border.width: 1
+                border.color: Theme.glassEdge
                 clip: true
-                spacing: 8
-                model: shelf.locations
-                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-                delegate: Rectangle {
-                    id: placeCard
-                    required property var modelData
-                    width: placeList.width - 8
-                    implicitHeight: placeRow.implicitHeight + 20
-                    radius: 14
-                    color: Theme.panelAltFill
-                    border.width: 1
-                    border.color: Theme.border
-                    RowLayout {
+                ListView {
+                    id: placeList
+                    anchors.fill: parent
+                    anchors.margins: 1
+                    clip: true
+                    model: shelf.locations
+                    boundsBehavior: Flickable.StopAtBounds
+                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                    delegate: Item {
                         id: placeRow
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
-                        spacing: 10
-                        StyledToolButton {
-                            iconName: "star"
-                            active: placeCard.modelData.favorite
-                            ToolTip.visible: hovered
-                            ToolTip.text: placeCard.modelData.favorite ? qsTr("Favourite: shown first")
-                                                                          : qsTr("Make it a favourite")
-                            onClicked: shelf.setFavorite(placeCard.modelData.id, !placeCard.modelData.favorite)
-                        }
-                        Icon {
-                            name: placeCard.modelData.where === "console" ? "gamepad"
-                                : placeCard.modelData.kind === "drive" ? "hard-drive"
-                                : placeCard.modelData.kind === "usb" ? "usb"
-                                : placeCard.modelData.kind === "pc" ? "laptop" : "folder"
-                            size: 18
-                            color: Theme.textSecondary
-                        }
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 4
-                            StyledField {
-                                Layout.fillWidth: true
-                                text: placeCard.modelData.name || ""
-                                placeholderText: placeCard.modelData.shownName
-                                onEditingFinished: shelf.renameLocation(placeCard.modelData.id, text)
+                        required property var modelData
+                        required property int index
+                        readonly property bool onConsole: modelData.where === "console"
+                        width: placeList.width
+                        height: 64
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 13
+                            anchors.rightMargin: 13
+                            spacing: 0
+                            // The kind of place, on a tinted tile.
+                            Rectangle {
+                                Layout.preferredWidth: 34
+                                Layout.preferredHeight: 34
+                                Layout.rightMargin: 10
+                                radius: 9
+                                color: Theme.alpha(placeRow.onConsole ? Theme.accent : Theme.textSecondary, 0.14)
+                                Icon {
+                                    anchors.centerIn: parent
+                                    name: placeRow.onConsole ? "gamepad"
+                                        : placeRow.modelData.kind === "drive" ? "hard-drive"
+                                        : placeRow.modelData.kind === "usb" ? "usb"
+                                        : placeRow.modelData.kind === "pc" ? "laptop" : "folder"
+                                    size: 17
+                                    color: placeRow.onConsole ? Theme.accent : Theme.text
+                                }
                             }
-                            StyledField {
-                                visible: placeCard.modelData.where === "console"
+                            // Its name (renamed in place) and where it is.
+                            ColumnLayout {
                                 Layout.fillWidth: true
-                                text: placeCard.modelData.path
-                                font.family: Theme.fontMono
-                                onEditingFinished: if (text !== placeCard.modelData.path)
-                                                       shelf.setLocationPath(placeCard.modelData.id, text)
+                                spacing: 0
+                                InlineField {
+                                    Layout.fillWidth: true
+                                    Layout.leftMargin: -8
+                                    text: placeRow.modelData.name || ""
+                                    placeholderText: placeRow.modelData.shownName
+                                    font.weight: Font.DemiBold
+                                    onEditingFinished: if (text !== (placeRow.modelData.name || ""))
+                                                           shelf.renameLocation(placeRow.modelData.id, text)
+                                }
+                                InlineField {
+                                    visible: placeRow.onConsole
+                                    Layout.fillWidth: true
+                                    Layout.leftMargin: -8
+                                    implicitHeight: 22
+                                    mono: true
+                                    font.pixelSize: 11
+                                    color: Theme.textSecondary
+                                    text: placeRow.modelData.path
+                                    onEditingFinished: if (text !== placeRow.modelData.path)
+                                                           shelf.setLocationPath(placeRow.modelData.id, text)
+                                }
+                                Text {
+                                    visible: !placeRow.onConsole
+                                    Layout.fillWidth: true
+                                    text: placeRow.modelData.path
+                                          + (placeRow.modelData.available ? "" : "  ·  " + qsTr("not found"))
+                                    color: placeRow.modelData.available ? Theme.textSecondary : Theme.warn
+                                    font.pixelSize: 11
+                                    font.family: Theme.fontMono
+                                    elide: Text.ElideMiddle
+                                }
                             }
-                            Text {
-                                visible: placeCard.modelData.where !== "console"
-                                Layout.fillWidth: true
-                                text: placeCard.modelData.path
-                                      + (placeCard.modelData.available ? "" : "  ·  " + qsTr("not found"))
-                                color: Theme.textMuted
-                                font.pixelSize: 11
-                                font.family: Theme.fontMono
-                                elide: Text.ElideMiddle
+                            Item {
+                                Layout.preferredWidth: places.columnWidth
+                                Layout.fillHeight: true
+                                StyledToolButton {
+                                    anchors.centerIn: parent
+                                    iconName: "star"
+                                    active: placeRow.modelData.favorite
+                                    ToolTip.visible: hovered
+                                    ToolTip.text: placeRow.modelData.favorite ? qsTr("Favourite: shown first")
+                                                                              : qsTr("Make it a favourite")
+                                    onClicked: shelf.setFavorite(placeRow.modelData.id, !placeRow.modelData.favorite)
+                                }
+                            }
+                            Item {
+                                Layout.preferredWidth: places.columnWidth
+                                Layout.fillHeight: true
+                                StyledCheck {
+                                    anchors.centerIn: parent
+                                    Layout.fillWidth: false
+                                    width: 40
+                                    checked: placeRow.modelData.inSearch
+                                    onToggled: shelf.setInSearch(placeRow.modelData.id, checked)
+                                    ToolTip.visible: hovered
+                                    ToolTip.text: qsTr("Looked in by the library's search")
+                                }
+                            }
+                            Item {
+                                Layout.preferredWidth: places.columnWidth
+                                Layout.fillHeight: true
+                                StyledToolButton {
+                                    anchors.centerIn: parent
+                                    iconName: "trash"
+                                    danger: true
+                                    ToolTip.visible: hovered
+                                    ToolTip.text: qsTr("Take it off the library (the folder stays)")
+                                    onClicked: shelf.removeLocation(placeRow.modelData.id)
+                                }
                             }
                         }
-                        StyledCheck {
-                            text: qsTr("Search")
-                            checked: placeCard.modelData.inSearch
-                            onToggled: shelf.setInSearch(placeCard.modelData.id, checked)
-                            ToolTip.visible: hovered
-                            ToolTip.text: qsTr("Looked in by the library's search")
-                        }
-                        StyledToolButton {
-                            iconName: "trash"
-                            danger: true
-                            ToolTip.visible: hovered
-                            ToolTip.text: qsTr("Take it off the library (the folder stays)")
-                            onClicked: shelf.removeLocation(placeCard.modelData.id)
+                        // A hairline between rows, from the name on.
+                        Rectangle {
+                            visible: placeRow.index < placeList.count - 1
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: 57
+                            anchors.bottom: parent.bottom
+                            height: 1
+                            color: Theme.glassEdge
                         }
                     }
                 }
@@ -1047,7 +1221,7 @@ FocusScope {
                 StyledButton {
                     id: addPlace
                     text: qsTr("Add a place")
-                    iconName: "folder-plus"
+                    iconName: "plus"
                     onClicked: addMenu.popup(addPlace, 0, -addMenu.implicitHeight - 4)
                 }
                 Item { Layout.fillWidth: true }

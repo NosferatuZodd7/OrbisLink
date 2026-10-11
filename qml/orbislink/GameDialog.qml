@@ -116,11 +116,28 @@ Dialog {
             color: Theme.panelAltFill
             border.width: 1
             border.color: Theme.glassEdge
-            implicitHeight: details.implicitHeight + 28
+            implicitHeight: Math.max(details.implicitHeight, dialogCover.height) + 28
+
+            // The game's cover, from the collection by its serial.
+            CoverArt {
+                id: dialogCover
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: 14
+                width: 88
+                height: 120
+                crop: true
+                radius: 8
+                readonly property var game: dialog.game || ({})
+                picture: dialog.single && shelf.coverRevision >= 0
+                         ? shelf.cover(game.platform || "", game.serial || "") : ""
+                placeholder: game.platform === "ps2" ? "dvd" : "cd"
+                label: game.platform === "ps2" ? "PS2" : "PS1"
+            }
 
             GridLayout {
                 id: details
-                anchors.left: parent.left
+                anchors.left: dialogCover.right
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.leftMargin: 16
