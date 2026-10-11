@@ -32,7 +32,7 @@ bool isThemeColor(const std::string &value)
 
 const char *transferModeName(TransferMode mode)
 {
-	return mode == TransferMode::FtpUpload ? "ftp" : "direct";
+	return mode == TransferMode::FtpUpload ? "ftp" : mode == TransferMode::ConsoleInstall ? "console" : "direct";
 }
 
 TransferMode transferModeFromName(const std::string &name, TransferMode fallback)
@@ -41,6 +41,8 @@ TransferMode transferModeFromName(const std::string &name, TransferMode fallback
 		return TransferMode::FtpUpload;
 	if(name == "direct")
 		return TransferMode::DirectInstall;
+	if(name == "console")
+		return TransferMode::ConsoleInstall;
 	return fallback;
 }
 

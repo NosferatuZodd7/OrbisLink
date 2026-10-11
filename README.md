@@ -40,11 +40,11 @@ order automatically.*
 *With no controller connected, the keyboard acts as one. Every key can be
 changed on the map, and the change is saved.*
 
-![PS1/PS2 Games](docs/images/13-games.png)
+![PS1/PS2 converter](docs/images/13-games.png)
 
-*PS1/PS2 Games: the discs in a folder of the PC (.iso, .bin/.cue, .img), each
-recognised from the disc itself (serial and region). One click opens a game;
-the box in the corner selects several.*
+*Games → PS1/PS2 converter: the discs in a folder of the PC (.iso, .bin/.cue,
+.img), each recognised from the disc itself (serial and region). One click
+opens a game; the box in the corner selects several.*
 
 ![File menu](docs/images/05-file-menu.png)
 
@@ -123,10 +123,21 @@ edited and removed there, and each console picks the one it registers with
 (Consoles → Edit → Account ID). The registration dialog can also fill the
 field from a saved one.
 
-### PS1 and PS2 games
+### Games
 
-**PS1/PS2 Games** (top bar) finds the PS1 and PS2 disc images in a folder of
-the PC and shows them as cards. For each game, or several selected:
+**Games** (top bar) opens on **All games**: everything put in an
+`OrbisLinkFPKG` folder on the console — `/data/OrbisLinkFPKG`, or one on a USB
+drive or the extended storage — told apart and listed as games and apps,
+updates and add-ons, payloads and the rest, each with the button that makes it
+playable: install a package, convert a PS1/PS2 disc (and install it, or only
+leave its package there), put a PS5 image or app folder on the home screen,
+run a payload. Every install and job shows in the side panel's Queue tab.
+
+### PS1 and PS2 converter
+
+Optional, in its own tab of **Games**: **PS1/PS2 converter** finds the PS1 and
+PS2 disc images in a folder of the PC and shows them as cards. For each game,
+or several selected:
 
 - **Convert and install** turns the disc into a PS4 package (a PS2 or PS1
   Classic), sends it to the console over FTP and installs it (Remote Package

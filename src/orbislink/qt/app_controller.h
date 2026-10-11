@@ -226,6 +226,8 @@ public:
 	// A converted game: over FTP into `directory`, installed once there,
 	// and the copy on the console deleted after the install.
 	void sendAndInstall(const QString &pkg, const QString &directory);
+	// The same, or with `install` false only put there.
+	void sendTo(const QString &pkg, const QString &directory, bool install);
 	Q_INVOKABLE void moveTaskUp(const QString &id);
 	Q_INVOKABLE void moveTaskDown(const QString &id);
 	Q_INVOKABLE void pauseQueue();

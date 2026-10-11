@@ -38,7 +38,7 @@ Its jobs, around one PlayStation at a time — the **console in use**:
 ┌ top bar ───────────────────────────────────────────────────────────────────┐
 │ logo  name/IP      [console chip] [🎮 FTP 📦] │ [▶ 💿 🗄] │ ⟳ ▣ 🗎 [☾ ◐ ☀ ✨] ⚙ │
 ├────────────────────────────────────────────────────┬───────────────────────┤
-│ stage: consoles · Remote Play · PS1/PS2 · Saves     │ side panel: Queue | Files (FTP) │
+│ stage: consoles · Remote Play · Games · Saves       │ side panel: Queue | Files (FTP) │
 ├────────────────────────────────────────────────────┴───────────────────────┤
 │ status line: last message                      Local HTTP: … · version     │
 └────────────────────────────────────────────────────────────────────────────┘
@@ -58,7 +58,7 @@ narrower than where the rest fits.
 | **Console chip** | See *Console chip* below. | See below. |
 | 🎮 · **FTP** · 📦 | Remote Play, FTP (the word in small bold letters) and the installer, each with a dot at the corner: green available (with a soft ring), amber checking (it breathes), red not answering, grey not applicable. Hover: the name and why. | — |
 | ▶ | Only while a Remote Play session runs and another page is open. | Back to the picture. |
-| 💿 | PS1/PS2 games; lit while that page is open. | Opens / closes the games page. |
+| 💿 | Games: the console's library and the PS1/PS2 converter; lit while that page is open. | Opens / closes the games page. |
 | 🏪 | The homebrew store; lit while that page is open (only in builds with the store). | Opens / closes the store. |
 | 🗄 | The save vault; lit while that page is open. | Opens / closes the save vault. |
 | ⚡ | The payload manager; lit while that page is open. | Opens / closes the payloads page. |
@@ -155,7 +155,7 @@ When Remote Package Installer stops answering, the queue pauses and shows
 on by itself when the installer is back (**Try now** forces it).
 
 A converted PS1/PS2 game shows as **one** card with three bars — Convert,
-Send, Install — instead of separate queue cards (see *PS1/PS2 Games*);
+Send, Install — instead of separate queue cards (see *Games*);
 closing it takes its finished queue tasks along. A package sent and then
 installed is one card too (the install's). The tab's number counts cards.
 
@@ -163,6 +163,16 @@ Installs and removals from the **Homebrew store** have their cards here too,
 under *Homebrew store*: the app's icon, the PS5, the stage, the bar, the
 percentage, the speed, how much of how much and the time left; ✕ cancels one
 under way or removes a finished one, **Clear finished** clears them all.
+
+Whatever is installed, from wherever, is followed here: a package already on
+the console (*Install* in the console library, *Install on the console* in the
+Files tab) is a queue card *Install on the console*, its bar following the
+installer's task, or else how much of the package the console has copied
+into `/user/app/<TITLE ID>` (`/user/patch/` for an update); a disc converted
+from the library is a conversion card; what the library's other buttons set
+going — putting an app on the home screen, running a payload — has a card
+under *Console library*, with a moving bar while it runs and what came of it
+after.
 
 On a PS5 whose installer is etaHEN's **DPI v2** (it only starts installs and
 reports nothing back), a direct install is followed by what the PC has served:
@@ -213,10 +223,54 @@ path, it is installed from this PC instead.
 If a file with the same name is already on the console: **Replace**,
 **Keep both** (new name) or **Skip**.
 
-## PS1/PS2 Games page
+## Games page
 
-Two tabs: **PS1/PS2 on this PC** (below) and **On the console** (the console
-library, further down).
+Two tabs, kept apart, as converting is a choice and not a step:
+
+- **All games** (it opens on this one): the console library, everything in
+  the console's `OrbisLinkFPKG` folders with what each thing can do.
+- **PS1/PS2 converter** (optional): PS1/PS2 discs on this PC made into PS4
+  packages. Only in builds with the converter.
+
+| Item | Does |
+|---|---|
+| ‹ | Back to the consoles. |
+| ⟳ (All games) | Reads the console's folders again. |
+| Folder chip, ⟳ (converter) | Changes the games folder; looks again. |
+
+### All games (the console library)
+
+One folder, `OrbisLinkFPKG`, where games and apps of any kind are put as they
+come, over FTP or by plugging in a drive: `/data/OrbisLinkFPKG` in the
+console's memory (made by the app the first time the tab opens),
+`/mnt/usb0`–`/mnt/usb7/OrbisLinkFPKG` on USB drives, `/mnt/ext0`–`/mnt/ext1/OrbisLinkFPKG`
+on the extended storage. The tab reads them over FTP, says what each thing
+is, and gives it the one button that makes it playable. Nothing is fetched
+whole to find out: a package's header and a disc's `SYSTEM.CNF` are read in a
+few small pieces.
+
+What is there is listed in four groups, each under its heading with how many
+it holds: **Games and apps** (game and app packages, PS1/PS2 discs, PS5 images
+and app folders), **Updates and add-ons** (patch, add-on and theme packages),
+**Payloads**, and **Other files** (archives, and what could not be read).
+
+| It is | Shown as | The button |
+|---|---|---|
+| `.pkg` | Its title, icon, title ID, version (from its `PARAM.SFO`); **Installed** when `/user/app/<TITLE ID>` exists (an update: `/user/patch/<TITLE ID>`; an add-on: its label in `/user/addcont/<TITLE ID>`). | **Install** (PS5): the console installs it from where it is, followed in the Queue tab. A PS4 installs packages on the console from Debug Settings → Package Installer, which the row says. |
+| `.iso`, `.img`, `.bin/.cue` (a `.bin` over 32 MB; a `.cue` shows its track as one) | PS1 or PS2 disc, serial, name from the emulator's list (once it is here), from the disc itself. | **Convert…**, a menu: **Convert and install** — the disc is brought to this PC, made into a PS4 package (as in the converter), sent back to the same folder and installed; **Only convert** — the same, without the install: the package stays in the folder, listed next to the disc, to install when you want. The copy on the PC is deleted after. Its card in the Queue tab adds the step *Bringing it from the console*. |
+| `.ffpkg`, `.exfat`, `.ffpfs` | PS5 image, title ID from its name. | **Put on the home screen** (PS5): moved into the folder ShadowMountPlus mounts from on the same drive (`/data/homebrew`, `/mnt/usbN/homebrew`, `/mnt/extN/homebrew`; a move there is instant), then ShadowMountPlus is asked to scan, or started again. |
+| A folder with `sce_sys/param.json` (PS5) or `sce_sys/param.sfo` (PS4) | Its name, icon and title ID from there. Other folders are not listed. | **Put on the home screen**, the same way. |
+| `.elf`, `.lua`, `.js`, `.jar`, a small `.bin` | Payload. | **Run**: sent to the console's loader for it. |
+| `.zip`, `.7z`, `.rar` | Archive. | None: unpack it on the PC first. |
+
+Every row has the same columns: the picture, what it is, the button (the
+same width on every row; **Again** on what is installed) and, at the right
+edge, 🗑, which deletes the file (after asking; what was installed from it
+stays installed). Search, and chips: All, **Not installed**, and one per
+group. The list is read again by itself once something set going from it has
+finished (a package put back, an install).
+
+### PS1/PS2 converter
 
 1. **Choose games folder…** — the folder with the disc images (`.iso`,
    `.bin/.cue`, `.img`, also in sub-folders). The app finds which are PS1 and
@@ -226,9 +280,6 @@ library, further down).
 
 | Item | Does |
 |---|---|
-| ‹ | Back to the consoles. |
-| Folder chip | Changes the games folder. |
-| ⟳ | Looks again. |
 | Game card | Opens the game's dialog. |
 | ☐ on a card | Selects it; with several selected, **Continue…** opens one dialog for all. |
 
@@ -253,30 +304,6 @@ kept in the settings.
 
 Without a console connected, the dialog says so, the buttons that send are
 off, and **Convert only** still works.
-
-### Console library (On the console)
-
-One folder, `OrbisLinkFPKG`, where games and apps of any kind are put as they
-come, over FTP or by plugging in a drive: `/data/OrbisLinkFPKG` in the
-console's memory (made by the app the first time the tab opens),
-`/mnt/usb0`–`/mnt/usb7/OrbisLinkFPKG` on USB drives, `/mnt/ext0`–`/mnt/ext1/OrbisLinkFPKG`
-on the extended storage. The tab reads them over FTP, says what each thing
-is, and gives it the one button that makes it playable. Nothing is fetched
-whole to find out: a package's header and a disc's `SYSTEM.CNF` are read in a
-few small pieces.
-
-| It is | Shown as | The button |
-|---|---|---|
-| `.pkg` | Its title, icon, title ID, version (from its `PARAM.SFO`); **Installed** when `/user/app/<TITLE ID>` exists. | **Install** (PS5): the console installs it from where it is. A PS4 installs packages on the console from Debug Settings → Package Installer, which the row says. |
-| `.iso`, `.img`, `.bin/.cue` (a `.bin` over 32 MB; a `.cue` shows its track as one) | PS1 or PS2 disc, serial, name from the emulator's list (once it is here), from the disc itself. | **Convert and install**: the disc is brought to this PC, made into a PS4 package (as on the PC tab), sent back to the same folder and installed; the copy on the PC is deleted after. Its card in the Queue tab adds the step *Bringing it from the console*. |
-| `.ffpkg`, `.exfat`, `.ffpfs` | PS5 image, title ID from its name. | **Put on the home screen** (PS5): moved into the folder ShadowMountPlus mounts from on the same drive (`/data/homebrew`, `/mnt/usbN/homebrew`, `/mnt/extN/homebrew`; a move there is instant), then ShadowMountPlus is asked to scan, or started again. |
-| A folder with `sce_sys/param.json` (PS5) or `sce_sys/param.sfo` (PS4) | Its name, icon and title ID from there. Other folders are not listed. | **Put on the home screen**, the same way. |
-| `.elf`, `.lua`, `.js`, `.jar`, a small `.bin` | Payload. | **Run**: sent to the console's loader for it. |
-| `.zip`, `.7z`, `.rar` | Archive. | None: unpack it on the PC first. |
-
-Search, and chips: All, **Not installed**, and by kind. 🗑 deletes a file
-(after asking); what was installed from it stays installed. ⟳ reads the
-folders again.
 
 ### What the console takes, and from where
 
@@ -491,6 +518,7 @@ only if its SHA-256 matches the list.
 | Payloads library: look, run one now | internet | — | — | — |
 | Console library: see what is there, put on the home screen, run | yes | yes | — | — |
 | Console library: install a package, convert and install a disc | yes | yes | yes (waits for it) | — |
+| Console library: only convert a disc (the package stays in its folder) | yes | yes | — | — |
 | Payloads library: install, update | yes | yes | — | — |
 
 ## Where it lives in the code
@@ -499,7 +527,7 @@ only if its SHA-256 matches the list.
 |---|---|
 | Window, top bar, side panel, drop handling | `qml/orbislink/Main.qml` |
 | Consoles page, Remote Play stage, keyboard map dialog | `StreamArea.qml`, `ConsoleCard.qml`, `AddConsoleCard.qml`, `KeyboardMap.qml` |
-| Queue and conversion cards | `TransferPanel.qml`, `StageLoader.qml` |
+| Queue and conversion cards | `TransferPanel.qml`, `JobCard.qml` (store and library cards), `StageLoader.qml` |
 | Files tab | `FtpBrowser.qml`, `FtpFolderPicker.qml` |
 | Games page | `GamesView.qml`, `GameCard.qml`, `GameDialog.qml` |
 | Console library (`consoleLibrary`) | `ConsoleLibrary.qml`, `src/orbislink/qt/library_controller.*`, `src/orbislink/library/console_library.*` (kinds, drives, `param.json`/`param.sfo`, reads in blocks), `src/orbislink/qt/shadowmount_control.*` (asking ShadowMountPlus to scan, or starting it again) |
