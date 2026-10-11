@@ -3,6 +3,7 @@
 
 #include "orbislink/common/log.h"
 #include "orbislink/common/util.h"
+#include "orbislink/library/folder_package.h"
 #include "orbislink/net/http_client.h"
 #include "orbislink/qt/app_controller.h"
 #include "orbislink/qt/translate_message.h"
@@ -11,6 +12,7 @@
 #include "orbislink/fpkg/classic_converter.h"
 #include "orbislink/fpkg/classics_assets.h"
 #include "orbislink/fpkg/disc_scanner.h"
+#include "orbislink/fpkg/pkg_builder.h"
 #endif
 
 #include <QBuffer>
@@ -24,6 +26,7 @@
 #include <QPointer>
 #include <QSet>
 #include <QStandardPaths>
+#include <QStorageInfo>
 #include <QUrl>
 
 #include <algorithm>
@@ -152,6 +155,9 @@ struct GamesController::Job
 	bool install = false;
 	// Sent to the console even when not installed (a disc from there).
 	bool sendBack = false;
+	// A PS4 app folder made into a package, instead of a disc converted.
+	QString packFolder;
+	QString titleId;
 	// The package already in the output folder, sent instead of making it again.
 	QString reusePath;
 	QString state = QStringLiteral("waiting"); // waiting, converting, done, error, cancelled
@@ -812,8 +818,10 @@ void GamesController::publish()
 			m[QStringLiteral("id")] = job->id;
 			m[QStringLiteral("title")] = job->title;
 			m[QStringLiteral("platform")] = job->platform;
+			m[QStringLiteral("kind")] = job->packFolder.isEmpty() ? QStringLiteral("convert") : QStringLiteral("pack");
 #ifdef ORBISLINK_HAS_FPKG
-			m[QStringLiteral("serial")] = QString::fromStdString(job->disc.serial);
+			m[QStringLiteral("serial")] = job->packFolder.isEmpty() ? QString::fromStdString(job->disc.serial)
+																	: job->titleId;
 #endif
 			m[QStringLiteral("state")] = job->state;
 			m[QStringLiteral("stage")] = job->stage;
@@ -992,6 +1000,16 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 		return;
 	}
 
+	// An app folder: packed as it is, then on the same way as a disc's.
+	if(!job->packFolder.isEmpty())
+	{
+		std::string packed;
+		std::string packError;
+		const bool packedOk = runPack(job, schedulePublish, &packed, &packError);
+		finishJob(job, packedOk, packed, packError);
+		return;
+	}
+
 	const Settings settings = app_->settings();
 	fpkg::ClassicOptions options;
 	options.title = job->title.toStdString();
@@ -1062,13 +1080,22 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 		},
 		&result, &error);
 
+	finishJob(job, ok, result.pkgPath, error);
+#else
+	Q_UNUSED(job);
+#endif
+}
+
+void GamesController::finishJob(const std::shared_ptr<Job> &job, bool ok, const std::string &pkgPath,
+	const std::string &error)
+{
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
 		if(ok)
 		{
 			job->state = QStringLiteral("done");
 			job->percent = 100;
-			job->pkgPath = QString::fromStdString(result.pkgPath);
+			job->pkgPath = QString::fromStdString(pkgPath);
 		}
 		else if(job->cancel)
 		{
@@ -1081,18 +1108,19 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 		}
 	}
 	if(ok)
-		logInfo("Games: package ready at " + result.pkgPath);
+		logInfo("Games: package ready at " + pkgPath);
 	else
-		logWarning("Games: conversion failed — " + error);
+		logWarning("Games: " + std::string(job->packFolder.isEmpty() ? "conversion" : "packing") + " failed — " + error);
 
-	const QString pkg = QString::fromStdString(result.pkgPath);
+	const QString pkg = QString::fromStdString(pkgPath);
+	const QString what = job->packFolder.isEmpty() ? tr("Convert") : tr("Pack");
 	const QString sendTo = job->storageFolder.isEmpty() ? storageFolder() : job->storageFolder;
 	const bool install = job->install;
 	const bool send = install || job->sendBack;
 	const QString title = job->title;
 	const QString message = QString::fromStdString(error);
 	const bool cancelled = job->cancel.load();
-	QMetaObject::invokeMethod(this, [this, job, ok, install, send, pkg, sendTo, title, message, cancelled]() {
+	QMetaObject::invokeMethod(this, [this, job, ok, install, send, pkg, sendTo, title, message, cancelled, what]() {
 		// Over FTP into the app's own folder on the console, installed once
 		// it lands, and deleted from there after the install; a disc from
 		// the console's library has its package put back beside it, installed
@@ -1108,12 +1136,111 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 			app_->sendTo(pkg, sendTo, install);
 		publish();
 		if(ok && !send)
-			emit app_->notify(tr("Convert"), tr("%1 is ready in the output folder.").arg(title), false);
+			emit app_->notify(what, tr("%1 is ready in the output folder.").arg(title), false);
 		else if(!ok && !cancelled)
-			emit app_->notify(tr("Convert"), tr("%1: %2").arg(title, message), true);
+			emit app_->notify(what, tr("%1: %2").arg(title, message), true);
 	}, Qt::QueuedConnection);
+}
+
+bool GamesController::runPack(const std::shared_ptr<Job> &job, const std::function<void()> &tick,
+	std::string *pkgPath, std::string *error)
+{
+#ifdef ORBISLINK_HAS_FPKG
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		job->stage = QStringLiteral("prepare");
+		job->percent = 0;
+	}
+	tick();
+	const library::PackPlan plan = library::planFolderPackage(job->packFolder.toStdString());
+	if(!plan.ok)
+	{
+		*error = plan.error;
+		return false;
+	}
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		if(!plan.title.empty())
+			job->title = QString::fromStdString(plan.title);
+		job->titleId = QString::fromStdString(plan.titleId);
+	}
+	logInfo("Games: packing \"" + plan.title + "\" (" + plan.contentId + ", " + std::to_string(plan.files.size())
+		+ " files" + (plan.gp4.empty() ? std::string() : ", as " + plan.gp4 + " says") + ")");
+
+	const Settings settings = app_->settings();
+	const QDir output(QString::fromStdString(settings.convertOutputFolder));
+	output.mkpath(QStringLiteral("."));
+	// Room for it, checked before minutes are spent on it.
+	const QStorageInfo space(output.absolutePath());
+	if(space.isValid() && space.bytesAvailable() > 0
+		&& static_cast<uint64_t>(space.bytesAvailable()) < plan.bytes + (32ull << 20))
+	{
+		*error = "not enough free space in the output folder (needs about " + std::to_string((plan.bytes >> 20) + 32)
+			+ " MB, has " + std::to_string(space.bytesAvailable() >> 20) + " MB)";
+		return false;
+	}
+
+	fpkg::PkgRequest request;
+	request.contentId = plan.contentId;
+	if(plan.passcode.size() == 32)
+		request.passcode = plan.passcode;
+	request.volumeTime = QDateTime::currentSecsSinceEpoch();
+	request.creationDate = QDateTime::currentDateTimeUtc().toString(QStringLiteral("yyyyMMdd")).toStdString();
+	for(const library::PackFile &file : plan.files)
+	{
+		fpkg::PkgSource source;
+		source.targetPath = file.target;
+		source.sourcePath = file.source;
+		request.files.push_back(std::move(source));
+	}
+	*pkgPath = QDir::toNativeSeparators(output.filePath(QString::fromStdString(
+		fpkg::packageFileName(plan.title, plan.titleId)))).toStdString();
+	return fpkg::buildFakePkg(request, *pkgPath,
+		[&](const std::string &stage, uint64_t done, uint64_t total) {
+			{
+				std::lock_guard<std::mutex> lock(mutex_);
+				job->stage = QString::fromStdString(stage);
+				const double part = total ? double(done) / double(total) : 0.0;
+				job->percent = stage == "prepare" ? 1.0 * part
+					: stage == "image" ? 1.0 + 89.0 * part
+					: stage == "digest" ? 90.0 + 9.0 * part
+					: 99.0 + part;
+			}
+			tick();
+			return !job->cancel.load() && !stopping_.load();
+		},
+		error);
 #else
 	Q_UNUSED(job);
+	Q_UNUSED(tick);
+	Q_UNUSED(pkgPath);
+	*error = "this build cannot make packages";
+	return false;
+#endif
+}
+
+void GamesController::packFolder(const QString &folder, bool install)
+{
+#ifdef ORBISLINK_HAS_FPKG
+	ensureOutputFolder();
+	auto job = std::make_shared<Job>();
+	job->packFolder = folder;
+	job->path = folder;
+	job->listedPath = folder;
+	job->title = QFileInfo(folder).fileName();
+	job->platform = QStringLiteral("ps4");
+	job->install = install;
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		job->id = QString::number(nextId_++);
+		jobs_.push_back(job);
+	}
+	wakeup_.notify_all();
+	publish();
+	emit app_->showPanel(QStringLiteral("queue"));
+#else
+	Q_UNUSED(folder);
+	Q_UNUSED(install);
 #endif
 }
 

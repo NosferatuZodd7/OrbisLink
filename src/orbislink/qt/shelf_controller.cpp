@@ -1064,10 +1064,18 @@ QVariantMap ShelfController::cardFor(const ShelfItem &item, const Source &from, 
 				break;
 			case Kind::Image:
 			case Kind::Folder:
-				note = platform == QLatin1String("ps4")
-					? tr("A PS4 app or game folder, not a package: it installs once it is made into a .pkg (a .gp4 "
-						 "beside it is the recipe for that, from the tool that made it).")
-					: tr("A PS5 game: copy it to /data/homebrew on the PS5 (Files tab), where ShadowMountPlus finds it.");
+				if(item.appFolder && platform == QLatin1String("ps4") && canConvert)
+				{
+					// Made into a package here, as its .gp4 says when it has one.
+					actions << QStringLiteral("pack") << QStringLiteral("packOnly");
+					note = tr("A PS4 app or game folder, not yet a package: it is made into one here (as the .gp4 in "
+							  "it says, when it has one), then installed.");
+				}
+				else if(platform == QLatin1String("ps4"))
+					note = tr("A PS4 app or game folder, not a package: it installs once it is made into a .pkg (a .gp4 "
+							  "beside it is the recipe for that, from the tool that made it).");
+				else
+					note = tr("A PS5 game: copy it to /data/homebrew on the PS5 (Files tab), where ShadowMountPlus finds it.");
 				break;
 			case Kind::Payload:
 				actions << QStringLiteral("runPayload");
@@ -1914,6 +1922,8 @@ void ShelfController::act(int index, const QString &action)
 	}
 	else if(action == QLatin1String("convert") || action == QLatin1String("convertOnly"))
 		games_->convertFile(path, action == QLatin1String("convert"));
+	else if(action == QLatin1String("pack") || action == QLatin1String("packOnly"))
+		games_->packFolder(path, action == QLatin1String("pack"));
 	else if(action == QLatin1String("runPayload"))
 		payloads_->sendFromPc(path, payloads_->portFor(name));
 	else if(action == QLatin1String("reveal"))

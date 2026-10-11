@@ -5,6 +5,7 @@
 // folder's preview, the cache that keeps what was found, and the dates of
 // the console's FTP listings.
 
+#include "orbislink/library/folder_package.h"
 #include "orbislink/library/shelf.h"
 #include "test_fixtures.h"
 #include "test_support.h"
@@ -259,6 +260,100 @@ ORBISLINK_TEST(keeps_what_was_found_across_runs)
 	CHECK_EQ(kept.count, 3);
 	CHECK_EQ(kept.pictures.size(), static_cast<size_t>(1));
 	CHECK(fs::exists(fs::u8path(kept.pictures[0].pictureFile)));
+}
+
+namespace {
+
+std::vector<uint8_t> appSfo(const std::string &contentId)
+{
+	return buildSfo({ { "APP_VER", "01.01" }, { "CATEGORY", "gd" }, { "CONTENT_ID", contentId },
+		{ "TITLE", "Fake Classic" }, { "TITLE_ID", "SLUS21607" } });
+}
+
+std::map<std::string, PackFile> byTarget(const PackPlan &plan)
+{
+	std::map<std::string, PackFile> out;
+	for(const PackFile &file : plan.files)
+		out[file.target] = file;
+	return out;
+}
+
+} // namespace
+
+ORBISLINK_TEST(packs_a_whole_app_folder_without_a_recipe)
+{
+	TempFolder folder("pack-plain");
+	const std::string root = (folder.path / "SLUS21607").u8string();
+	folder.file("SLUS21607/sce_sys/param.sfo", appSfo("UP9000-SLUS21607_00-SLUS216070000001"));
+	folder.file("SLUS21607/eboot.bin", std::vector<uint8_t>(100, 1));
+	folder.file("SLUS21607/image/disc01.iso", std::vector<uint8_t>(300, 2));
+	folder.text("SLUS21607/desktop.ini", "x");
+	folder.text("SLUS21607/build.complete", "");
+
+	const PackPlan plan = planFolderPackage(root);
+	CHECK(plan.ok);
+	CHECK(plan.gp4.empty());
+	CHECK_EQ(plan.contentId, std::string("UP9000-SLUS21607_00-SLUS216070000001"));
+	CHECK_EQ(plan.titleId, std::string("SLUS21607"));
+	CHECK_EQ(plan.title, std::string("Fake Classic"));
+	const auto files = byTarget(plan);
+	CHECK_EQ(files.size(), static_cast<size_t>(3));
+	CHECK(files.count("sce_sys/param.sfo"));
+	CHECK(files.count("image/disc01.iso"));
+	CHECK(!files.count("desktop.ini"));
+	CHECK(!files.count("build.complete"));
+	CHECK_EQ(plan.bytes, files.at("eboot.bin").size + files.at("image/disc01.iso").size
+		+ files.at("sce_sys/param.sfo").size);
+}
+
+ORBISLINK_TEST(follows_the_recipe_made_on_another_pc)
+{
+	// A converter's folder moved from where it was made: the .gp4's paths
+	// are of that PC, the files are found by their place in the package,
+	// and what the recipe leaves out stays out.
+	TempFolder folder("pack-gp4");
+	const std::string root = (folder.path / "SLUS21607").u8string();
+	folder.file("SLUS21607/sce_sys/param.sfo", appSfo("UP9000-SLUS21607_00-FROMPARAMSFO0001"));
+	folder.file("SLUS21607/eboot.bin", std::vector<uint8_t>(100, 1));
+	folder.file("SLUS21607/image/disc01.iso", std::vector<uint8_t>(300, 2));
+	folder.text("SLUS21607/emu used=other game", "");
+	folder.text("SLUS21607/SLUS21607.gp4",
+		"<?xml version=\"1.0\"?>\n<psproject fmt=\"gp4\" version=\"1000\">\n"
+		"  <volume><volume_type>pkg_ps4_app</volume_type>\n"
+		"    <package content_id=\"UP9000-SLUS21607_00-FROMTHERECIPE001\" passcode=\"00000000000000000000000000000000\"/>\n"
+		"  </volume>\n  <files img_no=\"0\">\n"
+		"    <file targ_path=\"sce_sys/param.sfo\" orig_path=\"C:\\Old PC\\SLUS21607\\sce_sys\\param.sfo\"/>\n"
+		"    <file targ_path=\"eboot.bin\" orig_path=\"C:\\Old PC\\SLUS21607\\eboot.bin\"/>\n"
+		"    <file targ_path=\"image/disc01.iso\" orig_path=\"image\\disc01.iso\"/>\n"
+		"  </files>\n</psproject>\n");
+
+	CHECK_EQ(fs::u8path(findGp4(root)).filename().u8string(), std::string("SLUS21607.gp4"));
+	const PackPlan plan = planFolderPackage(root);
+	CHECK(plan.ok);
+	CHECK(!plan.gp4.empty());
+	CHECK_EQ(plan.contentId, std::string("UP9000-SLUS21607_00-FROMTHERECIPE001"));
+	CHECK_EQ(plan.passcode.size(), static_cast<size_t>(32));
+	const auto files = byTarget(plan);
+	CHECK_EQ(files.size(), static_cast<size_t>(3));
+	CHECK(!files.count("emu used=other game"));
+	CHECK(!files.count("SLUS21607.gp4"));
+	CHECK(files.at("eboot.bin").source.find("SLUS21607") != std::string::npos);
+
+	// A recipe naming what is not there says so.
+	fs::remove(folder.path / "SLUS21607" / "eboot.bin");
+	const PackPlan broken = planFolderPackage(root);
+	CHECK(!broken.ok);
+	CHECK(broken.error.find("eboot.bin") != std::string::npos);
+}
+
+ORBISLINK_TEST(refuses_a_folder_that_is_no_app)
+{
+	TempFolder folder("pack-none");
+	folder.text("Photos/readme.txt", "x");
+	const PackPlan plan = planFolderPackage((folder.path / "Photos").u8string());
+	CHECK(!plan.ok);
+	CHECK(plan.error.find("param.sfo") != std::string::npos);
+	CHECK(!planFolderPackage((folder.path / "missing").u8string()).ok);
 }
 
 ORBISLINK_TEST(reads_the_dates_of_an_ftp_listing)

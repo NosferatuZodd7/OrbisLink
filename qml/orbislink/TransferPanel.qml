@@ -555,7 +555,8 @@ Item {
                                 }
                                 Text {
                                     Layout.fillWidth: true
-                                    text: (conv.modelData.platform === "ps2" ? "PS2" : "PS1") + "  ·  " + conv.j.text
+                                    text: (conv.modelData.platform === "ps2" ? "PS2" : conv.modelData.platform === "ps1" ? "PS1"
+                                           : "PS4") + "  ·  " + conv.j.text
                                     color: conv.j.stage === "error" ? Theme.error : Theme.textSecondary
                                     font.pixelSize: 11
                                     elide: Text.ElideRight
@@ -664,8 +665,10 @@ Item {
                  : c.stage === "cover" ? qsTr("Getting the cover…")
                  : c.stage === "digest" || c.stage === "finish"
                  ? qsTr("Signing… %1%").arg(pct(c.percent))
+                 : c.kind === "pack" ? qsTr("Packing… %1%").arg(pct(c.percent))
                  : qsTr("Converting… %1%").arg(pct(c.percent)); break
-        case "converted": text = c.send ? qsTr("Converted — sending next") : qsTr("Package ready"); break
+        case "converted": text = !c.send ? qsTr("Package ready")
+                                : c.kind === "pack" ? qsTr("Packed — sending next") : qsTr("Converted — sending next"); break
         case "sending":
             text = t.waiting ? qsTr("Waiting to send") : qsTr("Sending to the console… %1%").arg(pct(t.percent)); break
         case "sent": text = qsTr("On the console"); break
@@ -683,7 +686,7 @@ Item {
                     : stage === "installed" ? 3 : -1
         var failedAt = c.state === "error" ? 0 : c.state === "cancelled" ? 0
                      : (t.stage === "error" || t.stage === "cancelled") ? (t.mode === "install" ? 2 : 1) : -1
-        var labels = [qsTr("Convert"), qsTr("Send"), qsTr("Install")]
+        var labels = [c.kind === "pack" ? qsTr("Pack") : qsTr("Convert"), qsTr("Send"), qsTr("Install")]
         var tones = [Theme.warn, Theme.accent, Theme.ok]
         var steps = []
         var count = c.install || stage === "installing" || stage === "installed" ? 3 : 2
