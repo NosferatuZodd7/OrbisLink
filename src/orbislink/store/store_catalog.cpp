@@ -228,6 +228,23 @@ StoreCatalog::StoreCatalog(std::string cacheDir, std::string userAgent)
 {
 }
 
+std::string StoreCatalog::defaultBase()
+{
+	return kMainBase;
+}
+
+void StoreCatalog::setCustomBase(const std::string &base)
+{
+	bases_ = { kMainBase, kMirrorBase };
+	std::string own = trim(base);
+	if(own.empty())
+		return;
+	if(own.back() != '/')
+		own += '/';
+	if(own != kMainBase && own != kMirrorBase)
+		bases_.insert(bases_.begin(), own);
+}
+
 bool StoreCatalog::fetch(const std::string &url, std::string *body, std::string *error) const
 {
 	HttpClient http(20000);

@@ -10,7 +10,9 @@
 #include "orbislink/qt/app_controller.h"
 #include "orbislink/qt/games_controller.h"
 #include "orbislink/qt/shadowmount_control.h"
+#include "orbislink/installer/rpi_client.h"
 #include "orbislink/qt/translate_message.h"
+#include "orbislink/settings/settings_store.h"
 #ifdef ORBISLINK_HAS_FPKG
 #include "orbislink/fpkg/disc_scanner.h"
 #endif
@@ -21,6 +23,9 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QMetaObject>
 #include <QStorageInfo>
 #include <QTimer>
@@ -85,6 +90,7 @@ LibraryController::LibraryController(AppController *app, GamesController *games,
 				return;
 			}
 	});
+	loadUnfinishedCopies();
 }
 
 QSet<QString> LibraryController::finishedTasks() const
@@ -103,6 +109,7 @@ QSet<QString> LibraryController::finishedTasks() const
 
 LibraryController::~LibraryController()
 {
+	saveUnfinishedCopies();
 	cancel_ = true;
 	{
 		std::lock_guard<std::mutex> lock(copyMutex_);
@@ -635,6 +642,67 @@ void LibraryController::perform(const QVariantMap &item, const QString &action)
 	}
 }
 
+void LibraryController::uninstall(const QVariantMap &item, bool updateOnly)
+{
+	const QString titleId = item.value(QStringLiteral("titleId")).toString();
+	const QString title = item.value(QStringLiteral("title")).toString();
+	if(titleId.isEmpty())
+		return;
+	RpiClient::Config config;
+	config.host = app_->settings().consoleAddress;
+	config.port = app_->settings().installerPort;
+	config.ps5 = app_->installsFromConsole();
+	QStringList addons;
+	bool hasUpdate = false;
+	for(const QVariant &entry : item.value(QStringLiteral("parts")).toList())
+	{
+		const QVariantMap part = entry.toMap();
+		if(part.value(QStringLiteral("what")).toString() == QLatin1String("addon"))
+			addons << part.value(QStringLiteral("path")).toString();
+		hasUpdate = hasUpdate || part.value(QStringLiteral("what")).toString() == QLatin1String("update");
+	}
+	QVariantMap card = item;
+	card[QStringLiteral("icon")] = item.value(QStringLiteral("picture"));
+	runAction(updateOnly ? tr("Uninstalling the update of %1…").arg(title) : tr("Uninstalling %1…").arg(title),
+		[config, titleId, title, addons, hasUpdate, updateOnly](FtpClient &ftp, bool *error) {
+			RpiClient installer(config);
+			const std::string id = titleId.toStdString();
+			if(updateOnly)
+			{
+				const InstallerResult removed = installer.uninstallPatch(id);
+				if(!removed.ok)
+				{
+					*error = true;
+					return tr("Could not uninstall the update of %1: %2").arg(title, translateMessage(removed.message));
+				}
+				logInfo("Library: update of " + id + " uninstalled");
+				return tr("The update of %1 is off the console.").arg(title);
+			}
+			// The add-ons first, by the content ID in their package's header.
+			for(const QString &path : addons)
+			{
+				std::vector<uint8_t> header;
+				if(!ftp.read(path.toStdString(), 0x40, 36, &header).ok || header.size() < 36)
+					continue;
+				const std::string contentId(header.begin(), header.begin() + 36);
+				const InstallerResult removed = installer.uninstallAdditionalContent(contentId);
+				if(!removed.ok)
+					logWarning("Library: add-on " + contentId + " not uninstalled — " + removed.message);
+			}
+			if(hasUpdate)
+				installer.uninstallPatch(id);
+			const InstallerResult removed = installer.uninstallGame(id);
+			if(!removed.ok)
+			{
+				*error = true;
+				return tr("Could not uninstall %1: %2").arg(title, translateMessage(removed.message));
+			}
+			logInfo("Library: " + id + " uninstalled");
+			return tr("%1 is off the console.").arg(title);
+		},
+		true, card, QStringLiteral("uninstall"));
+}
+
 void LibraryController::convert(const QString &path, bool install)
 {
 	const QVariantMap item = itemAt(path);
@@ -660,10 +728,9 @@ void LibraryController::copyToPc(const QString &title, const QString &icon, cons
 	CopyJob job;
 	job.id = QStringLiteral("library-%1").arg(nextJob_++);
 	job.title = title;
+	job.icon = icon;
 	job.folder = folder;
 	job.files = files;
-	job.config = app_->ftpClientConfigFor(app_->settings().consoleAddress);
-	job.cancel = std::make_shared<std::atomic<bool>>(false);
 
 	qint64 total = 0;
 	for(const CopyItem &file : files)
@@ -683,7 +750,14 @@ void LibraryController::copyToPc(const QString &title, const QString &icon, cons
 	jobs_.prepend(card);
 	emit jobsChanged();
 	emit app_->showPanel(QStringLiteral("queue"));
+	enqueueCopy(job);
+}
 
+void LibraryController::enqueueCopy(CopyJob job)
+{
+	copyRecipes_[job.id] = job;
+	job.config = app_->ftpClientConfigFor(app_->settings().consoleAddress);
+	job.cancel = std::make_shared<std::atomic<bool>>(false);
 	{
 		std::lock_guard<std::mutex> lock(copyMutex_);
 		copyCancels_[job.id] = job.cancel;
@@ -692,6 +766,122 @@ void LibraryController::copyToPc(const QString &title, const QString &icon, cons
 	if(!copier_.joinable())
 		copier_ = std::thread([this]() { copyLoop(); });
 	copyWake_.notify_all();
+}
+
+void LibraryController::retryJob(const QString &id)
+{
+	const auto recipe = copyRecipes_.constFind(id);
+	if(recipe == copyRecipes_.cend())
+		return;
+	for(const QVariant &entry : jobs_)
+	{
+		const QVariantMap card = entry.toMap();
+		if(card.value(QStringLiteral("id")).toString() == id
+			&& card.value(QStringLiteral("state")).toString() == QLatin1String("working"))
+			return;
+	}
+	updateJob(id, { { QStringLiteral("state"), QStringLiteral("working") },
+		{ QStringLiteral("stageText"), tr("Waiting to copy") }, { QStringLiteral("message"), QString() },
+		{ QStringLiteral("interrupted"), false }, { QStringLiteral("percent"), 0.0 } });
+	emit app_->showPanel(QStringLiteral("queue"));
+	enqueueCopy(recipe.value());
+}
+
+namespace {
+
+QString copiesPath()
+{
+	return QString::fromStdString(joinPath(SettingsStore::defaultDirectory(), "copies.json"));
+}
+
+} // namespace
+
+void LibraryController::saveUnfinishedCopies() const
+{
+	QJsonArray kept;
+	for(const QVariant &entry : jobs_)
+	{
+		const QVariantMap card = entry.toMap();
+		const QString id = card.value(QStringLiteral("id")).toString();
+		const bool unfinished = card.value(QStringLiteral("state")).toString() == QLatin1String("working")
+			|| card.value(QStringLiteral("interrupted")).toBool();
+		if(!unfinished || !copyRecipes_.contains(id))
+			continue;
+		const CopyJob &job = copyRecipes_.value(id);
+		QJsonArray files;
+		for(const CopyItem &file : job.files)
+			files.append(QJsonObject { { QStringLiteral("remote"), file.remote }, { QStringLiteral("local"), file.local },
+				{ QStringLiteral("size"), static_cast<double>(file.size) }, { QStringLiteral("what"), file.what } });
+		kept.append(QJsonObject { { QStringLiteral("title"), job.title }, { QStringLiteral("icon"), job.icon },
+			{ QStringLiteral("folder"), job.folder }, { QStringLiteral("files"), files } });
+	}
+	if(kept.isEmpty())
+	{
+		QFile::remove(copiesPath());
+		return;
+	}
+	QFile out(copiesPath());
+	if(out.open(QIODevice::WriteOnly | QIODevice::Truncate))
+		out.write(QJsonDocument(kept).toJson(QJsonDocument::Compact));
+}
+
+void LibraryController::loadUnfinishedCopies()
+{
+	QFile in(copiesPath());
+	if(!in.open(QIODevice::ReadOnly))
+		return;
+	const QJsonArray kept = QJsonDocument::fromJson(in.readAll()).array();
+	in.close();
+	for(const QJsonValue &value : kept)
+	{
+		const QJsonObject saved = value.toObject();
+		CopyJob job;
+		job.id = QStringLiteral("library-%1").arg(nextJob_++);
+		job.title = saved.value(QStringLiteral("title")).toString();
+		job.icon = saved.value(QStringLiteral("icon")).toString();
+		job.folder = saved.value(QStringLiteral("folder")).toString();
+		qint64 total = 0;
+		for(const QJsonValue &part : saved.value(QStringLiteral("files")).toArray())
+		{
+			const QJsonObject file = part.toObject();
+			CopyItem item;
+			item.remote = file.value(QStringLiteral("remote")).toString();
+			item.local = file.value(QStringLiteral("local")).toString();
+			item.size = static_cast<qint64>(file.value(QStringLiteral("size")).toDouble());
+			item.what = file.value(QStringLiteral("what")).toString();
+			total += item.size;
+			job.files << item;
+		}
+		if(job.files.isEmpty() || job.folder.isEmpty())
+			continue;
+		// How far it got: whole files there, and the part of the one cut short.
+		qint64 already = 0;
+		for(const CopyItem &file : job.files)
+		{
+			const QFileInfo whole(file.local);
+			const QFileInfo part(file.local + QStringLiteral(".part"));
+			already += whole.exists() && whole.size() == file.size ? file.size
+				: part.exists() ? std::min(file.size, part.size()) : 0;
+		}
+		copyRecipes_[job.id] = job;
+		QVariantMap card;
+		card[QStringLiteral("id")] = job.id;
+		card[QStringLiteral("kind")] = QStringLiteral("copy");
+		card[QStringLiteral("name")] = job.title;
+		card[QStringLiteral("icon")] = job.icon;
+		card[QStringLiteral("itemKind")] = QStringLiteral("package");
+		card[QStringLiteral("console")] = consoleName();
+		card[QStringLiteral("state")] = QStringLiteral("cancelled");
+		card[QStringLiteral("interrupted")] = true;
+		card[QStringLiteral("amountText")] = QString::fromStdString(humanBytes(total));
+		card[QStringLiteral("percent")] = total > 0 ? 100.0 * double(already) / double(total) : 0.0;
+		card[QStringLiteral("folder")] = job.folder;
+		card[QStringLiteral("message")] = tr("Stopped when the app closed. ⟲ goes on from where it was.");
+		jobs_.append(card);
+	}
+	QFile::remove(copiesPath());
+	if(!jobs_.isEmpty())
+		emit jobsChanged();
 }
 
 void LibraryController::cancelJob(const QString &id)
@@ -741,7 +931,12 @@ void LibraryController::runCopy(const CopyJob &job)
 	};
 	const auto finish = [&](const QString &state, const QString &message) {
 		post({ { QStringLiteral("state"), state }, { QStringLiteral("message"), message },
-			{ QStringLiteral("speedText"), QString() }, { QStringLiteral("etaText"), QString() } });
+			{ QStringLiteral("speedText"), QString() }, { QStringLiteral("etaText"), QString() },
+			{ QStringLiteral("bytesPerSecond"), 0.0 } });
+		if(state == QLatin1String("error"))
+			QMetaObject::invokeMethod(this, [this, title = job.title, message]() {
+				emit app_->jobFinished(tr("Copy to this PC"), tr("%1: %2").arg(title, message), true);
+			}, Qt::QueuedConnection);
 	};
 	if(job.cancel->load())
 	{
@@ -829,7 +1024,10 @@ void LibraryController::runCopy(const CopyJob &job)
 							? QString::fromStdString(humanDuration(static_cast<int64_t>(double(left) / speed + 0.5)))
 							: QString() },
 						{ QStringLiteral("amountText"), tr("%1 of %2").arg(QString::fromStdString(humanBytes(now)),
-							QString::fromStdString(humanBytes(total))) } });
+							QString::fromStdString(humanBytes(total))) },
+						{ QStringLiteral("bytesPerSecond"), speed },
+						{ QStringLiteral("bytesLeft"), static_cast<double>(left) },
+						{ QStringLiteral("bytesTotal"), static_cast<double>(total) } });
 				}
 				return !job.cancel->load() && !cancel_.load();
 			},
@@ -859,7 +1057,11 @@ void LibraryController::runCopy(const CopyJob &job)
 	post({ { QStringLiteral("state"), QStringLiteral("done") }, { QStringLiteral("percent"), 100.0 },
 		{ QStringLiteral("speedText"), QString() }, { QStringLiteral("etaText"), QString() },
 		{ QStringLiteral("amountText"), QString::fromStdString(humanBytes(total)) },
-		{ QStringLiteral("message"), tr("In the folder %1").arg(QDir(job.folder).dirName()) } });
+		{ QStringLiteral("message"), tr("In the folder %1").arg(QDir(job.folder).dirName()) },
+		{ QStringLiteral("bytesPerSecond"), 0.0 } });
+	QMetaObject::invokeMethod(this, [this, title = job.title]() {
+		emit app_->jobFinished(tr("Copy to this PC"), tr("%1 is on this PC.").arg(title), false);
+	}, Qt::QueuedConnection);
 }
 
 } // namespace orbislink

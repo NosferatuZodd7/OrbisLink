@@ -61,6 +61,18 @@ struct InstalledApp
 	std::string folder;
 };
 
+// The app a ZIP holds, from its sce_sys/param.json.
+struct ArchiveApp
+{
+	std::string titleId;
+	std::string name;
+	std::string contentVersion;
+};
+
+// Reads it without unpacking the rest (`scratchDir` holds param.json for a
+// moment); false when the archive holds no app folder.
+bool readArchiveApp(const std::string &zipPath, const std::string &scratchDir, ArchiveApp *out, std::string *error);
+
 class StoreInstaller
 {
 public:

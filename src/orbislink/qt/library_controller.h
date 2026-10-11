@@ -3,6 +3,7 @@
 
 #include "orbislink/ftp/ftp_client.h"
 
+#include <QMap>
 #include <QObject>
 #include <QSet>
 #include <QString>
@@ -100,8 +101,16 @@ public:
 	// Stops a copy (waiting or under way); what was copied of the file
 	// under way is kept and the next copy of it goes on from there.
 	Q_INVOKABLE void cancelJob(const QString &id);
+	// A copy that failed, was stopped or was cut short by the app closing,
+	// on its way again on the same card (from where it was).
+	Q_INVOKABLE void retryJob(const QString &id);
 	// Opens the folder a copy went to.
 	Q_INVOKABLE void openJobFolder(const QString &id);
+	// A title the console has installed, taken off it through the installer
+	// (Remote Package Installer, PS4): its add-ons, its update and the game,
+	// or only the update. `item` has its titleId, title, picture and parts
+	// ([{ what: "game"/"update"/"addon", path }]).
+	void uninstall(const QVariantMap &item, bool updateOnly);
 
 signals:
 	void itemsChanged();
@@ -126,13 +135,19 @@ private:
 	{
 		QString id;
 		QString title;
+		QString icon;
 		QString folder;
 		QVector<CopyItem> files;
 		FtpClient::Config config;
 		std::shared_ptr<std::atomic<bool>> cancel;
 	};
+	void enqueueCopy(CopyJob job);
 	void copyLoop();
 	void runCopy(const CopyJob &job);
+	// The copies not finished when the app closes, kept for the next time
+	// (copies.json beside the settings) and shown then, stopped, to go on.
+	void saveUnfinishedCopies() const;
+	void loadUnfinishedCopies();
 
 	AppController *app_;
 	GamesController *games_;
@@ -155,6 +170,8 @@ private:
 	std::deque<CopyJob> copies_;
 	std::map<QString, std::shared_ptr<std::atomic<bool>>> copyCancels_;
 	std::thread copier_;
+	// Every copy's recipe, by its card (interface thread only): to go again.
+	QMap<QString, CopyJob> copyRecipes_;
 };
 
 } // namespace orbislink

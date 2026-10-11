@@ -385,6 +385,10 @@ signals:
 	// "queue" for installs, "files" for FTP uploads.
 	void showPanel(const QString &which);
 	void notify(const QString &title, const QString &message, bool error);
+	// A long job came to its end (an install or upload, a conversion, a copy
+	// to this PC, a store install, a download): with the window in the
+	// background, a system notification says so.
+	void jobFinished(const QString &title, const QString &message, bool error);
 	void consoleProbed(const QString &address, bool ftpOk, bool installerOk,
 		const QString &detail);
 	void downloadChanged();

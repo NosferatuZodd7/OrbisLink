@@ -103,7 +103,7 @@ Last review: v1.1.0.
 | ✅ | The title bar asks Windows for its own translucent material (acrylic in the "glass" theme, mica in the others) and, where there is none, the theme colour or the dark bar. The diagnostics say which one was used |
 | 🟡 | Whole window translucent with the system material behind the content — means painting the window transparent, which can come out black with software rendering |
 | ✅ | First-run wizard (3 steps, with a live console check); can be reopened from the settings |
-| ✅ | System notifications on Windows (`Shell_NotifyIconW`); elsewhere, a notice in the window and the window flashes |
+| ✅ | System notifications when a long job ends with the window in the background: Windows (`Shell_NotifyIconW`), Linux (org.freedesktop.Notifications over D-Bus), macOS (osascript); elsewhere the window flashes |
 | ✅ | Live log window (Ctrl+L), with a filter and Remote Play detail |
 | ✅ | Exporting diagnostics to a file, with versions, network, settings (without secrets), the last Remote Play attempt and the end of the log |
 | ✅ | English (source language and default) and Portuguese, chosen in the settings; the log and the diagnostics are always in English |
@@ -126,6 +126,7 @@ Last review: v1.1.0.
 | ✅ | Stable or testing channel (pre-releases), and the repository is a setting — the project can move without recompiling |
 | ✅ | Every push to the `beta` branch publishes a `vX.Y.Z-dev.N` test build, which the testing channel receives; the five most recent are kept |
 | ✅ | The Windows dependencies (vcpkg) are cached per vcpkg version, and only after a complete install |
+| ✅ | On every push, a look for names `<windows.h>` turns into macros (`scripts/check-win32-names.py`): the Windows build itself only runs on pull requests and by hand |
 
 ## 6. Tests
 

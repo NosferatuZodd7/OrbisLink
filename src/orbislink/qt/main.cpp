@@ -40,8 +40,30 @@
 #include <memory>
 #include <QSGRendererInterface>
 #include <QTimer>
+#ifndef _WIN32
+#include <QSocketNotifier>
+#include <csignal>
+#include <unistd.h>
+#endif
 
 using namespace orbislink;
+
+#ifndef _WIN32
+namespace {
+
+// The signal handler only writes a byte here; the application reads it and
+// closes, outside the handler.
+int quitPipe[2] = { -1, -1 };
+
+void onQuitSignal(int)
+{
+	const char byte = 1;
+	const ssize_t written = ::write(quitPipe[1], &byte, 1);
+	(void)written;
+}
+
+} // namespace
+#endif
 
 int main(int argc, char **argv)
 {
@@ -82,6 +104,28 @@ int main(int argc, char **argv)
 	}
 
 	QGuiApplication app(argc, argv);
+#ifndef _WIN32
+	// Logging out or shutting down sends SIGTERM, Ctrl+C in a terminal
+	// SIGINT: the application closes as it does from its window, so the
+	// queue and the copies and conversions not finished are kept for the
+	// next time.
+	if(::pipe(quitPipe) == 0)
+	{
+		auto *quitNotifier = new QSocketNotifier(quitPipe[0], QSocketNotifier::Read, &app);
+		QObject::connect(quitNotifier, &QSocketNotifier::activated, &app, []() {
+			char byte = 0;
+			const ssize_t got = ::read(quitPipe[0], &byte, 1);
+			(void)got;
+			QCoreApplication::quit();
+		});
+		struct sigaction action {};
+		action.sa_handler = onQuitSignal;
+		sigemptyset(&action.sa_mask);
+		action.sa_flags = SA_RESTART;
+		sigaction(SIGTERM, &action, nullptr);
+		sigaction(SIGINT, &action, nullptr);
+	}
+#endif
 	// The window and taskbar icon. On Windows the file's own icon comes
 	// from the .rc resource; this is the one the running application shows.
 	app.setWindowIcon(QIcon(QStringLiteral(":/icons/mark.png")));
@@ -231,13 +275,14 @@ int main(int argc, char **argv)
 		QTimer::singleShot(1500, controller.get(),
 			[&controller, uploadPaths]() { controller->addPaths(uploadPaths, 1); });
 
-	// Important notices also go to the system, so they arrive with the
-	// window minimised. Where there is no notification area, this does
-	// nothing and the application carries on the same.
+	// A long job's end also goes to the system, so it arrives with the
+	// window in the background (in front, the window's own notice is
+	// enough). Where there are no notifications, the window flashes.
 	Notifier notifier;
-	QObject::connect(controller.get(), &AppController::notify, &notifier,
+	QObject::connect(controller.get(), &AppController::jobFinished, &notifier,
 		[&notifier](const QString &title, const QString &message, bool error) {
-			notifier.show(title, message, error);
+			if(QGuiApplication::applicationState() != Qt::ApplicationActive)
+				notifier.show(title, message, error);
 		});
 
 	startup::markLaunchStarted();

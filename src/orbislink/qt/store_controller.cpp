@@ -19,8 +19,10 @@
 #include <QDir>
 #include <QFile>
 #include <QMetaObject>
+#include <QStorageInfo>
 #include <QStandardPaths>
 #include <QStringList>
+#include <QFileInfo>
 #include <QUrl>
 
 #include <algorithm>
@@ -127,6 +129,7 @@ StoreController::StoreController(AppController *app, QObject *parent) : QObject(
 	// The catalog asks every client to say what it is.
 	const std::string agent = "OrbisLink/" + QCoreApplication::applicationVersion().toStdString();
 	catalog_ = std::make_unique<store::StoreCatalog>(cacheDir(), agent);
+	catalog_->setCustomBase(app_->settings().storeCatalogAddress);
 	// Which PS5s there are, and whose FTP answers.
 	connect(app_, &AppController::settingsChanged, this, &StoreController::consolesChanged);
 	connect(app_, &AppController::statusChanged, this, &StoreController::consolesChanged);
@@ -139,6 +142,8 @@ StoreController::StoreController(AppController *app, QObject *parent) : QObject(
 			{ QStringLiteral("etaText"), QString() } };
 		if(!error)
 			fields[QStringLiteral("percent")] = 100.0;
+		if(!cancel_)
+			emit app_->jobFinished(tr("Homebrew store"), message, error);
 		updateJob(fields);
 		jobId_.clear();
 	});
@@ -147,7 +152,7 @@ StoreController::StoreController(AppController *app, QObject *parent) : QObject(
 StoreController::~StoreController()
 {
 	cancel_ = true;
-	for(std::thread *thread : { &loader_, &detailer_, &worker_, &checker_ })
+	for(std::thread *thread : { &loader_, &detailer_, &worker_, &checker_, &localScanner_ })
 		if(thread->joinable())
 			thread->join();
 }
@@ -264,7 +269,11 @@ void StoreController::setProgress(const QString &stage, int64_t done, int64_t to
 	const QString etaText = speed > 0 && total > done
 		? QString::fromStdString(humanDuration(static_cast<int64_t>(static_cast<double>(total - done) / speed)))
 		: QString();
-	QMetaObject::invokeMethod(this, [this, stage, fraction, speedText, amountText, etaText]() {
+	const double bytesPerSecond = speed;
+	const double bytesLeft = total > done ? static_cast<double>(total - done) : 0.0;
+	const double bytesTotal = total > 0 ? static_cast<double>(total) : 0.0;
+	QMetaObject::invokeMethod(this, [this, stage, fraction, speedText, amountText, etaText, bytesPerSecond, bytesLeft,
+										bytesTotal]() {
 		stage_ = stage;
 		progress_ = fraction;
 		speedText_ = speedText;
@@ -278,7 +287,8 @@ void StoreController::setProgress(const QString &stage, int64_t done, int64_t to
 			: stage;
 		updateJob({ { QStringLiteral("stageText"), stageText }, { QStringLiteral("percent"), fraction * 100.0 },
 			{ QStringLiteral("speedText"), speedText }, { QStringLiteral("amountText"), amountText },
-			{ QStringLiteral("etaText"), etaText } });
+			{ QStringLiteral("etaText"), etaText }, { QStringLiteral("bytesPerSecond"), bytesPerSecond },
+			{ QStringLiteral("bytesLeft"), bytesLeft }, { QStringLiteral("bytesTotal"), bytesTotal } });
 	}, Qt::QueuedConnection);
 }
 
@@ -333,11 +343,13 @@ void StoreController::refresh()
 		bool ok = false;
 		bool offline = false;
 		std::vector<store::StoreApp> list;
+		std::string base;
 		{
 			std::lock_guard<std::mutex> lock(catalogMutex_);
 			ok = catalog_->refresh(&why);
 			list = catalog_->apps();
 			offline = catalog_->offline();
+			base = catalog_->base();
 		}
 		if(!ok)
 			logWarning("Store: the catalog could not be read: " + why);
@@ -356,8 +368,10 @@ void StoreController::refresh()
 				installed[app.titleId] = { app.contentVersion };
 			known = listError.empty();
 		}
-		QMetaObject::invokeMethod(this, [this, ok, why, offline, list, installed, known]() {
+		const QString source = QUrl(QString::fromStdString(base)).host();
+		QMetaObject::invokeMethod(this, [this, ok, why, offline, list, installed, known, source]() {
 			loading_ = false;
+			catalogSource_ = source;
 			error_ = ok ? QString() : QString::fromStdString(why);
 			offline_ = offline;
 			list_ = list;
@@ -617,17 +631,7 @@ void StoreController::install(const QString &titleId)
 	const std::string cache = cacheDir();
 	startWork(titleId, tr("Getting %1…").arg(name), QStringLiteral("install"), [this, id, address, name, console, config, cache]() {
 		auto finish = [this, id](const QString &message, bool error, const std::string &version) {
-			QMetaObject::invokeMethod(this, [this, id, message, error, version]() {
-				if(!error)
-					installed_[id] = { version };
-				working_.clear();
-				stage_.clear();
-				resetProgress();
-				publish();
-				emit stateChanged();
-				emit progressChanged();
-				emit finished(message, error);
-			}, Qt::QueuedConnection);
+			finishInstall(id, message, error, version);
 		};
 		store::StoreAppDetail detail;
 		std::string why;
@@ -675,59 +679,240 @@ void StoreController::install(const QString &titleId)
 							 "it was not installed.").arg(name), true, {});
 		}
 
-		// Its folder on the PS5.
-		FtpClient ftp(config);
-		FtpStoreRemote remote(ftp);
-		store::StoreInstaller installer;
-		store::InstallReport report;
-		const bool ok = installer.install(remote, zip, id, joinPath(cache, "work"),
-			[this](const std::string &stage, uint64_t done, uint64_t total) {
-				if(cancel_)
-					return false;
-				setProgress(QString::fromStdString(stage), static_cast<int64_t>(done), static_cast<int64_t>(total));
-				return true;
-			},
-			&why, &report);
-		if(!ok)
-			return finish(why == "cancelled" ? tr("Installing %1 was cancelled.").arg(name)
-											 : tr("%1 could not be installed: %2").arg(name, QString::fromStdString(why)),
-				why != "cancelled", {});
-		fs::remove(fs::u8path(zip), ignored);
-		// ShadowMountPlus finds it at its next scan; sooner when its API
-		// lets this ask.
-		// Look now, and try again titles it gave up on (an earlier failed
-		// try leaves them out until it is reset or restarted).
-		const bool scanned = shadowmount::ask(address, "/api/v1/scan", "{\"reset_attempts\":true}");
-		// Its API only listens on the PS5 itself unless told otherwise: then
-		// ShadowMountPlus is started again, which scans at once.
-		bool restarted = false;
-		if(!scanned)
-		{
-			setProgress(QStringLiteral("shadowmount"), 0, 0);
-			restarted = shadowmount::restart(config, address, &cancel_);
-		}
-		QString message = tr("%1 is on %2 (%3).")
-			.arg(name, console, QString::fromStdString(installer.installRoot() + "/" + id))
-			+ QStringLiteral(" ") + (scanned ? tr("ShadowMountPlus puts it on the home screen now.")
-				: restarted ? tr("ShadowMountPlus was started again: it puts it on the home screen in a few seconds.")
-							: tr("ShadowMountPlus puts it on the home screen at its next scan, within a minute; if it does "
-								 "not, \"Not on the home screen?\" in its window says why."));
-		if(!report.carried.empty())
-			message += QStringLiteral(" ") + tr("Your files in its folder (%n) went on into the new version.", "",
-				static_cast<int>(report.carried.size()));
-		if(!report.left.empty())
-		{
-			QStringList left;
-			for(const std::string &name : report.left)
-				left << QString::fromStdString(name);
-			message += QStringLiteral(" ") + tr("Some of your files could not be moved to the new version; they are "
-				"in %1: %2").arg(QString::fromStdString(report.earlierCopy), left.join(QStringLiteral(", ")));
-		}
-		if(!report.permissionsSet)
-			message += QStringLiteral(" ") + tr("The console's FTP cannot set permissions: if the app does not "
-				"start (CE-107750-0), set its folder and everything in it to 777.");
-		finish(message, false, detail.contentVersion);
+		putOnConsole(id, name, zip, false, address, console, config, cache, detail.contentVersion);
 	});
+}
+
+void StoreController::finishInstall(const std::string &id, const QString &message, bool error,
+	const std::string &version)
+{
+	QMetaObject::invokeMethod(this, [this, id, message, error, version]() {
+		if(!error)
+			installed_[id] = { version };
+		working_.clear();
+		stage_.clear();
+		resetProgress();
+		publish();
+		emit stateChanged();
+		emit progressChanged();
+		emit finished(message, error);
+		// "On this PC" says what is installed now.
+		if(!error && !localApps_.isEmpty())
+			scanLocal();
+	}, Qt::QueuedConnection);
+}
+
+void StoreController::putOnConsole(const std::string &id, const QString &name, const std::string &zip, bool keepZip,
+	const std::string &address, const QString &console, const FtpClient::Config &config, const std::string &cache,
+	const std::string &version)
+{
+	std::string why;
+	std::error_code ignored;
+	// Its folder on the PS5.
+	FtpClient ftp(config);
+	FtpStoreRemote remote(ftp);
+	store::StoreInstaller installer;
+	store::InstallReport report;
+	const bool ok = installer.install(remote, zip, id, joinPath(cache, "work"),
+		[this](const std::string &stage, uint64_t done, uint64_t total) {
+			if(cancel_)
+				return false;
+			setProgress(QString::fromStdString(stage), static_cast<int64_t>(done), static_cast<int64_t>(total));
+			return true;
+		},
+		&why, &report);
+	if(!ok)
+		return finishInstall(id, why == "cancelled" ? tr("Installing %1 was cancelled.").arg(name)
+													: tr("%1 could not be installed: %2").arg(name, QString::fromStdString(why)),
+			why != "cancelled", {});
+	if(!keepZip)
+		fs::remove(fs::u8path(zip), ignored);
+	// ShadowMountPlus finds it at its next scan; sooner when its API
+	// lets this ask.
+	// Look now, and try again titles it gave up on (an earlier failed
+	// try leaves them out until it is reset or restarted).
+	const bool scanned = shadowmount::ask(address, "/api/v1/scan", "{\"reset_attempts\":true}");
+	// Its API only listens on the PS5 itself unless told otherwise: then
+	// ShadowMountPlus is started again, which scans at once.
+	bool restarted = false;
+	if(!scanned)
+	{
+		setProgress(QStringLiteral("shadowmount"), 0, 0);
+		restarted = shadowmount::restart(config, address, &cancel_);
+	}
+	QString message = tr("%1 is on %2 (%3).")
+		.arg(name, console, QString::fromStdString(installer.installRoot() + "/" + id))
+		+ QStringLiteral(" ") + (scanned ? tr("ShadowMountPlus puts it on the home screen now.")
+			: restarted ? tr("ShadowMountPlus was started again: it puts it on the home screen in a few seconds.")
+						: tr("ShadowMountPlus puts it on the home screen at its next scan, within a minute; if it does "
+							 "not, \"Not on the home screen?\" in its window says why."));
+	if(!report.carried.empty())
+		message += QStringLiteral(" ") + tr("Your files in its folder (%n) went on into the new version.", "",
+			static_cast<int>(report.carried.size()));
+	if(!report.left.empty())
+	{
+		QStringList left;
+		for(const std::string &name : report.left)
+			left << QString::fromStdString(name);
+		message += QStringLiteral(" ") + tr("Some of your files could not be moved to the new version; they are "
+			"in %1: %2").arg(QString::fromStdString(report.earlierCopy), left.join(QStringLiteral(", ")));
+	}
+	if(!report.permissionsSet)
+		message += QStringLiteral(" ") + tr("The console's FTP cannot set permissions: if the app does not "
+			"start (CE-107750-0), set its folder and everything in it to 777.");
+	finishInstall(id, message, false, version);
+}
+
+// ── the catalog's address ────────────────────────────────────────────────
+
+QString StoreController::catalogAddress() const
+{
+	return QString::fromStdString(app_->settings().storeCatalogAddress);
+}
+
+QString StoreController::defaultCatalogAddress() const
+{
+	return QString::fromStdString(store::StoreCatalog::defaultBase());
+}
+
+bool StoreController::setCatalogAddress(const QString &address)
+{
+	const QString own = address.trimmed();
+	if(!own.isEmpty())
+	{
+		const QUrl url(own);
+		if(!url.isValid() || (url.scheme() != QLatin1String("https") && url.scheme() != QLatin1String("http"))
+			|| url.host().isEmpty())
+			return false;
+	}
+	app_->updateSettings([&own](Settings &s) { s.storeCatalogAddress = own.toStdString(); });
+	{
+		std::lock_guard<std::mutex> lock(catalogMutex_);
+		catalog_->setCustomBase(own.toStdString());
+	}
+	emit catalogAddressChanged();
+	refresh();
+	return true;
+}
+
+// ── "On this PC" ─────────────────────────────────────────────────────────
+
+QString StoreController::localFolder() const
+{
+	const std::string chosen = app_->settings().storeLocalFolder;
+	if(!chosen.empty())
+		return QString::fromStdString(chosen);
+	return QDir::toNativeSeparators(QStandardPaths::writableLocation(QStandardPaths::DownloadLocation));
+}
+
+QUrl StoreController::localFolderUrl() const
+{
+	return QUrl::fromLocalFile(localFolder());
+}
+
+void StoreController::setLocalFolder(const QUrl &folder)
+{
+	const QString path = folder.isLocalFile() ? folder.toLocalFile() : folder.toString();
+	if(path.isEmpty())
+		return;
+	app_->updateSettings([&path](Settings &s) { s.storeLocalFolder = QDir::toNativeSeparators(path).toStdString(); });
+	emit localChanged();
+	scanLocal();
+}
+
+void StoreController::scanLocal()
+{
+	if(localScanning_)
+		return;
+	localScanning_ = true;
+	emit localChanged();
+	if(localScanner_.joinable())
+		localScanner_.join();
+	const QString folder = localFolder();
+	const std::string scratch = joinPath(cacheDir(), "work");
+	localScanner_ = std::thread([this, folder, scratch]() {
+		QVariantList found;
+		const QFileInfoList files = QDir(folder).entryInfoList({ QStringLiteral("*.zip"), QStringLiteral("*.ZIP") },
+			QDir::Files | QDir::Readable, QDir::Name | QDir::IgnoreCase);
+		for(const QFileInfo &file : files)
+		{
+			if(cancel_)
+				break;
+			store::ArchiveApp app;
+			std::string why;
+			QVariantMap item;
+			item[QStringLiteral("path")] = file.absoluteFilePath();
+			item[QStringLiteral("file")] = file.fileName();
+			item[QStringLiteral("sizeText")] = QString::fromStdString(humanBytes(file.size()));
+			if(store::readArchiveApp(QDir::toNativeSeparators(file.absoluteFilePath()).toStdString(), scratch, &app, &why))
+			{
+				item[QStringLiteral("titleId")] = QString::fromStdString(app.titleId);
+				item[QStringLiteral("name")] = app.name.empty() ? QString::fromStdString(app.titleId)
+																: QString::fromStdString(app.name);
+				item[QStringLiteral("version")] = QString::fromStdString(app.contentVersion);
+			}
+			else
+			{
+				// Shown, with why it cannot be installed: a ZIP that is not an app.
+				item[QStringLiteral("name")] = file.completeBaseName();
+				item[QStringLiteral("problem")] = QString::fromStdString(why);
+			}
+			found << item;
+		}
+		QMetaObject::invokeMethod(this, [this, found]() {
+			QVariantList items = found;
+			// What the PS5 has, by title ID, as the catalog's apps say it.
+			for(QVariant &entry : items)
+			{
+				QVariantMap item = entry.toMap();
+				const auto there = installed_.find(item.value(QStringLiteral("titleId")).toString().toStdString());
+				const bool installed = there != installed_.end();
+				item[QStringLiteral("installed")] = installed;
+				item[QStringLiteral("installedVersion")] = installed ? QString::fromStdString(there->second.contentVersion)
+																	 : QString();
+				item[QStringLiteral("update")] = installed
+					&& store::compareContentVersions(item.value(QStringLiteral("version")).toString().toStdString(),
+						   there->second.contentVersion) > 0;
+				entry = item;
+			}
+			localApps_ = items;
+			localScanning_ = false;
+			emit localChanged();
+		}, Qt::QueuedConnection);
+	});
+}
+
+void StoreController::installLocal(const QString &path)
+{
+	// One at a time, as the catalog's.
+	if(!canInstall() || !working_.isEmpty())
+		return;
+	// A path, or the file: URL a file dialog gives.
+	const QUrl url(path);
+	const QString local = url.isLocalFile() ? url.toLocalFile() : path;
+	store::ArchiveApp app;
+	std::string why;
+	const std::string zip = QDir::toNativeSeparators(local).toStdString();
+	if(!store::readArchiveApp(zip, joinPath(cacheDir(), "work"), &app, &why))
+	{
+		emit app_->notify(tr("Homebrew store"), tr("%1 cannot be installed: %2")
+				.arg(QFileInfo(local).fileName(), QString::fromStdString(why)), true);
+		return;
+	}
+	const QString titleId = QString::fromStdString(app.titleId);
+	const QString name = app.name.empty() ? titleId : QString::fromStdString(app.name);
+	const std::string address = target().toStdString();
+	const QString console = targetName();
+	const FtpClient::Config config = app_->ftpClientConfigFor(address);
+	const std::string cache = cacheDir();
+	const std::string id = app.titleId;
+	const std::string version = app.contentVersion;
+	logInfo("Store: installing " + id + " from " + zip);
+	startWork(titleId, tr("Installing %1…").arg(name), QStringLiteral("install"),
+		[this, id, name, zip, address, console, config, cache, version]() {
+			putOnConsole(id, name, zip, true, address, console, config, cache, version);
+		});
+	updateJob({ { QStringLiteral("name"), name }, { QStringLiteral("version"), QString::fromStdString(version) } });
 }
 
 void StoreController::uninstall(const QString &titleId)

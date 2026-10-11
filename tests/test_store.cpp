@@ -183,6 +183,25 @@ ORBISLINK_TEST(a_zip_is_read_and_unpacked_whole)
 	fs::remove_all(dir);
 }
 
+ORBISLINK_TEST(the_app_in_an_archive_is_read_without_unpacking_it)
+{
+	const fs::path dir = scratch();
+	const std::string zip = writeBytes(dir / "app.zip", store_fixtures::kAppZip, sizeof(store_fixtures::kAppZip));
+	ArchiveApp app;
+	std::string error;
+	CHECK(readArchiveApp(zip, (dir / "work").string(), &app, &error));
+	CHECK_EQ(app.titleId, std::string("PPSA99999"));
+	CHECK_EQ(app.name, std::string("Test App"));
+	CHECK_EQ(app.contentVersion, std::string("01.000.020"));
+	// Nothing is left behind.
+	CHECK(fs::is_empty(dir / "work"));
+
+	// Not a ZIP, or a ZIP with no app in it: said so.
+	const std::string text = writeBytes(dir / "notes.zip", reinterpret_cast<const unsigned char *>("hello"), 5);
+	CHECK(!readArchiveApp(text, (dir / "work").string(), &app, &error));
+	CHECK(!error.empty());
+}
+
 ORBISLINK_TEST(a_zip_with_a_path_outside_its_folder_is_refused)
 {
 	const fs::path dir = scratch();

@@ -117,6 +117,9 @@ public:
 	// and, when asked, sent and installed (library/folder_package.h).
 	Q_INVOKABLE void packFolder(const QString &folder, bool install);
 	Q_INVOKABLE void cancelConversion(const QString &id);
+	// A conversion that failed, was cancelled or was cut short by the app
+	// closing, made again on the same card.
+	Q_INVOKABLE void retryConversion(const QString &id);
 	Q_INVOKABLE void clearFinishedConversions();
 	// Takes a finished conversion's card away.
 	Q_INVOKABLE void removeConversion(const QString &id);
@@ -159,6 +162,10 @@ private:
 	bool fetchFromConsole(const std::shared_ptr<Job> &job, const std::function<void()> &tick);
 	void publish();
 	void updateProgress();
+	// The conversions not finished when the app closes, kept for the next
+	// time (conversions.json beside the settings) and shown then, stopped.
+	void saveUnfinished() const;
+	void loadUnfinished();
 
 	AppController *app_;
 	QString assetsState_;

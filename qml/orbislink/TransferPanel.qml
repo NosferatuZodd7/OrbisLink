@@ -6,6 +6,30 @@ import QtQuick.Layouts
 Item {
     id: root
 
+    // The footer's figures: the queue's, and every other job's under way —
+    // conversions (their own step; a sent package is the queue's), copies to
+    // this PC, the homebrew store — so they all count, whatever they are.
+    readonly property var totals: {
+        var speed = app.queue.bytesPerSecond
+        var left = app.queue.bytesLeft
+        var total = app.queue.bytesTotal
+        var add = function (job) {
+            speed += job.bytesPerSecond || 0
+            left += job.bytesLeft || 0
+            total += job.bytesTotal || 0
+        }
+        for (var i = 0; i < games.conversions.length; ++i)
+            if (games.conversions[i].state === "converting")
+                add(games.conversions[i])
+        for (var j = 0; j < store.jobs.length; ++j)
+            if (store.jobs[j].state === "working")
+                add(store.jobs[j])
+        for (var k = 0; k < consoleLibrary.jobs.length; ++k)
+            if (consoleLibrary.jobs[k].state === "working")
+                add(consoleLibrary.jobs[k])
+        return { speed: speed, left: left, total: total }
+    }
+
     // How many cards the queue shows (a converted game is one card).
     readonly property int cardCount: {
         app.queue.totalText  // re-read on every queue change
@@ -353,13 +377,15 @@ Item {
                 Figure {
                     width: Math.min(84, (parent.width - parent.spacing) * 0.4)
                     label: qsTr("Speed")
-                    value: app.queue.totalSpeedText
+                    value: root.totals.speed >= 1 ? app.queue.bytesText(root.totals.speed) + "/s" : "—"
                 }
                 Figure {
                     width: parent.width - parent.spacing - Math.min(84, (parent.width - parent.spacing) * 0.4)
                     label: qsTr("Left")
-                    value: app.queue.totalText === "—" ? app.queue.remainingText
-                           : qsTr("%1 of %2").arg(app.queue.remainingText).arg(app.queue.totalText)
+                    value: root.totals.left <= 0 ? "—"
+                           : root.totals.total <= 0 ? app.queue.bytesText(root.totals.left)
+                           : qsTr("%1 of %2").arg(app.queue.bytesText(root.totals.left))
+                                             .arg(app.queue.bytesText(root.totals.total))
                 }
             }
         }
@@ -449,18 +475,21 @@ Item {
                     required property int index
                     Layout.fillWidth: true
                     job: consoleLibrary.jobs[index] || ({})
-                    fallbackIcon: job.kind === "run" ? "zap" : job.kind === "copy" ? "laptop"
+                    fallbackIcon: job.kind === "run" ? "zap" : job.kind === "copy" ? "laptop" : job.kind === "uninstall" ? "trash"
                                 : job.itemKind === "folder" ? "folder" : "package"
                     stateText: job.state === "error" ? qsTr("Failed")
-                               : job.state === "cancelled" ? qsTr("Cancelled")
+                               : job.state === "cancelled" ? (job.interrupted ? qsTr("Stopped") : qsTr("Cancelled"))
                                : job.kind === "run" ? (job.state === "done" ? qsTr("Sent") : qsTr("Sending"))
                                : job.kind === "copy" ? (job.state === "done" ? qsTr("On this PC") : qsTr("Copying"))
+                               : job.kind === "uninstall" ? (job.state === "done" ? qsTr("Uninstalled") : qsTr("Uninstalling"))
                                : job.state === "done" ? qsTr("On the home screen") : qsTr("Moving")
                     // A copy to this PC stops from here, and opens its folder once done.
                     cancellable: job.kind === "copy"
+                    retryable: job.kind === "copy"
                     doneIcon: job.kind === "copy" ? "folder-open" : ""
                     doneHint: qsTr("Open the folder")
                     onCancelClicked: consoleLibrary.cancelJob(job.id)
+                    onRetryClicked: consoleLibrary.retryJob(job.id)
                     onDoneClicked: consoleLibrary.openJobFolder(job.id)
                     onRemoveClicked: consoleLibrary.removeJob(job.id)
                 }
@@ -572,12 +601,15 @@ Item {
                                 }
                             }
                             StyledToolButton {
-                                visible: conv.j.stage === "error" && conv.j.taskId.length > 0
+                                // The conversion itself again, or the send or install that failed.
+                                readonly property bool again: conv.modelData.state === "error"
+                                                              || conv.modelData.state === "cancelled"
+                                visible: again || (conv.j.stage === "error" && conv.j.taskId.length > 0)
                                 iconName: "rotate-ccw"
                                 iconSize: 15
                                 ToolTip.visible: hovered
                                 ToolTip.text: qsTr("Try again")
-                                onClicked: app.retryTask(conv.j.taskId)
+                                onClicked: again ? games.retryConversion(conv.modelData.id) : app.retryTask(conv.j.taskId)
                             }
                             StyledToolButton {
                                 visible: conv.modelData.state === "done"
@@ -714,7 +746,7 @@ Item {
         case "installing":
             text = t.waiting ? qsTr("Waiting to install") : qsTr("Installing… %1%").arg(pct(t.percent)); break
         case "installed": text = qsTr("Installed"); break
-        case "cancelled": text = qsTr("Cancelled"); break
+        case "cancelled": text = c.interrupted ? qsTr("Stopped when the app closed") : qsTr("Cancelled"); break
         default: text = qsTr("Failed")
         }
         // A step's bar is full once a later step has started.

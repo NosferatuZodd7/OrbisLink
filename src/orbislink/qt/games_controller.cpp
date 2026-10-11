@@ -7,6 +7,7 @@
 #include "orbislink/net/http_client.h"
 #include "orbislink/qt/app_controller.h"
 #include "orbislink/qt/translate_message.h"
+#include "orbislink/settings/settings_store.h"
 
 #ifdef ORBISLINK_HAS_FPKG
 #include "orbislink/fpkg/classic_converter.h"
@@ -22,6 +23,9 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QPainter>
 #include <QPointer>
 #include <QSet>
@@ -169,6 +173,8 @@ struct GamesController::Job
 	// The queue task the package had before this job (an earlier upload or
 	// install of the same file): its outcome is not this job's.
 	QString staleTaskId;
+	// Cut short by the app closing, and brought back stopped.
+	bool interrupted = false;
 	// A disc on the console: its path there, the folder its package goes
 	// back to, and where it was fetched to on this PC (deleted after).
 	QString remotePath;
@@ -185,6 +191,9 @@ struct GamesController::Job
 	int64_t secondsLeft = 0;
 	QString meterStage;
 	uint64_t meterDone = 0;
+	// The step's bytes: done so far, and all of them.
+	uint64_t meterNow = 0;
+	uint64_t meterTotal = 0;
 	std::chrono::steady_clock::time_point meterTime;
 
 	void measure(uint64_t done, uint64_t total)
@@ -195,6 +204,8 @@ struct GamesController::Job
 			stopMeter();
 			return;
 		}
+		meterNow = done;
+		meterTotal = total;
 		const auto now = std::chrono::steady_clock::now();
 		if(meterStage != stage || done < meterDone)
 		{
@@ -221,6 +232,8 @@ struct GamesController::Job
 		meterStage.clear();
 		speed = 0;
 		secondsLeft = 0;
+		meterNow = 0;
+		meterTotal = 0;
 	}
 };
 
@@ -232,6 +245,8 @@ GamesController::GamesController(AppController *app, QObject *parent) : QObject(
 	assetsState_ = fpkg::hasClassicsAssets(assetsFolder().toStdString()) ? QStringLiteral("ready")
 																		  : QStringLiteral("missing");
 #endif
+	loadUnfinished();
+	publish();
 	worker_ = std::thread([this]() { workerLoop(); });
 	if(!gamesFolder().isEmpty())
 		rescan();
@@ -239,6 +254,7 @@ GamesController::GamesController(AppController *app, QObject *parent) : QObject(
 
 GamesController::~GamesController()
 {
+	saveUnfinished();
 	stopping_ = true;
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
@@ -813,6 +829,122 @@ void GamesController::cancelConversion(const QString &id)
 	publish();
 }
 
+void GamesController::retryConversion(const QString &id)
+{
+	bool again = false;
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		for(auto &job : jobs_)
+		{
+			if(job->id != id || (job->state != QLatin1String("error") && job->state != QLatin1String("cancelled")))
+				continue;
+			job->state = QStringLiteral("waiting");
+			job->stage.clear();
+			job->percent = 0;
+			job->message.clear();
+			job->pkgPath.clear();
+			job->staleTaskId.clear();
+			job->interrupted = false;
+			job->cancel = false;
+			job->stopMeter();
+			// A disc of the console is brought here again.
+			if(!job->remotePath.isEmpty())
+			{
+				job->path = job->remotePath;
+				job->listedPath = job->remotePath;
+			}
+			again = true;
+		}
+	}
+	if(!again)
+		return;
+	wakeup_.notify_all();
+	publish();
+	emit app_->showPanel(QStringLiteral("queue"));
+}
+
+namespace {
+
+QString unfinishedPath()
+{
+	return QString::fromStdString(joinPath(SettingsStore::defaultDirectory(), "conversions.json"));
+}
+
+} // namespace
+
+void GamesController::saveUnfinished() const
+{
+	QJsonArray kept;
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		for(const auto &job : jobs_)
+		{
+			const bool unfinished = job->state == QLatin1String("waiting") || job->state == QLatin1String("converting")
+				|| (job->interrupted && job->state == QLatin1String("cancelled"));
+			if(!unfinished)
+				continue;
+			kept.append(QJsonObject { { QStringLiteral("title"), job->title },
+				{ QStringLiteral("platform"), job->platform }, { QStringLiteral("path"), job->path },
+				{ QStringLiteral("listedPath"), job->listedPath }, { QStringLiteral("install"), job->install },
+				{ QStringLiteral("sendBack"), job->sendBack }, { QStringLiteral("packFolder"), job->packFolder },
+				{ QStringLiteral("titleId"), job->titleId }, { QStringLiteral("reusePath"), job->reusePath },
+				{ QStringLiteral("remotePath"), job->remotePath },
+				{ QStringLiteral("storageFolder"), job->storageFolder } });
+		}
+	}
+	if(kept.isEmpty())
+	{
+		QFile::remove(unfinishedPath());
+		return;
+	}
+	QFile out(unfinishedPath());
+	if(out.open(QIODevice::WriteOnly | QIODevice::Truncate))
+		out.write(QJsonDocument(kept).toJson(QJsonDocument::Compact));
+}
+
+void GamesController::loadUnfinished()
+{
+#ifdef ORBISLINK_HAS_FPKG
+	QFile in(unfinishedPath());
+	if(!in.open(QIODevice::ReadOnly))
+		return;
+	const QJsonArray kept = QJsonDocument::fromJson(in.readAll()).array();
+	in.close();
+	QFile::remove(unfinishedPath());
+	std::lock_guard<std::mutex> lock(mutex_);
+	for(const QJsonValue &value : kept)
+	{
+		const QJsonObject saved = value.toObject();
+		auto job = std::make_shared<Job>();
+		job->title = saved.value(QStringLiteral("title")).toString();
+		job->platform = saved.value(QStringLiteral("platform")).toString();
+		job->path = saved.value(QStringLiteral("path")).toString();
+		job->listedPath = saved.value(QStringLiteral("listedPath")).toString();
+		job->install = saved.value(QStringLiteral("install")).toBool();
+		job->sendBack = saved.value(QStringLiteral("sendBack")).toBool();
+		job->packFolder = saved.value(QStringLiteral("packFolder")).toString();
+		job->titleId = saved.value(QStringLiteral("titleId")).toString();
+		job->reusePath = saved.value(QStringLiteral("reusePath")).toString();
+		job->remotePath = saved.value(QStringLiteral("remotePath")).toString();
+		job->storageFolder = saved.value(QStringLiteral("storageFolder")).toString();
+		if(!job->remotePath.isEmpty())
+		{
+			job->path = job->remotePath;
+			job->listedPath = job->remotePath;
+		}
+		// A disc or folder of this PC that is not there any more stays behind.
+		else if(job->path.isEmpty() || !QFileInfo::exists(job->listedPath.isEmpty() ? job->path : job->listedPath))
+			continue;
+		else if(job->packFolder.isEmpty())
+			job->disc = fpkg::inspectDisc(job->listedPath.toStdString());
+		job->state = QStringLiteral("cancelled");
+		job->interrupted = true;
+		job->id = QString::number(nextId_++);
+		jobs_.push_back(job);
+	}
+#endif
+}
+
 void GamesController::clearFinishedConversions()
 {
 	// A package still on its way to the console keeps its card.
@@ -885,11 +1017,17 @@ void GamesController::publish()
 			m[QStringLiteral("etaText")] = moving && job->secondsLeft > 0
 				? QString::fromStdString(humanDuration(job->secondsLeft))
 				: QString();
+			// The same as numbers, for the panel's totals.
+			m[QStringLiteral("bytesPerSecond")] = moving ? job->speed : 0.0;
+			m[QStringLiteral("bytesLeft")] = moving && job->meterTotal > job->meterNow
+				? static_cast<double>(job->meterTotal - job->meterNow) : 0.0;
+			m[QStringLiteral("bytesTotal")] = moving ? static_cast<double>(job->meterTotal) : 0.0;
 			m[QStringLiteral("message")] = job->message;
 			m[QStringLiteral("install")] = job->install;
 			m[QStringLiteral("send")] = job->install || job->sendBack;
 			m[QStringLiteral("pkgPath")] = job->pkgPath;
 			m[QStringLiteral("staleTaskId")] = job->staleTaskId;
+			m[QStringLiteral("interrupted")] = job->interrupted;
 			list << m;
 		}
 	}
@@ -1205,9 +1343,15 @@ void GamesController::finishJob(const std::shared_ptr<Job> &job, bool ok, const 
 			app_->sendTo(pkg, sendTo, install);
 		publish();
 		if(ok && !send)
+		{
 			emit app_->notify(what, tr("%1 is ready in the output folder.").arg(title), false);
+			emit app_->jobFinished(what, tr("%1 is ready in the output folder.").arg(title), false);
+		}
 		else if(!ok && !cancelled)
+		{
 			emit app_->notify(what, tr("%1: %2").arg(title, message), true);
+			emit app_->jobFinished(what, tr("%1: %2").arg(title, message), true);
+		}
 	}, Qt::QueuedConnection);
 }
 

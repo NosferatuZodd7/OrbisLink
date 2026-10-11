@@ -17,7 +17,8 @@ Item {
     // The square on top.
     default property alias content: holder.data
 
-    signal activated()
+    // With the keys held (Shift picks a run of games while picking several).
+    signal activated(int modifiers)
 
     readonly property bool hover: area.containsMouse
 
@@ -93,6 +94,6 @@ Item {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onClicked: tile.activated()
+        onClicked: (mouse) => tile.activated(mouse.modifiers)
     }
 }

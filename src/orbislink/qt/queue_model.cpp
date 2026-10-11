@@ -69,11 +69,40 @@ QVariant QueueModel::data(const QModelIndex &index, int role) const
 	}
 }
 
-QString QueueModel::totalSpeedText() const
+double QueueModel::bytesPerSecond() const
 {
 	double total = 0.0;
 	for(const Row &row : rows_)
 		total += row.bytesPerSecond;
+	return total;
+}
+
+double QueueModel::bytesLeft() const
+{
+	qint64 remaining = 0;
+	for(const Row &row : rows_)
+		remaining += row.remainingBytes;
+	return static_cast<double>(remaining);
+}
+
+double QueueModel::bytesTotal() const
+{
+	qint64 total = 0;
+	for(const Row &row : rows_)
+		if(row.state != QLatin1String("completed") && row.state != QLatin1String("error")
+			&& row.state != QLatin1String("cancelled"))
+			total += row.totalBytes;
+	return static_cast<double>(total);
+}
+
+QString QueueModel::bytesText(double bytes) const
+{
+	return QString::fromStdString(humanBytes(static_cast<int64_t>(bytes)));
+}
+
+QString QueueModel::totalSpeedText() const
+{
+	const double total = bytesPerSecond();
 	if(total < 1.0)
 		return QStringLiteral("—");
 	return QString::fromStdString(humanBytes(static_cast<int64_t>(total))) + QStringLiteral("/s");
@@ -81,24 +110,18 @@ QString QueueModel::totalSpeedText() const
 
 QString QueueModel::remainingText() const
 {
-	qint64 remaining = 0;
-	for(const Row &row : rows_)
-		remaining += row.remainingBytes;
+	const double remaining = bytesLeft();
 	if(remaining <= 0)
 		return QStringLiteral("—");
-	return QString::fromStdString(humanBytes(remaining));
+	return QString::fromStdString(humanBytes(static_cast<int64_t>(remaining)));
 }
 
 QString QueueModel::totalText() const
 {
-	qint64 total = 0;
-	for(const Row &row : rows_)
-		if(row.state != QLatin1String("completed") && row.state != QLatin1String("error")
-			&& row.state != QLatin1String("cancelled"))
-			total += row.totalBytes;
+	const double total = bytesTotal();
 	if(total <= 0)
 		return QStringLiteral("—");
-	return QString::fromStdString(humanBytes(total));
+	return QString::fromStdString(humanBytes(static_cast<int64_t>(total)));
 }
 
 int QueueModel::shownCount(const QVariantMap &followed) const

@@ -24,9 +24,12 @@ Rectangle {
     // A button of its own once it is done (an icon name; none when empty).
     property string doneIcon: ""
     property string doneHint: ""
+    // Whether a failed or stopped job can go again from here.
+    property bool retryable: false
     signal cancelClicked()
     signal removeClicked()
     signal doneClicked()
+    signal retryClicked()
 
     readonly property bool working: job.state === "working"
     readonly property bool measured: job.percent !== undefined && job.percent !== null
@@ -181,6 +184,16 @@ Rectangle {
                 color: card.job.state === "error" ? Theme.error : Theme.textMuted
                 font.pixelSize: 11
                 wrapMode: Text.WordWrap
+            }
+            StyledToolButton {
+                Layout.alignment: Qt.AlignTop
+                visible: card.retryable && (card.job.state === "error" || card.job.state === "cancelled")
+                iconName: "rotate-ccw"
+                iconSize: 14
+                implicitWidth: 28; implicitHeight: 28
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Try again")
+                onClicked: card.retryClicked()
             }
             StyledToolButton {
                 Layout.alignment: Qt.AlignTop

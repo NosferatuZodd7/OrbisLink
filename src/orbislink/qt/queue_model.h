@@ -21,6 +21,11 @@ class QueueModel : public QAbstractListModel
 	Q_PROPERTY(QString remainingText READ remainingText NOTIFY summaryChanged)
 	// The size of everything still to go, as a whole (what is left is part of it).
 	Q_PROPERTY(QString totalText READ totalText NOTIFY summaryChanged)
+	// The same as numbers, for the panel to add the other jobs' (conversions,
+	// copies, the store) to them.
+	Q_PROPERTY(double bytesPerSecond READ bytesPerSecond NOTIFY summaryChanged)
+	Q_PROPERTY(double bytesLeft READ bytesLeft NOTIFY summaryChanged)
+	Q_PROPERTY(double bytesTotal READ bytesTotal NOTIFY summaryChanged)
 
 public:
 	enum Roles {
@@ -56,6 +61,11 @@ public:
 	QString totalSpeedText() const;
 	QString remainingText() const;
 	QString totalText() const;
+	double bytesPerSecond() const;
+	double bytesLeft() const;
+	double bytesTotal() const;
+	// "147.5 MB", as everywhere in the app.
+	Q_INVOKABLE QString bytesText(double bytes) const;
 	// The cards the panel shows: rows neither superseded nor followed by a
 	// conversion card (`followed`: their localKey → true).
 	Q_INVOKABLE int shownCount(const QVariantMap &followed) const;

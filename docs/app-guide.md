@@ -144,7 +144,23 @@ speed and time left.
 | ⟲ | Tries a failed or cancelled task again. |
 | ✕ | Cancels a running task; removes a finished one. |
 
-Footer: total speed, what is left of the total, **Pause / Resume** for the whole queue. Each has a fixed place: the button stays on the right whatever the figures say.
+Footer: total speed, what is left of the total, **Pause / Resume** for the whole queue. Each has a fixed place: the button stays on the right whatever the figures say. The speed and what is left count every job under way, not only the queue's: a conversion's own step, a copy to this PC, a store install.
+
+Every card that can go again has the same ⟲ — a send or install, a conversion
+that failed or was cancelled, a copy to this PC — and the same ✕.
+
+Closing the app keeps what was not finished: the queue, and the conversions
+and copies to this PC under way or waiting. They come back the next time as
+cards *Stopped when the app closed*, with ⟲ to go on — a copy from where it
+was (what was copied is kept), a conversion from the start. They do not start
+on their own: the console may be off. Logging out or shutting down the
+computer (SIGTERM on Linux and macOS) closes the app the same way.
+
+When a long job comes to its end — an install or upload, a conversion, a copy
+to this PC, a store install, a download — with the window in the background,
+a system notification says so: Windows's notification area, the desktop's
+notifications on Linux (D-Bus), macOS's own. In front, the window's notice is
+enough.
 
 Every upload and install is followed here, never in the Files tab: sending
 opens this tab, and the file list keeps showing the console's folders (a file
@@ -294,7 +310,9 @@ game put further down leaves the folder itself as it was. *Everything* shows all
 before. A folder with things but no game says so, with **Show everything**.
 
 **Select**, beside it, picks several games at once: a round mark shows on
-each game that can be picked, a click picks it (or un-picks it), and a bar
+each game that can be picked, a click picks it (or un-picks it), Shift+click
+picks every one from the last picked to it, Space picks the one framed and
+Ctrl+A every one shown, and a bar
 along the bottom says how many and what can be done to all of them —
 **Convert and install** (discs are converted and app folders packed first,
 one after the other, then each is sent and installed; just **Install** when
@@ -320,6 +338,14 @@ a disc stays tied to its licence, and only a dump made on the console plays
 elsewhere. A title with no package on the console (one ShadowMountPlus puts
 on the home screen from its own folder) is listed but cannot be copied from
 here.
+
+On a PS4, its details also have **Uninstall…** (under **…**): the add-ons, the
+update and the game go from the console through Remote Package Installer
+(its saves stay), and **Uninstall the update…** puts the game back at the
+version it was installed with. Both ask first, have their card in the Queue
+tab, and the list is read again after. A PS5's installer (etaHEN's DPI) has
+no such call: there, the console's own menu uninstalls. How much room the
+console's drives have left is not shown: its FTP does not say.
 
 A card's picture, the first found of:
 
@@ -537,7 +563,9 @@ the header says so. Each app's icon is downloaded once.
 | Item | Does |
 |---|---|
 | PS5 chip (header) | The PS5 apps go to: the one in use when it is a PS5, else the first PS5 whose FTP answers. With several PS5s, a click lists them to pick another. |
-| Search · chips | Search by name, author or title ID · All, by kind (apps, games, tools…), **Installed**, **Updates**. |
+| Search · chips | Search by name, author or title ID · All, by kind (apps, games, tools…), **Installed**, **Updates**, **On this PC**. |
+| **On this PC** | The app archives (`.zip`) in a folder of this PC (Downloads until another is chosen with **Change…**): each with its name, title ID, version, size and file, whether the PS5 has it (and an older version), and **Install** / **Update** / **Install again**; a ZIP that is not an app says why. **Install a file…** takes any archive. They install the way the catalog's do (staging folder, 777, `/data/homebrew/<TITLE ID>`, ShadowMountPlus), but being the user's own files nothing checks them against the catalog. |
+| Sliders (header) | **The catalog's address**: a mirror of the user's own, tried before homebrew.page and its mirror (**Built-in addresses** goes back to those alone). Whatever it serves is checked against the catalog's signature as always, so a mirror cannot change the apps; the header says which site the catalog came from. |
 | A card | Icon, name, author, version, size, and **Installed** / **Update** / **Coming soon**. A click opens it. |
 | The app's window | What it is (description), version, size, title ID, date, licence; **On the console**: whether it stays in the app sandbox, uses the network, starts helper payloads (as the catalog's scan found); **What's new**; links to its source code, catalog page and release. |
 | **Install on <PS5>** · **Update on <PS5>** · **Install again** | Downloads the app's ZIP, checks it against the catalog's SHA-256 (a mismatch is not installed), copies its folder to a staging folder on the PS5 (`/data/orbislink/staging`), sets everything in it to 777 (the console starts an app only then: CE-107750-0 otherwise; a server that cannot is said so), then moves it to `/data/homebrew/<TITLE ID>`. An update keeps the copy it replaces in `/data/orbislink/previous/<TITLE ID>`, and what the user put in the app's folder — games, saves, settings: what the new archive does not have — moves on into the new folder, as copying the new version over the old one would keep it. ShadowMountPlus puts it on the home screen: at once when its API lets the network in, else at its next scan (every 15 seconds). |
@@ -625,7 +653,8 @@ only if its SHA-256 matches the list.
 | Save vault: back up, send to a console | yes | yes | — | — |
 | Save vault: see or delete what the PC holds | no | — | — | — |
 | Homebrew store: look at the apps | no (internet) | — | — | — |
-| Homebrew store: install, update, remove | a PS5 | yes | — | — |
+| Homebrew store: install, update, remove (also from an archive of this PC) | a PS5 | yes | — | — |
+| Library: uninstall a game or its update | a PS4 | yes | Remote Package Installer | — |
 | Payloads: see, add, rename, delete, auto-start, edit settings | yes | yes | — | — |
 | Payloads: run one now | yes | to run one from the console | — | — |
 | Payloads library: look, run one now | internet | — | — | — |
