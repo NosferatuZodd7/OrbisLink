@@ -6,6 +6,7 @@
 // the console's FTP listings.
 
 #include "orbislink/library/folder_package.h"
+#include "orbislink/library/installed_titles.h"
 #include "orbislink/library/shelf.h"
 #include "test_fixtures.h"
 #include "test_support.h"
@@ -404,6 +405,68 @@ ORBISLINK_TEST(reads_the_dates_of_an_ftp_listing)
 	CHECK_EQ(ftpListingTime("Jan  2  2024", now), static_cast<int64_t>(1704153600));
 	CHECK_EQ(ftpListingTime("", now), static_cast<int64_t>(0));
 	CHECK_EQ(ftpListingTime("Foo 10 2024", now), static_cast<int64_t>(0));
+}
+
+ORBISLINK_TEST(lists_what_the_console_has_installed)
+{
+	TempFolder folder("installed");
+	// A PS4 game with its update and an add-on.
+	folder.file("user/app/CUSA00001/app.pkg", std::vector<uint8_t>(400, 1));
+	folder.file("user/appmeta/CUSA00001/param.sfo", buildSfo({ { "APP_VER", "01.02" }, { "CATEGORY", "gd" },
+		{ "TITLE", "Demo Game: Deluxe" }, { "TITLE_ID", "CUSA00001" } }));
+	folder.file("user/appmeta/CUSA00001/icon0.png", kPng);
+	folder.file("user/patch/CUSA00001/patch.pkg", std::vector<uint8_t>(100, 2));
+	folder.file("user/addcont/CUSA00001/EXTRAPACK0000001/ac.pkg", std::vector<uint8_t>(50, 3));
+	// A PS5 game, its name in param.json.
+	folder.file("user/app/PPSA09999/app.pkg", std::vector<uint8_t>(300, 4));
+	folder.text("user/appmeta/PPSA09999/param.json",
+		"{\"contentVersion\":\"01.000.000\",\"localizedParameters\":{\"defaultLanguage\":\"en-US\","
+		"\"en-US\":{\"titleName\":\"Fake Five\"}},\"titleId\":\"PPSA09999\"}");
+	// Installed with nothing to copy (mounted from elsewhere), and a stray folder.
+	folder.text("user/app/CUSA00002/readme.txt", "x");
+	folder.text("user/app/temp/readme.txt", "x");
+
+	LocalSource source;
+	std::vector<std::string> heard;
+	const auto titles = readInstalled(source, folder.path.u8string(), nullptr,
+		[&](const InstalledTitle &title) { heard.push_back(title.titleId); });
+	CHECK_EQ(titles.size(), static_cast<size_t>(3));
+	CHECK_EQ(heard.size(), static_cast<size_t>(3));
+	std::map<std::string, InstalledTitle> byId;
+	for(const InstalledTitle &title : titles)
+		byId[title.titleId] = title;
+
+	const InstalledTitle &game = byId.at("CUSA00001");
+	CHECK_EQ(game.title, std::string("Demo Game: Deluxe"));
+	CHECK_EQ(game.version, std::string("01.02"));
+	CHECK_EQ(game.platform, std::string("ps4"));
+	CHECK(game.iconPath.find("icon0.png") != std::string::npos);
+	CHECK_EQ(game.parts.size(), static_cast<size_t>(3));
+	CHECK_EQ(game.size(), static_cast<int64_t>(550));
+	CHECK(game.copyable());
+	CHECK_EQ(game.parts[0].kind, std::string("app"));
+	CHECK_EQ(game.parts[1].kind, std::string("patch"));
+	CHECK_EQ(game.parts[2].kind, std::string("addon"));
+	CHECK_EQ(game.parts[2].label, std::string("EXTRAPACK0000001"));
+	CHECK_EQ(copyFolderName(game), std::string("Demo-Game-Deluxe [CUSA00001]"));
+	CHECK_EQ(copyFileName(game, game.parts[0]), std::string("Demo-Game-Deluxe_CUSA00001.pkg"));
+	CHECK_EQ(copyFileName(game, game.parts[1]), std::string("Demo-Game-Deluxe_CUSA00001_patch_01.02.pkg"));
+	CHECK_EQ(copyFileName(game, game.parts[2]), std::string("Demo-Game-Deluxe_CUSA00001_EXTRAPACK0000001.pkg"));
+
+	const InstalledTitle &five = byId.at("PPSA09999");
+	CHECK_EQ(five.title, std::string("Fake Five"));
+	CHECK_EQ(five.version, std::string("01.000.000"));
+	CHECK_EQ(five.platform, std::string("ps5"));
+	CHECK(five.copyable());
+
+	const InstalledTitle &bare = byId.at("CUSA00002");
+	CHECK_EQ(bare.title, std::string("CUSA00002"));
+	CHECK(!bare.copyable());
+	CHECK_EQ(copyFolderName(bare), std::string("CUSA00002"));
+
+	// Nothing installed, nothing listed.
+	TempFolder empty("installed-none");
+	CHECK(readInstalled(source, empty.path.u8string()).empty());
 }
 
 TEST_MAIN()

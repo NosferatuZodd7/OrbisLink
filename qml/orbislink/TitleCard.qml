@@ -2,13 +2,17 @@
 //
 // A game, an app or a file on the shelf: its cover (or a disc), its name,
 // what kind of file it is in the corner, and a mark when the console has it
-// installed.
+// installed. While several are being picked, a round mark in the other
+// corner says whether this one is.
 import QtQuick
 
 ShelfTile {
     id: card
 
     property var info: ({})
+    // Picking several: whether it can be picked, and whether it is.
+    property bool picking: false
+    property bool checked: false
 
     title: info.title || info.name || ""
     subtitle: [info.platform ? info.platform.toUpperCase() : "", info.version || ""].filter(function (part) {
@@ -27,6 +31,36 @@ ShelfTile {
         picture: card.info.picture || ""
         placeholder: card.info.placeholder || "bd"
         label: card.info.platform ? card.info.platform.toUpperCase() : card.typeText
+    }
+
+    // Picked: the cover a shade of the accent colour.
+    Rectangle {
+        anchors.fill: parent
+        visible: card.picking && card.checked
+        radius: 6
+        color: Theme.alpha(Theme.accent, 0.22)
+        border.width: 2
+        border.color: Theme.accent
+    }
+    Rectangle {
+        visible: card.picking
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.margins: 6
+        width: 24
+        height: 24
+        radius: 12
+        color: card.checked ? Theme.accent : Theme.alpha("#000000", 0.35)
+        border.width: 2
+        border.color: card.checked ? Theme.accent : "#FFFFFF"
+        Icon {
+            anchors.centerIn: parent
+            visible: card.checked
+            name: "check"
+            size: 14
+            strokeWidth: 2.5
+            color: "#FFFFFF"
+        }
     }
 
     Rectangle {

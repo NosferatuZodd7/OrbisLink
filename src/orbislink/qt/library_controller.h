@@ -7,8 +7,14 @@
 #include <QSet>
 #include <QString>
 #include <QVariantList>
+#include <QVector>
 
 #include <atomic>
+#include <condition_variable>
+#include <deque>
+#include <map>
+#include <memory>
+#include <mutex>
 #include <thread>
 
 namespace orbislink {
@@ -35,8 +41,9 @@ class LibraryController : public QObject
 	Q_PROPERTY(QVariantList items READ items NOTIFY itemsChanged)
 	// What the library's buttons set going that the installs panel shows
 	// (installs and conversions have their own cards there):
-	// [{ id, kind ("mount"/"run"), name, icon, console, state
-	//    ("working"/"done"/"error"), stageText, message }]
+	// [{ id, kind ("mount"/"run"/"copy"), name, icon, console, state
+	//    ("working"/"done"/"error"/"cancelled"), stageText, message; a copy
+	//    also percent, speedText, etaText, amountText and folder }]
 	Q_PROPERTY(QVariantList jobs READ jobs NOTIFY jobsChanged)
 	// The library folders the console has: [{ path, drive }].
 	Q_PROPERTY(QVariantList folders READ folders NOTIFY itemsChanged)
@@ -77,6 +84,25 @@ public:
 	void perform(const QVariantMap &item, const QString &action);
 	Q_INVOKABLE void clearFinishedJobs();
 
+	// One file of the console to copy to this PC.
+	struct CopyFile
+	{
+		QString remote;
+		QString local;
+		qint64 size = 0;
+		// "game", "update", "addon"
+		QString what;
+	};
+	// Copies a title's files from the console into `folder`, as they are:
+	// one card in the installs panel, one title at a time, each at the
+	// network's full speed.
+	void copyToPc(const QString &title, const QString &icon, const QString &folder, const QVector<CopyFile> &files);
+	// Stops a copy (waiting or under way); what was copied of the file
+	// under way is kept and the next copy of it goes on from there.
+	Q_INVOKABLE void cancelJob(const QString &id);
+	// Opens the folder a copy went to.
+	Q_INVOKABLE void openJobFolder(const QString &id);
+
 signals:
 	void itemsChanged();
 	void jobsChanged();
@@ -96,6 +122,17 @@ private:
 	// The queue tasks that had finished (sent or installed) when the
 	// library was last read: one finishing after that changes what it shows.
 	QSet<QString> finishedTasks() const;
+	struct CopyJob
+	{
+		QString id;
+		QString title;
+		QString folder;
+		QVector<CopyFile> files;
+		FtpClient::Config config;
+		std::shared_ptr<std::atomic<bool>> cancel;
+	};
+	void copyLoop();
+	void runCopy(const CopyJob &job);
 
 	AppController *app_;
 	GamesController *games_;
@@ -111,6 +148,13 @@ private:
 	std::atomic<bool> cancel_ { false };
 	std::thread scanner_;
 	std::thread worker_;
+
+	// The copies to this PC, one after the other on their own thread.
+	std::mutex copyMutex_;
+	std::condition_variable copyWake_;
+	std::deque<CopyJob> copies_;
+	std::map<QString, std::shared_ptr<std::atomic<bool>>> copyCancels_;
+	std::thread copier_;
 };
 
 } // namespace orbislink

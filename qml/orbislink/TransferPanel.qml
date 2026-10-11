@@ -449,10 +449,19 @@ Item {
                     required property int index
                     Layout.fillWidth: true
                     job: consoleLibrary.jobs[index] || ({})
-                    fallbackIcon: job.kind === "run" ? "zap" : job.itemKind === "folder" ? "folder" : "package"
+                    fallbackIcon: job.kind === "run" ? "zap" : job.kind === "copy" ? "laptop"
+                                : job.itemKind === "folder" ? "folder" : "package"
                     stateText: job.state === "error" ? qsTr("Failed")
+                               : job.state === "cancelled" ? qsTr("Cancelled")
                                : job.kind === "run" ? (job.state === "done" ? qsTr("Sent") : qsTr("Sending"))
+                               : job.kind === "copy" ? (job.state === "done" ? qsTr("On this PC") : qsTr("Copying"))
                                : job.state === "done" ? qsTr("On the home screen") : qsTr("Moving")
+                    // A copy to this PC stops from here, and opens its folder once done.
+                    cancellable: job.kind === "copy"
+                    doneIcon: job.kind === "copy" ? "folder-open" : ""
+                    doneHint: qsTr("Open the folder")
+                    onCancelClicked: consoleLibrary.cancelJob(job.id)
+                    onDoneClicked: consoleLibrary.openJobFolder(job.id)
                     onRemoveClicked: consoleLibrary.removeJob(job.id)
                 }
             }

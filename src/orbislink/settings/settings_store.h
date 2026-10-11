@@ -181,6 +181,9 @@ struct Settings
 	bool libraryLocationsSeeded = false;
 	// Only games (and the folders that lead to them), or everything.
 	bool libraryOnlyGames = true;
+	// Where games installed on the console are copied to on this PC (empty:
+	// Documents/OrbisLink/From the console).
+	std::string consoleCopyFolder;
 	// Console user folder ("1a2b3c4d") → its owner's Account ID (base64),
 	// which gives the PSID its backups are filed under.
 	std::map<std::string, std::string> saveAccountLinks;

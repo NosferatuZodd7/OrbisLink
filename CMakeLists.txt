@@ -65,6 +65,7 @@ add_library(orbislink_core STATIC
 	src/orbislink/installer/rpi_client.cpp
 	src/orbislink/library/console_library.cpp
 	src/orbislink/library/folder_package.cpp
+	src/orbislink/library/installed_titles.cpp
 	src/orbislink/library/shelf.cpp
 	src/orbislink/net/http_client.cpp
 	src/orbislink/net/net_utils.cpp

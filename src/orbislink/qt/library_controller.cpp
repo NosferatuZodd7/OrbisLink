@@ -16,10 +16,18 @@
 #endif
 
 #include <QByteArray>
+#include <QDesktopServices>
+#include <QDir>
+#include <QElapsedTimer>
+#include <QFile>
+#include <QFileInfo>
 #include <QMetaObject>
+#include <QStorageInfo>
 #include <QTimer>
+#include <QUrl>
 
 #include <algorithm>
+#include <chrono>
 #include <map>
 #include <set>
 
@@ -96,10 +104,19 @@ QSet<QString> LibraryController::finishedTasks() const
 LibraryController::~LibraryController()
 {
 	cancel_ = true;
+	{
+		std::lock_guard<std::mutex> lock(copyMutex_);
+		for(auto &pair : copyCancels_)
+			pair.second->store(true);
+		copies_.clear();
+	}
+	copyWake_.notify_all();
 	if(scanner_.joinable())
 		scanner_.join();
 	if(worker_.joinable())
 		worker_.join();
+	if(copier_.joinable())
+		copier_.join();
 }
 
 bool LibraryController::ps5() const { return app_->installsFromConsole(); }
@@ -631,6 +648,218 @@ void LibraryController::remove(const QString &path)
 	const QVariantMap item = itemAt(path);
 	if(!item.isEmpty())
 		perform(item, QStringLiteral("delete"));
+}
+
+// ── copies to this PC ───────────────────────────────────────────────────
+
+void LibraryController::copyToPc(const QString &title, const QString &icon, const QString &folder,
+	const QVector<CopyFile> &files)
+{
+	if(files.isEmpty() || folder.isEmpty())
+		return;
+	CopyJob job;
+	job.id = QStringLiteral("library-%1").arg(nextJob_++);
+	job.title = title;
+	job.folder = folder;
+	job.files = files;
+	job.config = app_->ftpClientConfigFor(app_->settings().consoleAddress);
+	job.cancel = std::make_shared<std::atomic<bool>>(false);
+
+	qint64 total = 0;
+	for(const CopyFile &file : files)
+		total += file.size;
+	QVariantMap card;
+	card[QStringLiteral("id")] = job.id;
+	card[QStringLiteral("kind")] = QStringLiteral("copy");
+	card[QStringLiteral("name")] = title;
+	card[QStringLiteral("icon")] = icon;
+	card[QStringLiteral("itemKind")] = QStringLiteral("package");
+	card[QStringLiteral("console")] = consoleName();
+	card[QStringLiteral("state")] = QStringLiteral("working");
+	card[QStringLiteral("stageText")] = tr("Waiting to copy");
+	card[QStringLiteral("percent")] = 0.0;
+	card[QStringLiteral("amountText")] = QString::fromStdString(humanBytes(total));
+	card[QStringLiteral("folder")] = folder;
+	jobs_.prepend(card);
+	emit jobsChanged();
+	emit app_->showPanel(QStringLiteral("queue"));
+
+	{
+		std::lock_guard<std::mutex> lock(copyMutex_);
+		copyCancels_[job.id] = job.cancel;
+		copies_.push_back(job);
+	}
+	if(!copier_.joinable())
+		copier_ = std::thread([this]() { copyLoop(); });
+	copyWake_.notify_all();
+}
+
+void LibraryController::cancelJob(const QString &id)
+{
+	std::lock_guard<std::mutex> lock(copyMutex_);
+	const auto found = copyCancels_.find(id);
+	if(found != copyCancels_.end())
+		found->second->store(true);
+}
+
+void LibraryController::openJobFolder(const QString &id)
+{
+	for(const QVariant &entry : jobs_)
+	{
+		const QVariantMap job = entry.toMap();
+		if(job.value(QStringLiteral("id")).toString() == id && !job.value(QStringLiteral("folder")).toString().isEmpty())
+		{
+			QDesktopServices::openUrl(QUrl::fromLocalFile(job.value(QStringLiteral("folder")).toString()));
+			return;
+		}
+	}
+}
+
+void LibraryController::copyLoop()
+{
+	for(;;)
+	{
+		CopyJob job;
+		{
+			std::unique_lock<std::mutex> lock(copyMutex_);
+			copyWake_.wait(lock, [this]() { return cancel_.load() || !copies_.empty(); });
+			if(cancel_)
+				return;
+			job = copies_.front();
+			copies_.pop_front();
+		}
+		runCopy(job);
+		std::lock_guard<std::mutex> lock(copyMutex_);
+		copyCancels_.erase(job.id);
+	}
+}
+
+void LibraryController::runCopy(const CopyJob &job)
+{
+	const auto post = [this, &job](const QVariantMap &fields) {
+		QMetaObject::invokeMethod(this, [this, id = job.id, fields]() { updateJob(id, fields); }, Qt::QueuedConnection);
+	};
+	const auto finish = [&](const QString &state, const QString &message) {
+		post({ { QStringLiteral("state"), state }, { QStringLiteral("message"), message },
+			{ QStringLiteral("speedText"), QString() }, { QStringLiteral("etaText"), QString() } });
+	};
+	if(job.cancel->load())
+	{
+		finish(QStringLiteral("cancelled"), tr("Cancelled before it started."));
+		return;
+	}
+
+	qint64 total = 0;
+	for(const CopyFile &file : job.files)
+		total += file.size;
+	// What is already here: whole files are not copied again, and a part
+	// copied before goes on from where it stopped.
+	qint64 already = 0;
+	for(const CopyFile &file : job.files)
+	{
+		const QFileInfo whole(file.local);
+		if(whole.exists() && whole.size() == file.size)
+			already += file.size;
+		else if(QFileInfo::exists(file.local + QStringLiteral(".part")))
+			already += std::min(file.size, QFileInfo(file.local + QStringLiteral(".part")).size());
+	}
+	if(!QDir().mkpath(job.folder))
+	{
+		finish(QStringLiteral("error"), tr("Could not make the folder %1.").arg(QDir::toNativeSeparators(job.folder)));
+		return;
+	}
+	const QStorageInfo space(job.folder);
+	if(space.isValid() && space.bytesAvailable() > 0 && space.bytesAvailable() < total - already)
+	{
+		finish(QStringLiteral("error"), tr("Not enough room in %1: it needs %2 and has %3.")
+				.arg(QDir::toNativeSeparators(job.folder), QString::fromStdString(humanBytes(total - already)),
+					QString::fromStdString(humanBytes(space.bytesAvailable()))));
+		return;
+	}
+	logInfo("Library: copying \"" + job.title.toStdString() + "\" from the console to " + job.folder.toStdString());
+
+	FtpClient ftp(job.config);
+	qint64 copied = 0;
+	// The speed over the last seconds, smoothed.
+	double speed = 0;
+	qint64 meterBytes = 0;
+	auto meterTime = std::chrono::steady_clock::now();
+	QElapsedTimer shown;
+	shown.start();
+	for(int i = 0; i < job.files.size(); ++i)
+	{
+		const CopyFile &file = job.files[i];
+		const QString what = file.what == QLatin1String("update") ? tr("the update")
+			: file.what == QLatin1String("addon") ? tr("an add-on") : tr("the game");
+		const QString step = job.files.size() > 1
+			? tr("Copying %1 (%2 of %3)").arg(what).arg(i + 1).arg(job.files.size()) : tr("Copying %1").arg(what);
+		const QFileInfo whole(file.local);
+		if(whole.exists() && whole.size() == file.size)
+		{
+			copied += file.size;
+			continue;
+		}
+		const QString part = file.local + QStringLiteral(".part");
+		const bool resume = QFileInfo::exists(part);
+		const qint64 before = resume ? std::min(file.size, QFileInfo(part).size()) : 0;
+		post({ { QStringLiteral("stageText"), step } });
+		meterBytes = copied + before;
+		meterTime = std::chrono::steady_clock::now();
+		const FtpResult got = ftp.download(file.remote.toStdString(), QDir::toNativeSeparators(part).toStdString(),
+			[&](int64_t done, int64_t) {
+				const qint64 now = copied + before + done;
+				const auto clock = std::chrono::steady_clock::now();
+				const double elapsed = std::chrono::duration<double>(clock - meterTime).count();
+				if(elapsed >= 0.5)
+				{
+					const double rate = static_cast<double>(now - meterBytes) / elapsed;
+					speed = speed > 0 ? 0.7 * speed + 0.3 * rate : rate;
+					meterBytes = now;
+					meterTime = clock;
+				}
+				if(shown.elapsed() >= 250)
+				{
+					shown.restart();
+					const qint64 left = std::max<qint64>(0, total - now);
+					post({ { QStringLiteral("percent"), total > 0 ? 100.0 * double(now) / double(total) : 0.0 },
+						{ QStringLiteral("speedText"), speed > 1
+							? QString::fromStdString(humanBytes(static_cast<int64_t>(speed))) + QStringLiteral("/s")
+							: QString() },
+						{ QStringLiteral("etaText"), speed > 1
+							? QString::fromStdString(humanDuration(static_cast<int64_t>(double(left) / speed + 0.5)))
+							: QString() },
+						{ QStringLiteral("amountText"), tr("%1 of %2").arg(QString::fromStdString(humanBytes(now)),
+							QString::fromStdString(humanBytes(total))) } });
+				}
+				return !job.cancel->load() && !cancel_.load();
+			},
+			resume);
+		if(got.cancelled || job.cancel->load())
+		{
+			logInfo("Library: copy of \"" + job.title.toStdString() + "\" cancelled");
+			finish(QStringLiteral("cancelled"), tr("Stopped. What was copied is kept: copying it again goes on from there."));
+			return;
+		}
+		if(!got.ok)
+		{
+			logWarning("Library: copy of " + file.remote.toStdString() + " failed — " + got.message);
+			finish(QStringLiteral("error"), tr("Could not copy %1: %2").arg(QFileInfo(file.remote).fileName(),
+				translateMessage(got.message)));
+			return;
+		}
+		QFile::remove(file.local);
+		if(!QFile::rename(part, file.local))
+		{
+			finish(QStringLiteral("error"), tr("Could not name the copy %1.").arg(QDir::toNativeSeparators(file.local)));
+			return;
+		}
+		copied += file.size;
+	}
+	logInfo("Library: \"" + job.title.toStdString() + "\" copied to " + job.folder.toStdString());
+	post({ { QStringLiteral("state"), QStringLiteral("done") }, { QStringLiteral("percent"), 100.0 },
+		{ QStringLiteral("speedText"), QString() }, { QStringLiteral("etaText"), QString() },
+		{ QStringLiteral("amountText"), QString::fromStdString(humanBytes(total)) },
+		{ QStringLiteral("message"), tr("In the folder %1").arg(QDir(job.folder).dirName()) } });
 }
 
 } // namespace orbislink

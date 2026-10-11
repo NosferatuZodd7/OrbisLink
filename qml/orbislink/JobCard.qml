@@ -21,8 +21,12 @@ Rectangle {
     property bool showBar: true
     // Whether a working job can be stopped from here.
     property bool cancellable: false
+    // A button of its own once it is done (an icon name; none when empty).
+    property string doneIcon: ""
+    property string doneHint: ""
     signal cancelClicked()
     signal removeClicked()
+    signal doneClicked()
 
     readonly property bool working: job.state === "working"
     readonly property bool measured: job.percent !== undefined && job.percent !== null
@@ -177,6 +181,16 @@ Rectangle {
                 color: card.job.state === "error" ? Theme.error : Theme.textMuted
                 font.pixelSize: 11
                 wrapMode: Text.WordWrap
+            }
+            StyledToolButton {
+                Layout.alignment: Qt.AlignTop
+                visible: card.doneIcon.length > 0 && card.job.state === "done"
+                iconName: card.doneIcon
+                iconSize: 14
+                implicitWidth: 28; implicitHeight: 28
+                ToolTip.visible: hovered && card.doneHint.length > 0
+                ToolTip.text: card.doneHint
+                onClicked: card.doneClicked()
             }
             StyledToolButton {
                 Layout.alignment: Qt.AlignTop
