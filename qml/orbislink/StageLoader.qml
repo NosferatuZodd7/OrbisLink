@@ -81,7 +81,8 @@ Item {
             : loader.converting ? "disc"
             : loader.sending ? "upload"
             : "package"
-        size: 18
+        // In step with the ring, at any size.
+        size: Math.max(10, Math.round(loader.width * 0.45))
         strokeWidth: 2
         color: loader.tone
     }

@@ -296,7 +296,8 @@ ShelfController::ShelfController(AppController *app, GamesController *games, Lib
 	PayloadsController *payloads, QObject *parent)
 	: QObject(parent), app_(app), games_(games), consoleLibrary_(consoleLibrary), payloads_(payloads),
 	  placeCancel_(std::make_shared<std::atomic<bool>>(false)),
-	  sourcesCancel_(std::make_shared<std::atomic<bool>>(false))
+	  sourcesCancel_(std::make_shared<std::atomic<bool>>(false)),
+	  coversCancel_(std::make_shared<std::atomic<bool>>(false))
 {
 	// Owned here, never by the interface that reads it.
 	rows_.setParent(this);
@@ -370,6 +371,7 @@ ShelfController::~ShelfController()
 {
 	placeCancel_->store(true);
 	sourcesCancel_->store(true);
+	coversCancel_->store(true);
 	{
 		std::lock_guard<std::mutex> lock(jobsMutex_);
 		stopping_ = true;
@@ -1025,6 +1027,8 @@ QVariantMap ShelfController::cardFor(const ShelfItem &item, const Source &from, 
 			case Kind::Folder:
 				if(ps5)
 					actions << QStringLiteral("mount");
+				else if(platform == QLatin1String("ps4"))
+					note = tr("A PS4 app or game folder, not a package: a PS4 installs it once it is made into a .pkg.");
 				else
 					note = tr("A PS5 game: for a PS5 with ShadowMountPlus.");
 				break;
@@ -1060,7 +1064,10 @@ QVariantMap ShelfController::cardFor(const ShelfItem &item, const Source &from, 
 				break;
 			case Kind::Image:
 			case Kind::Folder:
-				note = tr("A PS5 game: copy it to /data/homebrew on the PS5 (Files tab), where ShadowMountPlus finds it.");
+				note = platform == QLatin1String("ps4")
+					? tr("A PS4 app or game folder, not a package: it installs once it is made into a .pkg (a .gp4 "
+						 "beside it is the recipe for that, from the tool that made it).")
+					: tr("A PS5 game: copy it to /data/homebrew on the PS5 (Files tab), where ShadowMountPlus finds it.");
 				break;
 			case Kind::Payload:
 				actions << QStringLiteral("runPayload");
@@ -1730,6 +1737,49 @@ void ShelfController::refresh()
 	}
 	for(const Source &item : sources_)
 		refreshSourcePreview(item);
+}
+
+QString ShelfController::cover(const QString &platform, const QString &serial)
+{
+	if(serial.isEmpty())
+		return QString();
+	// "SLES-54449" and "SLES54449" are the same game.
+	QString compact = serial;
+	compact.remove(QLatin1Char('-')).remove(QLatin1Char('_')).remove(QLatin1Char('.'));
+	for(const QString &id : { serial, compact })
+	{
+		const std::string file = cache_->pictureFor(id.toStdString());
+		if(!file.empty())
+			return fileUrl(file);
+	}
+	if((platform != QLatin1String("ps1") && platform != QLatin1String("ps2")) || coverPending_.contains(serial))
+		return QString();
+	{
+		std::lock_guard<std::mutex> lock(consoleMutex_);
+		if(noCover_.contains(serial))
+			return QString();
+	}
+	coverPending_.insert(serial);
+	std::shared_ptr<std::atomic<bool>> cancel = coversCancel_;
+	post(false, [this, platform, serial, compact, cancel]() {
+		ShelfItem item;
+		item.platform = platform.toStdString();
+		item.serial = serial.toStdString();
+		item.titleId = compact.toStdString();
+		item.group = "games";
+		findCover(&item, cancel.get());
+		const bool found = !item.pictureFile.empty();
+		if(found)
+			cache_->save();
+		onUi([this, serial, found]() {
+			coverPending_.remove(serial);
+			if(!found)
+				return;
+			++coverRevision_;
+			emit coversChanged();
+		});
+	});
+	return QString();
 }
 
 QVariantMap ShelfController::card(int index) const

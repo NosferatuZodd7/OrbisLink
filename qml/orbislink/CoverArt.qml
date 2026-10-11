@@ -12,10 +12,23 @@ Item {
     property string placeholder: "bd"
     property string label: ""
     property real radius: 6
+    // Fill the frame whatever the picture's shape (a box cover in a box).
+    property bool crop: false
 
     readonly property bool ready: image.status === Image.Ready
-    readonly property bool square: image.implicitHeight <= 0
-                                   || Math.abs(image.implicitWidth / image.implicitHeight - 1) < 0.12
+    // The picture's own shape, read from a small copy that is never drawn
+    // (the drawn one changes size with the way it is fitted).
+    readonly property bool square: crop || shape.implicitHeight <= 0
+                                   || Math.abs(shape.implicitWidth / shape.implicitHeight
+                                               - width / Math.max(1, height)) < 0.12
+
+    Image {
+        id: shape
+        visible: false
+        source: art.crop ? "" : art.picture
+        sourceSize.width: 48
+        asynchronous: true
+    }
 
     DiscPlaceholder {
         anchors.fill: parent

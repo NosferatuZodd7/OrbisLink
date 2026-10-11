@@ -121,6 +121,9 @@ class ShelfController : public QObject
 	Q_PROPERTY(QVariantList locations READ locations NOTIFY locationsChanged)
 	// This PC's drives, to add one: [{ path, name }].
 	Q_PROPERTY(QVariantList volumes READ volumes NOTIFY locationsChanged)
+	// Goes up each time a cover arrives: a binding that reads it and calls
+	// cover() is evaluated again then.
+	Q_PROPERTY(int coverRevision READ coverRevision NOTIFY coversChanged)
 
 public:
 	ShelfController(AppController *app, GamesController *games, LibraryController *consoleLibrary,
@@ -149,6 +152,13 @@ public:
 	void setActive(bool active);
 	QVariantList locations() const;
 	QVariantList volumes() const;
+	int coverRevision() const { return coverRevision_; }
+
+	// A game's cover for any page of the app, by its serial or title ID:
+	// the file URL of one the app has, or "" — and then, for a PS1/PS2 disc,
+	// it is looked for in the cover collection, and coversChanged follows
+	// when it arrives.
+	Q_INVOKABLE QString cover(const QString &platform, const QString &serial);
 
 	// Reads again where it is (at home: every place's covers).
 	Q_INVOKABLE void refresh();
@@ -179,6 +189,7 @@ signals:
 	void viewChanged();
 	void activeChanged();
 	void locationsChanged();
+	void coversChanged();
 	void notice(const QString &message, bool error);
 
 private:
@@ -284,6 +295,10 @@ private:
 	QSet<QString> installed_;
 	QElapsedTimer installedAge_;
 	QSet<QString> noCover_;
+	// Covers asked for by the pages, on their way (interface thread only).
+	QSet<QString> coverPending_;
+	int coverRevision_ = 0;
+	std::shared_ptr<std::atomic<bool>> coversCancel_;
 };
 
 } // namespace orbislink
