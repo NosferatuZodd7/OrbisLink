@@ -635,6 +635,36 @@ Item {
                             }
                         }
 
+                        // How fast it goes and how long it has left.
+                        RowLayout {
+                            visible: conv.j.speed.length > 0
+                            Layout.fillWidth: true
+                            spacing: 6
+                            Icon {
+                                name: conv.j.speedIcon
+                                size: 12
+                                color: Theme.textMuted
+                            }
+                            Text {
+                                text: conv.j.speed
+                                color: Theme.textSecondary
+                                font.pixelSize: 11
+                            }
+                            Item { Layout.fillWidth: true }
+                            Icon {
+                                visible: conv.j.eta.length > 0
+                                name: "history"
+                                size: 12
+                                color: Theme.textMuted
+                            }
+                            Text {
+                                visible: conv.j.eta.length > 0
+                                text: qsTr("%1 left").arg(conv.j.eta)
+                                color: Theme.textSecondary
+                                font.pixelSize: 11
+                            }
+                        }
+
                         Text {
                             visible: conv.j.message.length > 0
                             Layout.fillWidth: true
@@ -687,9 +717,14 @@ Item {
         var failedAt = c.state === "error" ? 0 : c.state === "cancelled" ? 0
                      : (t.stage === "error" || t.stage === "cancelled") ? (t.mode === "install" ? 2 : 1) : -1
         var labels = [c.kind === "pack" ? qsTr("Pack") : qsTr("Convert"), qsTr("Send"), qsTr("Install")]
-        var tones = [Theme.warn, Theme.accent, Theme.ok]
+        // Over, and well: the package made (and no more asked), on the
+        // console, or installed. The card goes green.
+        var done = stage === "installed" || stage === "sent" || (stage === "converted" && !c.send)
+        var tones = done ? [Theme.ok, Theme.ok, Theme.ok] : [Theme.warn, Theme.accent, Theme.ok]
         var steps = []
-        var count = c.install || stage === "installing" || stage === "installed" ? 3 : 2
+        // Only the steps asked for: making it, sending it, installing it.
+        var count = c.install || stage === "installing" || stage === "installed" ? 3
+                  : c.send || stage === "sending" || stage === "sent" ? 2 : 1
         for (var i = 0; i < count; ++i) {
             var p = 0
             if (i < reached)
@@ -700,15 +735,21 @@ Item {
                 p = t.waiting ? 0 : (t.percent || 0)
             steps.push({ label: labels[i], percent: p,
                          tone: i === failedAt ? Theme.error : tones[i],
-                         current: i === reached || i === failedAt })
+                         current: !done && (i === reached || i === failedAt) })
         }
-        var finished = stage === "installed" || stage === "error" || stage === "cancelled"
-                     || (stage === "converted" && !c.send)
-                     || stage === "sent"
-        return { stage: stage === "converted" ? "converted" : stage,
+        var finished = done || stage === "error" || stage === "cancelled"
+        // How fast the step under way goes, where it moves bytes: from the
+        // console, the emulator files, the image, the upload, the install.
+        var moving = stage === "converting" || ((stage === "sending" || stage === "installing") && !t.waiting)
+        var speed = !moving ? "" : stage === "converting" ? (c.speedText || "") : (t.speedText || "")
+        var eta = !moving ? "" : stage === "converting" ? (c.etaText || "") : (t.etaText || "")
+        var speedIcon = stage === "sending" ? "upload" : stage === "installing" ? "package"
+                      : c.stage === "fetch" || c.stage === "download" ? "download" : "cpu"
+        return { stage: done ? "done" : stage,
                  percent: stage === "converting" ? (c.percent || 0) : (t.percent || 0),
                  waiting: stage === "waiting" || t.waiting === true,
-                 text: text, steps: steps, finished: finished,
+                 text: text, steps: steps, finished: finished, done: done,
+                 speed: speed, eta: eta, speedIcon: speedIcon,
                  taskId: t.taskId || "",
                  message: c.message && c.message.length > 0 ? c.message : (stage === "error" ? (t.message || "") : "") }
     }

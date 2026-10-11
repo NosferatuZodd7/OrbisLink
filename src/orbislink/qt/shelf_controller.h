@@ -114,6 +114,9 @@ class ShelfController : public QObject
 	// "type" (in sections), "name", "date".
 	Q_PROPERTY(QString sort READ sort WRITE setSort NOTIFY viewChanged)
 	Q_PROPERTY(int columns READ columns WRITE setColumns NOTIFY viewChanged)
+	// Only games (and their updates and add-ons) and the folders that lead to
+	// them, or everything the library can show. Kept in the settings.
+	Q_PROPERTY(bool onlyGames READ onlyGames WRITE setOnlyGames NOTIFY viewChanged)
 	// Whether the tab is on screen: drives are watched only then.
 	Q_PROPERTY(bool active READ active WRITE setActive NOTIFY activeChanged)
 	// The places kept in the settings, for managing them: [{ id, name,
@@ -148,6 +151,8 @@ public:
 	void setSort(const QString &sort);
 	int columns() const { return columns_; }
 	void setColumns(int columns);
+	bool onlyGames() const;
+	void setOnlyGames(bool on);
 	bool active() const { return active_; }
 	void setActive(bool active);
 	QVariantList locations() const;

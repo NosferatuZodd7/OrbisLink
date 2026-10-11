@@ -43,6 +43,7 @@ ShelfTile {
                 height: parent.cell
                 CoverArt {
                     anchors.fill: parent
+                    crop: true
                     visible: parent.index < 3 && parent.index < card.previews.length
                     picture: visible ? (card.previews[parent.index].picture || "") : ""
                     placeholder: visible ? (card.previews[parent.index].placeholder || "bd") : "bd"

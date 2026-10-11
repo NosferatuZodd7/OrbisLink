@@ -1232,12 +1232,19 @@ void ShelfController::loadPlace()
 		std::vector<ShelfItem> items;
 		std::vector<bool> known;
 		QVariantList quick;
+		auto leadsKey = [&place](const ShelfItem &thing) {
+			return "leads|" + place + "|" + thing.path + "|" + std::to_string(thing.modified);
+		};
 		for(const library::ShelfEntry *entry : shown)
 		{
 			ShelfItem thing = library::quickItem(*entry);
 			const bool found = cache_->find(library::ShelfCache::keyOf(place, thing), &thing);
 			known.push_back(found);
-			quick << cardFor(thing, copy, QSet<QString>(), ps5);
+			QVariantMap card = cardFor(thing, copy, QSet<QString>(), ps5);
+			bool leads = false;
+			if(thing.directory && cache_->findLeadsToGames(leadsKey(thing), &leads))
+				card[QStringLiteral("hasGames")] = leads;
+			quick << card;
 			items.push_back(std::move(thing));
 		}
 		onUi([this, quick, current]() {
@@ -1328,6 +1335,21 @@ void ShelfController::loadPlace()
 						QString::fromStdString(picture.platform), picture.appFolder) } };
 			card[QStringLiteral("previews")] = previews;
 			card[QStringLiteral("count")] = preview.count;
+			// Whether it leads to games: a game among its first things says
+			// so at once; else it is looked for below, a few levels down. A
+			// "no" is looked for again each time: a game put deeper down
+			// leaves the folder's own date as it was.
+			bool leads = false;
+			for(const ShelfItem &picture : preview.pictures)
+				leads = leads || (!picture.directory && picture.group == "games");
+			if(!leads && !(cache_->findLeadsToGames(leadsKey(thing), &leads) && leads))
+			{
+				leads = library::folderHasGames(*files, thing.path, 3, 120, cancel.get());
+				if(cancel->load())
+					return;
+				cache_->storeLeadsToGames(leadsKey(thing), leads);
+			}
+			card[QStringLiteral("hasGames")] = leads;
 			batch << card;
 			if(flushed.elapsed() > 200)
 				flush();
@@ -1452,6 +1474,14 @@ bool ShelfController::matches(const QVariantMap &card) const
 		return query_.isEmpty() || card.value(QStringLiteral("name")).toString().contains(query_, Qt::CaseInsensitive)
 			|| card.value(QStringLiteral("path")).toString().contains(query_, Qt::CaseInsensitive);
 	const QString group = card.value(QStringLiteral("group")).toString();
+	const bool folder = card.value(QStringLiteral("card")).toString() == QLatin1String("folder");
+	if(onlyGames())
+	{
+		// A folder stays until it is known to lead to no game.
+		if(folder ? card.value(QStringLiteral("hasGames")) == QVariant(false)
+				  : group != QLatin1String("games") && group != QLatin1String("extras"))
+			return false;
+	}
 	if(filter_ == QLatin1String("games") && group != QLatin1String("games"))
 		return false;
 	if(filter_ == QLatin1String("pkg") && card.value(QStringLiteral("ext")).toString() != QLatin1String(".pkg"))
@@ -1566,7 +1596,8 @@ void ShelfController::updateCards(const QVariantList &cards)
 				continue;
 			moved = moved || old.value(QStringLiteral("group")) != card.value(QStringLiteral("group"))
 				|| old.value(QStringLiteral("title")) != card.value(QStringLiteral("title"))
-				|| old.value(QStringLiteral("card")) != card.value(QStringLiteral("card"));
+				|| old.value(QStringLiteral("card")) != card.value(QStringLiteral("card"))
+				|| old.value(QStringLiteral("hasGames")) != card.value(QStringLiteral("hasGames"));
 			kept = card;
 			break;
 		}
@@ -1684,6 +1715,19 @@ void ShelfController::setSort(const QString &sort)
 	if(sort == sort_)
 		return;
 	sort_ = sort;
+	showCards();
+}
+
+bool ShelfController::onlyGames() const
+{
+	return app_->settings().libraryOnlyGames;
+}
+
+void ShelfController::setOnlyGames(bool on)
+{
+	if(on == onlyGames())
+		return;
+	app_->updateSettings([on](Settings &s) { s.libraryOnlyGames = on; });
 	showCards();
 }
 

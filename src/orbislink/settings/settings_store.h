@@ -179,6 +179,8 @@ struct Settings
 	// put there once — taken off, they stay off.
 	std::vector<LibraryLocation> libraryLocations;
 	bool libraryLocationsSeeded = false;
+	// Only games (and the folders that lead to them), or everything.
+	bool libraryOnlyGames = true;
 	// Console user folder ("1a2b3c4d") → its owner's Account ID (base64),
 	// which gives the PSID its backups are filed under.
 	std::map<std::string, std::string> saveAccountLinks;

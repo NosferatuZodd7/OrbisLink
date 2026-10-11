@@ -9,7 +9,8 @@
 // * installing — green, a box that breathes;
 // * waiting    — grey, a ring that turns with no fill.
 //
-// Finished steps keep the colour with a still symbol (✓, or ! on failure).
+// Finished steps keep the colour with a still symbol (✓, or ! on failure);
+// a journey over and done ("done") is green with a ✓.
 import QtQuick
 
 Item {
@@ -27,6 +28,7 @@ Item {
                                    || stage === "sending" || stage === "installing"
     readonly property bool indeterminate: stage === "waiting" || waiting
     readonly property color tone: stage === "error" ? Theme.error
+                                : stage === "done" ? Theme.ok
                                 : converting ? Theme.warn
                                 : sending ? Theme.accent
                                 : installing ? Theme.ok

@@ -208,6 +208,44 @@ ORBISLINK_TEST(previews_a_folder_with_the_first_pictures_in_it)
 	CHECK(!games.pictures[1].directory);
 }
 
+ORBISLINK_TEST(tells_the_folders_that_lead_to_games)
+{
+	TempFolder folder("shelf-leads");
+	folder.text("Docs/Work/plan.txt", "x");
+	folder.file("Docs/photo.jpg", kPng);
+	folder.file("Backups/Old/Older/Kept.pkg", package("CUSA00021", "Kept", "gd"));
+	folder.text("Deep/1/2/3/4/Far.iso", "x");
+	folder.file("Tools/App/sce_sys/icon0.png", kPng);
+
+	LocalSource source;
+	const auto leads = [&](const char *name, int depth = 3) {
+		return folderHasGames(source, (folder.path / name).u8string(), depth, 200);
+	};
+	CHECK(!leads("Docs"));
+	// A game three folders down, and an app's own folder.
+	CHECK(leads("Backups"));
+	CHECK(leads("Tools"));
+	// Further down than it looks, it is taken for none.
+	CHECK(!leads("Deep"));
+	CHECK(leads("Deep", 5));
+
+	// What was found is kept with the rest.
+	const std::string cacheDir = (folder.path / "cache").u8string();
+	{
+		ShelfCache cache(cacheDir);
+		cache.storeLeadsToGames("leads|pc|/Docs|1", false);
+		cache.storeLeadsToGames("leads|pc|/Backups|1", true);
+		cache.save();
+	}
+	ShelfCache again(cacheDir);
+	bool found = true;
+	CHECK(again.findLeadsToGames("leads|pc|/Docs|1", &found));
+	CHECK(!found);
+	CHECK(again.findLeadsToGames("leads|pc|/Backups|1", &found));
+	CHECK(found);
+	CHECK(!again.findLeadsToGames("leads|pc|/Other|1", &found));
+}
+
 ORBISLINK_TEST(keeps_what_was_found_across_runs)
 {
 	TempFolder folder("shelf-cache");

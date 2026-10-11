@@ -183,6 +183,12 @@ struct FolderPreview
 FolderPreview previewFolder(FileSource &source, const std::string &dir, const DiscProbe &probe,
 	size_t max = 4, size_t budget = 16, const std::atomic<bool> *cancel = nullptr);
 
+// Whether `dir` leads to a game: a package, a disc, a PS5 image or an app
+// folder in it or in its folders, `depth` levels down at most, reading at
+// most `budget` folders. Stops at the first one found.
+bool folderHasGames(FileSource &source, const std::string &dir, int depth = 3, size_t budget = 200,
+	const std::atomic<bool> *cancel = nullptr);
+
 // What was found, kept on disk: the metadata of each item by a key that
 // changes with the file (its path, size and date), the pictures as files,
 // and the pictures already found for a title ID or serial (step 1).
@@ -203,6 +209,9 @@ public:
 	// Folder previews, by a key of the folder (its path and date).
 	bool findPreview(const std::string &key, FolderPreview *preview) const;
 	void storePreview(const std::string &key, FolderPreview *preview);
+	// Whether a folder leads to games, by a key of the folder.
+	bool findLeadsToGames(const std::string &key, bool *leads) const;
+	void storeLeadsToGames(const std::string &key, bool leads);
 	// Writes the index when something changed.
 	void save();
 	const std::string &folder() const { return folder_; }
@@ -215,6 +224,7 @@ private:
 	std::map<std::string, ShelfItem> items_;
 	std::map<std::string, std::string> byId_;
 	std::map<std::string, FolderPreview> previews_;
+	std::map<std::string, bool> leads_;
 	bool dirty_ = false;
 };
 
