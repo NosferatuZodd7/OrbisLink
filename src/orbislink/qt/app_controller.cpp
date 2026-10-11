@@ -1037,6 +1037,14 @@ void AppController::refreshQueueModel()
 		item[QStringLiteral("stage")] = installing ? QStringLiteral("installing") : QStringLiteral("sending");
 		item[QStringLiteral("percent")] = percentOf(task);
 		item[QStringLiteral("waiting")] = task.state == TaskState::Pending;
+		// How fast it goes and how long it has left, while it moves.
+		const bool moving = task.state == TaskState::Sending || task.state == TaskState::Installing;
+		item[QStringLiteral("speedText")] = moving && task.bytesPerSecond > 1.0
+			? QString::fromStdString(humanBytes(static_cast<int64_t>(task.bytesPerSecond))) + QStringLiteral("/s")
+			: QString();
+		item[QStringLiteral("etaText")] = moving && task.etaSeconds > 0
+			? QString::fromStdString(humanDuration(task.etaSeconds))
+			: QString();
 		item[QStringLiteral("taskId")] = QString::fromStdString(task.id);
 		item[QStringLiteral("mode")] =
 			task.mode != TransferMode::FtpUpload ? QStringLiteral("install") : QStringLiteral("send");

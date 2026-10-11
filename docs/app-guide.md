@@ -154,8 +154,12 @@ When Remote Package Installer stops answering, the queue pauses and shows
 *Waiting for Remote Package Installer*: it checks every few seconds and goes
 on by itself when the installer is back (**Try now** forces it).
 
-A converted PS1/PS2 game shows as **one** card with three bars — Convert,
-Send, Install — instead of separate queue cards (see *Games*);
+A converted PS1/PS2 game shows as **one** card with a bar for each step
+asked for — Convert (or Pack), Send, Install; only Convert for *Convert
+only* — instead of separate queue cards (see *Games*), with the speed and
+the time left of the step under way while it moves bytes (from the console,
+the emulator files, the image, the upload, the install). It turns green
+once it is done: the package made, sent, or installed;
 closing it takes its finished queue tasks along. A package sent and then
 installed is one card too (the install's). The tab's number counts cards.
 
@@ -265,12 +269,22 @@ and says *Not available*.
 what is in it, a folder tile when it has folders inside, and how many things
 it holds), then the games and files, in sections — *Games and apps*,
 *Updates and add-ons*, *Payloads*, *Other files* — when sorted by type. A
-game card has its cover, its name, its platform and version, what kind of
+game card has its cover filling the tile, with rounded corners (the
+details show it whole), its name, its platform and version, what kind of
 file it is in the corner (PKG, ISO, CUE, APP…) and a ✓ when the console in
 use has it installed. Only what the app can do something with is shown:
 packages, PS1/PS2 discs (a `.cue` and its track as one), PS5 images, app
 folders, payloads, archives and folders; pictures, documents and the rest
 are left out.
+
+**Only games | Everything**, on the left above the cards (on by default:
+*Only games*): only games, apps, their updates and add-ons, and the folders
+that lead to one — a game up to three folders down, or an app folder — are
+shown; payloads, archives and folders with no game in them are left out.
+A folder found to lead to a game is remembered with the rest of what was
+read; one with none is looked through again each time it is shown, since a
+game put further down leaves the folder itself as it was. *Everything* shows all that the place holds, as
+before. A folder with things but no game says so, with **Show everything**.
 
 A card's picture, the first found of:
 
@@ -292,8 +306,9 @@ fills in as each thing is read; nothing is read whole.
 | Arrow keys, Home, End | Move the frame; Enter or Space opens the card. |
 | Click on a place or folder | Opens it. |
 | Click on a game | Its details: the cover, what it is, and a grouped list (title ID, serial, version, size, date, place, file); its path along the bottom; one row of buttons — the main one on the right, the others under **…**. What needs the console is left out while its FTP does not answer, and a line says so. |
+| Only games · Everything | See above; kept in the settings. |
 | Search field | At home: across every place marked *Search* (names two levels into each place, one on the console, none under a whole drive), by game name, file name, folder, extension or place. Inside a place: only there. Ctrl+F goes to it. |
-| Filter | All, Games found, PKG files, Folders, Other supported files. |
+| Filter | All (the chip says *Filter*), Games found, PKG files, Folders, Other supported files. |
 | Sort | By type (in sections), by name, newest first. |
 | ⟳ | Reads the folder again (at home: every place). |
 | Folder + | Adds a place: a folder of this PC (the system's folder picker), a folder of the console (its path), Desktop, Downloads, Documents, the console's data/pkg, or a whole drive of this PC. |
@@ -327,11 +342,14 @@ after an install or a package put back.
 2. The first conversion downloads the Classics files once (about 109 MB);
    **Download now** does it earlier. Nothing else has to be provided.
 
-Each game's card has its cover, from the cover collection by its serial
-(cached once found; a disc stands in until then), next to its platform,
-serial and region; the game's dialog shows it too, and so does its card in
+Each game's card has its cover as its background, from the cover collection
+by its serial (cached once found; a disc stands in until then), darkened at
+the top and the bottom so its platform, name, serial, region and file stay
+readable over it; the game's dialog shows it too, and so does its card in
 the Queue tab while it is converted, sent and installed, with the step under
-way in its corner.
+way in its corner. While bytes move, the card says how fast and how long is
+left; when it is over (the package made, sent or installed) its ring turns
+green with a ✓.
 
 | Item | Does |
 |---|---|
@@ -372,9 +390,13 @@ off, and **Convert only** still works.
 ### Conversion card (Queue tab)
 
 Stages: waiting → (emulator files the first time) → cover → converting →
-signing → sending → installing → installed. Each of Convert / Send / Install
-has its own bar; ✕ cancels while it runs and removes the card when it is
-over; ⟲ retries a failed send or install; 📂 opens the output folder.
+signing → sending → installing → installed. Each step asked for has its own
+bar — Convert alone for *Convert only*; Convert and Send for a disc of the
+console put back without installing; Convert, Send and Install otherwise —
+and under them, while one moves bytes, its speed and the time left. Done
+(package ready, on the console, installed), the card is green. ✕ cancels
+while it runs and removes the card when it is over; ⟲ retries a failed send
+or install; 📂 opens the output folder.
 
 ### How a package is made
 

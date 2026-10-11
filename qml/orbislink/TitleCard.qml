@@ -20,8 +20,10 @@ ShelfTile {
     readonly property string typeText: info.app ? "APP"
                                      : info.ext ? info.ext.substring(1).toUpperCase() : ""
 
+    // The cover fills the whole tile (the details show it whole).
     CoverArt {
         anchors.fill: parent
+        crop: true
         picture: card.info.picture || ""
         placeholder: card.info.placeholder || "bd"
         label: card.info.platform ? card.info.platform.toUpperCase() : card.typeText

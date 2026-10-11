@@ -26,6 +26,9 @@ FocusScope {
     readonly property int tile: home ? 176 : 148
     readonly property int cellWidth: tile + 34
     readonly property int cellHeight: tile + 74
+    // A folder that holds things, none of them games, with "Only games" on.
+    readonly property bool noGamesHere: !home && shelf.level !== "search" && shelf.onlyGames
+                                        && shelf.total > 0 && shelf.query.length === 0 && shelf.filter === "all"
 
     function sectionLabel(section) {
         switch (section) {
@@ -244,35 +247,6 @@ FocusScope {
                     }
                 }
             }
-            StyledField {
-                id: search
-                Layout.preferredWidth: 220
-                placeholderText: view.home || shelf.level === "search" ? qsTr("Search every place") : qsTr("Search here")
-                text: shelf.query
-                onTextEdited: shelf.query = text
-                Keys.onEscapePressed: {
-                    text = ""
-                    shelf.query = ""
-                    list.forceActiveFocus()
-                }
-                Keys.onDownPressed: list.forceActiveFocus()
-            }
-            StyledButton {
-                visible: !view.home
-                chip: true
-                iconName: "filter"
-                text: shelf.filter === "games" ? qsTr("Games") : shelf.filter === "pkg" ? qsTr("PKG files")
-                    : shelf.filter === "folders" ? qsTr("Folders") : shelf.filter === "other" ? qsTr("Other")
-                    : qsTr("All")
-                onClicked: filterMenu.popup(this, 0, height + 4)
-            }
-            StyledButton {
-                visible: !view.home
-                chip: true
-                iconName: "arrow-up-down"
-                text: shelf.sort === "name" ? qsTr("Name") : shelf.sort === "date" ? qsTr("Date") : qsTr("Type")
-                onClicked: sortMenu.popup(this, 0, height + 4)
-            }
             StyledToolButton {
                 iconName: shelf.loading ? "loader" : "refresh"
                 enabled: !shelf.loading
@@ -291,6 +265,68 @@ FocusScope {
                 ToolTip.visible: hovered
                 ToolTip.text: qsTr("Manage the places")
                 onClicked: places.open()
+            }
+        }
+
+        // ── what is shown: only games or everything, the filter, the order, the search
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 10
+            // Only what holds games (and the folders on the way to them), or
+            // everything the places hold.
+            TabBar {
+                id: scope
+                Layout.preferredWidth: 196
+                currentIndex: shelf.onlyGames ? 0 : 1
+                padding: 3
+                spacing: 3
+                background: Rectangle {
+                    radius: 10
+                    color: Theme.controlFill
+                    border.width: 1
+                    border.color: Theme.glassEdge
+                }
+                readonly property real half: (availableWidth - spacing) / 2
+                StyledTab {
+                    width: scope.half
+                    text: qsTr("Only games")
+                    onClicked: shelf.onlyGames = true
+                }
+                StyledTab {
+                    width: scope.half
+                    text: qsTr("Everything")
+                    onClicked: shelf.onlyGames = false
+                }
+            }
+            Item { Layout.fillWidth: true }
+            StyledButton {
+                visible: !view.home
+                chip: true
+                iconName: "filter"
+                text: shelf.filter === "games" ? qsTr("Games") : shelf.filter === "pkg" ? qsTr("PKG files")
+                    : shelf.filter === "folders" ? qsTr("Folders") : shelf.filter === "other" ? qsTr("Other")
+                    : qsTr("Filter")
+                onClicked: filterMenu.popup(this, 0, height + 4)
+            }
+            StyledButton {
+                visible: !view.home
+                chip: true
+                iconName: "arrow-up-down"
+                text: shelf.sort === "name" ? qsTr("Name") : shelf.sort === "date" ? qsTr("Date") : qsTr("Type")
+                onClicked: sortMenu.popup(this, 0, height + 4)
+            }
+            StyledField {
+                id: search
+                Layout.preferredWidth: 260
+                placeholderText: view.home || shelf.level === "search" ? qsTr("Search every place") : qsTr("Search here")
+                text: shelf.query
+                onTextEdited: shelf.query = text
+                Keys.onEscapePressed: {
+                    text = ""
+                    shelf.query = ""
+                    list.forceActiveFocus()
+                }
+                Keys.onDownPressed: list.forceActiveFocus()
             }
         }
 
@@ -463,8 +499,16 @@ FocusScope {
                         : shelf.message.length > 0 ? shelf.message
                         : shelf.level === "search" ? qsTr("Nothing found for “%1” in the places searched.").arg(shelf.query)
                         : view.home ? qsTr("No places yet: add a folder of this PC, a drive or a folder of the console.")
+                        : view.noGamesHere ? qsTr("No games here. Everything shows all this folder holds.")
                         : shelf.total > 0 ? qsTr("Nothing here with this filter or search.")
                         : qsTr("Nothing here the library shows: no games, apps, folders or payloads.")
+                }
+                StyledButton {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    visible: view.noGamesHere && !shelf.loading
+                    text: qsTr("Show everything")
+                    iconName: "folder-open"
+                    onClicked: shelf.onlyGames = false
                 }
                 StyledButton {
                     anchors.horizontalCenter: parent.horizontalCenter

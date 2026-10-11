@@ -11,6 +11,7 @@
 #include <cctype>
 #include <chrono>
 #include <cstring>
+#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <set>
@@ -613,6 +614,42 @@ FolderPreview previewFolder(FileSource &source, const std::string &dir, const Di
 	return preview;
 }
 
+bool folderHasGames(FileSource &source, const std::string &dir, int depth, size_t budget,
+	const std::atomic<bool> *cancel)
+{
+	std::deque<std::pair<std::string, int>> queue { { dir, 0 } };
+	size_t listed = 0;
+	while(!queue.empty() && listed < budget)
+	{
+		if(cancel && *cancel)
+			return false;
+		const std::pair<std::string, int> next = queue.front();
+		queue.pop_front();
+		std::vector<ShelfEntry> entries;
+		if(!source.list(next.first, &entries, nullptr))
+			continue;
+		++listed;
+		for(const ShelfEntry &entry : entries)
+		{
+			if(skipped(entry.name))
+				continue;
+			if(entry.directory)
+			{
+				// An app's own folder: the folder it is in is that app.
+				if(lower(entry.name) == "sce_sys")
+					return true;
+				if(next.second < depth)
+					queue.emplace_back(entry.path, next.second + 1);
+				continue;
+			}
+			const Kind kind = kindOf(entry.name, false, entry.size);
+			if(kind == Kind::Package || kind == Kind::Disc || kind == Kind::Image)
+				return true;
+		}
+	}
+	return false;
+}
+
 // ── the cache ────────────────────────────────────────────────────────────
 
 namespace {
@@ -796,6 +833,26 @@ void ShelfCache::storePreview(const std::string &key, FolderPreview *preview)
 	dirty_ = true;
 }
 
+bool ShelfCache::findLeadsToGames(const std::string &key, bool *leads) const
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	const auto found = leads_.find(key);
+	if(found == leads_.end())
+		return false;
+	*leads = found->second;
+	return true;
+}
+
+void ShelfCache::storeLeadsToGames(const std::string &key, bool leads)
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	const auto found = leads_.find(key);
+	if(found != leads_.end() && found->second == leads)
+		return;
+	leads_[key] = leads;
+	dirty_ = true;
+}
+
 void ShelfCache::load()
 {
 	std::ifstream in(fs::u8path(folder_) / "index.json", std::ios::binary);
@@ -809,6 +866,8 @@ void ShelfCache::load()
 		items_[entry.first] = itemFromJson(entry.second);
 	for(const auto &entry : root["ids"].members())
 		byId_[entry.first] = entry.second.toString();
+	for(const auto &entry : root["leads"].members())
+		leads_[entry.first] = entry.second.toLooseBool(false);
 	for(const auto &entry : root["previews"].members())
 	{
 		FolderPreview preview;
@@ -833,6 +892,8 @@ void ShelfCache::save()
 		items_.clear();
 	if(previews_.size() > 4000)
 		previews_.clear();
+	if(leads_.size() > 20000)
+		leads_.clear();
 	Json root = Json::makeObject();
 	Json items = Json::makeObject();
 	for(const auto &entry : items_)
@@ -842,6 +903,10 @@ void ShelfCache::save()
 	for(const auto &entry : byId_)
 		ids.set(entry.first, Json::fromString(entry.second));
 	root.set("ids", ids);
+	Json leads = Json::makeObject();
+	for(const auto &entry : leads_)
+		leads.set(entry.first, Json::fromBool(entry.second));
+	root.set("leads", leads);
 	Json previews = Json::makeObject();
 	for(const auto &entry : previews_)
 	{

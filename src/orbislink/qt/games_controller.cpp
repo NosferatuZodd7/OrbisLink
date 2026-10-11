@@ -30,6 +30,7 @@
 #include <QUrl>
 
 #include <algorithm>
+#include <chrono>
 #include <vector>
 
 namespace orbislink {
@@ -177,6 +178,50 @@ struct GamesController::Job
 #ifdef ORBISLINK_HAS_FPKG
 	fpkg::DiscInfo disc;
 #endif
+
+	// How fast the step under way goes through its bytes, and how long it
+	// has left (kept under the controller's lock).
+	double speed = 0;
+	int64_t secondsLeft = 0;
+	QString meterStage;
+	uint64_t meterDone = 0;
+	std::chrono::steady_clock::time_point meterTime;
+
+	void measure(uint64_t done, uint64_t total)
+	{
+		// A step counted in steps, not bytes, has no speed.
+		if(total <= 1)
+		{
+			stopMeter();
+			return;
+		}
+		const auto now = std::chrono::steady_clock::now();
+		if(meterStage != stage || done < meterDone)
+		{
+			meterStage = stage;
+			meterDone = done;
+			meterTime = now;
+			speed = 0;
+			secondsLeft = 0;
+			return;
+		}
+		const double elapsed = std::chrono::duration<double>(now - meterTime).count();
+		if(elapsed < 0.5)
+			return;
+		const double rate = static_cast<double>(done - meterDone) / elapsed;
+		speed = speed > 0 ? 0.7 * speed + 0.3 * rate : rate;
+		secondsLeft = speed > 1 && total > done
+			? static_cast<int64_t>(static_cast<double>(total - done) / speed + 0.5)
+			: 0;
+		meterDone = done;
+		meterTime = now;
+	}
+	void stopMeter()
+	{
+		meterStage.clear();
+		speed = 0;
+		secondsLeft = 0;
+	}
 };
 
 GamesController::GamesController(AppController *app, QObject *parent) : QObject(parent), app_(app)
@@ -329,7 +374,8 @@ void GamesController::setAssets(const QString &state, double percent, const QStr
 	}, Qt::QueuedConnection);
 }
 
-bool GamesController::ensureAssets(const std::function<bool(const QString &, double)> &progress, QString *error)
+bool GamesController::ensureAssets(const std::function<bool(const QString &, double, uint64_t, uint64_t)> &progress,
+	QString *error)
 {
 #ifdef ORBISLINK_HAS_FPKG
 	std::lock_guard<std::mutex> lock(assetsMutex_);
@@ -355,7 +401,9 @@ bool GamesController::ensureAssets(const std::function<bool(const QString &, dou
 				lastPercent = int(percent);
 				setAssets(QStringLiteral("downloading"), percent);
 			}
-			return !progress || progress(QStringLiteral("download"), percent);
+			return !progress
+				|| progress(QStringLiteral("download"), percent, static_cast<uint64_t>(std::max<int64_t>(0, done)),
+					static_cast<uint64_t>(std::max<int64_t>(0, total)));
 		});
 	QString why;
 	if(!got.ok)
@@ -373,7 +421,7 @@ bool GamesController::ensureAssets(const std::function<bool(const QString &, dou
 					lastPercent = int(percent);
 					setAssets(QStringLiteral("unpacking"), percent);
 				}
-				return !progress || progress(QStringLiteral("unpack"), percent);
+				return !progress || progress(QStringLiteral("unpack"), percent, read, total);
 			},
 			&unpackError);
 		if(!unpacked)
@@ -714,6 +762,8 @@ bool GamesController::fetchFromConsole(const std::shared_ptr<Job> &job, const st
 			{
 				std::lock_guard<std::mutex> lock(mutex_);
 				job->percent = total > 0 ? 100.0 * static_cast<double>(before + done) / static_cast<double>(total) : 0;
+				job->measure(static_cast<uint64_t>(std::max<int64_t>(0, before + done)),
+					static_cast<uint64_t>(std::max<int64_t>(0, total)));
 			}
 			tick();
 			return !job->cancel.load() && !stopping_.load();
@@ -826,6 +876,15 @@ void GamesController::publish()
 			m[QStringLiteral("state")] = job->state;
 			m[QStringLiteral("stage")] = job->stage;
 			m[QStringLiteral("percent")] = job->percent;
+			// The speed of the step under way, once it is known.
+			const bool moving = job->state == QLatin1String("converting") && job->meterStage == job->stage
+				&& job->speed > 1;
+			m[QStringLiteral("speedText")] = moving
+				? QString::fromStdString(humanBytes(static_cast<int64_t>(job->speed))) + QStringLiteral("/s")
+				: QString();
+			m[QStringLiteral("etaText")] = moving && job->secondsLeft > 0
+				? QString::fromStdString(humanDuration(job->secondsLeft))
+				: QString();
 			m[QStringLiteral("message")] = job->message;
 			m[QStringLiteral("install")] = job->install;
 			m[QStringLiteral("send")] = job->install || job->sendBack;
@@ -859,6 +918,13 @@ void GamesController::updateProgress()
 				item[QStringLiteral("stage")] = job->state;
 				item[QStringLiteral("step")] = job->stage;
 				item[QStringLiteral("percent")] = job->percent;
+				if(job->state == QLatin1String("converting") && job->meterStage == job->stage && job->speed > 1)
+				{
+					item[QStringLiteral("speedText")] =
+						QString::fromStdString(humanBytes(static_cast<int64_t>(job->speed))) + QStringLiteral("/s");
+					if(job->secondsLeft > 0)
+						item[QStringLiteral("etaText")] = QString::fromStdString(humanDuration(job->secondsLeft));
+				}
 			}
 			else if(job->state == QLatin1String("error"))
 			{
@@ -1019,11 +1085,12 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 	// First use: the emulator files, as easy-ps2-fpkg fetches them.
 	QString assetsError;
 	if(job->reusePath.isEmpty()
-		&& !ensureAssets([&](const QString &stage, double percent) {
+		&& !ensureAssets([&](const QString &stage, double percent, uint64_t done, uint64_t total) {
 			   {
 				   std::lock_guard<std::mutex> lock(mutex_);
 				   job->stage = stage;
 				   job->percent = percent;
+				   job->measure(done, total);
 			   }
 			   schedulePublish();
 			   return !job->cancel.load() && !stopping_.load();
@@ -1074,6 +1141,7 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 					: stage == "image" ? 1.0 + 89.0 * part
 					: stage == "digest" ? 90.0 + 9.0 * part
 					: 99.0 + part;
+				job->measure(done, total);
 			}
 			schedulePublish();
 			return !job->cancel.load() && !stopping_.load();
@@ -1091,6 +1159,7 @@ void GamesController::finishJob(const std::shared_ptr<Job> &job, bool ok, const 
 {
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
+		job->stopMeter();
 		if(ok)
 		{
 			job->state = QStringLiteral("done");
@@ -1205,6 +1274,7 @@ bool GamesController::runPack(const std::shared_ptr<Job> &job, const std::functi
 					: stage == "image" ? 1.0 + 89.0 * part
 					: stage == "digest" ? 90.0 + 9.0 * part
 					: 99.0 + part;
+				job->measure(done, total);
 			}
 			tick();
 			return !job->cancel.load() && !stopping_.load();

@@ -143,9 +143,10 @@ private:
 	QString toLocalPath(const QString &folder) const;
 	QString assetsFolder() const;
 	// Downloads and unpacks the emulator files unless they are there; one
-	// at a time, from any thread. `progress` gets "download"/"unpack" and a
-	// percentage; returning false cancels.
-	bool ensureAssets(const std::function<bool(const QString &, double)> &progress, QString *error);
+	// at a time, from any thread. `progress` gets "download"/"unpack", a
+	// percentage and the bytes done of all; returning false cancels.
+	bool ensureAssets(const std::function<bool(const QString &, double, uint64_t, uint64_t)> &progress,
+		QString *error);
 	void setAssets(const QString &state, double percent, const QString &message = {});
 	QVariantMap gameByPath(const QString &path) const;
 	void workerLoop();

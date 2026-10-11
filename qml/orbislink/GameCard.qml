@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// A PS1 or PS2 disc found on the PC, as a card like the consoles': the
-// platform large, the name, the serial and region. The box in the corner
+// A PS1 or PS2 disc found on the PC, as a card like the consoles': its
+// cover as the background (once found), the platform large, the name, the
+// serial and region. The box in the corner
 // selects it (for doing several at once); a click anywhere else opens it.
 import QtQuick
 import QtQuick.Controls.Basic
@@ -20,6 +21,10 @@ Item {
     // The game's cover, from the collection by its serial (shelf.cover).
     readonly property string cover: shelf.coverRevision >= 0 ? shelf.cover(game.platform || "", game.serial || "") : ""
     readonly property color tone: ps2 ? Theme.accent : Theme.textSecondary
+    // Over its cover the writing is white; without one, the card's own.
+    readonly property bool pictured: coverArt.ready
+    readonly property color mainText: pictured ? "#FFFFFF" : Theme.cardText
+    readonly property color mutedText: pictured ? Qt.rgba(1, 1, 1, 0.78) : Theme.cardTextMuted
 
     signal open()
     signal toggle()
@@ -66,64 +71,76 @@ Item {
             GradientStop { position: 1.0; color: card.selected ? Theme.cardActiveBottom : Theme.cardBottom }
         }
 
-        // Its cover (a disc where there is none yet), and beside it the
-        // platform, as the console cards show "PS4", its serial and region.
+        // The cover as the card's background, darkened at the top and the
+        // bottom so what is written over it stays readable.
         CoverArt {
             id: coverArt
-            x: 18
-            y: 18
-            width: 70
-            height: 96
+            anchors.fill: parent
+            visible: ready
             crop: true
-            radius: 8
+            edge: false
+            radius: body.radius
             picture: card.cover
-            placeholder: card.ps2 ? "dvd" : "cd"
-            label: card.ps2 ? "PS2" : "PS1"
         }
-        Column {
-            anchors.left: coverArt.right
-            anchors.leftMargin: 14
-            anchors.right: parent.right
-            anchors.rightMargin: 52
-            y: 18
-            spacing: 4
-            Text {
-                text: card.ps2 ? "PS2" : "PS1"
-                color: card.ps2 ? Theme.accent : Theme.cardText
-                font.pixelSize: 28
-                font.weight: Font.Black
-                font.letterSpacing: -0.5
+        Rectangle {
+            anchors.fill: parent
+            visible: card.pictured
+            radius: body.radius
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.55) }
+                GradientStop { position: 0.3; color: Qt.rgba(0, 0, 0, 0.05) }
+                GradientStop { position: 0.5; color: Qt.rgba(0, 0, 0, 0.15) }
+                GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.9) }
             }
-            Text {
-                width: parent.width
-                text: card.game.serial || ""
-                color: Theme.cardTextMuted
-                font.pixelSize: 12
-                elide: Text.ElideRight
-            }
-            Text {
-                width: parent.width
-                text: card.game.region || ""
-                color: Theme.cardTextMuted
-                font.pixelSize: 12
-                elide: Text.ElideRight
-            }
+        }
+        // The card's edge over the picture.
+        Rectangle {
+            anchors.fill: parent
+            visible: card.pictured
+            radius: body.radius
+            color: "transparent"
+            border.width: body.border.width
+            border.color: body.border.color
         }
 
+        // The platform, large, as the console cards show "PS4".
         Text {
+            x: 20
+            y: 16
+            text: card.ps2 ? "PS2" : "PS1"
+            color: card.pictured ? "#FFFFFF" : card.ps2 ? Theme.accent : Theme.cardText
+            font.pixelSize: 30
+            font.weight: Font.Black
+            font.letterSpacing: -0.5
+        }
+
+        // The name, the serial and the region, over the bottom.
+        Column {
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.leftMargin: 18
-            anchors.rightMargin: 18
-            y: coverArt.y + coverArt.height + 12
-            text: card.game.title + (card.game.disc > 0 ? qsTr(" (disc %1)").arg(card.game.disc) : "")
-            color: Theme.cardText
-            font.pixelSize: 15
-            font.weight: Font.DemiBold
-            wrapMode: Text.WordWrap
-            maximumLineCount: 2
-            elide: Text.ElideRight
-            lineHeight: 1.08
+            anchors.leftMargin: 20
+            anchors.rightMargin: 20
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: card.stage.length > 0 ? 70 : 42
+            spacing: 4
+            Text {
+                width: parent.width
+                text: card.game.title + (card.game.disc > 0 ? qsTr(" (disc %1)").arg(card.game.disc) : "")
+                color: card.mainText
+                font.pixelSize: 16
+                font.weight: Font.DemiBold
+                wrapMode: Text.WordWrap
+                maximumLineCount: 2
+                elide: Text.ElideRight
+                lineHeight: 1.06
+            }
+            Text {
+                width: parent.width
+                text: [card.game.serial, card.game.region].filter(function (s) { return s && s.length > 0 }).join("  ·  ")
+                color: card.mutedText
+                font.pixelSize: 12
+                elide: Text.ElideRight
+            }
         }
 
         // The file, at the bottom (or, while it is on its way, where it is).
@@ -138,12 +155,12 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 name: "file"
                 size: 13
-                color: Theme.cardTextMuted
+                color: card.mutedText
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
                 text: card.game.sizeText + "  ·  ." + card.game.format
-                color: Theme.cardTextMuted
+                color: card.mutedText
                 font.pixelSize: 11
             }
         }
@@ -173,7 +190,8 @@ Item {
             StageLoader {
                 id: stageLoader
                 anchors.verticalCenter: parent.verticalCenter
-                stage: card.stage
+                // Over and done (the package made, sent, installed): green.
+                stage: card.stage === "converted" || card.stage === "sent" ? "done" : card.stage
                 percent: card.progress ? card.progress.percent || 0 : 0
                 waiting: card.progress ? card.progress.waiting === true : false
             }
@@ -212,6 +230,11 @@ Item {
                     elide: Text.ElideRight
                     text: {
                         var s = card.stage
+                        // While bytes move: how fast, and how long it has left.
+                        var p = card.progress
+                        if (p && p.speedText && p.speedText.length > 0)
+                            return p.etaText && p.etaText.length > 0
+                                ? qsTr("%1  ·  %2 left").arg(p.speedText).arg(p.etaText) : p.speedText
                         if (s === "converting" && card.progress && (card.progress.step === "download"
                                                                    || card.progress.step === "unpack"))
                             return qsTr("downloaded once")
@@ -223,7 +246,7 @@ Item {
                         if (s === "installed") return qsTr("ready to play")
                         return card.progress && card.progress.message ? card.progress.message : ""
                     }
-                    color: Theme.cardTextMuted
+                    color: card.mutedText
                     font.pixelSize: 11
                 }
             }
@@ -275,7 +298,7 @@ Item {
             anchors.centerIn: parent
             name: card.selected ? "square-check" : "square"
             size: 20
-            color: card.selected ? Theme.accent : Theme.cardTextMuted
+            color: card.selected ? Theme.accent : card.mutedText
         }
         MouseArea {
             id: boxArea

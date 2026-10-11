@@ -280,7 +280,7 @@ Dialog {
                         font.pixelSize: 12
                         text: dialog.single
                             ? qsTr("This game was converted before: %1 is in the folder.")
-                                .arg(dialog.existingPackages[0].split(/[\\/]/).pop())
+                                .arg((dialog.existingPackages[0] || "").split(/[\\/]/).pop())
                             : qsTr("%n of these games were converted before; their packages are in the folder.",
                                    "", dialog.existingPackages.length)
                     }
