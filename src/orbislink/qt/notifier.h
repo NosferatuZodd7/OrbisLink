@@ -10,8 +10,8 @@ QT_END_NAMESPACE
 
 namespace orbislink {
 
-// System notifications: the install finished, the queue stopped, registration
-// failed — things that matter even with the window minimised.
+// System notifications: a long job came to its end — an install, a
+// conversion, a copy to this PC — with the window in the background.
 //
 // QSystemTrayIcon is deliberately not used. It lives in QtWidgets and needs
 // a QApplication instead of the QGuiApplication this application uses;
@@ -19,8 +19,10 @@ namespace orbislink {
 // gain to justify it. Instead:
 //
 //   Windows — Shell_NotifyIconW, the long-standing notification area API.
-//   Others — the window flashes in the taskbar (QWindow::alert), which is
-//   what Qt offers without new dependencies.
+//   Linux and the like — the desktop's notifications over D-Bus
+//   (org.freedesktop.Notifications), when Qt D-Bus is there.
+//   macOS — the system's own, through osascript.
+//   Otherwise — the window flashes in the taskbar (QWindow::alert).
 //
 // Inside the window the usual notice still appears; this is an extra.
 class Notifier : public QObject

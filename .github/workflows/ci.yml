@@ -33,6 +33,12 @@ jobs:
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DORBISLINK_WARNINGS_AS_ERRORS=ON -DORBISLINK_ENABLE_STREAM=ON
       - name: Build
         run: cmake --build build
+      # The Windows build only runs on pull requests and by hand (see
+      # windows-gui), so a name <windows.h> turns into a macro — a struct
+      # called CopyFile — would only show up when a version is published.
+      # This looks for those names in our sources here.
+      - name: Check the names Windows reserves
+        run: python3 scripts/check-win32-names.py
       # Syntax errors in the PowerShell blocks only show up five minutes
       # later, on a Windows runner. This catches them here.
       - name: Check the workflows

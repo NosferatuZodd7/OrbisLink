@@ -184,6 +184,11 @@ struct Settings
 	// Where games installed on the console are copied to on this PC (empty:
 	// Documents/OrbisLink/From the console).
 	std::string consoleCopyFolder;
+	// The homebrew store: a catalog address of the user's own (a mirror),
+	// tried first ("" for the built-in ones), and the folder of this PC
+	// whose app archives the store shows under "On this PC".
+	std::string storeCatalogAddress;
+	std::string storeLocalFolder;
 	// Console user folder ("1a2b3c4d") → its owner's Account ID (base64),
 	// which gives the PSID its backups are filed under.
 	std::map<std::string, std::string> saveAccountLinks;

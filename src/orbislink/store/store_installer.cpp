@@ -167,6 +167,77 @@ std::vector<InstalledApp> StoreInstaller::installed(StoreRemote &remote, const s
 	return out;
 }
 
+namespace {
+
+// The app folder in a ZIP: <TITLEID>/ at the top, as the catalog asks, or
+// the archive's root when eboot.bin is there; and its param.json.
+const ZipEntry *findAppIn(const std::vector<ZipEntry> &entries, std::string *prefix)
+{
+	bool found = false;
+	prefix->clear();
+	for(const ZipEntry &entry : entries)
+		if(entry.name == "eboot.bin")
+		{
+			found = true;
+			prefix->clear();
+			break;
+		}
+		else if(!found && endsWith(entry.name, "/eboot.bin")
+			&& std::count(entry.name.begin(), entry.name.end(), '/') == 1)
+		{
+			found = true;
+			*prefix = entry.name.substr(0, entry.name.size() - std::string("eboot.bin").size());
+		}
+	if(!found)
+		return nullptr;
+	const std::string wanted = *prefix + "sce_sys/param.json";
+	const auto param = std::find_if(entries.begin(), entries.end(),
+		[&wanted](const ZipEntry &e) { return e.name == wanted; });
+	return param == entries.end() ? nullptr : &*param;
+}
+
+} // namespace
+
+bool readArchiveApp(const std::string &zipPath, const std::string &scratchDir, ArchiveApp *out, std::string *error)
+{
+	std::vector<ZipEntry> entries;
+	if(!readZipDirectory(zipPath, &entries, error))
+		return false;
+	std::string prefix;
+	const ZipEntry *param = findAppIn(entries, &prefix);
+	if(!param)
+		return fail(error, "the archive holds no app folder (eboot.bin and sce_sys/param.json)");
+	std::error_code ignored;
+	fs::create_directories(fs::u8path(scratchDir), ignored);
+	const std::string localParam = joinPath(scratchDir, "param-" + std::to_string(nowUnixSeconds()) + ".json");
+	if(!extractZipEntry(zipPath, *param, localParam, nullptr, error))
+		return false;
+	Json json;
+	const bool readable = readJsonFile(localParam, &json);
+	fs::remove(fs::u8path(localParam), ignored);
+	if(!readable)
+		return fail(error, "the app's sce_sys/param.json is not readable");
+	*out = ArchiveApp();
+	out->titleId = json["titleId"].toString();
+	out->contentVersion = json["contentVersion"].toString();
+	const Json &local = json["localizedParameters"];
+	const std::string language = local["defaultLanguage"].toString("en-US");
+	out->name = local[language]["titleName"].toString();
+	if(out->name.empty())
+		for(const auto &pair : local.members())
+			if(pair.second.isObject() && !pair.second["titleName"].toString().empty())
+			{
+				out->name = pair.second["titleName"].toString();
+				break;
+			}
+	// Some homebrew says it at the top.
+	if(out->name.empty())
+		out->name = json["titleName"].toString();
+	if(!plainTitleId(out->titleId))
+		return fail(error, "the app's sce_sys/param.json names no title ID");
+	return true;
+}
+
 bool StoreInstaller::install(StoreRemote &remote, const std::string &zipPath, const std::string &titleId,
 	const std::string &scratchDir, const Progress &progress, std::string *error, InstallReport *report)
 {
@@ -183,23 +254,8 @@ bool StoreInstaller::install(StoreRemote &remote, const std::string &zipPath, co
 	// The app folder: <TITLEID>/ at the top, as the catalog asks, or the
 	// archive's root when eboot.bin is there.
 	std::string prefix;
-	bool found = false;
-	for(const ZipEntry &entry : entries)
-		if(entry.name == "eboot.bin")
-		{
-			found = true;
-			prefix.clear();
-			break;
-		}
-		else if(!found && endsWith(entry.name, "/eboot.bin")
-			&& std::count(entry.name.begin(), entry.name.end(), '/') == 1)
-		{
-			found = true;
-			prefix = entry.name.substr(0, entry.name.size() - std::string("eboot.bin").size());
-		}
-	const auto param = std::find_if(entries.begin(), entries.end(),
-		[&prefix](const ZipEntry &e) { return e.name == prefix + "sce_sys/param.json"; });
-	if(!found || param == entries.end())
+	const ZipEntry *param = findAppIn(entries, &prefix);
+	if(!param)
 		return fail(error, "the archive holds no app folder (eboot.bin and sce_sys/param.json)");
 
 	std::error_code ignored;

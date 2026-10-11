@@ -1968,6 +1968,11 @@ void ShelfController::actOn(const QVariantMap &card, const QString &action)
 		copyToPc({ card.value(QStringLiteral("key")).toString() }, true, true);
 		return;
 	}
+	if(action == QLatin1String("uninstall") || action == QLatin1String("uninstallUpdate"))
+	{
+		consoleLibrary_->uninstall(card, action == QLatin1String("uninstallUpdate"));
+		return;
+	}
 	if(card.value(QStringLiteral("where")).toString() == QLatin1String("console"))
 	{
 		QVariantMap item = card;
@@ -2152,13 +2157,27 @@ QVariantMap ShelfController::installedCard(const library::InstalledTitle &title,
 	if(addons > 0)
 		has << tr("%n add-on(s)", "", addons);
 	card[QStringLiteral("partsText")] = has.join(QStringLiteral(" · "));
-	card[QStringLiteral("actions")] = title.copyable() ? QStringList { QStringLiteral("copyToPc") } : QStringList();
-	card[QStringLiteral("note")] = title.copyable()
+	QStringList actions;
+	if(title.copyable())
+		actions << QStringLiteral("copyToPc");
+	// Taken off the console through Remote Package Installer, a PS4's; the
+	// PS5's installer has no such call.
+	if(!ps5)
+	{
+		actions << QStringLiteral("uninstall");
+		if(update)
+			actions << QStringLiteral("uninstallUpdate");
+	}
+	card[QStringLiteral("actions")] = actions;
+	QString note = title.copyable()
 		? tr("Copied to this PC as the console has it. A fake package (a converted game, or one made with a "
 			 "packager) installs again on any console with a homebrew enabler; a game from the PlayStation Store or "
 			 "a disc stays tied to its licence, and only a dump made on the console plays elsewhere.")
 		: tr("The console has no package of it to copy: a game ShadowMountPlus puts on the home screen is copied "
 			 "from its own folder.");
+	if(ps5)
+		note += QLatin1Char(' ') + tr("To uninstall it, use the console's own menu: the PS5's installer cannot.");
+	card[QStringLiteral("note")] = note;
 	return card;
 }
 

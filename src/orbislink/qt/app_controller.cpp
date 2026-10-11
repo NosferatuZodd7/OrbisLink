@@ -230,7 +230,10 @@ void AppController::rebuildBackends()
 				if(queue_ && queue_->waitingForService() && !installerRecheckPending_)
 					checkServicesNow();
 				if(terminal)
+				{
 					emit notify(title, message, failed);
+					emit jobFinished(title, message, failed);
+				}
 				// The file list shows it without anyone pressing refresh.
 				if(!landedIn.isEmpty()
 					&& normalizeRemotePath(landedIn.toStdString())
@@ -1825,12 +1828,14 @@ void AppController::ftpDownloadFolder(const QString &remotePath, const QString &
 			{
 				setStatusMessage(tr("FTP: %1").arg(message));
 				emit notify(tr("Download failed"), message, true);
+				emit jobFinished(tr("Download failed"), message, true);
 			}
 			else
 			{
 				setStatusMessage(tr("Saved to %1").arg(root));
-				emit notify(tr("Download finished"),
-					tr("%1 (%n file(s)) saved to %2", "", count).arg(name, root), false);
+				const QString done = tr("%1 (%n file(s)) saved to %2", "", count).arg(name, root);
+				emit notify(tr("Download finished"), done, false);
+				emit jobFinished(tr("Download finished"), done, false);
 			}
 		});
 	}).detach();
@@ -2051,6 +2056,7 @@ void AppController::startDownload(const QString &remotePath, const QString &name
 					QFile::remove(localPath);
 					setStatusMessage(tr("FTP: %1").arg(message));
 					emit notify(tr("Download failed"), message, true);
+					emit jobFinished(tr("Download failed"), message, true);
 					return;
 				}
 				if(forDrag)
@@ -2061,8 +2067,9 @@ void AppController::startDownload(const QString &remotePath, const QString &name
 				else
 				{
 					setStatusMessage(tr("%1 saved to %2").arg(name, QFileInfo(localPath).path()));
-					emit notify(tr("Download finished"),
-						tr("%1 saved to %2").arg(name, QFileInfo(localPath).path()), false);
+					const QString done = tr("%1 saved to %2").arg(name, QFileInfo(localPath).path());
+					emit notify(tr("Download finished"), done, false);
+					emit jobFinished(tr("Download finished"), done, false);
 				}
 			});
 	}).detach();

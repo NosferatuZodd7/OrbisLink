@@ -68,6 +68,16 @@ class StoreController : public QObject
 	// state ("working"/"done"/"error"/"cancelled"), stageText, percent,
 	// speedText, amountText, etaText, message }].
 	Q_PROPERTY(QVariantList jobs READ jobs NOTIFY jobsChanged)
+	// The catalog's address of the user's own ("" for the built-in ones),
+	// and the site the catalog in use came from.
+	Q_PROPERTY(QString catalogAddress READ catalogAddress NOTIFY catalogAddressChanged)
+	Q_PROPERTY(QString catalogSource READ catalogSource NOTIFY appsChanged)
+	// "On this PC": the app archives (.zip) in a folder of this PC —
+	// [{ path, file, name, titleId, version, sizeText, installed, update,
+	//    problem }] — and that folder.
+	Q_PROPERTY(QVariantList localApps READ localApps NOTIFY localChanged)
+	Q_PROPERTY(QString localFolder READ localFolder NOTIFY localChanged)
+	Q_PROPERTY(bool localScanning READ localScanning NOTIFY localChanged)
 
 public:
 	explicit StoreController(AppController *app, QObject *parent = nullptr);
@@ -89,6 +99,11 @@ public:
 	bool canInstall() const;
 	QVariantMap homeCheck() const { return homeCheck_; }
 	QVariantList jobs() const { return jobs_; }
+	QString catalogAddress() const;
+	QString catalogSource() const { return catalogSource_; }
+	QVariantList localApps() const { return localApps_; }
+	QString localFolder() const;
+	bool localScanning() const { return localScanning_; }
 
 	// Reads the catalog again, and what the PS5 has installed.
 	Q_INVOKABLE void refresh();
@@ -107,6 +122,19 @@ public:
 	Q_INVOKABLE void removeJob(const QString &id);
 	Q_INVOKABLE void clearFinishedJobs();
 
+	// A mirror of the catalog: "" puts the built-in addresses back. False
+	// (and nothing changes) when it is not an http(s) address.
+	Q_INVOKABLE bool setCatalogAddress(const QString &address);
+	Q_INVOKABLE QString defaultCatalogAddress() const;
+	// "On this PC": the folder read again, another folder, and an archive of
+	// this PC put on the PS5 the way the catalog's are (no checksum to check
+	// it against: it is the user's own file).
+	Q_INVOKABLE void scanLocal();
+	Q_INVOKABLE void setLocalFolder(const QUrl &folder);
+	Q_INVOKABLE QUrl localFolderUrl() const;
+	// `path`: a path of this PC, or a file: URL.
+	Q_INVOKABLE void installLocal(const QString &path);
+
 signals:
 	void appsChanged();
 	void stateChanged();
@@ -115,6 +143,8 @@ signals:
 	void consolesChanged();
 	void homeCheckChanged();
 	void jobsChanged();
+	void catalogAddressChanged();
+	void localChanged();
 	// The outcome of an install or a removal, for a notice.
 	void finished(const QString &message, bool error);
 
@@ -132,6 +162,12 @@ private:
 	void setProgress(const QString &stage, int64_t done, int64_t total);
 	void resetProgress();
 	std::string cacheDir() const;
+	// On the worker: the app folder of `zip` put on the PS5 and
+	// ShadowMountPlus told; then finishInstall.
+	void putOnConsole(const std::string &id, const QString &name, const std::string &zip, bool keepZip,
+		const std::string &address, const QString &console, const FtpClient::Config &config, const std::string &cache,
+		const std::string &version);
+	void finishInstall(const std::string &id, const QString &message, bool error, const std::string &version);
 
 
 	AppController *app_;
@@ -168,6 +204,10 @@ private:
 	std::thread checker_;
 	QVariantList jobs_;
 	QString jobId_;
+	QString catalogSource_;
+	QVariantList localApps_;
+	bool localScanning_ = false;
+	std::thread localScanner_;
 };
 
 } // namespace orbislink

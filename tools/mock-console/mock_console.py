@@ -615,7 +615,20 @@ class InstallerApiHandler(http.server.BaseHTTPRequestHandler):
             self._reply('{ "status": "success", "task_id": 1 }')
         elif path in ("/api/uninstall_game", "/api/uninstall_patch", "/api/uninstall_ac",
                       "/api/uninstall_theme"):
-            state.installed.pop(request.get("title_id", ""), None)
+            title_id = request.get("title_id", "")
+            content_id = request.get("content_id", "")
+            state.installed.pop(title_id, None)
+            # Its folders go too, as on a real console.
+            user = os.path.join(self.root, "user")
+            if path == "/api/uninstall_game" and title_id:
+                for part in ("app", "appmeta", "patch"):
+                    shutil.rmtree(os.path.join(user, part, title_id), ignore_errors=True)
+            elif path == "/api/uninstall_patch" and title_id:
+                shutil.rmtree(os.path.join(user, "patch", title_id), ignore_errors=True)
+            elif path == "/api/uninstall_ac" and len(content_id) >= 20:
+                # UP9000-CUSA00001_00-EXTRAPACK0000001: the title, then the label.
+                shutil.rmtree(os.path.join(user, "addcont", content_id[7:16], content_id[20:]),
+                              ignore_errors=True)
             self._reply('{ "status": "success" }')
         else:
             self.send_error(404, "Not Found")

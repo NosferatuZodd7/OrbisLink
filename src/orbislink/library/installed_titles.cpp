@@ -129,6 +129,9 @@ void readMeta(FileSource &source, const std::string &dir, InstalledTitle *title)
 					}
 			title->title = trim(name);
 		}
+		// Some homebrew says it at the top.
+		if(title->title.empty())
+			title->title = trim(root["titleName"].toString());
 		title->version = trim(root["contentVersion"].toString());
 		title->platform = "ps5";
 	}

@@ -8,6 +8,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
+import QtQuick.Dialogs
 import QtQuick.Layouts
 
 Item {
@@ -15,7 +16,8 @@ Item {
 
     signal back()
 
-    // What is shown: "all", "installed", "updates", or a kind ("app", "game"…).
+    // What is shown: "all", "installed", "updates", a kind ("app", "game"…),
+    // or "local" — the app archives of a folder of this PC.
     property string filter: "all"
     property string search: ""
 
@@ -51,6 +53,7 @@ Item {
         var list = []
         for (var i = 0; i < store.apps.length; ++i) {
             var a = store.apps[i]
+            if (filter === "local") continue
             if (filter === "installed" && !a.installed) continue
             if (filter === "updates" && !a.update) continue
             if (filter !== "all" && filter !== "installed" && filter !== "updates" && a.kind !== filter) continue
@@ -132,7 +135,8 @@ Item {
                         text: store.loading ? qsTr("Reading the catalog…")
                             : store.offline ? qsTr("%n app(s) · the catalog kept from last time (the site did not answer)", "",
                                                    store.apps.length)
-                            : qsTr("%n app(s) · homebrew.page, checked by its signature", "", store.apps.length)
+                            : qsTr("%n app(s) · %1, checked by its signature", "", store.apps.length)
+                              .arg(store.catalogSource.length > 0 ? store.catalogSource : "homebrew.page")
                         color: store.offline ? Theme.warn : Theme.textSecondary
                         font.pixelSize: 12
                     }
@@ -157,7 +161,13 @@ Item {
                     enabled: !store.loading
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Read the catalog again")
-                    onClicked: store.refresh()
+                    onClicked: root.filter === "local" ? store.scanLocal() : store.refresh()
+                }
+                StyledToolButton {
+                    iconName: "sliders"
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("The catalog's address")
+                    onClicked: catalogDialog.ask()
                 }
             }
 
@@ -241,6 +251,16 @@ Item {
                         text: qsTr("Updates") + "  " + root.updateCount
                         onClicked: root.filter = "updates"
                     }
+                    StyledButton {
+                        chip: true
+                        iconName: "laptop"
+                        primary: root.filter === "local"
+                        text: qsTr("On this PC") + (store.localApps.length > 0 ? "  " + store.localApps.length : "")
+                        onClicked: {
+                            root.filter = "local"
+                            store.scanLocal()
+                        }
+                    }
                 }
             }
 
@@ -252,6 +272,7 @@ Item {
                 GridView {
                     id: grid
                     anchors.fill: parent
+                    visible: root.filter !== "local"
                     clip: true
                     readonly property int columns: Math.max(1, Math.floor(width / 300))
                     cellWidth: Math.floor(width / columns)
@@ -395,10 +416,139 @@ Item {
                     }
                 }
 
+                // ── "On this PC": the app archives of a folder of this PC
+                ColumnLayout {
+                    anchors.fill: parent
+                    visible: root.filter === "local"
+                    spacing: 10
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        Icon {
+                            name: "folder"
+                            size: 16
+                            color: Theme.textSecondary
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: store.localFolder
+                            color: Theme.textSecondary
+                            font.pixelSize: 12
+                            elide: Text.ElideMiddle
+                        }
+                        StyledButton {
+                            chip: true
+                            text: qsTr("Change…")
+                            onClicked: localFolderDialog.open()
+                        }
+                        StyledButton {
+                            chip: true
+                            iconName: "plus"
+                            text: qsTr("Install a file…")
+                            enabled: store.canInstall && store.working.length === 0
+                            onClicked: localFileDialog.open()
+                        }
+                    }
+                    ListView {
+                        id: localList
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        clip: true
+                        spacing: 8
+                        model: store.localApps
+                        boundsBehavior: Flickable.StopAtBounds
+                        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                        delegate: Rectangle {
+                            id: localRow
+                            required property var modelData
+                            readonly property bool usable: (modelData.problem || "").length === 0
+                            readonly property bool busy: store.working.length > 0 && store.working === modelData.titleId
+                            width: localList.width
+                            implicitHeight: localRowLayout.implicitHeight + 24
+                            radius: 14
+                            color: Theme.panelAltFill
+                            border.width: 1
+                            border.color: modelData.update ? Theme.alpha(Theme.accent, 0.6) : Theme.glassEdge
+                            RowLayout {
+                                id: localRowLayout
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.leftMargin: 14
+                                anchors.rightMargin: 12
+                                spacing: 12
+                                Rectangle {
+                                    implicitWidth: 44
+                                    implicitHeight: 44
+                                    radius: 10
+                                    color: Theme.controlFill
+                                    Icon {
+                                        anchors.centerIn: parent
+                                        name: localRow.usable ? "package" : "warning"
+                                        size: 20
+                                        color: localRow.usable ? Theme.textSecondary : Theme.warn
+                                    }
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: localRow.modelData.name || localRow.modelData.file
+                                        color: Theme.text
+                                        font.pixelSize: 14
+                                        font.weight: Font.DemiBold
+                                        elide: Text.ElideRight
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: localRow.usable
+                                              ? [localRow.modelData.titleId, localRow.modelData.version,
+                                                 localRow.modelData.sizeText, localRow.modelData.file].filter(function (t) {
+                                                    return t && t.length > 0
+                                                }).join("  ·  ")
+                                              : qsTr("Not an app archive: %1").arg(localRow.modelData.problem)
+                                        color: localRow.usable ? Theme.textSecondary : Theme.warn
+                                        font.pixelSize: 11
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                                Rectangle {
+                                    visible: localRow.modelData.installed === true
+                                    radius: 11
+                                    color: Theme.alpha(localRow.modelData.update ? Theme.accent : Theme.ok, 0.12)
+                                    border.color: Theme.alpha(localRow.modelData.update ? Theme.accent : Theme.ok, 0.35)
+                                    implicitWidth: installedLabel.implicitWidth + 18
+                                    implicitHeight: 22
+                                    Text {
+                                        id: installedLabel
+                                        anchors.centerIn: parent
+                                        text: localRow.modelData.update
+                                              ? qsTr("Newer than on the PS5 (%1)").arg(localRow.modelData.installedVersion)
+                                              : qsTr("On the PS5")
+                                        color: localRow.modelData.update ? Theme.accent : Theme.ok
+                                        font.pixelSize: 11
+                                        font.weight: Font.Medium
+                                    }
+                                }
+                                StyledButton {
+                                    visible: localRow.usable
+                                    primary: !localRow.modelData.installed || localRow.modelData.update
+                                    iconName: localRow.busy ? "loader" : "download"
+                                    text: localRow.modelData.update ? qsTr("Update")
+                                          : localRow.modelData.installed ? qsTr("Install again") : qsTr("Install")
+                                    enabled: store.canInstall && store.working.length === 0
+                                    onClicked: store.installLocal(localRow.modelData.path)
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Empty, or reading.
                 Column {
                     anchors.centerIn: parent
-                    visible: root.shown.length === 0
+                    visible: root.filter === "local" ? store.localApps.length === 0 : root.shown.length === 0
                     spacing: 12
                     BusyIndicator {
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -417,7 +567,10 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         width: Math.min(460, root.width - 80)
                         wrapMode: Text.WordWrap
-                        text: store.loading ? qsTr("Reading the catalog…")
+                        text: root.filter === "local"
+                              ? (store.localScanning ? qsTr("Reading the folder…")
+                                 : qsTr("No app archives (.zip) in this folder. Choose another, or install a file."))
+                            : store.loading ? qsTr("Reading the catalog…")
                             : store.error.length > 0 && store.apps.length === 0
                               ? qsTr("The catalog could not be read: %1").arg(store.error)
                             : qsTr("Nothing here.")
@@ -441,7 +594,10 @@ Item {
                     wrapMode: Text.WordWrap
                     color: Theme.textMuted
                     font.pixelSize: 11
-                    text: qsTr("Each app installs as its folder in /data/homebrew on the PS5, checked against the "
+                    text: root.filter === "local"
+                          ? qsTr("An archive of this PC installs the same way, as its folder in /data/homebrew; being "
+                                 + "your own file, nothing checks it against the catalog. Only install what you trust.")
+                          : qsTr("Each app installs as its folder in /data/homebrew on the PS5, checked against the "
                                + "catalog first; ShadowMountPlus (with kstuff) puts it on the home screen. No package "
                                + "is built. The apps are their authors' work, under their own licences.")
                 }
@@ -887,5 +1043,110 @@ Item {
             onObjectAdded: (index, object) => targetMenu.insertItem(index, object)
             onObjectRemoved: (index, object) => targetMenu.removeItem(object)
         }
+    }
+
+    // ── the catalog's address: a mirror of the user's own, tried first
+    Dialog {
+        id: catalogDialog
+        property bool invalid: false
+        function ask() {
+            addressField.text = store.catalogAddress
+            invalid = false
+            open()
+        }
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(520, parent.width - 32)
+        modal: true
+        padding: 0
+        Overlay.modal: Rectangle { color: Theme.scrim }
+        background: Rectangle {
+            color: Theme.dialogFill
+            border.color: Theme.border
+            radius: Theme.radiusDialog
+        }
+        onOpened: addressField.forceActiveFocus()
+        header: DialogHeader {
+            title: qsTr("The catalog's address")
+            dialog: catalogDialog
+        }
+        contentItem: ColumnLayout {
+            spacing: 10
+            Text {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                wrapMode: Text.WordWrap
+                color: Theme.textSecondary
+                font.pixelSize: 13
+                text: qsTr("A mirror of the catalog, tried before %1 and its own mirror. Whatever it serves is "
+                           + "checked against the catalog's signature, as always: a mirror cannot change the apps. "
+                           + "Empty, the built-in addresses alone.").arg(store.defaultCatalogAddress())
+            }
+            StyledField {
+                id: addressField
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                placeholderText: store.defaultCatalogAddress()
+                onTextEdited: catalogDialog.invalid = false
+            }
+            Text {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                visible: catalogDialog.invalid
+                text: qsTr("That is not an http(s) address.")
+                color: Theme.error
+                font.pixelSize: 12
+            }
+        }
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                spacing: 8
+                StyledButton {
+                    text: qsTr("Built-in addresses")
+                    enabled: store.catalogAddress.length > 0
+                    onClicked: {
+                        store.setCatalogAddress("")
+                        catalogDialog.close()
+                    }
+                }
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("Cancel")
+                    onClicked: catalogDialog.close()
+                }
+                StyledButton {
+                    text: qsTr("Save")
+                    primary: true
+                    onClicked: {
+                        if (store.setCatalogAddress(addressField.text))
+                            catalogDialog.close()
+                        else
+                            catalogDialog.invalid = true
+                    }
+                }
+            }
+        }
+    }
+
+    FolderDialog {
+        id: localFolderDialog
+        title: qsTr("The folder with your app archives")
+        currentFolder: store.localFolderUrl()
+        onAccepted: store.setLocalFolder(selectedFolder)
+    }
+    FileDialog {
+        id: localFileDialog
+        title: qsTr("An app archive to install")
+        currentFolder: store.localFolderUrl()
+        nameFilters: [qsTr("App archives (*.zip)")]
+        onAccepted: store.installLocal(selectedFile.toString())
     }
 }

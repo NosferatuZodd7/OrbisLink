@@ -110,6 +110,13 @@ public:
 	// For the tests: other keys and addresses.
 	void setKeys(std::vector<PublicKey> keys) { keys_ = std::move(keys); }
 	void setBases(std::vector<std::string> bases) { bases_ = std::move(bases); }
+	// An address of the user's own (a mirror), tried before the built-in
+	// ones; "" for those alone. What it serves is checked against the same
+	// keys, so a mirror cannot change the apps.
+	void setCustomBase(const std::string &base);
+	// The address the catalog in use came from.
+	const std::string &base() const { return base_; }
+	static std::string defaultBase();
 
 private:
 	bool fetch(const std::string &url, std::string *body, std::string *error) const;

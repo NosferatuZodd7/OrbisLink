@@ -36,12 +36,28 @@ FocusScope {
         return card.card === "title" && ["convert", "pack", "install", "convertOnly", "packOnly", "copyToPc"]
             .some(function (a) { return actions.indexOf(a) >= 0 })
     }
+    // The last one picked or left, where a Shift+click run starts from.
+    property int pickAnchor: -1
     function togglePick(card) {
         var next = Object.assign({}, picked)
         if (next[card.key])
             delete next[card.key]
         else
             next[card.key] = true
+        picked = next
+    }
+    // Every game from the anchor to this one, picked.
+    function pickRun(index) {
+        if (pickAnchor < 0 || pickAnchor >= shelf.count) {
+            togglePick(shelf.card(index))
+            return
+        }
+        var next = Object.assign({}, picked)
+        for (var i = Math.min(pickAnchor, index); i <= Math.max(pickAnchor, index); ++i) {
+            var card = shelf.card(i)
+            if (pickable(card))
+                next[card.key] = true
+        }
         picked = next
     }
     function pickAll() {
@@ -56,6 +72,7 @@ FocusScope {
     function stopPicking() {
         picking = false
         picked = ({})
+        pickAnchor = -1
     }
     // The cards for some keys, as they are shown.
     function cardsFor(keys) {
@@ -71,6 +88,10 @@ FocusScope {
     function run(action, index) {
         if (action === "copyToPc") {
             copyDialog.ask([shelf.card(index).key])
+            return
+        }
+        if (action === "uninstall" || action === "uninstallUpdate") {
+            uninstallDialog.ask(index, shelf.card(index), action)
             return
         }
         shelf.act(index, action)
@@ -112,6 +133,8 @@ FocusScope {
         case "reveal": return qsTr("Show in its folder")
         case "delete": return qsTr("Delete from the console…")
         case "copyToPc": return qsTr("Copy to this PC")
+        case "uninstall": return qsTr("Uninstall…")
+        case "uninstallUpdate": return qsTr("Uninstall the update…")
         }
         return action
     }
@@ -148,6 +171,7 @@ FocusScope {
         case "reveal": return "external-link"
         case "delete": return "trash"
         case "copyToPc": return "laptop"
+        case "uninstall": case "uninstallUpdate": return "trash"
         }
         return ""
     }
@@ -191,14 +215,18 @@ FocusScope {
             }
         return false
     }
-    function activate(index) {
+    function activate(index, modifiers) {
         var card = shelf.card(index)
         if (!card.card)
             return
         select(index)
         list.forceActiveFocus()
         if (picking && pickable(card)) {
-            togglePick(card)
+            if ((modifiers || 0) & Qt.ShiftModifier)
+                pickRun(index)
+            else
+                togglePick(card)
+            pickAnchor = index
             return
         }
         if (card.card === "source" || card.card === "folder") {
@@ -440,7 +468,7 @@ FocusScope {
                     case Qt.Key_End: view.select(shelf.count - 1); break
                     case Qt.Key_Return:
                     case Qt.Key_Enter:
-                    case Qt.Key_Space: view.activate(view.current); break
+                    case Qt.Key_Space: view.activate(view.current, event.modifiers); break
                     case Qt.Key_Escape:
                         if (view.picking) {
                             view.stopPicking()
@@ -450,7 +478,9 @@ FocusScope {
                         break
                     case Qt.Key_Backspace: handled = view.goBack(); break
                     default:
-                        if (event.matches(StandardKey.Find)) {
+                        if (view.picking && event.matches(StandardKey.SelectAll)) {
+                            view.pickAll()
+                        } else if (event.matches(StandardKey.Find)) {
                             search.forceActiveFocus()
                             search.selectAll()
                         } else
@@ -522,7 +552,7 @@ FocusScope {
                                     artSize: view.tile
                                     info: visible ? cell.modelData : ({})
                                     selected: cell.picked
-                                    onActivated: view.activate(cell.modelData.index)
+                                    onActivated: (modifiers) => view.activate(cell.modelData.index, modifiers)
                                 }
                                 FolderCard {
                                     visible: cell.modelData.card === "folder"
@@ -530,7 +560,7 @@ FocusScope {
                                     artSize: view.tile
                                     info: visible ? cell.modelData : ({})
                                     selected: cell.picked
-                                    onActivated: view.activate(cell.modelData.index)
+                                    onActivated: (modifiers) => view.activate(cell.modelData.index, modifiers)
                                 }
                                 TitleCard {
                                     visible: cell.modelData.card === "title"
@@ -540,7 +570,7 @@ FocusScope {
                                     selected: cell.picked
                                     picking: view.picking && view.pickable(cell.modelData)
                                     checked: view.picked[cell.modelData.key] === true
-                                    onActivated: view.activate(cell.modelData.index)
+                                    onActivated: (modifiers) => view.activate(cell.modelData.index, modifiers)
                                 }
                             }
                         }
@@ -571,7 +601,7 @@ FocusScope {
                     spacing: 8
                     Text {
                         Layout.fillWidth: true
-                        text: pickBar.count === 0 ? qsTr("Click the games to pick them")
+                        text: pickBar.count === 0 ? qsTr("Click the games to pick them; Shift+click picks a run")
                                                   : qsTr("%n picked", "", pickBar.count)
                         color: pickBar.count === 0 ? Theme.textSecondary : Theme.text
                         font.pixelSize: 13
@@ -892,7 +922,7 @@ FocusScope {
             return !view.needsConsole(a, card) || app.canUseFtp
                    || (a === "install" && card.where !== "console" && app.canInstallDirectly)
         })
-        readonly property var secondary: ["reveal", "sendFile", "delete"]
+        readonly property var secondary: ["reveal", "sendFile", "delete", "uninstall", "uninstallUpdate"]
         readonly property var mainActions: {
             var main = usable.filter(function (a) { return secondary.indexOf(a) < 0 }).slice(0, 2)
             if (main.length === 0) {
@@ -1132,7 +1162,7 @@ FocusScope {
                     required property string modelData
                     text: view.actionLabel(modelData, details.card)
                     iconName: view.actionIcon(modelData)
-                    danger: modelData === "delete"
+                    danger: modelData === "delete" || modelData === "uninstall" || modelData === "uninstallUpdate"
                     onTriggered: {
                         if (modelData === "delete") {
                             removal.ask(details.index, details.card)
@@ -1203,6 +1233,77 @@ FocusScope {
                     onClicked: {
                         shelf.act(removal.index, "delete")
                         removal.close()
+                        details.close()
+                    }
+                }
+            }
+        }
+    }
+
+    // ── a game taken off the console (or only its update), asked first
+    Dialog {
+        id: uninstallDialog
+        property int index: -1
+        property var card: ({ title: "" })
+        property string action: "uninstall"
+        readonly property bool updateOnly: action === "uninstallUpdate"
+        function ask(i, c, a) {
+            index = i
+            card = c
+            action = a
+            open()
+        }
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(460, parent.width - 32)
+        modal: true
+        padding: 0
+        Overlay.modal: Rectangle { color: Theme.scrim }
+        background: Rectangle {
+            color: Theme.dialogFill
+            border.color: Theme.border
+            radius: Theme.radiusDialog
+        }
+        header: DialogHeader {
+            title: uninstallDialog.updateOnly ? qsTr("Uninstall the update of %1?").arg(uninstallDialog.card.title)
+                                              : qsTr("Uninstall %1?").arg(uninstallDialog.card.title)
+            dialog: uninstallDialog
+        }
+        contentItem: Text {
+            leftPadding: Theme.dialogMargin
+            rightPadding: Theme.dialogMargin
+            topPadding: 6
+            bottomPadding: 6
+            wrapMode: Text.WordWrap
+            color: Theme.textSecondary
+            font.pixelSize: 13
+            text: uninstallDialog.updateOnly
+                  ? qsTr("The update goes from the console, and the game is back at the version it was installed with.")
+                  : qsTr("The game, its update and its add-ons go from the console, through Remote Package Installer. "
+                         + "Its saves stay. Copy it to this PC first to keep it.")
+        }
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                spacing: 8
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("Cancel")
+                    onClicked: uninstallDialog.close()
+                }
+                StyledButton {
+                    text: qsTr("Uninstall")
+                    iconName: "trash"
+                    danger: true
+                    solid: true
+                    enabled: app.canUseFtp
+                    onClicked: {
+                        shelf.act(uninstallDialog.index, uninstallDialog.action)
+                        uninstallDialog.close()
                         details.close()
                     }
                 }
