@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "orbislink/qt/app_controller.h"
 
+#include "orbislink/library/console_library.h"
+
 #include "orbislink/qt/diagnostics.h"
 #ifdef ORBISLINK_HAS_STREAM
 #include "orbislink/qt/translate_message.h"
@@ -1028,7 +1030,7 @@ void AppController::refreshQueueModel()
 		if(task.isTerminal())
 			continue;
 		const QString key = transferKey(QString::fromStdString(task.localPath));
-		const bool installing = task.mode == TransferMode::DirectInstall;
+		const bool installing = task.mode != TransferMode::FtpUpload;
 		if(transfers.contains(key) && !installing)
 			continue;
 		QVariantMap item;
@@ -1037,7 +1039,7 @@ void AppController::refreshQueueModel()
 		item[QStringLiteral("waiting")] = task.state == TaskState::Pending;
 		item[QStringLiteral("taskId")] = QString::fromStdString(task.id);
 		item[QStringLiteral("mode")] =
-			task.mode == TransferMode::DirectInstall ? QStringLiteral("install") : QStringLiteral("send");
+			task.mode != TransferMode::FtpUpload ? QStringLiteral("install") : QStringLiteral("send");
 		transfers[key] = item;
 	}
 	for(const QueueTask &task : queue_->history())
@@ -1046,7 +1048,7 @@ void AppController::refreshQueueModel()
 		if(transfers.contains(key))
 			continue;
 		QVariantMap item;
-		const bool installing = task.mode == TransferMode::DirectInstall || task.installedFromConsole;
+		const bool installing = task.mode != TransferMode::FtpUpload || task.installedFromConsole;
 		item[QStringLiteral("stage")] = task.state == TaskState::Completed
 			? (installing ? QStringLiteral("installed") : QStringLiteral("sent"))
 			: task.state == TaskState::Cancelled ? QStringLiteral("cancelled") : QStringLiteral("error");
@@ -1054,7 +1056,7 @@ void AppController::refreshQueueModel()
 		item[QStringLiteral("message")] = translateMessage(task.message);
 		item[QStringLiteral("taskId")] = QString::fromStdString(task.id);
 		item[QStringLiteral("mode")] =
-			task.mode == TransferMode::DirectInstall ? QStringLiteral("install") : QStringLiteral("send");
+			task.mode != TransferMode::FtpUpload ? QStringLiteral("install") : QStringLiteral("send");
 		transfers[key] = item;
 	}
 	if(transfers != transfers_)
@@ -1204,34 +1206,62 @@ void AppController::enqueueFiles(const QStringList &files, TransferMode transfer
 
 void AppController::installFromConsole(const QString &remotePath)
 {
-	if(!installer_ || remotePath.isEmpty())
+	if(!queue_ || remotePath.isEmpty())
 		return;
-	const RpiClient::Config config = installer_->config();
 	const QString name = QFileInfo(remotePath).fileName();
-	setStatusMessage(tr("Asking the console to install %1…").arg(name));
+	setStatusMessage(tr("Reading %1 on the console…").arg(name));
+	const FtpClient::Config config = ftpClientConfigFor(settings_.consoleAddress);
+	// What it is, read there in a few pieces; then a card in the queue that
+	// follows the install.
 	std::thread([this, life = lifeline_, config, remotePath, name]() {
-		RpiClient installer(config);
-		InstallTaskHandle handle;
-		const InstallerResult started = installer.installDirect({ remotePath.toStdString() }, &handle);
-		if(started.ok)
-			logInfo("Installing " + remotePath.toStdString() + " on the console.");
-		const QString message = started.ok
-			? tr("%1: the console is installing it. Follow it in its notifications.").arg(name)
-			: tr("%1 was not installed: %2").arg(name, translateMessage(started.message));
-		const bool failed = !started.ok;
-		life->post([this, message, failed]() {
-			setStatusMessage(message);
-			emit notify(tr("Install"), message, failed);
+		FtpClient ftp(config);
+		int64_t size = 0;
+		PkgInfo info;
+		if(ftp.remoteSize(remotePath.toStdString(), &size).ok && size > 0)
+		{
+			library::BlockReader reader([&ftp, remotePath](int64_t offset, size_t length, std::vector<uint8_t> *bytes) {
+				return ftp.read(remotePath.toStdString(), offset, length, bytes).ok;
+			}, size);
+			PkgInspector::Options options;
+			options.maxIconBytes = 1024 * 1024;
+			info = PkgInspector(options).inspect(remotePath.toStdString(), size,
+				[&reader](int64_t offset, void *buffer, size_t length) { return reader.read(offset, buffer, length); });
+		}
+		QString icon;
+		if(!info.iconPng.empty())
+			icon = QStringLiteral("data:image/png;base64,")
+				+ QString::fromLatin1(QByteArray(reinterpret_cast<const char *>(info.iconPng.data()),
+					static_cast<int>(info.iconPng.size())).toBase64());
+		life->post([this, info, icon, remotePath, name]() {
+			if(!info.valid)
+			{
+				const QString message = tr("%1 was not installed: %2").arg(name,
+					translateMessage(info.error.empty() ? std::string("Could not read the file.") : info.error));
+				setStatusMessage(message);
+				emit notify(tr("Install"), message, true);
+				return;
+			}
+			const std::string id = queue_->enqueueConsoleInstall(remotePath.toStdString(), info);
+			if(!icon.isEmpty())
+				queueModel_.setIcon(QString::fromStdString(id), icon);
+			refreshQueueModel();
+			setStatusMessage(tr("%1: queued to install on the console.").arg(name));
+			emit showPanel(QStringLiteral("queue"));
 		});
 	}).detach();
 }
 
 void AppController::sendAndInstall(const QString &pkg, const QString &directory)
 {
+	sendTo(pkg, directory, true);
+}
+
+void AppController::sendTo(const QString &pkg, const QString &directory, bool install)
+{
 	if(!queue_)
 		return;
 	std::string error;
-	const std::string id = queue_->enqueueUploadAndInstall(pkg.toStdString(), directory.toStdString(), &error);
+	const std::string id = queue_->enqueueUploadTo(pkg.toStdString(), directory.toStdString(), install, &error);
 	if(id.empty())
 	{
 		setStatusMessage(translateMessage(error));

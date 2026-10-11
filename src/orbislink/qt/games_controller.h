@@ -104,9 +104,11 @@ public:
 	// The disc files themselves, over FTP, to the folder the file list is in.
 	Q_INVOKABLE void sendToConsole(const QStringList &paths);
 	// A disc that is on the console (its path there): fetched to this PC,
-	// converted, and its package sent back to the same folder and installed.
-	// `platform` ("ps1"/"ps2") is what it was read as there, for the card.
-	Q_INVOKABLE void convertFromConsole(const QString &remotePath, const QString &title, const QString &platform);
+	// converted, and its package sent back to the same folder and, unless
+	// `install` is false, installed. `platform` ("ps1"/"ps2") is what it was
+	// read as there, for the card.
+	Q_INVOKABLE void convertFromConsole(const QString &remotePath, const QString &title, const QString &platform,
+		bool install = true);
 	Q_INVOKABLE void cancelConversion(const QString &id);
 	Q_INVOKABLE void clearFinishedConversions();
 	// Takes a finished conversion's card away.

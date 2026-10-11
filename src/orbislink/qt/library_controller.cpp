@@ -17,6 +17,7 @@
 
 #include <QByteArray>
 #include <QMetaObject>
+#include <QTimer>
 
 #include <algorithm>
 #include <map>
@@ -62,6 +63,34 @@ std::string upper(std::string text)
 LibraryController::LibraryController(AppController *app, GamesController *games, QObject *parent)
 	: QObject(parent), app_(app), games_(games)
 {
+	// A package put in the library (a converted disc) or installed from it:
+	// read it again, a moment later, to show it.
+	connect(app_, &AppController::transfersChanged, this, [this]() {
+		if(!scanned_ || scanning_)
+			return;
+		const QSet<QString> now = finishedTasks();
+		for(const QString &id : now)
+			if(!finishedSeen_.contains(id))
+			{
+				finishedSeen_ = now;
+				QTimer::singleShot(1500, this, [this]() { refresh(); });
+				return;
+			}
+	});
+}
+
+QSet<QString> LibraryController::finishedTasks() const
+{
+	QSet<QString> ids;
+	const QVariantMap transfers = app_->transfers();
+	for(auto it = transfers.cbegin(); it != transfers.cend(); ++it)
+	{
+		const QVariantMap transfer = it.value().toMap();
+		const QString stage = transfer.value(QStringLiteral("stage")).toString();
+		if(stage == QLatin1String("sent") || stage == QLatin1String("installed"))
+			ids.insert(transfer.value(QStringLiteral("taskId")).toString());
+	}
+	return ids;
 }
 
 LibraryController::~LibraryController()
@@ -108,12 +137,36 @@ void LibraryController::refresh()
 		FtpClient ftp(config);
 		// The folder in the console's memory is made, so it is there to fill.
 		ftp.makeDirectory(std::string("/data/") + library::kFolderName);
-		// What the console has installed, by title ID.
+		// What the console has installed, by title ID: games and apps, and
+		// the patches over them.
 		std::set<std::string> installed;
+		std::set<std::string> patched;
 		std::vector<FtpEntry> apps;
 		if(ftp.list("/user/app", &apps).ok)
 			for(const FtpEntry &app : apps)
 				installed.insert(upper(app.name));
+		std::vector<FtpEntry> patches;
+		if(ftp.list("/user/patch", &patches).ok)
+			for(const FtpEntry &patch : patches)
+				patched.insert(upper(patch.name));
+		// A game's add-ons, by their label, read when one is in the library.
+		std::map<std::string, std::set<std::string>> addOns;
+		auto addOnInstalled = [&ftp, &addOns](const std::string &titleId, const std::string &contentId) {
+			// "UP0000-CUSA00000_00-LABEL…": the label is what follows the "-".
+			if(titleId.empty() || contentId.size() <= 20)
+				return false;
+			auto found = addOns.find(titleId);
+			if(found == addOns.end())
+			{
+				std::set<std::string> labels;
+				std::vector<FtpEntry> entries;
+				if(ftp.list("/user/addcont/" + titleId, &entries).ok)
+					for(const FtpEntry &entry : entries)
+						labels.insert(upper(entry.name));
+				found = addOns.emplace(titleId, labels).first;
+			}
+			return found->second.count(upper(contentId.substr(20))) > 0;
+		};
 
 		QVariantList items;
 		QVariantList folders;
@@ -174,6 +227,8 @@ void LibraryController::refresh()
 				QString platform;
 				QString action;
 				QString note;
+				// What cannot be used as it is goes with the rest.
+				QString group = QStringLiteral("other");
 
 				switch(kind)
 				{
@@ -195,7 +250,24 @@ void LibraryController::refresh()
 						item[QStringLiteral("version")] = QString::fromStdString(info.appVersion);
 						item[QStringLiteral("category")] = QString::fromLatin1(pkgCategoryCode(info.kind));
 						item[QStringLiteral("icon")] = dataUrl(info.iconPng);
-						item[QStringLiteral("installed")] = info.kind == PkgCategory::Game && installed.count(upper(titleId)) > 0;
+						switch(info.kind)
+						{
+							case PkgCategory::Patch:
+							case PkgCategory::DeltaPatch:
+								group = QStringLiteral("extras");
+								item[QStringLiteral("installed")] = patched.count(upper(titleId)) > 0;
+								break;
+							case PkgCategory::Dlc:
+								group = QStringLiteral("extras");
+								item[QStringLiteral("installed")] = addOnInstalled(upper(titleId), info.contentId);
+								break;
+							case PkgCategory::Theme:
+								group = QStringLiteral("extras");
+								break;
+							default:
+								group = QStringLiteral("games");
+								item[QStringLiteral("installed")] = installed.count(upper(titleId)) > 0;
+						}
 						if(onPs5)
 							action = QStringLiteral("install");
 						else
@@ -244,6 +316,7 @@ void LibraryController::refresh()
 						item[QStringLiteral("serial")] = QString::fromStdString(disc.serial);
 						item[QStringLiteral("installed")] = !titleId.empty() && installed.count(upper(titleId)) > 0;
 						action = QStringLiteral("convert");
+						group = QStringLiteral("games");
 #else
 						note = tr("This build cannot convert discs.");
 #endif
@@ -253,6 +326,7 @@ void LibraryController::refresh()
 					{
 						titleId = library::titleIdInName(entry.name);
 						platform = QStringLiteral("ps5");
+						group = QStringLiteral("games");
 						item[QStringLiteral("installed")] = !titleId.empty() && installed.count(titleId) > 0;
 						if(onPs5)
 							action = QStringLiteral("mount");
@@ -278,6 +352,7 @@ void LibraryController::refresh()
 						if(!params.ok)
 							continue; // a folder of something else
 						titleId = params.titleId;
+						group = QStringLiteral("games");
 						if(!params.title.empty())
 							title = QString::fromStdString(params.title);
 						item[QStringLiteral("version")] = QString::fromStdString(params.version);
@@ -293,6 +368,7 @@ void LibraryController::refresh()
 					}
 					case Kind::Payload:
 						action = QStringLiteral("run");
+						group = QStringLiteral("payloads");
 						item[QStringLiteral("port")] = payloads::loaderPort(consoleKind, entry.name);
 						break;
 					case Kind::Archive:
@@ -306,6 +382,7 @@ void LibraryController::refresh()
 				item[QStringLiteral("platform")] = platform;
 				item[QStringLiteral("action")] = action;
 				item[QStringLiteral("note")] = note;
+				item[QStringLiteral("group")] = group;
 				if(!item.contains(QStringLiteral("installed")))
 					item[QStringLiteral("installed")] = false;
 				items << item;
@@ -322,14 +399,24 @@ void LibraryController::refresh()
 			folders_ = folders;
 			scanning_ = false;
 			scanned_ = true;
+			finishedSeen_ = finishedTasks();
 			status_.clear();
 			emit itemsChanged();
 		}, Qt::QueuedConnection);
 	});
 }
 
+QString LibraryController::consoleName() const
+{
+	const std::string address = app_->settings().consoleAddress;
+	for(const ConsoleEntry &console : app_->settings().consoles)
+		if(console.address == address)
+			return QString::fromStdString(console.name.empty() ? console.address : console.name);
+	return QString::fromStdString(address);
+}
+
 void LibraryController::runAction(const QString &what, std::function<QString(FtpClient &ftp, bool *error)> job,
-	bool rescan)
+	bool rescan, const QVariantMap &item, const QString &kind)
 {
 	if(busy_)
 		return;
@@ -339,24 +426,87 @@ void LibraryController::runAction(const QString &what, std::function<QString(Ftp
 	status_ = what;
 	emit busyChanged();
 	emit itemsChanged();
+
+	// Its card in the installs panel, beside the packages'.
+	QString jobId;
+	if(!kind.isEmpty())
+	{
+		jobId = QStringLiteral("library-%1").arg(nextJob_++);
+		QVariantMap card;
+		card[QStringLiteral("id")] = jobId;
+		card[QStringLiteral("kind")] = kind;
+		card[QStringLiteral("name")] = item.value(QStringLiteral("title"));
+		card[QStringLiteral("file")] = item.value(QStringLiteral("name"));
+		card[QStringLiteral("icon")] = item.value(QStringLiteral("icon"));
+		card[QStringLiteral("itemKind")] = item.value(QStringLiteral("kind"));
+		card[QStringLiteral("console")] = consoleName();
+		card[QStringLiteral("state")] = QStringLiteral("working");
+		card[QStringLiteral("stageText")] = what;
+		jobs_.prepend(card);
+		emit jobsChanged();
+		emit app_->showPanel(QStringLiteral("queue"));
+	}
+
 	const FtpClient::Config config = app_->ftpClientConfigFor(app_->settings().consoleAddress);
-	worker_ = std::thread([this, config, job, rescan]() {
+	worker_ = std::thread([this, config, job, rescan, jobId]() {
 		FtpClient ftp(config);
 		bool error = false;
 		const QString message = job(ftp, &error);
 		if(cancel_)
 			return;
-		QMetaObject::invokeMethod(this, [this, message, error, rescan]() {
+		QMetaObject::invokeMethod(this, [this, message, error, rescan, jobId]() {
 			busy_ = false;
 			status_.clear();
 			emit busyChanged();
 			emit itemsChanged();
-			if(!message.isEmpty())
+			if(!jobId.isEmpty())
+				updateJob(jobId, { { QStringLiteral("state"), error ? QStringLiteral("error") : QStringLiteral("done") },
+					{ QStringLiteral("message"), message } });
+			else if(!message.isEmpty())
 				emit finished(message, error);
 			if(rescan)
 				refresh();
 		}, Qt::QueuedConnection);
 	});
+}
+
+void LibraryController::updateJob(const QString &id, const QVariantMap &fields)
+{
+	for(QVariant &entry : jobs_)
+	{
+		QVariantMap job = entry.toMap();
+		if(job.value(QStringLiteral("id")).toString() != id)
+			continue;
+		for(auto it = fields.cbegin(); it != fields.cend(); ++it)
+			job[it.key()] = it.value();
+		entry = job;
+		emit jobsChanged();
+		return;
+	}
+}
+
+void LibraryController::removeJob(const QString &id)
+{
+	for(int i = 0; i < jobs_.size(); ++i)
+		if(jobs_[i].toMap().value(QStringLiteral("id")).toString() == id
+			&& jobs_[i].toMap().value(QStringLiteral("state")).toString() != QLatin1String("working"))
+		{
+			jobs_.removeAt(i);
+			emit jobsChanged();
+			return;
+		}
+}
+
+void LibraryController::clearFinishedJobs()
+{
+	QVariantList kept;
+	for(const QVariant &entry : jobs_)
+		if(entry.toMap().value(QStringLiteral("state")).toString() == QLatin1String("working"))
+			kept << entry;
+	if(kept.size() == jobs_.size())
+		return;
+	jobs_ = kept;
+	emit jobsChanged();
 }
 
 void LibraryController::act(const QString &path)
@@ -376,7 +526,7 @@ void LibraryController::act(const QString &path)
 	}
 	if(action == QLatin1String("convert"))
 	{
-		games_->convertFromConsole(path, title, item.value(QStringLiteral("platform")).toString());
+		convert(path, true);
 		return;
 	}
 	if(action == QLatin1String("mount"))
@@ -414,7 +564,7 @@ void LibraryController::act(const QString &path)
 					"seconds.").arg(title, where);
 			return tr("%1 is in %2: ShadowMountPlus puts it on the home screen at its next scan, within a minute.")
 				.arg(title, where);
-		}, true);
+		}, true, item, QStringLiteral("mount"));
 		return;
 	}
 	if(action == QLatin1String("run"))
@@ -439,8 +589,17 @@ void LibraryController::act(const QString &path)
 				return tr("%1 did not go: %2 (port %3)").arg(name, translateMessage(sent.error)).arg(port);
 			}
 			return tr("%1 is running on the console.").arg(name);
-		}, false);
+		}, false, item, QStringLiteral("run"));
 	}
+}
+
+void LibraryController::convert(const QString &path, bool install)
+{
+	const QVariantMap item = itemAt(path);
+	if(item.isEmpty() || item.value(QStringLiteral("action")).toString() != QLatin1String("convert"))
+		return;
+	games_->convertFromConsole(path, item.value(QStringLiteral("title")).toString(),
+		item.value(QStringLiteral("platform")).toString(), install);
 }
 
 void LibraryController::remove(const QString &path)

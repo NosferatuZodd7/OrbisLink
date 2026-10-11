@@ -62,6 +62,9 @@ struct QueueTask
 	std::string remoteDirectory;
 	bool installAfter = false;
 	bool deleteAfterInstall = false;
+	// FTP upload only: copied and left there, never installed, whatever the
+	// settings say (a package sent back to the console's library).
+	bool copyOnly = false;
 	// Sent, and then installed by the console from where it was put (a PS5).
 	bool installedFromConsole = false;
 	std::string message;    // error or information for the UI
@@ -119,14 +122,18 @@ public:
 		std::vector<std::string> *rejected = nullptr,
 		const std::vector<std::string> *remoteNames = nullptr);
 	// An FTP upload to `directory` that installs the package once it lands
-	// and then deletes the copy on the console.
-	std::string enqueueUploadAndInstall(const std::string &path, const std::string &directory,
+	// and then deletes the copy on the console; with `install` false, one
+	// that leaves it there, not installed.
+	std::string enqueueUploadTo(const std::string &path, const std::string &directory, bool install,
 		std::string *error = nullptr);
 	// As above; `adjust` sets each task up before anything can pick it.
 	std::vector<std::string> enqueue(const std::vector<std::string> &paths, TransferMode mode,
 		std::vector<std::string> *rejected, const std::vector<std::string> *remoteNames,
 		const std::function<void(QueueTask &)> &adjust);
 	std::string enqueueOne(const std::string &path, TransferMode mode, std::string *error = nullptr);
+	// A package already on the console, installed from where it is (a PS5):
+	// what it is comes from reading it there.
+	std::string enqueueConsoleInstall(const std::string &remotePath, const PkgInfo &info);
 
 	void start();
 	void stop();
@@ -170,6 +177,7 @@ private:
 	// An install the installer cannot report on (etaHEN's DPI v2): followed
 	// by what the console takes from the PC.
 	void followServedInstall(QueueTask task);
+	void runConsoleInstall(QueueTask task);
 	// The install task created by "install after upload" needs to know
 	// which file to delete on the console when it finishes.
 	void setCleanupPath(const std::string &id, const std::string &remotePath);

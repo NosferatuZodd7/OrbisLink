@@ -521,6 +521,64 @@ ORBISLINK_TEST(an_install_without_progress_is_followed_by_what_the_pc_serves)
 	server.stop();
 }
 
+ORBISLINK_TEST(installs_a_package_already_on_the_console)
+{
+	PkgOptions options = gameOptions("CUSA00017", "On The Console");
+	const std::vector<uint8_t> bytes = buildPkg(options);
+	const std::string local = writeTempFile("console-game.pkg", bytes);
+	const PkgInfo info = PkgInspector().inspect(local);
+	CHECK(info.valid);
+
+	FakeInstaller installer;
+	installer.totalBytes.store(info.fileSize);
+	InstallQueue::Dependencies deps;
+	deps.installer = &installer;
+	InstallQueue queue(deps, Settings {}, fastTuning());
+	const std::string id = queue.enqueueConsoleInstall("/mnt/usb0/OrbisLinkFPKG/game.pkg", info);
+	queue.start();
+	CHECK(waitFor([&]() {
+		QueueTask task;
+		return queue.task(id, &task) && task.isTerminal();
+	}));
+	queue.stop();
+
+	QueueTask task;
+	CHECK(queue.task(id, &task));
+	CHECK(task.state == TaskState::Completed);
+	CHECK(task.mode == TransferMode::ConsoleInstall);
+	CHECK_EQ(task.title, std::string("Console title"));
+	CHECK_EQ(task.doneBytes, task.totalBytes);
+	// The console was given the path, not an address on this PC.
+	CHECK_EQ(installer.lastUrls.at(0), std::string("/mnt/usb0/OrbisLinkFPKG/game.pkg"));
+	removeTempFile(local);
+}
+
+ORBISLINK_TEST(a_console_install_nothing_reports_on_ends_with_a_word)
+{
+	PkgOptions options = gameOptions("CUSA00018", "Quiet Install");
+	const std::string local = writeTempFile("quiet-game.pkg", buildPkg(options));
+	const PkgInfo info = PkgInspector().inspect(local);
+
+	FakeInstaller installer;
+	installer.onlyStarts.store(true);
+	InstallQueue::Dependencies deps;
+	deps.installer = &installer;
+	InstallQueue queue(deps, Settings {}, fastTuning());
+	const std::string id = queue.enqueueConsoleInstall("/data/OrbisLinkFPKG/quiet.pkg", info);
+	queue.start();
+	CHECK(waitFor([&]() {
+		QueueTask task;
+		return queue.task(id, &task) && task.isTerminal();
+	}));
+	queue.stop();
+
+	QueueTask task;
+	CHECK(queue.task(id, &task));
+	CHECK(task.state == TaskState::Completed);
+	CHECK(task.message.find("notifications") != std::string::npos);
+	removeTempFile(local);
+}
+
 ORBISLINK_TEST(skips_installed_title_when_the_policy_says_so)
 {
 	PkgFile game("existing-game.pkg", gameOptions("CUSA00013", "Existing Game"));
@@ -604,6 +662,38 @@ ORBISLINK_TEST(upload_keeps_the_name_chosen_for_the_console)
 			CHECK_EQ(task.remoteName, std::string("rename-game-1.pkg"));
 		else
 			CHECK(task.remoteName.empty());
+	}
+	std::remove(path.c_str());
+}
+
+ORBISLINK_TEST(a_package_put_back_in_the_library_is_only_copied)
+{
+	// A converted disc from the console's library: its package goes back to
+	// the disc's folder, installed or, when asked, only left there — even
+	// with "install after upload" on — and that survives a restart.
+	PkgFile kept("library-kept.pkg", gameOptions("CUSA00017", "Kept Game"));
+	PkgFile installed("library-installed.pkg", gameOptions("CUSA00018", "Installed Game"));
+	Settings settings;
+	settings.installAfterUpload = true;
+	InstallQueue original(InstallQueue::Dependencies {}, settings);
+	const std::string folder = "/mnt/usb0/OrbisLinkFPKG/";
+	CHECK(!original.enqueueUploadTo(kept.path, folder, false).empty());
+	CHECK(!original.enqueueUploadTo(installed.path, folder, true).empty());
+	const std::string path = ".orbislink-test-queue-library.json";
+	CHECK(original.save(path));
+
+	InstallQueue restored(InstallQueue::Dependencies {}, settings);
+	CHECK(restored.load(path));
+	const auto tasks = restored.tasks();
+	CHECK_EQ(tasks.size(), static_cast<size_t>(2));
+	for(const QueueTask &task : tasks)
+	{
+		CHECK(task.mode == TransferMode::FtpUpload);
+		CHECK_EQ(task.remoteDirectory, folder);
+		const bool install = task.title == "Installed Game";
+		CHECK(task.copyOnly == !install);
+		CHECK(task.installAfter == install);
+		CHECK(task.deleteAfterInstall == install);
 	}
 	std::remove(path.c_str());
 }

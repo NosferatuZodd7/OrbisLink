@@ -134,6 +134,8 @@ void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
 		row.message = translateMessage(task.message);
 		row.mode = task.mode == TransferMode::DirectInstall
 			? QCoreApplication::translate("QueueModel", "Direct install")
+			: task.mode == TransferMode::ConsoleInstall
+			? QCoreApplication::translate("QueueModel", "Install on the console")
 			: QCoreApplication::translate("QueueModel", "FTP upload");
 		row.active = task.state == TaskState::Installing || task.state == TaskState::Sending
 			|| task.state == TaskState::Validating;

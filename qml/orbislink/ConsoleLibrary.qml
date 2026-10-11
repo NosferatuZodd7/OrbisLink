@@ -3,7 +3,9 @@
 // The console library: what is in the OrbisLinkFPKG folders of the console
 // in use (its memory, USB drives, extended storage), read over FTP. Each
 // thing is told apart — a package, a PS1/PS2 disc, a PS5 image or app
-// folder, a payload — and has the one button that makes it playable.
+// folder, a payload — and has the one button that makes it playable. Games
+// and apps, their updates and add-ons, payloads and the rest are listed
+// apart, each under its own heading.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -14,6 +16,8 @@ Item {
 
     property string filter: "all"
     property string search: ""
+    // Every row's button is this wide, so they line up.
+    readonly property int actionWidth: 196
 
     function kindLabel(item) {
         switch (item.kind) {
@@ -34,7 +38,7 @@ Item {
     function actionLabel(action) {
         switch (action) {
         case "install": return qsTr("Install")
-        case "convert": return qsTr("Convert and install")
+        case "convert": return qsTr("Convert…")
         case "mount": return qsTr("Put on the home screen")
         case "run": return qsTr("Run")
         }
@@ -43,7 +47,7 @@ Item {
     function actionHint(item) {
         switch (item.action) {
         case "install": return qsTr("The console installs it from where it is")
-        case "convert": return qsTr("Brought to this PC, made into a PS4 package, sent back to this folder and installed")
+        case "convert": return qsTr("Made into a PS4 package on this PC and put back in this folder: installed too, or not, as you choose")
         case "mount": return qsTr("Moved next door into %1, where ShadowMountPlus mounts it from (instant: same drive)")
                              .arg(item.drive === "internal" ? "/data/homebrew" : item.path.split("/").slice(0, 3).join("/") + "/homebrew")
         case "run": return qsTr("Sent to the console's loader now (port %1)").arg(item.port)
@@ -59,26 +63,54 @@ Item {
         }
         return "package"
     }
+    readonly property var groups: ["games", "extras", "payloads", "other"]
+    function groupLabel(group) {
+        switch (group) {
+        case "games": return qsTr("Games and apps")
+        case "extras": return qsTr("Updates and add-ons")
+        case "payloads": return qsTr("Payloads")
+        }
+        return qsTr("Other files")
+    }
+    function groupHint(group) {
+        switch (group) {
+        case "games": return qsTr("Packages, PS1/PS2 discs, PS5 images and app folders")
+        case "extras": return qsTr("Patches, add-ons and themes for games")
+        case "payloads": return qsTr("Run on the console when you want them")
+        }
+        return qsTr("What cannot be used as it is")
+    }
+    // The items shown, each group under a heading ({ header: group, count }).
     function shown() {
-        var out = []
         var needle = search.trim().toLowerCase()
+        var byGroup = {}
         var items = consoleLibrary.items
         for (var i = 0; i < items.length; ++i) {
             var it = items[i]
             if (filter === "todo" ? it.installed || it.action.length === 0
-                : filter !== "all" && it.kind !== filter)
+                : filter !== "all" && it.group !== filter)
                 continue
             if (needle.length > 0 && it.title.toLowerCase().indexOf(needle) < 0
                     && it.name.toLowerCase().indexOf(needle) < 0 && it.titleId.toLowerCase().indexOf(needle) < 0)
                 continue
-            out.push(it)
+            if (!byGroup[it.group])
+                byGroup[it.group] = []
+            byGroup[it.group].push(it)
+        }
+        var out = []
+        for (var g = 0; g < groups.length; ++g) {
+            var list = byGroup[groups[g]]
+            if (!list)
+                continue
+            out.push({ header: groups[g], count: list.length })
+            out = out.concat(list)
         }
         return out
     }
-    function count(kind) {
+    function count(group) {
         var n = 0
         for (var i = 0; i < consoleLibrary.items.length; ++i)
-            if (consoleLibrary.items[i].kind === kind)
+            if (consoleLibrary.items[i].group === group)
                 ++n
         return n
     }
@@ -156,6 +188,7 @@ Item {
             visible: consoleLibrary.items.length > 0
             StyledField {
                 Layout.preferredWidth: 200
+                Layout.alignment: Qt.AlignTop
                 placeholderText: qsTr("Search")
                 text: root.search
                 onTextChanged: root.search = text
@@ -177,15 +210,13 @@ Item {
                     onClicked: root.filter = "todo"
                 }
                 Repeater {
-                    model: ["package", "disc", "image", "folder", "payload"]
+                    model: root.groups
                     StyledButton {
                         required property string modelData
                         visible: root.count(modelData) > 0
                         chip: true
                         primary: root.filter === modelData
-                        text: (modelData === "package" ? qsTr("Packages") : modelData === "disc" ? qsTr("Discs")
-                               : modelData === "image" ? qsTr("PS5 images") : modelData === "folder" ? qsTr("App folders")
-                               : qsTr("Payloads")) + "  " + root.count(modelData)
+                        text: root.groupLabel(modelData) + "  " + root.count(modelData)
                         onClicked: root.filter = modelData
                     }
                 }
@@ -202,125 +233,190 @@ Item {
             ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
             model: root.visible ? root.shown() : []
 
-            delegate: Rectangle {
-                id: row
+            delegate: Item {
+                id: entry
                 required property var modelData
+                required property int index
+                readonly property bool header: modelData.header !== undefined
                 width: list.width - 12
-                implicitHeight: rowLayout.implicitHeight + 24
-                radius: 14
-                color: Theme.panelAltFill
-                border.width: 1
-                border.color: Theme.border
+                // A heading has room above it, but not at the top.
+                implicitHeight: header ? headerRow.implicitHeight + (index > 0 ? 14 : 2) : row.implicitHeight
 
+                // ── a group's heading
                 RowLayout {
-                    id: rowLayout
+                    id: headerRow
+                    visible: entry.header
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: 12
-                    spacing: 12
-
+                    anchors.bottom: parent.bottom
+                    anchors.leftMargin: 4
+                    spacing: 8
+                    Text {
+                        text: entry.header ? root.groupLabel(entry.modelData.header) : ""
+                        color: Theme.text
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                    }
                     Rectangle {
-                        width: 52; height: 52; radius: 10
+                        implicitHeight: 18
+                        implicitWidth: headerCount.implicitWidth + 12
+                        radius: 9
                         color: Theme.controlFill
-                        border.color: Theme.border
-                        clip: true
-                        Layout.alignment: Qt.AlignTop
-                        Image {
-                            id: picture
-                            anchors.fill: parent
-                            anchors.margins: 1
-                            source: row.modelData.icon ? row.modelData.icon : ""
-                            fillMode: Image.PreserveAspectCrop
-                            visible: status === Image.Ready
-                        }
-                        Icon {
+                        Text {
+                            id: headerCount
                             anchors.centerIn: parent
-                            visible: !picture.visible
-                            name: root.icon(row.modelData)
-                            size: 24
+                            text: entry.header ? entry.modelData.count : ""
                             color: Theme.textSecondary
+                            font.pixelSize: 11
                         }
                     }
-                    ColumnLayout {
+                    Text {
                         Layout.fillWidth: true
-                        spacing: 3
-                        RowLayout {
-                            spacing: 8
-                            Layout.fillWidth: true
-                            Text {
-                                Layout.fillWidth: true
-                                text: row.modelData.title
-                                color: Theme.text
-                                font.pixelSize: 14
-                                font.weight: Font.DemiBold
-                                elide: Text.ElideRight
+                        elide: Text.ElideRight
+                        text: entry.header ? root.groupHint(entry.modelData.header) : ""
+                        color: Theme.textMuted
+                        font.pixelSize: 11
+                    }
+                }
+
+                // ── an item: its picture, what it is, then its button and,
+                // at the edge, the bin; every row keeps the same columns
+                Rectangle {
+                    id: row
+                    visible: !entry.header
+                    readonly property var item: entry.modelData
+                    width: parent.width
+                    implicitHeight: entry.header ? 0 : Math.max(rowLayout.implicitHeight, 52) + 24
+                    radius: 14
+                    color: Theme.panelAltFill
+                    border.width: 1
+                    border.color: Theme.border
+
+                    RowLayout {
+                        id: rowLayout
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.leftMargin: 12
+                        anchors.rightMargin: 12
+                        spacing: 12
+
+                        Rectangle {
+                            width: 52; height: 52; radius: 10
+                            color: Theme.controlFill
+                            border.color: Theme.border
+                            clip: true
+                            Layout.alignment: Qt.AlignVCenter
+                            Image {
+                                id: picture
+                                anchors.fill: parent
+                                anchors.margins: 1
+                                source: !entry.header && row.item.icon ? row.item.icon : ""
+                                fillMode: Image.PreserveAspectCrop
+                                visible: status === Image.Ready
                             }
-                            Rectangle {
-                                visible: row.modelData.installed
-                                implicitHeight: 20
-                                implicitWidth: installedText.implicitWidth + 16
-                                radius: 10
-                                color: Theme.alpha(Theme.ok, 0.16)
+                            Icon {
+                                anchors.centerIn: parent
+                                visible: !picture.visible
+                                name: entry.header ? "package" : root.icon(row.item)
+                                size: 24
+                                color: Theme.textSecondary
+                            }
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignVCenter
+                            spacing: 3
+                            RowLayout {
+                                spacing: 8
+                                Layout.fillWidth: true
                                 Text {
-                                    id: installedText
-                                    anchors.centerIn: parent
-                                    text: qsTr("Installed")
-                                    color: Theme.ok
-                                    font.pixelSize: 11
+                                    Layout.fillWidth: true
+                                    text: entry.header ? "" : row.item.title
+                                    color: Theme.text
+                                    font.pixelSize: 14
                                     font.weight: Font.DemiBold
+                                    elide: Text.ElideRight
+                                }
+                                Rectangle {
+                                    visible: !entry.header && row.item.installed
+                                    implicitHeight: 20
+                                    implicitWidth: installedText.implicitWidth + 16
+                                    radius: 10
+                                    color: Theme.alpha(Theme.ok, 0.16)
+                                    Text {
+                                        id: installedText
+                                        anchors.centerIn: parent
+                                        text: qsTr("Installed")
+                                        color: Theme.ok
+                                        font.pixelSize: 11
+                                        font.weight: Font.DemiBold
+                                    }
                                 }
                             }
+                            Text {
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                                text: entry.header ? "" : [root.kindLabel(row.item), row.item.titleId, row.item.version,
+                                       row.item.sizeText, root.driveLabel(row.item.drive)].filter(function (p) {
+                                    return p && p.length > 0
+                                }).join("  ·  ")
+                                color: Theme.textSecondary
+                                font.pixelSize: 12
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                elide: Text.ElideMiddle
+                                text: entry.header ? "" : row.item.name
+                                color: Theme.textMuted
+                                font.pixelSize: 11
+                                font.family: Theme.fontMono
+                            }
+                            Text {
+                                visible: !entry.header && row.item.note.length > 0
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                text: entry.header ? "" : row.item.note
+                                color: Theme.textSecondary
+                                font.pixelSize: 11
+                            }
                         }
-                        Text {
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
-                            text: [root.kindLabel(row.modelData), row.modelData.titleId, row.modelData.version,
-                                   row.modelData.sizeText, root.driveLabel(row.modelData.drive)].filter(function (p) {
-                                return p && p.length > 0
-                            }).join("  ·  ")
-                            color: Theme.textSecondary
-                            font.pixelSize: 12
+                        // The button, the same width on every row (a row
+                        // without one keeps its place).
+                        Item {
+                            Layout.preferredWidth: root.actionWidth
+                            Layout.preferredHeight: actionButton.implicitHeight
+                            Layout.alignment: Qt.AlignVCenter
+                            StyledButton {
+                                id: actionButton
+                                anchors.fill: parent
+                                visible: !entry.header && row.item.action.length > 0
+                                text: entry.header ? "" : row.item.action === "convert" ? root.actionLabel("convert")
+                                      : row.item.installed && row.item.action !== "run"
+                                      ? qsTr("Again") : root.actionLabel(row.item.action)
+                                iconName: entry.header ? "" : row.item.action === "run" ? "play"
+                                          : row.item.action === "mount" ? "home"
+                                          : row.item.action === "convert" ? "disc" : "download"
+                                primary: !entry.header && !row.item.installed
+                                enabled: !consoleLibrary.busy
+                                ToolTip.visible: hovered
+                                ToolTip.text: entry.header ? "" : root.actionHint(row.item)
+                                onClicked: row.item.action === "convert" ? convertMenu.ask(row.item, actionButton)
+                                                                       : consoleLibrary.act(row.item.path)
+                            }
                         }
-                        Text {
-                            Layout.fillWidth: true
-                            elide: Text.ElideMiddle
-                            text: row.modelData.name
-                            color: Theme.textMuted
-                            font.pixelSize: 11
-                            font.family: Theme.fontMono
+                        // The bin, at the edge: kept in place where there is
+                        // nothing to delete, so the buttons line up.
+                        StyledToolButton {
+                            Layout.alignment: Qt.AlignVCenter
+                            opacity: !entry.header && !row.item.folder ? 1 : 0
+                            enabled: opacity > 0 && !consoleLibrary.busy
+                            iconName: "trash"
+                            danger: true
+                            ToolTip.visible: hovered && opacity > 0
+                            ToolTip.text: qsTr("Delete from the console…")
+                            onClicked: deleteDialog.ask(row.item)
                         }
-                        Text {
-                            visible: row.modelData.note.length > 0
-                            Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
-                            text: row.modelData.note
-                            color: Theme.textSecondary
-                            font.pixelSize: 11
-                        }
-                    }
-                    StyledToolButton {
-                        visible: !row.modelData.folder
-                        iconName: "trash"
-                        danger: true
-                        enabled: !consoleLibrary.busy
-                        Layout.alignment: Qt.AlignVCenter
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("Delete from the console…")
-                        onClicked: deleteDialog.ask(row.modelData)
-                    }
-                    StyledButton {
-                        visible: row.modelData.action.length > 0
-                        Layout.alignment: Qt.AlignVCenter
-                        text: row.modelData.installed && row.modelData.action !== "run"
-                              ? qsTr("Again") : root.actionLabel(row.modelData.action)
-                        iconName: row.modelData.action === "run" ? "play"
-                                  : row.modelData.action === "mount" ? "home" : "download"
-                        primary: !row.modelData.installed
-                        enabled: !consoleLibrary.busy
-                        ToolTip.visible: hovered
-                        ToolTip.text: root.actionHint(row.modelData)
-                        onClicked: consoleLibrary.act(row.modelData.path)
                     }
                 }
             }
@@ -354,6 +450,36 @@ Item {
                     font.pixelSize: 13
                 }
             }
+        }
+    }
+
+    // A disc: converted and installed, or only converted (its package is put
+    // in the same folder, to install later).
+    Menu {
+        id: convertMenu
+        property var item: ({ path: "" })
+        function ask(it, from) {
+            item = it
+            popup(from, 0, from.height + 4)
+        }
+        topPadding: 8
+        bottomPadding: 8
+        background: Rectangle {
+            implicitWidth: 380
+            color: Theme.menuFill
+            border.color: Theme.glassEdge
+            border.width: 1
+            radius: 14
+        }
+        StyledMenuItem {
+            text: qsTr("Convert and install")
+            iconName: "download"
+            onTriggered: consoleLibrary.convert(convertMenu.item.path, true)
+        }
+        StyledMenuItem {
+            text: qsTr("Only convert (the package stays in this folder)")
+            iconName: "package"
+            onTriggered: consoleLibrary.convert(convertMenu.item.path, false)
         }
     }
 

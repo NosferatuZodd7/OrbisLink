@@ -9,7 +9,10 @@
 namespace orbislink {
 
 // Transfer mode chosen in the DropOverlay (§5.7).
-enum class TransferMode { DirectInstall, FtpUpload };
+// DirectInstall: the console downloads the package from this PC and
+// installs it. FtpUpload: a copy to a folder of the console. ConsoleInstall:
+// a package already on the console (a PS5), installed from where it is.
+enum class TransferMode { DirectInstall, FtpUpload, ConsoleInstall };
 
 const char *transferModeName(TransferMode mode);
 TransferMode transferModeFromName(const std::string &name, TransferMode fallback);

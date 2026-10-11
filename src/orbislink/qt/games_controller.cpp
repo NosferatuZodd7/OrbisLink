@@ -150,6 +150,8 @@ struct GamesController::Job
 	QString path;
 	QString listedPath;
 	bool install = false;
+	// Sent to the console even when not installed (a disc from there).
+	bool sendBack = false;
 	// The package already in the output folder, sent instead of making it again.
 	QString reusePath;
 	QString state = QStringLiteral("waiting"); // waiting, converting, done, error, cancelled
@@ -576,7 +578,8 @@ void GamesController::sendToConsole(const QStringList &paths)
 		app_->addPaths(files, 1);
 }
 
-void GamesController::convertFromConsole(const QString &remotePath, const QString &title, const QString &platform)
+void GamesController::convertFromConsole(const QString &remotePath, const QString &title, const QString &platform,
+	bool install)
 {
 #ifdef ORBISLINK_HAS_FPKG
 	// Somewhere for the package: the user's documents unless chosen.
@@ -593,7 +596,8 @@ void GamesController::convertFromConsole(const QString &remotePath, const QStrin
 	job->listedPath = remotePath;
 	job->title = title;
 	job->platform = platform;
-	job->install = true;
+	job->install = install;
+	job->sendBack = true;
 	// The package goes back where the disc was.
 	job->storageFolder = remotePath.left(remotePath.lastIndexOf(QLatin1Char('/')) + 1);
 	{
@@ -608,6 +612,7 @@ void GamesController::convertFromConsole(const QString &remotePath, const QStrin
 	Q_UNUSED(remotePath);
 	Q_UNUSED(title);
 	Q_UNUSED(platform);
+	Q_UNUSED(install);
 #endif
 }
 
@@ -775,6 +780,7 @@ void GamesController::publish()
 			m[QStringLiteral("percent")] = job->percent;
 			m[QStringLiteral("message")] = job->message;
 			m[QStringLiteral("install")] = job->install;
+			m[QStringLiteral("send")] = job->install || job->sendBack;
 			m[QStringLiteral("pkgPath")] = job->pkgPath;
 			m[QStringLiteral("staleTaskId")] = job->staleTaskId;
 			list << m;
@@ -1042,12 +1048,15 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 	const QString pkg = QString::fromStdString(result.pkgPath);
 	const QString sendTo = job->storageFolder.isEmpty() ? storageFolder() : job->storageFolder;
 	const bool install = job->install;
+	const bool send = install || job->sendBack;
 	const QString title = job->title;
 	const QString message = QString::fromStdString(error);
 	const bool cancelled = job->cancel.load();
-	QMetaObject::invokeMethod(this, [this, job, ok, install, pkg, sendTo, title, message, cancelled]() {
+	QMetaObject::invokeMethod(this, [this, job, ok, install, send, pkg, sendTo, title, message, cancelled]() {
 		// Over FTP into the app's own folder on the console, installed once
-		// it lands, and deleted from there after the install.
+		// it lands, and deleted from there after the install; a disc from
+		// the console's library has its package put back beside it, installed
+		// or not.
 		if(ok)
 		{
 			const QString before = app_->transfers().value(AppController::transferKey(pkg)).toMap()
@@ -1055,10 +1064,10 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 			std::lock_guard<std::mutex> lock(mutex_);
 			job->staleTaskId = before;
 		}
-		if(ok && install)
-			app_->sendAndInstall(pkg, sendTo);
+		if(ok && send)
+			app_->sendTo(pkg, sendTo, install);
 		publish();
-		if(ok && !install)
+		if(ok && !send)
 			emit app_->notify(tr("Convert"), tr("%1 is ready in the output folder.").arg(title), false);
 		else if(!ok && !cancelled)
 			emit app_->notify(tr("Convert"), tr("%1: %2").arg(title, message), true);

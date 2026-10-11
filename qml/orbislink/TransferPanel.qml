@@ -9,7 +9,8 @@ Item {
     // How many cards the queue shows (a converted game is one card).
     readonly property int cardCount: {
         app.queue.totalText  // re-read on every queue change
-        return games.conversions.length + store.jobs.length + app.queue.shownCount(list.followed)
+        return games.conversions.length + store.jobs.length + consoleLibrary.jobs.length
+               + app.queue.shownCount(list.followed)
     }
 
     ColumnLayout {
@@ -254,7 +255,7 @@ Item {
             Item {
                 anchors.centerIn: parent
                 width: parent.width - 40
-                visible: games.conversions.length === 0 && store.jobs.length === 0
+                visible: games.conversions.length === 0 && store.jobs.length === 0 && consoleLibrary.jobs.length === 0
                          && (list.count === 0 || list.contentHeight < 2)
                 implicitHeight: emptyColumn.implicitHeight
 
@@ -364,8 +365,8 @@ Item {
         }
     }
 
-    // Above the packages: the homebrew store's installs, then the PS1/PS2
-    // conversions, one card each from the disc to the console (the
+    // Above the packages: the homebrew store's installs, what the console
+    // library's buttons set going, then the PS1/PS2 conversions, one card each from the disc to the console (the
     // conversion, the upload and the install, each with its own bar). The
     // queue's own cards for a converted package are not shown twice.
     Component {
@@ -373,7 +374,7 @@ Item {
         ColumnLayout {
             width: list.width
             spacing: 10
-            visible: games.conversions.length > 0 || store.jobs.length > 0
+            visible: games.conversions.length > 0 || store.jobs.length > 0 || consoleLibrary.jobs.length > 0
             height: visible ? implicitHeight + 10 : 0
 
             RowLayout {
@@ -402,157 +403,57 @@ Item {
             Repeater {
                 // By position, as the conversions: every tick hands over a new list.
                 model: store.jobs.length
-                delegate: Rectangle {
-                    id: storeCard
+                delegate: JobCard {
                     required property int index
-                    readonly property var job: store.jobs[index] || ({})
-                    readonly property bool working: job.state === "working"
-                    readonly property color tone: job.state === "error" ? Theme.error
-                                                : job.state === "done" ? Theme.ok
-                                                : job.state === "cancelled" ? Theme.textSecondary : Theme.accent
                     Layout.fillWidth: true
-                    radius: 16
-                    color: Theme.panelAltFill
-                    border.width: 1
-                    border.color: working ? Theme.alpha(Theme.accent, 0.6) : Theme.border
-                    implicitHeight: storeColumn.implicitHeight + 24
+                    job: store.jobs[index] || ({})
+                    fallbackIcon: "store"
+                    showBar: job.kind !== "remove"
+                    cancellable: true
+                    stateText: job.state === "done"
+                               ? (job.kind === "remove" ? qsTr("Removed") : qsTr("Installed"))
+                               : job.state === "error" ? qsTr("Failed")
+                               : job.state === "cancelled" ? qsTr("Cancelled")
+                               : job.kind === "remove" ? qsTr("Removing") : qsTr("Installing")
+                    onCancelClicked: store.cancel()
+                    onRemoveClicked: store.removeJob(job.id)
+                }
+            }
 
-                    ColumnLayout {
-                        id: storeColumn
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.margins: 12
-                        spacing: 8
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 10
-                            Rectangle {
-                                width: 44; height: 44; radius: 10
-                                color: Theme.controlFill
-                                border.color: Theme.border
-                                clip: true
-                                Image {
-                                    id: storeIcon
-                                    anchors.fill: parent
-                                    anchors.margins: 1
-                                    source: storeCard.job.icon ? storeCard.job.icon : ""
-                                    fillMode: Image.PreserveAspectCrop
-                                    asynchronous: true
-                                    visible: status === Image.Ready
-                                }
-                                Icon {
-                                    anchors.centerIn: parent
-                                    visible: !storeIcon.visible
-                                    name: "store"
-                                    size: 22
-                                    color: Theme.textSecondary
-                                }
-                            }
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: storeCard.job.name || ""
-                                    color: Theme.text
-                                    font.pixelSize: 14
-                                    font.weight: Font.DemiBold
-                                    elide: Text.ElideRight
-                                }
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: [storeCard.job.console, storeCard.job.version,
-                                           storeCard.working ? storeCard.job.stageText : ""].filter(function (part) {
-                                        return part && part.length > 0
-                                    }).join("  ·  ")
-                                    color: Theme.textMuted
-                                    font.pixelSize: 11
-                                    elide: Text.ElideRight
-                                }
-                            }
-                            Rectangle {
-                                radius: 11
-                                color: Theme.alpha(storeCard.tone, 0.12)
-                                border.color: Theme.alpha(storeCard.tone, 0.35)
-                                implicitWidth: storeState.implicitWidth + 18
-                                implicitHeight: 22
-                                Text {
-                                    id: storeState
-                                    anchors.centerIn: parent
-                                    text: storeCard.job.state === "done"
-                                          ? (storeCard.job.kind === "remove" ? qsTr("Removed") : qsTr("Installed"))
-                                          : storeCard.job.state === "error" ? qsTr("Failed")
-                                          : storeCard.job.state === "cancelled" ? qsTr("Cancelled")
-                                          : storeCard.job.kind === "remove" ? qsTr("Removing") : qsTr("Installing")
-                                    color: storeCard.tone
-                                    font.pixelSize: 11
-                                    font.weight: Font.Medium
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            visible: storeCard.job.kind !== "remove"
-                            Layout.fillWidth: true
-                            height: 8
-                            radius: 4
-                            color: Theme.controlFill
-                            Rectangle {
-                                width: parent.width * Math.max(0, Math.min(1, (storeCard.job.percent || 0) / 100))
-                                height: parent.height
-                                radius: 4
-                                color: storeCard.tone
-                                Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 10
-                            Text {
-                                visible: storeCard.job.kind !== "remove"
-                                text: (storeCard.job.percent || 0).toFixed(1) + "%"
-                                color: Theme.textMuted
-                                font.pixelSize: 11
-                            }
-                            Text {
-                                text: "↓ " + storeCard.job.speedText
-                                color: Theme.textMuted
-                                font.pixelSize: 11
-                                visible: storeCard.working && (storeCard.job.speedText || "").length > 0
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                text: (storeCard.job.amountText || "")
-                                      + ((storeCard.job.etaText || "").length > 0 ? "   ⏱ " + storeCard.job.etaText : "")
-                                color: Theme.textMuted
-                                font.pixelSize: 11
-                                elide: Text.ElideRight
-                                visible: storeCard.working
-                            }
-                            Item { Layout.fillWidth: true; visible: !storeCard.working }
-                            StyledToolButton {
-                                iconName: "close"
-                                iconSize: 14
-                                implicitWidth: 28; implicitHeight: 28
-                                danger: storeCard.working
-                                ToolTip.visible: hovered
-                                ToolTip.text: storeCard.working ? qsTr("Cancel") : qsTr("Remove")
-                                onClicked: storeCard.working ? store.cancel() : store.removeJob(storeCard.job.id)
-                            }
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            visible: !storeCard.working && (storeCard.job.message || "").length > 0
-                            text: storeCard.job.message || ""
-                            color: storeCard.job.state === "error" ? Theme.error : Theme.textMuted
-                            font.pixelSize: 11
-                            wrapMode: Text.WordWrap
-                        }
+            RowLayout {
+                visible: consoleLibrary.jobs.length > 0
+                Layout.fillWidth: true
+                Text {
+                    text: qsTr("Console library")
+                    color: Theme.textSecondary
+                    font.pixelSize: 12
+                    font.weight: Font.DemiBold
+                }
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    chip: true
+                    visible: {
+                        for (var i = 0; i < consoleLibrary.jobs.length; ++i)
+                            if (consoleLibrary.jobs[i].state !== "working")
+                                return true
+                        return false
                     }
+                    text: qsTr("Clear finished")
+                    onClicked: consoleLibrary.clearFinishedJobs()
+                }
+            }
+
+            Repeater {
+                model: consoleLibrary.jobs.length
+                delegate: JobCard {
+                    required property int index
+                    Layout.fillWidth: true
+                    job: consoleLibrary.jobs[index] || ({})
+                    fallbackIcon: job.kind === "run" ? "zap" : job.itemKind === "folder" ? "folder" : "package"
+                    stateText: job.state === "error" ? qsTr("Failed")
+                               : job.kind === "run" ? (job.state === "done" ? qsTr("Sent") : qsTr("Sending"))
+                               : job.state === "done" ? qsTr("On the home screen") : qsTr("Moving")
+                    onRemoveClicked: consoleLibrary.removeJob(job.id)
                 }
             }
 
@@ -739,7 +640,7 @@ Item {
                  : c.stage === "digest" || c.stage === "finish"
                  ? qsTr("Signing… %1%").arg(pct(c.percent))
                  : qsTr("Converting… %1%").arg(pct(c.percent)); break
-        case "converted": text = c.install ? qsTr("Converted — sending next") : qsTr("Package ready"); break
+        case "converted": text = c.send ? qsTr("Converted — sending next") : qsTr("Package ready"); break
         case "sending":
             text = t.waiting ? qsTr("Waiting to send") : qsTr("Sending to the console… %1%").arg(pct(t.percent)); break
         case "sent": text = qsTr("On the console"); break
@@ -774,7 +675,7 @@ Item {
                          current: i === reached || i === failedAt })
         }
         var finished = stage === "installed" || stage === "error" || stage === "cancelled"
-                     || (stage === "converted" && !c.install)
+                     || (stage === "converted" && !c.send)
                      || stage === "sent"
         return { stage: stage === "converted" ? "converted" : stage,
                  percent: stage === "converting" ? (c.percent || 0) : (t.percent || 0),

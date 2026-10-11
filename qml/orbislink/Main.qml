@@ -28,7 +28,8 @@ ApplicationWindow {
     // window's right gutter, so it lines up with the top bar.
     readonly property bool panelShown: panelVisible && panelAllowed && !streamFullscreen
                                          || games.conversions.length > 0
-    // What the main area shows: the consoles ("home") or the PS1/PS2 games.
+    // What the main area shows: the consoles ("home"), "games", "store",
+    // "saves" or "payloads".
     property string view: typeof demoGames !== "undefined" && demoGames ? "games" : "home"
     readonly property string panelLockReason: qsTr("This console only offers Remote Play: it has "
         + "neither FTP nor the remote installer running (a jailbreak adds them).")
@@ -210,13 +211,14 @@ ApplicationWindow {
                         onClicked: window.view = "home"
                     }
                     StyledToolButton {
-                        visible: games.available
                         iconName: "disc"
                         active: window.view === "games"
                         ToolTip.visible: hovered
-                        ToolTip.text: qsTr("PS1/PS2 Games") + " — "
+                        ToolTip.text: qsTr("Games") + " — "
                                       + (window.view === "games" ? qsTr("Back to the consoles")
-                                         : qsTr("Find PS1 and PS2 discs on this PC, convert them into packages and install them on the console"))
+                                         : games.available
+                                         ? qsTr("Every game and app in the console's library, and the PS1/PS2 converter")
+                                         : qsTr("Every game and app in the console's library"))
                         onClicked: window.view = window.view === "games" ? "home" : "games"
                     }
                     StyledToolButton {

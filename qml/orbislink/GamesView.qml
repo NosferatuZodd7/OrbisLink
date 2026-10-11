@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Games. On this PC: the PS1/PS2 discs found in a folder, as cards; a click
-// opens one, the box in a card's corner selects it, and with several
-// selected a bar at the bottom does the same to all of them. On the console:
-// its library, what is in its OrbisLinkFPKG folders (ConsoleLibrary.qml).
+// Games. All games: the console's library, every game, app and payload in
+// its OrbisLinkFPKG folders with what each one can do (ConsoleLibrary.qml).
+// Apart from it, the PS1/PS2 converter, for whoever wants it: the discs
+// found in a folder on this PC, as cards; a click opens one, the box in a
+// card's corner selects it, and with several selected a bar at the bottom
+// does the same to all of them.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -17,8 +19,9 @@ Item {
 
     // The "path" of each selected game.
     property var selected: []
-    // 0: the discs on this PC; 1: the console's library.
-    property int tab: 0
+    // 0: all games, the console's library; 1: the PS1/PS2 converter (where
+    // the demo discs are).
+    property int tab: typeof demoGames !== "undefined" && demoGames ? 1 : 0
 
     function isSelected(path) { return selected.indexOf(path) >= 0 }
     function toggle(path) {
@@ -80,13 +83,13 @@ Item {
                 ColumnLayout {
                     spacing: 2
                     Text {
-                        text: root.tab === 1 ? qsTr("Console library") : qsTr("PS1/PS2 Games")
+                        text: qsTr("Games")
                         color: Theme.text
                         font.pixelSize: Theme.fontTitle
                         font.weight: Font.DemiBold
                     }
                     Text {
-                        text: root.tab === 1
+                        text: root.tab === 0
                               ? (consoleLibrary.scanning || consoleLibrary.busy ? consoleLibrary.status
                                  : qsTr("%n thing(s) on %1", "", consoleLibrary.items.length).arg(app.consoleName))
                               : games.gamesFolder.length === 0 ? qsTr("Choose the folder where your disc images are.")
@@ -97,7 +100,7 @@ Item {
                 }
                 Item { Layout.fillWidth: true }
                 StyledToolButton {
-                    visible: root.tab === 1
+                    visible: root.tab === 0
                     iconName: consoleLibrary.scanning ? "loader" : "refresh"
                     enabled: !consoleLibrary.scanning && !consoleLibrary.busy
                     ToolTip.visible: hovered
@@ -106,7 +109,7 @@ Item {
                 }
                 // The games folder, as a chip that changes it.
                 StyledButton {
-                    visible: root.tab === 0 && games.gamesFolder.length > 0
+                    visible: root.tab === 1 && games.gamesFolder.length > 0
                     iconName: "folder-open"
                     chip: true
                     text: games.gamesFolder
@@ -116,7 +119,7 @@ Item {
                     onClicked: gamesFolderDialog.open()
                 }
                 StyledToolButton {
-                    visible: root.tab === 0 && games.gamesFolder.length > 0
+                    visible: root.tab === 1 && games.gamesFolder.length > 0
                     iconName: "refresh"
                     enabled: !games.scanning
                     ToolTip.visible: hovered
@@ -125,12 +128,14 @@ Item {
                 }
             }
 
-            // ── the discs on this PC | the console's library
+            // ── all games | the PS1/PS2 converter, apart: converting is a
+            // choice, not a step
             RowLayout {
                 Layout.fillWidth: true
+                spacing: 14
                 TabBar {
                     id: placeTabs
-                    Layout.preferredWidth: 360
+                    Layout.preferredWidth: games.available ? 380 : 190
                     currentIndex: root.tab
                     onCurrentIndexChanged: root.tab = currentIndex
                     padding: 4
@@ -141,10 +146,27 @@ Item {
                         border.width: 1
                         border.color: Theme.glassEdge
                     }
-                    StyledTab { text: qsTr("PS1/PS2 on this PC") }
-                    StyledTab { text: qsTr("On the console") }
+                    // Halves, or all of it where this build has no converter.
+                    readonly property real half: (availableWidth - spacing) / 2
+                    StyledTab {
+                        width: games.available ? placeTabs.half : placeTabs.availableWidth
+                        text: qsTr("All games")
+                    }
+                    StyledTab {
+                        visible: games.available
+                        width: games.available ? placeTabs.half : 0
+                        text: qsTr("PS1/PS2 converter")
+                    }
                 }
-                Item { Layout.fillWidth: true }
+                Text {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    color: Theme.textMuted
+                    font.pixelSize: 12
+                    text: root.tab === 0
+                          ? qsTr("What is in the console's OrbisLinkFPKG folders, ready to install, play or run")
+                          : qsTr("Optional: PS1/PS2 discs on this PC made into PS4 packages")
+                }
             }
 
             // ── the emulator files: downloaded once, the first time they are
@@ -155,7 +177,7 @@ Item {
                 readonly property bool busy: state_ === "downloading" || state_ === "unpacking"
                 readonly property color tone: state_ === "error" ? Theme.error : Theme.accent
                 Layout.fillWidth: true
-                visible: root.tab === 0 && games.gamesFolder.length > 0 && state_ !== "ready"
+                visible: root.tab === 1 && games.gamesFolder.length > 0 && state_ !== "ready"
                 radius: 14
                 color: Theme.alpha(tone, 0.08)
                 border.width: 1
@@ -219,7 +241,7 @@ Item {
 
             // ── nothing chosen yet: centred in the page, both ways
             Item {
-                visible: root.tab === 0 && games.gamesFolder.length === 0
+                visible: root.tab === 1 && games.gamesFolder.length === 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
@@ -265,14 +287,14 @@ Item {
 
             // ── the console's library
             ConsoleLibrary {
-                visible: root.tab === 1
+                visible: root.tab === 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
             }
 
             // ── the games: centred, as many to a row as fit
             Item {
-                visible: root.tab === 0 && games.gamesFolder.length > 0
+                visible: root.tab === 1 && games.gamesFolder.length > 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
@@ -343,7 +365,7 @@ Item {
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: root.selected.length > 0 && root.tab === 0 ? 20 : -height
+            anchors.bottomMargin: root.selected.length > 0 && root.tab === 1 ? 20 : -height
             Behavior on anchors.bottomMargin { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
             width: Math.min(parent.width - 48, bar.implicitWidth + 32)
             height: 60
