@@ -64,7 +64,7 @@ Releases page.
 | Games: **game patches** (illusion0001's: 60 FPS, no motion blur, skipped intros…), each with a switch for GoldHEN's game_patch plugin | 🧪 | — |
 | PS5 games as folders or images (`.ffpkg`, `.exfat`) put on the home screen through ShadowMountPlus | — | 🧪 |
 | **Homebrew store**: the PS5 homebrew apps of the signed homebrew.page catalog — install, update, remove; app archives (`.zip`) from this PC; a catalog address of your own | — | 🧪 |
-| **Save vault**: every save backed up to this PC, sent back when the console loses it, or taken to another console of the same PSN account (PS4 ↔ PS5) | 🧪 | 🧪 |
+| **Save vault**: every save backed up to this PC, sent back when the console loses it, or taken to another console of the same PSN account (PS4 ↔ PS5); saves the PS4 copied to a USB drive (on the console or plugged into the PC) are found too and backed up to the vault folder | 🧪 | 🧪 |
 | **Payloads**: what the console keeps in its payload and plugin folders — add, rename, delete, start at boot, run now, edit the settings files; the community's PS5 payload list | 🧪 | 🧪 |
 | Remote Play: several PSN accounts, each with its own PIN, picked on the console's card | 🧪 | 🧪 |
 | Remote Play: no crash when the console is showing a video app | 🧪 | 🧪 |
