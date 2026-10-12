@@ -64,6 +64,69 @@ ORBISLINK_TEST(recognises_dlc_by_content_type)
 	removeTempFile(path);
 }
 
+ORBISLINK_TEST(tells_official_packages_from_fake_ones)
+{
+	PkgOptions options;
+	const std::string fake = writeTempFile("fake.pkg", buildPkg(options));
+	CHECK(!PkgInspector().inspect(fake).official);
+
+	// Sony's own: 0x81 or 0x83 in the type field's top half.
+	for(uint32_t type : { 0x81000000u, 0x83000001u })
+	{
+		options.pkgType = type;
+		const std::string path = writeTempFile("official.pkg", buildPkg(options));
+		CHECK(PkgInspector().inspect(path).official);
+	}
+	// An official delta patch says so in its content flags instead.
+	options.pkgType = 0x80000000u;
+	options.contentType = 0x1E;
+	options.contentFlags = 0x43000000u;
+	const std::string delta = writeTempFile("delta.pkg", buildPkg(options));
+	CHECK(PkgInspector().inspect(delta).official);
+	std::remove(fake.c_str());
+	std::remove(delta.c_str());
+	std::remove(".orbislink-test-official.pkg");
+}
+
+ORBISLINK_TEST(reads_the_firmware_a_package_needs)
+{
+	PkgOptions options;
+	options.sfoInts = { { "SYSTEM_VER", 0x05058000u } };
+	std::string path = writeTempFile("fw.pkg", buildPkg(options));
+	PkgInfo info = PkgInspector().inspect(path);
+	CHECK_EQ(info.requiredFirmware, static_cast<uint16_t>(0x0505));
+	CHECK_EQ(firmwareText(info.requiredFirmware), std::string("5.05"));
+
+	// PUBTOOLINFO's SDK version wins over SYSTEM_VER.
+	options.sfoEntries.push_back({ "PUBTOOLINFO", "c_date=20210812,sdk_ver=09008001,st_type=digital50" });
+	path = writeTempFile("fw.pkg", buildPkg(options));
+	info = PkgInspector().inspect(path);
+	CHECK_EQ(firmwareText(info.requiredFirmware), std::string("9.00"));
+
+	// Without either, nothing is known.
+	PkgOptions bare;
+	path = writeTempFile("fw.pkg", buildPkg(bare));
+	CHECK_EQ(PkgInspector().inspect(path).requiredFirmware, static_cast<uint16_t>(0));
+	std::remove(path.c_str());
+}
+
+ORBISLINK_TEST(firmware_versions_read_and_compare)
+{
+	CHECK_EQ(firmwareText(0x1100), std::string("11.00"));
+	CHECK_EQ(firmwareText(0x0950), std::string("9.50"));
+	CHECK_EQ(firmwareText(0), std::string());
+	CHECK_EQ(firmwareFromSystemVer(0x11008001u), static_cast<uint16_t>(0x1100));
+	CHECK_EQ(firmwareFromSystemVer(0x0672), static_cast<uint16_t>(0x0672));
+	// Remote Play discovery's "system-version".
+	CHECK_EQ(firmwareFromDiscovery("09000000"), static_cast<uint16_t>(0x0900));
+	CHECK_EQ(firmwareFromDiscovery("11008001"), static_cast<uint16_t>(0x1100));
+	CHECK_EQ(firmwareFromDiscovery(""), static_cast<uint16_t>(0));
+	CHECK_EQ(firmwareFromDiscovery("9.00"), static_cast<uint16_t>(0));
+	// As BCD, newer is bigger.
+	CHECK(firmwareFromSystemVer(0x09508000u) > firmwareFromDiscovery("09000000"));
+	CHECK(firmwareFromSystemVer(0x11008000u) > firmwareFromSystemVer(0x09508000u));
+}
+
 ORBISLINK_TEST(rejects_invalid_magic)
 {
 	PkgOptions options;

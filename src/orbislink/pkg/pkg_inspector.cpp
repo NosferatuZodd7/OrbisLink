@@ -8,6 +8,7 @@
 #include "orbislink/pkg/sfo_parser.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 
 namespace orbislink {
@@ -18,6 +19,7 @@ namespace {
 // flatz/ps4_remote_pkg_installer/pkg.h.
 constexpr size_t kHeaderReadSize = 0x1000; // enough for every field up to 0x430
 constexpr size_t kOffMagic = 0x00;
+constexpr size_t kOffPkgType = 0x04;
 constexpr size_t kOffEntryCount = 0x10;
 constexpr size_t kOffEntryTableOffset = 0x18;
 constexpr size_t kOffContentId = 0x40;
@@ -82,6 +84,38 @@ int pkgCategoryInstallOrder(PkgCategory category)
 		case PkgCategory::Unknown: break;
 	}
 	return 5;
+}
+
+std::string firmwareText(uint16_t version)
+{
+	if(version == 0)
+		return std::string();
+	char text[8];
+	std::snprintf(text, sizeof text, "%X.%02X", (version >> 8) & 0xFF, version & 0xFF);
+	return text;
+}
+
+uint16_t firmwareFromSystemVer(uint32_t value)
+{
+	// 0x09008001 (SYSTEM_VER, sdk_ver) or already 0x0900.
+	const uint32_t compact = value <= 0xFFFF ? value : value >> 16;
+	return static_cast<uint16_t>(compact);
+}
+
+uint16_t firmwareFromDiscovery(const std::string &digits)
+{
+	// "09000000": the first four digits are the version, read as BCD.
+	if(digits.size() < 4)
+		return 0;
+	uint16_t version = 0;
+	for(size_t i = 0; i < 4; ++i)
+	{
+		const char c = digits[i];
+		if(c < '0' || c > '9')
+			return 0;
+		version = static_cast<uint16_t>((version << 4) | static_cast<uint16_t>(c - '0'));
+	}
+	return version;
 }
 
 PkgInspector::PkgInspector() = default;
@@ -167,6 +201,12 @@ PkgInfo PkgInspector::inspect(const std::string &path, int64_t size, const ByteR
 	info.contentId = readFixedString(header.data() + kOffContentId, kContentIdSize);
 	info.contentType = readBE32(header.data() + kOffContentType);
 	info.contentFlags = readBE32(header.data() + kOffContentFlags);
+	info.pkgType = readBE32(header.data() + kOffPkgType);
+	{
+		const uint32_t type = info.pkgType >> 16;
+		const bool officialDelta = (info.contentType & 0xFF) == kContentTypeDp && (info.contentFlags >> 24) == 0x43;
+		info.official = officialDelta || type == 0x8100 || type == 0x8300;
+	}
 	if(headerBytes >= kOffPackageSize + 8)
 		info.declaredSize = readBE64(header.data() + kOffPackageSize);
 
@@ -239,6 +279,17 @@ PkgInfo PkgInspector::inspect(const std::string &path, int64_t size, const ByteR
 				const std::string sfoContentId = sfo.stringValue("CONTENT_ID");
 				if(!sfoContentId.empty())
 					info.contentId = sfoContentId;
+				info.requiredFirmware = firmwareFromSystemVer(sfo.uintValue("SYSTEM_VER"));
+				// "c_date=20150319,sdk_ver=02508011,st_type=digital50,…"
+				const std::string tools = sfo.stringValue("PUBTOOLINFO");
+				const size_t sdk = tools.find("sdk_ver=");
+				if(sdk != std::string::npos)
+				{
+					const uint16_t version = firmwareFromSystemVer(static_cast<uint32_t>(
+						std::strtoul(tools.substr(sdk + 8, 8).c_str(), nullptr, 16)));
+					if(version != 0)
+						info.requiredFirmware = version;
+				}
 			}
 			else
 				logDebug("PARAM.SFO of " + baseName(path) + " unreadable: " + sfoError);

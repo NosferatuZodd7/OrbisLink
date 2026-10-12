@@ -263,9 +263,18 @@ ORBISLINK_TEST(keeps_what_was_found_across_runs)
 	item.picture = kPng;
 	item.pictureExt = ".png";
 	item.pictureFrom = "metadata";
+	item.official = false;
+	item.requiredFirmware = 0x0900;
+	item.packageRead = kPackageRead;
 	const std::string key = ShelfCache::keyOf("console", item);
+	// A package kept by a version that did not read its firmware.
+	ShelfItem older = item;
+	older.path = "/data/pkg/Older.pkg";
+	older.packageRead = 0;
+	const std::string olderKey = ShelfCache::keyOf("console", older);
 	{
 		ShelfCache cache(cacheDir);
+		cache.store(olderKey, &older);
 		cache.store(key, &item);
 		CHECK(item.picture.empty());
 		CHECK(fs::exists(fs::u8path(item.pictureFile)));
@@ -278,6 +287,11 @@ ORBISLINK_TEST(keeps_what_was_found_across_runs)
 	CHECK(again.find(key, &found));
 	CHECK_EQ(found.title, std::string("Demo Game"));
 	CHECK(found.kind == Kind::Package);
+	CHECK_EQ(found.requiredFirmware, 0x0900);
+	CHECK(!found.official);
+	// The older one is read again, for its firmware.
+	ShelfItem stale;
+	CHECK(!again.find(olderKey, &stale));
 	CHECK_EQ(found.pictureFile, item.pictureFile);
 	CHECK_EQ(again.pictureFor("CUSA00001"), item.pictureFile);
 	// A changed file is a new key.

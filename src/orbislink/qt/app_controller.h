@@ -11,6 +11,7 @@
 #include "orbislink/queue/install_queue.h"
 #include "orbislink/settings/settings_store.h"
 
+#include <QHash>
 #include <QObject>
 #include <QStringList>
 #include <QUrl>
@@ -44,6 +45,10 @@ class AppController : public QObject
 	Q_PROPERTY(bool canInstallDirectly READ canInstallDirectly NOTIFY statusChanged)
 	// A PS5: a package already on it installs by its path there.
 	Q_PROPERTY(bool installsFromConsole READ installsFromConsole NOTIFY settingsChanged)
+	// The console's firmware as Remote Play discovery reports it: "9.00",
+	// and as a number to compare with a package's (0x0900; 0 unknown).
+	Q_PROPERTY(QString consoleFirmware READ consoleFirmware NOTIFY consoleFirmwareChanged)
+	Q_PROPERTY(int consoleFirmwareValue READ consoleFirmwareValue NOTIFY consoleFirmwareChanged)
 	Q_PROPERTY(bool canUseFtp READ canUseFtp NOTIFY statusChanged)
 	Q_PROPERTY(bool queuePaused READ queuePaused NOTIFY queueStateChanged)
 	Q_PROPERTY(QString pauseReason READ pauseReason NOTIFY queueStateChanged)
@@ -121,6 +126,8 @@ public:
 	QString installerHint() const;
 	bool canInstallDirectly() const;
 	bool installsFromConsole() const { return activeIsPs5(); }
+	QString consoleFirmware() const;
+	int consoleFirmwareValue() const { return consoleFirmware_; }
 	bool canUseFtp() const;
 	// The console in use is a PS5 (by the type that was stored).
 	bool activeIsPs5() const;
@@ -213,6 +220,14 @@ public:
 	// The Remote Play state comes from chiaki (StreamController), not from
 	// the periodic check: this is how it reaches the status bar indicator.
 	Q_INVOKABLE void reportRemotePlayState(const QString &state, const QString &detail);
+	// The system version discovery reported for a console ("09000000");
+	// empty when it did not answer. Only the console in use's counts.
+	void reportConsoleFirmware(const QString &address, const QString &systemVersion);
+	// What to know before a package goes to the console in use: an
+	// official package, or one that needs a newer firmware than this PS4's
+	// (`category` as the package says it: "gd", "gp"…). Empty when there is
+	// nothing to say.
+	Q_INVOKABLE QString packageWarning(bool official, int requiredFirmware, const QString &category) const;
 	// QML reports here every time a drag enters, leaves or is dropped.
 	//
 	// Without counters there is no telling Windows not delivering the event
@@ -383,6 +398,7 @@ signals:
 	// this to show what happens in real time.
 	void logLine(const QString &level, const QString &text);
 	void statusChanged();
+	void consoleFirmwareChanged();
 	void queueStateChanged();
 	void statusMessageChanged();
 	void ftpPathChanged();
@@ -433,7 +449,9 @@ private:
 	void setStatusMessage(const QString &message);
 	void setFtpBusy(bool busy);
 	static QStringList collectPkgFiles(const QStringList &paths);
-	void registerIcons(const QStringList &paths, const QStringList &taskIds);
+	// Reads each queued package's icon, and what to know about it (its
+	// firmware, an official package), on a worker thread.
+	void readPackageFacts(const QStringList &paths, const QStringList &taskIds);
 	void enqueueFiles(const QStringList &files, TransferMode mode,
 		const std::vector<std::string> &remoteNames = {}, const QString &directory = QString());
 	// Lists the folder the files go to and, for those already there, asks first.
@@ -485,6 +503,19 @@ private:
 	// The last Remote Play state StreamController reported, to restore it
 	// after the services are rebuilt.
 	QString lastRemotePlayState_;
+	uint16_t consoleFirmware_ = 0;
+	// What each queued package said about itself, to say again what to know
+	// about it once the console's firmware is known (or another console).
+	struct PackageFacts
+	{
+		bool official = false;
+		int requiredFirmware = 0;
+		QString category;
+		QString title;
+		QString warning; // the last one said
+	};
+	QHash<QString, PackageFacts> packageFacts_;
+	void refreshPackageWarnings();
 	QString lastRemotePlayDetail_;
 
 	void startDownload(const QString &remotePath, const QString &name, const QString &localPath,

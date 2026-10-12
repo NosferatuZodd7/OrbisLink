@@ -166,6 +166,15 @@ install it, or only keep its package), put a PS5 image or app folder on the
 home screen, run a payload. Search across places, filters, sorting, arrow
 keys and Enter; every install and job shows in the side panel's Queue tab.
 
+Every package says whether it is a fake package (fpkg) or an official store
+one, and the firmware it needs; before one goes, the app warns when it is an
+official package (it installs only with its licence) or when a game needs a
+newer firmware than the PS4 runs. A folder of this PC can be **organised**:
+its packages renamed from what they say about themselves (title, title ID,
+version, region…), numbered in install order (game, update, add-ons), a
+folder per game, copies of the same package left alone — all shown before
+anything changes.
+
 ### PS1 and PS2 converter
 
 Optional, in its own tab of **Games**: **PS1/PS2 converter** finds the PS1 and
@@ -437,3 +446,7 @@ Sources consulted to implement the protocols:
 [GoldHEN](https://github.com/GoldHEN/GoldHEN),
 [etaHEN](https://github.com/etaHEN/etaHEN) and the
 [OpenOrbis PS4 Toolchain](https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain).
+Telling official packages from fake ones, the firmware a package needs and
+organising a folder of packages follow
+[PS4 PKG Tool](https://github.com/pearlxcore/PS4PKGTool), by pearlxcore
+(GPL-3.0), rewritten in C++.

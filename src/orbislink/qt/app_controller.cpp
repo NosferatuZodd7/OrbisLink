@@ -130,6 +130,13 @@ void AppController::rebuildBackends()
 	{
 		ftpModel_.clear();
 		listedConsole_ = settings_.consoleAddress;
+		// Another console: its firmware comes with its own discovery.
+		if(consoleFirmware_ != 0)
+		{
+			consoleFirmware_ = 0;
+			emit consoleFirmwareChanged();
+			refreshPackageWarnings();
+		}
 	}
 
 	qInfo("Services: console manager");
@@ -1236,24 +1243,94 @@ void AppController::dropUrls(const QList<QUrl> &urls, int mode)
 	addPaths(paths, mode, mode == 1 ? ftpPath_ : QString());
 }
 
-void AppController::registerIcons(const QStringList &paths, const QStringList &taskIds)
+void AppController::readPackageFacts(const QStringList &paths, const QStringList &taskIds)
 {
-	// Extracts ICON0.PNG on a worker thread: it is disk reading.
+	// On a worker thread: it is disk reading.
 	std::thread([this, life = lifeline_, paths, taskIds]() {
 		PkgInspector inspector;
 		for(int i = 0; i < paths.size() && i < taskIds.size(); ++i)
 		{
 			const PkgInfo info = inspector.inspect(paths[i].toStdString());
-			if(info.iconPng.empty())
-				continue;
-			const QByteArray png(reinterpret_cast<const char *>(info.iconPng.data()),
-				static_cast<int>(info.iconPng.size()));
-			const QString dataUri = QStringLiteral("data:image/png;base64,")
-				+ QString::fromLatin1(png.toBase64());
 			const QString taskId = taskIds[i];
-			life->post([this, taskId, dataUri]() { queueModel_.setIcon(taskId, dataUri); });
+			if(!info.iconPng.empty())
+			{
+				const QByteArray png(reinterpret_cast<const char *>(info.iconPng.data()),
+					static_cast<int>(info.iconPng.size()));
+				const QString dataUri = QStringLiteral("data:image/png;base64,")
+					+ QString::fromLatin1(png.toBase64());
+				life->post([this, taskId, dataUri]() { queueModel_.setIcon(taskId, dataUri); });
+			}
+			if(!info.valid)
+				continue;
+			const bool official = info.official;
+			const int required = info.requiredFirmware;
+			const QString category = QString::fromLatin1(pkgCategoryCode(info.kind));
+			const QString title = QString::fromStdString(info.displayTitle());
+			life->post([this, taskId, official, required, category, title]() {
+				PackageFacts facts;
+				facts.official = official;
+				facts.requiredFirmware = required;
+				facts.category = category;
+				facts.title = title;
+				facts.warning = packageWarning(official, required, category);
+				packageFacts_.insert(taskId, facts);
+				queueModel_.setPackageFacts(taskId,
+					QString::fromStdString(firmwareText(static_cast<uint16_t>(required))), facts.warning);
+				if(!facts.warning.isEmpty())
+					emit notify(title, facts.warning, true);
+			});
 		}
 	}).detach();
+}
+
+QString AppController::consoleFirmware() const
+{
+	return QString::fromStdString(firmwareText(consoleFirmware_));
+}
+
+void AppController::reportConsoleFirmware(const QString &address, const QString &systemVersion)
+{
+	if(address.toStdString() != settings_.consoleAddress)
+		return;
+	const uint16_t version = firmwareFromDiscovery(systemVersion.toStdString());
+	// Not answering is not a new firmware: the last one known stays.
+	if(version == 0 || version == consoleFirmware_)
+		return;
+	consoleFirmware_ = version;
+	emit consoleFirmwareChanged();
+	refreshPackageWarnings();
+}
+
+void AppController::refreshPackageWarnings()
+{
+	for(auto it = packageFacts_.begin(); it != packageFacts_.end(); ++it)
+	{
+		PackageFacts &facts = it.value();
+		const QString warning = packageWarning(facts.official, facts.requiredFirmware, facts.category);
+		if(warning == facts.warning)
+			continue;
+		facts.warning = warning;
+		queueModel_.setPackageFacts(it.key(),
+			QString::fromStdString(firmwareText(static_cast<uint16_t>(facts.requiredFirmware))), warning);
+		if(!warning.isEmpty())
+			emit notify(facts.title, warning, true);
+	}
+}
+
+QString AppController::packageWarning(bool official, int requiredFirmware, const QString &category) const
+{
+	if(official)
+		return tr("An official store package: it installs only with its licence. A jailbroken console "
+			"installs fake packages (fpkg).");
+	// Only a PS4 refuses to start what was made for a newer firmware; a
+	// PS5 runs PS4 games whatever their firmware. A game or its update.
+	const bool startable = category == QLatin1String("gd") || category == QLatin1String("gp");
+	if(!activeIsPs5() && startable && consoleFirmware_ != 0 && requiredFirmware > consoleFirmware_)
+		return tr("Needs firmware %1, and this PS4 runs %2: it installs, but does not start. Look for a "
+			"version backported to %2.")
+			.arg(QString::fromStdString(firmwareText(static_cast<uint16_t>(requiredFirmware))),
+				consoleFirmware());
+	return QString();
 }
 
 void AppController::addPaths(const QStringList &paths, int mode, const QString &directory)
@@ -1334,7 +1411,7 @@ void AppController::enqueueFiles(const QStringList &files, TransferMode transfer
 	QStringList taskIds;
 	for(const std::string &id : ids)
 		taskIds << QString::fromStdString(id);
-	registerIcons(accepted, taskIds);
+	readPackageFacts(accepted, taskIds);
 
 	refreshQueueModel();
 	if(!rejected.empty())
@@ -1412,7 +1489,7 @@ void AppController::sendTo(const QString &pkg, const QString &directory, bool in
 		setStatusMessage(translateMessage(error));
 		return;
 	}
-	registerIcons(QStringList { pkg }, QStringList { QString::fromStdString(id) });
+	readPackageFacts(QStringList { pkg }, QStringList { QString::fromStdString(id) });
 	refreshQueueModel();
 	emit showPanel(QStringLiteral("queue"));
 }

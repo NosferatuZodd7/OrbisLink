@@ -3,6 +3,7 @@
 
 #include "orbislink/ftp/ftp_client.h"
 #include "orbislink/library/installed_titles.h"
+#include "orbislink/library/pkg_organizer.h"
 #include "orbislink/library/shelf.h"
 
 #include <QAbstractListModel>
@@ -130,6 +131,10 @@ class ShelfController : public QObject
 	Q_PROPERTY(int coverRevision READ coverRevision NOTIFY coversChanged)
 	// Where games installed on the console are copied to on this PC.
 	Q_PROPERTY(QString copyFolder READ copyFolder NOTIFY copyFolderChanged)
+	// Putting the packages of the folder open in order: only a folder of
+	// this PC; `organizing` while a plan is made or applied.
+	Q_PROPERTY(bool canOrganize READ canOrganize NOTIFY placeChanged)
+	Q_PROPERTY(bool organizing READ organizing NOTIFY organizeChanged)
 
 public:
 	ShelfController(AppController *app, GamesController *games, LibraryController *consoleLibrary,
@@ -198,6 +203,14 @@ public:
 	Q_INVOKABLE void setCopyFolder(const QUrl &folder);
 	Q_INVOKABLE void openCopyFolder();
 
+	bool canOrganize() const;
+	bool organizing() const { return organizing_; }
+	Q_INVOKABLE QStringList organizePatterns() const;
+	// What would happen to the packages of the folder open (organizePlanned),
+	// then doing it (organizeFinished).
+	Q_INVOKABLE void planOrganize(const QString &pattern, bool installOrder, bool folderPerGame);
+	Q_INVOKABLE void applyOrganize();
+
 	// The places: added, taken off (the folder stays), renamed, marked.
 	Q_INVOKABLE void addFolder(const QUrl &folder);
 	Q_INVOKABLE void addPlace(const QString &path, const QString &where);
@@ -217,6 +230,12 @@ signals:
 	void coversChanged();
 	void copyFolderChanged();
 	void notice(const QString &message, bool error);
+	void organizeChanged();
+	// [{ from, to, title, duplicate, sameAs, changes }] relative to the
+	// folder; how many are renamed, how many are copies of another.
+	void organizePlanned(const QVariantList &steps, int changes, int duplicates);
+	void organizeProgress(int done, int total);
+	void organizeFinished(int moved, const QStringList &failed);
 
 private:
 	struct Source
@@ -298,6 +317,9 @@ private:
 	QHash<QString, QVariantList> searchIndex_; // place id → the cards seen there
 
 	Place place_;
+	bool organizing_ = false;
+	QString organizeFolder_;
+	std::vector<library::OrganizeStep> organizePlan_;
 	QVariantList all_;
 	QString query_;
 	QString filter_ = QStringLiteral("all");

@@ -50,6 +50,10 @@ public:
 		// Whether ↑ / ↓ can move this waiting task (never past the one running).
 		CanMoveUpRole,
 		CanMoveDownRole,
+		// The firmware the package needs ("9.00"), and what to know before
+		// it goes (an official package; one above the PS4's firmware).
+		FirmwareRole,
+		WarningRole,
 	};
 
 	explicit QueueModel(QObject *parent = nullptr);
@@ -73,6 +77,7 @@ public:
 	// Chamado de qualquer thread.
 	void applySnapshot(const std::vector<QueueTask> &tasks);
 	void setIcon(const QString &taskId, const QString &dataUri);
+	void setPackageFacts(const QString &taskId, const QString &firmware, const QString &warning);
 	// The same file, however its path is written (case aside on Windows).
 	static QString fileKey(const QString &localPath);
 
@@ -118,6 +123,8 @@ private:
 
 	QList<Row> rows_;
 	QHash<QString, QString> icons_;
+	QHash<QString, QString> firmware_;
+	QHash<QString, QString> warnings_;
 };
 
 } // namespace orbislink

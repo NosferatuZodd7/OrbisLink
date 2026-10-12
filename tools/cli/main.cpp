@@ -169,6 +169,8 @@ int commandInspect(const Options &options)
 				  << "  Type        : " << pkgCategoryLabel(info.kind) << " ("
 				  << (info.category.empty() ? pkgCategoryCode(info.kind) : info.category) << ")\n"
 				  << "  Version     : " << (info.appVersion.empty() ? "-" : info.appVersion) << "\n"
+				  << "  Package     : " << (info.official ? "official (store)" : "fake (fpkg)") << "\n"
+				  << "  Firmware    : " << (info.requiredFirmware ? firmwareText(info.requiredFirmware) + " or newer" : "-") << "\n"
 				  << "  Size        : " << humanBytes(info.fileSize) << "\n"
 				  << "  Icon        : " << (info.iconPng.empty() ? "no" : humanBytes(static_cast<int64_t>(info.iconPng.size())))
 				  << "\n";

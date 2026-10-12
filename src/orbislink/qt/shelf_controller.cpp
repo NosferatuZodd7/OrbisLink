@@ -5,6 +5,7 @@
 #include "orbislink/common/util.h"
 #include "orbislink/net/http_client.h"
 #include "orbislink/payloads/payload_layout.h"
+#include "orbislink/pkg/pkg_inspector.h"
 #include "orbislink/qt/app_controller.h"
 #include "orbislink/qt/games_controller.h"
 #include "orbislink/qt/library_controller.h"
@@ -1007,6 +1008,9 @@ QVariantMap ShelfController::cardFor(const ShelfItem &item, const Source &from, 
 	card[QStringLiteral("installed")] = group == QLatin1String("games") && !titleId.isEmpty()
 		&& installed.contains(titleId.toUpper());
 	card[QStringLiteral("readable")] = item.readable;
+	card[QStringLiteral("official")] = item.official;
+	card[QStringLiteral("firmware")] = QString::fromStdString(firmwareText(static_cast<uint16_t>(item.requiredFirmware)));
+	card[QStringLiteral("firmwareValue")] = item.requiredFirmware;
 	card[QStringLiteral("sourceId")] = from.id;
 	card[QStringLiteral("sourceName")] = from.name;
 	card[QStringLiteral("where")] = from.where;
@@ -1786,6 +1790,94 @@ void ShelfController::setActive(bool active)
 }
 
 // ── moving around ────────────────────────────────────────────────────────
+
+bool ShelfController::canOrganize() const
+{
+	if(level() != QLatin1String("folder") || place_.sourceId == kConsoleLibrary)
+		return false;
+	const Source *item = source(place_.sourceId);
+	return item && item->where == QLatin1String("pc") && item->available;
+}
+
+QStringList ShelfController::organizePatterns() const
+{
+	QStringList patterns;
+	for(const std::string &pattern : library::organizePatterns())
+		patterns << QString::fromStdString(pattern);
+	return patterns;
+}
+
+void ShelfController::planOrganize(const QString &pattern, bool installOrder, bool folderPerGame)
+{
+	if(!canOrganize())
+		return;
+	library::OrganizeOptions options;
+	options.pattern = pattern.trimmed().isEmpty() ? library::organizePatterns().front() : pattern.toStdString();
+	options.installOrder = installOrder;
+	options.folderPerGame = folderPerGame;
+	const QString folder = place_.path;
+	organizing_ = true;
+	emit organizeChanged();
+	post(true, [this, folder, options]() {
+		std::vector<library::OrganizeStep> plan = library::planOrganize(folder.toStdString(), options);
+		onUi([this, folder, plan]() {
+			organizePlan_ = plan;
+			organizeFolder_ = folder;
+			organizing_ = false;
+			emit organizeChanged();
+			const QDir base(folder);
+			QVariantList steps;
+			int changes = 0;
+			int duplicates = 0;
+			for(const library::OrganizeStep &step : plan)
+			{
+				QVariantMap row;
+				row[QStringLiteral("from")] = base.relativeFilePath(QString::fromStdString(step.from));
+				row[QStringLiteral("to")] = base.relativeFilePath(QString::fromStdString(step.to));
+				row[QStringLiteral("title")] = QString::fromStdString(step.title);
+				row[QStringLiteral("duplicate")] = step.duplicate;
+				row[QStringLiteral("sameAs")] = step.sameAs.empty() ? QString()
+					: base.relativeFilePath(QString::fromStdString(step.sameAs));
+				row[QStringLiteral("changes")] = step.changes();
+				steps << row;
+				changes += step.changes() ? 1 : 0;
+				duplicates += step.duplicate ? 1 : 0;
+			}
+			emit organizePlanned(steps, changes, duplicates);
+		});
+	});
+}
+
+void ShelfController::applyOrganize()
+{
+	if(organizing_ || organizePlan_.empty())
+		return;
+	const QString folder = organizeFolder_;
+	const std::vector<library::OrganizeStep> plan = organizePlan_;
+	organizePlan_.clear();
+	organizing_ = true;
+	emit organizeChanged();
+	post(true, [this, folder, plan]() {
+		const library::OrganizeResult result = library::applyOrganize(folder.toStdString(), plan,
+			[this](int done, int total) { onUi([this, done, total]() { emit organizeProgress(done, total); }); });
+		QStringList failed;
+		for(const std::string &why : result.failed)
+			failed << QString::fromStdString(why);
+		const int moved = result.moved;
+		onUi([this, moved, failed]() {
+			organizing_ = false;
+			emit organizeChanged();
+			logInfo("Library: organised " + std::to_string(moved) + " package(s), "
+				+ std::to_string(failed.size()) + " failed");
+			emit organizeFinished(moved, failed);
+			if(failed.isEmpty())
+				emit notice(tr("%n package(s) renamed.", "", moved), false);
+			else
+				emit notice(tr("%1 could not be renamed: %2").arg(failed.size()).arg(failed.front()), true);
+			refresh();
+		});
+	});
+}
 
 void ShelfController::refresh()
 {
