@@ -14,6 +14,7 @@
 #include <QFileInfo>
 #include <QMetaObject>
 #include <QStandardPaths>
+#include <QStorageInfo>
 
 #include <algorithm>
 #include <cinttypes>
@@ -68,8 +69,25 @@ QString syncName(SaveSync sync)
 		case SaveSync::Older: return QStringLiteral("older");
 		case SaveSync::ConsoleOnly: return QStringLiteral("console");
 		case SaveSync::VaultOnly: return QStringLiteral("vault");
+		case SaveSync::UsbOnly: return QStringLiteral("usb");
 	}
 	return QString();
+}
+
+// The drives of this PC with saves a PS4 copied to them (a PS4/SAVEDATA
+// folder at the root): USB drives, mostly.
+std::vector<std::string> drivesWithSaves()
+{
+	std::vector<std::string> drives;
+	for(const QStorageInfo &volume : QStorageInfo::mountedVolumes())
+	{
+		if(!volume.isValid() || !volume.isReady())
+			continue;
+		const QString root = volume.rootPath();
+		if(QFileInfo(QDir(root).filePath(QStringLiteral("PS4/SAVEDATA"))).isDir())
+			drives.push_back(QDir::fromNativeSeparators(root).toStdString());
+	}
+	return drives;
 }
 
 // The save's account in base64, the form the app keeps Account IDs in, and
@@ -409,7 +427,11 @@ void SavesController::publish(const std::vector<SaveInfo> &list, SaveVault &vaul
 		item[QStringLiteral("wasHere")] = wasHere;
 		item[QStringLiteral("onConsole")] = save.onConsole;
 		item[QStringLiteral("inVault")] = save.inVault;
-		item[QStringLiteral("size")] = sizeText(save.onConsole ? save.consoleBytes() : save.vaultBytes());
+		// A copy on a USB drive: the console's, or one plugged into this PC.
+		item[QStringLiteral("onUsb")] = save.onUsb;
+		item[QStringLiteral("usbOnConsole")] = save.usbOnConsole;
+		item[QStringLiteral("size")] = sizeText(save.onConsole ? save.consoleBytes()
+			: save.inVault ? save.vaultBytes() : save.usbBytes());
 		item[QStringLiteral("backedUpAt")] = QString::fromStdString(save.backedUpAt);
 		item[QStringLiteral("versions")] = save.versions;
 		item[QStringLiteral("icon")] = save.iconPath.empty() ? QUrl()
@@ -460,6 +482,7 @@ void SavesController::run(const QString &what, Job job)
 		FtpRemote remote(ftp);
 		SaveVault vault(root);
 		vault.setLinks(known);
+		vault.setUsbDrives(drivesWithSaves());
 		if(reachable)
 		{
 			// Whose each console user is, first: the saves are filed by it.
@@ -528,7 +551,8 @@ void SavesController::backup(const QStringList &keys)
 		// What is new or changed; never an earlier copy over a newer backup.
 		std::lock_guard<std::mutex> lock(mutex_);
 		for(const SaveInfo &save : current_)
-			if(save.onConsole && (save.sync() == SaveSync::Changed || save.sync() == SaveSync::ConsoleOnly))
+			if((save.onConsole && (save.sync() == SaveSync::Changed || save.sync() == SaveSync::ConsoleOnly))
+				|| save.sync() == SaveSync::UsbOnly)
 				chosen.push_back(save);
 	}
 	else
@@ -542,7 +566,7 @@ void SavesController::backup(const QStringList &keys)
 		for(size_t i = 0; i < chosen.size(); ++i)
 		{
 			SaveInfo save = chosen[i];
-			if(!save.onConsole)
+			if(!save.onConsole && !save.onUsb)
 				continue;
 			setProgress(tr("Backing up %1 (%2 of %3)…")
 					.arg(QString::fromStdString(save.saveTitle.empty() ? save.dir : save.saveTitle))
@@ -601,7 +625,18 @@ void SavesController::send(const QStringList &keys, const QString &address)
 		std::map<std::string, std::vector<SaveDbEntry>> sent;
 		for(size_t i = 0; i < chosen.size(); ++i)
 		{
-			const SaveInfo &save = chosen[i];
+			SaveInfo save = chosen[i];
+			// Only on a USB drive: into the vault first (the vault folder is
+			// where saves are kept), then on to the console.
+			if(!save.inVault && save.onUsb)
+			{
+				std::string why;
+				if(!vault.backup(here, save, &why))
+				{
+					failed << QString::fromStdString(save.dir + ": " + why);
+					continue;
+				}
+			}
 			if(!save.inVault)
 				continue;
 			std::string user = save.account;

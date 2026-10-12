@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // A game, an app or a file on the shelf: its cover (or a disc), its name,
-// what kind of file it is in the corner, and a mark when the console has it
-// installed. While several are being picked, a round mark in the other
-// corner says whether this one is.
+// what kind of file it is in the corner, and a green glow around it when the
+// console has it installed. While several are being picked, a round mark in
+// the top corner says whether this one is.
 import QtQuick
 
 ShelfTile {
@@ -19,6 +19,7 @@ ShelfTile {
         return part.length > 0
     }).join("  ·  ")
     dimmed: info.readable === false
+    glow: info.installed === true ? Theme.ok : "transparent"
 
     // "PKG", "ISO", "APP"…: what the file is.
     readonly property string typeText: info.app ? "APP"
@@ -82,24 +83,6 @@ ShelfTile {
             font.pixelSize: 10
             font.weight: Font.DemiBold
             font.letterSpacing: 0.6
-        }
-    }
-
-    Rectangle {
-        visible: card.info.installed === true
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: 6
-        width: 22
-        height: 22
-        radius: 11
-        color: Theme.ok
-        Icon {
-            anchors.centerIn: parent
-            name: "check"
-            size: 14
-            strokeWidth: 2.5
-            color: "#FFFFFF"
         }
     }
 }

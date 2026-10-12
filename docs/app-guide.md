@@ -363,8 +363,8 @@ it holds), then the games and files, in sections — *Games and apps*,
 *Updates and add-ons*, *Payloads*, *Other files* — when sorted by type. A
 game card has its cover filling the tile, with rounded corners (the
 details show it whole), its name, its platform and version, what kind of
-file it is in the corner (PKG, ISO, CUE, APP…) and a ✓ when the console in
-use has it installed. Only what the app can do something with is shown:
+file it is in the corner (PKG, ISO, CUE, APP…) and a green glow around it
+when the console in use has it installed. Only what the app can do something with is shown:
 packages, PS1/PS2 discs (a `.cue` and its track as one), PS5 images, app
 folders, payloads, archives and folders; pictures, documents and the rest
 are left out.
@@ -597,6 +597,7 @@ console lets that be read, its size and where it stands:
 | ↺ Changed since the backup | The console's save is not the PC's: the game wrote to it after the last backup, or it is that console's own save of that name. |
 | ↓ The PC has a newer one | The console has the copy of an earlier backup; a newer one came from another console. **Back up** leaves it out (it would put the earlier save over the newer one): send the PC's copy instead. |
 | ⇧ Not backed up | Only on the console. |
+| USB On a USB drive · On the console's USB drive | Only on a USB drive the PS4 copied it to (below): not on the console, not backed up. |
 | 🗄 Only on the PC | Not on this console: it lost it, or it was never there (another console's). |
 
 | Item | Does |
@@ -605,7 +606,7 @@ console lets that be read, its size and where it stands:
 | **Back up all to PC** | Backs up every save that is not backed up or changed, in one click. |
 | **Send what's missing** | Sends back every save this console had and lost (see below). |
 | Owners | One chip per owner — the PSN account (PSID) — named after the Account ID kept in the app, else the console's name for its user (`username.dat`), else the PSID; or one per console user whose PSID is not known yet. **Link…** says which of the Account IDs kept in the app (Settings → Account IDs) a console user is. Most of the time it is not needed: a console user's PSID is read from the console's own list of saves, and from the saves themselves where the console lets them be read. A save whose PSID is still not known asks for the link when it is backed up, then goes. With one owner chosen, everything on the page is that owner's. |
-| Filters | All · Not backed up · Changed (and older) · Only on the PC. |
+| Filters | All · Not backed up (on the console, or only on a USB drive) · Changed (and older) · Only on the PC. |
 | Click on a save · **Select all** | Selects; the top strip then offers **Back up to PC**, **Send to <console>** and **Delete…** for the selection. |
 | **Send to <console>** | Named after the console it sends to: the one shown, or another picked with the arrow next to it (only consoles whose FTP answers). Always asks first, naming the console and its type: the game has to be closed. For each owner, it shows who gets the saves there: the user of that console with the same PSID. When none is known, it lists that console's users whose PSID is not known, to say which one it is (kept from then on). Each save replaces that user's copy with the latest backup and is checked to have arrived whole (an error otherwise); one the console does not list is also added to its list of saves (below). On a PS5, a PS4 game's saves are those of its PS4 version (CUSA); its PS5 version keeps saves of its own. |
 | **Delete…** | From the PC only (it warns when a save is not on the console, as the PC's may be its only copy). |
@@ -628,7 +629,22 @@ drive:
 The PSID is the owner's PSN account in 16 hex digits, as the PS4 names it.
 One save of a game is one save whatever console it is on: the PS4's and the
 PS5's copies of it are the same backup. Saves copied in by hand from a PS4's
-USB drive (its `PS4` folder into the vault folder) show up as well. Backups
+USB drive (its `PS4` folder into the vault folder) show up as well.
+
+**USB drives.** Saves the PS4 copied to a USB drive (*Settings → Application
+Saved Data Management → Copy to USB Storage Device*, which writes the same
+`PS4/SAVEDATA/<PSID>/<game>` layout) are looked for too: on the console's
+own drives (`/mnt/usb0`–`usb7`, over FTP) and on every drive of this PC with
+a `PS4/SAVEDATA` folder at its root. One that is nowhere else shows *On a USB
+drive* (or *On the console's USB drive*) and counts as not backed up. The
+drive is only read: **Back up** copies the save into the vault folder chosen
+in the header, always; **Send to <console>** backs it up there first, then
+sends it. A save that is also on the console is backed up from the console.
+A vault folder that is itself on a USB drive is not read twice.
+
+A game's name, for saves that do not carry it, comes from the console's
+copy of the game's `param.sfo` (`/system_data/priv/appmeta`, then
+`/user/appmeta`); a game no longer installed shows its ID. Backups
 made by earlier versions move to this layout once their PSID is known.
 
 Sending a save a console does not list: each console keeps a list of each
