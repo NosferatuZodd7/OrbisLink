@@ -54,7 +54,7 @@ Releases page.
 | When the installer or FTP is not running, a window says what to do on that console (PS4: open Remote Package Installer, GoldHEN's FTP; PS5: Prospero Manager or DPI v2, ftpsrv or etaHEN's FTP) | ✅ | ✅ |
 | **Games**: one library of every place games can be (the console's `OrbisLinkFPKG` folders, its USB drives and `data/pkg`, this PC's drives and folders), with covers, search and an *Only games* filter; the PS1/PS2 converter in its own tab | 🧪 | 🧪 |
 | Games: pick several and convert or install them together; choose the console's memory, a USB drive or the extended storage | 🧪 | 🧪 |
-| Games: what the console has installed, copying a game to this PC, the console's free space | 🧪 | 🧪 |
+| Games: what the console has installed (with each game's name and version), copying a game to this PC, the console's free space | 🧪 | 🧪 |
 | Games: uninstalling a game or its update | 🧪 | — |
 | Packing a PS4 app folder from this PC into a .pkg and installing it | 🧪 | 🧪 |
 | Each package says whether it is fake (fpkg) or official, and the firmware it needs | ✅ | ✅ |
@@ -68,7 +68,9 @@ Releases page.
 | **Payloads**: what the console keeps in its payload and plugin folders — add, rename, delete, start at boot, run now, edit the settings files; the community's PS5 payload list | 🧪 | 🧪 |
 | Remote Play: several PSN accounts, each with its own PIN, picked on the console's card | 🧪 | 🧪 |
 | Remote Play: no crash when the console is showing a video app | 🧪 | 🧪 |
-| One queue for every job (installs, copies, conversions, the store), kept across restarts; a system notification when a long job ends | 🧪 | 🧪 |
+| Remote Play: Games, the store, the save vault and payloads open over the picture, with a slider for how see-through they are, so the game stays in sight | 🧪 | 🧪 |
+| Adding a console: the search asks every network adapter and every address of a home network, and finds a console with Remote Play off by its FTP | 🧪 | 🧪 |
+| One queue for every job (installs, copies, conversions, the store), kept across restarts; a system notification when a long job ends; a failed uninstall, mount or run can be tried again | 🧪 | 🧪 |
 | Minimal top bar; hovering FTP or the installer shows a card with its state and what to do | ✅ | ✅ |
 
 Everything still missing, and why, is in
