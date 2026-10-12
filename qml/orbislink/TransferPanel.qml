@@ -65,10 +65,15 @@ Item {
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: app.waitingForInstaller
-                          ? qsTr("Waiting for Remote Package Installer: open it on the console and the "
-                                 + "install starts by itself.")
-                          : app.pauseReason.length > 0 ? app.pauseReason : qsTr("Queue paused.")
+                    // A PS5's installer is a payload (Prospero Manager) or
+                    // an etaHEN setting (DPI v2), not an app to open.
+                    text: !app.waitingForInstaller
+                          ? (app.pauseReason.length > 0 ? app.pauseReason : qsTr("Queue paused."))
+                          : app.installsFromConsole
+                            ? qsTr("Waiting for an installer: in Payloads, press ▶ on Prospero Manager, or turn "
+                                   + "on etaHEN's DPI v2. The install starts by itself.")
+                            : qsTr("Waiting for Remote Package Installer: open it on the console and the "
+                                   + "install starts by itself.")
                     color: Theme.text
                     wrapMode: Text.WordWrap
                     font.pixelSize: 12

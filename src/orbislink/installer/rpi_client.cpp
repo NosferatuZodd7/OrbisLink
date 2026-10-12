@@ -104,10 +104,12 @@ InstallerResult RpiClient::installDpiV2(const std::string &url)
 	if(!response.transportOk)
 	{
 		protocol_.store(static_cast<int>(Protocol::Unknown));
-		return InstallerResult::failure(
+		InstallerResult result = InstallerResult::failure(
 			std::string(QT_TRANSLATE_NOOP("Messages",
 				"Remote installer unavailable. Open Remote Package Installer on the console."))
 			+ " (" + response.error + ")");
+		result.unavailable = true;
+		return result;
 	}
 	InstallerResult result;
 	result.httpStatus = response.status;
@@ -139,8 +141,10 @@ InstallerResult RpiClient::installProspero(const std::string &target)
 	request.set(remote ? "url" : "path", Json::fromString(target));
 	auto unavailable = [this](const std::string &why) {
 		protocol_.store(static_cast<int>(Protocol::Unknown));
-		return InstallerResult::failure(std::string(QT_TRANSLATE_NOOP("Messages",
+		InstallerResult result = InstallerResult::failure(std::string(QT_TRANSLATE_NOOP("Messages",
 			"Prospero Manager is not answering: load its payload on the console.")) + " (" + why + ")");
+		result.unavailable = true;
+		return result;
 	};
 	auto failed = [&target](const std::string &error) {
 		InstallerResult result;
@@ -230,10 +234,12 @@ InstallerResult RpiClient::call(const std::string &path, const std::string &json
 	if(!response.transportOk)
 	{
 		protocol_.store(static_cast<int>(Protocol::Unknown));
-		return InstallerResult::failure(
+		InstallerResult result = InstallerResult::failure(
 			std::string(QT_TRANSLATE_NOOP("Messages",
 				"Remote installer unavailable. Open Remote Package Installer on the console."))
 			+ " (" + response.error + ")");
+		result.unavailable = true;
+		return result;
 	}
 
 	if(body)

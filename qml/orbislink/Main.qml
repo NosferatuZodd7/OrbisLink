@@ -500,6 +500,10 @@ ApplicationWindow {
     }
     DiagnosticsDialog { id: diagnosticsDialog }
     UploadConflictDialog { id: uploadConflictDialog }
+    ServiceHelpDialog {
+        id: serviceHelpDialog
+        onOpenPayloads: window.view = "payloads"
+    }
     FirstRunWizard { id: firstRunWizard }
     UpdateDialog { id: updateDialog }
 
@@ -507,6 +511,7 @@ ApplicationWindow {
         target: app
         function onUpdateAvailable(version) { updateDialog.open() }
         function onUploadConflicts(conflicts) { uploadConflictDialog.begin(conflicts) }
+        function onServiceHelp(kind, title, text) { serviceHelpDialog.begin(kind, title, text) }
         // Files were queued: show where they can be followed.
         function onShowPanel(which) {
             window.panelVisible = true
@@ -617,6 +622,50 @@ ApplicationWindow {
         target: app
         function onNotify(title, message, error) {
             toast.show(title + (message.length > 0 ? " — " + message : ""), error)
+        }
+    }
+
+    // Every other tooltip of the app (the attached ToolTip, one instance
+    // shared by all) in the app's look: a dark rounded card with wrapped
+    // text, not the Basic style's plain box across the window.
+    Item {
+        id: tooltipLook
+        Component {
+            id: tooltipBackground
+            Rectangle {
+                color: Theme.dialogFill
+                radius: 10
+                border.width: 1
+                border.color: Theme.border
+            }
+        }
+        Component {
+            id: tooltipContent
+            Item {
+                required property ToolTip control
+                implicitWidth: Math.min(360, label.implicitWidth)
+                implicitHeight: label.implicitHeight
+                Text {
+                    id: label
+                    width: parent.width
+                    text: parent.control.text
+                    color: Theme.text
+                    font.pixelSize: 12
+                    lineHeight: 1.15
+                    wrapMode: Text.WordWrap
+                }
+            }
+        }
+        Component.onCompleted: {
+            var shared = ToolTip.toolTip
+            // Made inside the tooltip's own item, where the style's parts live.
+            var host = shared.background ? shared.background.parent : shared.contentItem.parent
+            shared.background = tooltipBackground.createObject(host)
+            shared.contentItem = tooltipContent.createObject(host, { control: shared })
+            shared.padding = 10
+            shared.leftPadding = 12
+            shared.rightPadding = 12
+            shared.margins = 12
         }
     }
 

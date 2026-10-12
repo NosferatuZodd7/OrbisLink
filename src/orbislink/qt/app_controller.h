@@ -112,6 +112,12 @@ public:
 	QString ftpState() const;
 	QString ftpHint() const;
 	QString installerState() const;
+	// What to do when the console's installer or FTP is not running.
+	QString installerHelpKind() const;
+	QString installerHelpTitle() const;
+	QString installerHelpText() const;
+	QString ftpHelpTitle() const;
+	QString ftpHelpText() const;
 	QString installerHint() const;
 	bool canInstallDirectly() const;
 	bool installsFromConsole() const { return activeIsPs5(); }
@@ -398,6 +404,9 @@ signals:
 	// to this PC, a store install, a download): with the window in the
 	// background, a system notification says so.
 	void jobFinished(const QString &title, const QString &message, bool error);
+	// A feature needs the installer ("installer" on a PS5, "rpi" on a PS4)
+	// or FTP ("ftp") and it is not running: what to do, for a window to show.
+	void serviceHelp(const QString &kind, const QString &title, const QString &text);
 	// `ftpPort` is where FTP answered (0 when it did not): another port
 	// than the one asked for when FTP turned up there.
 	void consoleProbed(const QString &address, bool ftpOk, bool installerOk,
@@ -462,6 +471,8 @@ private:
 	// The FTP drop waiting for an answer about the names already taken.
 	QStringList pendingUploads_;
 	QString pendingUploadDirectory_;
+	// The queue was waiting for the installer at its last change.
+	bool wasWaiting_ = false;
 	// Only the most recent check matters: earlier ones are discarded when
 	// they arrive, so the result never contradicts what is on screen.
 	std::atomic<uint64_t> probeGeneration_ { 0 };

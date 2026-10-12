@@ -233,8 +233,15 @@ void AppController::rebuildBackends()
 				emit queueStateChanged();
 				// Waiting for the installer: a fresh look at the console
 				// decides when to go on.
-				if(queue_ && queue_->waitingForService() && !installerRecheckPending_)
+				const bool waiting = queue_ && queue_->waitingForService();
+				if(waiting && !installerRecheckPending_)
 					checkServicesNow();
+				// Once, as the queue starts waiting, what to do: on a PS4 open
+				// Remote Package Installer; on a PS5 the installer is a payload
+				// or an etaHEN setting.
+				if(waiting && !wasWaiting_ && !canInstallDirectly())
+					emit serviceHelp(installerHelpKind(), installerHelpTitle(), installerHelpText());
+				wasWaiting_ = waiting;
 				if(terminal)
 				{
 					emit notify(title, message, failed);
@@ -610,6 +617,8 @@ void AppController::probeFtp(const QStringList &addresses)
 void AppController::openFiles()
 {
 	emit showPanel(QStringLiteral("files"));
+	if(status_.ftp.state == ServiceState::Unavailable)
+		emit serviceHelp(QStringLiteral("ftp"), ftpHelpTitle(), ftpHelpText());
 	// Always listed again: after switching console, what is on screen may
 	// be the previous console's folder. If FTP does not answer, the listing
 	// says so.
@@ -750,15 +759,61 @@ QString AppController::ftpHint() const
 			tried << QString::number(answer.port);
 		if(tried.isEmpty())
 			tried << QString::number(activeFtpPort());
-		return tr("On the PS5, FTP only exists with a jailbreak: etaHEN's is on port 1337 (FTP=1 in "
-			"config.ini), the ftpsrv payload's on 2121. No FTP answered on %1. Port 9090 is etaHEN's "
-			"DPI v1 installer, not FTP.")
+		return tr("FTP is not running on the console: load the ftpsrv payload (with your payload loader, or "
+			"Payloads → Send from this PC…), or turn on etaHEN's FTP (FTP=1 in config.ini). Nothing answered "
+			"on %1.")
 			.arg(tried.join(QStringLiteral(", ")));
 	}
 	return status_.ftp.state == ServiceState::Available
 		? QString::fromStdString(status_.ftp.detail)
 		: translateMessage(status_.ftp.hint);
 }
+QString AppController::installerHelpKind() const
+{
+	// "installer": a PS5's, where Payloads can start it; "rpi": a PS4's app.
+	return activeIsPs5() ? QStringLiteral("installer") : QStringLiteral("rpi");
+}
+
+QString AppController::installerHelpTitle() const
+{
+	if(!activeIsPs5())
+		return tr("Remote Package Installer is not open");
+	return tr("No installer running on the console");
+}
+
+QString AppController::installerHelpText() const
+{
+	if(!activeIsPs5())
+		return tr("To install packages, the PS4 needs the Remote Package Installer app open. Do this:\n"
+			"• On the PS4, open Remote Package Installer.\n"
+			"• Keep it in the foreground while installs are sent: in the background it does not answer.\n"
+			"The install waits in the queue and starts by itself once it answers.");
+	return tr("To install packages, the PS5 needs an installer running on it. Do one of these:\n"
+		"• In Payloads, press ▶ on Prospero Manager (when it is on the console).\n"
+		"• In etaHEN, turn on DPI v2 (DPI_v2=1 in config.ini).\n"
+		"The install waits in the queue and goes on by itself once one of them answers. To have it every "
+		"time, turn on Prospero Manager's switch in Payloads: it then starts with each jailbreak.");
+}
+
+QString AppController::ftpHelpTitle() const
+{
+	return tr("FTP is not running on the console");
+}
+
+QString AppController::ftpHelpText() const
+{
+	if(!activeIsPs5())
+		return tr("OrbisLink reaches the PS4's files over GoldHEN's FTP server, and nothing answers. Check this:\n"
+			"• GoldHEN is loaded: after the console restarts, the jailbreak has to be run again.\n"
+			"• Its FTP server is on (it is by default): in GoldHEN's settings, the server settings.\n"
+			"OrbisLink finds it by itself on the usual ports (2121, 1337, 21).");
+	return tr("OrbisLink reaches the PS5's files over FTP, and nothing answers. Do one of these:\n"
+		"• Load the ftpsrv payload with your payload loader, or from this PC in Payloads → Send from this "
+		"PC…\n"
+		"• In etaHEN, turn on its FTP (FTP=1 in config.ini).\n"
+		"OrbisLink finds it by itself on the usual ports (1337, 2121, 21).");
+}
+
 QString AppController::installerState() const
 {
 	if(activeIsPs5() && status_.installer.state == ServiceState::Unavailable)
@@ -768,8 +823,8 @@ QString AppController::installerState() const
 QString AppController::installerHint() const
 {
 	if(activeIsPs5() && status_.installer.state != ServiceState::Available)
-		return tr("On the PS5, installing packages needs a jailbreak with an installer: etaHEN's DPI v2 on "
-			"port %1 (DPI_v2=1 in config.ini), or the Prospero Manager payload (port 7070).")
+		return tr("No installer is running on the console: in Payloads, press ▶ on Prospero Manager "
+			"(port 7070), or turn on etaHEN's DPI v2 (DPI_v2=1 in config.ini, port %1).")
 			.arg(settings_.installerPort);
 	return status_.installer.state == ServiceState::Available
 		? QString::fromStdString(status_.installer.detail)
@@ -1205,9 +1260,19 @@ void AppController::addPaths(const QStringList &paths, int mode, const QString &
 {
 	if(!queue_)
 		return;
-	if(activeIsPs5() && !status_.canInstallDirectly() && !status_.canUseFtp())
+	// Known not to answer (not merely unchecked yet): what to do, instead of
+	// queueing what cannot go. An install with only the installer missing
+	// is queued: it waits for it, and the queue says what to do.
+	const bool ftpDown = status_.ftp.state == ServiceState::Unavailable;
+	const bool installerDown = status_.installer.state == ServiceState::Unavailable;
+	if(mode == 1 && ftpDown)
 	{
-		emit notify(tr("Install"), installerHint(), true);
+		emit serviceHelp(QStringLiteral("ftp"), ftpHelpTitle(), ftpHelpText());
+		return;
+	}
+	if(mode != 1 && activeIsPs5() && installerDown && ftpDown)
+	{
+		emit serviceHelp(installerHelpKind(), installerHelpTitle(), installerHelpText());
 		return;
 	}
 	const TransferMode transferMode = mode == 1 ? TransferMode::FtpUpload : TransferMode::DirectInstall;
@@ -1593,9 +1658,9 @@ bool AppController::ftpReady(const QString &operation)
 	}
 	if(status_.ftp.state == ServiceState::Unavailable)
 	{
-		emit notify(operation,
-			tr("The console is not answering on FTP: %1").arg(translateMessage(status_.ftp.hint)),
-			true);
+		// What to do: GoldHEN's FTP on a PS4, a payload or an etaHEN
+		// setting on a PS5.
+		emit serviceHelp(QStringLiteral("ftp"), ftpHelpTitle(), ftpHelpText());
 		return false;
 	}
 	return true;

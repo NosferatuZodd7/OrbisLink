@@ -15,6 +15,9 @@ struct InstallerResult
 	std::string message;      // message already worded for the user
 	long httpStatus = 0;
 	std::string rawBody;      // raw reply, for the log/diagnostics
+	// Nothing answered: the installer is not running (not a refusal). The
+	// queue then waits for it instead of failing the task.
+	bool unavailable = false;
 
 	static InstallerResult success() { InstallerResult r; r.ok = true; return r; }
 	static InstallerResult failure(const std::string &message, uint32_t code = 0)

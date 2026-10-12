@@ -185,6 +185,10 @@ private:
 	void finishTask(QueueTask task);
 	void updateTask(const QueueTask &task);
 	void notify(const QueueTask &task);
+	// Nothing answered the install: the installer is not running.
+	static bool installerAway(const InstallerResult &result);
+	// What the card says while the queue waits for it.
+	std::string waitingReason(const InstallerResult &result) const;
 	void requeueForServiceLoss(QueueTask task, const std::string &reason);
 	static void sortBatch(std::vector<QueueTask> &batch);
 
