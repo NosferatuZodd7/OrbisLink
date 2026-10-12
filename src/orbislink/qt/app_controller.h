@@ -45,6 +45,9 @@ class AppController : public QObject
 	Q_PROPERTY(bool canInstallDirectly READ canInstallDirectly NOTIFY statusChanged)
 	// A PS5: a package already on it installs by its path there.
 	Q_PROPERTY(bool installsFromConsole READ installsFromConsole NOTIFY settingsChanged)
+	// How opaque a page shown over Remote Play is (overlayMinOpacity to 1).
+	Q_PROPERTY(double overlayOpacity READ overlayOpacity NOTIFY settingsChanged)
+	Q_PROPERTY(double overlayMinOpacity READ overlayMinOpacity CONSTANT)
 	// The console's firmware as Remote Play discovery reports it: "9.00",
 	// and as a number to compare with a package's (0x0900; 0 unknown).
 	Q_PROPERTY(QString consoleFirmware READ consoleFirmware NOTIFY consoleFirmwareChanged)
@@ -126,6 +129,11 @@ public:
 	QString installerHint() const;
 	bool canInstallDirectly() const;
 	bool installsFromConsole() const { return activeIsPs5(); }
+	double overlayOpacity() const { return settings_.overlayOpacity; }
+	// Below this a page over the picture can no longer be read.
+	static double overlayMinOpacity() { return Settings::kOverlayMinOpacity; }
+	// Kept once the slider is let go (not at each step of a drag).
+	Q_INVOKABLE void setOverlayOpacity(double opacity);
 	QString consoleFirmware() const;
 	int consoleFirmwareValue() const { return consoleFirmware_; }
 	bool canUseFtp() const;

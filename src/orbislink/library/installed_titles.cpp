@@ -84,37 +84,38 @@ std::set<std::string> foldersIn(FileSource &source, const std::string &dir)
 	return names;
 }
 
-// Name, version and category from the title's metadata.
-void readMeta(FileSource &source, const std::string &dir, InstalledTitle *title)
+// Name, version and category from one of the title's metadata folders;
+// its icon too when none was found yet. False when that folder says
+// neither name nor version.
+bool readMeta(FileSource &source, const std::string &dir, InstalledTitle *title)
 {
 	std::vector<ShelfEntry> entries;
 	if(!source.list(dir, &entries, nullptr))
-		return;
+		return false;
 	std::map<std::string, const ShelfEntry *> byName;
 	for(const ShelfEntry &entry : entries)
 		byName[toLower(entry.name)] = &entry;
-	if(byName.count("icon0.png"))
+	if(byName.count("icon0.png") && title->iconPath.empty())
 		title->iconPath = byName["icon0.png"]->path;
 
 	std::vector<uint8_t> bytes;
 	if(byName.count("param.sfo") && source.read(byName["param.sfo"]->path, 0, 256 * 1024, &bytes))
 	{
 		Sfo sfo;
-		if(sfo.parse(bytes))
-		{
-			title->title = trim(sfo.stringValue("TITLE"));
-			title->version = trim(sfo.stringValue("APP_VER", sfo.stringValue("VERSION")));
-			title->category = trim(sfo.stringValue("CATEGORY"));
-			if(title->platform.empty())
-				title->platform = "ps4";
-		}
-		return;
+		if(!sfo.parse(bytes))
+			return false;
+		title->title = trim(sfo.stringValue("TITLE"));
+		title->version = trim(sfo.stringValue("APP_VER", sfo.stringValue("VERSION")));
+		title->category = trim(sfo.stringValue("CATEGORY"));
+		if(title->platform.empty())
+			title->platform = "ps4";
+		return !title->title.empty() || !title->version.empty();
 	}
 	if(byName.count("param.json") && source.read(byName["param.json"]->path, 0, 1024 * 1024, &bytes))
 	{
 		const Json root = Json::parse(std::string(bytes.begin(), bytes.end()));
 		if(!root.isObject())
-			return;
+			return false;
 		const Json &local = root["localizedParameters"];
 		if(local.isObject())
 		{
@@ -134,7 +135,9 @@ void readMeta(FileSource &source, const std::string &dir, InstalledTitle *title)
 			title->title = trim(root["titleName"].toString());
 		title->version = trim(root["contentVersion"].toString());
 		title->platform = "ps5";
+		return !title->title.empty() || !title->version.empty();
 	}
+	return false;
 }
 
 } // namespace
@@ -167,6 +170,13 @@ std::vector<InstalledTitle> readInstalled(FileSource &source, const std::string 
 	// Which have an update or add-ons: one look at each folder, not one per game.
 	const std::set<std::string> patched = foldersIn(source, at("user/patch"));
 	const std::set<std::string> extended = foldersIn(source, at("user/addcont"));
+	// The system keeps each title's param.sfo (param.json on a PS5), its
+	// version the update's once one is installed, in its own appmeta —
+	// "external/" for the extended storage; /user/appmeta has the pictures.
+	const std::string systemMeta = at("system_data/priv/appmeta");
+	const std::string externalMeta = source.join(systemMeta, "external");
+	const std::set<std::string> inSystem = foldersIn(source, systemMeta);
+	const std::set<std::string> inExternal = foldersIn(source, externalMeta);
 
 	for(const std::string &id : apps)
 	{
@@ -177,7 +187,17 @@ std::vector<InstalledTitle> readInstalled(FileSource &source, const std::string 
 		InstalledTitle title;
 		title.titleId = id;
 		title.platform = ps5TitleId(id) ? "ps5" : "";
-		readMeta(source, source.join(at("user/appmeta"), id), &title);
+		bool named = false;
+		if(inSystem.count(id))
+			named = readMeta(source, source.join(systemMeta, id), &title);
+		if(!named && inExternal.count(id))
+			named = readMeta(source, source.join(externalMeta, id), &title);
+		// The pictures, and the name of what the system's folders do not have.
+		InstalledTitle user = title;
+		if(readMeta(source, source.join(at("user/appmeta"), id), &user) && !named)
+			title = user;
+		else
+			title.iconPath = user.iconPath;
 		if(title.title.empty())
 			title.title = id;
 		if(title.platform.empty())

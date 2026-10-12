@@ -70,6 +70,7 @@ Last review: v1.1.0.
 |---|---|
 | ✅ | `chiaki-lib` building without changing a line of the submodule |
 | ✅ | Console discovery (987/UDP on the PS4, 9302/UDP on the PS5): state, name, version, running game |
+| 🟡 | The network search: every interface's broadcast address, three rounds, every address of a small private network one by one, and the ports of a jailbroken console (2121, 1337, 12800) for one with Remote Play off; checked against the fake console and in the tests, not yet on the network that missed a real PS4 |
 | ✅ | Several consoles: each in its own box on the stage, with its state; "Add console" scans the network or takes an IP |
 | ✅ | One click connects: checks the console, wakes it if in rest mode, waits until it is ready and connects — or opens the registration |
 | 🟡 | Waking a console from rest mode (still to be confirmed on a real console) |
@@ -89,6 +90,7 @@ Last review: v1.1.0.
 | 🟡 | Controller rumble (through SDL; the DualSense adaptive triggers are for later) |
 | ✅ | Touchpad through the mouse |
 | ✅ | Full screen (F11, Esc to leave) |
+| 🟡 | Games, store, save vault and payloads as a page over the picture while a session is on screen, with an opacity slider (70–100 %, kept) and the keyboard the page's while it is open; checked with the demo stage, not yet over a real session |
 | ✅ | Choosing resolution, fps and bitrate in the settings |
 | ⬜ | Remote Play over PSN (needs a libcurl with WebSockets) |
 

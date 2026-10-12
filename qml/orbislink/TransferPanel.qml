@@ -139,16 +139,16 @@ Item {
                         spacing: 10
 
                         Rectangle {
-                            width: 44; height: 44; radius: 10
+                            width: Theme.gameIcon; height: Theme.gameIcon; radius: 8
                             color: Theme.controlFill
                             border.color: Theme.border
-                            clip: true
-                            Image {
+                            CoverArt {
                                 anchors.fill: parent
-                                anchors.margins: 1
-                                source: model.iconSource ? model.iconSource : ""
-                                fillMode: Image.PreserveAspectCrop
-                                visible: source != ""
+                                visible: ready
+                                crop: true
+                                edge: false
+                                radius: parent.radius
+                                picture: model.iconSource ? model.iconSource : ""
                             }
                             Icon {
                                 anchors.centerIn: parent
@@ -511,7 +511,9 @@ Item {
                                : job.state === "done" ? qsTr("On the home screen") : qsTr("Moving")
                     // A copy to this PC stops from here, and opens its folder once done.
                     cancellable: job.kind === "copy"
-                    retryable: job.kind === "copy"
+                    // Any of them that failed goes again from its card.
+                    retryable: job.kind === "copy" || job.kind === "uninstall" || job.kind === "mount"
+                               || job.kind === "run"
                     doneIcon: job.kind === "copy" ? "folder-open" : ""
                     doneHint: qsTr("Open the folder")
                     onCancelClicked: consoleLibrary.cancelJob(job.id)
@@ -575,8 +577,8 @@ Item {
                             spacing: 10
                             // The game's cover, with the step under way in its corner.
                             Item {
-                                implicitWidth: 44
-                                implicitHeight: 44
+                                implicitWidth: Theme.gameIcon
+                                implicitHeight: Theme.gameIcon
                                 CoverArt {
                                     id: convCover
                                     anchors.fill: parent

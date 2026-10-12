@@ -117,6 +117,11 @@ Item {
     }
 
     readonly property bool videoReady: videoLoader.status === Loader.Ready
+    // The keyboard back to the picture (a page over it was closed).
+    function focusPicture() {
+        if (videoReady && streaming)
+            videoLoader.item.forceActiveFocus()
+    }
 
     // The console is showing something it does not stream (YouTube, a film):
     // the picture goes dark, and this says why instead of looking frozen.

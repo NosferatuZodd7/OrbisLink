@@ -40,6 +40,66 @@ ApplicationWindow {
     // and the window takes up the whole screen.
     property bool streamFullscreen: false
 
+    // Remote Play's picture on screen: a page opened then shows over it
+    // (SectionOverlay), so the game stays in sight; otherwise it takes the
+    // main area, as always.
+    readonly property bool demoSectionOn: typeof demoSection !== "undefined" && demoSection.length > 0
+    readonly property bool streamOnScreen: (demoSectionOn || typeof stream !== "undefined" && stream !== null
+                                            && stream.streaming) && view === "home" && !streamFullscreen
+    // The page over the picture ("games", "store", "saves", "payloads"), or "".
+    property string overSection: ""
+    onStreamOnScreenChanged: if (!streamOnScreen) overSection = ""
+    // The keyboard goes with what is in front: the page while it is open,
+    // the console again once it closes.
+    onOverSectionChanged: {
+        if (overSection.length > 0)
+            sectionOverlay.forceActiveFocus()
+        else
+            streamArea.focusPicture()
+    }
+    // A page's button: over the picture while it plays, in the main area
+    // otherwise; the same button again closes it.
+    function openSection(name) {
+        if (streamOnScreen) {
+            overSection = overSection === name ? "" : name
+            return
+        }
+        overSection = ""
+        view = view === name ? "home" : name
+    }
+    // A page, open (over the picture while it plays), whatever was before.
+    function showSection(name) {
+        if (streamOnScreen)
+            overSection = name
+        else
+            view = name
+    }
+    // A page's own way back: out of the overlay, or back to the consoles.
+    function closeSection() {
+        if (overSection.length > 0)
+            overSection = ""
+        else
+            view = "home"
+    }
+    function sectionTitle(name) {
+        switch (name) {
+        case "games": return qsTr("Games")
+        case "store": return qsTr("Homebrew store")
+        case "saves": return qsTr("Save vault")
+        case "payloads": return qsTr("Payloads")
+        }
+        return ""
+    }
+    function sectionIcon(name) {
+        switch (name) {
+        case "games": return "disc"
+        case "store": return "store"
+        case "saves": return "archive"
+        case "payloads": return "zap"
+        }
+        return ""
+    }
+
     function setStreamFullscreen(isActive) {
         if (streamFullscreen === isActive)
             return
@@ -215,42 +275,42 @@ ApplicationWindow {
                     }
                     StyledToolButton {
                         iconName: "disc"
-                        active: window.view === "games"
+                        active: window.view === "games" || window.overSection === "games"
                         ToolTip.visible: hovered
                         ToolTip.text: qsTr("Games") + " — "
-                                      + (window.view === "games" ? qsTr("Back to the consoles")
+                                      + (window.overSection === "games" ? qsTr("Close") : window.view === "games" ? qsTr("Back to the consoles")
                                          : games.available
                                          ? qsTr("Every game and app in the console's library, and the PS1/PS2 converter")
                                          : qsTr("Every game and app in the console's library"))
-                        onClicked: window.view = window.view === "games" ? "home" : "games"
+                        onClicked: window.openSection("games")
                     }
                     StyledToolButton {
                         visible: typeof store !== "undefined" && store !== null
                         iconName: "store"
-                        active: window.view === "store"
+                        active: window.view === "store" || window.overSection === "store"
                         ToolTip.visible: hovered
                         ToolTip.text: qsTr("Homebrew store") + " — "
-                                      + (window.view === "store" ? qsTr("Back to the consoles")
+                                      + (window.overSection === "store" ? qsTr("Close") : window.view === "store" ? qsTr("Back to the consoles")
                                          : qsTr("Find PS5 homebrew apps and install them on the console"))
-                        onClicked: window.view = window.view === "store" ? "home" : "store"
+                        onClicked: window.openSection("store")
                     }
                     StyledToolButton {
                         iconName: "archive"
-                        active: window.view === "saves"
+                        active: window.view === "saves" || window.overSection === "saves"
                         ToolTip.visible: hovered
                         ToolTip.text: qsTr("Save vault") + " — "
-                                      + (window.view === "saves" ? qsTr("Back to the consoles")
+                                      + (window.overSection === "saves" ? qsTr("Close") : window.view === "saves" ? qsTr("Back to the consoles")
                                          : qsTr("Back up the console's saves on this PC"))
-                        onClicked: window.view = window.view === "saves" ? "home" : "saves"
+                        onClicked: window.openSection("saves")
                     }
                     StyledToolButton {
                         iconName: "zap"
-                        active: window.view === "payloads"
+                        active: window.view === "payloads" || window.overSection === "payloads"
                         ToolTip.visible: hovered
                         ToolTip.text: qsTr("Payloads") + " — "
-                                      + (window.view === "payloads" ? qsTr("Back to the consoles")
+                                      + (window.overSection === "payloads" ? qsTr("Close") : window.view === "payloads" ? qsTr("Back to the consoles")
                                          : qsTr("See and manage the console's payloads and plugins, and run one now"))
-                        onClicked: window.view = window.view === "payloads" ? "home" : "payloads"
+                        onClicked: window.openSection("payloads")
                     }
                 }
 
@@ -304,49 +364,58 @@ ApplicationWindow {
             Layout.fillHeight: true
             spacing: 0
 
-            GamesView {
+            // Each page's place in the main area (the pages themselves are
+            // further down: over Remote Play they move into the overlay).
+            Item {
+                id: gamesSlot
                 visible: window.view === "games"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                onBack: window.view = "home"
             }
-
-            SavesView {
+            Item {
+                id: savesSlot
                 visible: window.view === "saves"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                onBack: window.view = "home"
             }
-
-            PayloadsView {
+            Item {
+                id: payloadsSlot
                 visible: window.view === "payloads"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                onBack: window.view = "home"
             }
-
-            Loader {
-                // Only in builds with the store.
-                active: typeof store !== "undefined" && store !== null
+            Item {
+                id: storeSlot
                 visible: window.view === "store"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                sourceComponent: StoreView {
-                    visible: window.view === "store"
-                    onBack: window.view = "home"
-                }
             }
 
-            StreamArea {
+            Item {
                 visible: window.view !== "games" && window.view !== "saves" && window.view !== "store"
                          && window.view !== "payloads"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                // Back to the home page: whatever was open on top of the
-                // cards gets out of the way of the console just registered.
-                onRegisteredHere: {
-                    settingsDialog.close()
-                    firstRunWizard.close()
+
+                StreamArea {
+                    id: streamArea
+                    anchors.fill: parent
+                    // Back to the home page: whatever was open on top of the
+                    // cards gets out of the way of the console just registered.
+                    onRegisteredHere: {
+                        settingsDialog.close()
+                        firstRunWizard.close()
+                    }
+                }
+
+                // A page over the picture, while Remote Play plays.
+                SectionOverlay {
+                    id: sectionOverlay
+                    anchors.fill: parent
+                    section: window.overSection
+                    title: window.sectionTitle(window.overSection)
+                    iconName: window.sectionIcon(window.overSection)
+                    onClosed: window.overSection = ""
                 }
             }
 
@@ -457,6 +526,41 @@ ApplicationWindow {
         }
     }
 
+    // ───────────────────────────── the pages
+    // In their place in the main area, or — over Remote Play — in the overlay.
+    GamesView {
+        parent: window.overSection === "games" ? sectionOverlay.slot : gamesSlot
+        anchors.fill: parent
+        visible: window.view === "games" || window.overSection === "games"
+        framed: window.overSection !== "games"
+        onBack: window.closeSection()
+    }
+    SavesView {
+        parent: window.overSection === "saves" ? sectionOverlay.slot : savesSlot
+        anchors.fill: parent
+        visible: window.view === "saves" || window.overSection === "saves"
+        framed: window.overSection !== "saves"
+        onBack: window.closeSection()
+    }
+    PayloadsView {
+        parent: window.overSection === "payloads" ? sectionOverlay.slot : payloadsSlot
+        anchors.fill: parent
+        visible: window.view === "payloads" || window.overSection === "payloads"
+        framed: window.overSection !== "payloads"
+        onBack: window.closeSection()
+    }
+    Loader {
+        // Only in builds with the store.
+        active: typeof store !== "undefined" && store !== null
+        parent: window.overSection === "store" ? sectionOverlay.slot : storeSlot
+        anchors.fill: parent
+        visible: window.view === "store" || window.overSection === "store"
+        sourceComponent: StoreView {
+            framed: window.overSection !== "store"
+            onBack: window.closeSection()
+        }
+    }
+
     // Dragging over the window shows the overlay. It is the application's
     // only DropArea: having one more per zone seemed natural but does not
     // work — this one keeps hold of the drag and the zones never see it.
@@ -505,7 +609,7 @@ ApplicationWindow {
     UploadConflictDialog { id: uploadConflictDialog }
     ServiceHelpDialog {
         id: serviceHelpDialog
-        onOpenPayloads: window.view = "payloads"
+        onOpenPayloads: window.showSection("payloads")
     }
     FirstRunWizard { id: firstRunWizard }
     UpdateDialog { id: updateDialog }
@@ -605,6 +709,10 @@ ApplicationWindow {
 
     Component.onCompleted: {
         applyTheme()
+        if (demoSectionOn) {
+            overSection = demoSection
+            return
+        }
         if (typeof demoSettings !== "undefined" && demoSettings) {
             settingsDialog.loadValues()
             settingsDialog.open()

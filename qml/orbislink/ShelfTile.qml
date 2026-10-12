@@ -21,6 +21,10 @@ Item {
     signal activated(int modifiers)
 
     readonly property bool hover: area.containsMouse
+    // Where the pointer is over the tile, and where the last click was:
+    // a card with a button of its own on the picture tells them apart.
+    readonly property point pointer: Qt.point(area.mouseX, area.mouseY)
+    property point clickPoint: Qt.point(-1, -1)
 
     width: artSize
     height: artSize + 10 + names.implicitHeight
@@ -94,6 +98,9 @@ Item {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onClicked: (mouse) => tile.activated(mouse.modifiers)
+        onClicked: (mouse) => {
+            tile.clickPoint = Qt.point(mouse.x, mouse.y)
+            tile.activated(mouse.modifiers)
+        }
     }
 }

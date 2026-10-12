@@ -71,6 +71,7 @@ add_library(orbislink_core STATIC
 	src/orbislink/library/pkg_organizer.cpp
 	src/orbislink/library/shelf.cpp
 	src/orbislink/net/http_client.cpp
+	src/orbislink/net/lan_scan.cpp
 	src/orbislink/net/net_utils.cpp
 	src/orbislink/net/payload_sender.cpp
 	src/orbislink/payloads/payload_catalog.cpp
@@ -209,6 +210,7 @@ if(ORBISLINK_BUILD_GUI)
 			src/orbislink/qt/main.cpp
 			src/orbislink/qt/app_controller.cpp
 			src/orbislink/qt/cheats_controller.cpp
+			src/orbislink/qt/cover_provider.cpp
 			src/orbislink/qt/games_controller.cpp
 			src/orbislink/qt/saves_controller.cpp
 			src/orbislink/qt/payloads_controller.cpp

@@ -393,10 +393,28 @@ Item {
                     font.pixelSize: 12
                 }
 
-                BusyIndicator {
-                    anchors.centerIn: parent
-                    running: app.ftpBusy
-                    visible: app.ftpBusy
+                Column {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.topMargin: 6
+                    visible: app.ftpBusy && files.count === 0
+                    Repeater {
+                        model: parent.visible ? 8 : 0
+                        SkeletonRow {
+                            required property int index
+                            width: parent.width
+                            compact: true
+                            delay: index * 60
+                        }
+                    }
+                }
+                Spinner {
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: 10
+                    size: 18
+                    visible: app.ftpBusy && files.count > 0
                 }
             }
         }

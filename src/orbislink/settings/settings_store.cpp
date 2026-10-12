@@ -5,6 +5,7 @@
 #include "orbislink/common/log.h"
 #include "orbislink/common/util.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cstdlib>
 #include <fstream>
@@ -163,6 +164,7 @@ std::string Settings::toJson() const
 	root.set("library_locations", places);
 	root.set("library_locations_seeded", Json::fromBool(libraryLocationsSeeded));
 	root.set("library_only_games", Json::fromBool(libraryOnlyGames));
+	root.set("overlay_opacity", Json::fromDouble(overlayOpacity));
 	root.set("console_copy_folder", Json::fromString(consoleCopyFolder));
 	root.set("store_catalog_address", Json::fromString(storeCatalogAddress));
 	root.set("store_local_folder", Json::fromString(storeLocalFolder));
@@ -340,6 +342,7 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 		}
 	settings.libraryLocationsSeeded = root["library_locations_seeded"].toLooseBool(settings.libraryLocationsSeeded);
 	settings.libraryOnlyGames = root["library_only_games"].toLooseBool(settings.libraryOnlyGames);
+	settings.overlayOpacity = std::min(1.0, std::max(kOverlayMinOpacity, root["overlay_opacity"].toDouble(settings.overlayOpacity)));
 	settings.consoleCopyFolder = root["console_copy_folder"].toString(settings.consoleCopyFolder);
 	settings.storeCatalogAddress = root["store_catalog_address"].toString(settings.storeCatalogAddress);
 	settings.storeLocalFolder = root["store_local_folder"].toString(settings.storeLocalFolder);

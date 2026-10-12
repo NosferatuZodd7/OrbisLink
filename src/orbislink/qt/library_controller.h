@@ -102,7 +102,8 @@ public:
 	// under way is kept and the next copy of it goes on from there.
 	Q_INVOKABLE void cancelJob(const QString &id);
 	// A copy that failed, was stopped or was cut short by the app closing,
-	// on its way again on the same card (from where it was).
+	// on its way again on the same card (from where it was); any other job
+	// that failed (put on the home screen, run, uninstall), done again.
 	Q_INVOKABLE void retryJob(const QString &id);
 	// Opens the folder a copy went to.
 	Q_INVOKABLE void openJobFolder(const QString &id);
@@ -172,6 +173,17 @@ private:
 	std::thread copier_;
 	// Every copy's recipe, by its card (interface thread only): to go again.
 	QMap<QString, CopyJob> copyRecipes_;
+	// The same for the other jobs with a card (put on the home screen, run,
+	// uninstall): what runAction() was given, to give it again.
+	struct ActionRecipe
+	{
+		QString what;
+		std::function<QString(FtpClient &ftp, bool *error)> job;
+		bool rescan = false;
+		QVariantMap item;
+		QString kind;
+	};
+	QMap<QString, ActionRecipe> actionRecipes_;
 };
 
 } // namespace orbislink

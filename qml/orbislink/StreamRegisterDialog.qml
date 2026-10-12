@@ -68,11 +68,9 @@ Dialog {
             anchors.leftMargin: Theme.dialogMargin
             anchors.rightMargin: Theme.dialogMargin
             spacing: 10
-            BusyIndicator {
-                running: dialog.busy
+            Spinner {
                 visible: dialog.busy
-                implicitWidth: 22
-                implicitHeight: 22
+                size: 20
             }
             Text {
                 visible: dialog.busy

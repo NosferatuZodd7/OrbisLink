@@ -23,9 +23,9 @@ FocusScope {
     property string restoreKey: ""
 
     readonly property bool home: shelf.level === "home"
-    readonly property int tile: home ? 176 : 148
-    readonly property int cellWidth: tile + 34
-    readonly property int cellHeight: tile + 74
+    readonly property int tile: home ? Theme.placeTile : Theme.gameTile
+    readonly property int cellWidth: tile + Theme.gameTileGap
+    readonly property int cellHeight: tile + Theme.gameTileNames
     // Several picked at once, by their cards' keys, to do one thing to all.
     property bool picking: false
     property var picked: ({})
@@ -95,7 +95,7 @@ FocusScope {
             return
         }
         if (action === "cheats") {
-            cheatsDialog.begin(shelf.card(index))
+            cheatsDialog.begin(shelf.card(index), function () { details.show(index) })
             return
         }
         shelf.act(index, action)
@@ -666,20 +666,38 @@ FocusScope {
                 }
             }
 
+            // ── being read: the shape of the cards about to come, as many
+            // as the first rows hold
+            Grid {
+                id: skeletons
+                x: list.x + 6
+                y: list.y + list.topMargin + 8
+                visible: shelf.loading && shelf.count === 0
+                columns: Math.max(1, shelf.columns)
+                readonly property int rows: Math.max(1, Math.min(3, Math.ceil((parent.height - 8) / view.cellHeight)))
+                Repeater {
+                    model: skeletons.visible ? skeletons.columns * skeletons.rows : 0
+                    Item {
+                        required property int index
+                        width: view.cellWidth
+                        height: view.cellHeight
+                        SkeletonTile {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            artSize: view.tile
+                            delay: (parent.index % skeletons.columns) * 90 + Math.floor(parent.index / skeletons.columns) * 60
+                        }
+                    }
+                }
+            }
+
             // ── nothing to show, and why
             Column {
                 anchors.centerIn: parent
                 width: Math.min(460, parent.width - 32)
-                visible: shelf.count === 0
+                visible: shelf.count === 0 && !shelf.loading
                 spacing: 12
-                BusyIndicator {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    visible: shelf.loading
-                    running: shelf.loading
-                }
                 Icon {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    visible: !shelf.loading
                     name: shelf.gone || shelf.message.length > 0 ? "warning"
                         : shelf.level === "search" ? "search" : view.home ? "folder-plus" : "folder-open"
                     size: 44
@@ -691,8 +709,7 @@ FocusScope {
                     wrapMode: Text.WordWrap
                     color: Theme.textSecondary
                     font.pixelSize: 13
-                    text: shelf.loading ? qsTr("Reading…")
-                        : shelf.message.length > 0 ? shelf.message
+                    text: shelf.message.length > 0 ? shelf.message
                         : shelf.level === "search" ? qsTr("Nothing found for “%1” in the places searched.").arg(shelf.query)
                         : view.home ? qsTr("No places yet: add a folder of this PC, a drive or a folder of the console.")
                         : view.noGamesHere ? qsTr("No games here. Everything shows all this folder holds.")
@@ -1001,8 +1018,8 @@ FocusScope {
                 id: detailsCover
                 x: Theme.dialogMargin
                 y: 0
-                width: 188
-                height: 188
+                width: Theme.gameArt
+                height: Theme.gameArt
                 picture: details.card.picture || ""
                 placeholder: details.card.placeholder || "bd"
                 label: details.card.platform ? details.card.platform.toUpperCase()
@@ -1405,10 +1422,10 @@ FocusScope {
                 Layout.rightMargin: Theme.dialogMargin
                 spacing: 14
                 CoverArt {
-                    implicitWidth: 64
-                    implicitHeight: 64
+                    implicitWidth: Theme.gameIcon
+                    implicitHeight: Theme.gameIcon
                     crop: true
-                    radius: 10
+                    radius: 8
                     picture: copyDialog.first.picture || ""
                     placeholder: copyDialog.first.placeholder || "bd"
                 }

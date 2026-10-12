@@ -5,6 +5,7 @@
 #include "orbislink/common/log.h"
 #include "orbislink/qt/app_controller.h"
 #include "orbislink/qt/cheats_controller.h"
+#include "orbislink/qt/cover_provider.h"
 #include "orbislink/qt/games_controller.h"
 #include "orbislink/qt/saves_controller.h"
 #include "orbislink/qt/library_controller.h"
@@ -175,6 +176,9 @@ int main(int argc, char **argv)
 	// A page opened at start: "games", "store", "store-local", "saves",
 	// "payloads", "payloads-library".
 	QString demoView;
+	// A page opened over the stage as it is over a Remote Play session
+	// (SectionOverlay): "games", "store", "saves", "payloads".
+	QString demoSection;
 	QString demoTheme;
 	bool printDiagnostics = false;
 	bool selfTestDrag = false;
@@ -213,6 +217,8 @@ int main(int argc, char **argv)
 			demoGames = true;
 		else if(argument == QStringLiteral("--demo-view") && i + 1 < arguments.size())
 			demoView = arguments[++i];
+		else if(argument == QStringLiteral("--demo-section") && i + 1 < arguments.size())
+			demoSection = arguments[++i];
 		else if(argument == QStringLiteral("--demo-theme") && i + 1 < arguments.size())
 			demoTheme = arguments[++i];
 		else if(argument == QStringLiteral("--print-diagnostics"))
@@ -326,6 +332,8 @@ int main(int argc, char **argv)
 				QCoreApplication::translate("main", "Could not load the interface (%1).").arg(url.toString()));
 			QCoreApplication::exit(1);
 		});
+	// Game pictures made at the screen's own pixels (CoverArt.qml).
+	engine.addImageProvider(QStringLiteral("cover"), new CoverImageProvider);
 	engine.rootContext()->setContextProperty(QStringLiteral("app"), controller.get());
 	engine.rootContext()->setContextProperty(QStringLiteral("games"), games.get());
 	engine.rootContext()->setContextProperty(QStringLiteral("saves"), saves.get());
@@ -387,6 +395,7 @@ int main(int argc, char **argv)
 	engine.rootContext()->setContextProperty(QStringLiteral("demoTab"), demoTab);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoGames"), demoGames);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoView"), demoView);
+	engine.rootContext()->setContextProperty(QStringLiteral("demoSection"), demoSection);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoSettings"), demoSettings);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoMenu"), demoMenu);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoRegister"), demoRegister);

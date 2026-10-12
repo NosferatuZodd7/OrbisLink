@@ -16,6 +16,10 @@ Item {
 
     signal back()
 
+    // In the main area, framed as a panel with a way back; over Remote Play
+    // (SectionOverlay) the overlay is the frame, shows the name and closes it.
+    property bool framed: true
+
     // What is shown: "all", "installed", "updates", a kind ("app", "game"…),
     // or "local" — the app archives of a folder of this PC.
     property string filter: typeof demoView !== "undefined" && demoView === "store-local" ? "local" : "all"
@@ -118,19 +122,19 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        anchors.leftMargin: Theme.gutter
-        anchors.rightMargin: window.panelShown ? 8 : Theme.gutter
-        anchors.topMargin: 4
-        anchors.bottomMargin: 4
+        anchors.leftMargin: root.framed ? Theme.gutter : 0
+        anchors.rightMargin: !root.framed ? 0 : window.panelShown ? 8 : Theme.gutter
+        anchors.topMargin: root.framed ? 4 : 0
+        anchors.bottomMargin: root.framed ? 4 : 0
         radius: Theme.radius
-        color: Theme.panelFill
-        border.width: 1
+        color: root.framed ? Theme.panelFill : "transparent"
+        border.width: root.framed ? 1 : 0
         border.color: Theme.glassEdge
         clip: true
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 24
+            anchors.margins: root.framed ? 24 : 18
             spacing: 14
 
             // ── header
@@ -138,6 +142,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 12
                 StyledToolButton {
+                    visible: root.framed
                     iconName: "chevron-left"
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Back to the consoles")
@@ -146,6 +151,7 @@ Item {
                 ColumnLayout {
                     spacing: 2
                     Text {
+                        visible: root.framed
                         text: qsTr("Homebrew store")
                         color: Theme.text
                         font.pixelSize: Theme.fontTitle
@@ -565,19 +571,35 @@ Item {
                     }
                 }
 
-                // Empty, or reading.
+                // Reading: the shape of the apps about to come.
+                Grid {
+                    id: storeSkeletons
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    visible: store.loading && (root.filter === "local" ? store.localApps.length === 0 : root.shown.length === 0)
+                    columns: root.filter === "local" ? 1 : grid.columns
+                    Repeater {
+                        model: storeSkeletons.visible ? storeSkeletons.columns * (root.filter === "local" ? 5 : 3) : 0
+                        Item {
+                            required property int index
+                            width: storeSkeletons.width / storeSkeletons.columns
+                            height: root.filter === "local" ? 68 : 112
+                            SkeletonRow {
+                                anchors.fill: parent
+                                anchors.margins: root.filter === "local" ? 4 : 6
+                                delay: parent.index * 80
+                            }
+                        }
+                    }
+                }
+
+                // Empty.
                 Column {
                     anchors.centerIn: parent
-                    visible: root.filter === "local" ? store.localApps.length === 0 : root.shown.length === 0
+                    visible: !store.loading && (root.filter === "local" ? store.localApps.length === 0 : root.shown.length === 0)
                     spacing: 12
-                    BusyIndicator {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        visible: store.loading
-                        running: store.loading
-                    }
                     Icon {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        visible: !store.loading
                         name: "store"
                         size: 44
                         color: Theme.alpha(Theme.textSecondary, 0.7)
@@ -822,10 +844,10 @@ Item {
                         }
                     }
                 }
-                BusyIndicator {
+                Spinner {
                     Layout.alignment: Qt.AlignHCenter
                     visible: detailDialog.app.ready !== true
-                    running: visible
+                    size: 28
                 }
                 Text {
                     visible: detailDialog.app.error !== undefined && detailDialog.app.error.length > 0

@@ -55,18 +55,17 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 10
             Rectangle {
-                width: 44; height: 44; radius: 10
+                width: Theme.gameIcon; height: Theme.gameIcon; radius: 8
                 color: Theme.controlFill
                 border.color: Theme.border
-                clip: true
-                Image {
+                CoverArt {
                     id: picture
                     anchors.fill: parent
-                    anchors.margins: 1
-                    source: card.job.icon ? card.job.icon : ""
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                    visible: status === Image.Ready
+                    visible: ready
+                    crop: true
+                    edge: false
+                    radius: parent.radius
+                    picture: card.job.icon ? card.job.icon.toString() : ""
                 }
                 Icon {
                     anchors.centerIn: parent

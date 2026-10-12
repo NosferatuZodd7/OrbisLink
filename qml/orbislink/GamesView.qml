@@ -17,6 +17,10 @@ Item {
 
     signal back()
 
+    // In the main area, framed as a panel with a way back; over Remote Play
+    // (SectionOverlay) the overlay is the frame, shows the name and closes it.
+    property bool framed: true
+
     // The "path" of each selected game.
     property var selected: []
     // 0: all games, the console's library; 1: the PS1/PS2 converter (where
@@ -55,19 +59,19 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        anchors.leftMargin: Theme.gutter
-        anchors.rightMargin: window.panelShown ? 8 : Theme.gutter
-        anchors.topMargin: 4
-        anchors.bottomMargin: 4
+        anchors.leftMargin: root.framed ? Theme.gutter : 0
+        anchors.rightMargin: !root.framed ? 0 : window.panelShown ? 8 : Theme.gutter
+        anchors.topMargin: root.framed ? 4 : 0
+        anchors.bottomMargin: root.framed ? 4 : 0
         radius: Theme.radius
-        color: Theme.panelFill
-        border.width: 1
+        color: root.framed ? Theme.panelFill : "transparent"
+        border.width: root.framed ? 1 : 0
         border.color: Theme.glassEdge
         clip: true
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 24
+            anchors.margins: root.framed ? 24 : 18
             spacing: 16
 
             // ── header
@@ -75,6 +79,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 12
                 StyledToolButton {
+                    visible: root.framed
                     iconName: "chevron-left"
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Back to the consoles")
@@ -83,6 +88,7 @@ Item {
                 ColumnLayout {
                     spacing: 2
                     Text {
+                        visible: root.framed
                         text: qsTr("Games")
                         color: Theme.text
                         font.pixelSize: Theme.fontTitle
@@ -287,7 +293,7 @@ Item {
             }
             Binding { target: shelf; property: "active"; value: root.visible && root.tab === 0 }
 
-            // ── the games: centred, as many to a row as fit
+            // ── the games: as many to a row as fit, as the library lays them out
             Item {
                 visible: root.tab === 1 && games.gamesFolder.length > 0
                 Layout.fillWidth: true
@@ -305,50 +311,72 @@ Item {
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-                    Flow {
+                    // The same cards as the library's, in the same grid.
+                    Grid {
                         id: gamesFlow
-                        readonly property int cell: 236 + spacing
-                        readonly property int fits: Math.max(1, Math.floor((gamesScroll.width - 28 + spacing) / cell))
-                        x: Math.round((gamesScroll.width - width) / 2)
+                        readonly property int cell: Theme.gameTile + Theme.gameTileGap
+                        readonly property int fits: Math.max(1, Math.floor((gamesScroll.width - 28) / cell))
+                        x: 14
                         y: 14
-                        width: Math.max(0, Math.min(fits, games.games.length) * cell - spacing)
-                        spacing: 18
+                        columns: fits
 
                         Repeater {
                             model: games.games
-                            GameCard {
+                            Item {
                                 required property var modelData
-                                game: modelData
-                                selected: root.isSelected(modelData.path)
-                                progress: games.progress[modelData.path] || null
-                                onToggle: root.toggle(modelData.path)
-                                onOpen: gameDialog.begin([modelData])
+                                width: gamesFlow.cell
+                                height: Theme.gameTile + Theme.gameTileNames
+                                GameCard {
+                                    id: gameCard
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    game: parent.modelData
+                                    checked: root.isSelected(parent.modelData.path)
+                                    progress: games.progress[parent.modelData.path] || null
+                                    onToggle: root.toggle(parent.modelData.path)
+                                    onOpen: gameDialog.begin([parent.modelData])
+                                }
                             }
                         }
                     }
                 }
 
-                // Looking, or found nothing.
+                // Looking: the shape of the cards about to come.
+                Grid {
+                    id: discSkeletons
+                    visible: games.scanning && games.games.length === 0
+                    readonly property int cell: Theme.gameTile + Theme.gameTileGap
+                    readonly property int fits: Math.max(1, Math.floor(parent.width / cell))
+                    y: 14
+                    columns: fits
+                    Repeater {
+                        model: discSkeletons.visible ? discSkeletons.fits * 2 : 0
+                        Item {
+                            required property int index
+                            width: discSkeletons.cell
+                            height: Theme.gameTile + Theme.gameTileNames
+                            SkeletonTile {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                artSize: Theme.gameTile
+                                delay: (parent.index % discSkeletons.fits) * 90
+                            }
+                        }
+                    }
+                }
+
+                // Found nothing.
                 Column {
                     anchors.centerIn: parent
-                    visible: games.scanning || games.games.length === 0
+                    visible: !games.scanning && games.games.length === 0
                     spacing: 12
-                    BusyIndicator {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        visible: games.scanning
-                        running: games.scanning
-                    }
                     Icon {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        visible: !games.scanning
                         name: "disc"
                         size: 44
                         color: Theme.alpha(Theme.textSecondary, 0.7)
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: games.scanning ? qsTr("Looking for games…")
-                                             : qsTr("No PS1 or PS2 discs in this folder.")
+                        text: qsTr("No PS1 or PS2 discs in this folder.")
                         color: Theme.textSecondary
                         font.pixelSize: 13
                     }
