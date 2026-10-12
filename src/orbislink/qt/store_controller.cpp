@@ -379,6 +379,9 @@ void StoreController::refresh()
 			installedKnown_ = known;
 			publish();
 			emit stateChanged();
+			// "On this PC" says what this PS5 has.
+			if(!localApps_.isEmpty())
+				scanLocal();
 		}, Qt::QueuedConnection);
 
 		// The icons, a few at a time as they come (each is downloaded once).

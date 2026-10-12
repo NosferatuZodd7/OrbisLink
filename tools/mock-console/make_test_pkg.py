@@ -85,7 +85,7 @@ def build_icon_png(size: int = 64, seed: int = 0) -> bytes:
 
 
 def build_pkg(content_id: str, title: str, category: str, app_version: str,
-              padding: int) -> bytes:
+              padding: int, icon: bytes | None = None) -> bytes:
     title_id = content_id.split("-")[1].split("_")[0]
     sfo = build_sfo({
         "APP_VER": app_version,
@@ -95,7 +95,10 @@ def build_pkg(content_id: str, title: str, category: str, app_version: str,
         "TITLE_ID": title_id,
         "VERSION": app_version,
     })
-    icon = build_icon_png(64, sum(content_id.encode("ascii")) % 200)
+    # None: a gradient; b"": no icon at all.
+    if icon is None:
+        icon = build_icon_png(64, sum(content_id.encode("ascii")) % 200)
+    entries = [(ENTRY_ID_PARAM_SFO, sfo)] + ([(ENTRY_ID_ICON0_PNG, icon)] if icon else [])
 
     if category == "ac":
         content_type, content_flags = CONTENT_TYPE_AC, 0
@@ -106,7 +109,7 @@ def build_pkg(content_id: str, title: str, category: str, app_version: str,
 
     header = bytearray(PKG_HEADER_SIZE)
     header[0:4] = b"\x7fCNT"
-    struct.pack_into(">I", header, 0x10, 2)                     # entry_count
+    struct.pack_into(">I", header, 0x10, len(entries))          # entry_count
     struct.pack_into(">I", header, 0x18, ENTRY_TABLE_OFFSET)    # entry_table_offset
     header[0x40:0x40 + len(content_id)] = content_id.encode("ascii")
     struct.pack_into(">I", header, 0x74, content_type)
@@ -114,8 +117,7 @@ def build_pkg(content_id: str, title: str, category: str, app_version: str,
 
     payload = bytearray()
     offset = PKG_HEADER_SIZE
-    for index, (entry_id, blob) in enumerate(
-            ((ENTRY_ID_PARAM_SFO, sfo), (ENTRY_ID_ICON0_PNG, icon))):
+    for index, (entry_id, blob) in enumerate(entries):
         base = ENTRY_TABLE_OFFSET + index * ENTRY_SIZE
         struct.pack_into(">I", header, base + 0x00, entry_id)
         struct.pack_into(">I", header, base + 0x10, offset)
@@ -140,10 +142,16 @@ def main() -> int:
     parser.add_argument("--app-version", default="01.00")
     parser.add_argument("--padding", type=int, default=1024 * 1024,
                         help="padding bytes after the metadata")
+    parser.add_argument("--icon", help="a PNG to use as ICON0.PNG instead of the gradient")
+    parser.add_argument("--no-icon", action="store_true", help="no ICON0.PNG at all")
     arguments = parser.parse_args()
 
+    icon = b"" if arguments.no_icon else None
+    if arguments.icon:
+        with open(arguments.icon, "rb") as handle:
+            icon = handle.read()
     data = build_pkg(arguments.content_id, arguments.title, arguments.category,
-                     arguments.app_version, arguments.padding)
+                     arguments.app_version, arguments.padding, icon)
     with open(arguments.output, "wb") as handle:
         handle.write(data)
     print(f"{arguments.output}: {len(data)} bytes")

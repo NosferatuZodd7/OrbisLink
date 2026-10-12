@@ -133,6 +133,9 @@ QImage composeCover(const QImage &cover, int width, int height)
 // nothing when it has none: the emulator's own art stays then.
 bool fetchCover(const std::string &serial, fpkg::Bytes *icon, fpkg::Bytes *background)
 {
+	// The documentation screenshots fetch no cover art (covers carry logos).
+	if(qEnvironmentVariableIsSet("ORBISLINK_NO_COVER_DOWNLOADS"))
+		return false;
 	HttpClient http(20000);
 	HttpClient::FetchOptions options;
 	options.headers = {"User-Agent: OrbisLink"};

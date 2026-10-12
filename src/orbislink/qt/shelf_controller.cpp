@@ -939,6 +939,9 @@ void ShelfController::findCover(ShelfItem *item, const std::atomic<bool> *cancel
 		if(noCover_.contains(serial))
 			return;
 	}
+	// The documentation screenshots fetch no cover art (covers carry logos).
+	if(qEnvironmentVariableIsSet("ORBISLINK_NO_COVER_DOWNLOADS"))
+		return;
 	HttpClient http(15000);
 	HttpClient::FetchOptions options;
 	options.headers = { "User-Agent: OrbisLink" };

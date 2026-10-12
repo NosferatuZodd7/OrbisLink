@@ -171,6 +171,9 @@ int main(int argc, char **argv)
 	bool demoWizard = false;
 	bool demoUpdate = false;
 	bool demoGames = false;
+	// A page opened at start: "games", "store", "store-local", "saves",
+	// "payloads", "payloads-library".
+	QString demoView;
 	QString demoTheme;
 	bool printDiagnostics = false;
 	bool selfTestDrag = false;
@@ -207,6 +210,8 @@ int main(int argc, char **argv)
 			demoUpdate = true;
 		else if(argument == QStringLiteral("--demo-games"))
 			demoGames = true;
+		else if(argument == QStringLiteral("--demo-view") && i + 1 < arguments.size())
+			demoView = arguments[++i];
 		else if(argument == QStringLiteral("--demo-theme") && i + 1 < arguments.size())
 			demoTheme = arguments[++i];
 		else if(argument == QStringLiteral("--print-diagnostics"))
@@ -376,6 +381,7 @@ int main(int argc, char **argv)
 	engine.rootContext()->setContextProperty(QStringLiteral("demoOverlay"), demoOverlay);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoTab"), demoTab);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoGames"), demoGames);
+	engine.rootContext()->setContextProperty(QStringLiteral("demoView"), demoView);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoSettings"), demoSettings);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoMenu"), demoMenu);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoRegister"), demoRegister);

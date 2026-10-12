@@ -46,6 +46,29 @@ changed on the map, and the change is saved.*
 .img), each recognised from the disc itself (serial and region). One click
 opens a game; the box in the corner selects several.*
 
+| Games library — PS5 | Homebrew store — PS5 |
+|---|---|
+| ![Games library](docs/images/14-library.png) | ![Homebrew store](docs/images/17-store.png) |
+
+*Games: every place games can be, on the console and on this PC — here a
+PS5's library folder, with homebrew apps beside a PS4 package. Homebrew
+store: the PS5 homebrew of the homebrew.page catalog; RetroArch and VLC are
+installed on this PS5.*
+
+| Save vault — PS4 | Payloads — PS4 (GoldHEN) |
+|---|---|
+| ![Save vault](docs/images/15-saves.png) | ![Payloads on a PS4](docs/images/16-payloads.png) |
+
+*Save vault: every save on the console, whose it is, and whether this PC has
+a backup of it; a PS4 game's saves also go to a PS5 of the same PSN account.
+Payloads: GoldHEN's payloads and plugins on a PS4 — and etaHEN's, the
+autoloader's and PLDMGR's on a PS5.*
+
+![Payloads library on a PS5](docs/images/18-payloads-ps5.png)
+
+*On a PS5, the Payloads page also lists the community's payloads (the list
+PLK's Payload Manager reads), each checked against its SHA-256 before use.*
+
 ![File menu](docs/images/05-file-menu.png)
 
 *In the FTP browser, every file and folder has its own menu: download to the
@@ -53,8 +76,10 @@ PC, prepare for dragging out of the window, copy the path, rename, delete on
 the console. In the settings, the IP address is checked as you type.*
 
 All these screenshots are generated automatically by
-`./scripts/screenshots.sh`, against the mock console — what they show is the
-real behaviour, not mock-ups.
+`./scripts/screenshots.sh`, against two mock consoles, a PS4 (GoldHEN) and a
+PS5 (etaHEN) — what they show is the real behaviour, not mock-ups. The
+games, homebrew apps and payloads named in them are real; the consoles, PSN
+accounts and saves are stand-ins, and no game artwork is shown.
 
 ## Intended use
 

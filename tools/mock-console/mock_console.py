@@ -757,10 +757,11 @@ class DiscoveryServer:
     """
 
     def __init__(self, port: int, state: str = "ready", name: str = "Living room PS4",
-                 host: str = "127.0.0.1") -> None:
+                 host: str = "127.0.0.1", ps5: bool = False) -> None:
         self.port = port
         self.state = state
         self.name = name
+        self.ps5 = ps5
         # Only its own address: another fake console may answer on the next.
         self.host = host
         self._socket: socket.socket | None = None
@@ -787,14 +788,15 @@ class DiscoveryServer:
         else:
             lines = ["HTTP/1.1 200 Ok"]
         lines += [
-            "host-id:1122334455AA",
-            "host-type:PS4",
+            "host-id:" + ("1122334455BB" if self.ps5 else "1122334455AA"),
+            "host-type:" + ("PS5" if self.ps5 else "PS4"),
             f"host-name:{self.name}",
             "host-request-port:997",
-            "device-discovery-protocol-version:00020020",
-            "system-version:09000000",
+            # chiaki-ng tells a PS5 by its discovery protocol version.
+            "device-discovery-protocol-version:" + ("00030010" if self.ps5 else "00020020"),
+            "system-version:" + ("09050001" if self.ps5 else "09000000"),
         ]
-        if self.state == "ready":
+        if self.state == "ready" and not self.ps5:
             lines += ["running-app-name:Bloodborne", "running-app-titleid:CUSA00207"]
         return ("\r\n".join(lines) + "\r\n").encode("utf-8")
 
@@ -890,6 +892,10 @@ def main() -> int:
                              "(987 is the real one, but needs privileges)")
     parser.add_argument("--discovery-state", default="ready", choices=["ready", "standby"],
                         help="state the fake console reports")
+    parser.add_argument("--discovery-name", default="Living room PS4",
+                        help="the console's name in the discovery reply")
+    parser.add_argument("--discovery-ps5", action="store_true",
+                        help="answer discovery as a PS5 (9302/UDP is the real port)")
     parser.add_argument("--loader-port", type=int, default=0, metavar="PORT",
                         help="takes payloads on this port and answers like the PS5's ELF loader")
     parser.add_argument("--dpi-v2", action="store_true",
@@ -930,7 +936,9 @@ def main() -> int:
 
     discovery = None
     if arguments.discovery_port:
-        discovery = DiscoveryServer(arguments.discovery_port, arguments.discovery_state, host=arguments.host)
+        discovery = DiscoveryServer(arguments.discovery_port, arguments.discovery_state,
+                                    name=arguments.discovery_name, host=arguments.host,
+                                    ps5=arguments.discovery_ps5)
         try:
             discovery.start()
         except PermissionError:

@@ -18,7 +18,7 @@ Item {
 
     // What is shown: "all", "installed", "updates", a kind ("app", "game"…),
     // or "local" — the app archives of a folder of this PC.
-    property string filter: "all"
+    property string filter: typeof demoView !== "undefined" && demoView === "store-local" ? "local" : "all"
     property string search: ""
 
     readonly property var kinds: {
@@ -91,9 +91,29 @@ Item {
     }
 
     onVisibleChanged: if (visible && store.apps.length === 0 && !store.loading) store.refresh()
+    // Shown from the start (a page opened by --demo-view).
+    Component.onCompleted: {
+        if (!visible)
+            return
+        visibleChanged()
+        if (filter === "local")
+            store.scanLocal()
+    }
+    // Whether the catalog was last read with the PS5's FTP answering (it
+    // then also says what the PS5 has installed).
+    property bool readWithFtp: false
     Connections {
         target: store
         function onFinished(message, error) { toast.show(message, error) }
+        function onStateChanged() {
+            if (store.loading)
+                root.readWithFtp = store.canInstall
+        }
+        // The PS5's FTP answered after the page was read: what it has.
+        function onConsolesChanged() {
+            if (root.visible && store.canInstall && !root.readWithFtp && !store.loading)
+                store.refresh()
+        }
     }
 
     Rectangle {

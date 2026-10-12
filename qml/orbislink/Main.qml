@@ -30,7 +30,10 @@ ApplicationWindow {
                                          || games.conversions.length > 0
     // What the main area shows: the consoles ("home"), "games", "store",
     // "saves" or "payloads".
-    property string view: typeof demoGames !== "undefined" && demoGames ? "games" : "home"
+    property string view: typeof demoView !== "undefined" && demoView.length > 0
+                          ? (demoView === "store-local" ? "store"
+                             : demoView === "payloads-library" ? "payloads" : demoView)
+                          : typeof demoGames !== "undefined" && demoGames ? "games" : "home"
     readonly property string panelLockReason: qsTr("This console only offers Remote Play: it has "
         + "neither FTP nor the remote installer running (a jailbreak adds them).")
     // Full screen for the stream: hides the top bar and the side panel,

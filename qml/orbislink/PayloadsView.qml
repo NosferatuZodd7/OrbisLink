@@ -23,7 +23,7 @@ Item {
     readonly property bool online: payloads.online
     readonly property bool ps5: payloads.kind === "ps5"
     // 0: what is on the console; 1: the library (PS5).
-    property int tab: 0
+    property int tab: typeof demoView !== "undefined" && demoView === "payloads-library" ? 1 : 0
     readonly property bool library: ps5 && tab === 1
     property string search: ""
     property string category: "all"
@@ -144,6 +144,8 @@ Item {
         if (!payloads.busy)
             payloads.refresh()
     }
+    // Shown from the start (a page opened by --demo-view).
+    Component.onCompleted: if (visible) visibleChanged()
     // The list is read the first time the library is opened.
     onLibraryChanged: if (library && payloads.catalog.length === 0 && !payloads.catalogLoading) payloads.refreshCatalog()
     // FTP came back (or went): read again.
