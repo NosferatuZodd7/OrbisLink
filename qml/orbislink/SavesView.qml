@@ -45,8 +45,12 @@ Item {
                 e.user = s.account
             if (e.consoleName.length === 0)
                 e.consoleName = s.consoleUser
+            // As ownerOf(): the user's linked account names only saves with
+            // no PSID of their own (a user's folder can hold another's).
             if (e.name.length === 0)
-                e.name = s.psidName.length > 0 ? s.psidName : s.userName.length > 0 ? s.userName : s.consoleUser
+                e.name = s.psidName.length > 0 ? s.psidName
+                       : s.consoleUser.length > 0 ? s.consoleUser
+                       : s.psidFolder.length > 0 ? "" : s.userName
             if (s.linked)
                 e.linked = true
         }
@@ -246,6 +250,10 @@ Item {
         if (!saves.busy)
             saves.refresh()
     }
+    // Shown from the start (a page opened by --demo-view).
+    Component.onCompleted: if (visible) visibleChanged()
+    // FTP came back: read the console again.
+    onOnlineChanged: if (visible && online && !saves.busy) saves.refresh()
     Connections {
         target: saves
         function onSavesChanged() {
@@ -257,9 +265,16 @@ Item {
             root.selected = next
         }
         function onFinished(message, error) { toast.show(message, error) }
-        // Linked: what was waiting for it is backed up.
         function onBusyChanged() {
-            if (saves.busy || root.waitingForLink.length === 0 || linkDialog.visible)
+            if (saves.busy)
+                return
+            // A read that ran before FTP answered left the console unread.
+            if (root.visible && root.online && !saves.scanned) {
+                saves.refresh()
+                return
+            }
+            // Linked: what was waiting for it is backed up.
+            if (root.waitingForLink.length === 0 || linkDialog.visible)
                 return
             var keys = []
             for (var i = 0; i < saves.saves.length; ++i) {

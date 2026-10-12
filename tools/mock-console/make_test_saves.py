@@ -5,9 +5,9 @@
     user/home/<account>/savedata/<TITLE_ID>/sdimg_<dir>, <dir>.bin
         (and the system's own copy of both: sdimg_sce_bu_<dir>, sce_bu_<dir>.bin)
     user/home/<account>/savedata_meta/user/<TITLE_ID>/<dir>, sce_bu_<dir>
-        (files; older layouts had a folder with param.sfo and icon0.png —
+        (files; older layouts had a folder with param.sfo —
         the first game keeps that one, so both are exercised)
-    user/appmeta/<TITLE_ID>/icon0.png, param.sfo
+    user/appmeta/<TITLE_ID>/param.sfo
     system_data/savedata/<account>/db/user/savedata.db
         (the console's list of saves: one row per save, as the PS4 keeps it)
     user/home/<account>/username.dat
@@ -17,8 +17,9 @@ With --ps5, a PS5 of the same PSN account instead: its own user folder for
 it (with one PS4 game's save, and its list of PS4 saves, as a PS5 keeps
 them) and a second user whose account is not known.
 
-The "images" are random bytes: only the save vault's listing, copying and
-comparing are exercised.
+The games are real ones, but nothing of them is: the "images" are random
+bytes and no icon is written (a game's art is not ours to ship). Only the
+save vault's listing, copying and comparing are exercised.
 
 Usage: make_test_saves.py <mock console root> [--ps5]
 """
@@ -28,18 +29,18 @@ import sqlite3
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from make_test_pkg import build_icon_png, build_sfo  # noqa: E402
+from make_test_pkg import build_sfo  # noqa: E402
 
 ACCOUNT = "1a2b3c4d"
 # Two made-up PSN accounts, as the 8 bytes of ACCOUNT_ID (little-endian):
 # most saves are the first's, the last game's are the second's.
 ACCOUNT_IDS = [(0x0123456789ABCDEF).to_bytes(8, "little"), (0x0FEDCBA987654321).to_bytes(8, "little")]
 GAMES = [
-    ("CUSA00001", "Orbis Racing", [("SAVEDATA00", "Career", "Season 2 - 48%"),
-                                   ("SAVEDATA01", "Time trials", "12 tracks")]),
-    ("CUSA00002", "Neon Drift", [("SAVE0", "Story", "Chapter 5 - The Docks")]),
-    ("CUSA00003", "Starfield Tactics", [("AUTOSAVE", "Autosave", "Sector 7, 23 h 10 min"),
-                                        ("SLOT1", "Manual save 1", "Sector 6")]),
+    ("CUSA00207", "Bloodborne", [("SAVEDATA00", "Hunter", "Cathedral Ward - Level 48"),
+                                 ("SAVEDATA01", "New hunter", "Hunter's Dream - Level 4")]),
+    ("CUSA07408", "God of War", [("SAVEDATA00", "Save 1", "The River Pass - 31%")]),
+    ("CUSA08519", "Red Dead Redemption 2", [("SAVEDATA00", "Chapter 2", "Horseshoe Overlook - 23.4%"),
+                                            ("SAVEDATA01", "Autosave", "Valentine - 25.1%")]),
 ]
 
 
@@ -60,7 +61,6 @@ def make_ps5(root: pathlib.Path) -> int:
     title_id, game, saves = GAMES[1]
     appmeta = root / "user" / "appmeta" / title_id
     appmeta.mkdir(parents=True, exist_ok=True)
-    (appmeta / "icon0.png").write_bytes(build_icon_png(128, 1))
     (appmeta / "param.sfo").write_bytes(build_sfo({"TITLE": game, "TITLE_ID": title_id}))
     data = home / "savedata" / title_id
     data.mkdir(parents=True, exist_ok=True)
@@ -84,7 +84,6 @@ def main() -> int:
     for seed, (title_id, game, saves) in enumerate(GAMES):
         appmeta = root / "user" / "appmeta" / title_id
         appmeta.mkdir(parents=True, exist_ok=True)
-        (appmeta / "icon0.png").write_bytes(build_icon_png(128, seed))
         (appmeta / "param.sfo").write_bytes(build_sfo({"TITLE": game, "TITLE_ID": title_id}))
         for n, (dir_name, title, detail) in enumerate(saves):
             data = home / "savedata" / title_id
@@ -99,7 +98,6 @@ def main() -> int:
                 meta = home / "savedata_meta" / "user" / title_id / dir_name
                 meta.mkdir(parents=True, exist_ok=True)
                 (meta / "param.sfo").write_bytes(sfo)
-                (meta / "icon0.png").write_bytes(build_icon_png(64, seed + 10))
             else:
                 (data / f"sdimg_sce_bu_{dir_name}").write_bytes(os.urandom(64 * 1024 * (n + 1)))
                 (data / f"sce_bu_{dir_name}.bin").write_bytes(os.urandom(96))

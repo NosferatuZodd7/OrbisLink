@@ -1815,130 +1815,130 @@
         <translation>OrbisLink — %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="34"/>
+        <location filename="../qml/orbislink/Main.qml" line="37"/>
         <source>This console only offers Remote Play: it has neither FTP nor the remote installer running (a jailbreak adds them).</source>
         <translation>This console only offers Remote Play: it has neither FTP nor the remote installer running (a jailbreak adds them).</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="165"/>
+        <location filename="../qml/orbislink/Main.qml" line="168"/>
         <source>no address set</source>
         <translation>no address set</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="210"/>
+        <location filename="../qml/orbislink/Main.qml" line="213"/>
         <source>Back to Remote Play</source>
         <translation>Back to Remote Play</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="210"/>
+        <location filename="../qml/orbislink/Main.qml" line="213"/>
         <source>The session is still running</source>
         <translation>The session is still running</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="218"/>
-        <location filename="../qml/orbislink/Main.qml" line="230"/>
-        <location filename="../qml/orbislink/Main.qml" line="239"/>
-        <location filename="../qml/orbislink/Main.qml" line="248"/>
+        <location filename="../qml/orbislink/Main.qml" line="221"/>
+        <location filename="../qml/orbislink/Main.qml" line="233"/>
+        <location filename="../qml/orbislink/Main.qml" line="242"/>
+        <location filename="../qml/orbislink/Main.qml" line="251"/>
         <source>Back to the consoles</source>
         <translation>Back to the consoles</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="240"/>
+        <location filename="../qml/orbislink/Main.qml" line="243"/>
         <source>Back up the console&apos;s saves on this PC</source>
         <translation>Back up the console&apos;s saves on this PC</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="179"/>
+        <location filename="../qml/orbislink/Main.qml" line="182"/>
         <source>Remote Play</source>
         <translation>Remote Play</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="185"/>
+        <location filename="../qml/orbislink/Main.qml" line="188"/>
         <source>FTP</source>
         <translation>FTP</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="190"/>
+        <location filename="../qml/orbislink/Main.qml" line="193"/>
         <source>Installer</source>
         <translation>Installer</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="217"/>
+        <location filename="../qml/orbislink/Main.qml" line="220"/>
         <source>Games</source>
         <translation>Games</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="220"/>
+        <location filename="../qml/orbislink/Main.qml" line="223"/>
         <source>Every game and app in the console&apos;s library, and the PS1/PS2 converter</source>
         <translation>Every game and app in the console&apos;s library, and the PS1/PS2 converter</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="221"/>
+        <location filename="../qml/orbislink/Main.qml" line="224"/>
         <source>Every game and app in the console&apos;s library</source>
         <translation>Every game and app in the console&apos;s library</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="229"/>
+        <location filename="../qml/orbislink/Main.qml" line="232"/>
         <source>Homebrew store</source>
         <translation>Homebrew store</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="231"/>
+        <location filename="../qml/orbislink/Main.qml" line="234"/>
         <source>Find PS5 homebrew apps and install them on the console</source>
         <translation>Find PS5 homebrew apps and install them on the console</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="238"/>
+        <location filename="../qml/orbislink/Main.qml" line="241"/>
         <source>Save vault</source>
         <translation>Save vault</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="247"/>
+        <location filename="../qml/orbislink/Main.qml" line="250"/>
         <source>Payloads</source>
         <translation>Payloads</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="249"/>
+        <location filename="../qml/orbislink/Main.qml" line="252"/>
         <source>See and manage the console&apos;s payloads and plugins, and run one now</source>
         <translation>See and manage the console&apos;s payloads and plugins, and run one now</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="260"/>
+        <location filename="../qml/orbislink/Main.qml" line="263"/>
         <source>Check the services now</source>
         <translation>Check the services now</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="268"/>
+        <location filename="../qml/orbislink/Main.qml" line="271"/>
         <source>Side panel (F9)</source>
         <translation>Side panel (F9)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="279"/>
+        <location filename="../qml/orbislink/Main.qml" line="282"/>
         <source>Log and diagnostics (Ctrl+L)</source>
         <translation>Log and diagnostics (Ctrl+L)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="292"/>
+        <location filename="../qml/orbislink/Main.qml" line="295"/>
         <source>Settings (Ctrl+,)</source>
         <translation>Settings (Ctrl+,)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="399"/>
+        <location filename="../qml/orbislink/Main.qml" line="402"/>
         <source>Queue (%1)</source>
         <translation>Queue (%1)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="400"/>
+        <location filename="../qml/orbislink/Main.qml" line="403"/>
         <source>Queue</source>
         <translation>Queue</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="402"/>
+        <location filename="../qml/orbislink/Main.qml" line="405"/>
         <source>Files (FTP)</source>
         <translation>Files (FTP)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="444"/>
+        <location filename="../qml/orbislink/Main.qml" line="447"/>
         <source>Local HTTP: %1</source>
         <translation>Local HTTP: %1</translation>
     </message>
@@ -2796,62 +2796,62 @@
         <translation>PLK&apos;s Payload Manager. Switched on: it is in its autoload list and starts when the Payload Manager loads, in that order.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="189"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="191"/>
         <source>Back to the consoles</source>
         <translation>Back to the consoles</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="195"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="197"/>
         <source>Payloads</source>
         <translation>Payloads</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="202"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="204"/>
         <source>PS5 · etaHEN and the autoloader</source>
         <translation>PS5 · etaHEN and the autoloader</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="203"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="205"/>
         <source>PS4 · GoldHEN</source>
         <translation>PS4 · GoldHEN</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="216"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="218"/>
         <source>The console shown: click for another</source>
         <translation>The console shown: click for another</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="217"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="219"/>
         <source>The console shown</source>
         <translation>The console shown</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="223"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="225"/>
         <source>Send from this PC…</source>
         <translation>Send from this PC…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="226"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="228"/>
         <source>Run a payload from this PC on the console now, without copying it there</source>
         <translation>Run a payload from this PC on the console now, without copying it there</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="233"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="235"/>
         <source>Read the console again</source>
         <translation>Read the console again</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="233"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="235"/>
         <source>Read the payload list again</source>
         <translation>Read the payload list again</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="262"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="264"/>
         <source>On the console</source>
         <translation>On the console</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/PayloadsView.qml" line="265"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="267"/>
         <source>Library (%n update(s))</source>
         <translation>
             <numerusform>Library (%n update)</numerusform>
@@ -2859,341 +2859,341 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="265"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="267"/>
         <source>Library</source>
         <translation>Library</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="271"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="273"/>
         <source>Search payloads</source>
         <translation>Search payloads</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="301"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="303"/>
         <source>%1&apos;s FTP is not answering. Load the jailbreak (GoldHEN or etaHEN) with its FTP server on, then read again. Payloads from this PC can still be sent.</source>
         <translation>%1&apos;s FTP is not answering. Load the jailbreak (GoldHEN or etaHEN) with its FTP server on, then read again. Payloads from this PC can still be sent.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="377"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="379"/>
         <source>Order and waits…</source>
         <translation>Order and waits…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="380"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="382"/>
         <source>The order they start in, and how long to wait before each</source>
         <translation>The order they start in, and how long to wait before each</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="390"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="392"/>
         <source>Add…</source>
         <translation>Add…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="393"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="395"/>
         <source>Copy files from this PC into %1</source>
         <translation>Copy files from this PC into %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="407"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="409"/>
         <source>Not on this console yet. Adding a file makes the folder.</source>
         <translation>Not on this console yet. Adding a file makes the folder.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="439"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="441"/>
         <source>Starts by itself: click to stop that</source>
         <translation>Starts by itself: click to stop that</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="440"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="442"/>
         <source>Click to start it by itself</source>
         <translation>Click to start it by itself</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="469"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="471"/>
         <source>the jailbreak</source>
         <translation>the jailbreak</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="485"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="487"/>
         <source>Run it now (port %1)</source>
         <translation>Run it now (port %1)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="492"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="494"/>
         <source>Download to this PC</source>
         <translation>Download to this PC</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="499"/>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1156"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="501"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1158"/>
         <source>Rename</source>
         <translation>Rename</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="507"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="509"/>
         <source>Delete from the console…</source>
         <translation>Delete from the console…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="538"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="540"/>
         <source>Settings files</source>
         <translation>Settings files</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="561"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="563"/>
         <source>not there yet</source>
         <translation>not there yet</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="567"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="569"/>
         <source>Edit</source>
         <translation>Edit</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="599"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="601"/>
         <source>What the console answered</source>
         <translation>What the console answered</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="606"/>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="753"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="608"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="755"/>
         <source>Clear</source>
         <translation>Clear</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="639"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="641"/>
         <source>All</source>
         <translation>All</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="658"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="660"/>
         <source>Installed</source>
         <comment>filter: the payloads on the console</comment>
         <translation>Installed</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="667"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="669"/>
         <source>Updates</source>
         <translation>Updates</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="696"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="698"/>
         <source>Shown: the list from last time.</source>
         <translation>Shown: the list from last time.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="701"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="703"/>
         <source>Try again</source>
         <translation>Try again</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="713"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="715"/>
         <source>Reading the payload list…</source>
         <translation>Reading the payload list…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="715"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="717"/>
         <source>%1&apos;s FTP is not answering: installing needs it. ▶ runs a payload without it.</source>
         <translation>%1&apos;s FTP is not answering: installing needs it. ▶ runs a payload without it.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="717"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="719"/>
         <source>The payloads PLK&apos;s Payload Manager lists, each one checked against its SHA-256. ▶ runs one now; installing puts it in a folder on the console, in place of an older copy there.</source>
         <translation>The payloads PLK&apos;s Payload Manager lists, each one checked against its SHA-256. ▶ runs one now; installing puts it in a folder on the console, in place of an older copy there.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="774"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="776"/>
         <source>No payload here.</source>
         <translation>No payload here.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="824"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="826"/>
         <source>Update: %1 → %2</source>
         <translation>Update: %1 → %2</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="826"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="828"/>
         <source>Installed</source>
         <comment>a payload on the console</comment>
         <translation>Installed</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="847"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="849"/>
         <source>in %1</source>
         <translation>in %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="856"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="858"/>
         <source>Its page, at its author&apos;s</source>
         <translation>Its page, at its author&apos;s</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="864"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="866"/>
         <source>Run it now, without installing it (port %1)</source>
         <translation>Run it now, without installing it (port %1)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="871"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="873"/>
         <source>Update…</source>
         <translation>Update…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="872"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="874"/>
         <source>Install again…</source>
         <translation>Install again…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="872"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="874"/>
         <source>Install…</source>
         <translation>Install…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="876"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="878"/>
         <source>Put it in a folder on the console</source>
         <translation>Put it in a folder on the console</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="919"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="921"/>
         <source>has %1</source>
         <translation>has %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="919"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="921"/>
         <source>has it</source>
         <translation>has it</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="981"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="983"/>
         <source>no FTP</source>
         <translation>no FTP</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="997"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="999"/>
         <source>Files to copy to the console</source>
         <translation>Files to copy to the console</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1009"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1011"/>
         <source>Payload to run on the console</source>
         <translation>Payload to run on the console</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1011"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1013"/>
         <source>Payloads (*.elf *.bin *.self *.lua *.js *.jar)</source>
         <translation>Payloads (*.elf *.bin *.self *.lua *.js *.jar)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1011"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1013"/>
         <source>All files (*)</source>
         <translation>All files (*)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1036"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1038"/>
         <source>Run a payload from this PC</source>
         <translation>Run a payload from this PC</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1050"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1052"/>
         <source>ELF payloads go to the ELF loader (port 9021, etaHEN&apos;s or elfldr); .bin to the exploit&apos;s loader (9020); .lua to 9026, .jar to 9025, .js to 50000.</source>
         <translation>ELF payloads go to the ELF loader (port 9021, etaHEN&apos;s or elfldr); .bin to the exploit&apos;s loader (9020); .lua to 9026, .jar to 9025, .js to 50000.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1052"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1054"/>
         <source>Payloads go to GoldHEN&apos;s BinLoader, port 9090: turn it on in GoldHEN&apos;s settings.</source>
         <translation>Payloads go to GoldHEN&apos;s BinLoader, port 9090: turn it on in GoldHEN&apos;s settings.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1061"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1063"/>
         <source>Choose the file…</source>
         <translation>Choose the file…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1065"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1067"/>
         <source>Port</source>
         <translation>Port</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1086"/>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1151"/>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1228"/>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1311"/>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1512"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1088"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1153"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1230"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1313"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1514"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1090"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1092"/>
         <source>Send</source>
         <translation>Send</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1127"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1129"/>
         <source>Rename %1</source>
         <translation>Rename %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1188"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1190"/>
         <source>Delete %1 from the console?</source>
         <translation>Delete %1 from the console?</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1201"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1203"/>
         <source>It goes from the console, and from the lists that start it by itself. Download it first if you have no other copy.</source>
         <translation>It goes from the console, and from the lists that start it by itself. Download it first if you have no other copy.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1213"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1215"/>
         <source>This is the jailbreak itself: without it, GoldHEN does not come back after a restart until it is copied there again.</source>
         <translation>This is the jailbreak itself: without it, GoldHEN does not come back after a restart until it is copied there again.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1232"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1234"/>
         <source>Delete</source>
         <translation>Delete</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1306"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1308"/>
         <source>Changed — saving puts it on the console.</source>
         <translation>Changed — saving puts it on the console.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1315"/>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1516"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1317"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1518"/>
         <source>Save on the console</source>
         <translation>Save on the console</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1379"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1381"/>
         <source>%1: order and waits</source>
         <translation>%1: order and waits</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1392"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1394"/>
         <source>They start from the top. The wait holds one back, in milliseconds (1000 is one second): for a payload that needs the one before it running first.</source>
         <translation>They start from the top. The wait holds one back, in milliseconds (1000 is one second): for a payload that needs the one before it running first.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1432"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1434"/>
         <source>wait</source>
         <translation>wait</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1445"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1447"/>
         <source>ms</source>
         <translation>ms</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1463"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1465"/>
         <source>Take it out: it no longer starts by itself</source>
         <translation>Take it out: it no longer starts by itself</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1477"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1479"/>
         <source>Nothing starts by itself from here yet.</source>
         <translation>Nothing starts by itself from here yet.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/PayloadsView.qml" line="1487"/>
+        <location filename="../qml/orbislink/PayloadsView.qml" line="1489"/>
         <source>Add a file from the folder</source>
         <translation>Add a file from the folder</translation>
     </message>
@@ -3227,32 +3227,32 @@
 <context>
     <name>SavesView</name>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="60"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="64"/>
         <source>User %1</source>
         <translation>User %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="161"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="165"/>
         <source>%1 is open on the console: its saves were left alone. Close it and try again.</source>
         <translation>%1 is open on the console: its saves were left alone. Close it and try again.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="307"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="322"/>
         <source>Back to the consoles</source>
         <translation>Back to the consoles</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="313"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="328"/>
         <source>Save vault</source>
         <translation>Save vault</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="365"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="380"/>
         <source>Read the console again</source>
         <translation>Read the console again</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/SavesView.qml" line="401"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="416"/>
         <source>%n selected</source>
         <translation>
             <numerusform>%n selected</numerusform>
@@ -3260,47 +3260,47 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="452"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="467"/>
         <source>Clear the selection</source>
         <translation>Clear the selection</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="473"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="488"/>
         <source>Read the console to see its saves.</source>
         <translation>Read the console to see its saves.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="494"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="509"/>
         <source>%1 is open: its saves wait until it closes.</source>
         <translation>%1 is open: its saves wait until it closes.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1179"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1194"/>
         <source>The game must be closed (the console on its home screen): a save written while its game runs comes out corrupted.</source>
         <translation>The game must be closed (the console on its home screen): a save written while its game runs comes out corrupted.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1375"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1390"/>
         <source>To back up this user&apos;s saves, say which Account ID it is: they are kept under its PSID, as the PS4 keeps them on a USB drive.</source>
         <translation>To back up this user&apos;s saves, say which Account ID it is: they are kept under its PSID, as the PS4 keeps them on a USB drive.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1376"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1391"/>
         <source>Which Account ID is this user? Its saves take its name, and are kept under its PSID.</source>
         <translation>Which Account ID is this user? Its saves take its name, and are kept under its PSID.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="592"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="607"/>
         <source>Change the link…</source>
         <translation>Change the link…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="59"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="63"/>
         <source>PSID %1</source>
         <translation>PSID %1</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/SavesView.qml" line="194"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="198"/>
         <source>%n of them are older than the copy on the PC and were left out: send the PC&apos;s copy to the console instead.</source>
         <translation>
             <numerusform>%n of them is older than the copy on the PC and was left out: send the PC&apos;s copy to the console instead.</numerusform>
@@ -3308,68 +3308,68 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="320"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="335"/>
         <source>%1 on the console · %2 on the PC</source>
         <translation>%1 on the console · %2 on the PC</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="337"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="352"/>
         <source>The console whose saves are shown: click for another</source>
         <translation>The console whose saves are shown: click for another</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="338"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="353"/>
         <source>The console whose saves are shown</source>
         <translation>The console whose saves are shown</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="348"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="363"/>
         <source>Open the folder on the PC (right click to change it)</source>
         <translation>Open the folder on the PC (right click to change it)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="358"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="373"/>
         <source>Change the folder on the PC</source>
         <translation>Change the folder on the PC</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="409"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="424"/>
         <source>Back up to PC</source>
         <translation>Back up to PC</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="423"/>
-        <location filename="../qml/orbislink/SavesView.qml" line="1323"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="438"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1338"/>
         <source>Send to %1</source>
         <translation>Send to %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="424"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="439"/>
         <source>Send to a console</source>
         <translation>Send to a console</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="428"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="443"/>
         <source>No console&apos;s FTP is answering.</source>
         <translation>No console&apos;s FTP is answering.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="436"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="451"/>
         <source>Send to another console</source>
         <translation>Send to another console</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="445"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="460"/>
         <source>Delete from the PC…</source>
         <translation>Delete from the PC…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="469"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="484"/>
         <source>%1&apos;s FTP is not answering: this is what the PC holds.</source>
         <translation>%1&apos;s FTP is not answering: this is what the PC holds.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/SavesView.qml" line="471"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="486"/>
         <source>%n save(s) on the console without a backup on the PC.</source>
         <translation>
             <numerusform>%n save on the console without a backup on the PC.</numerusform>
@@ -3377,12 +3377,12 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="472"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="487"/>
         <source>Everything on the console is backed up on the PC.</source>
         <translation>Everything on the console is backed up on the PC.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/SavesView.qml" line="503"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="518"/>
         <source>%n save(s) the console no longer has are kept on the PC.</source>
         <translation>
             <numerusform>%n save the console no longer has is kept on the PC.</numerusform>
@@ -3390,7 +3390,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/SavesView.qml" line="511"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="526"/>
         <source>%n save(s) on the console are older than the PC&apos;s copy (from another console).</source>
         <translation>
             <numerusform>%n save on the console is older than the PC&apos;s copy (from another console).</numerusform>
@@ -3398,78 +3398,78 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="519"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="534"/>
         <source>Send back what&apos;s missing</source>
         <translation>Send back what&apos;s missing</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="534"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="549"/>
         <source>Back up all to PC</source>
         <translation>Back up all to PC</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="562"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="577"/>
         <source>Everyone</source>
         <translation>Everyone</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="577"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="592"/>
         <source>PSID %1 · console user %2</source>
         <translation>PSID %1 · console user %2</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="579"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="594"/>
         <source>PSID %1 · no user of %2 has it</source>
         <translation>PSID %1 · no user of %2 has it</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="593"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="608"/>
         <source>Link…</source>
         <translation>Link…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="593"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="608"/>
         <source>Link to an Account ID…</source>
         <translation>Link to an Account ID…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="595"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="610"/>
         <source>Which of the app&apos;s Account IDs this console user is</source>
         <translation>Which of the app&apos;s Account IDs this console user is</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="609"/>
-        <location filename="../qml/orbislink/SavesView.qml" line="830"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="624"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="845"/>
         <source>Only on the PC</source>
         <translation>Only on the PC</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="827"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="842"/>
         <source>On the PC</source>
         <translation>On the PC</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="829"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="844"/>
         <source>The PC has a newer one</source>
         <translation>The PC has a newer one</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="868"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="883"/>
         <source>No saves on the console or on the PC.</source>
         <translation>No saves on the console or on the PC.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="890"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="905"/>
         <source>Saves are kept on the PC as the PS4 copies them to a USB drive: PS4/SAVEDATA/&lt;PSID&gt;/&lt;game&gt;. A save only goes to a console user with its PSID, on this console or another — a PS4 game&apos;s save works on a PS5 too.</source>
         <translation>Saves are kept on the PC as the PS4 copies them to a USB drive: PS4/SAVEDATA/&lt;PSID&gt;/&lt;game&gt;. A save only goes to a console user with its PSID, on this console or another — a PS4 game&apos;s save works on a PS5 too.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="901"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="916"/>
         <source>Folder for the saves on the PC</source>
         <translation>Folder for the saves on the PC</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/SavesView.qml" line="926"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="941"/>
         <source>Delete %n save(s) from the PC?</source>
         <translation>
             <numerusform>Delete %n save from the PC?</numerusform>
@@ -3477,12 +3477,12 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="939"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="954"/>
         <source>Their copies on this PC go, every backup kept. The consoles&apos; saves are not touched: those are deleted on the console itself (Settings → Saved Data), so it stays in order.</source>
         <translation>Their copies on this PC go, every backup kept. The consoles&apos; saves are not touched: those are deleted on the console itself (Settings → Saved Data), so it stays in order.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/SavesView.qml" line="951"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="966"/>
         <source>%n of them are not on the console: this may be their only copy.</source>
         <translation>
             <numerusform>%n of them is not on the console: this may be its only copy.</numerusform>
@@ -3490,17 +3490,17 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="969"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="984"/>
         <source>Delete from the PC</source>
         <translation>Delete from the PC</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1059"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1074"/>
         <source>user %1</source>
         <translation>user %1</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/SavesView.qml" line="1076"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1091"/>
         <source>Send %n save(s) to %1?</source>
         <translation>
             <numerusform>Send %n save to %1?</numerusform>
@@ -3508,12 +3508,12 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1116"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1131"/>
         <source>%1&apos;s FTP did not answer: %2</source>
         <translation>%1&apos;s FTP did not answer: %2</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/SavesView.qml" line="1142"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1157"/>
         <source>%1 (%n save(s)) → %2</source>
         <translation>
             <numerusform>%1 (%n save) → %2</numerusform>
@@ -3521,108 +3521,108 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1146"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1161"/>
         <source>%1: no user of %2 has this PSID. Which one is it?</source>
         <translation>%1: no user of %2 has this PSID. Which one is it?</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1148"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1163"/>
         <source>%1: whose these are is not known; link the console user first.</source>
         <translation>%1: whose these are is not known; link the console user first.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1170"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1185"/>
         <source>Sign in with that account on the console once, then try again.</source>
         <translation>Sign in with that account on the console once, then try again.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1182"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1197"/>
         <source>Each replaces the console&apos;s copy with the latest backup, and is checked to have arrived whole.</source>
         <translation>Each replaces the console&apos;s copy with the latest backup, and is checked to have arrived whole.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1184"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1199"/>
         <source>Each goes to the user with its PSID there, replacing that console&apos;s copy with the latest backup, and is checked to have arrived whole.</source>
         <translation>Each goes to the user with its PSID there, replacing that console&apos;s copy with the latest backup, and is checked to have arrived whole.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1227"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1242"/>
         <source>On a PS5 these are saves of the PS4 version of each game (CUSA). A game&apos;s PS5 version keeps saves of its own.</source>
         <translation>On a PS5 these are saves of the PS4 version of each game (CUSA). A game&apos;s PS5 version keeps saves of its own.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1249"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1264"/>
         <source>Any of them the console does not list are added to its list of saves too, so it shows them. A copy of that list stays on this PC first.</source>
         <translation>Any of them the console does not list are added to its list of saves too, so it shows them. A copy of that list stays on this PC first.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1269"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1284"/>
         <source>The game is closed — send to %1</source>
         <translation>The game is closed — send to %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1297"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1312"/>
         <source>no FTP</source>
         <translation>no FTP</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1357"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1372"/>
         <source>Console user %1</source>
         <translation>Console user %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1377"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1392"/>
         <source>No Account IDs kept in the app yet: add them under Settings → Account IDs.</source>
         <translation>No Account IDs kept in the app yet: add them under Settings → Account IDs.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1436"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1451"/>
         <source>Unlink</source>
         <translation>Unlink</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="1441"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1456"/>
         <source>Close</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="580"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="595"/>
         <source>Console user %1 · PSID unknown: link it to an Account ID to back up its saves.</source>
         <translation>Console user %1 · PSID unknown: link it to an Account ID to back up its saves.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="606"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="621"/>
         <source>All</source>
         <translation>All</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="607"/>
-        <location filename="../qml/orbislink/SavesView.qml" line="831"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="622"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="846"/>
         <source>Not backed up</source>
         <translation>Not backed up</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="608"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="623"/>
         <source>Changed</source>
         <translation>Changed</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="624"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="639"/>
         <source>Select none</source>
         <translation>Select none</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="624"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="639"/>
         <source>Select all</source>
         <translation>Select all</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="828"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="843"/>
         <source>Changed since the backup</source>
         <translation>Changed since the backup</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/SavesView.qml" line="838"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="853"/>
         <source>Last backup: %1 (%n kept)</source>
         <translation>
             <numerusform>Last backup: %1 (%n kept)</numerusform>
@@ -3630,23 +3630,23 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="866"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="881"/>
         <source>Reading the console&apos;s saves…</source>
         <translation>Reading the console&apos;s saves…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="867"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="882"/>
         <source>Nothing here.</source>
         <translation>Nothing here.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="869"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="884"/>
         <source>Connect to a console with FTP (GoldHEN, etaHEN) to see its saves.</source>
         <translation>Connect to a console with FTP (GoldHEN, etaHEN) to see its saves.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SavesView.qml" line="965"/>
-        <location filename="../qml/orbislink/SavesView.qml" line="1265"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="980"/>
+        <location filename="../qml/orbislink/SavesView.qml" line="1280"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
@@ -5069,23 +5069,23 @@
         <translation>Starting ShadowMountPlus again…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="123"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="143"/>
         <source>Back to the consoles</source>
         <translation>Back to the consoles</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="129"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="149"/>
         <source>Homebrew store</source>
         <translation>Homebrew store</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="135"/>
-        <location filename="../qml/orbislink/StoreView.qml" line="573"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="155"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="593"/>
         <source>Reading the catalog…</source>
         <translation>Reading the catalog…</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/StoreView.qml" line="136"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="156"/>
         <source>%n app(s) · the catalog kept from last time (the site did not answer)</source>
         <translation>
             <numerusform>%n app · the catalog kept from last time (the site did not answer)</numerusform>
@@ -5093,251 +5093,251 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="154"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="174"/>
         <source>Apps are installed on this PS5</source>
         <translation>Apps are installed on this PS5</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="155"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="175"/>
         <source>This PS5&apos;s FTP is not answering: apps can be looked at, not installed</source>
         <translation>This PS5&apos;s FTP is not answering: apps can be looked at, not installed</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="163"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="183"/>
         <source>Read the catalog again</source>
         <translation>Read the catalog again</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="169"/>
-        <location filename="../qml/orbislink/StoreView.qml" line="1070"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="189"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="1090"/>
         <source>The catalog&apos;s address</source>
         <translation>The catalog&apos;s address</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="202"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="222"/>
         <source>These apps are for a jailbroken PS5. Add your PS5 under Settings → Consoles to install them.</source>
         <translation>These apps are for a jailbroken PS5. Add your PS5 under Settings → Consoles to install them.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="203"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="223"/>
         <source>%1&apos;s FTP is not answering. Turn on FTP in etaHEN (FTP=1 in config.ini), with kstuff and ShadowMountPlus running, to install apps.</source>
         <translation>%1&apos;s FTP is not answering. Turn on FTP in etaHEN (FTP=1 in config.ini), with kstuff and ShadowMountPlus running, to install apps.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="215"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="235"/>
         <source>Search apps</source>
         <translation>Search apps</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="225"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="245"/>
         <source>All</source>
         <translation>All</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="243"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="263"/>
         <source>Installed</source>
         <comment>filter: the apps installed</comment>
         <translation>Installed</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="251"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="271"/>
         <source>Updates</source>
         <translation>Updates</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="258"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="278"/>
         <source>On this PC</source>
         <translation>On this PC</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="374"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="394"/>
         <source>Coming soon</source>
         <translation>Coming soon</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="375"/>
-        <location filename="../qml/orbislink/StoreView.qml" line="538"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="395"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="558"/>
         <source>Update</source>
         <translation>Update</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="376"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="396"/>
         <source>Installed</source>
         <comment>one app</comment>
         <translation>Installed</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="377"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="397"/>
         <source>Not a folder app</source>
         <translation>Not a folder app</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="441"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="461"/>
         <source>Change…</source>
         <translation>Change…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="447"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="467"/>
         <source>Install a file…</source>
         <translation>Install a file…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="510"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="530"/>
         <source>Not an app archive: %1</source>
         <translation>Not an app archive: %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="527"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="547"/>
         <source>Newer than on the PS5 (%1)</source>
         <translation>Newer than on the PS5 (%1)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="528"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="548"/>
         <source>On the PS5</source>
         <translation>On the PS5</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="571"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="591"/>
         <source>Reading the folder…</source>
         <translation>Reading the folder…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="572"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="592"/>
         <source>No app archives (.zip) in this folder. Choose another, or install a file.</source>
         <translation>No app archives (.zip) in this folder. Choose another, or install a file.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="575"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="595"/>
         <source>The catalog could not be read: %1</source>
         <translation>The catalog could not be read: %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="576"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="596"/>
         <source>Nothing here.</source>
         <translation>Nothing here.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="598"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="618"/>
         <source>An archive of this PC installs the same way, as its folder in /data/homebrew; being your own file, nothing checks it against the catalog. Only install what you trust.</source>
         <translation>An archive of this PC installs the same way, as its folder in /data/homebrew; being your own file, nothing checks it against the catalog. Only install what you trust.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="600"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="620"/>
         <source>Each app installs as its folder in /data/homebrew on the PS5, checked against the catalog first; ShadowMountPlus (with kstuff) puts it on the home screen. No package is built. The apps are their authors&apos; work, under their own licences.</source>
         <translation>Each app installs as its folder in /data/homebrew on the PS5, checked against the catalog first; ShadowMountPlus (with kstuff) puts it on the home screen. No package is built. The apps are their authors&apos; work, under their own licences.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="625"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="645"/>
         <source>ShadowMountPlus registered it: it is on the home screen (at the end, or in the game library). If not, restart the console once.</source>
         <translation>ShadowMountPlus registered it: it is on the home screen (at the end, or in the game library). If not, restart the console once.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="628"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="648"/>
         <source>ShadowMountPlus saw it while its files were still changing; it looks again every 15 seconds.</source>
         <translation>ShadowMountPlus saw it while its files were still changing; it looks again every 15 seconds.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="631"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="651"/>
         <source>ShadowMountPlus cannot read its sce_sys/param.json. Install it again.</source>
         <translation>ShadowMountPlus cannot read its sce_sys/param.json. Install it again.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="633"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="653"/>
         <source>The console refused to register it%1. The app may need a newer ShadowMountPlus (see its notes above); update it and install again.</source>
         <translation>The console refused to register it%1. The app may need a newer ShadowMountPlus (see its notes above); update it and install again.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="638"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="658"/>
         <source>ShadowMountPlus had given up on it after failed tries; it was asked to try again now.</source>
         <translation>ShadowMountPlus had given up on it after failed tries; it was asked to try again now.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="639"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="659"/>
         <source>ShadowMountPlus gave up on it after failed tries. Restart the console, or let OrbisLink ask it to try again: api_bind_address=0.0.0.0 in /data/shadowmount/config.ini.</source>
         <translation>ShadowMountPlus gave up on it after failed tries. Restart the console, or let OrbisLink ask it to try again: api_bind_address=0.0.0.0 in /data/shadowmount/config.ini.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="643"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="663"/>
         <source>Another copy with the same title ID is in a folder ShadowMountPlus checks (another drive, or etaHEN/games): ShadowMountPlus keeps that one. Remove one of them.</source>
         <translation>Another copy with the same title ID is in a folder ShadowMountPlus checks (another drive, or etaHEN/games): ShadowMountPlus keeps that one. Remove one of them.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="646"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="666"/>
         <source>ShadowMountPlus has not mentioned it. Is it running? (&quot;ShadowMount+&quot; shows on the console when it starts.) It checks /data/homebrew every 15 seconds.</source>
         <translation>ShadowMountPlus has not mentioned it. Is it running? (&quot;ShadowMount+&quot; shows on the console when it starts.) It checks /data/homebrew every 15 seconds.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="649"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="669"/>
         <source>This PS5 has no ShadowMountPlus log: it is not installed, or its log is off. It is what puts these apps on the home screen.</source>
         <translation>This PS5 has no ShadowMountPlus log: it is not installed, or its log is off. It is what puts these apps on the home screen.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="652"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="672"/>
         <source>This PS5&apos;s FTP is not answering.</source>
         <translation>This PS5&apos;s FTP is not answering.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="668"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="688"/>
         <source>Stays inside the app sandbox.</source>
         <translation>Stays inside the app sandbox.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="669"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="689"/>
         <source>Leaves the app sandbox (it uses the jailbreak&apos;s kernel access).</source>
         <translation>Leaves the app sandbox (it uses the jailbreak&apos;s kernel access).</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="670"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="690"/>
         <source>Whether it leaves the app sandbox is not clear.</source>
         <translation>Whether it leaves the app sandbox is not clear.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="733"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="753"/>
         <source>Updated %1</source>
         <translation>Updated %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="735"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="755"/>
         <source>Licence: %1</source>
         <translation>Licence: %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="743"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="763"/>
         <source>Installed: %1 · an update is out</source>
         <translation>Installed: %1 · an update is out</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="744"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="764"/>
         <source>Installed on %1</source>
         <translation>Installed on %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="755"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="775"/>
         <source>Not on the home screen?</source>
         <translation>Not on the home screen?</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="762"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="782"/>
         <source>A pre-release: it may not be finished.</source>
         <translation>A pre-release: it may not be finished.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="816"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="836"/>
         <source>Its details could not be read: %1</source>
         <translation>Its details could not be read: %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="839"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="859"/>
         <source>On the console</source>
         <translation>On the console</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="854"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="874"/>
         <source>Uses the network.</source>
         <translation>Uses the network.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/StoreView.qml" line="856"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="876"/>
         <source>Starts %n helper payload(s)</source>
         <translation>
             <numerusform>Starts %n helper payload</numerusform>
@@ -5345,7 +5345,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/StoreView.qml" line="858"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="878"/>
         <source>(%n not reviewed by the catalog)</source>
         <translation>
             <numerusform>(%n not reviewed by the catalog)</numerusform>
@@ -5353,99 +5353,99 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="860"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="880"/>
         <source>Reaches: %1</source>
         <translation>Reaches: %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="862"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="882"/>
         <source>The catalog has not looked into what it does yet.</source>
         <translation>The catalog has not looked into what it does yet.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="895"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="915"/>
         <source>What&apos;s new</source>
         <translation>What&apos;s new</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="919"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="939"/>
         <source>Source code</source>
         <translation>Source code</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="926"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="946"/>
         <source>Catalog page</source>
         <translation>Catalog page</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="933"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="953"/>
         <source>Release</source>
         <translation>Release</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="952"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="972"/>
         <source>Remove</source>
         <translation>Remove</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="1001"/>
-        <location filename="../qml/orbislink/StoreView.qml" line="1122"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="1021"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="1142"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="1006"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="1026"/>
         <source>Close</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="1013"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="1033"/>
         <source>Update on %1</source>
         <translation>Update on %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="1082"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="1102"/>
         <source>A mirror of the catalog, tried before %1 and its own mirror. Whatever it serves is checked against the catalog&apos;s signature, as always: a mirror cannot change the apps. Empty, the built-in addresses alone.</source>
         <translation>A mirror of the catalog, tried before %1 and its own mirror. Whatever it serves is checked against the catalog&apos;s signature, as always: a mirror cannot change the apps. Empty, the built-in addresses alone.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="1099"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="1119"/>
         <source>That is not an http(s) address.</source>
         <translation>That is not an http(s) address.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="1113"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="1133"/>
         <source>Built-in addresses</source>
         <translation>Built-in addresses</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="1126"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="1146"/>
         <source>Save</source>
         <translation>Save</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="1141"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="1161"/>
         <source>The folder with your app archives</source>
         <translation>The folder with your app archives</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="1147"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="1167"/>
         <source>An app archive to install</source>
         <translation>An app archive to install</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="1149"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="1169"/>
         <source>App archives (*.zip)</source>
         <translation>App archives (*.zip)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="539"/>
-        <location filename="../qml/orbislink/StoreView.qml" line="1014"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="559"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="1034"/>
         <source>Install again</source>
         <translation>Install again</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/StoreView.qml" line="138"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="158"/>
         <source>%n app(s) · %1, checked by its signature</source>
         <translation>
             <numerusform>%n app · %1, checked by its signature</numerusform>
@@ -5453,18 +5453,18 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="1015"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="1035"/>
         <source>Install on %1</source>
         <translation>Install on %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="539"/>
-        <location filename="../qml/orbislink/StoreView.qml" line="1015"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="559"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="1035"/>
         <source>Install</source>
         <translation>Install</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StoreView.qml" line="1039"/>
+        <location filename="../qml/orbislink/StoreView.qml" line="1059"/>
         <source>no FTP</source>
         <translation>no FTP</translation>
     </message>
@@ -6184,71 +6184,71 @@
 <context>
     <name>main</name>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="262"/>
-        <location filename="../src/orbislink/qt/main.cpp" line="269"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="267"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="274"/>
         <source>OrbisLink could not start</source>
         <translation>OrbisLink could not start</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="263"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="268"/>
         <source>Setting up the services failed:
 %1</source>
         <translation>Setting up the services failed:
 %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="270"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="275"/>
         <source>Setting up the services failed (unknown error).</source>
         <translation>Setting up the services failed (unknown error).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="318"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="323"/>
         <source>Could not load the interface (%1).</source>
         <translation>Could not load the interface (%1).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="392"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="398"/>
         <source>The interface was never created.</source>
         <translation>The interface was never created.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="422"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="428"/>
         <source>Drag and drop</source>
         <translation>Drag and drop</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="431"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="437"/>
         <source>It was already in software mode.</source>
         <translation>It was already in software mode.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="432"/>
-        <location filename="../src/orbislink/qt/main.cpp" line="451"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="438"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="457"/>
         <source>Try the &quot;OrbisLink (compatibility mode)&quot; shortcut, or run it with the --software option.</source>
         <translation>Try the &quot;OrbisLink (compatibility mode)&quot; shortcut, or run it with the --software option.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="435"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="441"/>
         <source>OrbisLink — graphics error</source>
         <translation>OrbisLink — graphics error</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="448"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="454"/>
         <source>Windows refused to create the window.</source>
         <translation>Windows refused to create the window.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="449"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="455"/>
         <source>The window was created but nothing was ever drawn.</source>
         <translation>The window was created but nothing was ever drawn.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="454"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="460"/>
         <source>OrbisLink could not open</source>
         <translation>OrbisLink could not open</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="524"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="530"/>
         <source>OrbisLink ended with an error</source>
         <translation>OrbisLink ended with an error</translation>
     </message>
@@ -6825,27 +6825,27 @@ The install waits in the queue and goes on by itself once one of them answers. T
 <context>
     <name>orbislink::GamesController</name>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="426"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="429"/>
         <source>the server answered %1</source>
         <translation>the server answered %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="452"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="455"/>
         <source>Could not get the emulator files: %1</source>
         <translation>Could not get the emulator files: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="491"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="494"/>
         <source>Looking for games…</source>
         <translation>Looking for games…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="528"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="531"/>
         <source>No PS1 or PS2 discs in this folder.</source>
         <translation>No PS1 or PS2 discs in this folder.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="529"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="532"/>
         <source>%n game(s)</source>
         <translation>
             <numerusform>%n game</numerusform>
@@ -6853,56 +6853,56 @@ The install waits in the queue and goes on by itself once one of them answers. T
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="595"/>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="669"/>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="1323"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="598"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="672"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="1326"/>
         <source>Convert</source>
         <translation>Convert</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="595"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="598"/>
         <source>Choose where the packages go first.</source>
         <translation>Choose where the packages go first.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="669"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="672"/>
         <source>%1 is not a PS1/PS2 disc this can convert.</source>
         <translation>%1 is not a PS1/PS2 disc this can convert.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="759"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="762"/>
         <source>Could not read %1 on the console.</source>
         <translation>Could not read %1 on the console.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="764"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="767"/>
         <source>The cue sheet names no file.</source>
         <translation>The cue sheet names no file.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="788"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="791"/>
         <source>Could not bring %1 from the console: %2</source>
         <translation>Could not bring %1 from the console: %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="799"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="802"/>
         <source>%1 is not a PS1/PS2 disc this can convert (%2).</source>
         <translation>%1 is not a PS1/PS2 disc this can convert (%2).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="1323"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="1326"/>
         <source>Pack</source>
         <translation>Pack</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="1347"/>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="1348"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="1350"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="1351"/>
         <source>%1 is ready in the output folder.</source>
         <translation>%1 is ready in the output folder.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="1352"/>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="1353"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="1355"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="1356"/>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
     </message>
@@ -7521,7 +7521,7 @@ The install waits in the queue and goes on by itself once one of them answers. T
     </message>
     <message>
         <location filename="../src/orbislink/qt/shelf_controller.cpp" line="592"/>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1203"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1206"/>
         <source>%1 is not there any more: a drive taken out, or the console gone.</source>
         <translation>%1 is not there any more: a drive taken out, or the console gone.</translation>
     </message>
@@ -7536,88 +7536,88 @@ The install waits in the queue and goes on by itself once one of them answers. T
         <translation>This place was taken off the library.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1029"/>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1071"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1032"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1074"/>
         <source>Not a package this can read.</source>
         <translation>Not a package this can read.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1033"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1036"/>
         <source>On a PS4 a package on the console installs from Debug Settings → Package Installer.</source>
         <translation>On a PS4 a package on the console installs from Debug Settings → Package Installer.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1039"/>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1077"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1042"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1080"/>
         <source>Not a PS1/PS2 disc this can read.</source>
         <translation>Not a PS1/PS2 disc this can read.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1046"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1049"/>
         <source>A PS4 app or game folder, not a package: a PS4 installs it once it is made into a .pkg.</source>
         <translation>A PS4 app or game folder, not a package: a PS4 installs it once it is made into a .pkg.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1048"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1051"/>
         <source>A PS5 game: for a PS5 with ShadowMountPlus.</source>
         <translation>A PS5 game: for a PS5 with ShadowMountPlus.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1055"/>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1099"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1058"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1102"/>
         <source>An archive: unpack it on the PC first; the console does not open them.</source>
         <translation>An archive: unpack it on the PC first; the console does not open them.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1086"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1089"/>
         <source>A PS4 app or game folder, not yet a package: it is made into one here (as the .gp4 in it says, when it has one), then installed.</source>
         <translation>A PS4 app or game folder, not yet a package: it is made into one here (as the .gp4 in it says, when it has one), then installed.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1090"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1093"/>
         <source>A PS4 app or game folder, not a package: it installs once it is made into a .pkg (a .gp4 beside it is the recipe for that, from the tool that made it).</source>
         <translation>A PS4 app or game folder, not a package: it installs once it is made into a .pkg (a .gp4 beside it is the recipe for that, from the tool that made it).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1093"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1096"/>
         <source>A PS5 game: copy it to /data/homebrew on the PS5 (Files tab), where ShadowMountPlus finds it.</source>
         <translation>A PS5 game: copy it to /data/homebrew on the PS5 (Files tab), where ShadowMountPlus finds it.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1119"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1122"/>
         <source>%1 is on the console, whose FTP is not answering.</source>
         <translation>%1 is on the console, whose FTP is not answering.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1120"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1123"/>
         <source>%1 is not there now.</source>
         <translation>%1 is not there now.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1236"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1239"/>
         <source>This folder cannot be read: %1</source>
         <translation>This folder cannot be read: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1399"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1402"/>
         <source>The console&apos;s FTP is not answering: the library is read over it.</source>
         <translation>The console&apos;s FTP is not answering: the library is read over it.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1671"/>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1676"/>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1687"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1674"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1679"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1690"/>
         <source>Library</source>
         <translation>Library</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1673"/>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1690"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1676"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1693"/>
         <source>Search</source>
         <translation>Search</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2104"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2107"/>
         <source>%n of the games picked cannot be done that way and were left as they are.</source>
         <translation>
             <numerusform>%n of the games picked cannot be done that way and was left as it is.</numerusform>
@@ -7625,17 +7625,17 @@ The install waits in the queue and goes on by itself once one of them answers. T
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2154"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2157"/>
         <source>the game</source>
         <translation>the game</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2156"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2159"/>
         <source>its update</source>
         <translation>its update</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2158"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2161"/>
         <source>%n add-on(s)</source>
         <translation>
             <numerusform>%n add-on</numerusform>
@@ -7643,37 +7643,37 @@ The install waits in the queue and goes on by itself once one of them answers. T
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2173"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2176"/>
         <source>Copied to this PC as the console has it. A fake package (a converted game, or one made with a packager) installs again on any console with a homebrew enabler; a game from the PlayStation Store or a disc stays tied to its licence, and only a dump made on the console plays elsewhere.</source>
         <translation>Copied to this PC as the console has it. A fake package (a converted game, or one made with a packager) installs again on any console with a homebrew enabler; a game from the PlayStation Store or a disc stays tied to its licence, and only a dump made on the console plays elsewhere.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2176"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2179"/>
         <source>The console has no package of it to copy: a game ShadowMountPlus puts on the home screen is copied from its own folder.</source>
         <translation>The console has no package of it to copy: a game ShadowMountPlus puts on the home screen is copied from its own folder.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2179"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2182"/>
         <source>To uninstall it, use the console&apos;s own menu: the PS5&apos;s installer cannot.</source>
         <translation>To uninstall it, use the console&apos;s own menu: the PS5&apos;s installer cannot.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2193"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2196"/>
         <source>The console&apos;s FTP is not answering: what it has installed is read over it.</source>
         <translation>The console&apos;s FTP is not answering: what it has installed is read over it.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2392"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2395"/>
         <source>%1 is not a folder of this PC.</source>
         <translation>%1 is not a folder of this PC.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2403"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2406"/>
         <source>%1 is already in the library.</source>
         <translation>%1 is already in the library.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2419"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2422"/>
         <source>%1 is in the library.</source>
         <translation>%1 is in the library.</translation>
     </message>
@@ -7682,7 +7682,7 @@ The install waits in the queue and goes on by itself once one of them answers. T
     <name>orbislink::StoreController</name>
     <message>
         <location filename="../src/orbislink/qt/store_controller.cpp" line="146"/>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="898"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="901"/>
         <source>Homebrew store</source>
         <translation>Homebrew store</translation>
     </message>
@@ -7712,63 +7712,63 @@ The install waits in the queue and goes on by itself once one of them answers. T
         <translation>Starting ShadowMountPlus again…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="632"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="635"/>
         <source>Getting %1…</source>
         <translation>Getting %1…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="644"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="647"/>
         <source>%1: its details could not be read: %2</source>
         <translation>%1: its details could not be read: %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="646"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="649"/>
         <source>%1 is not offered as an app folder, which is what the app installs.</source>
         <translation>%1 is not offered as an app folder, which is what the app installs.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="667"/>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="725"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="670"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="728"/>
         <source>Installing %1 was cancelled.</source>
         <translation>Installing %1 was cancelled.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="668"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="671"/>
         <source>%1 could not be downloaded: %2</source>
         <translation>%1 could not be downloaded: %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="678"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="681"/>
         <source>The download of %1 is not the one the catalog vouches for (its checksum differs): it was not installed.</source>
         <translation>The download of %1 is not the one the catalog vouches for (its checksum differs): it was not installed.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="726"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="729"/>
         <source>%1 could not be installed: %2</source>
         <translation>%1 could not be installed: %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="743"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="746"/>
         <source>%1 is on %2 (%3).</source>
         <translation>%1 is on %2 (%3).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="745"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="748"/>
         <source>ShadowMountPlus puts it on the home screen now.</source>
         <translation>ShadowMountPlus puts it on the home screen now.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="746"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="749"/>
         <source>ShadowMountPlus was started again: it puts it on the home screen in a few seconds.</source>
         <translation>ShadowMountPlus was started again: it puts it on the home screen in a few seconds.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="747"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="750"/>
         <source>ShadowMountPlus puts it on the home screen at its next scan, within a minute; if it does not, &quot;Not on the home screen?&quot; in its window says why.</source>
         <translation>ShadowMountPlus puts it on the home screen at its next scan, within a minute; if it does not, &quot;Not on the home screen?&quot; in its window says why.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="750"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="753"/>
         <source>Your files in its folder (%n) went on into the new version.</source>
         <translation>
             <numerusform>Your file in its folder (%n) went on into the new version.</numerusform>
@@ -7776,42 +7776,42 @@ The install waits in the queue and goes on by itself once one of them answers. T
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="757"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="760"/>
         <source>Some of your files could not be moved to the new version; they are in %1: %2</source>
         <translation>Some of your files could not be moved to the new version; they are in %1: %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="761"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="764"/>
         <source>The console&apos;s FTP cannot set permissions: if the app does not start (CE-107750-0), set its folder and everything in it to 777.</source>
         <translation>The console&apos;s FTP cannot set permissions: if the app does not start (CE-107750-0), set its folder and everything in it to 777.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="898"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="901"/>
         <source>%1 cannot be installed: %2</source>
         <translation>%1 cannot be installed: %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="911"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="914"/>
         <source>Installing %1…</source>
         <translation>Installing %1…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="930"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="933"/>
         <source>Removing %1…</source>
         <translation>Removing %1…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="941"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="944"/>
         <source>%1 could not be removed: %2</source>
         <translation>%1 could not be removed: %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="943"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="946"/>
         <source>%1 was removed from %2.</source>
         <translation>%1 was removed from %2.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/store_controller.cpp" line="945"/>
+        <location filename="../src/orbislink/qt/store_controller.cpp" line="948"/>
         <source>%1&apos;s folder was removed from %2. Its icon goes when ShadowMountPlus removes missing games; or delete it on the console.</source>
         <translation>%1&apos;s folder was removed from %2. Its icon goes when ShadowMountPlus removes missing games; or delete it on the console.</translation>
     </message>
