@@ -63,6 +63,7 @@ Last review: v1.1.0.
 | ✅ | Automatic reconnection with exponential back-off |
 | ✅ | Menu per file and per folder |
 | 🟡 | Resuming an interrupted upload (`REST`/`APPE` implemented; GoldHEN's server still has to be confirmed to accept it) |
+| 🟡 | Save vault: saves a PS4 copied to a USB drive (`PS4/SAVEDATA`), on the console's drives (`/mnt/usbN`) or on a drive plugged into this PC, shown and backed up into the vault folder (the drive is only read); checked with the fake console and in the tests |
 
 ## 3. Remote Play
 

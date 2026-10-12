@@ -62,6 +62,7 @@ enum class SaveSync
 	Older,       // the console has an earlier backup of it: the vault's is newer
 	ConsoleOnly, // never backed up
 	VaultOnly,   // in the vault, not on this console
+	UsbOnly,     // only on a USB drive: neither on this console nor backed up
 };
 
 // A copy of a backup known to be on a console: put there from the vault
@@ -117,12 +118,22 @@ struct SaveInfo
 	// Where copies of its backups went, and every console user it has been on.
 	std::vector<SaveCopy> copies;
 	std::vector<std::string> users;
+	// A copy on a USB drive, as the PS4 copies saves to one
+	// (PS4/SAVEDATA/<PSID>/<TITLE_ID>/<dir> and <dir>.bin): the folder it is
+	// in, on this PC ("E:/PS4/SAVEDATA/…") or on the console
+	// ("/mnt/usb0/PS4/SAVEDATA/…"). Only read: backing it up copies it into
+	// the vault.
+	bool onUsb = false;
+	bool usbOnConsole = false;
+	std::string usbFolder;
+	std::vector<SaveFile> usbFiles;
 
 	// One save whichever console it is on: its owner's PSID, the game and
 	// its name (the console user's folder while the PSID is not known).
 	std::string key() const { return (psid.empty() ? account : psid) + "/" + titleId + "/" + dir; }
 	int64_t consoleBytes() const;
 	int64_t vaultBytes() const;
+	int64_t usbBytes() const;
 	SaveSync sync() const;
 };
 
@@ -156,6 +167,11 @@ public:
 	// Console user folder → PSID (16 hex digits): whose saves are whose.
 	// Folders of every console: each console's are its own.
 	void setLinks(std::map<std::string, std::string> psidOfUser);
+	// Drives of this PC that hold saves copied by a PS4 (a PS4/SAVEDATA
+	// folder at their root): their saves are shown too, and backing one up
+	// copies it into the vault. The console's own USB drives are looked at
+	// in scan().
+	void setUsbDrives(std::vector<std::string> roots);
 
 	// The vault alone, from the PC.
 	std::vector<SaveInfo> vaultSaves();
@@ -169,7 +185,8 @@ public:
 	// The console's users, read now: their names, and the PSIDs linked.
 	std::vector<ConsoleUser> readUsers(SaveRemote &remote, std::string *error);
 
-	// Copies the save's image and key from the console into the vault (the
+	// Copies the save's image and key from the console (or, when the console
+	// does not have it, from the USB drive it is on) into the vault (the
 	// backup before goes with the earlier ones; beyond kVersionsKept, the
 	// oldest go). Needs the save's PSID. The info is updated.
 	bool backup(SaveRemote &remote, SaveInfo &save, std::string *error, const Progress &progress = {});
@@ -204,11 +221,14 @@ private:
 	std::string infoDir(const std::string &psid, const std::string &titleId, const std::string &dir) const;
 	void readVault(std::map<std::string, SaveInfo> &out);
 	void readLegacy(std::map<std::string, SaveInfo> &out) const;
+	// The saves on USB drives: this PC's, and the console's when `remote`.
+	void readUsb(std::map<std::string, SaveInfo> &out, SaveRemote *remote);
 	void migrateLegacy();
 	void prune(const std::string &infoFolder) const;
 
 	std::string root_;
 	std::map<std::string, std::string> links_;
+	std::vector<std::string> usbDrives_;
 	std::vector<ConsoleUser> users_;
 	// Game metadata the console was asked for and does not have (a game
 	// whose saves stayed after it was deleted): asked once, not per save.

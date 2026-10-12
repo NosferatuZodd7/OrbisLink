@@ -566,3 +566,89 @@ ORBISLINK_TEST(earlier_backups_move_to_the_ps4_layout)
 }
 
 TEST_MAIN()
+
+// Saves a PS4 copied to a USB drive, plugged into this PC: shown, backed up
+// into the vault folder (the drive is only read), and not twice when the
+// vault folder is on that drive.
+ORBISLINK_TEST(saves_on_a_usb_drive_of_this_pc_are_shown_and_backed_up)
+{
+	Fixture f;
+	const fs::path usb = f.base / "usb";
+	const fs::path onUsb = usb / "PS4/SAVEDATA/1c020a82bb40e5fe/CUSA36843";
+	writeBytes(onUsb / "PREBOOT.SAV", 3000, 'p');
+	writeBytes(onUsb / "PREBOOT.SAV.bin", 96, 'k');
+	// Not a save: no key next to it.
+	writeBytes(onUsb / "notes.txt", 10, 'n');
+	const fs::path root = f.base / "vault";
+	SaveVault vault(root.string());
+	vault.setUsbDrives({ usb.string() });
+
+	std::vector<SaveInfo> saves = vault.vaultSaves();
+	CHECK_EQ(saves.size(), static_cast<size_t>(1));
+	SaveInfo save = saves[0];
+	CHECK(save.onUsb);
+	CHECK(!save.usbOnConsole);
+	CHECK(!save.inVault);
+	CHECK(save.sync() == SaveSync::UsbOnly);
+	CHECK_EQ(save.usbBytes(), static_cast<int64_t>(3000 + 96));
+
+	TestConsole console(f.consoleRoot);
+	std::string error;
+	CHECK(vault.backup(console, save, &error));
+	const fs::path kept = root / "PS4/SAVEDATA/1c020a82bb40e5fe/CUSA36843";
+	CHECK_EQ(fs::file_size(kept / "PREBOOT.SAV"), static_cast<uintmax_t>(3000));
+	CHECK_EQ(fs::file_size(kept / "PREBOOT.SAV.bin"), static_cast<uintmax_t>(96));
+	// The drive keeps its copy.
+	CHECK(fs::exists(onUsb / "PREBOOT.SAV"));
+	saves = vault.vaultSaves();
+	CHECK_EQ(saves.size(), static_cast<size_t>(1));
+	CHECK(saves[0].inVault && saves[0].onUsb);
+	CHECK(saves[0].sync() == SaveSync::VaultOnly);
+	// No console user had it: it is not one a console lost.
+	CHECK(saves[0].users.empty());
+
+	// The vault folder on the drive itself: its saves once, as the vault's.
+	SaveVault onDrive(usb.string());
+	onDrive.setUsbDrives({ usb.string() });
+	saves = onDrive.vaultSaves();
+	CHECK_EQ(saves.size(), static_cast<size_t>(1));
+	CHECK(saves[0].inVault);
+	CHECK(!saves[0].onUsb);
+}
+
+// The console's own USB drive: its saves are found over FTP and backed up
+// from there when the console's storage does not have them.
+ORBISLINK_TEST(saves_on_the_consoles_usb_drive_are_backed_up_from_it)
+{
+	Fixture f;
+	const fs::path onUsb = f.consoleRoot / "mnt/usb1/PS4/SAVEDATA" / kPsid / "CUSA00777";
+	writeBytes(onUsb / "GAME0", 5000, 'u');
+	writeBytes(onUsb / "GAME0.bin", 96, 'v');
+	// A copy of a save the console has too: noted, not a second save.
+	writeBytes(f.consoleRoot / "mnt/usb1/PS4/SAVEDATA" / kPsid / "CUSA00001/SAVE0", 4096, 'x');
+	writeBytes(f.consoleRoot / "mnt/usb1/PS4/SAVEDATA" / kPsid / "CUSA00001/SAVE0.bin", 96, 'k');
+	writeBytes(f.consoleRoot / "mnt/sandbox/readme", 4, 's');
+	// The game's name, from the system's copy of its param.sfo.
+	writeData(f.consoleRoot / "system_data/priv/appmeta/CUSA00777/param.sfo",
+		buildSfo({ { "TITLE", "Night Harbour" } }));
+
+	TestConsole console(f.consoleRoot);
+	const fs::path root = f.base / "vault";
+	SaveVault vault(root.string());
+	std::string error;
+	std::vector<SaveInfo> saves = vault.scan(console, &error);
+	CHECK_EQ(saves.size(), static_cast<size_t>(3));
+	SaveInfo game0 = *find(saves, "GAME0");
+	CHECK(game0.onUsb && game0.usbOnConsole);
+	CHECK_EQ(game0.usbFolder, "/mnt/usb1/PS4/SAVEDATA/" + std::string(kPsid) + "/CUSA00777");
+	CHECK(game0.sync() == SaveSync::UsbOnly);
+	CHECK_EQ(game0.gameTitle, std::string("Night Harbour"));
+	const SaveInfo *save0 = find(saves, "SAVE0");
+	CHECK(save0->onConsole && save0->onUsb);
+	CHECK(save0->sync() == SaveSync::ConsoleOnly);
+
+	CHECK(vault.backup(console, game0, &error));
+	CHECK_EQ(fs::file_size(root / "PS4/SAVEDATA" / kPsid / "CUSA00777/GAME0"), static_cast<uintmax_t>(5000));
+	saves = vault.scan(console, &error);
+	CHECK(find(saves, "GAME0")->sync() == SaveSync::VaultOnly);
+}

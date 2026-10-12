@@ -11,6 +11,10 @@ Item {
 
     property bool selected: false
     property bool dimmed: false
+    // A lasting glow of the tile's own (green: installed on the console),
+    // the same soft frame as the one picked; picking it shows the accent.
+    property color glow: "transparent"
+    readonly property bool glowing: glow.a > 0
     property int artSize: 148
     property string title: ""
     property string subtitle: ""
@@ -45,7 +49,8 @@ Item {
             color: "transparent"
             border.width: 2
             border.color: tile.selected ? Theme.alpha(Theme.accent, (Theme.light ? 0.14 : 0.22) - index * 0.06)
-                                        : "transparent"
+                        : tile.glowing ? Theme.alpha(tile.glow, (Theme.light ? 0.22 : 0.32) - index * 0.09)
+                        : "transparent"
             Behavior on border.color { ColorAnimation { duration: Theme.cardEase } }
         }
     }
@@ -62,7 +67,8 @@ Item {
         radius: 9
         color: "transparent"
         border.width: 2
-        border.color: tile.selected ? Theme.accent : tile.hover ? Theme.alpha(Theme.accent, 0.45) : "transparent"
+        border.color: tile.selected ? Theme.accent : tile.hover ? Theme.alpha(Theme.accent, 0.45)
+                    : tile.glowing ? Theme.alpha(tile.glow, 0.8) : "transparent"
         Behavior on border.color { ColorAnimation { duration: Theme.cardEase } }
     }
 

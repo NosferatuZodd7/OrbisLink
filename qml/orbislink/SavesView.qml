@@ -22,7 +22,8 @@ Item {
     property bool framed: true
 
     readonly property bool online: saves.online
-    // "all", "console" (not backed up), "changed" (and older), "vault" (only on the PC).
+    // "all", "console" (not backed up: on the console, or only on a USB
+    // drive), "changed" (and older), "vault" (only on the PC).
     property string filter: "all"
     property var selected: ({})
     // Whose saves are shown: an owner's PSID, or "user:<folder>" for a
@@ -87,7 +88,7 @@ Item {
     readonly property int selectedCount: Object.keys(selected).length
 
     readonly property var counts: {
-        var c = { all: 0, same: 0, changed: 0, older: 0, console: 0, vault: 0, missing: 0 }
+        var c = { all: 0, same: 0, changed: 0, older: 0, console: 0, vault: 0, usb: 0, missing: 0 }
         for (var i = 0; i < saves.saves.length; ++i) {
             var s = saves.saves[i]
             if (!root.inGroup(s))
@@ -100,10 +101,16 @@ Item {
         return c
     }
     // What "Back up all" would copy: never an older copy over a newer backup.
-    readonly property int pending: counts.changed + counts.console
+    readonly property int pending: counts.changed + counts.console + counts.usb
+    // A save "Back up" can copy: from the console while its FTP answers, or
+    // from the USB drive it is on.
+    function canBackUp(s) {
+        return (s.onConsole && online) || s.sync === "usb"
+    }
 
     function matchesFilter(s) {
         return filter === "all" || s.sync === filter || (filter === "changed" && s.sync === "older")
+            || (filter === "console" && s.sync === "usb")
     }
     readonly property var shown: {
         var list = []
@@ -118,6 +125,24 @@ Item {
             return a.saveTitle.localeCompare(b.saveTitle)
         })
         return list
+    }
+    // What the list shows: each game's name and picture, then its saves.
+    // Built here rather than with the list's own sections: those, over a
+    // list that is replaced as a whole when a filter changes, can leave a
+    // game's name behind where it no longer belongs.
+    readonly property var rows: {
+        var out = []
+        var last = null
+        for (var i = 0; i < shown.length; ++i) {
+            var s = shown[i]
+            if (s.titleId !== last) {
+                last = s.titleId
+                out.push({ header: true, titleId: s.titleId, gameTitle: s.gameTitle,
+                           gameIcon: s.gameIcon || "" })
+            }
+            out.push(s)
+        }
+        return out
     }
     readonly property bool manyOwners: groups.length > 1
 
@@ -183,7 +208,7 @@ Item {
         var user = null
         for (var i = 0; i < saves.saves.length; ++i) {
             var s = saves.saves[i]
-            if (kept.indexOf(s.key) < 0 || !s.onConsole)
+            if (kept.indexOf(s.key) < 0 || !canBackUp(s))
                 continue
             if (s.sync === "older") {
                 ++older
@@ -339,7 +364,7 @@ Item {
                     Text {
                         text: saves.busy && saves.status.length > 0 ? saves.status
                             : qsTr("%1 on the console · %2 on the PC")
-                                .arg(root.counts.all - root.counts.vault)
+                                .arg(root.counts.all - root.counts.vault - root.counts.usb)
                                 .arg(root.counts.same + root.counts.changed + root.counts.older + root.counts.vault)
                         color: Theme.textSecondary
                         font.pixelSize: 12
@@ -428,7 +453,7 @@ Item {
                         visible: root.selectedCount > 0 && !saves.busy
                         iconName: "download"
                         text: qsTr("Back up to PC")
-                        enabled: root.online && root.countWhere(function (s) { return s.onConsole }) > 0
+                        enabled: root.countWhere(function (s) { return root.canBackUp(s) }) > 0
                         onClicked: root.backupKeys(root.selectedKeys())
                     }
                     // Named after the console it goes to; the arrow picks
@@ -443,7 +468,7 @@ Item {
                             iconName: "upload"
                             text: root.sendConsole !== null ? qsTr("Send to %1").arg(root.sendConsole.name)
                                                            : qsTr("Send to a console")
-                            enabled: root.sendConsole !== null && root.countWhere(function (s) { return s.inVault }) > 0
+                            enabled: root.sendConsole !== null && root.countWhere(function (s) { return s.inVault || s.onUsb }) > 0
                             // The whole name when it is cut.
                             ToolTip.visible: hovered && (root.sendConsole === null || implicitWidth > width)
                             ToolTip.text: root.sendConsole === null ? qsTr("No console's FTP is answering.") : text
@@ -489,8 +514,10 @@ Item {
                             font.weight: Font.DemiBold
                             text: !root.online ? qsTr("%1's FTP is not answering: this is what the PC holds.").arg(saves.sourceName)
                                 : saves.busy ? saves.status
-                                : root.pending > 0 ? qsTr("%n save(s) on the console without a backup on the PC.", "", root.pending)
-                                : root.counts.all > 0 ? qsTr("Everything on the console is backed up on the PC.")
+                                : root.counts.changed + root.counts.console > 0
+                                  ? qsTr("%n save(s) on the console without a backup on the PC.", "", root.counts.changed + root.counts.console)
+                                : root.counts.all > root.counts.usb ? qsTr("Everything on the console is backed up on the PC.")
+                                : root.counts.usb > 0 ? qsTr("%n save(s) on a USB drive without a backup on the PC.", "", root.counts.usb)
                                 : qsTr("Read the console to see its saves.")
                         }
                         // The progress of whatever is under way.
@@ -515,6 +542,17 @@ Item {
                             text: qsTr("%1 is open: its saves wait until it closes.")
                                   .arg(root.openGameName.length > 0 ? root.openGameName : root.openGame)
                             color: Theme.warn
+                            font.pixelSize: 12
+                        }
+                        // Saves only on a USB drive (the console's, or one
+                        // plugged into this PC), when the line above is
+                        // about the console's.
+                        Text {
+                            visible: !saves.busy && root.counts.usb > 0 && root.counts.all > root.counts.usb
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            text: qsTr("%n save(s) on a USB drive without a backup on the PC.", "", root.counts.usb)
+                            color: Theme.textSecondary
                             font.pixelSize: 12
                         }
                         Text {
@@ -555,13 +593,15 @@ Item {
                         text: qsTr("Back up all to PC")
                         iconName: "download"
                         primary: true
-                        enabled: root.online && !saves.busy && root.pending > 0
+                        enabled: !saves.busy && ((root.online && root.counts.changed + root.counts.console > 0)
+                                                 || root.counts.usb > 0)
                         // Everything, or everything of the owner shown.
                         onClicked: {
                             var keys = []
                             for (var i = 0; i < saves.saves.length; ++i) {
                                 var s = saves.saves[i]
-                                if (s.onConsole && (s.sync === "console" || s.sync === "changed") && root.inGroup(s))
+                                if (((s.onConsole && root.online && (s.sync === "console" || s.sync === "changed"))
+                                     || s.sync === "usb") && root.inGroup(s))
                                     keys.push(s.key)
                             }
                             root.backupKeys(keys)
@@ -625,7 +665,7 @@ Item {
                 Repeater {
                     model: [
                         { id: "all", label: qsTr("All"), n: root.counts.all },
-                        { id: "console", label: qsTr("Not backed up"), n: root.counts.console },
+                        { id: "console", label: qsTr("Not backed up"), n: root.counts.console + root.counts.usb },
                         { id: "changed", label: qsTr("Changed"), n: root.counts.changed + root.counts.older },
                         { id: "vault", label: qsTr("Only on the PC"), n: root.counts.vault }
                     ]
@@ -658,209 +698,224 @@ Item {
                     anchors.fill: parent
                     clip: true
                     spacing: 6
-                    model: root.shown
+                    model: root.rows
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: ScrollBar { policy: list.contentHeight > list.height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded }
 
-                    section.property: "titleId"
-                    section.delegate: Item {
-                        required property string section
-                        readonly property var first: {
-                            for (var i = 0; i < root.shown.length; ++i)
-                                if (root.shown[i].titleId === section)
-                                    return root.shown[i]
-                            return null
-                        }
-                        width: list.width
-                        height: 54
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.topMargin: 10
-                            anchors.rightMargin: 14
-                            spacing: 12
-                            Rectangle {
-                                implicitWidth: Theme.gameIcon
-                                implicitHeight: Theme.gameIcon
-                                radius: 8
-                                color: Theme.controlFill
-                                CoverArt {
-                                    id: sectionIcon
-                                    anchors.fill: parent
-                                    visible: ready
-                                    crop: true
-                                    edge: false
-                                    radius: parent.radius
-                                    picture: parent.parent.parent.first ? parent.parent.parent.first.gameIcon : ""
-                                }
-                                Icon {
-                                    anchors.centerIn: parent
-                                    visible: !sectionIcon.ready
-                                    name: "gamepad"
-                                    size: 18
-                                    color: Theme.textSecondary
-                                }
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                elide: Text.ElideRight
-                                text: parent.parent.first ? parent.parent.first.gameTitle : section
-                                color: Theme.text
-                                font.pixelSize: 15
-                                font.weight: Font.DemiBold
-                            }
-                            Text {
-                                text: section
-                                color: Theme.textMuted
-                                font.pixelSize: 11
-                            }
-                        }
-                    }
-
-                    delegate: Rectangle {
-                        id: row
+                    delegate: Item {
+                        id: entry
                         required property var modelData
-                        readonly property bool picked: root.isSelected(modelData.key)
-                        width: list.width - 14
-                        height: 58
-                        radius: 12
-                        color: picked ? Theme.accentFill
-                             : rowArea.containsMouse ? Theme.controlHover : Theme.panelAltFill
-                        border.width: 1
-                        border.color: picked ? Theme.alpha(Theme.accent, 0.6) : Theme.glassEdge
-                        Behavior on color { ColorAnimation { duration: Theme.fast } }
+                        readonly property bool header: modelData.header === true
+                        width: list.width - (header ? 0 : 14)
+                        height: header ? 54 : 58
 
-                        MouseArea {
-                            id: rowArea
+                        Loader {
                             anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.toggle(row.modelData.key)
+                            sourceComponent: entry.header ? gameHeader : saveRow
                         }
 
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: 12
-                            anchors.rightMargin: 12
-                            spacing: 12
-
-                            Icon {
-                                name: row.picked ? "square-check" : "square"
-                                size: 18
-                                color: row.picked ? Theme.accent : Theme.textSecondary
-                            }
-                            Rectangle {
-                                implicitWidth: Theme.gameIcon
-                                implicitHeight: Theme.gameIcon
-                                radius: 8
-                                color: Theme.controlFill
-                                CoverArt {
-                                    id: saveIcon
-                                    anchors.fill: parent
-                                    visible: ready
-                                    crop: true
-                                    edge: false
-                                    radius: parent.radius
-                                    // The save's own icon, or else the game's.
-                                    picture: row.modelData.icon.toString().length > 0 ? row.modelData.icon.toString()
-                                                                                     : (row.modelData.gameIcon || "").toString()
-                                }
-                                Icon {
-                                    anchors.centerIn: parent
-                                    visible: !saveIcon.ready
-                                    name: "save"
-                                    size: 18
-                                    color: Theme.textSecondary
-                                }
-                            }
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                Text {
-                                    Layout.fillWidth: true
-                                    elide: Text.ElideRight
-                                    text: row.modelData.saveTitle
-                                    color: Theme.text
-                                    font.pixelSize: 13
-                                    font.weight: Font.Medium
-                                }
+                        // A game: its picture, its name and its ID.
+                        Component {
+                            id: gameHeader
+                            Item {
                                 RowLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 6
-                                    // Whose it is: the name kept in the app, or the PSID.
-                                    Row {
-                                        readonly property string owner: root.ownerOf(row.modelData)
-                                        readonly property bool named: row.modelData.psidName.length > 0
-                                                                      || row.modelData.consoleUser.length > 0
-                                        visible: owner.length > 0
-                                        spacing: 4
-                                        Icon {
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            name: "user"
-                                            size: 11
-                                            color: parent.named ? Theme.accent : Theme.textMuted
+                                    anchors.fill: parent
+                                    anchors.topMargin: 10
+                                    anchors.rightMargin: 14
+                                    spacing: 12
+                                    Rectangle {
+                                        implicitWidth: Theme.gameIcon
+                                        implicitHeight: Theme.gameIcon
+                                        radius: 8
+                                        color: Theme.controlFill
+                                        CoverArt {
+                                            id: sectionIcon
+                                            anchors.fill: parent
+                                            visible: ready
+                                            crop: true
+                                            edge: false
+                                            radius: parent.radius
+                                            picture: entry.modelData.gameIcon.toString()
                                         }
-                                        Text {
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            text: parent.owner
-                                            color: parent.named ? Theme.accent : Theme.textMuted
-                                            font.pixelSize: 11
-                                            font.weight: Font.Medium
+                                        Icon {
+                                            anchors.centerIn: parent
+                                            visible: !sectionIcon.ready
+                                            name: "gamepad"
+                                            size: 18
+                                            color: Theme.textSecondary
                                         }
                                     }
                                     Text {
                                         Layout.fillWidth: true
                                         elide: Text.ElideRight
-                                        // What the game says about it (chapter, level…), then the size.
-                                        text: (parent.children[0].visible ? "·  " : "")
-                                              + [row.modelData.detail, row.modelData.size]
-                                                .filter(function (t) { return t && t.length > 0 }).join("  ·  ")
-                                        color: Theme.textSecondary
+                                        text: entry.modelData.gameTitle.length > 0 ? entry.modelData.gameTitle
+                                                                                   : entry.modelData.titleId
+                                        color: Theme.text
+                                        font.pixelSize: 15
+                                        font.weight: Font.DemiBold
+                                    }
+                                    Text {
+                                        text: entry.modelData.titleId
+                                        color: Theme.textMuted
                                         font.pixelSize: 11
                                     }
                                 }
                             }
-                            // Where it stands.
+                        }
+
+                        // A save: picked or not, its picture, what it is, and
+                        // where it stands.
+                        Component {
+                            id: saveRow
                             Rectangle {
-                                readonly property string sync: row.modelData.sync
-                                readonly property color tone: sync === "same" ? Theme.ok
-                                                            : sync === "changed" ? Theme.warn
-                                                            : sync === "vault" || sync === "older" ? Theme.accent
-                                                            : Theme.textSecondary
-                                implicitWidth: badgeRow.implicitWidth + 18
-                                implicitHeight: 26
-                                radius: 13
-                                color: Theme.alpha(tone, 0.14)
+                                id: row
+                                readonly property var modelData: entry.modelData
+                                readonly property bool picked: root.isSelected(modelData.key)
+                                radius: 12
+                                color: picked ? Theme.accentFill
+                                     : rowArea.containsMouse ? Theme.controlHover : Theme.panelAltFill
                                 border.width: 1
-                                border.color: Theme.alpha(tone, 0.4)
-                                Row {
-                                    id: badgeRow
-                                    anchors.centerIn: parent
-                                    spacing: 6
+                                border.color: picked ? Theme.alpha(Theme.accent, 0.6) : Theme.glassEdge
+                                Behavior on color { ColorAnimation { duration: Theme.fast } }
+
+                                MouseArea {
+                                    id: rowArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.toggle(row.modelData.key)
+                                }
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 12
+                                    anchors.rightMargin: 12
+                                    spacing: 12
+
                                     Icon {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        name: parent.parent.sync === "same" ? "check"
-                                            : parent.parent.sync === "changed" ? "history"
-                                            : parent.parent.sync === "older" ? "arrow-down"
-                                            : parent.parent.sync === "vault" ? "archive" : "upload"
-                                        size: 13
-                                        color: parent.parent.tone
+                                        name: row.picked ? "square-check" : "square"
+                                        size: 18
+                                        color: row.picked ? Theme.accent : Theme.textSecondary
                                     }
-                                    Text {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: parent.parent.sync === "same" ? qsTr("On the PC")
-                                            : parent.parent.sync === "changed" ? qsTr("Changed since the backup")
-                                            : parent.parent.sync === "older" ? qsTr("The PC has a newer one")
-                                            : parent.parent.sync === "vault" ? qsTr("Only on the PC")
-                                            : qsTr("Not backed up")
-                                        color: parent.parent.tone
-                                        font.pixelSize: 11
-                                        font.weight: Font.DemiBold
+                                    Rectangle {
+                                        implicitWidth: Theme.gameIcon
+                                        implicitHeight: Theme.gameIcon
+                                        radius: 8
+                                        color: Theme.controlFill
+                                        CoverArt {
+                                            id: saveIcon
+                                            anchors.fill: parent
+                                            visible: ready
+                                            crop: true
+                                            edge: false
+                                            radius: parent.radius
+                                            // The save's own icon, or else the game's.
+                                            picture: row.modelData.icon.toString().length > 0 ? row.modelData.icon.toString()
+                                                                                             : (row.modelData.gameIcon || "").toString()
+                                        }
+                                        Icon {
+                                            anchors.centerIn: parent
+                                            visible: !saveIcon.ready
+                                            name: "save"
+                                            size: 18
+                                            color: Theme.textSecondary
+                                        }
+                                    }
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 2
+                                        Text {
+                                            Layout.fillWidth: true
+                                            elide: Text.ElideRight
+                                            text: row.modelData.saveTitle
+                                            color: Theme.text
+                                            font.pixelSize: 13
+                                            font.weight: Font.Medium
+                                        }
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 6
+                                            // Whose it is: the name kept in the app, or the PSID.
+                                            Row {
+                                                readonly property string owner: root.ownerOf(row.modelData)
+                                                readonly property bool named: row.modelData.psidName.length > 0
+                                                                              || row.modelData.consoleUser.length > 0
+                                                visible: owner.length > 0
+                                                spacing: 4
+                                                Icon {
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    name: "user"
+                                                    size: 11
+                                                    color: parent.named ? Theme.accent : Theme.textMuted
+                                                }
+                                                Text {
+                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    text: parent.owner
+                                                    color: parent.named ? Theme.accent : Theme.textMuted
+                                                    font.pixelSize: 11
+                                                    font.weight: Font.Medium
+                                                }
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                elide: Text.ElideRight
+                                                // What the game says about it (chapter, level…), then the size.
+                                                text: (parent.children[0].visible ? "·  " : "")
+                                                      + [row.modelData.detail, row.modelData.size]
+                                                        .filter(function (t) { return t && t.length > 0 }).join("  ·  ")
+                                                color: Theme.textSecondary
+                                                font.pixelSize: 11
+                                            }
+                                        }
+                                    }
+                                    // Where it stands.
+                                    Rectangle {
+                                        readonly property string sync: row.modelData.sync
+                                        readonly property color tone: sync === "same" ? Theme.ok
+                                                                    : sync === "changed" ? Theme.warn
+                                                                    : sync === "vault" || sync === "older" ? Theme.accent
+                                                                    : sync === "usb" ? Theme.warn
+                                                                    : Theme.textSecondary
+                                        implicitWidth: badgeRow.implicitWidth + 18
+                                        implicitHeight: 26
+                                        radius: 13
+                                        color: Theme.alpha(tone, 0.14)
+                                        border.width: 1
+                                        border.color: Theme.alpha(tone, 0.4)
+                                        Row {
+                                            id: badgeRow
+                                            anchors.centerIn: parent
+                                            spacing: 6
+                                            Icon {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                name: parent.parent.sync === "same" ? "check"
+                                                    : parent.parent.sync === "changed" ? "history"
+                                                    : parent.parent.sync === "older" ? "arrow-down"
+                                                    : parent.parent.sync === "vault" ? "archive"
+                                                    : parent.parent.sync === "usb" ? "usb" : "upload"
+                                                size: 13
+                                                color: parent.parent.tone
+                                            }
+                                            Text {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                text: parent.parent.sync === "same" ? qsTr("On the PC")
+                                                    : parent.parent.sync === "changed" ? qsTr("Changed since the backup")
+                                                    : parent.parent.sync === "older" ? qsTr("The PC has a newer one")
+                                                    : parent.parent.sync === "vault" ? qsTr("Only on the PC")
+                                                    : parent.parent.sync === "usb" ? (row.modelData.usbOnConsole ? qsTr("On the console's USB drive")
+                                                                                                            : qsTr("On a USB drive"))
+                                                    : qsTr("Not backed up")
+                                                color: parent.parent.tone
+                                                font.pixelSize: 11
+                                                font.weight: Font.DemiBold
+                                            }
+                                        }
+                                        ToolTip.visible: badgeHover.hovered && row.modelData.backedUpAt.length > 0
+                                        ToolTip.text: qsTr("Last backup: %1 (%n kept)", "", row.modelData.versions)
+                                                      .arg(row.modelData.backedUpAt)
+                                        HoverHandler { id: badgeHover }
                                     }
                                 }
-                                ToolTip.visible: badgeHover.hovered && row.modelData.backedUpAt.length > 0
-                                ToolTip.text: qsTr("Last backup: %1 (%n kept)", "", row.modelData.versions)
-                                              .arg(row.modelData.backedUpAt)
-                                HoverHandler { id: badgeHover }
                             }
                         }
                     }
@@ -1041,7 +1096,7 @@ Item {
             var list = []
             for (var i = 0; i < saves.saves.length; ++i) {
                 var s = saves.saves[i]
-                if (keys.indexOf(s.key) < 0 || !s.inVault)
+                if (keys.indexOf(s.key) < 0 || !(s.inVault || s.onUsb))
                     continue
                 var id = s.psidFolder.length > 0 ? s.psidFolder : "user:" + s.account
                 if (seen[id] === undefined) {
@@ -1080,7 +1135,8 @@ Item {
         readonly property int missing: {
             var n = 0
             for (var i = 0; i < saves.saves.length; ++i)
-                if (keys.indexOf(saves.saves[i].key) >= 0 && saves.saves[i].inVault && (!here || !saves.saves[i].onConsole))
+                if (keys.indexOf(saves.saves[i].key) >= 0 && (saves.saves[i].inVault || saves.saves[i].onUsb)
+                        && (!here || !saves.saves[i].onConsole))
                     ++n
             return n
         }

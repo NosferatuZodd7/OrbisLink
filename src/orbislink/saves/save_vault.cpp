@@ -360,6 +360,14 @@ int64_t SaveInfo::vaultBytes() const
 	return total;
 }
 
+int64_t SaveInfo::usbBytes() const
+{
+	int64_t total = 0;
+	for(const SaveFile &file : usbFiles)
+		total += file.size;
+	return total;
+}
+
 namespace {
 
 // Whether the console's files are these: the encrypted image and its key
@@ -384,6 +392,8 @@ SaveSync SaveInfo::sync() const
 {
 	if(onConsole && !inVault)
 		return SaveSync::ConsoleOnly;
+	if(!onConsole && !inVault && onUsb)
+		return SaveSync::UsbOnly;
 	if(!onConsole)
 		return SaveSync::VaultOnly;
 	// The copy this console user was last known to have: backed up from
@@ -406,6 +416,11 @@ void SaveVault::setLinks(std::map<std::string, std::string> psidOfUser)
 	for(auto &pair : psidOfUser)
 		if(isAccountId(pair.first) && isPsid(pair.second))
 			links_[pair.first] = toLower(pair.second);
+}
+
+void SaveVault::setUsbDrives(std::vector<std::string> roots)
+{
+	usbDrives_ = std::move(roots);
 }
 
 std::string SaveVault::consoleSaveDir(const std::string &account, const std::string &titleId)
@@ -530,6 +545,128 @@ void SaveVault::readVault(std::map<std::string, SaveInfo> &out)
 				if(fileExists(icon))
 					save.iconPath = icon;
 				out[save.key()] = save;
+			}
+		}
+	}
+}
+
+namespace {
+
+// "/mnt/usb3" and the like: the console's USB drives.
+bool consoleUsbName(const std::string &name)
+{
+	return name.size() == 4 && startsWith(name, "usb") && std::isdigit(static_cast<unsigned char>(name[3]));
+}
+
+} // namespace
+
+void SaveVault::readUsb(std::map<std::string, SaveInfo> &out, SaveRemote *remote)
+{
+	// One save found on a drive: added, or noted on the one already known.
+	auto found = [&](const std::string &psid, const std::string &titleId, const std::string &dir,
+					  const std::string &folder, bool onConsole, std::vector<SaveFile> files) {
+		SaveInfo probe;
+		probe.psid = psid;
+		probe.titleId = titleId;
+		probe.dir = dir;
+		auto it = out.find(probe.key());
+		if(it == out.end())
+		{
+			probe.account = userOf(psid);
+			it = out.emplace(probe.key(), probe).first;
+		}
+		SaveInfo &save = it->second;
+		// The first drive it is on is the one it is read from.
+		if(save.onUsb)
+			return;
+		save.onUsb = true;
+		save.usbOnConsole = onConsole;
+		save.usbFolder = folder;
+		save.usbFiles = std::move(files);
+	};
+
+	// This PC's drives; not the vault's own folder when it is on one.
+	std::error_code error;
+	const fs::path ownSaves = fs::weakly_canonical(fs::u8path(joinPath(joinPath(root_, "PS4"), "SAVEDATA")), error);
+	for(const std::string &drive : usbDrives_)
+	{
+		const fs::path saves = fs::u8path(joinPath(joinPath(drive, "PS4"), "SAVEDATA"));
+		std::error_code same;
+		if(!fs::is_directory(saves, same) || fs::weakly_canonical(saves, same) == ownSaves)
+			continue;
+		for(const auto &owner : fs::directory_iterator(saves, error))
+		{
+			const std::string psid = toLower(owner.path().filename().u8string());
+			if(!owner.is_directory() || !isPsid(psid))
+				continue;
+			for(const auto &title : fs::directory_iterator(owner.path(), error))
+			{
+				const std::string titleId = title.path().filename().u8string();
+				if(!title.is_directory() || !plainName(titleId))
+					continue;
+				for(const auto &file : fs::directory_iterator(title.path(), error))
+				{
+					const std::string name = file.path().filename().u8string();
+					const fs::path key = title.path() / fs::u8path(name + ".bin");
+					if(file.is_directory() || endsWith(name, ".bin") || !plainName(name) || !fs::is_regular_file(key, error))
+						continue;
+					found(psid, titleId, name, title.path().u8string(), false,
+						{ { imageRelative(name), static_cast<int64_t>(fs::file_size(file.path(), error)), std::string() },
+							{ keyRelative(name), static_cast<int64_t>(fs::file_size(key, error)), std::string() } });
+				}
+			}
+		}
+	}
+
+	if(!remote)
+		return;
+	// The console's: the drives /mnt lists (all of them when it lists none).
+	std::vector<std::string> drives;
+	std::vector<FtpEntry> mounts;
+	std::string listError;
+	if(remote->list("/mnt", &mounts, &listError))
+		for(const FtpEntry &entry : mounts)
+			if(entry.isDirectory && consoleUsbName(entry.name))
+				drives.push_back("/mnt/" + entry.name);
+	if(drives.empty() && !listError.empty())
+		for(int n = 0; n < 8; ++n)
+			drives.push_back("/mnt/usb" + std::to_string(n));
+	for(const std::string &drive : drives)
+	{
+		const std::string saves = drive + "/PS4/SAVEDATA";
+		std::vector<FtpEntry> owners;
+		if(!remote->list(saves, &owners, &listError))
+			continue;
+		for(const FtpEntry &owner : owners)
+		{
+			const std::string psid = toLower(owner.name);
+			if(!owner.isDirectory || !isPsid(psid))
+				continue;
+			std::vector<FtpEntry> titles;
+			if(!remote->list(saves + "/" + owner.name, &titles, &listError))
+				continue;
+			for(const FtpEntry &title : titles)
+			{
+				if(!title.isDirectory || !plainName(title.name))
+					continue;
+				const std::string folder = saves + "/" + owner.name + "/" + title.name;
+				std::vector<FtpEntry> files;
+				if(!remote->list(folder, &files, &listError))
+					continue;
+				std::map<std::string, const FtpEntry *> byName;
+				for(const FtpEntry &file : files)
+					if(!file.isDirectory)
+						byName[file.name] = &file;
+				for(const auto &pair : byName)
+				{
+					const std::string &name = pair.first;
+					const auto key = byName.find(name + ".bin");
+					if(endsWith(name, ".bin") || !plainName(name) || key == byName.end())
+						continue;
+					found(psid, title.name, name, folder, true,
+						{ { imageRelative(name), pair.second->size, pair.second->modified },
+							{ keyRelative(name), key->second->size, key->second->modified } });
+				}
 			}
 		}
 	}
@@ -695,6 +832,11 @@ std::vector<SaveInfo> SaveVault::vaultSaves()
 {
 	std::map<std::string, SaveInfo> saves;
 	readVault(saves);
+	readUsb(saves, nullptr);
+	// The names of games known from before, for saves only on a drive.
+	for(auto &pair : saves)
+		if(pair.second.gameTitle.empty())
+			pair.second.gameTitle = gameTitle(nullptr, pair.second.titleId);
 	std::vector<SaveInfo> list;
 	for(auto &pair : saves)
 		list.push_back(std::move(pair.second));
@@ -961,6 +1103,9 @@ std::vector<SaveInfo> SaveVault::scan(SaveRemote &remote, std::string *error, co
 			kept.iconPath = save.iconPath;
 	}
 
+	// The saves on USB drives, this PC's and the console's.
+	readUsb(merged, &remote);
+
 	// A save of the vault not on this console: the user here it would go
 	// to. The one with its PSID; else one it was on, or whose folder still
 	// has the system's copies of it, while that user's PSID is not known.
@@ -1002,12 +1147,16 @@ std::vector<SaveInfo> SaveVault::scan(SaveRemote &remote, std::string *error, co
 
 bool SaveVault::backup(SaveRemote &remote, SaveInfo &save, std::string *error, const Progress &progress)
 {
-	const SaveFile *image = findFile(save.consoleFiles, imageRelative(save.dir));
-	const SaveFile *key = findFile(save.consoleFiles, keyRelative(save.dir));
-	if(!save.onConsole || !image || !key || !plainName(save.dir) || !plainName(save.titleId))
+	// From the console; from the USB drive it is on when the console does
+	// not have it.
+	const bool fromUsb = !save.onConsole && save.onUsb;
+	const std::vector<SaveFile> &source = fromUsb ? save.usbFiles : save.consoleFiles;
+	const SaveFile *image = findFile(source, imageRelative(save.dir));
+	const SaveFile *key = findFile(source, keyRelative(save.dir));
+	if((!save.onConsole && !fromUsb) || !image || !key || !plainName(save.dir) || !plainName(save.titleId))
 	{
 		if(error)
-			*error = "This save is not whole on the console.";
+			*error = fromUsb ? "This save is not whole on the USB drive." : "This save is not whole on the console.";
 		return false;
 	}
 	const std::string psid = psidFor(save);
@@ -1032,8 +1181,14 @@ bool SaveVault::backup(SaveRemote &remote, SaveInfo &save, std::string *error, c
 		if(progress)
 			progress(parts[i]->relative, i / 2.0);
 		const std::string local = joinPath(incoming, names[i]);
-		const std::string remotePath = consoleSaveDir(save.account, save.titleId) + "/" + parts[i]->relative.substr(9);
-		const bool copied = remote.download(remotePath, local, error);
+		bool copied = false;
+		if(!fromUsb)
+			copied = remote.download(consoleSaveDir(save.account, save.titleId) + "/" + parts[i]->relative.substr(9),
+				local, error);
+		else if(save.usbOnConsole)
+			copied = remote.download(save.usbFolder + "/" + names[i], local, error);
+		else if(!(copied = copyFile(joinPath(save.usbFolder, names[i]), local)) && error)
+			*error = "Could not read " + names[i] + " on the USB drive.";
 		// What arrived must be what the console listed.
 		if(!copied || fileSize(local) != parts[i]->size)
 		{
@@ -1100,10 +1255,16 @@ bool SaveVault::backup(SaveRemote &remote, SaveInfo &save, std::string *error, c
 	for(int n = 2; taken(stamp); ++n)
 		stamp = now + "-" + std::to_string(n);
 	save.stamp = stamp;
-	recordCopy(save.copies, { save.account, stamp, save.vaultFiles });
-	addUser(save.users, save.account);
+	// Where it came from has this backup: the console user (a USB drive is
+	// not one).
+	if(!fromUsb)
+	{
+		recordCopy(save.copies, { save.account, stamp, save.vaultFiles });
+		addUser(save.users, save.account);
+	}
 	Json json = Json::makeObject();
-	json.set("account", Json::fromString(save.account));
+	// The console user it was backed up from: none for a USB drive's.
+	json.set("account", Json::fromString(fromUsb ? std::string() : save.account));
 	json.set("title_id", Json::fromString(save.titleId));
 	json.set("dir", Json::fromString(save.dir));
 	json.set("game_title", Json::fromString(save.gameTitle));
@@ -1131,7 +1292,7 @@ bool SaveVault::backup(SaveRemote &remote, SaveInfo &save, std::string *error, c
 	save.versions = 1 + static_cast<int>(historyOf(info).size());
 	if(progress)
 		progress(std::string(), 1.0);
-	logInfo("Saves: backed up " + save.key() + " to PS4/SAVEDATA/" + psid);
+	logInfo("Saves: backed up " + save.key() + (fromUsb ? " from a USB drive" : "") + " to PS4/SAVEDATA/" + psid);
 	return true;
 }
 
@@ -1261,8 +1422,21 @@ std::string SaveVault::gameTitle(SaveRemote *remote, const std::string &titleId)
 	if(fileSize(local) <= 0 && remote && !missingMeta_.count(titleId + ".sfo"))
 	{
 		ensureDir(dir);
-		std::string error;
-		if(!remote->download("/user/appmeta/" + titleId + "/param.sfo", local, &error))
+		// Where the console keeps an installed game's param.sfo: the
+		// system's own copy (of a game on an extended drive too), or the
+		// user's, which some systems have instead.
+		bool found = false;
+		for(const std::string &folder : { "/system_data/priv/appmeta/" + titleId,
+				"/system_data/priv/appmeta/external/" + titleId, "/user/appmeta/" + titleId })
+		{
+			std::string error;
+			if(remote->download(folder + "/param.sfo", local, &error) && fileSize(local) > 0)
+			{
+				found = true;
+				break;
+			}
+		}
+		if(!found)
 		{
 			std::error_code ignored;
 			fs::remove(fs::u8path(local), ignored);

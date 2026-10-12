@@ -5,7 +5,7 @@
 // a glance says which one it is:
 //
 // * converting — amber, a disc that spins;
-// * sending    — blue, an arrow that keeps rising;
+// * sending    — blue, arrows gliding up through the ring, one after another;
 // * installing — green, a box that breathes;
 // * waiting    — grey, a ring that turns with no fill.
 //
@@ -77,6 +77,7 @@ Item {
     Icon {
         id: glyph
         anchors.centerIn: parent
+        visible: !loader.gliding
         name: loader.stage === "error" ? "alert"
             : !loader.active ? "check"
             : loader.stage === "waiting" ? "loader"
@@ -99,16 +100,42 @@ Item {
         loops: Animation.Infinite
         onStopped: glyph.rotation = 0
     }
-    // Sending: the arrow keeps rising.
-    SequentialAnimation {
-        running: loader.stage === "sending"
-        loops: Animation.Infinite
-        onStopped: { glyph.anchors.verticalCenterOffset = 0; glyph.opacity = 1 }
-        ParallelAnimation {
-            NumberAnimation { target: glyph; property: "anchors.verticalCenterOffset"; from: 4; to: -4; duration: 700; easing.type: Easing.OutCubic }
-            NumberAnimation { target: glyph; property: "opacity"; from: 0.2; to: 1; duration: 350 }
+    // Sending: arrows glide up at an even pace, each leaving through the top
+    // of a window inside the ring as the next comes in from the bottom — one
+    // steady motion, with no jump back.
+    readonly property bool gliding: stage === "sending"
+    Item {
+        id: lane
+        visible: loader.gliding
+        anchors.centerIn: parent
+        width: glyph.size
+        height: glyph.size
+        clip: true
+        Column {
+            id: arrows
+            readonly property real step: lane.height + spacing
+            spacing: Math.round(lane.height * 0.35)
+            Repeater {
+                model: 2
+                Icon {
+                    required property int index
+                    name: "arrow-up"
+                    size: lane.width
+                    strokeWidth: 2
+                    color: loader.tone
+                    // Faded out as it leaves at the top and in as it comes
+                    // in at the bottom, instead of being cut off.
+                    opacity: Math.max(0, 1 - Math.abs(arrows.y + index * arrows.step) / (lane.height * 0.9))
+                }
+            }
+            NumberAnimation on y {
+                running: loader.gliding && loader.visible
+                from: 0
+                to: -arrows.step
+                duration: 900
+                loops: Animation.Infinite
+            }
         }
-        NumberAnimation { target: glyph; property: "opacity"; to: 0; duration: 250 }
     }
     // Installing: the box breathes.
     SequentialAnimation {
