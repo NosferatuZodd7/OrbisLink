@@ -17,6 +17,10 @@ Item {
 
     signal back()
 
+    // In the main area, framed as a panel with a way back; over Remote Play
+    // (SectionOverlay) the overlay is the frame, shows the name and closes it.
+    property bool framed: true
+
     readonly property bool online: saves.online
     // "all", "console" (not backed up), "changed" (and older), "vault" (only on the PC).
     property string filter: "all"
@@ -297,19 +301,19 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        anchors.leftMargin: Theme.gutter
-        anchors.rightMargin: window.panelShown ? 8 : Theme.gutter
-        anchors.topMargin: 4
-        anchors.bottomMargin: 4
+        anchors.leftMargin: root.framed ? Theme.gutter : 0
+        anchors.rightMargin: !root.framed ? 0 : window.panelShown ? 8 : Theme.gutter
+        anchors.topMargin: root.framed ? 4 : 0
+        anchors.bottomMargin: root.framed ? 4 : 0
         radius: Theme.radius
-        color: Theme.panelFill
-        border.width: 1
+        color: root.framed ? Theme.panelFill : "transparent"
+        border.width: root.framed ? 1 : 0
         border.color: Theme.glassEdge
         clip: true
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 24
+            anchors.margins: root.framed ? 24 : 18
             spacing: 14
 
             // ── header
@@ -317,6 +321,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 12
                 StyledToolButton {
+                    visible: root.framed
                     iconName: "chevron-left"
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Back to the consoles")
@@ -325,6 +330,7 @@ Item {
                 ColumnLayout {
                     spacing: 2
                     Text {
+                        visible: root.framed
                         text: qsTr("Save vault")
                         color: Theme.text
                         font.pixelSize: Theme.fontTitle
@@ -673,21 +679,22 @@ Item {
                             anchors.rightMargin: 14
                             spacing: 12
                             Rectangle {
-                                implicitWidth: 38
-                                implicitHeight: 38
-                                radius: 9
+                                implicitWidth: Theme.gameIcon
+                                implicitHeight: Theme.gameIcon
+                                radius: 8
                                 color: Theme.controlFill
-                                clip: true
-                                Image {
+                                CoverArt {
+                                    id: sectionIcon
                                     anchors.fill: parent
-                                    source: parent.parent.parent.first ? parent.parent.parent.first.gameIcon : ""
-                                    fillMode: Image.PreserveAspectCrop
-                                    asynchronous: true
-                                    visible: status === Image.Ready
+                                    visible: ready
+                                    crop: true
+                                    edge: false
+                                    radius: parent.radius
+                                    picture: parent.parent.parent.first ? parent.parent.parent.first.gameIcon : ""
                                 }
                                 Icon {
                                     anchors.centerIn: parent
-                                    visible: parent.children[0].status !== Image.Ready
+                                    visible: !sectionIcon.ready
                                     name: "gamepad"
                                     size: 18
                                     color: Theme.textSecondary
@@ -742,23 +749,24 @@ Item {
                                 color: row.picked ? Theme.accent : Theme.textSecondary
                             }
                             Rectangle {
-                                implicitWidth: 40
-                                implicitHeight: 40
+                                implicitWidth: Theme.gameIcon
+                                implicitHeight: Theme.gameIcon
                                 radius: 8
                                 color: Theme.controlFill
-                                clip: true
-                                Image {
+                                CoverArt {
                                     id: saveIcon
                                     anchors.fill: parent
+                                    visible: ready
+                                    crop: true
+                                    edge: false
+                                    radius: parent.radius
                                     // The save's own icon, or else the game's.
-                                    source: row.modelData.icon.toString().length > 0 ? row.modelData.icon
-                                                                                   : row.modelData.gameIcon
-                                    fillMode: Image.PreserveAspectCrop
-                                    asynchronous: true
+                                    picture: row.modelData.icon.toString().length > 0 ? row.modelData.icon.toString()
+                                                                                     : (row.modelData.gameIcon || "").toString()
                                 }
                                 Icon {
                                     anchors.centerIn: parent
-                                    visible: saveIcon.status !== Image.Ready
+                                    visible: !saveIcon.ready
                                     name: "save"
                                     size: 18
                                     color: Theme.textSecondary
@@ -858,19 +866,29 @@ Item {
                     }
                 }
 
-                // Empty, or reading.
+                // Reading: the shape of the rows about to come.
+                Column {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    visible: root.shown.length === 0 && saves.busy
+                    spacing: 6
+                    Repeater {
+                        model: parent.visible ? 5 : 0
+                        SkeletonRow {
+                            required property int index
+                            width: parent.width
+                            delay: index * 80
+                        }
+                    }
+                }
+
+                // Empty.
                 Column {
                     anchors.centerIn: parent
-                    visible: root.shown.length === 0
+                    visible: root.shown.length === 0 && !saves.busy
                     spacing: 12
-                    BusyIndicator {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        visible: saves.busy
-                        running: saves.busy
-                    }
                     Icon {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        visible: !saves.busy
                         name: "archive"
                         size: 44
                         color: Theme.alpha(Theme.textSecondary, 0.7)
@@ -1113,11 +1131,9 @@ Item {
                     font.pixelSize: 14
                     font.weight: Font.DemiBold
                 }
-                BusyIndicator {
+                Spinner {
                     visible: !confirmSend.ready
-                    running: visible
-                    implicitWidth: 22
-                    implicitHeight: 22
+                    size: 20
                 }
             }
             Text {

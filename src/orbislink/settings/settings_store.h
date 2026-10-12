@@ -181,6 +181,10 @@ struct Settings
 	bool libraryLocationsSeeded = false;
 	// Only games (and the folders that lead to them), or everything.
 	bool libraryOnlyGames = true;
+	// How opaque a page shown over Remote Play is (kOverlayMinOpacity to
+	// 1: below that, a busy picture under it makes it hard to read).
+	static constexpr double kOverlayMinOpacity = 0.7;
+	double overlayOpacity = 0.9;
 	// Where games installed on the console are copied to on this PC (empty:
 	// Documents/OrbisLink/From the console).
 	std::string consoleCopyFolder;

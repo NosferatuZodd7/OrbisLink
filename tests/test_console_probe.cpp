@@ -5,6 +5,7 @@
 // banner and the remote installer answering HTTP, either of which may be missing.
 
 #include "orbislink/console/console_manager.h"
+#include "orbislink/net/lan_scan.h"
 #include "orbislink/net/socket_compat.h"
 #include "test_support.h"
 
@@ -254,6 +255,47 @@ ORBISLINK_TEST(ftp_port_candidates_start_with_the_set_port)
 	CHECK(knownPortUse(9090, true).find("DPI v1") != std::string::npos);
 	CHECK(knownPortUse(1337, true).find("etaHEN") != std::string::npos);
 	CHECK(knownPortUse(4444, true).empty());
+}
+
+ORBISLINK_TEST(a_search_asks_every_interfaces_network)
+{
+	std::vector<LocalInterface> interfaces;
+	interfaces.push_back({ "lo", "127.0.0.1", "255.0.0.0", true });
+	interfaces.push_back({ "wifi", "192.168.1.20", "255.255.255.0", false });
+	// Cable and Wi-Fi on the same network: asked once.
+	interfaces.push_back({ "eth", "192.168.1.21", "255.255.255.0", false });
+	// A VPN's big network: its broadcast only.
+	interfaces.push_back({ "vpn", "10.8.0.5", "255.255.0.0", false });
+	// A public address: its broadcast, never a sweep.
+	interfaces.push_back({ "pub", "203.0.113.7", "255.255.255.0", false });
+	// An address the PC gave itself: nothing.
+	interfaces.push_back({ "ll", "169.254.10.10", "255.255.0.0", false });
+	const LanTargets targets = lanTargets(interfaces);
+	CHECK_EQ(targets.broadcasts.size(), static_cast<size_t>(4));
+	CHECK_EQ(targets.broadcasts[0], std::string("255.255.255.255"));
+	CHECK_EQ(targets.broadcasts[1], std::string("192.168.1.255"));
+	CHECK_EQ(targets.broadcasts[2], std::string("10.8.255.255"));
+	CHECK_EQ(targets.broadcasts[3], std::string("203.0.113.255"));
+	// 192.168.1.1 to .254 but the PC's own two.
+	CHECK_EQ(targets.hosts.size(), static_cast<size_t>(252));
+	CHECK_EQ(targets.hosts.front(), std::string("192.168.1.1"));
+	CHECK_EQ(targets.hosts.back(), std::string("192.168.1.254"));
+	for(const std::string &host : targets.hosts)
+		CHECK(host != "192.168.1.20" && host != "192.168.1.21");
+	CHECK_EQ(lanTargets(interfaces, 10).hosts.size(), static_cast<size_t>(10));
+	CHECK(privateIPv4(0xAC1F0001)); // 172.31.0.1
+	CHECK(!privateIPv4(0xAC200001)); // 172.32.0.1
+}
+
+ORBISLINK_TEST(finds_the_hosts_with_a_port_open)
+{
+	FakeService ftp("220 FTP ready\r\n");
+	CHECK(ftp.start());
+	// 127.0.0.2 is this machine too, on another address: nothing listens there.
+	const std::vector<std::string> open = hostsWithPort({ "127.0.0.1", "127.0.0.2", "not an address" }, ftp.port(), 800);
+	CHECK_EQ(open.size(), static_cast<size_t>(1));
+	CHECK_EQ(open.front(), std::string("127.0.0.1"));
+	CHECK(hostsWithPort({ "127.0.0.1" }, closedPort(), 500).empty());
 }
 
 ORBISLINK_TEST(empty_address_does_not_go_to_the_network)

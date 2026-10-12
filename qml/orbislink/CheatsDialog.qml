@@ -26,11 +26,21 @@ Dialog {
     property string message: ""
     property bool messageError: false
 
-    function begin(card) {
+    // Where it was opened from (the game's details): ‹ and Back go there.
+    property var backTo: null
+
+    function begin(card, from) {
         tab = 0
         message = ""
+        backTo = from || null
         cheats.open(card)
         open()
+    }
+    function goBack() {
+        var from = backTo
+        close()
+        if (from)
+            from()
     }
 
     Connections {
@@ -56,6 +66,9 @@ Dialog {
     header: DialogHeader {
         title: cheats.patchesSupported ? qsTr("Cheats and patches") : qsTr("Cheats")
         dialog: dialog
+        backable: dialog.backTo !== null
+        backText: qsTr("Back to the game")
+        onBack: dialog.goBack()
     }
 
     contentItem: ColumnLayout {
@@ -69,7 +82,9 @@ Dialog {
             spacing: 10
             Text {
                 Layout.fillWidth: true
-                text: [dialog.game.title || "", dialog.game.titleId || "",
+                // The title ID once: a game whose name is not known has it as its title.
+                text: [dialog.game.title !== dialog.game.titleId ? (dialog.game.title || "") : "",
+                       dialog.game.titleId || "",
                        dialog.game.version ? qsTr("version %1").arg(dialog.game.version) : "",
                        cheats.ps5 ? qsTr("etaHEN (PS5)") : qsTr("GoldHEN (PS4)")]
                       .filter(function (part) { return part.length > 0 }).join("  ·  ")
@@ -309,10 +324,20 @@ Dialog {
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
             }
-            BusyIndicator {
-                anchors.centerIn: parent
-                visible: cheats.busy && cheats.cheats.length === 0
-                running: visible
+            Column {
+                anchors.fill: parent
+                anchors.margins: 6
+                visible: cheats.busy && cheats.cheats.length === 0 && cheats.otherFiles.length === 0
+                spacing: 6
+                Repeater {
+                    model: parent.visible ? 4 : 0
+                    SkeletonRow {
+                        required property int index
+                        width: parent.width
+                        implicitHeight: 84
+                        delay: index * 80
+                    }
+                }
             }
         }
 
@@ -411,10 +436,21 @@ Dialog {
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
             }
-            BusyIndicator {
-                anchors.centerIn: parent
+            Column {
+                anchors.fill: parent
+                anchors.margins: 6
                 visible: cheats.busy && cheats.patches.length === 0
-                running: visible
+                spacing: 4
+                Repeater {
+                    model: parent.visible ? 7 : 0
+                    SkeletonRow {
+                        required property int index
+                        width: parent.width
+                        compact: true
+                        implicitHeight: 44
+                        delay: index * 60
+                    }
+                }
             }
         }
 
@@ -448,11 +484,9 @@ Dialog {
             anchors.leftMargin: Theme.dialogMargin
             anchors.rightMargin: Theme.dialogMargin
             spacing: 8
-            BusyIndicator {
+            Spinner {
                 visible: cheats.busy
-                running: visible
-                Layout.preferredWidth: 20
-                Layout.preferredHeight: 20
+                size: 16
             }
             Icon {
                 visible: !cheats.busy && dialog.message.length > 0
@@ -474,6 +508,13 @@ Dialog {
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2
                 elide: Text.ElideRight
+            }
+            StyledButton {
+                visible: dialog.backTo !== null
+                text: qsTr("Back")
+                iconName: "chevron-left"
+                minimumWidth: 90
+                onClicked: dialog.goBack()
             }
             StyledButton {
                 text: qsTr("Close")

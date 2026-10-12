@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "orbislink/qt/stream_controller.h"
 
+#include "orbislink/net/lan_scan.h"
+
 #include "orbislink/qt/translate_message.h"
 #include "orbislink/stream/account_id.h"
 #include "orbislink/common/util.h"
@@ -14,6 +16,9 @@
 #include <QMetaObject>
 #include <algorithm>
 #include <thread>
+#include <QSet>
+#include <set>
+#include <map>
 
 #include <chiaki/controller.h>
 
@@ -523,13 +528,58 @@ void StreamController::scanNetwork()
 	scanResults_.clear();
 	emit scanChanged();
 	std::thread([this, life = lifeline_]() {
-		const std::vector<HostInfo> found = StreamDiscovery::scan(2500);
+		// Beside Remote Play's own search, the ports a jailbroken console
+		// opens — GoldHEN's or ftpsrv's FTP (2121), etaHEN's (1337), Remote
+		// Package Installer (12800) — so one with Remote Play turned off is
+		// found too.
+		std::map<std::string, std::set<uint16_t>> ports;
+		std::thread sweep([&ports]() {
+			std::vector<std::string> hosts = lanTargets(localInterfaces()).hosts;
+			if(hosts.size() > 512)
+				hosts.resize(512);
+			for(const uint16_t port : { uint16_t(2121), uint16_t(1337), uint16_t(12800) })
+				for(const std::string &host : hostsWithPort(hosts, port, 900))
+					ports[host].insert(port);
+		});
+		const std::vector<HostInfo> found = StreamDiscovery::scan(3000);
+		sweep.join();
 		life->post(
-			[this, found]() {
+			[this, found, ports]() {
 				scanning_ = false;
 				scanResults_.clear();
+				QSet<QString> seen;
 				for(const HostInfo &info : found)
-					scanResults_.append(describeHost(info));
+				{
+					QVariantMap row = describeHost(info);
+					const auto open = ports.find(info.address);
+					if(open != ports.end() && !open->second.empty())
+						row[QStringLiteral("ftpPort")] = *open->second.begin();
+					row[QStringLiteral("kind")] = info.ps5 ? QStringLiteral("ps5") : QStringLiteral("ps4");
+					scanResults_.append(row);
+					seen.insert(QString::fromStdString(info.address));
+				}
+				for(const auto &entry : ports)
+				{
+					const QString address = QString::fromStdString(entry.first);
+					if(seen.contains(address))
+						continue;
+					const std::set<uint16_t> &open = entry.second;
+					// The installer is a PS4's; etaHEN's FTP port a PS5's; 2121
+					// alone could be either.
+					const QString kind = open.count(12800) ? QStringLiteral("ps4")
+						: open.count(1337) ? QStringLiteral("ps5") : QString();
+					QVariantMap row;
+					row[QStringLiteral("state")] = QStringLiteral("ftp");
+					row[QStringLiteral("name")] = QString();
+					row[QStringLiteral("address")] = address;
+					row[QStringLiteral("ps5")] = kind == QLatin1String("ps5");
+					row[QStringLiteral("kind")] = kind;
+					row[QStringLiteral("registered")] = false;
+					row[QStringLiteral("hostId")] = QString();
+					row[QStringLiteral("ftpPort")] = open.count(1337) ? 1337 : open.count(2121) ? 2121 : 0;
+					row[QStringLiteral("installer")] = open.count(12800) > 0;
+					scanResults_.append(row);
+				}
 				emit scanChanged();
 			});
 	}).detach();

@@ -111,7 +111,18 @@ saved. When the console asks for the account's passcode while connecting,
 the 4-digit PIN saved for that account is sent once; if it has none, or the
 console refuses it, the PIN is asked for.
 
-**Add console**: name, IP and type; it is probed straight away.
+**Add console**: name, IP and type; it is probed straight away. Its
+**On the network** list searches as it opens (and with **Search again**): the
+Remote Play search goes to every network interface's own broadcast address,
+three times over three seconds, and on a small private network (a /23 or
+smaller, as a home's is) to every address of it one by one — a single
+broadcast to 255.255.255.255 can leave through the wrong adapter (a VPN, a
+virtual machine's) and some routers do not pass broadcasts between Wi-Fi and
+cable. At the same time it looks for the ports a jailbroken console opens
+(2121 GoldHEN's or ftpsrv's FTP, 1337 etaHEN's, 12800 Remote Package
+Installer), so one with Remote Play turned off shows up too, marked *its FTP
+server answered*: **PS4** when the installer answers, **PS5** when etaHEN's
+FTP does, **FTP** when it cannot tell.
 
 ## Remote Play session
 
@@ -125,6 +136,19 @@ The picture fills the stage. Moving the mouse shows the toolbar:
 | Microphone | Sends / stops the PC microphone. |
 | Full screen | Full screen on / off (F11; Esc leaves the session). |
 | **End the session** | Disconnects. |
+
+**Pages over the picture.** While a session is on screen, the top bar's
+Games, Homebrew store, Save vault and Payloads buttons open their page over
+the picture instead of in place of it, so the game stays in sight: a panel
+sized for the room there is, with a bar on top holding the page's name, an
+opacity slider (70 % to 100 %, kept for next time) and ✕. The slider sets how
+much of the game shows through the panel; the writing on it stays a step
+clearer, and the bar is always clearer still, so it can be found even with
+the panel faint. The same button again, ✕ or Esc (once nothing inside the
+page took it — the library's Esc first goes up a folder) closes it. While a
+page is open the keyboard is the page's, not the console's; it goes back to
+the console when the page closes. Full screen (F11) closes the page. Without
+a session the pages open in the main area, as always.
 
 Video apps (YouTube, Netflix…) and other protected screens are not sent over
 Remote Play. While the console shows one, the picture stays dark with a
@@ -367,9 +391,11 @@ and so does opening another folder. A game that cannot be done the way chosen
 is left as it is, and a note says how many.
 
 **Installed on the console** lists what the console has installed, as its
-home screen does: each game or app under `/user/app`, with its name, version
-and icon (from `/user/appmeta`: `param.sfo` on a PS4, `param.json` on a
-PS5), and what it has — the game's package, its update (`/user/patch`), its
+home screen does: each game or app under `/user/app`, with its name and
+version — the update's, when one is installed — from the system's own copy of
+its `param.sfo` (`param.json` on a PS5) in `/system_data/priv/appmeta/<TITLE ID>`
+(`external/` for the extended storage, `/user/appmeta` when neither has it),
+its icon from `/user/appmeta`, and what it has — the game's package, its update (`/user/patch`), its
 add-ons (`/user/addcont`). **Copy to this PC** (on its details, or for
 several picked with **Select**) asks first: with the update and the add-ons
 or not, the folder they go to (**Change…**; *Documents/OrbisLink/From the
@@ -388,7 +414,9 @@ On a PS4, its details also have **Uninstall…** (under **…**): the add-ons, t
 update and the game go from the console through Remote Package Installer
 (its saves stay), and **Uninstall the update…** puts the game back at the
 version it was installed with. Both ask first, have their card in the Queue
-tab, and the list is read again after. A PS5's installer (etaHEN's DPI) has
+tab, and the list is read again after; a card that failed (Remote Package
+Installer not open, say) has ↻ to try again once it is — as do a game put on
+the home screen and a payload run from the library. A PS5's installer (etaHEN's DPI) has
 no such call: there, the console's own menu uninstalls. How much room the
 console's drives have left is not shown: its FTP does not say.
 
@@ -419,6 +447,12 @@ and only when plugins.ini loads game_patch — the dialog says when it does not.
 The lists and the archive are kept on this PC and fetched again after half a
 day (**Fetch the lists again** does it now); without the internet, the copy
 kept is used and the dialog says so.
+
+While a place is being read for the first time, grey cards with a light
+sweeping across stand where its games will be; the other pages do the same for
+their lists (saves, the store, the FTP files, the cheats). Pictures are made at
+the screen's own pixels — scaled down smoothly, their corners cut — so they
+stay sharp on any screen and at any scale.
 
 A card's picture, the first found of:
 
@@ -478,19 +512,21 @@ after an install or a package put back.
 2. The first conversion downloads the Classics files once (about 109 MB);
    **Download now** does it earlier. Nothing else has to be provided.
 
-Each game's card has its cover as its background, from the cover collection
-by its serial (cached once found; a disc stands in until then), darkened at
-the top and the bottom so its platform, name, serial, region and file stay
-readable over it; the game's dialog shows it too, and so does its card in
-the Queue tab while it is converted, sent and installed, with the step under
-way in its corner. While bytes move, the card says how fast and how long is
-left; when it is over (the package made, sent or installed) its ring turns
-green with a ✓.
+Each game's card is the library's (**All games**): the same size, its cover
+on top — from the cover collection by its serial, cached once found; a disc
+stands in until then — the platform in its corner, the name and the serial
+and size under it. The game's dialog shows the cover too, and so does its
+card in the Queue tab while it is converted, sent and installed. While it is
+on its way, the step's ring sits over the cover with a bar along its bottom,
+and the line under the name says the step and how far it is; when it is over
+(the package made, sent or installed) the ring turns green with a ✓. Every
+game picture in the app has one of a few sizes (a card in a grid, a place on
+the library's home, a picture in a row, the large one of a details dialog).
 
 | Item | Does |
 |---|---|
 | Game card | Opens the game's dialog. |
-| ☐ on a card | Selects it; with several selected, **Continue…** opens one dialog for all. |
+| ○ on a card (or Ctrl/Shift+click) | Selects it; with several selected, **Continue…** opens one dialog for all. |
 
 ### Game dialog
 

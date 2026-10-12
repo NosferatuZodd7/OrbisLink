@@ -3,9 +3,12 @@
 // A game's picture with its corners rounded, like every card. It fills the
 // frame (crop), or, when its shape is not the frame's (a PS2 box in a square)
 // and it is not asked to fill, sits whole over a dimmed copy of itself; with
-// none, or while it loads, a disc stands in (DiscPlaceholder). Drawn on a
-// canvas so the corners are cut for real, whatever is behind.
+// none, or while it loads, a disc stands in (DiscPlaceholder). The picture
+// is made by the cover image provider (cover_provider.h) at the screen's own
+// pixels — scaled down smoothly, its corners cut — and drawn 1:1, so it
+// stays sharp on any screen and at any scale.
 import QtQuick
+import QtQuick.Window
 
 Item {
     id: art
@@ -19,18 +22,29 @@ Item {
     // The thin edge around it.
     property bool edge: true
 
-    // The picture's shape, and whether it loads, from a small copy never drawn.
-    readonly property bool ready: shape.status === Image.Ready
-    readonly property real ratio: shape.implicitHeight > 0 ? shape.implicitWidth / shape.implicitHeight : 1
-    readonly property bool square: crop || Math.abs(ratio - width / Math.max(1, height)) < 0.12
+    // The picture is there — or was, at another size, and shows until the
+    // new size is made.
+    readonly property bool ready: picture.length > 0 && (image.status === Image.Ready || drawn === picture)
+    // The picture last made, and its image URL.
+    property string drawn: ""
+    property string drawnSource: ""
 
-    Image {
-        id: shape
-        visible: false
-        source: art.picture
-        sourceSize.width: 64
-        asynchronous: true
+    // The frame in the screen's pixels, settled: while a window is being
+    // resized the picture is stretched, and made again once it stops.
+    readonly property real pixelRatio: Screen.devicePixelRatio > 0 ? Screen.devicePixelRatio : 1
+    property size frame: Qt.size(0, 0)
+    function settle() {
+        frame = Qt.size(Math.round(width * pixelRatio), Math.round(height * pixelRatio))
     }
+    Timer {
+        id: settleTimer
+        interval: 150
+        onTriggered: art.settle()
+    }
+    onWidthChanged: frame.width > 0 ? settleTimer.restart() : settle()
+    onHeightChanged: frame.height > 0 ? settleTimer.restart() : settle()
+    onPixelRatioChanged: settle()
+    Component.onCompleted: settle()
 
     DiscPlaceholder {
         anchors.fill: parent
@@ -40,73 +54,33 @@ Item {
         radius: art.radius
     }
 
-    Canvas {
-        id: canvas
+    // The last size made, while the new one is.
+    Image {
         anchors.fill: parent
-        visible: art.ready
-
-        function load() {
-            if (art.picture.length > 0 && !isImageLoaded(art.picture))
-                loadImage(art.picture)
-            requestPaint()
-        }
-        // Where the picture goes: covering the frame, or whole inside it.
-        function place(cover) {
-            var w = width, h = height
-            var wider = art.ratio > w / Math.max(1, h)
-            var dw, dh
-            if (wider === cover) {
-                dh = h
-                dw = h * art.ratio
-            } else {
-                dw = w
-                dh = w / Math.max(0.01, art.ratio)
-            }
-            return [(w - dw) / 2, (h - dh) / 2, dw, dh]
-        }
-
-        onPaint: {
-            var ctx = getContext("2d")
-            ctx.reset()
-            if (!art.ready || art.picture.length === 0 || !isImageLoaded(art.picture))
-                return
-            var w = width, h = height
-            var r = Math.max(0, Math.min(art.radius, w / 2, h / 2))
-            ctx.beginPath()
-            ctx.moveTo(r, 0)
-            ctx.lineTo(w - r, 0)
-            ctx.arcTo(w, 0, w, r, r)
-            ctx.lineTo(w, h - r)
-            ctx.arcTo(w, h, w - r, h, r)
-            ctx.lineTo(r, h)
-            ctx.arcTo(0, h, 0, h - r, r)
-            ctx.lineTo(0, r)
-            ctx.arcTo(0, 0, r, 0, r)
-            ctx.closePath()
-            ctx.clip()
-            ctx.fillStyle = Theme.cardBottom
-            ctx.fillRect(0, 0, w, h)
-            var cover = place(true)
-            if (art.square) {
-                ctx.drawImage(art.picture, cover[0], cover[1], cover[2], cover[3])
-                return
-            }
-            ctx.globalAlpha = 0.3
-            ctx.drawImage(art.picture, cover[0], cover[1], cover[2], cover[3])
-            ctx.globalAlpha = 1
-            var whole = place(false)
-            ctx.drawImage(art.picture, whole[0], whole[1], whole[2], whole[3])
-        }
-        onImageLoaded: requestPaint()
-        onWidthChanged: requestPaint()
-        onHeightChanged: requestPaint()
-        Component.onCompleted: load()
+        visible: image.status !== Image.Ready && art.drawn === art.picture
+        asynchronous: true
+        smooth: true
+        source: art.drawnSource
     }
 
-    onPictureChanged: canvas.load()
-    onReadyChanged: canvas.requestPaint()
-    onSquareChanged: canvas.requestPaint()
-    onRadiusChanged: canvas.requestPaint()
+    Image {
+        id: image
+        anchors.fill: parent
+        visible: status === Image.Ready
+        asynchronous: true
+        smooth: true
+        source: art.picture.length > 0 && art.frame.width > 0 && art.frame.height > 0
+                ? "image://cover/" + art.frame.width + "x" + art.frame.height + "/"
+                  + Math.round(art.radius * art.pixelRatio) + "/" + (art.crop ? "crop" : "fit") + "/"
+                  + encodeURIComponent(String(Theme.cardBottom)) + "/" + encodeURIComponent(art.picture)
+                : ""
+        onStatusChanged: {
+            if (status !== Image.Ready)
+                return
+            art.drawn = art.picture
+            art.drawnSource = source
+        }
+    }
 
     // The tile's own edge over the picture.
     Rectangle {

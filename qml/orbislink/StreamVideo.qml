@@ -16,8 +16,20 @@ VideoOutput {
     // stage (see StreamArea) and fills it; "fit" keeps the picture as sent.
     fillMode: app.streamAspect === "fit" ? VideoOutput.PreserveAspectFit : VideoOutput.Stretch
 
-    // The keyboard acts as the controller while there is a stream.
+    // The keyboard acts as the controller while there is a stream — but not
+    // while a page is open over the picture (SectionOverlay): it is that
+    // page's then.
+    readonly property bool keysToPage: typeof window !== "undefined" && window.overSection.length > 0
+    onKeysToPageChanged: if (keysToPage) stream.releaseAllKeys()
     Keys.onPressed: function(event) {
+        if (video.keysToPage) {
+            // The picture clicked while the page is open: Esc still closes it.
+            if (event.key === Qt.Key_Escape) {
+                window.overSection = ""
+                event.accepted = true
+            }
+            return
+        }
         if (event.isAutoRepeat)
             return
         if (event.key === Qt.Key_Escape) {
@@ -38,7 +50,7 @@ VideoOutput {
         event.accepted = stream.keyPressed(event.key)
     }
     Keys.onReleased: function(event) {
-        if (event.isAutoRepeat)
+        if (event.isAutoRepeat || video.keysToPage)
             return
         event.accepted = stream.keyReleased(event.key)
     }

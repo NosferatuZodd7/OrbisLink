@@ -225,10 +225,20 @@ Dialog {
                 color: Theme.textSecondary
                 font.pixelSize: 13
             }
-            BusyIndicator {
-                anchors.centerIn: parent
+            Column {
+                anchors.fill: parent
+                anchors.margins: 6
                 visible: !dialog.planned
-                running: visible
+                spacing: 2
+                Repeater {
+                    model: parent.visible ? 7 : 0
+                    SkeletonRow {
+                        required property int index
+                        width: parent.width
+                        compact: true
+                        delay: index * 60
+                    }
+                }
             }
         }
     }

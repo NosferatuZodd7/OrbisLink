@@ -3,6 +3,8 @@
 #include "orbislink/settings/settings_store.h"
 #include "test_support.h"
 
+#include <cmath>
+
 #include <cstdio>
 #include <sstream>
 
@@ -344,6 +346,17 @@ ORBISLINK_TEST(install_storage_round_trip)
 	CHECK(ok);
 	// Anything else reads as the console's memory.
 	CHECK_EQ(Settings::fromJson(R"({"install_storage":"floppy"})", &ok).installStorage, std::string("internal"));
+}
+
+ORBISLINK_TEST(overlay_opacity_round_trip_within_its_limits)
+{
+	Settings settings;
+	settings.overlayOpacity = 0.8;
+	bool ok = false;
+	CHECK(std::abs(Settings::fromJson(settings.toJson(), &ok).overlayOpacity - 0.8) < 1e-9);
+	// Below what can be read, or past opaque: brought back.
+	CHECK(std::abs(Settings::fromJson(R"({"overlay_opacity":0.1})", &ok).overlayOpacity - Settings::kOverlayMinOpacity) < 1e-9);
+	CHECK(std::abs(Settings::fromJson(R"({"overlay_opacity":3})", &ok).overlayOpacity - 1.0) < 1e-9);
 }
 
 ORBISLINK_TEST(library_locations_round_trip)

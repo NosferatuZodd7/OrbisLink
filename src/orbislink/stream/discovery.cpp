@@ -3,19 +3,23 @@
 
 #include "orbislink/common/log.h"
 #include "orbislink/common/tr.h"
+#include "orbislink/net/lan_scan.h"
 #include "orbislink/stream/chiaki_log_bridge.h"
 #include "orbislink/stream/stream_trace.h"
 
 #include <chiaki/discovery.h>
 #include <chiaki/thread.h>
 
+#include <chrono>
 #include <cstring>
 #include <mutex>
 #include <optional>
+#include <thread>
 
 #ifdef _WIN32
 #include <ws2tcpip.h>
 #else
+#include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -223,26 +227,52 @@ std::vector<HostInfo> StreamDiscovery::scan(int timeoutMs)
 		return {};
 	}
 
-	struct sockaddr_in broadcast {};
-	broadcast.sin_family = AF_INET;
-	broadcast.sin_addr.s_addr = INADDR_BROADCAST;
+	// Every broadcast address this PC has and, on a small home network,
+	// every address of it (see net/lan_scan.h): a PS4 answers on 987, a
+	// PS5 on 9302, each in its own protocol.
+	const LanTargets targets = lanTargets(localInterfaces());
+	auto ask = [&discovery](const std::string &address) {
+		struct sockaddr_in to {};
+		to.sin_family = AF_INET;
+		if(inet_pton(AF_INET, address.c_str(), &to.sin_addr) != 1)
+			return;
+		ChiakiDiscoveryPacket packet {};
+		packet.cmd = CHIAKI_DISCOVERY_CMD_SRCH;
+		packet.protocol_version = const_cast<char *>(CHIAKI_DISCOVERY_PROTOCOL_VERSION_PS4);
+		to.sin_port = htons(CHIAKI_DISCOVERY_PORT_PS4);
+		chiaki_discovery_send(&discovery, &packet, reinterpret_cast<struct sockaddr *>(&to), sizeof(to));
+		packet.protocol_version = const_cast<char *>(CHIAKI_DISCOVERY_PROTOCOL_VERSION_PS5);
+		to.sin_port = htons(CHIAKI_DISCOVERY_PORT_PS5);
+		chiaki_discovery_send(&discovery, &packet, reinterpret_cast<struct sockaddr *>(&to), sizeof(to));
+	};
+	auto round = [&](bool everyHost) {
+		for(const std::string &address : targets.broadcasts)
+			ask(address);
+		if(!everyHost)
+			return;
+		for(size_t i = 0; i < targets.hosts.size(); ++i)
+		{
+			ask(targets.hosts[i]);
+			// A breath now and then: a burst of hundreds can overflow a
+			// Wi-Fi adapter's queue.
+			if(i % 32 == 31)
+				std::this_thread::sleep_for(std::chrono::milliseconds(2));
+		}
+	};
 
-	ChiakiDiscoveryPacket packet {};
-	packet.cmd = CHIAKI_DISCOVERY_CMD_SRCH;
-	packet.protocol_version = const_cast<char *>(CHIAKI_DISCOVERY_PROTOCOL_VERSION_PS4);
-	broadcast.sin_port = htons(CHIAKI_DISCOVERY_PORT_PS4);
-	chiaki_discovery_send(&discovery, &packet, reinterpret_cast<struct sockaddr *>(&broadcast),
-		sizeof(broadcast));
-
-	packet.protocol_version = const_cast<char *>(CHIAKI_DISCOVERY_PROTOCOL_VERSION_PS5);
-	broadcast.sin_port = htons(CHIAKI_DISCOVERY_PORT_PS5);
-	chiaki_discovery_send(&discovery, &packet, reinterpret_cast<struct sockaddr *>(&broadcast),
-		sizeof(broadcast));
-
-	// Here the thread is not awaited: it stays listening. Give the consoles
-	// time to answer and then stop.
-	chiaki_thread_timedjoin(&thread.thread, nullptr,
-		static_cast<uint64_t>(timeoutMs > 0 ? timeoutMs : 3000));
+	// UDP can be lost and a console just woken can be slow: three rounds
+	// over the time given, the whole network asked in the first and last.
+	const int total = timeoutMs > 0 ? timeoutMs : 3000;
+	const auto start = std::chrono::steady_clock::now();
+	const auto at = [start, total](int third) { return start + std::chrono::milliseconds(total * third / 3); };
+	logInfo("Remote Play: searching the network (" + std::to_string(targets.broadcasts.size()) + " broadcast addresses, "
+		+ std::to_string(targets.hosts.size()) + " hosts)");
+	round(true);
+	std::this_thread::sleep_until(at(1));
+	round(false);
+	std::this_thread::sleep_until(at(2));
+	round(true);
+	std::this_thread::sleep_until(at(3));
 	chiaki_discovery_thread_stop(&thread);
 	chiaki_discovery_fini(&discovery);
 

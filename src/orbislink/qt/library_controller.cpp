@@ -467,6 +467,7 @@ void LibraryController::runAction(const QString &what, std::function<QString(Ftp
 		card[QStringLiteral("state")] = QStringLiteral("working");
 		card[QStringLiteral("stageText")] = what;
 		jobs_.prepend(card);
+		actionRecipes_[jobId] = { what, job, rescan, item, kind };
 		emit jobsChanged();
 		emit app_->showPanel(QStringLiteral("queue"));
 	}
@@ -516,6 +517,7 @@ void LibraryController::removeJob(const QString &id)
 			&& jobs_[i].toMap().value(QStringLiteral("state")).toString() != QLatin1String("working"))
 		{
 			jobs_.removeAt(i);
+			actionRecipes_.remove(id);
 			emit jobsChanged();
 			return;
 		}
@@ -525,8 +527,12 @@ void LibraryController::clearFinishedJobs()
 {
 	QVariantList kept;
 	for(const QVariant &entry : jobs_)
+	{
 		if(entry.toMap().value(QStringLiteral("state")).toString() == QLatin1String("working"))
 			kept << entry;
+		else
+			actionRecipes_.remove(entry.toMap().value(QStringLiteral("id")).toString());
+	}
 	if(kept.size() == jobs_.size())
 		return;
 	jobs_ = kept;
@@ -770,6 +776,17 @@ void LibraryController::enqueueCopy(CopyJob job)
 
 void LibraryController::retryJob(const QString &id)
 {
+	const auto action = actionRecipes_.constFind(id);
+	if(action != actionRecipes_.cend())
+	{
+		// One thing at a time: while another runs, the card stays as it is.
+		if(busy_)
+			return;
+		const ActionRecipe again = action.value();
+		removeJob(id);
+		runAction(again.what, again.job, again.rescan, again.item, again.kind);
+		return;
+	}
 	const auto recipe = copyRecipes_.constFind(id);
 	if(recipe == copyRecipes_.cend())
 		return;

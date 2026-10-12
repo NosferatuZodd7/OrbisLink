@@ -38,6 +38,7 @@
 #include <thread>
 
 #include <algorithm>
+#include <cmath>
 #include <cctype>
 #include <map>
 #include <set>
@@ -2365,6 +2366,14 @@ void AppController::copyToClipboard(const QString &text) const
 {
 	if(QClipboard *clipboard = QGuiApplication::clipboard())
 		clipboard->setText(text);
+}
+
+void AppController::setOverlayOpacity(double opacity)
+{
+	opacity = std::min(1.0, std::max(overlayMinOpacity(), opacity));
+	if(std::abs(opacity - settings_.overlayOpacity) < 0.001)
+		return;
+	updateSettings([opacity](Settings &s) { s.overlayOpacity = opacity; });
 }
 
 void AppController::updateSettings(const std::function<void(Settings &)> &change)

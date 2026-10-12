@@ -87,6 +87,20 @@ QtObject {
     property int padding: 20
     readonly property int controlHeight: 40
     readonly property int fieldHeight: 42
+
+    // ── Game pictures: the same sizes on every page
+    // A game's card in a grid (the library, the PS1/PS2 converter).
+    readonly property int gameTile: 148
+    // A place's card on the library's home.
+    readonly property int placeTile: 176
+    // Room around a card in a grid: across, and under its picture for its
+    // name and details.
+    readonly property int gameTileGap: 34
+    readonly property int gameTileNames: 74
+    // A game's picture in a row (the queue, the saves, the conversions).
+    readonly property int gameIcon: 44
+    // The large picture of a game's details.
+    readonly property int gameArt: 188
     // Inside dialogs: the margin is the radius plus a little slack, so text
     // never sits inside the curve of the corner.
     readonly property int dialogMargin: 28

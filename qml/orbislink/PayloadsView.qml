@@ -20,6 +20,10 @@ Item {
 
     signal back()
 
+    // In the main area, framed as a panel with a way back; over Remote Play
+    // (SectionOverlay) the overlay is the frame, shows the name and closes it.
+    property bool framed: true
+
     readonly property bool online: payloads.online
     readonly property bool ps5: payloads.kind === "ps5"
     // 0: what is on the console; 1: the library (PS5).
@@ -166,19 +170,19 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        anchors.leftMargin: Theme.gutter
-        anchors.rightMargin: window.panelShown ? 8 : Theme.gutter
-        anchors.topMargin: 4
-        anchors.bottomMargin: 4
+        anchors.leftMargin: root.framed ? Theme.gutter : 0
+        anchors.rightMargin: !root.framed ? 0 : window.panelShown ? 8 : Theme.gutter
+        anchors.topMargin: root.framed ? 4 : 0
+        anchors.bottomMargin: root.framed ? 4 : 0
         radius: Theme.radius
-        color: Theme.panelFill
-        border.width: 1
+        color: root.framed ? Theme.panelFill : "transparent"
+        border.width: root.framed ? 1 : 0
         border.color: Theme.glassEdge
         clip: true
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 24
+            anchors.margins: root.framed ? 24 : 18
             spacing: 14
 
             // ── header
@@ -186,6 +190,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 12
                 StyledToolButton {
+                    visible: root.framed
                     iconName: "chevron-left"
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Back to the consoles")
@@ -194,6 +199,7 @@ Item {
                 ColumnLayout {
                     spacing: 2
                     Text {
+                        visible: root.framed
                         text: qsTr("Payloads")
                         color: Theme.text
                         font.pixelSize: Theme.fontTitle

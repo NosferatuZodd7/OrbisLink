@@ -436,6 +436,16 @@ ORBISLINK_TEST(lists_what_the_console_has_installed)
 	folder.text("user/appmeta/PPSA09999/param.json",
 		"{\"contentVersion\":\"01.000.000\",\"localizedParameters\":{\"defaultLanguage\":\"en-US\","
 		"\"en-US\":{\"titleName\":\"Fake Five\"}},\"titleId\":\"PPSA09999\"}");
+	// As a real PS4 keeps it: the name and the version (the update's) in the
+	// system's appmeta, only the pictures in /user/appmeta; and one on the
+	// extended storage.
+	folder.file("user/app/CUSA07527/app.pkg", std::vector<uint8_t>(200, 5));
+	folder.file("system_data/priv/appmeta/CUSA07527/param.sfo", buildSfo({ { "APP_VER", "01.03" },
+		{ "CATEGORY", "gd" }, { "TITLE", "Hellblade" }, { "TITLE_ID", "CUSA07527" } }));
+	folder.file("user/appmeta/CUSA07527/icon0.png", kPng);
+	folder.text("user/app/CUSA00900/readme.txt", "x");
+	folder.file("system_data/priv/appmeta/external/CUSA00900/param.sfo", buildSfo({ { "APP_VER", "01.09" },
+		{ "CATEGORY", "gd" }, { "TITLE", "Bloodborne" }, { "TITLE_ID", "CUSA00900" } }));
 	// Installed with nothing to copy (mounted from elsewhere), and a stray folder.
 	folder.text("user/app/CUSA00002/readme.txt", "x");
 	folder.text("user/app/temp/readme.txt", "x");
@@ -444,8 +454,8 @@ ORBISLINK_TEST(lists_what_the_console_has_installed)
 	std::vector<std::string> heard;
 	const auto titles = readInstalled(source, folder.path.u8string(), nullptr,
 		[&](const InstalledTitle &title) { heard.push_back(title.titleId); });
-	CHECK_EQ(titles.size(), static_cast<size_t>(3));
-	CHECK_EQ(heard.size(), static_cast<size_t>(3));
+	CHECK_EQ(titles.size(), static_cast<size_t>(5));
+	CHECK_EQ(heard.size(), static_cast<size_t>(5));
 	std::map<std::string, InstalledTitle> byId;
 	for(const InstalledTitle &title : titles)
 		byId[title.titleId] = title;
@@ -472,6 +482,14 @@ ORBISLINK_TEST(lists_what_the_console_has_installed)
 	CHECK_EQ(five.version, std::string("01.000.000"));
 	CHECK_EQ(five.platform, std::string("ps5"));
 	CHECK(five.copyable());
+
+	const InstalledTitle &system = byId.at("CUSA07527");
+	CHECK_EQ(system.title, std::string("Hellblade"));
+	CHECK_EQ(system.version, std::string("01.03"));
+	CHECK(system.iconPath.find("user/appmeta") != std::string::npos);
+	const InstalledTitle &external = byId.at("CUSA00900");
+	CHECK_EQ(external.title, std::string("Bloodborne"));
+	CHECK_EQ(external.version, std::string("01.09"));
 
 	const InstalledTitle &bare = byId.at("CUSA00002");
 	CHECK_EQ(bare.title, std::string("CUSA00002"));
