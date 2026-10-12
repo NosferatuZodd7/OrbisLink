@@ -108,6 +108,10 @@ public:
 	QVariantList registrations() const;
 	QString runningApp() const { return runningApp_; }
 	QString runningAppTitleId() const { return runningAppTitleId_; }
+	// The console's system version as discovery reports it ("09000000");
+	// empty when it did not answer.
+	QString systemVersion() const { return host_.found ? QString::fromStdString(host_.systemVersion) : QString(); }
+	QString hostAddress() const { return QString::fromStdString(host_.address); }
 	bool registered() const { return credentials_.valid; }
 	bool registering() const { return registering_; }
 	QString sessionState() const { return sessionState_; }

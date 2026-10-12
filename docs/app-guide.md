@@ -136,7 +136,20 @@ the console goes back to a game or the home screen (PS button).
 ### Queue tab
 
 Each file being sent or installed is a card: title, size, state, bar,
-speed and time left.
+speed and time left. A package's card also says the firmware it needs
+(*FW 9.00*), and, in amber, what to know before it goes:
+
+- **An official store package** (Sony-signed, not a fake package): it
+  installs only with its licence — a jailbroken console takes fake packages
+  (fpkg). Told apart by the package header's type field, as PS4 PKG Tool does.
+- **A firmware above the PS4's**: a game or its update made for a newer
+  firmware than the one the console in use runs (as Remote Play discovery
+  reports it) installs but does not start; look for a version backported to
+  that firmware. A PS5 runs PS4 games whatever their firmware, so it is
+  never said there.
+
+Each warning also shows as a notice when the package is queued, or as soon
+as the console's firmware is known.
 
 | On a card | Does |
 |---|---|
@@ -398,13 +411,14 @@ fills in as each thing is read; nothing is read whole.
 | ‹, Esc, Backspace | One level up (Esc in the search field clears it instead). |
 | Arrow keys, Home, End | Move the frame; Enter or Space opens the card. |
 | Click on a place or folder | Opens it. |
-| Click on a game | Its details: the cover, what it is, and a grouped list (title ID, serial, version, size, date, place, file); its path along the bottom; one row of buttons — the main one on the right, the others under **…**. What needs the console is left out while its FTP does not answer, and a line says so. |
+| Click on a game | Its details: the cover, what it is, and a grouped list (title ID, serial, version, for a package whether it is **Fake (fpkg)** or **Official (store)** and the **firmware** it needs, size, date, place, file); the same warnings as the Queue tab's card; its path along the bottom; one row of buttons — the main one on the right, the others under **…**. What needs the console is left out while its FTP does not answer, and a line says so. |
 | Only games · Everything | See above; kept in the settings. |
 | Select · Done | See above: several games picked, one thing done to all. |
 | Search field | At home: across every place marked *Search* (names two levels into each place, one on the console, none under a whole drive), by game name, file name, folder, extension or place. Inside a place: only there. Ctrl+F goes to it. |
 | Filter | All (the chip says *Filter*), Games found, PKG files, Folders, Other supported files. |
 | Sort | By type (in sections), by name, newest first. |
 | ⟳ | Reads the folder again (at home: every place). |
+| ☰ (a folder of this PC) | **Organise packages**: every `.pkg` in the folder and its folders (four levels down), renamed from what each says about itself. A name preset — *{TITLE} [{TITLE_ID}] [{CATEGORY}] [v{VERSION}]*, *{TITLE_ID} - {TITLE} ({CATEGORY} {VERSION})*, *{TITLE} ({REGION}) v{VERSION}*, *{CONTENT_ID}* — or one's own with the placeholders {TITLE} {TITLE_ID} {VERSION} {CATEGORY} {REGION} {CONTENT_ID} {FIRMWARE} {TYPE}; **Number them in install order** (00 the game, 01 its update, 02 its add-ons); **A folder per game** (*Title (TITLE ID)*: an update and the add-ons go in their game's). The list shows each file and the name it would get, before anything changes; a second copy of the same package (content ID, kind, version) is marked and left as it is, and a name already taken gets *(2)*. **Organise** renames them; folders left empty are removed (never the folder organised). Names are made safe on every system (no `: * ? " < > |`, at most 200 bytes). |
 | Folder + | Adds a place: a folder of this PC (the system's folder picker), a folder of the console (its path), Desktop, Downloads, Documents, the console's data/pkg, or a whole drive of this PC. |
 | Sliders | **Places in the library**: one list, every row the same height and columns — the place (its name, renamed where it is, empty for its folder's; its path under it, which a console place's can be changed in place), **Favourite** ★, **Search** (whether the search looks in it), and 🗑 to take it off — the folder itself is never touched. |
 
@@ -714,7 +728,7 @@ only if its SHA-256 matches the list.
 | Queue and conversion cards | `TransferPanel.qml`, `JobCard.qml` (store and library cards), `StageLoader.qml` |
 | Files tab | `FtpBrowser.qml`, `FtpFolderPicker.qml` |
 | Games page | `GamesView.qml`, `GameCard.qml`, `GameDialog.qml` |
-| Library (`shelf`) | `ShelfView.qml` (the view, keys, details, places), `SourceCard.qml`, `FolderCard.qml`, `TitleCard.qml` (the game card), `ShelfTile.qml` (what they share), `CoverArt.qml`, `DiscPlaceholder.qml`; `src/orbislink/qt/shelf_controller.*` (places, USB drives, moving around, the work thread, watching, search, filter, sort, buttons); `src/orbislink/library/shelf.*` (reading a folder of this PC or of the console, telling things apart, pictures, folder previews, the cache); `src/orbislink/library/installed_titles.*` (what the console has installed, and the names of its copies); the copies themselves in `src/orbislink/qt/library_controller.*` |
+| Library (`shelf`) | `ShelfView.qml` (the view, keys, details, places), `SourceCard.qml`, `FolderCard.qml`, `TitleCard.qml` (the game card), `ShelfTile.qml` (what they share), `CoverArt.qml`, `DiscPlaceholder.qml`; `src/orbislink/qt/shelf_controller.*` (places, USB drives, moving around, the work thread, watching, search, filter, sort, buttons); `src/orbislink/library/shelf.*` (reading a folder of this PC or of the console, telling things apart, pictures, folder previews, the cache); `src/orbislink/library/installed_titles.*` (what the console has installed, and the names of its copies); `src/orbislink/library/pkg_organizer.*` and `OrganizeDialog.qml` (organising a folder's packages); the copies themselves in `src/orbislink/qt/library_controller.*` |
 | Console library (`consoleLibrary`) | `src/orbislink/qt/library_controller.*` (the console's `OrbisLinkFPKG` folders and the buttons for things on the console), `src/orbislink/library/console_library.*` (kinds, drives, `param.json`/`param.sfo`, reads in blocks), `src/orbislink/qt/shadowmount_control.*` (asking ShadowMountPlus to scan, or starting it again) |
 | Everything the QML calls (`app`) | `src/orbislink/qt/app_controller.*` |
 | Games (`games`) | `src/orbislink/qt/games_controller.*` |

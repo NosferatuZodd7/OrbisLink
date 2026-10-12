@@ -26,9 +26,10 @@ CONTENT_TYPE_AC = 0x1B
 FLAG_FIRST_PATCH = 0x00100000
 
 
-def build_sfo(entries: dict[str, "str | bytes"]) -> bytes:
+def build_sfo(entries: dict[str, "str | bytes | int"]) -> bytes:
     """Text values are stored as NUL-terminated UTF-8; bytes values as they
-    are (the "special" format of binary entries such as ACCOUNT_ID)."""
+    are (the "special" format of binary entries such as ACCOUNT_ID); ints as
+    32-bit integers (SYSTEM_VER)."""
     keys = sorted(entries)
     header_size = 0x14
     index_size = len(keys) * 0x10
@@ -42,11 +43,14 @@ def build_sfo(entries: dict[str, "str | bytes"]) -> bytes:
         key_offsets.append(len(key_table))
         key_table += key.encode("utf-8") + b"\0"
         raw = entries[key]
-        value = raw if isinstance(raw, bytes) else raw.encode("utf-8") + b"\0"
+        if isinstance(raw, int):
+            value = struct.pack("<I", raw)
+        else:
+            value = raw if isinstance(raw, bytes) else raw.encode("utf-8") + b"\0"
         value_offsets.append(len(value_table))
         value_table += value
         value_sizes.append(len(value))
-        formats.append(0x0004 if isinstance(raw, bytes) else 0x0204)
+        formats.append(0x0404 if isinstance(raw, int) else 0x0004 if isinstance(raw, bytes) else 0x0204)
     while len(key_table) % 4:
         key_table += b"\0"
 
@@ -85,16 +89,21 @@ def build_icon_png(size: int = 64, seed: int = 0) -> bytes:
 
 
 def build_pkg(content_id: str, title: str, category: str, app_version: str,
-              padding: int, icon: bytes | None = None) -> bytes:
+              padding: int, icon: bytes | None = None, system_ver: int = 0,
+              official: bool = False) -> bytes:
     title_id = content_id.split("-")[1].split("_")[0]
-    sfo = build_sfo({
+    params = {
         "APP_VER": app_version,
         "CATEGORY": category,
         "CONTENT_ID": content_id,
         "TITLE": title,
         "TITLE_ID": title_id,
         "VERSION": app_version,
-    })
+    }
+    # The firmware it needs, as a real package says it (0x09008000: 9.00).
+    if system_ver:
+        params["SYSTEM_VER"] = system_ver
+    sfo = build_sfo(params)
     # None: a gradient; b"": no icon at all.
     if icon is None:
         icon = build_icon_png(64, sum(content_id.encode("ascii")) % 200)
@@ -109,6 +118,8 @@ def build_pkg(content_id: str, title: str, category: str, app_version: str,
 
     header = bytearray(PKG_HEADER_SIZE)
     header[0:4] = b"\x7fCNT"
+    # The type field: 0x81… is how a store (official) package says it.
+    struct.pack_into(">I", header, 0x04, 0x81000000 if official else 0x00000001)
     struct.pack_into(">I", header, 0x10, len(entries))          # entry_count
     struct.pack_into(">I", header, 0x18, ENTRY_TABLE_OFFSET)    # entry_table_offset
     header[0x40:0x40 + len(content_id)] = content_id.encode("ascii")
@@ -144,14 +155,22 @@ def main() -> int:
                         help="padding bytes after the metadata")
     parser.add_argument("--icon", help="a PNG to use as ICON0.PNG instead of the gradient")
     parser.add_argument("--no-icon", action="store_true", help="no ICON0.PNG at all")
+    parser.add_argument("--firmware", default="",
+                        help="the firmware it needs, as SYSTEM_VER (e.g. 9.00 or 11.00)")
+    parser.add_argument("--official", action="store_true",
+                        help="mark it as a store (official) package instead of a fake one")
     arguments = parser.parse_args()
 
     icon = b"" if arguments.no_icon else None
     if arguments.icon:
         with open(arguments.icon, "rb") as handle:
             icon = handle.read()
+    system_ver = 0
+    if arguments.firmware:
+        major, minor = arguments.firmware.split(".")
+        system_ver = (int(major, 16) << 24) | (int(minor, 16) << 16)
     data = build_pkg(arguments.content_id, arguments.title, arguments.category,
-                     arguments.app_version, arguments.padding, icon)
+                     arguments.app_version, arguments.padding, icon, system_ver, arguments.official)
     with open(arguments.output, "wb") as handle:
         handle.write(data)
     print(f"{arguments.output}: {len(data)} bytes")

@@ -37,6 +37,8 @@ QHash<int, QByteArray> QueueModel::roleNames() const
 		{ SupersededRole, "superseded" },
 		{ CanMoveUpRole, "canMoveUp" },
 		{ CanMoveDownRole, "canMoveDown" },
+		{ FirmwareRole, "firmware" },
+		{ WarningRole, "warning" },
 	};
 }
 
@@ -65,6 +67,8 @@ QVariant QueueModel::data(const QModelIndex &index, int role) const
 		case CanMoveUpRole: return row.canMoveUp;
 		case CanMoveDownRole: return row.canMoveDown;
 		case IconRole: return icons_.value(row.id);
+		case FirmwareRole: return firmware_.value(row.id);
+		case WarningRole: return warnings_.value(row.id);
 		default: return {};
 	}
 }
@@ -235,6 +239,20 @@ void QueueModel::setIcon(const QString &taskId, const QString &dataUri)
 		if(rows_[i].id == taskId)
 		{
 			emit dataChanged(index(i), index(i), { IconRole });
+			break;
+		}
+	}
+}
+
+void QueueModel::setPackageFacts(const QString &taskId, const QString &firmware, const QString &warning)
+{
+	firmware_.insert(taskId, firmware);
+	warnings_.insert(taskId, warning);
+	for(int i = 0; i < rows_.size(); ++i)
+	{
+		if(rows_[i].id == taskId)
+		{
+			emit dataChanged(index(i), index(i), { FirmwareRole, WarningRole });
 			break;
 		}
 	}

@@ -105,6 +105,9 @@ struct DiscProbe
 };
 
 // One thing on the shelf.
+// What a package's item holds since official/fake and its firmware are read.
+constexpr int kPackageRead = 2;
+
 struct ShelfItem
 {
 	std::string path;
@@ -126,6 +129,12 @@ struct ShelfItem
 	std::string contentId;
 	bool appFolder = false;   // a folder with sce_sys: an app, not a folder to open
 	bool readable = true;     // a .pkg or a disc that could not be read
+	// A package's: a store (official) one, and the firmware it needs
+	// (0x0900 is 9.00; 0 unknown). `packageRead` says how much of a package
+	// was read (kPackageRead): a cached one read before is read again.
+	bool official = false;
+	int requiredFirmware = 0;
+	int packageRead = 0;
 	// The picture: a file to show as it is, or bytes still to be kept.
 	std::string pictureFile;
 	std::vector<uint8_t> picture;

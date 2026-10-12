@@ -342,6 +342,14 @@ FocusScope {
                 ToolTip.text: view.home ? qsTr("Read every place again") : qsTr("Read this folder again")
                 onClicked: shelf.refresh()
             }
+            // A folder of this PC: its packages renamed and put in order.
+            StyledToolButton {
+                visible: shelf.canOrganize
+                iconName: "list-ordered"
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Organise the packages in this folder")
+                onClicked: organizeDialog.begin(shelf.title)
+            }
             StyledToolButton {
                 iconName: "folder-plus"
                 ToolTip.visible: hovered
@@ -828,6 +836,8 @@ FocusScope {
         }
     }
 
+    OrganizeDialog { id: organizeDialog }
+
     FolderDialog {
         id: folderDialog
         title: qsTr("A folder for the library")
@@ -933,10 +943,17 @@ FocusScope {
             return main
         }
         readonly property var moreActions: usable.filter(function (a) { return mainActions.indexOf(a) < 0 })
+        readonly property bool isPackage: (card.ext || "") === ".pkg" && card.readable !== false
+        // An official package, or a firmware above the PS4's: before it goes.
+        readonly property string packageWarning: isPackage
+            ? app.packageWarning(card.official === true, card.firmwareValue || 0, card.category || "")
+            : ""
         readonly property var facts: [
             [qsTr("Title ID"), card.titleId || ""],
             [qsTr("Serial"), card.serial || ""],
             [qsTr("Version"), card.version || ""],
+            [qsTr("Package"), isPackage ? (card.official === true ? qsTr("Official (store)") : qsTr("Fake (fpkg)")) : ""],
+            [qsTr("Firmware"), card.firmware ? qsTr("%1 or newer").arg(card.firmware) : ""],
             [qsTr("Size"), card.sizeText || ""],
             [qsTr("On the console"), card.partsText || ""],
             [qsTr("Changed"), card.dateText || ""],
@@ -1076,6 +1093,25 @@ FocusScope {
                     color: Theme.textSecondary
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
+                }
+                RowLayout {
+                    visible: details.packageWarning.length > 0
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Icon {
+                        Layout.alignment: Qt.AlignTop
+                        Layout.topMargin: 1
+                        name: "warning"
+                        size: 14
+                        color: Theme.warn
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: details.packageWarning
+                        color: Theme.warn
+                        font.pixelSize: 12
+                        wrapMode: Text.WordWrap
+                    }
                 }
                 RowLayout {
                     visible: details.usable.length < (details.card.actions || []).length

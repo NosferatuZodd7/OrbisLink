@@ -172,12 +172,33 @@ Item {
                             }
                             Text {
                                 Layout.fillWidth: true
-                                text: [model.titleId, model.category, model.sizeText].filter(function (part) {
+                                text: [model.titleId, model.category, model.sizeText,
+                                       model.firmware ? qsTr("FW %1").arg(model.firmware) : ""].filter(function (part) {
                                     return part && part.length > 0
                                 }).join("  ·  ")
                                 color: Theme.textMuted
                                 font.pixelSize: 11
                                 elide: Text.ElideRight
+                            }
+                            // An official package, or a firmware above the PS4's.
+                            RowLayout {
+                                Layout.fillWidth: true
+                                visible: !!model.warning
+                                spacing: 5
+                                Icon {
+                                    Layout.alignment: Qt.AlignTop
+                                    Layout.topMargin: 1
+                                    name: "warning"
+                                    size: 12
+                                    color: Theme.warn
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: model.warning ? model.warning : ""
+                                    color: Theme.warn
+                                    font.pixelSize: 11
+                                    wrapMode: Text.WordWrap
+                                }
                             }
                         }
 

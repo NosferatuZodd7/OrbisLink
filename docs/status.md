@@ -39,6 +39,9 @@ Last review: v1.1.0.
 | 🟡 | Installing on a PS5 through etaHEN's DPI v2: its own protocol (a form with `url`, a path on the console or an http:// address; a text reply), told apart from Remote Package Installer's JSON API by asking; checked against etaHEN's source and the fake console, not yet on a real PS5 |
 | 🟡 | Installing on a PS5 through Prospero Manager (port 7070) when there is no DPI v2: its package API (`/api/pkg/install` with a path or an address, `/api/pkg/status` until *queued*), checked against its source and the fake console, not yet on a real PS5 |
 | ✅ | Error 0x80990015 (a task left by an earlier try): the task is removed and the install asked again |
+| ✅ | Official (store) packages told apart from fake ones (the header's type field at 0x04, as PS4 PKG Tool does), and a warning before one goes: it installs only with its licence |
+| ✅ | The firmware a package needs (PUBTOOLINFO's sdk_ver, else SYSTEM_VER), shown on the queue card and in the library's details, with a warning when a game or update needs more than the PS4 in use runs (its firmware from Remote Play discovery) |
+| ✅ | Organising the packages of a folder of this PC: renamed from a pattern of placeholders, numbered in install order, a folder per game, copies of the same package left alone; shown before anything changes |
 
 ## 2. FTP
 

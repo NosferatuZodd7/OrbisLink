@@ -9,6 +9,7 @@
 #include "orbislink/fpkg/disc_scanner.h"
 #include "orbislink/fpkg/param_sfo.h"
 #include "orbislink/fpkg/pkg_builder.h"
+#include "orbislink/pkg/pkg_inspector.h"
 #include "test_support.h"
 
 #include <algorithm>
@@ -214,6 +215,10 @@ ORBISLINK_TEST(builds_the_same_package_as_pkgtool)
 	CHECK(lastImage > 3u * 1024 * 1024);
 	CHECK_EQ(fs::file_size(out), uintmax_t(6619136));
 	CHECK_EQ(hex(fileSha(out)), std::string(EXPECTED_SHA));
+	// What it makes is a fake package, and reads as one.
+	const orbislink::PkgInfo info = orbislink::PkgInspector().inspect(out.u8string());
+	CHECK(info.valid);
+	CHECK(!info.official);
 	cleanUp(dir);
 }
 

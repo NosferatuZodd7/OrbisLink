@@ -361,6 +361,7 @@ int main(int argc, char **argv)
 	QObject::connect(stream.get(), &StreamController::consoleChanged, controller.get(),
 		[&controller, &stream]() {
 			controller->reportRemotePlayState(stream->consoleState(), stream->runningApp());
+			controller->reportConsoleFirmware(stream->hostAddress(), stream->systemVersion());
 		});
 	// Stream notifications appear in the same bar as the others.
 	QObject::connect(stream.get(), &StreamController::notify, controller.get(),

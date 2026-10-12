@@ -382,6 +382,9 @@ ShelfItem identify(FileSource &source, const ShelfEntry &entry, const FolderInde
 			item.version = info.appVersion;
 			item.category = pkgCategoryCode(info.kind);
 			item.contentId = info.contentId;
+			item.official = info.official;
+			item.requiredFirmware = info.requiredFirmware;
+			item.packageRead = kPackageRead;
 			item.platform = "ps4";
 			switch(info.kind)
 			{
@@ -668,6 +671,9 @@ Json itemToJson(const ShelfItem &item)
 	json.set("content_id", Json::fromString(item.contentId));
 	json.set("app_folder", Json::fromBool(item.appFolder));
 	json.set("readable", Json::fromBool(item.readable));
+	json.set("official", Json::fromBool(item.official));
+	json.set("firmware", Json::fromInt(item.requiredFirmware));
+	json.set("package_read", Json::fromInt(item.packageRead));
 	json.set("picture", Json::fromString(item.pictureFile));
 	json.set("picture_from", Json::fromString(item.pictureFrom));
 	json.set("track", Json::fromString(item.trackPath));
@@ -696,6 +702,9 @@ ShelfItem itemFromJson(const Json &json)
 	item.contentId = json["content_id"].toString();
 	item.appFolder = json["app_folder"].toLooseBool(false);
 	item.readable = json["readable"].toLooseBool(true);
+	item.official = json["official"].toLooseBool(false);
+	item.requiredFirmware = static_cast<int>(json["firmware"].toInt());
+	item.packageRead = static_cast<int>(json["package_read"].toInt());
 	item.pictureFile = json["picture"].toString();
 	item.pictureFrom = json["picture_from"].toString();
 	item.trackPath = json["track"].toString();
@@ -733,6 +742,9 @@ bool ShelfCache::find(const std::string &key, ShelfItem *item) const
 		&& !exists(found->second.pictureFile))
 		return false;
 	const ShelfItem &kept = found->second;
+	// A package read before its firmware was: read it again.
+	if(kept.kind == Kind::Package && kept.readable && kept.packageRead < kPackageRead)
+		return false;
 	item->kind = kept.kind;
 	item->group = kept.group;
 	item->title = kept.title;
@@ -744,6 +756,9 @@ bool ShelfCache::find(const std::string &key, ShelfItem *item) const
 	item->contentId = kept.contentId;
 	item->appFolder = kept.appFolder;
 	item->readable = kept.readable;
+	item->official = kept.official;
+	item->requiredFirmware = kept.requiredFirmware;
+	item->packageRead = kept.packageRead;
 	item->pictureFile = kept.pictureFile;
 	item->pictureFrom = kept.pictureFrom;
 	item->trackPath = kept.trackPath;
