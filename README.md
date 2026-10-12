@@ -175,6 +175,13 @@ version, region…), numbered in install order (game, update, add-ons), a
 folder per game, copies of the same package left alone — all shown before
 anything changes.
 
+A game installed on the console has **cheats** (and on a PS4 **game patches**)
+one click away: the cheat files GoldHEN's repository (and on a PS5 etaHEN's)
+has for it, with the cheats each holds and whether it fits the version
+installed, sent to the console's cheat folder or taken off it; and
+illusion0001's game patches — 60 FPS, no motion blur, skipped intros — each
+with a switch GoldHEN's game_patch plugin reads.
+
 ### PS1 and PS2 converter
 
 Optional, in its own tab of **Games**: **PS1/PS2 converter** finds the PS1 and
@@ -450,3 +457,9 @@ Telling official packages from fake ones, the firmware a package needs and
 organising a folder of packages follow
 [PS4 PKG Tool](https://github.com/pearlxcore/PS4PKGTool), by pearlxcore
 (GPL-3.0), rewritten in C++.
+Cheats come from the
+[GoldHEN Cheat Repository](https://github.com/GoldHEN/GoldHEN_Cheat_Repository)
+and [etaHEN's PS5 cheats](https://github.com/etaHEN/PS5_Cheats), game patches
+from [illusion0001's PS4-PS5-Game-Patch](https://github.com/illusion0001/PS4-PS5-Game-Patch),
+all downloaded at run time (none is part of OrbisLink); the patch switches
+follow GoldHEN's [game_patch plugin](https://github.com/GoldHEN/GoldHEN_Plugins_Repository).

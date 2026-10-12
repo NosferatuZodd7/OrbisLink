@@ -42,6 +42,8 @@ Last review: v1.1.0.
 | ✅ | Official (store) packages told apart from fake ones (the header's type field at 0x04, as PS4 PKG Tool does), and a warning before one goes: it installs only with its licence |
 | ✅ | The firmware a package needs (PUBTOOLINFO's sdk_ver, else SYSTEM_VER), shown on the queue card and in the library's details, with a warning when a game or update needs more than the PS4 in use runs (its firmware from Remote Play discovery) |
 | ✅ | Organising the packages of a folder of this PC: renamed from a pattern of placeholders, numbered in install order, a folder per game, copies of the same package left alone; shown before anything changes |
+| 🟡 | Cheats for an installed game, from GoldHEN's cheat repository (and etaHEN's PS5 one on a PS5): the files for the version installed with their cheats' names, sent to GoldHEN's or etaHEN's cheat folder (and etaHEN's list) and taken off again; checked against the real repositories, etaHEN's source and the fake consoles, not yet on a real console |
+| 🟡 | Game patches on a PS4 (illusion0001's archive): each patch for the version installed with its switch, the file GoldHEN's game_patch plugin reads and the switch named by the same hash it works out (checked against the plugin's own code); not yet on a real PS4 |
 
 ## 2. FTP
 
@@ -137,7 +139,7 @@ Last review: v1.1.0.
 
 ## 6. Tests
 
-17 automated suites, all running in CI:
+27 automated suites, all running in CI:
 
 | | |
 |---|---|
@@ -155,6 +157,7 @@ Last review: v1.1.0.
 | ✅ | End-to-end integration against the mock console (install, FTP, download back, upload-and-install) |
 | ✅ | Interface: the window opens and draws (smoke test) |
 | ✅ | Interface: drag and drop follows the cursor and accepts the file |
+| ✅ | Cheats and game patches: the repositories' lists (and the oddly named files in them), the cheat files of each format, a patch XML, etaHEN's lists and GoldHEN's patch switch hash (against values from game_patch's own code) |
 | ⬜ | Remote Play session with synthetic video — a test that does not need a console is missing |
 
 ---

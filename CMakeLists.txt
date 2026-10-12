@@ -54,6 +54,7 @@ if(ORBISLINK_ENABLE_STREAM)
 endif()
 
 add_library(orbislink_core STATIC
+	src/orbislink/cheats/cheats.cpp
 	src/orbislink/common/json.cpp
 	src/orbislink/common/log.cpp
 	src/orbislink/common/pcm_convert.cpp
@@ -207,6 +208,7 @@ if(ORBISLINK_BUILD_GUI)
 		qt_add_executable(orbislink-gui
 			src/orbislink/qt/main.cpp
 			src/orbislink/qt/app_controller.cpp
+			src/orbislink/qt/cheats_controller.cpp
 			src/orbislink/qt/games_controller.cpp
 			src/orbislink/qt/saves_controller.cpp
 			src/orbislink/qt/payloads_controller.cpp
