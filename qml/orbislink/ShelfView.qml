@@ -94,6 +94,10 @@ FocusScope {
             uninstallDialog.ask(index, shelf.card(index), action)
             return
         }
+        if (action === "cheats") {
+            cheatsDialog.begin(shelf.card(index))
+            return
+        }
         shelf.act(index, action)
     }
 
@@ -135,6 +139,7 @@ FocusScope {
         case "copyToPc": return qsTr("Copy to this PC")
         case "uninstall": return qsTr("Uninstall…")
         case "uninstallUpdate": return qsTr("Uninstall the update…")
+        case "cheats": return app.installsFromConsole ? qsTr("Cheats") : qsTr("Cheats and patches")
         }
         return action
     }
@@ -154,6 +159,9 @@ FocusScope {
         case "run": return qsTr("Sent to the console's loader now")
         case "runPayload": return qsTr("Sent from this PC to the console's loader now")
         case "copyToPc": return qsTr("The package the console installed it from, with its update and add-ons, copied over FTP")
+        case "cheats": return app.installsFromConsole
+                              ? qsTr("Cheat files from GoldHEN's and etaHEN's lists, for etaHEN")
+                              : qsTr("Cheat files and game patches for GoldHEN")
         }
         return ""
     }
@@ -172,6 +180,7 @@ FocusScope {
         case "delete": return "trash"
         case "copyToPc": return "laptop"
         case "uninstall": case "uninstallUpdate": return "trash"
+        case "cheats": return "sparkles"
         }
         return ""
     }
@@ -837,6 +846,7 @@ FocusScope {
     }
 
     OrganizeDialog { id: organizeDialog }
+    CheatsDialog { id: cheatsDialog }
 
     FolderDialog {
         id: folderDialog

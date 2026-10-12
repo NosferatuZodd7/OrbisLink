@@ -54,6 +54,7 @@
         <file alias="Icon.qml">Icon.qml</file>
         <file alias="UploadConflictDialog.qml">UploadConflictDialog.qml</file>
         <file alias="ServiceHelpDialog.qml">ServiceHelpDialog.qml</file>
+        <file alias="CheatsDialog.qml">CheatsDialog.qml</file>
         <file alias="OrganizeDialog.qml">OrganizeDialog.qml</file>
         <file alias="SkeletonRow.qml">SkeletonRow.qml</file>
         <file alias="DialogHeader.qml">DialogHeader.qml</file>

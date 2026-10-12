@@ -392,6 +392,34 @@ tab, and the list is read again after. A PS5's installer (etaHEN's DPI) has
 no such call: there, the console's own menu uninstalls. How much room the
 console's drives have left is not shown: its FTP does not say.
 
+**Cheats and patches** (on an installed game's details; **Cheats** on a PS5)
+shows what the cheat lists have for that game: [GoldHEN's cheat
+repository](https://github.com/GoldHEN/GoldHEN_Cheat_Repository), and on a PS5
+[etaHEN's](https://github.com/etaHEN/PS5_Cheats) too. Each file (JSON, SHN or
+MC4) says the version of the game it is for — those for the version installed
+come first, the others say *another version* — and lists its cheats and who
+made them (an MC4 file is encrypted: its cheats show only in the console's
+menu). **Send to the console** puts it where the console's cheat menu looks,
+named the way it matches the game (`CUSA00207_01.09.json`, a version written
+`1.05` or `01_05` in the list becomes `01.05`): `/data/GoldHEN/cheats/<format>/`
+on a PS4, `/data/etaHEN/cheats/<format>/` on a PS5, where the file is also
+added to etaHEN's list (`/data/etaHEN/cheats/<format>.txt`) — etaHEN reads it
+when it starts, or after **Reload cheats** in its toolbox. **Delete** takes a
+file off (and out of etaHEN's list); cheat files for the game that the lists
+do not name (put there another way) show under *Also on the console for this
+game*. On a PS4, **Patches** lists the game patches of
+[illusion0001's archive](https://github.com/illusion0001/PS4-PS5-Game-Patch)
+for the version installed (60 FPS, no motion blur, skipped intros…), each with
+a switch: turning one on sends the game's patch file to
+`/data/GoldHEN/patches/xml/<TITLE ID>.xml` and writes `1` in the switch
+GoldHEN's game_patch plugin reads for it
+(`/data/GoldHEN/patches/settings/0x<hash>.txt`, the same one GoldHEN's own menu
+turns on and off); off writes `0`. It applies the next time the game starts,
+and only when plugins.ini loads game_patch — the dialog says when it does not.
+The lists and the archive are kept on this PC and fetched again after half a
+day (**Fetch the lists again** does it now); without the internet, the copy
+kept is used and the dialog says so.
+
 A card's picture, the first found of:
 
 1. one the app already has for that game (by title ID or serial, from any copy of it seen before);

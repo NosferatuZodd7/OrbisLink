@@ -2255,6 +2255,8 @@ QVariantMap ShelfController::installedCard(const library::InstalledTitle &title,
 	QStringList actions;
 	if(title.copyable())
 		actions << QStringLiteral("copyToPc");
+	// Cheats and game patches for it, from GoldHEN's and etaHEN's lists.
+	actions << QStringLiteral("cheats");
 	// Taken off the console through Remote Package Installer, a PS4's; the
 	// PS5's installer has no such call.
 	if(!ps5)

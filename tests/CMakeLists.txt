@@ -16,6 +16,7 @@ set(ORBISLINK_TESTS
 	test_library
 	test_shelf
 	test_organizer
+	test_cheats
 )
 
 # The Remote Play tests need the stream library.
