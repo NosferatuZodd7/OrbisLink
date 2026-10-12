@@ -56,7 +56,7 @@ narrower than where the rest fits.
 |---|---|---|
 | Logo, name, IP | The console in use. | — |
 | **Console chip** | See *Console chip* below. | See below. |
-| 🎮 · **FTP** · 📦 | Remote Play, FTP (the word in small bold letters) and the installer, each with a dot at the corner: green available (with a soft ring), amber checking (it breathes), red not answering, grey not applicable. Hover: the name and why. When FTP is silent on its port, 1337, 2121 and 21 (and 9090 on a PS5) are asked once a minute; if one greets as FTP the app keeps that port and says so in the status line. | — |
+| 🎮 · **FTP** · 📦 | Remote Play, FTP (the word in small bold letters) and the installer, each with a dot at the corner: green available (with a soft ring), amber checking (it breathes), red not answering, grey not applicable. Hover: a small card with the name, the state in its colour and, when something is off, what to do. When FTP is silent on its port, 1337, 2121 and 21 (and 9090 on a PS5) are asked once a minute; if one greets as FTP the app keeps that port and says so in the status line. | — |
 | ▶ | Only while a Remote Play session runs and another page is open. | Back to the picture. |
 | 💿 | Games: the console's library and the PS1/PS2 converter; lit while that page is open. | Opens / closes the games page. |
 | 🏪 | The homebrew store; lit while that page is open (only in builds with the store). | Opens / closes the store. |
@@ -213,6 +213,25 @@ console by its path (*Send and install*, *Convert and install*, *Install on
 the console*), one on this PC by its address (*Install directly*). The card
 is done once Prospero Manager says the console has queued the install; a
 refusal comes back with the console's code.
+
+When the console's installer does not answer, an install is not lost: it
+waits in the queue — the bar at the top and the card say what to do — and
+goes on by itself once the installer answers. As the queue starts waiting, a
+window says it in steps, for the console in use:
+
+- **PS4**: open **Remote Package Installer** on the console and keep it in
+  the foreground while installs are sent (in the background it does not
+  answer).
+- **PS5**: **in Payloads, press ▶ on Prospero Manager**, or turn on etaHEN's
+  DPI v2; the window has **Open Payloads**, and tells how to have it every
+  time (its switch in Payloads: it then starts with each jailbreak).
+
+Using FTP while it does not answer (the Files tab, a drop on *Send over
+FTP*) opens the same kind of window. On a PS4: GoldHEN has to be loaded again
+after the console restarts, and its FTP server on (it is by default). On a
+PS5: load the ftpsrv payload (with the payload loader, or **Send from this
+PC…** in Payloads), or turn on etaHEN's FTP. OrbisLink does nothing on the
+console by itself here: it only says what to do.
 
 A task the console still keeps from an earlier try (error 0x80990015,
 *TASK_DUPLICATED*) is removed and the install asked for again, when the

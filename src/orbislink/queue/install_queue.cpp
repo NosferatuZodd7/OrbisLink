@@ -600,6 +600,22 @@ void InstallQueue::finishTask(QueueTask task)
 	notify(task);
 }
 
+bool InstallQueue::installerAway(const InstallerResult &result)
+{
+	return result.errorCode == 0
+		&& (result.unavailable || startsWith(result.message, "Remote installer unavailable"));
+}
+
+std::string InstallQueue::waitingReason(const InstallerResult &result) const
+{
+	// On a PS5 the installer is a payload or a setting of etaHEN: what to do.
+	if(deps_.installer && deps_.installer->installsFromConsole())
+		return QT_TRANSLATE_NOOP("Messages", "Waiting for an installer on the console: in Payloads, press ▶ on "
+			"Prospero Manager, or turn on etaHEN's DPI v2 (DPI_v2=1 in config.ini). The install goes on by itself "
+			"once one answers.");
+	return result.message;
+}
+
 void InstallQueue::requeueForServiceLoss(QueueTask task, const std::string &reason)
 {
 	task.state = TaskState::Pending;
@@ -752,9 +768,9 @@ void InstallQueue::runDirectInstall(QueueTask task)
 		else
 			task.message = install.message;
 		// Service down: pause the queue instead of burning the task (§6.3).
-		if(install.errorCode == 0 && startsWith(install.message, "Remote installer unavailable"))
+		if(installerAway(install))
 		{
-			requeueForServiceLoss(task, install.message);
+			requeueForServiceLoss(task, waitingReason(install));
 			return;
 		}
 		task.state = TaskState::Error;
@@ -823,9 +839,9 @@ void InstallQueue::runDirectInstall(QueueTask task)
 				task.httpToken.clear();
 				task.errorCode = result.errorCode;
 				task.message = result.message;
-				if(result.errorCode == 0 && startsWith(result.message, "Remote installer unavailable"))
+				if(installerAway(result))
 				{
-					requeueForServiceLoss(task, result.message);
+					requeueForServiceLoss(task, waitingReason(result));
 					return;
 				}
 				task.state = TaskState::Error;
@@ -950,9 +966,9 @@ void InstallQueue::runConsoleInstall(QueueTask task)
 		task.errorCode = started.errorCode;
 		task.message = started.errorCode != 0 && isOutOfSpaceError(started.errorCode)
 			? describeConsoleError(started.errorCode) : started.message;
-		if(started.errorCode == 0 && startsWith(started.message, "Remote installer unavailable"))
+		if(installerAway(started))
 		{
-			requeueForServiceLoss(task, started.message);
+			requeueForServiceLoss(task, waitingReason(started));
 			return;
 		}
 		task.state = TaskState::Error;
