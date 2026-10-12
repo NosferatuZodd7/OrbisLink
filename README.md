@@ -6,12 +6,68 @@ A desktop app that brings together, in one window, **Remote Play** for a PS4
 or PS5, **installing .pkg files by drag and drop**, and an **FTP client** for
 the console.
 
-> **Status:** Remote Play works on real PS4 and PS5 consoles (discovery,
-> registration, waking from rest mode, 1080p/60 video, sound, microphone,
+> **Status:** stable **v1.2.0**. Remote Play works on real PS4 and PS5
+> consoles (discovery, registration, 1080p/60 video, sound, microphone,
 > controller and keyboard). Installing pkg files and FTP need a PS4 with
-> GoldHEN, or a PS5 with a jailbreak that provides them (etaHEN). The app is
-> in English, with a Portuguese translation. See
-> [What is missing](#what-is-missing-and-why).
+> GoldHEN, or a PS5 with a jailbreak that provides them (etaHEN). The `beta`
+> branch has a lot more, still being tested on real consoles — see
+> [What works, and what is in development](#what-works-and-what-is-in-development).
+> The app is in English, with a Portuguese translation.
+
+## What works, and what is in development
+
+There are two versions: the **stable** one (v1.2.0, this branch) and the
+**beta** (test builds from the `beta` branch, `vX.Y.Z-dev.N`), where new work
+lands first. The app is made for the PS4 and the PS5 alike. To try the beta:
+**Settings → Updates → Testing (branch builds)**, or a pre-release from the
+Releases page.
+
+| Mark | Means |
+|---|---|
+| ✅ | Works: confirmed on a real console (or needs no console) |
+| 🧪 | Done and tested against the mock console; still to be confirmed on a real console |
+| 🚧 | Not working yet, or still being built |
+| — | Does not apply to that console |
+
+### Stable (v1.2.0)
+
+| Feature | PS4 | PS5 |
+|---|---|---|
+| Remote Play: discovery, registration, 1080p/60 video, sound, controller, keyboard as a controller | ✅ | ✅ |
+| Microphone | 🧪 | ✅ (in a voice party) |
+| Waking the console from rest mode with one click | 🧪 | 🧪 |
+| FTP browser: browse, upload, download, rename, delete | ✅ (GoldHEN) | 🧪 only on the port set by hand (the beta finds it by itself) |
+| Installing .pkg files by drag and drop | ✅ (Remote Package Installer) | 🚧 (in the beta: 🧪) |
+| PS1/PS2 discs made into PS4 packages (no console needed) | ✅ | ✅ |
+| PS1/PS2 packages sent and installed | ✅ | 🧪 sent · 🚧 installed (by hand on the console) |
+| Several consoles, keyboard map, themes and colours, updates | ✅ | ✅ |
+
+### New in the beta
+
+| Feature | PS4 | PS5 |
+|---|---|---|
+| FTP found by itself when the set port is silent (2121, 1337, 21, and 9090 on a PS5) | 🧪 | ✅ |
+| Files tab: moving between drives (internal ↔ USB), copied through the PC; a drop goes into the folder that is open | 🧪 | 🧪 |
+| Sending any file (an ISO too) to the console's memory or a USB drive | 🧪 | 🧪 |
+| PS1/PS2 packages sent over FTP (on a PS5 too, now that its FTP is found) | ✅ | ✅ |
+| Installing on a PS5 without going to the console: etaHEN's DPI v2, or Prospero Manager's API when there is no DPI v2 | — | 🧪 |
+| When the installer or FTP is not running, a window says what to do on that console (PS4: open Remote Package Installer, GoldHEN's FTP; PS5: Prospero Manager or DPI v2, ftpsrv or etaHEN's FTP) | ✅ | ✅ |
+| **Games**: one library of every place games can be (the console's `OrbisLinkFPKG` folders, its USB drives and `data/pkg`, this PC's drives and folders), with covers, search and an *Only games* filter; the PS1/PS2 converter in its own tab | 🧪 | 🧪 |
+| Games: pick several and convert or install them together; choose the console's memory, a USB drive or the extended storage | 🧪 | 🧪 |
+| Games: what the console has installed, copying a game to this PC, the console's free space | 🧪 | 🧪 |
+| Games: uninstalling a game or its update | 🧪 | — |
+| Packing a PS4 app folder from this PC into a .pkg and installing it | 🧪 | 🧪 |
+| PS5 games as folders or images (`.ffpkg`, `.exfat`) put on the home screen through ShadowMountPlus | — | 🧪 |
+| **Homebrew store**: the PS5 homebrew apps of the signed homebrew.page catalog — install, update, remove; app archives (`.zip`) from this PC; a catalog address of your own | — | 🧪 |
+| **Save vault**: every save backed up to this PC, sent back when the console loses it, or taken to another console of the same PSN account (PS4 ↔ PS5) | 🧪 | 🧪 |
+| **Payloads**: what the console keeps in its payload and plugin folders — add, rename, delete, start at boot, run now, edit the settings files; the community's PS5 payload list | 🧪 | 🧪 |
+| Remote Play: several PSN accounts, each with its own PIN, picked on the console's card | 🧪 | 🧪 |
+| Remote Play: no crash when the console is showing a video app | 🧪 | 🧪 |
+| One queue for every job (installs, copies, conversions, the store), kept across restarts; a system notification when a long job ends | 🧪 | 🧪 |
+| Minimal top bar; hovering FTP or the installer shows a card with its state and what to do | ✅ | ✅ |
+
+Everything still missing, and why, is in
+[What is missing, and why](#what-is-missing-and-why).
 
 ## The interface
 
@@ -60,8 +116,11 @@ real behaviour, not mock-ups.
 
 For the user's own consoles, for homebrew and copies of games the user
 legally owns. **The app does not include, download, index or suggest sources
-of content**, and it does not run a jailbreak or load payloads: the console
-must already be running GoldHEN (PS4) or a jailbreak such as etaHEN (PS5).
+of games**, and it does not run a jailbreak: the console must already be
+running GoldHEN (PS4) or a jailbreak such as etaHEN (PS5). In the beta, the
+homebrew store only lists homebrew apps (from a signed catalog, or archives
+on this PC), and the Payloads page starts or installs a payload only when the
+user asks.
 
 ## What the console needs
 
@@ -71,12 +130,15 @@ must already be running GoldHEN (PS4) or a jailbreak such as etaHEN (PS5).
 | PS4 — GoldHEN FTP server | 2121 | comes with GoldHEN, on by default |
 | PS4 — Remote Package Installer (flatz) | 12800 | install it and **keep the app open and in the foreground** while commands are sent |
 | PS5 — etaHEN FTP server | 1337 | `FTP=1` in etaHEN's `config.ini` |
+| PS5 — ftpsrv payload FTP server | 2121 | load the payload (the beta finds the port by itself) |
 | PS5 — etaHEN DPI v2 installer | 12800 | `DPI_v2=1` in etaHEN's `config.ini` |
+| PS5 — Prospero Manager (beta, when there is no DPI v2) | 7070 | load the Prospero Manager payload |
 
 The PS5 FTP port has its own setting, because it differs from the PS4's:
-with a PS5 in use, the settings show and edit the PS5 port. Installing on a
-PS5 through DPI v2 uses the same API as on the PS4; it has not been
-confirmed on a real PS5 yet.
+with a PS5 in use, the settings show and edit the PS5 port. In the beta,
+when the set port does not greet as FTP, the app also asks the usual ones
+and moves to the one that answers. Installing on a PS5 is only in the beta
+(DPI v2 or Prospero Manager), and still has to be confirmed on a real PS5.
 
 ### Registering Remote Play
 
@@ -150,6 +212,9 @@ emulator's title list), and the game's official cover when there is one. PS1
 discs use the PS1 emulator from the same download, as PS Classics fPKG
 Builder does; they need a single .bin (games with one file per track have to
 be joined first).
+
+In the beta this page becomes **Games**: a library of every place games can
+be, on the console and on this PC, with the PS1/PS2 converter in its own tab.
 
 ## Download (pre-built)
 
@@ -329,8 +394,14 @@ The full list, checked against the code, is in
 Sony's *holepunch* infrastructure, which chiaki-ng supports but which needs
 an account and an authentication path this project does not have yet.
 
-**Installing on a PS5.** It uses etaHEN's DPI v2, which speaks the same API
-as the PS4 installer; it still has to be confirmed on a real PS5.
+**Installing on a PS5.** The stable version only speaks Remote Package
+Installer's API, which the PS5 does not have. The beta speaks etaHEN's DPI v2
+and Prospero Manager's package API; both were checked against their source
+and the mock console, and still have to be confirmed on a real PS5.
+
+**PS5 game packages.** No open tool builds PS5 fake packages yet, so PS5
+games and apps go on the home screen through ShadowMountPlus (beta) instead
+of being installed.
 
 **Real blur behind the glass.** The visual language is built from stacked
 translucent layers. Real blur needs `QtQuick.Effects` (Qt 6.5+), and the
@@ -347,15 +418,20 @@ hundred euros a year, which is not justified for a project that is not sold.
 
 - [x] Remote Play discovery and registration (PS4 and PS5)
 - [x] Microphone in a PS5 party
+- [x] PS2 disc converted, sent and installed on a PS4 (Remote Package Installer)
+- [x] FTP on a jailbroken PS5: browse, upload, move folders (beta)
 - [ ] Waking a PS5 from rest mode with one click
 - [ ] Stable stream during a 10 GB+ FTP upload
-- [ ] Direct install of a small homebrew
 - [ ] Direct install of a pkg > 4 GB
 - [ ] Game + patch + DLC dropped together (order gd → gp → ac)
 - [ ] Network drop halfway and resume
 - [ ] Windows firewall blocking → correct message
 - [ ] FTP upload resume with `REST`/`APPE` (to be confirmed, see `docs/validation.md` §9)
-- [ ] FTP and install on a PS5 with etaHEN
+- [ ] Install on a PS5 through DPI v2 or Prospero Manager (beta)
+- [ ] Moving files between the console's drives (beta)
+- [ ] Save vault: back up and send back, PS4 and PS5 (beta)
+- [ ] Payloads page on a PS4 and a PS5 (beta)
+- [ ] Homebrew store app installed and on the home screen of a PS5 (beta)
 
 ## Licence
 
