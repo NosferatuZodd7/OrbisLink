@@ -60,6 +60,8 @@ Releases page.
 | Each package says whether it is fake (fpkg) or official, and the firmware it needs | ✅ | ✅ |
 | A warning before an official package goes (it installs only with its licence), or a game needing a newer firmware than the PS4's | 🧪 | 🧪 official only (a PS5 runs PS4 games whatever their firmware) |
 | Organising a folder of packages on this PC: names from what they say, install order (game, update, add-ons), a folder per game, copies left alone | ✅ | ✅ |
+| Games: **cheats** for an installed game (GoldHEN's cheat repository, and etaHEN's on a PS5) sent to the console's cheat folder or taken off it | 🧪 | 🧪 |
+| Games: **game patches** (illusion0001's: 60 FPS, no motion blur, skipped intros…), each with a switch for GoldHEN's game_patch plugin | 🧪 | — |
 | PS5 games as folders or images (`.ffpkg`, `.exfat`) put on the home screen through ShadowMountPlus | — | 🧪 |
 | **Homebrew store**: the PS5 homebrew apps of the signed homebrew.page catalog — install, update, remove; app archives (`.zip`) from this PC; a catalog address of your own | — | 🧪 |
 | **Save vault**: every save backed up to this PC, sent back when the console loses it, or taken to another console of the same PSN account (PS4 ↔ PS5) | 🧪 | 🧪 |
@@ -508,3 +510,8 @@ In the beta, telling official packages from fake ones, the firmware a package
 needs and organising a folder of packages follow
 [PS4 PKG Tool](https://github.com/pearlxcore/PS4PKGTool), by pearlxcore
 (GPL-3.0), rewritten in C++.
+The beta's cheats come from the
+[GoldHEN Cheat Repository](https://github.com/GoldHEN/GoldHEN_Cheat_Repository)
+and [etaHEN's PS5 cheats](https://github.com/etaHEN/PS5_Cheats), its game
+patches from [illusion0001's PS4-PS5-Game-Patch](https://github.com/illusion0001/PS4-PS5-Game-Patch),
+all downloaded at run time (none is part of OrbisLink).
