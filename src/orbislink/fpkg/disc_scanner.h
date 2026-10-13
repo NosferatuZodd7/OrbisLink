@@ -24,6 +24,10 @@ struct DiscInfo
 	std::string title;     // from the file name, tidied
 	std::string format;    // "iso", "bin", "img"
 	uint64_t size = 0;
+	// How the image holds its sectors: 2048 bytes each (a plain ISO), or a
+	// raw CD's 2352 (or 2336) with the 2048 of data at `dataOffset`.
+	uint32_t sectorSize = 2048;
+	uint32_t dataOffset = 0;
 	int discNumber = 0;    // from "(Disc 2)" in the name, 0 if none
 	std::string problem;   // why it cannot be read, if it cannot
 };

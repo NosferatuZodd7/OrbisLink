@@ -68,6 +68,7 @@ public:
 
 	const uint8_t *pvd() const { return pvd_; }
 	uint32_t sectorSize() const { return sectorSize_; }
+	uint32_t dataOffset() const { return dataOffset_; }
 
 private:
 	ByteReader read_;
@@ -301,6 +302,8 @@ DiscInfo inspectDisc(const std::string &fileName, uint64_t size, const ByteReade
 		info.problem = "not a PlayStation disc image";
 		return info;
 	}
+	info.sectorSize = reader.sectorSize();
+	info.dataOffset = reader.dataOffset();
 	const std::string cnf = readSystemCnf(reader);
 	size_t pos = 0;
 	while(pos < cnf.size())
