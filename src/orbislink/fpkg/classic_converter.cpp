@@ -339,6 +339,13 @@ bool prepareClassic(const DiscInfo &disc, const EmulatorInfo &emulators,
 	if(ps2)
 	{
 		addDisk(req, "image/disc01.iso", disc.path);
+		// A PS2 game on CD, as a raw .bin (2352 bytes a sector): the
+		// emulator reads an ISO, so the package gets the one inside it.
+		if(disc.sectorSize != 2048)
+		{
+			req.files.back().rawSectorSize = disc.sectorSize;
+			req.files.back().rawDataOffset = disc.dataOffset;
+		}
 	}
 	else
 	{

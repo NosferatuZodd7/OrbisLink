@@ -20,6 +20,9 @@ namespace {
 
 namespace fs = std::filesystem;
 
+// The sector of a plain ISO, what a raw CD image is read as.
+constexpr uint32_t kIsoSector = 2048;
+
 enum : uint32_t {
 	kDigests = 0x1,
 	kEntryKeys = 0x10,
@@ -392,15 +395,47 @@ void Builder::buildTree()
 			if(!*in)
 				throw std::runtime_error("cannot open " + src.sourcePath);
 			handles_.push_back(in);
-			file->size = size;
 			const std::string name = src.sourcePath;
-			file->read = [in, name](uint64_t offset, uint8_t *out, size_t length) {
+			auto readAt = [in, name](uint64_t offset, uint8_t *out, size_t length) {
 				in->clear();
 				in->seekg(static_cast<std::streamoff>(offset));
 				in->read(reinterpret_cast<char *>(out), static_cast<std::streamsize>(length));
 				if(!*in)
 					throw std::runtime_error("reading " + name + " failed");
 			};
+			const uint32_t raw = src.rawSectorSize;
+			if(raw > kIsoSector && src.rawDataOffset + kIsoSector <= raw)
+			{
+				// A raw CD image: the ISO in it, 2048 bytes of each sector,
+				// read a run of whole sectors at a time.
+				const uint32_t at = src.rawDataOffset;
+				file->size = size / raw * kIsoSector;
+				auto buffer = std::make_shared<Bytes>();
+				file->read = [readAt, raw, at, buffer](uint64_t offset, uint8_t *out, size_t length) {
+					while(length > 0)
+					{
+						const uint64_t first = offset / kIsoSector;
+						const size_t count = std::min<size_t>(512, (offset % kIsoSector + length + kIsoSector - 1) / kIsoSector);
+						buffer->resize(static_cast<size_t>(count) * raw);
+						readAt(first * raw, buffer->data(), buffer->size());
+						size_t skip = static_cast<size_t>(offset % kIsoSector);
+						for(size_t i = 0; i < count && length > 0; ++i)
+						{
+							const size_t take = std::min<size_t>(kIsoSector - skip, length);
+							std::memcpy(out, buffer->data() + i * raw + at + skip, take);
+							out += take;
+							offset += take;
+							length -= take;
+							skip = 0;
+						}
+					}
+				};
+			}
+			else
+			{
+				file->size = size;
+				file->read = readAt;
+			}
 		}
 		file->compressedSize = file->size;
 		dir->files.push_back(std::move(file));

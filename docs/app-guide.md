@@ -575,7 +575,11 @@ or install; 📂 opens the output folder.
 PS2 discs exactly as easy-ps2-fpkg makes them: the "Jak v2" emulator as it
 comes, its config with the game's serial, its own `param.sfo` with the game's
 IDs and name, the official cover by serial (else the emulator's art), the disc
-as `image/disc01.iso`. PS1 discs as PS Classics fPKG Builder does.
+as `image/disc01.iso`. A PS2 game on CD kept as a raw `.bin` (with its
+`.cue`: 2352 bytes a sector) goes in as the ISO inside it — 2048 bytes of
+each sector, taken while the package is built, the `.bin` left as it is: the
+emulator reads only an ISO, and crashes (CE-34878-0) on the raw image. PS1
+discs as PS Classics fPKG Builder does.
 
 ## Save vault
 
