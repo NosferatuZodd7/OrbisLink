@@ -57,6 +57,20 @@ public:
 	DownloadResult download(const std::string &url, const std::string &destinationPath,
 		const std::function<bool(int64_t done, int64_t total)> &progress = nullptr) const;
 
+	struct DownloadOptions
+	{
+		// Sent as the User-Agent ("OrbisLink" when empty): some stores only
+		// answer their own.
+		std::string userAgent;
+		// What is in the file already is kept and the rest asked for; a
+		// server that sends it all again gets it written from the start. A
+		// download that breaks keeps what came, for the next try.
+		bool resume = false;
+	};
+	// With progress counting what the file already had.
+	DownloadResult download(const std::string &url, const std::string &destinationPath,
+		const std::function<bool(int64_t done, int64_t total)> &progress, const DownloadOptions &options) const;
+
 private:
 	int timeoutMs_;
 };

@@ -60,7 +60,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         anchors.leftMargin: root.framed ? Theme.gutter : 0
-        anchors.rightMargin: !root.framed ? 0 : window.panelShown ? 8 : Theme.gutter
+        anchors.rightMargin: !root.framed ? 0 : window.sideShown ? 8 : Theme.gutter
         anchors.topMargin: root.framed ? 4 : 0
         anchors.bottomMargin: root.framed ? 4 : 0
         radius: Theme.radius

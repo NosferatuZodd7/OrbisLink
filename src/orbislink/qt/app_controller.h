@@ -13,6 +13,7 @@
 
 #include <QHash>
 #include <QObject>
+#include <QSet>
 #include <QStringList>
 #include <QUrl>
 #include <QVariantMap>
@@ -61,6 +62,12 @@ class AppController : public QObject
 	Q_PROPERTY(QString httpServerAddress READ httpServerAddress NOTIFY statusChanged)
 	Q_PROPERTY(QString ftpPath READ ftpPath NOTIFY ftpPathChanged)
 	Q_PROPERTY(bool ftpBusy READ ftpBusy NOTIFY ftpBusyChanged)
+	// What is being deleted on the console from the file list: their paths,
+	// each row showing its own progress.
+	Q_PROPERTY(QStringList ftpDeleting READ ftpDeleting NOTIFY ftpDeletingChanged)
+	// The folder on screen: { folders, files, bytes (its files' sizes), free
+	// (the room left on its disk, -1 when the server does not say) }.
+	Q_PROPERTY(QVariantMap ftpSpace READ ftpSpace NOTIFY ftpSpaceChanged)
 	// The FTP uploads not finished yet, for the file list to show them where
 	// they are going: [{name, directory, percent, sending}].
 	Q_PROPERTY(QVariantList ftpUploads READ ftpUploads NOTIFY ftpUploadsChanged)
@@ -71,6 +78,9 @@ class AppController : public QObject
 	// Which homebrew enabler each console with FTP runs: "GoldHEN",
 	// "etaHEN" or "HEN" (some other), by address.
 	Q_PROPERTY(QVariantMap jailbreaks READ jailbreaks NOTIFY ftpReachableChanged)
+	// The version of that enabler, by address, when its FTP greeting gives
+	// one ("2.4b18"); none otherwise.
+	Q_PROPERTY(QVariantMap henVersions READ henVersions NOTIFY ftpReachableChanged)
 	// Where each local file stands in the queue, by its path (normalised
 	// with transferKey): { stage: "sending" | "installing" | "sent" |
 	// "installed" | "error" | "cancelled", percent, message }.
@@ -157,9 +167,12 @@ public:
 	QString httpServerAddress() const;
 	QString ftpPath() const { return ftpPath_; }
 	bool ftpBusy() const { return ftpBusy_; }
+	QStringList ftpDeleting() const { return ftpDeleting_; }
+	QVariantMap ftpSpace() const { return ftpSpace_; }
 	QVariantList ftpUploads() const { return ftpUploads_; }
 	QVariantMap ftpReachable() const { return ftpReachable_; }
 	QVariantMap jailbreaks() const { return jailbreaks_; }
+	QVariantMap henVersions() const { return henVersions_; }
 	QVariantMap transfers() const { return transfers_; }
 	static QString transferKey(const QString &localPath);
 	bool downloadActive() const { return downloadActive_; }
@@ -253,6 +266,8 @@ public:
 	Q_INVOKABLE void cancelTask(const QString &id);
 	Q_INVOKABLE void retryTask(const QString &id);
 	Q_INVOKABLE void removeTask(const QString &id);
+	// Every finished task (installed, sent, failed, cancelled) off the panel.
+	Q_INVOKABLE void clearFinishedTasks();
 	// Folders pinned at the top of the Files tab (ftpShortcuts).
 	Q_INVOKABLE bool isFtpPinned(const QString &path) const;
 	Q_INVOKABLE void pinFtpFolder(const QString &path);
@@ -273,7 +288,10 @@ public:
 	Q_INVOKABLE void ftpNavigate(const QString &path);
 	Q_INVOKABLE void ftpRefresh();
 	Q_INVOKABLE void ftpUp();
+	// A file, or a folder with everything in it; the row shows it going.
 	Q_INVOKABLE void ftpDelete(const QString &path, bool isDirectory);
+	// Several at once, one after the other: [{ path, isDirectory }].
+	Q_INVOKABLE void ftpDeleteMany(const QVariantList &items);
 	Q_INVOKABLE void ftpMakeDirectory(const QString &name);
 	Q_INVOKABLE void ftpRename(const QString &path, const QString &newName);
 	// The folders inside `path` on the console, for the folder picker,
@@ -287,6 +305,8 @@ public:
 	Q_INVOKABLE void startFtpDrag(const QString &remotePath, const QString &localUrl);
 	// Moves a file or folder to another folder of the console.
 	Q_INVOKABLE void ftpMove(const QString &path, const QString &destinationDir);
+	// Several, one after the other.
+	Q_INVOKABLE void ftpMoveMany(const QStringList &paths, const QString &destinationDir);
 	// A whole folder, with everything inside it, to a folder of the PC
 	// (empty: the downloads folder).
 	Q_INVOKABLE void ftpDownloadFolder(const QString &remotePath, const QString &name,
@@ -413,6 +433,8 @@ signals:
 	void ftpFoldersListed(const QString &path, const QStringList &folders, const QString &error);
 	void ftpFolderCreated(const QString &path, const QString &error);
 	void ftpBusyChanged();
+	void ftpDeletingChanged();
+	void ftpSpaceChanged();
 	void ftpUploadsChanged();
 	void ftpReachableChanged();
 	void transfersChanged();
@@ -464,7 +486,10 @@ private:
 		const std::vector<std::string> &remoteNames = {}, const QString &directory = QString());
 	// Lists the folder the files go to and, for those already there, asks first.
 	void checkUploadConflicts(const QStringList &files, const QString &directory);
-	static std::string detectJailbreak(const std::string &address, uint16_t port);
+	// Which enabler the console runs, and its version when `greeting` (what
+	// its FTP said on connecting) gives one.
+	static std::string detectJailbreak(const std::string &address, uint16_t port,
+		const std::string &greeting, std::string *version);
 	void refreshFtpListing(bool announce);
 	QString uploadDirectory() const;
 
@@ -485,10 +510,21 @@ private:
 	QString statusMessage_;
 	QString ftpPath_ = QStringLiteral("/data/pkg/");
 	bool ftpBusy_ = false;
+	QStringList ftpDeleting_;
+	// Asked to list while a listing was under way.
+	bool ftpRelist_ = false;
+	QVariantMap ftpSpace_;
+	// The room left on each disk of the console (its first folders, "/data",
+	// "/mnt/usb0"), and when it was asked: not asked at every listing.
+	QHash<QString, QPair<qint64, qint64>> ftpFree_;
+	void updateFtpSpace(const std::vector<FtpEntry> &entries);
 	bool installerRecheckPending_ = false;
 	QVariantList ftpUploads_;
+	// The uploads whose start the file list was read again for.
+	QSet<QString> uploadsListed_;
 	QVariantMap ftpReachable_;
 	QVariantMap jailbreaks_;
+	QVariantMap henVersions_;
 	QVariantMap transfers_;
 	// The console whose files the list shows: when the console in use
 	// changes, the previous one's listing must not stay on screen.

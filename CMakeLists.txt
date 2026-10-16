@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 cmake_minimum_required(VERSION 3.16)
-project(OrbisLink VERSION 1.2.0 LANGUAGES C CXX)
+project(OrbisLink VERSION 1.3.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -138,6 +138,7 @@ endif()
 if(TARGET orbislink_fpkg)
 	add_library(orbislink_store STATIC
 		src/orbislink/store/store_catalog.cpp
+		src/orbislink/store/hb_store.cpp
 		src/orbislink/store/shadowmount_log.cpp
 		src/orbislink/store/store_installer.cpp
 		src/orbislink/store/zip_reader.cpp
@@ -254,7 +255,8 @@ if(ORBISLINK_BUILD_GUI)
 			endif()
 		endif()
 		if(TARGET orbislink_store)
-			target_sources(orbislink-gui PRIVATE src/orbislink/qt/store_controller.cpp)
+			target_sources(orbislink-gui PRIVATE src/orbislink/qt/store_controller.cpp
+				src/orbislink/qt/hb_store_db.cpp)
 			target_link_libraries(orbislink-gui PRIVATE orbislink_store)
 		endif()
 		if(ORBISLINK_ENABLE_STREAM)

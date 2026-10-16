@@ -66,6 +66,17 @@ if(TARGET orbislink_store)
 	add_test(NAME test_store COMMAND test_store)
 endif()
 
+# A Homebrew Store's database (store.db, SQLite through Qt Sql): what the
+# store page lists from it.
+if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET Qt6::Sql AND TARGET orbislink_store)
+	add_executable(test_hb_store_db
+		test_hb_store_db.cpp
+		${CMAKE_SOURCE_DIR}/src/orbislink/qt/hb_store_db.cpp)
+	target_link_libraries(test_hb_store_db PRIVATE orbislink_store Qt6::Core Qt6::Sql)
+	target_include_directories(test_hb_store_db PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+	add_test(NAME test_hb_store_db COMMAND test_hb_store_db)
+endif()
+
 # Adding a lost save's row to a copy of the PS4's list of saves (SQLite,
 # through Qt Sql): what goes back to the console must be whole.
 if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET Qt6::Sql)

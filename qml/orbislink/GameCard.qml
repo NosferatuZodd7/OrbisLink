@@ -163,7 +163,10 @@ ShelfTile {
         }
         HoverHandler { id: warnHover }
         ToolTip.visible: warnHover.hovered
-        ToolTip.text: qsTr("No emulator for this game yet: it can be sent as it is, not converted")
+        ToolTip.text: (card.game.bootFile || "").length > 0
+                      ? qsTr("This disc starts %1, not a game: a disc of software or a tool (PS2 Linux, a demo "
+                             + "disc…). There is no game in it to convert.").arg(card.game.bootFile)
+                      : qsTr("No emulator for this game yet: it can be sent as it is, not converted")
     }
 
     // The round box that picks it, above the card's own click.

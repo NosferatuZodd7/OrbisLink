@@ -171,7 +171,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         anchors.leftMargin: root.framed ? Theme.gutter : 0
-        anchors.rightMargin: !root.framed ? 0 : window.panelShown ? 8 : Theme.gutter
+        anchors.rightMargin: !root.framed ? 0 : window.sideShown ? 8 : Theme.gutter
         anchors.topMargin: root.framed ? 4 : 0
         anchors.bottomMargin: root.framed ? 4 : 0
         radius: Theme.radius
@@ -421,8 +421,12 @@ Item {
                                     Rectangle {
                                         id: fileRow
                                         required property var modelData
+                                        // What it does: the payload list's words, what is
+                                        // known of it, or what kind of file it is.
+                                        readonly property string about: (modelData.description || "").length > 0
+                                                                        ? modelData.description : (modelData.typeNote || "")
                                         Layout.fillWidth: true
-                                        implicitHeight: 44
+                                        implicitHeight: about.length > 0 ? 54 : 44
                                         radius: 10
                                         color: rowHover.hovered ? Theme.controlFill : "transparent"
                                         HoverHandler { id: rowHover }
@@ -456,14 +460,32 @@ Item {
                                                     color: Theme.textSecondary
                                                 }
                                             }
-                                            Text {
+                                            ColumnLayout {
                                                 Layout.fillWidth: true
-                                                elide: Text.ElideMiddle
-                                                text: fileRow.modelData.name
-                                                      + (fileRow.modelData.version.length > 0
-                                                         ? "  ·  " + fileRow.modelData.version : "")
-                                                color: Theme.text
-                                                font.pixelSize: 13
+                                                spacing: 1
+                                                Text {
+                                                    Layout.fillWidth: true
+                                                    elide: Text.ElideMiddle
+                                                    text: fileRow.modelData.name
+                                                          + (fileRow.modelData.version.length > 0
+                                                             ? "  ·  " + fileRow.modelData.version : "")
+                                                    color: Theme.text
+                                                    font.pixelSize: 13
+                                                }
+                                                Text {
+                                                    id: aboutText
+                                                    Layout.fillWidth: true
+                                                    visible: fileRow.about.length > 0
+                                                    elide: Text.ElideRight
+                                                    text: fileRow.about
+                                                    // Only the kind of file it is: quieter.
+                                                    color: (fileRow.modelData.description || "").length > 0
+                                                           ? Theme.textSecondary : Theme.textMuted
+                                                    font.pixelSize: 11
+                                                    ToolTip.visible: aboutHover.hovered && aboutText.truncated
+                                                    ToolTip.text: fileRow.about
+                                                    HoverHandler { id: aboutHover }
+                                                }
                                             }
                                             Rectangle {
                                                 visible: fileRow.modelData.critical

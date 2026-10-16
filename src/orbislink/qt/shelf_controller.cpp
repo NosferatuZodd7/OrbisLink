@@ -2144,7 +2144,7 @@ QString batchStep(const QVariantMap &card, const QString &action)
 				return QLatin1String(step);
 		return QString();
 	}
-	if(action == QLatin1String("copyToPc"))
+	if(action == QLatin1String("copyToPc") || action == QLatin1String("delete"))
 		return actions.contains(action) ? action : QString();
 	return QString();
 }
@@ -2153,7 +2153,7 @@ QString batchStep(const QVariantMap &card, const QString &action)
 
 QVariantMap ShelfController::batchActions(const QStringList &keys) const
 {
-	int install = 0, converts = 0, convertOnly = 0, copy = 0, console = 0;
+	int install = 0, converts = 0, convertOnly = 0, copy = 0, console = 0, remove = 0;
 	for(const QString &key : keys)
 	{
 		const QVariantMap card = cardByKey(key);
@@ -2164,11 +2164,13 @@ QVariantMap ShelfController::batchActions(const QStringList &keys) const
 		converts += step == QLatin1String("convert") || step == QLatin1String("pack") ? 1 : 0;
 		convertOnly += batchStep(card, QStringLiteral("convertOnly")).isEmpty() ? 0 : 1;
 		copy += batchStep(card, QStringLiteral("copyToPc")).isEmpty() ? 0 : 1;
+		remove += batchStep(card, QStringLiteral("delete")).isEmpty() ? 0 : 1;
 		console += card.value(QStringLiteral("where")).toString() == QLatin1String("console") ? 1 : 0;
 	}
 	return { { QStringLiteral("install"), install }, { QStringLiteral("converts"), converts },
 		{ QStringLiteral("convertOnly"), convertOnly },
-		{ QStringLiteral("copyToPc"), copy }, { QStringLiteral("console"), console } };
+		{ QStringLiteral("copyToPc"), copy }, { QStringLiteral("console"), console },
+		{ QStringLiteral("delete"), remove } };
 }
 
 void ShelfController::actMany(const QStringList &keys, const QString &action)
@@ -2176,6 +2178,20 @@ void ShelfController::actMany(const QStringList &keys, const QString &action)
 	if(action == QLatin1String("copyToPc"))
 	{
 		copyToPc(keys, true, true);
+		return;
+	}
+	// The console's files picked, deleted one after the other as one job.
+	if(action == QLatin1String("delete"))
+	{
+		QStringList paths;
+		for(const QString &key : keys)
+		{
+			const QVariantMap card = cardByKey(key);
+			if(!card.isEmpty() && !batchStep(card, action).isEmpty()
+				&& card.value(QStringLiteral("where")).toString() == QLatin1String("console"))
+				paths << card.value(QStringLiteral("path")).toString();
+		}
+		consoleLibrary_->removeMany(paths);
 		return;
 	}
 	// The packages of this PC go to the queue together, in the order picked.

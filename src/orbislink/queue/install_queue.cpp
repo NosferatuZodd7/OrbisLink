@@ -332,9 +332,15 @@ std::vector<std::string> InstallQueue::enqueue(const std::vector<std::string> &p
 
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
+		// Where the tasks to go next are put: before the first one waiting.
+		size_t ahead = static_cast<size_t>(std::find_if(tasks_.begin(), tasks_.end(),
+			[](const QueueTask &queued) { return queued.state == TaskState::Pending; }) - tasks_.begin());
 		for(const QueueTask &task : batch)
 		{
-			tasks_.push_back(task);
+			if(task.next)
+				tasks_.insert(tasks_.begin() + static_cast<std::ptrdiff_t>(ahead++), task);
+			else
+				tasks_.push_back(task);
 			ids.push_back(task.id);
 		}
 	}
@@ -1261,8 +1267,11 @@ void InstallQueue::runFtpUpload(QueueTask task)
 	{
 		std::string err;
 		const std::string remotePath = task.remotePath;
+		// Right after this upload, before the next one: the package just
+		// sent installs now, not once every other upload is done.
 		const std::vector<std::string> ids = enqueue({ task.localPath }, TransferMode::DirectInstall,
 			nullptr, nullptr, [&](QueueTask &install) {
+				install.next = true;
 				if(deleteAfter)
 					install.cleanupRemotePath = remotePath;
 			});

@@ -14,6 +14,8 @@ Dialog {
     // What is being moved: it and what is inside it cannot be the destination.
     property string movingPath: ""
     property string movingName: ""
+    // Several at once (all from one folder): each of them is left out too.
+    property var movingPaths: []
     property string selected: "/"
     // A path to open the tree down to, as its folders get listed.
     property string revealing: ""
@@ -33,8 +35,13 @@ Dialog {
         return cut <= 0 ? "/" : p.substring(0, cut)
     }
     function excluded(p) {
-        var m = norm(movingPath)
-        return movingPath.length > 0 && (p === m || p.indexOf(m + "/") === 0)
+        var all = movingPaths.length > 0 ? movingPaths : [movingPath]
+        for (var i = 0; i < all.length; ++i) {
+            var m = norm(all[i])
+            if (all[i].length > 0 && (p === m || p.indexOf(m + "/") === 0))
+                return true
+        }
+        return false
     }
     readonly property bool canMove: !excluded(norm(selected)) && norm(selected) !== parentOf(movingPath)
 
@@ -96,6 +103,7 @@ Dialog {
     }
 
     function openFor(path, name, startFolder) {
+        movingPaths = []
         movingPath = path
         movingName = name
         rows.clear()
@@ -104,6 +112,12 @@ Dialog {
         open()
         expand(0)
         reveal(startFolder)
+    }
+
+    // Several paths; `label` names them in the title ("3 items").
+    function openForMany(paths, label, startFolder) {
+        openFor(paths.length > 0 ? paths[0] : "", label, startFolder)
+        movingPaths = paths
     }
 
     ListModel { id: rows }

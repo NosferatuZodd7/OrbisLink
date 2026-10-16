@@ -21,4 +21,23 @@ namespace orbislink {
 FtpResult moveOnConsole(FtpClient &ftp, const std::string &from, const std::string &to,
 	const std::string &scratchDir, const FtpProgressCallback &progress = nullptr, bool *throughPc = nullptr);
 
+// A file or folder of the console with everything in it: what is in a
+// folder goes first (a console's server refuses RMD for a folder that is not
+// empty), then the folder. `progress` gets the entries deleted and how many
+// there are; returning false stops, and what is left stays.
+FtpResult removeOnConsole(FtpClient &ftp, const std::string &path, bool isDirectory,
+	const std::function<bool(int done, int total)> &progress = nullptr);
+
+// Everything under a folder of the console: its files (path and size, and
+// where each goes under `localRoot` on this PC) and its folders, the top
+// one included.
+struct RemoteTreeFile
+{
+	std::string remote;
+	std::string relative; // "sub/file.bin"
+	int64_t size = 0;
+};
+FtpResult listTreeOnConsole(FtpClient &ftp, const std::string &root, std::vector<RemoteTreeFile> *files,
+	std::vector<std::string> *folders = nullptr);
+
 } // namespace orbislink

@@ -49,6 +49,15 @@ class FtpSession(threading.Thread):
     # resuming (--ftp-drop-once).
     drop_after = 0
     dropped: set = set()
+    # Cuts each download once after this many bytes and answers "426", as
+    # GoldHEN's server does when a transfer breaks (--ftp-drop-download-once).
+    drop_download_after = 0
+    dropped_downloads: set = set()
+    # Answers AVBL with the room left on the disk of the root (--ftp-avbl):
+    # the consoles' servers do not.
+    avbl = False
+    # What it says on connecting (--ftp-greeting).
+    greeting = "220 GoldHEN FTP Server (mock-console)"
     # The address the console listens on (--host): data connections too.
     host = "127.0.0.1"
 
@@ -123,7 +132,7 @@ class FtpSession(threading.Thread):
     # -- lifecycle --------------------------------------------------
     def run(self) -> None:
         try:
-            self.send("220 GoldHEN FTP Server (mock-console)")
+            self.send(FtpSession.greeting)
             buffer = b""
             while True:
                 chunk = self.conn.recv(4096)
@@ -247,6 +256,8 @@ class FtpSession(threading.Thread):
                     self.send("550 Could not change the permissions")
             else:
                 self.send("500 SITE command not understood")
+        elif command == "AVBL" and FtpSession.avbl:
+            self.send(f"213 {shutil.disk_usage(self.root).free}")
         elif command == "NOOP":
             self.send("200 Ok")
         elif command == "QUIT":
@@ -289,6 +300,13 @@ class FtpSession(threading.Thread):
                 if self.rest_offset:
                     handle.seek(self.rest_offset)
                     self.rest_offset = 0
+                cut = FtpSession.drop_download_after
+                if cut and path not in FtpSession.dropped_downloads and handle.tell() < cut:
+                    FtpSession.dropped_downloads.add(path)
+                    data.sendall(handle.read(cut - handle.tell()))
+                    data.close()
+                    self.send("426 Connection closed; transfer aborted")
+                    return
                 if FtpSession.download_delay:
                     out = data.makefile("wb")
                     while True:
@@ -887,6 +905,12 @@ def main() -> int:
                         help="delay per downloaded block over FTP (to watch copies to the PC in progress)")
     parser.add_argument("--ftp-drop-once", type=int, default=0, metavar="BYTES",
                         help="cuts each upload once after this many bytes (to try resuming)")
+    parser.add_argument("--ftp-drop-download-once", type=int, default=0, metavar="BYTES",
+                        help="cuts each download once after this many bytes with a 426 (to try resuming)")
+    parser.add_argument("--ftp-avbl", action="store_true",
+                        help="answers AVBL with the free space (the consoles' servers do not)")
+    parser.add_argument("--ftp-greeting", default=FtpSession.greeting, metavar="TEXT",
+                        help="what the FTP server says on connecting")
     parser.add_argument("--discovery-port", type=int, default=0, metavar="PORT",
                         help="answers Remote Play discovery on this port "
                              "(987 is the real one, but needs privileges)")
@@ -917,6 +941,9 @@ def main() -> int:
     FtpSession.upload_delay = arguments.ftp_slow
     FtpSession.download_delay = arguments.ftp_slow_download
     FtpSession.drop_after = arguments.ftp_drop_once
+    FtpSession.drop_download_after = arguments.ftp_drop_download_once
+    FtpSession.avbl = arguments.ftp_avbl
+    FtpSession.greeting = arguments.ftp_greeting
     ftp = FtpServer(arguments.ftp_port, root, arguments.host)
     ftp.start()
 

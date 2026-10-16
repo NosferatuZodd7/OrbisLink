@@ -77,6 +77,12 @@ bool sendable(Kind kind, const std::string &fileName);
 
 std::string lowerExtension(const std::string &fileName);
 
+// What a payload or plugin is called whatever its version and type:
+// "kstuff-lite_v1.10.elf" → "kstuff-lite", "GoldHEN_v2.4b18.bin" →
+// "goldhen", "afr.prx" → "afr". A number that is part of the name stays
+// ("ps4debug", "ps5-app-dumper").
+std::string payloadKey(const std::string &fileName);
+
 // ── autoload.txt (PS5 autoloader)
 
 // The file names it starts, in order.

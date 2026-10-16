@@ -17,6 +17,9 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#ifndef _WIN32
+#include <sys/resource.h>
+#endif
 
 using namespace orbislink::fpkg;
 using namespace orbislink_test;
@@ -235,6 +238,40 @@ ORBISLINK_TEST(cancelling_leaves_no_file)
 	cleanUp(dir);
 }
 
+// A dumped game is thousands of files: more than a process may keep open at
+// once (on Windows about 500). They are opened as they are read.
+ORBISLINK_TEST(a_folder_of_many_files_packs_whatever_the_open_file_limit)
+{
+	const fs::path dir = makeProject();
+	PkgRequest request = makeRequest(dir);
+	for(int i = 0; i < 300; ++i)
+	{
+		const std::string name = "bake_texture/part" + std::to_string(i) + ".pbkt";
+		writeFile(dir / "proj" / name, pattern(100 + i, 10 + i));
+		PkgSource source;
+		source.targetPath = name;
+		source.sourcePath = (dir / "proj" / name).u8string();
+		request.files.push_back(source);
+	}
+#ifndef _WIN32
+	// Fewer than the files: the package is still made.
+	rlimit before {};
+	getrlimit(RLIMIT_NOFILE, &before);
+	rlimit low = before;
+	low.rlim_cur = std::min<rlim_t>(before.rlim_cur, 64);
+	setrlimit(RLIMIT_NOFILE, &low);
+#endif
+	std::string error;
+	const bool ok = buildFakePkg(request, (dir / "many.pkg").u8string(), {}, &error);
+#ifndef _WIN32
+	setrlimit(RLIMIT_NOFILE, &before);
+#endif
+	CHECK_EQ(error, std::string());
+	CHECK(ok);
+	CHECK(orbislink::PkgInspector().inspect((dir / "many.pkg").u8string()).valid);
+	cleanUp(dir);
+}
+
 ORBISLINK_TEST(refuses_a_package_without_param_sfo)
 {
 	const fs::path dir = makeProject();
@@ -283,6 +320,26 @@ ORBISLINK_TEST(scans_ps1_and_ps2_discs)
 	CHECK_EQ(discs[1].platform, std::string("ps2"));
 	CHECK_EQ(discs[1].titleId, std::string("SLUS20946"));
 	CHECK_EQ(discs[1].region, std::string("USA"));
+	fs::remove_all(dir);
+}
+
+// A disc that starts a program, not a game (PS2 Linux's, a demo disc's):
+// it is listed, says what it starts, and is not converted.
+ORBISLINK_TEST(a_disc_that_starts_no_game_says_so)
+{
+	const fs::path dir = fs::temp_directory_path() / "orbislink-test-tool-disc";
+	fs::remove_all(dir);
+	writeFile(dir / "Linux Release 1.0.iso", makeDisc("BOOT2 = cdrom0:\\RUNTIME.ELF;1\r\nVER = 1.00\r\n", false));
+	const auto discs = scanFolder(dir.u8string());
+	CHECK_EQ(discs.size(), size_t(1));
+	CHECK_EQ(discs[0].platform, std::string("ps2"));
+	CHECK(discs[0].titleId.empty());
+	CHECK_EQ(discs[0].bootFile, std::string("RUNTIME.ELF"));
+	PkgRequest request;
+	ClassicResult result;
+	std::string error;
+	CHECK(!prepareClassic(discs[0], EmulatorInfo(), ClassicOptions(), &request, &result, &error));
+	CHECK(error.find("RUNTIME.ELF") != std::string::npos);
 	fs::remove_all(dir);
 }
 

@@ -21,6 +21,7 @@
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <set>
 #include <sstream>
 #include <thread>
 
@@ -51,6 +52,10 @@ struct Options
 
 Options parseOptions(int argc, char **argv, int from)
 {
+	// Switches: never followed by a value, so what comes after them is not
+	// taken for one ("ftp-rm --recursive /data/pkg/old").
+	static const std::set<std::string> switches { "debug", "advanced", "ftp", "install-after-upload",
+		"delete-after-install", "recursive" };
 	Options options;
 	for(int i = from; i < argc; ++i)
 	{
@@ -61,7 +66,7 @@ Options parseOptions(int argc, char **argv, int from)
 			std::string key = argument.substr(2, equals == std::string::npos ? std::string::npos : equals - 2);
 			if(equals != std::string::npos)
 				options.values[key] = argument.substr(equals + 1);
-			else if(i + 1 < argc && !startsWith(argv[i + 1], "--"))
+			else if(i + 1 < argc && !startsWith(argv[i + 1], "--") && !switches.count(key))
 				options.values[key] = argv[++i];
 			else
 				options.values[key] = "1";
@@ -88,7 +93,8 @@ Commands:
   ftp-ls --host <ip> [path]            Lists a folder on the console.
   ftp-put --host <ip> <local> [remote] Uploads a file over FTP.
   ftp-get --host <ip> <remote> <local> Downloads a file over FTP.
-  ftp-rm --host <ip> <remote>          Deletes a file on the console.
+  ftp-rm --host <ip> <remote>          Deletes a file on the console (--recursive: a folder
+                                       with everything in it).
   ftp-mkdir --host <ip> <remote>       Creates a folder on the console.
   ftp-mv --host <ip> <from> <to>      Moves a file or folder on the console
                                       (between disks, through this PC).
@@ -452,8 +458,9 @@ int commandFtp(const std::string &command, const Options &options)
 			std::cerr << "Give the remote path.\n";
 			return 2;
 		}
-		const FtpResult result = command == "ftp-rm" ? client.removeFile(options.positional[0])
-													 : client.makeDirectory(options.positional[0]);
+		const FtpResult result = command == "ftp-mkdir" ? client.makeDirectory(options.positional[0])
+			: options.has("recursive") ? removeOnConsole(client, options.positional[0], true)
+									   : client.removeFile(options.positional[0]);
 		if(!result.ok)
 		{
 			std::cerr << "FTP: " << result.message << "\n";

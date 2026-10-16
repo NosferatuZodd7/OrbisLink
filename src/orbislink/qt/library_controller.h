@@ -77,6 +77,8 @@ public:
 	Q_INVOKABLE void convert(const QString &path, bool install);
 	// Deletes a file from the library.
 	Q_INVOKABLE void remove(const QString &path);
+	// Deletes files of the console, one after the other, as one job.
+	void removeMany(const QStringList &paths);
 	Q_INVOKABLE void removeJob(const QString &id);
 	// Does `action` ("install", "convert", "convertOnly", "mount", "run",
 	// "delete") to a thing on the console, in this library or anywhere
@@ -98,6 +100,12 @@ public:
 	// one card in the installs panel, one title at a time, each at the
 	// network's full speed.
 	void copyToPc(const QString &title, const QString &icon, const QString &folder, const QVector<CopyItem> &files);
+	// Files and folders of the console (from the file list) to `folder` on
+	// this PC (empty: the desktop), each one card in the installs panel, on
+	// the same way as the copies above: [{ path, name, isDirectory, size }].
+	// A folder comes with everything in it, into a folder of its name; what
+	// has a name already taken there gets another ("name (2)").
+	Q_INVOKABLE void download(const QVariantList &items, const QString &folder);
 	// Stops a copy (waiting or under way); what was copied of the file
 	// under way is kept and the next copy of it goes on from there.
 	Q_INVOKABLE void cancelJob(const QString &id);
@@ -139,10 +147,15 @@ private:
 		QString icon;
 		QString folder;
 		QVector<CopyItem> files;
+		// A folder of the console whose files are listed when the copy
+		// starts, each to its place under `folder`.
+		QString remoteFolder;
 		FtpClient::Config config;
 		std::shared_ptr<std::atomic<bool>> cancel;
 	};
 	void enqueueCopy(CopyJob job);
+	// The card of a copy, waiting.
+	QVariantMap copyCard(const CopyJob &job, const QString &itemKind, qint64 total) const;
 	void copyLoop();
 	void runCopy(const CopyJob &job);
 	// The copies not finished when the app closes, kept for the next time

@@ -203,6 +203,11 @@ public:
 
 	// The game's own name (from its param.sfo, read once), or "".
 	std::string gameTitle(SaveRemote *remote, const std::string &titleId);
+	// What the console was asked for and does not have (a game's metadata,
+	// a folder of save metadata it does not let be read): kept by the
+	// caller between reads of the same console, so it is asked once.
+	void setMissingMeta(std::set<std::string> missing) { missingMeta_ = std::move(missing); }
+	const std::set<std::string> &missingMeta() const { return missingMeta_; }
 	// Local copy of a game's icon (downloaded once), or "" if there is none.
 	std::string gameIcon(SaveRemote *remote, const std::string &titleId);
 

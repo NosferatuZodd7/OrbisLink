@@ -7,7 +7,9 @@
 #include "orbislink/net/http_client.h"
 #include "orbislink/net/payload_sender.h"
 #include "orbislink/payloads/payload_layout.h"
+#include "orbislink/pkg/sfo_parser.h"
 #include "orbislink/qt/app_controller.h"
+#include "orbislink/qt/hb_store_db.h"
 #include "orbislink/qt/payloads_controller.h"
 #include "orbislink/qt/shadowmount_control.h"
 #include "orbislink/store/shadowmount_log.h"
@@ -28,6 +30,8 @@
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
+#include <fstream>
+#include <set>
 
 namespace fs = std::filesystem;
 
@@ -122,6 +126,46 @@ QVariantMap itemFor(const store::StoreApp &app)
 	return item;
 }
 
+// What is left of a store's address to show: its host and path.
+QString shortAddress(const std::string &url)
+{
+	const QUrl parsed(QString::fromStdString(url));
+	QString text = parsed.host() + parsed.path();
+	while(text.endsWith(QLatin1Char('/')))
+		text.chop(1);
+	return text.isEmpty() ? QString::fromStdString(url) : text;
+}
+
+bool readWhole(const std::string &path, std::string *out)
+{
+	std::ifstream in(fs::u8path(path), std::ios::binary);
+	if(!in)
+		return false;
+	out->assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+	return true;
+}
+
+bool writeWhole(const std::string &path, const std::string &bytes)
+{
+	std::error_code ignored;
+	fs::create_directories(fs::u8path(path).parent_path(), ignored);
+	const std::string part = path + ".part";
+	{
+		std::ofstream out(fs::u8path(part), std::ios::binary | std::ios::trunc);
+		out << bytes;
+		if(!out)
+			return false;
+	}
+	fs::rename(fs::u8path(part), fs::u8path(path), ignored);
+	return !ignored;
+}
+
+// A picture's first bytes: PNG or JPEG.
+bool looksLikePicture(const std::string &bytes)
+{
+	return bytes.compare(0, 4, "\x89PNG") == 0 || bytes.compare(0, 3, "\xFF\xD8\xFF") == 0;
+}
+
 } // namespace
 
 StoreController::StoreController(AppController *app, QObject *parent) : QObject(parent), app_(app)
@@ -130,8 +174,9 @@ StoreController::StoreController(AppController *app, QObject *parent) : QObject(
 	const std::string agent = "OrbisLink/" + QCoreApplication::applicationVersion().toStdString();
 	catalog_ = std::make_unique<store::StoreCatalog>(cacheDir(), agent);
 	catalog_->setCustomBase(app_->settings().storeCatalogAddress);
-	// Which PS5s there are, and whose FTP answers.
+	// Which consoles there are, the one in use, and whose FTP answers.
 	connect(app_, &AppController::settingsChanged, this, &StoreController::consolesChanged);
+	connect(app_, &AppController::settingsChanged, this, &StoreController::storesChanged);
 	connect(app_, &AppController::statusChanged, this, &StoreController::consolesChanged);
 	connect(app_, &AppController::ftpReachableChanged, this, &StoreController::consolesChanged);
 	// The card of the job that ended says how it went.
@@ -152,7 +197,7 @@ StoreController::StoreController(AppController *app, QObject *parent) : QObject(
 StoreController::~StoreController()
 {
 	cancel_ = true;
-	for(std::thread *thread : { &loader_, &detailer_, &worker_, &checker_, &localScanner_ })
+	for(std::thread *thread : { &loader_, &detailer_, &worker_, &checker_, &localScanner_, &adder_ })
 		if(thread->joinable())
 			thread->join();
 }
@@ -169,11 +214,10 @@ QVariantList StoreController::consoles() const
 	const QString chosen = target();
 	for(const ConsoleEntry &console : app_->settings().consoles)
 	{
-		if(console.type != "ps5")
-			continue;
 		QVariantMap item;
 		item[QStringLiteral("address")] = QString::fromStdString(console.address);
 		item[QStringLiteral("name")] = QString::fromStdString(console.name.empty() ? console.address : console.name);
+		item[QStringLiteral("type")] = QString::fromStdString(console.type);
 		item[QStringLiteral("ftp")] = app_->ftpAnswers(console.address);
 		item[QStringLiteral("target")] = QString::fromStdString(console.address) == chosen;
 		items << item;
@@ -183,26 +227,12 @@ QVariantList StoreController::consoles() const
 
 QString StoreController::target() const
 {
+	// The console in use: the queue installs packages on it.
 	const Settings &settings = app_->settings();
-	const ConsoleEntry *firstAnswering = nullptr;
-	const ConsoleEntry *first = nullptr;
 	for(const ConsoleEntry &console : settings.consoles)
-	{
-		if(console.type != "ps5")
-			continue;
-		// The one picked; else the one in use; else one whose FTP answers.
-		if(!target_.isEmpty() && QString::fromStdString(console.address) == target_)
-			return target_;
-		if(!first)
-			first = &console;
-		if(!firstAnswering && app_->ftpAnswers(console.address))
-			firstAnswering = &console;
-	}
-	for(const ConsoleEntry &console : settings.consoles)
-		if(console.type == "ps5" && console.address == settings.consoleAddress)
+		if(console.address == settings.consoleAddress)
 			return QString::fromStdString(console.address);
-	const ConsoleEntry *pick = firstAnswering ? firstAnswering : first;
-	return pick ? QString::fromStdString(pick->address) : QString();
+	return settings.consoles.empty() ? QString() : QString::fromStdString(settings.consoles.front().address);
 }
 
 QString StoreController::targetName() const
@@ -214,19 +244,39 @@ QString StoreController::targetName() const
 	return QString();
 }
 
+QString StoreController::targetType() const
+{
+	const QString address = target();
+	for(const ConsoleEntry &console : app_->settings().consoles)
+		if(QString::fromStdString(console.address) == address && !console.type.empty())
+			return QString::fromStdString(console.type);
+	// Never answered Remote Play: the jailbreak it runs says which it is.
+	const QString jailbreak = app_->jailbreaks().value(address).toString();
+	if(jailbreak.isEmpty())
+		return QString();
+	return jailbreak.contains(QLatin1String("etaHEN"), Qt::CaseInsensitive) ? QStringLiteral("ps5")
+																		   : QStringLiteral("ps4");
+}
+
 bool StoreController::canInstall() const
 {
 	const QString address = target();
-	return !address.isEmpty() && app_->ftpAnswers(address.toStdString());
+	return !address.isEmpty() && targetType() == QLatin1String("ps5") && app_->ftpAnswers(address.toStdString());
+}
+
+bool StoreController::canInstallPackages() const
+{
+	return !target().isEmpty();
 }
 
 void StoreController::setTarget(const QString &address)
 {
-	if(address == target_)
+	if(address.isEmpty() || address == target())
 		return;
-	target_ = address;
+	app_->selectConsole(address);
 	emit consolesChanged();
-	// What that PS5 has installed.
+	// What that console has installed, and what of the stores goes on it.
+	publish();
 	refresh();
 }
 
@@ -299,27 +349,236 @@ void StoreController::resetProgress()
 	amountText_.clear();
 }
 
+QVariantMap StoreController::sourceFor(const StoreSource &source, const store::StoreApp *folder,
+	const store::HbStoreApp *package) const
+{
+	const QString type = targetType();
+	QVariantMap item;
+	item[QStringLiteral("store")] = QString::fromStdString(source.url);
+	item[QStringLiteral("storeName")] = QString::fromStdString(source.name);
+	// Why it cannot go, in full and in a word or two for a badge.
+	QString note;
+	QString brief;
+	bool installable = false;
+	if(folder)
+	{
+		item[QStringLiteral("format")] = QStringLiteral("folder");
+		item[QStringLiteral("version")] = QString::fromStdString(folder->version);
+		item[QStringLiteral("size")] = sizeText(folder->size);
+		item[QStringLiteral("available")] = folder->available();
+		if(!folder->available())
+			note = brief = tr("Coming soon");
+		else if(!folder->installable())
+			note = brief = tr("Not an app folder");
+		else if(type == QLatin1String("ps4"))
+		{
+			note = tr("For the PS5: an app folder ShadowMountPlus puts on its home screen");
+			brief = tr("For the PS5");
+		}
+		else
+			installable = true;
+	}
+	else if(package)
+	{
+		item[QStringLiteral("format")] = QStringLiteral("pkg");
+		item[QStringLiteral("version")] = QString::fromStdString(package->version);
+		item[QStringLiteral("size")] = QString::fromStdString(package->sizeText);
+		item[QStringLiteral("firmware")] = QString::fromStdString(package->ps4Firmware());
+		item[QStringLiteral("available")] = true;
+		if(type == QLatin1String("ps5"))
+		{
+			if(!package->forPs5())
+			{
+				note = tr("For the PS4: the store does not say it runs on the PS5");
+				brief = tr("For the PS4");
+			}
+			else if(!package->ps5PackageIsThisOne())
+			{
+				note = tr("Its PS5 build (%1) is not the package the store hands out")
+						   .arg(QString::fromStdString(package->ps5Version));
+				brief = tr("For the PS4");
+			}
+			else
+				installable = true;
+		}
+		else if(type == QLatin1String("ps4") && !package->forPs4())
+			note = brief = tr("For the PS5");
+		else
+			installable = true;
+	}
+	item[QStringLiteral("installable")] = installable;
+	item[QStringLiteral("note")] = note;
+	item[QStringLiteral("brief")] = brief;
+	return item;
+}
+
 void StoreController::publish()
 {
-	QVariantList items;
-	for(const store::StoreApp &app : list_)
+	// One card per title ID, in the order of the stores: the first store
+	// that has it gives what the card shows, each one its tag.
+	std::map<std::string, QVariantMap> cards;
+	std::vector<std::string> order;
+	auto add = [&](const std::string &titleId, const QVariantMap &fields, const QVariantMap &source, bool update,
+				   const QString &description) {
+		auto found = cards.find(titleId);
+		if(found == cards.end())
+		{
+			QVariantMap card = fields;
+			card[QStringLiteral("stores")] = QStringList();
+			card[QStringLiteral("sources")] = QVariantList();
+			card[QStringLiteral("installable")] = false;
+			card[QStringLiteral("available")] = false;
+			card[QStringLiteral("update")] = false;
+			card[QStringLiteral("description")] = description;
+			found = cards.emplace(titleId, card).first;
+			order.push_back(titleId);
+		}
+		QVariantMap &card = found->second;
+		QStringList names = card.value(QStringLiteral("stores")).toStringList();
+		names << source.value(QStringLiteral("storeName")).toString();
+		card[QStringLiteral("stores")] = names;
+		QVariantList sources = card.value(QStringLiteral("sources")).toList();
+		sources << source;
+		card[QStringLiteral("sources")] = sources;
+		card[QStringLiteral("installable")] = card.value(QStringLiteral("installable")).toBool()
+			|| source.value(QStringLiteral("installable")).toBool();
+		card[QStringLiteral("available")] = card.value(QStringLiteral("available")).toBool()
+			|| source.value(QStringLiteral("available")).toBool();
+		card[QStringLiteral("update")] = card.value(QStringLiteral("update")).toBool() || update;
+		if(card.value(QStringLiteral("description")).toString().isEmpty())
+			card[QStringLiteral("description")] = description;
+	};
+
+	for(const StoreSource &source : app_->settings().stores)
 	{
-		QVariantMap item = itemFor(app);
-		const auto icon = icons_.find(app.titleId);
+		if(!source.enabled)
+			continue;
+		if(source.kind == "catalog")
+		{
+			for(const store::StoreApp &app : list_)
+			{
+				const auto installed = installed_.find(app.titleId);
+				// Newer in the catalog than on the PS5: an update.
+				const bool update = installed != installed_.end() && app.installable()
+					&& store::compareContentVersions(app.contentVersion, installed->second.contentVersion) > 0;
+				add(app.titleId, itemFor(app), sourceFor(source, &app, nullptr), update, QString());
+			}
+			continue;
+		}
+		for(const HbStore &hb : hbStores_)
+		{
+			if(hb.source.url != source.url)
+				continue;
+			for(const store::HbStoreApp &app : hb.apps)
+			{
+				QVariantMap fields;
+				fields[QStringLiteral("titleId")] = QString::fromStdString(app.titleId);
+				fields[QStringLiteral("name")] = QString::fromStdString(app.name);
+				fields[QStringLiteral("kind")] = QString::fromStdString(app.kind());
+				fields[QStringLiteral("author")] = QString::fromStdString(app.author);
+				fields[QStringLiteral("version")] = QString::fromStdString(app.version);
+				fields[QStringLiteral("contentVersion")] = QString();
+				fields[QStringLiteral("size")] = QString::fromStdString(app.sizeText);
+				fields[QStringLiteral("updated")] = QString::fromStdString(app.released.substr(0, 10));
+				fields[QStringLiteral("released")] = QString::fromStdString(app.released.substr(0, 10));
+				fields[QStringLiteral("sandbox")] = QString();
+				fields[QStringLiteral("format")] = QStringLiteral("pkg");
+				const QVariantMap from = sourceFor(source, nullptr, &app);
+				const auto installed = installedPackages_.find(app.titleId);
+				const bool update = installed != installedPackages_.end() && from.value(QStringLiteral("installable")).toBool()
+					&& store::compareLooseVersions(app.version, installed->second) > 0;
+				add(app.titleId, fields, from, update, QString::fromStdString(app.description));
+			}
+		}
+	}
+
+	QVariantList items;
+	for(const std::string &titleId : order)
+	{
+		QVariantMap item = cards[titleId];
+		const auto icon = icons_.find(titleId);
 		item[QStringLiteral("icon")] = icon == icons_.end() ? QUrl()
 			: QUrl::fromLocalFile(QString::fromStdString(icon->second));
-		const auto installed = installed_.find(app.titleId);
-		const bool there = installed != installed_.end();
+		const auto folder = installed_.find(titleId);
+		const auto package = installedPackages_.find(titleId);
+		const bool there = folder != installed_.end() || package != installedPackages_.end();
 		item[QStringLiteral("installed")] = there;
-		item[QStringLiteral("installedVersion")] = there ? QString::fromStdString(installed->second.contentVersion)
-														 : QString();
-		// Newer in the catalog than on the PS5: an update.
-		item[QStringLiteral("update")] = there && app.installable()
-			&& store::compareContentVersions(app.contentVersion, installed->second.contentVersion) > 0;
+		// As a folder of the catalog's (which the store can take away again),
+		// or as a package.
+		item[QStringLiteral("installedAs")] = folder != installed_.end() ? QStringLiteral("folder")
+			: there ? QStringLiteral("pkg") : QString();
+		item[QStringLiteral("installedVersion")] = folder != installed_.end()
+			? QString::fromStdString(folder->second.contentVersion)
+			: package != installedPackages_.end() ? QString::fromStdString(package->second) : QString();
 		items << item;
 	}
 	apps_ = items;
 	emit appsChanged();
+	emit storesChanged();
+}
+
+std::string StoreController::hbStoreDir(const std::string &cacheDir, const std::string &base)
+{
+	// "https://api.pkg-zone.com" → "api.pkg-zone.com"; a path keeps its parts.
+	std::string name = base.substr(base.find("://") == std::string::npos ? 0 : base.find("://") + 3);
+	for(char &c : name)
+		if(!std::isalnum(static_cast<unsigned char>(c)) && c != '.' && c != '-')
+			c = '_';
+	return joinPath(joinPath(cacheDir, "hb-stores"), name);
+}
+
+StoreController::HbStore StoreController::loadHbStore(const StoreSource &source, const std::string &cacheDir,
+	const std::atomic<bool> *cancel)
+{
+	HbStore out;
+	out.source = source;
+	const std::string base = store::hbStoreBase(source.url);
+	if(base.empty())
+	{
+		out.error = tr("Its address is not an http(s) one.");
+		return out;
+	}
+	const std::string kept = joinPath(hbStoreDir(cacheDir, base), "store.db");
+	HttpClient http(20000);
+	HttpClient::FetchOptions options;
+	options.headers.push_back(std::string("User-Agent: ") + store::kHbStoreAgent);
+	options.cancel = cancel;
+	// Its MD5 first: when the copy kept has it, nothing else is fetched.
+	std::string hash;
+	const HttpResponse answer = http.fetch(store::hbStoreHashUrl(base), options);
+	if(answer.transportOk && answer.status == 200)
+		hash = store::parseHbStoreHash(answer.body);
+	const bool current = !hash.empty() && store::md5File(kept) == hash;
+	if(!current)
+	{
+		http.setTimeoutMs(60000);
+		const HttpResponse database = http.fetch(store::hbStoreDatabaseUrl(base), options);
+		QString why;
+		if(!database.transportOk)
+			why = QString::fromStdString(database.error);
+		else if(database.status != 200)
+			why = tr("it answered HTTP %1").arg(database.status);
+		else if(!store::looksLikeSqlite(database.body))
+			why = tr("what it sent is not a store's database");
+		else if(!hash.empty() && store::md5Hex(database.body) != hash)
+			why = tr("its database does not match the MD5 it gives");
+		else if(!writeWhole(kept, database.body))
+			why = tr("its database could not be kept on this PC");
+		if(!why.isEmpty())
+		{
+			logWarning("Store: " + base + " — " + why.toStdString());
+			out.error = why;
+			out.offline = fileSize(kept) > 0;
+		}
+	}
+	QString why;
+	if(fileSize(kept) > 0 && !readHbStoreDatabase(QString::fromStdString(kept), &out.apps, &why))
+	{
+		out.apps.clear();
+		out.offline = false;
+		out.error = tr("its database cannot be read: %1").arg(why);
+	}
+	return out;
 }
 
 void StoreController::refresh()
@@ -335,15 +594,29 @@ void StoreController::refresh()
 		loader_.join();
 	stopIcons_ = false;
 	const std::string address = target().toStdString();
-	const bool reachable = canInstall();
+	const bool folders = canInstall();
+	const bool reachable = !address.empty() && app_->ftpAnswers(address);
 	const FtpClient::Config config = app_->ftpClientConfigFor(address);
 	const std::string scratch = joinPath(cacheDir(), "work");
-	loader_ = std::thread([this, reachable, config, scratch]() {
+	const std::string cache = cacheDir();
+	std::vector<StoreSource> sources;
+	bool catalogOn = false;
+	for(const StoreSource &source : app_->settings().stores)
+	{
+		if(!source.enabled)
+			continue;
+		if(source.kind == "catalog")
+			catalogOn = true;
+		else
+			sources.push_back(source);
+	}
+	loader_ = std::thread([this, folders, reachable, config, scratch, cache, sources, catalogOn]() {
 		std::string why;
-		bool ok = false;
+		bool ok = !catalogOn;
 		bool offline = false;
 		std::vector<store::StoreApp> list;
 		std::string base;
+		if(catalogOn)
 		{
 			std::lock_guard<std::mutex> lock(catalogMutex_);
 			ok = catalog_->refresh(&why);
@@ -353,35 +626,54 @@ void StoreController::refresh()
 		}
 		if(!ok)
 			logWarning("Store: the catalog could not be read: " + why);
-		// What the PS5 has in its install folder, with the version of each.
+		// Each store shows as soon as it is read: a slow one keeps no other
+		// waiting.
+		const QString catalogHost = QUrl(QString::fromStdString(base)).host();
+		QMetaObject::invokeMethod(this, [this, ok, why, offline, list, catalogHost]() {
+			catalogSource_ = catalogHost;
+			error_ = ok ? QString() : QString::fromStdString(why);
+			offline_ = offline;
+			list_ = list;
+			publish();
+		}, Qt::QueuedConnection);
+		// What the console has: the PS5's app folders, and what is under
+		// /user/app (the versions of those once the stores say which matter).
 		std::map<std::string, Installed> installed;
+		std::set<std::string> titles;
 		bool known = false;
+		std::unique_ptr<FtpClient> ftp;
 		if(reachable)
 		{
 			FtpClient::Config readOnly = config;
 			readOnly.maxRetries = 1;
-			FtpClient ftp(readOnly);
-			FtpStoreRemote remote(ftp);
-			store::StoreInstaller installer;
-			std::string listError;
-			for(const store::InstalledApp &app : installer.installed(remote, scratch, &listError))
-				installed[app.titleId] = { app.contentVersion };
-			known = listError.empty();
+			ftp = std::make_unique<FtpClient>(readOnly);
+			if(folders)
+			{
+				FtpStoreRemote remote(*ftp);
+				store::StoreInstaller installer;
+				std::string listError;
+				for(const store::InstalledApp &app : installer.installed(remote, scratch, &listError))
+					installed[app.titleId] = { app.contentVersion };
+				known = listError.empty();
+			}
+			std::vector<FtpEntry> apps;
+			if(ftp->list("/user/app", &apps).ok)
+				for(const FtpEntry &entry : apps)
+				{
+					std::string id = entry.name;
+					std::transform(id.begin(), id.end(), id.begin(), [](unsigned char c) { return std::toupper(c); });
+					if(entry.isDirectory)
+						titles.insert(id);
+				}
 		}
-		const QString source = QUrl(QString::fromStdString(base)).host();
-		QMetaObject::invokeMethod(this, [this, ok, why, offline, list, installed, known, source]() {
-			loading_ = false;
-			catalogSource_ = source;
-			error_ = ok ? QString() : QString::fromStdString(why);
-			offline_ = offline;
-			list_ = list;
+		std::map<std::string, std::string> packages;
+		for(const std::string &id : titles)
+			packages[id] = std::string();
+		QMetaObject::invokeMethod(this, [this, installed, packages, known]() {
 			installed_ = installed;
+			installedPackages_ = packages;
 			installedKnown_ = known;
 			publish();
-			emit stateChanged();
-			// "On this PC" says what this PS5 has.
-			if(!localApps_.isEmpty())
-				scanLocal();
 		}, Qt::QueuedConnection);
 
 		// The icons, a few at a time as they come (each is downloaded once).
@@ -391,11 +683,14 @@ void StoreController::refresh()
 				return;
 			QMetaObject::invokeMethod(this, [this, batch]() {
 				for(const auto &pair : batch)
-					icons_[pair.first] = pair.second;
+					// The catalog's first; a store's only where it has none.
+					if(!icons_.count(pair.first) || pair.second.find("hb-stores") == std::string::npos)
+						icons_[pair.first] = pair.second;
 				publish();
 			}, Qt::QueuedConnection);
 			batch.clear();
 		};
+		std::set<std::string> pictured;
 		for(const store::StoreApp &app : list)
 		{
 			if(cancel_ || stopIcons_)
@@ -406,11 +701,111 @@ void StoreController::refresh()
 				icon = catalog_->iconFile(app);
 			}
 			if(!icon.empty())
+			{
 				batch[app.titleId] = icon;
+				pictured.insert(app.titleId);
+			}
 			if(batch.size() >= 12)
 				flush();
 		}
 		flush();
+
+		std::vector<HbStore> hbStores;
+		std::set<std::string> offered;
+		for(const StoreSource &source : sources)
+		{
+			if(cancel_)
+				break;
+			hbStores.push_back(loadHbStore(source, cache, &cancel_));
+			for(const store::HbStoreApp &app : hbStores.back().apps)
+				offered.insert(app.titleId);
+			QMetaObject::invokeMethod(this, [this, loaded = hbStores.back()]() {
+				auto same = std::find_if(hbStores_.begin(), hbStores_.end(),
+					[&loaded](const HbStore &hb) { return hb.source.url == loaded.source.url; });
+				if(same != hbStores_.end())
+					*same = loaded;
+				else
+					hbStores_.push_back(loaded);
+				publish();
+			}, Qt::QueuedConnection);
+		}
+		// The version of what a store has and the console installed, from
+		// the system's copy of its param.sfo.
+		if(ftp)
+		{
+			std::error_code ignored;
+			fs::create_directories(fs::u8path(scratch), ignored);
+			for(const std::string &id : titles)
+			{
+				if(cancel_ || !offered.count(id))
+					continue;
+				const std::string local = joinPath(scratch, id + "-param.sfo");
+				if(ftp->download("/system_data/priv/appmeta/" + id + "/param.sfo", local).ok)
+				{
+					std::string bytes;
+					Sfo sfo;
+					if(readWhole(local, &bytes) && sfo.parse(std::vector<uint8_t>(bytes.begin(), bytes.end())))
+						packages[id] = trim(sfo.stringValue("APP_VER", sfo.stringValue("VERSION")));
+				}
+				fs::remove(fs::u8path(local), ignored);
+			}
+		}
+		QMetaObject::invokeMethod(this, [this, packages, hbStores]() {
+			loading_ = false;
+			hbStores_ = hbStores;
+			installedPackages_ = packages;
+			publish();
+			emit stateChanged();
+			// "On this PC" says what this PS5 has.
+			if(!localApps_.isEmpty())
+				scanLocal();
+		}, Qt::QueuedConnection);
+
+		// A store's pictures: kept for good once had, and asked for one every
+		// second and a half at most (the stores count the requests).
+		for(const HbStore &hb : hbStores)
+		{
+			const std::string dir = joinPath(hbStoreDir(cache, store::hbStoreBase(hb.source.url)), "icons");
+			std::vector<const store::HbStoreApp *> sorted;
+			for(const store::HbStoreApp &app : hb.apps)
+				sorted.push_back(&app);
+			// In the order the page shows them, by name.
+			std::sort(sorted.begin(), sorted.end(), [](const store::HbStoreApp *a, const store::HbStoreApp *b) {
+				return QString::fromStdString(a->name).compare(QString::fromStdString(b->name), Qt::CaseInsensitive) < 0;
+			});
+			for(const store::HbStoreApp *app : sorted)
+			{
+				if(cancel_ || stopIcons_)
+					break;
+				if(pictured.count(app->titleId) || app->image.empty())
+					continue;
+				const std::string stem = joinPath(dir, sanitizeFileName(app->titleId + "-" + app->version));
+				std::string path = fileSize(stem + ".png") > 0 ? stem + ".png" : stem + ".jpg";
+				if(fileSize(path) <= 0)
+				{
+					HttpClient http(15000);
+					HttpClient::FetchOptions options;
+					options.headers.push_back(std::string("User-Agent: ") + store::kHbStoreAgent);
+					options.cancel = &stopIcons_;
+					const HttpResponse picture = http.fetch(app->image, options);
+					const bool good = picture.transportOk && picture.status == 200 && looksLikePicture(picture.body);
+					if(good)
+					{
+						path = stem + (picture.body.compare(0, 4, "\x89PNG") == 0 ? ".png" : ".jpg");
+						writeWhole(path, picture.body);
+					}
+					for(int i = 0; i < 15 && !cancel_ && !stopIcons_; ++i)
+						std::this_thread::sleep_for(std::chrono::milliseconds(100));
+					if(!good)
+						continue;
+				}
+				batch[app->titleId] = path;
+				pictured.insert(app->titleId);
+				if(batch.size() >= 12)
+					flush();
+			}
+			flush();
+		}
 	});
 }
 
@@ -426,6 +821,17 @@ void StoreController::showDetails(const QString &titleId)
 			pending[QStringLiteral("ready")] = false;
 		}
 	detail_ = pending;
+	// Only the catalog has more to read; a store's database said it all.
+	bool inCatalog = false;
+	for(const QVariant &source : pending.value(QStringLiteral("sources")).toList())
+		if(source.toMap().value(QStringLiteral("format")).toString() == QLatin1String("folder"))
+			inCatalog = true;
+	if(!inCatalog)
+	{
+		detail_[QStringLiteral("ready")] = true;
+		emit detailChanged();
+		return;
+	}
 	emit detailChanged();
 	if(detailer_.joinable())
 		detailer_.join();
@@ -619,14 +1025,45 @@ void StoreController::checkHomeScreen(const QString &titleId)
 	});
 }
 
-void StoreController::install(const QString &titleId)
+void StoreController::install(const QString &titleId, const QString &storeUrl)
 {
-	if(!canInstall())
+	if(!working_.isEmpty())
 		return;
+	// The store it comes from: the one asked for, else the one that can.
+	QVariantMap chosen;
 	QString name = titleId;
 	for(const QVariant &entry : apps_)
-		if(entry.toMap().value(QStringLiteral("titleId")).toString() == titleId)
-			name = entry.toMap().value(QStringLiteral("name")).toString();
+	{
+		const QVariantMap app = entry.toMap();
+		if(app.value(QStringLiteral("titleId")).toString() != titleId)
+			continue;
+		name = app.value(QStringLiteral("name")).toString();
+		for(const QVariant &value : app.value(QStringLiteral("sources")).toList())
+		{
+			const QVariantMap source = value.toMap();
+			if(!source.value(QStringLiteral("installable")).toBool())
+				continue;
+			if(storeUrl.isEmpty() ? chosen.isEmpty() : source.value(QStringLiteral("store")).toString() == storeUrl)
+				chosen = source;
+		}
+	}
+	if(chosen.isEmpty())
+		return;
+	if(chosen.value(QStringLiteral("format")).toString() == QLatin1String("pkg"))
+	{
+		const std::string url = chosen.value(QStringLiteral("store")).toString().toStdString();
+		for(const HbStore &hb : hbStores_)
+		{
+			if(hb.source.url != url)
+				continue;
+			for(const store::HbStoreApp &app : hb.apps)
+				if(QString::fromStdString(app.titleId) == titleId)
+					return installPackage(titleId, hb.source, app);
+		}
+		return;
+	}
+	if(!canInstall())
+		return;
 	const std::string id = titleId.toStdString();
 	const std::string address = target().toStdString();
 	const QString console = targetName();
@@ -764,6 +1201,258 @@ void StoreController::putOnConsole(const std::string &id, const QString &name, c
 		message += QStringLiteral(" ") + tr("The console's FTP cannot set permissions: if the app does not "
 			"start (CE-107750-0), set its folder and everything in it to 777.");
 	finishInstall(id, message, false, version);
+}
+
+// ── a store's package ───────────────────────────────────────────────────
+
+void StoreController::installPackage(const QString &titleId, const StoreSource &source, const store::HbStoreApp &app)
+{
+	if(!canInstallPackages())
+		return;
+	const QString name = QString::fromStdString(app.name);
+	const QString console = targetName();
+	const QString storeName = QString::fromStdString(source.name);
+	const std::string folder = QDir::toNativeSeparators(localFolder()).toStdString();
+	const std::string file = joinPath(folder, store::hbStorePackageName(app));
+	logInfo("Store: downloading " + app.titleId + " from " + source.url);
+	startWork(titleId, tr("Getting %1 from %2…").arg(name, storeName), QStringLiteral("download"),
+		[this, app, name, console, storeName, file]() {
+			auto finish = [this](const QString &message, bool error, const QString &queued) {
+				QMetaObject::invokeMethod(this, [this, message, error, queued]() {
+					// The console installs it from the queue, beside the rest.
+					if(!queued.isEmpty())
+						app_->addPaths({ queued }, 0);
+					working_.clear();
+					stage_.clear();
+					resetProgress();
+					publish();
+					emit stateChanged();
+					emit progressChanged();
+					emit finished(message, error);
+				}, Qt::QueuedConnection);
+			};
+			std::error_code ignored;
+			fs::create_directories(fs::u8path(file).parent_path(), ignored);
+			const std::string expected = toLower(app.md5);
+			// Downloaded before, and whole: used again.
+			const bool have = !expected.empty() && fileSize(file) > 0 && store::md5File(file) == expected;
+			if(!have)
+			{
+				const std::string part = file + ".part";
+				HttpClient http(30000);
+				HttpClient::DownloadOptions options;
+				options.userAgent = store::kHbStoreAgent;
+				options.resume = true;
+				HttpClient::DownloadResult result;
+				// A connection that breaks goes on from where it stopped.
+				for(int attempt = 0; attempt < 4 && !cancel_; ++attempt)
+				{
+					result = http.download(app.package, part,
+						[this](int64_t done, int64_t total) {
+							if(cancel_)
+								return false;
+							setProgress(QStringLiteral("download"), done, total);
+							return true;
+						},
+						options);
+					if(result.ok || cancel_ || result.status >= 400)
+						break;
+					std::this_thread::sleep_for(std::chrono::seconds(1 + attempt));
+				}
+				if(!result.ok)
+				{
+					fs::remove(fs::u8path(part), ignored);
+					return finish(cancel_ ? tr("Getting %1 was cancelled.").arg(name)
+										  : tr("%1 could not be downloaded from %2: %3")
+												.arg(name, storeName, QString::fromStdString(result.error)),
+						!cancel_, QString());
+				}
+				setProgress(QStringLiteral("verify"), 0, 0);
+				if(!expected.empty() && store::md5File(part) != expected)
+				{
+					fs::remove(fs::u8path(part), ignored);
+					logWarning("Store: " + app.titleId + " does not match the store's MD5; not installed.");
+					return finish(tr("The download of %1 is not the one %2 lists (its MD5 differs): it was not "
+									 "installed.").arg(name, storeName), true, QString());
+				}
+				// A package begins so; anything else is a page the store sent instead.
+				std::string head;
+				{
+					std::ifstream in(fs::u8path(part), std::ios::binary);
+					head.resize(4);
+					in.read(&head[0], 4);
+					head.resize(static_cast<size_t>(std::max<std::streamsize>(0, in.gcount())));
+				}
+				if(head != std::string("\x7F" "CNT", 4))
+				{
+					fs::remove(fs::u8path(part), ignored);
+					return finish(tr("What %1 sent for %2 is not a package: it was not installed.").arg(storeName, name),
+						true, QString());
+				}
+				fs::remove(fs::u8path(file), ignored);
+				fs::rename(fs::u8path(part), fs::u8path(file), ignored);
+				if(ignored)
+					return finish(tr("%1 could not be put in %2.").arg(name, QString::fromStdString(file)), true, QString());
+			}
+			const QString path = QString::fromStdString(file);
+			finish(tr("%1 was downloaded to %2 and is in the queue, to install on %3.")
+					   .arg(name, QFileInfo(path).dir().dirName(), console),
+				false, path);
+		});
+}
+
+// ── the stores ───────────────────────────────────────────────────────────
+
+QVariantList StoreController::stores() const
+{
+	QVariantList items;
+	for(const StoreSource &source : app_->settings().stores)
+	{
+		QVariantMap item;
+		item[QStringLiteral("url")] = QString::fromStdString(source.url);
+		item[QStringLiteral("name")] = QString::fromStdString(source.name);
+		item[QStringLiteral("kind")] = QString::fromStdString(source.kind);
+		item[QStringLiteral("enabled")] = source.enabled;
+		item[QStringLiteral("builtIn")] = Settings::builtInStore(source);
+		int count = 0;
+		QString error;
+		bool offline = false;
+		QString address = shortAddress(source.url);
+		if(source.kind == "catalog")
+		{
+			count = static_cast<int>(list_.size());
+			error = error_;
+			offline = offline_;
+			if(!catalogSource_.isEmpty())
+				address = catalogSource_;
+		}
+		else
+			for(const HbStore &hb : hbStores_)
+				if(hb.source.url == source.url)
+				{
+					count = static_cast<int>(hb.apps.size());
+					error = hb.error;
+					offline = hb.offline;
+				}
+		item[QStringLiteral("address")] = address;
+		item[QStringLiteral("count")] = count;
+		item[QStringLiteral("error")] = error;
+		item[QStringLiteral("offline")] = offline;
+		items << item;
+	}
+	return items;
+}
+
+bool StoreController::addStore(const QString &address, const QString &name)
+{
+	const std::string base = store::hbStoreBase(address.toStdString());
+	if(base.empty())
+		return false;
+	if(addingStore_)
+		return true;
+	for(const StoreSource &source : app_->settings().stores)
+		if(source.kind == "hb-store" && store::hbStoreBase(source.url) == base)
+		{
+			emit storeAdded(false, tr("%1 is in the list already.").arg(QString::fromStdString(source.name)));
+			return true;
+		}
+	addingStore_ = true;
+	emit storesChanged();
+	if(adder_.joinable())
+		adder_.join();
+	const QString label = name.trimmed().isEmpty() ? QUrl(QString::fromStdString(base)).host() : name.trimmed();
+	const std::string cache = cacheDir();
+	adder_ = std::thread([this, base, label, cache]() {
+		StoreSource source { label.toStdString(), base, "hb-store", true };
+		HbStore loaded = loadHbStore(source, cache, &cancel_);
+		const bool isStore = loaded.error.isEmpty() || !loaded.apps.empty();
+		bool mirror = false;
+		if(!isStore)
+		{
+			// A copy of homebrew.page's catalog is no store of its own: its mirror.
+			HttpClient http(15000);
+			HttpClient::FetchOptions options;
+			options.headers.push_back("User-Agent: OrbisLink/" + QCoreApplication::applicationVersion().toStdString());
+			for(const std::string &at : { base + "/", base + "/api/v1/" })
+			{
+				const HttpResponse answer = http.fetch(at + "manifest.json", options);
+				store::CatalogManifest manifest;
+				if(answer.transportOk && answer.status == 200 && store::parseManifest(answer.body, &manifest, nullptr))
+				{
+					mirror = true;
+					source.url = at;
+					break;
+				}
+			}
+		}
+		QMetaObject::invokeMethod(this, [this, source, loaded, isStore, mirror]() {
+			addingStore_ = false;
+			if(mirror)
+			{
+				setCatalogAddress(QString::fromStdString(source.url));
+				emit storeAdded(true, tr("That is a copy of homebrew.page's catalog: it is now the catalog's "
+										 "mirror, checked against its signature as always."));
+			}
+			else if(!isStore)
+				emit storeAdded(false, tr("No store answers there: %1").arg(loaded.error));
+			else
+			{
+				app_->updateSettings([&source](Settings &s) { s.stores.push_back(source); });
+				hbStores_.push_back(loaded);
+				publish();
+				emit storeAdded(true, tr("%1 was added, with %n app(s).", "", static_cast<int>(loaded.apps.size()))
+										  .arg(QString::fromStdString(source.name)));
+				// Its pictures, and what of it the console has.
+				refresh();
+			}
+			emit storesChanged();
+		}, Qt::QueuedConnection);
+	});
+	return true;
+}
+
+void StoreController::removeStore(const QString &url)
+{
+	const std::string target = url.toStdString();
+	bool removed = false;
+	app_->updateSettings([&target, &removed](Settings &s) {
+		for(auto it = s.stores.begin(); it != s.stores.end(); ++it)
+			if(it->url == target && !Settings::builtInStore(*it))
+			{
+				s.stores.erase(it);
+				removed = true;
+				return;
+			}
+	});
+	if(!removed)
+		return;
+	hbStores_.erase(std::remove_if(hbStores_.begin(), hbStores_.end(),
+						[&target](const HbStore &hb) { return hb.source.url == target; }),
+		hbStores_.end());
+	// Its copy on this PC goes with it.
+	std::error_code ignored;
+	fs::remove_all(fs::u8path(hbStoreDir(cacheDir(), store::hbStoreBase(target))), ignored);
+	publish();
+}
+
+void StoreController::setStoreEnabled(const QString &url, bool enabled)
+{
+	const std::string target = url.toStdString();
+	bool changed = false;
+	app_->updateSettings([&](Settings &s) {
+		for(StoreSource &source : s.stores)
+			if(source.url == target && source.enabled != enabled)
+			{
+				source.enabled = enabled;
+				changed = true;
+			}
+	});
+	if(!changed)
+		return;
+	publish();
+	// Turned on: read it.
+	if(enabled)
+		refresh();
 }
 
 // ── the catalog's address ────────────────────────────────────────────────

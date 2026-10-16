@@ -325,6 +325,13 @@ DiscInfo inspectDisc(const std::string &fileName, uint64_t size, const ByteReade
 			value = value.substr(cut + 1);
 		info.serial = normaliseSerial(value);
 		info.platform = key == "boot2" ? "ps2" : "ps1";
+		// A game starts the program named after its serial; anything else is
+		// a disc of software or a tool.
+		if(info.serial.empty())
+		{
+			const size_t version = value.find(';');
+			info.bootFile = version == std::string::npos ? value : value.substr(0, version);
+		}
 		break;
 	}
 	if(info.platform.empty())

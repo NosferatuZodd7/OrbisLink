@@ -77,9 +77,17 @@ public:
 	FtpResult list(const std::string &remoteDir, std::vector<FtpEntry> *entries);
 	FtpResult upload(const std::string &localPath, const std::string &remotePath,
 		FtpProgressCallback progress = nullptr, bool resume = false);
+	// A dropped transfer (the console's "426", a lost connection) goes on
+	// from the byte it reached, again and again while each try makes
+	// headway. `progress` counts the bytes this call brings (not those
+	// already here when resuming).
 	FtpResult download(const std::string &remotePath, const std::string &localPath,
 		FtpProgressCallback progress = nullptr, bool resume = false);
 	FtpResult remoteSize(const std::string &remotePath, int64_t *size);
+	// The room left on the disk `remoteDir` is on (AVBL), from a server that
+	// says; false when it does not (the consoles' servers mostly do not):
+	// it is not asked again then.
+	bool freeSpace(const std::string &remoteDir, int64_t *bytes);
 	// `length` bytes of a file from `offset` (fewer at its end), into memory:
 	// enough to read a package's or a disc's header without fetching it.
 	FtpResult read(const std::string &remotePath, int64_t offset, size_t length, std::vector<uint8_t> *bytes);
@@ -113,10 +121,14 @@ private:
 	bool querySize(const std::string &path, int64_t *size);
 	FtpResult uploadOnce(const std::string &localPath, const std::string &path,
 		const FtpProgressCallback &progress, int64_t localSize, int64_t from, int64_t *reached);
+	FtpResult downloadOnce(const std::string &path, const std::string &localPath,
+		const FtpProgressCallback &progress, int64_t from, int64_t carried, int64_t *reached, bool *restRefused);
 
 	mutable std::mutex mutex_;
 	Config config_;
 	std::atomic<bool> cancel_ { false };
+	// AVBL was answered with an error once: the server has no such command.
+	std::atomic<bool> noFreeSpace_ { false };
 	// Simple semaphore to limit simultaneous connections.
 	mutable std::mutex slotMutex_;
 	int slotsInUse_ = 0;

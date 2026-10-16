@@ -214,8 +214,9 @@ with open(sys.argv[1], "w") as f:
 PY
 shot 11-remote-play-light.png --screenshot-delay 3500
 
-# The PS5 in use: its games library, the homebrew store's catalog (two of
-# its apps installed there) and the community's payload list.
+# The PS5 in use: its games library, the homebrew store (homebrew.page and
+# PKG-Zone together, two of homebrew.page's apps installed there; PKG-Zone is
+# slower to answer, hence the longer wait) and the community's payload list.
 python3 - "$CONFIG/orbislink/settings.json" <<'PY'
 import json, sys
 with open(sys.argv[1]) as f:
@@ -227,7 +228,7 @@ with open(sys.argv[1], "w") as f:
     json.dump(settings, f)
 PY
 shot 14-library.png --screenshot-delay 8000 --demo-view games
-shot 17-store.png --screenshot-delay 20000 --demo-view store
+shot 17-store.png --screenshot-delay 40000 --demo-view store
 shot 18-payloads-ps5.png --screenshot-delay 10000 --demo-view payloads-library
 
 echo "Screenshots ready in $OUT"

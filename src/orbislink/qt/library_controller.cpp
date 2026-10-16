@@ -3,6 +3,7 @@
 
 #include "orbislink/common/log.h"
 #include "orbislink/common/util.h"
+#include "orbislink/ftp/remote_move.h"
 #include "orbislink/library/console_library.h"
 #include "orbislink/net/payload_sender.h"
 #include "orbislink/payloads/payload_layout.h"
@@ -32,6 +33,7 @@
 #include <QUrl>
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <map>
 #include <set>
@@ -49,6 +51,38 @@ QString dataUrl(const std::vector<uint8_t> &png)
 		return QString();
 	const QByteArray bytes(reinterpret_cast<const char *>(png.data()), static_cast<int>(png.size()));
 	return QStringLiteral("data:image/png;base64,") + QString::fromLatin1(bytes.toBase64());
+}
+
+// The library folders the console has: its memory's, and those on the
+// drives plugged in. Each is looked for in the folder above it, so nothing
+// is asked of a folder that is not there (a console's server answers
+// "denied" to that, and says so in the log every time).
+std::vector<std::string> presentLibraryFolders(FtpClient &ftp)
+{
+	auto holds = [&ftp](const std::string &parent) {
+		std::vector<FtpEntry> entries;
+		if(!ftp.list(parent, &entries).ok)
+			return false;
+		for(const FtpEntry &entry : entries)
+			if(entry.isDirectory && entry.name == library::kFolderName)
+				return true;
+		return false;
+	};
+	std::vector<std::string> found;
+	if(holds("/data"))
+		found.push_back(std::string("/data/") + library::kFolderName);
+	std::vector<FtpEntry> mounts;
+	if(ftp.list("/mnt", &mounts).ok)
+		for(const FtpEntry &mount : mounts)
+		{
+			const std::string &name = mount.name;
+			const bool drive = mount.isDirectory && name.size() == 4
+				&& (name.compare(0, 3, "usb") == 0 || name.compare(0, 3, "ext") == 0)
+				&& std::isdigit(static_cast<unsigned char>(name[3]));
+			if(drive && holds("/mnt/" + name))
+				found.push_back("/mnt/" + name + "/" + library::kFolderName);
+		}
+	return found;
 }
 
 library::BlockReader::Fetch fetchFrom(FtpClient &ftp, const std::string &path)
@@ -194,7 +228,7 @@ void LibraryController::refresh()
 
 		QVariantList items;
 		QVariantList folders;
-		for(const std::string &folder : library::libraryFolders())
+		for(const std::string &folder : presentLibraryFolders(ftp))
 		{
 			if(cancel_)
 				return;
@@ -717,6 +751,28 @@ void LibraryController::convert(const QString &path, bool install)
 	perform(item, install ? QStringLiteral("convert") : QStringLiteral("convertOnly"));
 }
 
+void LibraryController::removeMany(const QStringList &paths)
+{
+	if(paths.isEmpty())
+		return;
+	runAction(tr("Deleting %n file(s)…", "", paths.size()), [paths](FtpClient &ftp, bool *error) {
+		int deleted = 0;
+		QString failed;
+		for(const QString &path : paths)
+		{
+			const FtpResult removed = ftp.removeFile(path.toStdString());
+			if(removed.ok)
+				++deleted;
+			else if(failed.isEmpty())
+				failed = tr("%1: %2").arg(QFileInfo(path).fileName(), translateMessage(removed.message));
+		}
+		if(failed.isEmpty())
+			return tr("%n file(s) deleted from the console.", "", deleted);
+		*error = true;
+		return tr("%1 of %2 deleted. Not deleted: %3").arg(deleted).arg(paths.size()).arg(failed);
+	}, true);
+}
+
 void LibraryController::remove(const QString &path)
 {
 	const QVariantMap item = itemAt(path);
@@ -725,6 +781,29 @@ void LibraryController::remove(const QString &path)
 }
 
 // ── copies to this PC ───────────────────────────────────────────────────
+
+QVariantMap LibraryController::copyCard(const CopyJob &job, const QString &itemKind, qint64 total) const
+{
+	QVariantMap card;
+	card[QStringLiteral("id")] = job.id;
+	card[QStringLiteral("kind")] = QStringLiteral("copy");
+	card[QStringLiteral("name")] = job.title;
+	card[QStringLiteral("icon")] = job.icon;
+	card[QStringLiteral("itemKind")] = itemKind;
+	card[QStringLiteral("console")] = consoleName();
+	card[QStringLiteral("state")] = QStringLiteral("working");
+	// Waiting for the copies before it (one at a time).
+	card[QStringLiteral("queued")] = true;
+	card[QStringLiteral("stageText")] = tr("Waiting to copy");
+	card[QStringLiteral("percent")] = 0.0;
+	card[QStringLiteral("amountText")] = total > 0 ? QString::fromStdString(humanBytes(total)) : QString();
+	card[QStringLiteral("bytesTotal")] = static_cast<double>(total);
+	card[QStringLiteral("bytesLeft")] = static_cast<double>(total);
+	card[QStringLiteral("folder")] = job.folder;
+	card[QStringLiteral("remote")] = !job.remoteFolder.isEmpty() ? job.remoteFolder
+		: job.files.size() == 1 ? job.files.first().remote : QString();
+	return card;
+}
 
 void LibraryController::copyToPc(const QString &title, const QString &icon, const QString &folder,
 	const QVector<CopyItem> &files)
@@ -741,22 +820,79 @@ void LibraryController::copyToPc(const QString &title, const QString &icon, cons
 	qint64 total = 0;
 	for(const CopyItem &file : files)
 		total += file.size;
-	QVariantMap card;
-	card[QStringLiteral("id")] = job.id;
-	card[QStringLiteral("kind")] = QStringLiteral("copy");
-	card[QStringLiteral("name")] = title;
-	card[QStringLiteral("icon")] = icon;
-	card[QStringLiteral("itemKind")] = QStringLiteral("package");
-	card[QStringLiteral("console")] = consoleName();
-	card[QStringLiteral("state")] = QStringLiteral("working");
-	card[QStringLiteral("stageText")] = tr("Waiting to copy");
-	card[QStringLiteral("percent")] = 0.0;
-	card[QStringLiteral("amountText")] = QString::fromStdString(humanBytes(total));
-	card[QStringLiteral("folder")] = folder;
-	jobs_.prepend(card);
+	jobs_.prepend(copyCard(job, QStringLiteral("package"), total));
 	emit jobsChanged();
 	emit app_->showPanel(QStringLiteral("queue"));
 	enqueueCopy(job);
+}
+
+namespace {
+
+// `wanted`, or "name (2).ext" and on when something is there already.
+QString freeLocalName(const QString &wanted)
+{
+	if(!QFileInfo::exists(wanted))
+		return wanted;
+	const QFileInfo info(wanted);
+	const QString base = info.isDir() ? info.fileName() : info.completeBaseName();
+	const QString suffix = info.isDir() || info.suffix().isEmpty() ? QString() : QLatin1Char('.') + info.suffix();
+	for(int n = 2; n < 1000; ++n)
+	{
+		const QString candidate = QDir(info.path()).filePath(QStringLiteral("%1 (%2)%3").arg(base).arg(n).arg(suffix));
+		if(!QFileInfo::exists(candidate))
+			return candidate;
+	}
+	return wanted;
+}
+
+} // namespace
+
+void LibraryController::download(const QVariantList &items, const QString &folderIn)
+{
+	QString folder = folderIn;
+	if(folder.startsWith(QStringLiteral("file:")))
+		folder = QUrl(folder).toLocalFile();
+	if(folder.trimmed().isEmpty())
+		folder = app_->defaultDownloadDirectory();
+	for(const QVariant &value : items)
+	{
+		const QVariantMap item = value.toMap();
+		const QString path = item.value(QStringLiteral("path")).toString();
+		QString name = item.value(QStringLiteral("name")).toString();
+		if(path.isEmpty())
+			continue;
+		if(name.isEmpty())
+			name = QFileInfo(path).fileName();
+		CopyJob job;
+		job.id = QStringLiteral("library-%1").arg(nextJob_++);
+		job.title = name;
+		const bool isFolder = item.value(QStringLiteral("isDirectory")).toBool();
+		qint64 total = 0;
+		if(isFolder)
+		{
+			// Into a folder of its own name, never into one already there.
+			job.folder = freeLocalName(QDir(folder).filePath(name));
+			job.remoteFolder = path;
+		}
+		else
+		{
+			job.folder = folder;
+			CopyItem file;
+			file.remote = path;
+			file.size = static_cast<qint64>(item.value(QStringLiteral("size")).toDouble());
+			file.what = QStringLiteral("file");
+			// The same file there already (same size) counts as copied; another
+			// one with its name is left alone.
+			const QString local = QDir(folder).filePath(name);
+			const QFileInfo there(local);
+			file.local = !there.exists() || (there.isFile() && there.size() == file.size) ? local : freeLocalName(local);
+			job.files << file;
+			total = file.size;
+		}
+		jobs_.prepend(copyCard(job, isFolder ? QStringLiteral("folder") : QStringLiteral("file"), total));
+		enqueueCopy(job);
+	}
+	emit jobsChanged();
 }
 
 void LibraryController::enqueueCopy(CopyJob job)
@@ -797,7 +933,7 @@ void LibraryController::retryJob(const QString &id)
 			&& card.value(QStringLiteral("state")).toString() == QLatin1String("working"))
 			return;
 	}
-	updateJob(id, { { QStringLiteral("state"), QStringLiteral("working") },
+	updateJob(id, { { QStringLiteral("state"), QStringLiteral("working") }, { QStringLiteral("queued"), true },
 		{ QStringLiteral("stageText"), tr("Waiting to copy") }, { QStringLiteral("message"), QString() },
 		{ QStringLiteral("interrupted"), false }, { QStringLiteral("percent"), 0.0 } });
 	emit app_->showPanel(QStringLiteral("queue"));
@@ -830,7 +966,9 @@ void LibraryController::saveUnfinishedCopies() const
 			files.append(QJsonObject { { QStringLiteral("remote"), file.remote }, { QStringLiteral("local"), file.local },
 				{ QStringLiteral("size"), static_cast<double>(file.size) }, { QStringLiteral("what"), file.what } });
 		kept.append(QJsonObject { { QStringLiteral("title"), job.title }, { QStringLiteral("icon"), job.icon },
-			{ QStringLiteral("folder"), job.folder }, { QStringLiteral("files"), files } });
+			{ QStringLiteral("folder"), job.folder }, { QStringLiteral("files"), files },
+			{ QStringLiteral("remoteFolder"), job.remoteFolder },
+			{ QStringLiteral("itemKind"), card.value(QStringLiteral("itemKind")).toString() } });
 	}
 	if(kept.isEmpty())
 	{
@@ -857,6 +995,7 @@ void LibraryController::loadUnfinishedCopies()
 		job.title = saved.value(QStringLiteral("title")).toString();
 		job.icon = saved.value(QStringLiteral("icon")).toString();
 		job.folder = saved.value(QStringLiteral("folder")).toString();
+		job.remoteFolder = saved.value(QStringLiteral("remoteFolder")).toString();
 		qint64 total = 0;
 		for(const QJsonValue &part : saved.value(QStringLiteral("files")).toArray())
 		{
@@ -869,7 +1008,7 @@ void LibraryController::loadUnfinishedCopies()
 			total += item.size;
 			job.files << item;
 		}
-		if(job.files.isEmpty() || job.folder.isEmpty())
+		if((job.files.isEmpty() && job.remoteFolder.isEmpty()) || job.folder.isEmpty())
 			continue;
 		// How far it got: whole files there, and the part of the one cut short.
 		qint64 already = 0;
@@ -886,7 +1025,8 @@ void LibraryController::loadUnfinishedCopies()
 		card[QStringLiteral("kind")] = QStringLiteral("copy");
 		card[QStringLiteral("name")] = job.title;
 		card[QStringLiteral("icon")] = job.icon;
-		card[QStringLiteral("itemKind")] = QStringLiteral("package");
+		const QString itemKind = saved.value(QStringLiteral("itemKind")).toString();
+		card[QStringLiteral("itemKind")] = itemKind.isEmpty() ? QStringLiteral("package") : itemKind;
 		card[QStringLiteral("console")] = consoleName();
 		card[QStringLiteral("state")] = QStringLiteral("cancelled");
 		card[QStringLiteral("interrupted")] = true;
@@ -941,13 +1081,14 @@ void LibraryController::copyLoop()
 	}
 }
 
-void LibraryController::runCopy(const CopyJob &job)
+void LibraryController::runCopy(const CopyJob &recipe)
 {
+	CopyJob job = recipe;
 	const auto post = [this, &job](const QVariantMap &fields) {
 		QMetaObject::invokeMethod(this, [this, id = job.id, fields]() { updateJob(id, fields); }, Qt::QueuedConnection);
 	};
 	const auto finish = [&](const QString &state, const QString &message) {
-		post({ { QStringLiteral("state"), state }, { QStringLiteral("message"), message },
+		post({ { QStringLiteral("state"), state }, { QStringLiteral("message"), message }, { QStringLiteral("queued"), false },
 			{ QStringLiteral("speedText"), QString() }, { QStringLiteral("etaText"), QString() },
 			{ QStringLiteral("bytesPerSecond"), 0.0 } });
 		if(state == QLatin1String("error"))
@@ -959,6 +1100,35 @@ void LibraryController::runCopy(const CopyJob &job)
 	{
 		finish(QStringLiteral("cancelled"), tr("Cancelled before it started."));
 		return;
+	}
+	post({ { QStringLiteral("queued"), false } });
+
+	FtpClient ftp(job.config);
+	// A folder of the console: what is in it, each file to its place here.
+	if(!job.remoteFolder.isEmpty())
+	{
+		post({ { QStringLiteral("stageText"), tr("Looking inside %1…").arg(job.title) } });
+		std::vector<RemoteTreeFile> files;
+		std::vector<std::string> folders;
+		const FtpResult listed = listTreeOnConsole(ftp, job.remoteFolder.toStdString(), &files, &folders);
+		if(!listed.ok)
+		{
+			finish(QStringLiteral("error"), tr("Could not read %1 on the console: %2").arg(job.remoteFolder,
+				translateMessage(listed.message)));
+			return;
+		}
+		for(const std::string &relative : folders)
+			QDir().mkpath(QDir(job.folder).filePath(QString::fromStdString(relative)));
+		job.files.clear();
+		for(const RemoteTreeFile &file : files)
+		{
+			CopyItem item;
+			item.remote = QString::fromStdString(file.remote);
+			item.local = QDir(job.folder).filePath(QString::fromStdString(file.relative));
+			item.size = file.size;
+			item.what = QStringLiteral("file");
+			job.files << item;
+		}
 	}
 
 	qint64 total = 0;
@@ -990,7 +1160,6 @@ void LibraryController::runCopy(const CopyJob &job)
 	}
 	logInfo("Library: copying \"" + job.title.toStdString() + "\" from the console to " + job.folder.toStdString());
 
-	FtpClient ftp(job.config);
 	qint64 copied = 0;
 	// The speed over the last seconds, smoothed.
 	double speed = 0;
@@ -1001,7 +1170,8 @@ void LibraryController::runCopy(const CopyJob &job)
 	for(int i = 0; i < job.files.size(); ++i)
 	{
 		const CopyItem &file = job.files[i];
-		const QString what = file.what == QLatin1String("update") ? tr("the update")
+		const QString what = file.what == QLatin1String("file") ? QFileInfo(file.local).fileName()
+			: file.what == QLatin1String("update") ? tr("the update")
 			: file.what == QLatin1String("addon") ? tr("an add-on") : tr("the game");
 		const QString step = job.files.size() > 1
 			? tr("Copying %1 (%2 of %3)").arg(what).arg(i + 1).arg(job.files.size()) : tr("Copying %1").arg(what);

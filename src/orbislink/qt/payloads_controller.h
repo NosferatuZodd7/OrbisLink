@@ -155,6 +155,11 @@ private:
 
 	// The library.
 	void publishCatalog();
+	// Each file of the folders says what it is: the payload list's words for
+	// it, else what is known of it, else what kind of file it is.
+	void describeFiles();
+	QString knownDescription(const QString &fileName) const;
+	QString typeDescription(const QString &fileName, const QString &folderId) const;
 	// Where this PC keeps the list and the payloads it downloaded.
 	static QString cacheRoot();
 	// On the worker: the payload's file, from this PC's copy when its

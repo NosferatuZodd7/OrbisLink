@@ -260,6 +260,19 @@ ORBISLINK_TEST(turns_goldhen_plugins_on_and_off)
 	CHECK(removed.find("game_patch.prx=true") != std::string::npos);
 }
 
+ORBISLINK_TEST(names_a_payload_whatever_its_version_and_type)
+{
+	CHECK_EQ(payloads::payloadKey("kstuff-lite_v1.10.elf"), std::string("kstuff-lite"));
+	CHECK_EQ(payloads::payloadKey("GoldHEN_v2.4b18.3.bin"), std::string("goldhen"));
+	CHECK_EQ(payloads::payloadKey("etaHEN-2.5B.bin"), std::string("etahen"));
+	CHECK_EQ(payloads::payloadKey("afr.prx"), std::string("afr"));
+	CHECK_EQ(payloads::payloadKey("ps4debug.bin"), std::string("ps4debug"));
+	CHECK_EQ(payloads::payloadKey("ps5-app-dumper.elf"), std::string("ps5-app-dumper"));
+	CHECK_EQ(payloads::payloadKey("ftpsrv.self"), std::string("ftpsrv"));
+	CHECK_EQ(payloads::payloadKey("Fan Threshold 1.0.bin"), std::string("fan threshold"));
+	CHECK_EQ(payloads::payloadKey("force_30_fps.prx"), std::string("force_30_fps"));
+}
+
 ORBISLINK_TEST(reads_the_payload_catalog)
 {
 	using namespace payloads;

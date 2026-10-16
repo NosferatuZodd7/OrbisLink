@@ -11,6 +11,7 @@
 // them).
 #pragma once
 
+#include <QElapsedTimer>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -26,6 +27,8 @@
 #include <memory>
 #include <mutex>
 #include <thread>
+
+class QTimer;
 
 namespace orbislink {
 
@@ -161,6 +164,17 @@ private:
 	// On the worker: a job's disc from the console to this PC.
 	bool fetchFromConsole(const std::shared_ptr<Job> &job, const std::function<void()> &tick);
 	void publish();
+	// A progress tick from the worker: published at most every 200 ms, so
+	// the interface (and every card's binding) is not woken hundreds of
+	// times a second.
+	void requestPublish();
+	// The conversions with their package's journey (sending, installing),
+	// as the queue has it.
+	QVariantList withTransfers(QVariantList conversions) const;
+	// The packages made here that are on the console now (installed, or sent
+	// when not installed): deleted from the output folder, unless the
+	// settings keep them. Whether any was.
+	bool dropDeliveredPackages();
 	void updateProgress();
 	// The conversions not finished when the app closes, kept for the next
 	// time (conversions.json beside the settings) and shown then, stopped.
@@ -186,6 +200,8 @@ private:
 	std::condition_variable wakeup_;
 	std::atomic<bool> stopping_ { false };
 	std::atomic<bool> publishPending_ { false };
+	QElapsedTimer published_;
+	QTimer *publishTimer_ = nullptr;
 	std::thread worker_;
 	std::thread drivesThread_;
 	QVariantMap drives_;

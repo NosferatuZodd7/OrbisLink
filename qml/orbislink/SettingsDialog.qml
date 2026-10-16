@@ -173,6 +173,7 @@ Dialog {
         updateRepoField.text = values.updateRepository
         updateChannelBox.currentIndex = values.updateChannel === "testing" ? 1 : 0
         deleteAfterBox.checked = values.deleteFromConsoleAfterInstall
+        keepConvertedBox.checked = values.keepConvertedPackages === true
         advancedBox.checked = values.ftpAdvancedMode
         debugBox.checked = values.debugLogging
     }
@@ -214,6 +215,7 @@ Dialog {
             "updateRepository": updateRepoField.text.trim(),
             "updateChannel": updateChannelBox.currentIndex === 1 ? "testing" : "stable",
             "deleteFromConsoleAfterInstall": deleteAfterBox.checked,
+            "keepConvertedPackages": keepConvertedBox.checked,
             "ftpAdvancedMode": advancedBox.checked,
             "debugLogging": debugBox.checked,
             "streamResolution": [1080, 720, 540, 360][resolutionBox.currentIndex],
@@ -683,6 +685,21 @@ Dialog {
                         Layout.leftMargin: 20
                         enabled: installAfterBox.checked
                         text: qsTr("And delete the console copy once installed")
+                    }
+
+                    StyledCheck {
+                        id: keepConvertedBox
+                        Layout.fillWidth: true
+                        text: qsTr("Keep the packages the converter makes once they are on the console")
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: Theme.textMuted
+                        font.pixelSize: 11
+                        text: qsTr("Off, a package made from a PS1/PS2 disc or an app folder is deleted from "
+                                   + "the output folder once the console has it — installed, or sent when it "
+                                   + "is not installed. Packages of your own are never touched.")
                     }
                 }
 

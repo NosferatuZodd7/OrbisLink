@@ -64,6 +64,9 @@ Last review: v1.1.0.
 | ✅ | Automatic reconnection with exponential back-off |
 | ✅ | Menu per file and per folder |
 | 🟡 | Resuming an interrupted upload (`REST`/`APPE` implemented; GoldHEN's server still has to be confirmed to accept it) |
+| ✅ | Downloads (files and whole folders) as cards in the queue; one the console breaks (its 426) goes on from where it stopped (`REST`), while each try gets further; tested against the fake console |
+| ✅ | Several files and folders picked at once (click, Ctrl+click, Shift+click) and downloaded, moved or deleted together; a folder deleted with everything inside it, what is inside first |
+| ✅ | A file being uploaded listed with its percentage as soon as its upload starts; the folder's totals under the list, and its disk's free space when the server says it (`AVBL`: GoldHEN's and etaHEN's do not, so only the totals show) |
 | 🟡 | Save vault: saves a PS4 copied to a USB drive (`PS4/SAVEDATA`), on the console's drives (`/mnt/usbN`) or on a drive plugged into this PC, shown and backed up into the vault folder (the drive is only read); checked with the fake console and in the tests |
 
 ## 3. Remote Play
@@ -121,6 +124,13 @@ Last review: v1.1.0.
 | ✅ | Exporting diagnostics to a file, with versions, network, settings (without secrets), the last Remote Play attempt and the end of the log |
 | ✅ | English (source language and default) and Portuguese, chosen in the settings; the log and the diagnostics are always in English |
 | ⬜ | Shortcut to the queue in full screen |
+| ✅ | One queue for every job, in three groups (under way, lit and on top; waiting, with a breathing badge; finished, at the end, with one **Clear finished** for all), totals for the round (percentage, jobs to go, time left from its pace) and a compact rail with the jobs when the panel is closed while they run; the tabs only while there is a card |
+| ✅ | A converted package deleted from the output folder once the console has it (a setting keeps them) |
+| 🟡 | The console chip's firmware (Remote Play discovery) and the jailbreak's version when its FTP greeting gives it; checked with the fake console — GoldHEN's own greeting still to be seen, and etaHEN's does not give it |
+| ✅ | Save vault: **Select all** selects everything shown (then **Select none**), and each game a button for its saves |
+| ✅ | Library: packages in the console's places deleted together, after one question |
+| ✅ | Payloads and plugins say what they do: the payload library's words, else what is known of the common ones (GoldHEN's plugins, PS4 and PS5 payloads), else the kind of file and its loader |
+| 🟡 | Homebrew store with several stores at once: homebrew.page, PKG-Zone (its `store.db`, read through its MD5) and any Homebrew Store added; an app in more than one shows each store's tag and asks which to take it from; a store's packages downloaded (resumed, checked against their MD5) and installed through the queue on a PS4 or a PS5. Checked against PKG-Zone's real database and a fake store with the fake console, not yet on a real console |
 
 ## 5. Packaging and CI
 
@@ -143,7 +153,7 @@ Last review: v1.1.0.
 
 ## 6. Tests
 
-27 automated suites, all running in CI:
+28 automated suites, all running in CI:
 
 | | |
 |---|---|
@@ -162,6 +172,7 @@ Last review: v1.1.0.
 | ✅ | Interface: the window opens and draws (smoke test) |
 | ✅ | Interface: drag and drop follows the cursor and accepts the file |
 | ✅ | Cheats and game patches: the repositories' lists (and the oddly named files in them), the cheat files of each format, a patch XML, etaHEN's lists and GoldHEN's patch switch hash (against values from game_patch's own code) |
+| ✅ | Homebrew stores: a store's addresses, its MD5 answer, versions as the stores write them, which console an app is for, and reading a `store.db` laid out as PKG-Zone's |
 | ⬜ | Remote Play session with synthetic video — a test that does not need a console is missing |
 
 ---

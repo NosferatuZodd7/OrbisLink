@@ -65,6 +65,19 @@ struct LibraryLocation
 	bool inSearch = true;
 };
 
+// A store the homebrew store page shows the apps of, all of them together.
+struct StoreSource
+{
+	// What its tag on each app says.
+	std::string name;
+	std::string url;
+	// "catalog": homebrew.page's signed catalog (PS5 app folders), built in;
+	// "hb-store": a Homebrew Store's database (store.db) and its packages,
+	// as PKG-Zone has them (built in) and anyone can host.
+	std::string kind;
+	bool enabled = true;
+};
+
 // A PSN Account ID saved under a name of the user's choosing, so it can be
 // picked for any console instead of being typed again.
 struct SavedAccount
@@ -169,6 +182,10 @@ struct Settings
 	// PS1/PS2 games: where the discs are and where converted packages go.
 	std::string gamesFolder;
 	std::string convertOutputFolder;
+	// A package the converter made (from a disc, or a folder) stays in the
+	// output folder once it is on the console; off, it is deleted then
+	// (installed, or sent when not installing).
+	bool keepConvertedPackages = false;
 	// Where on the console a game goes to be installed: "internal"
 	// (/data), "usb" (/mnt/usb0) or "ext" (the extended storage, /mnt/ext0).
 	std::string installStorage = "internal";
@@ -193,6 +210,11 @@ struct Settings
 	// whose app archives the store shows under "On this PC".
 	std::string storeCatalogAddress;
 	std::string storeLocalFolder;
+	// The stores whose apps the store page shows: the built-in ones (which
+	// can be turned off, not taken away) and those the user added.
+	std::vector<StoreSource> stores = defaultStores();
+	static std::vector<StoreSource> defaultStores();
+	static bool builtInStore(const StoreSource &source);
 	// Console user folder ("1a2b3c4d") → its owner's Account ID (base64),
 	// which gives the PSID its backups are filed under.
 	std::map<std::string, std::string> saveAccountLinks;

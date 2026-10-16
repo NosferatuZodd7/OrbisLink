@@ -60,6 +60,11 @@ uint16_t pickFtpPort(const std::vector<PortAnswer> &answers, uint16_t preferred)
 // diagnostics ("" when nothing is known).
 std::string knownPortUse(uint16_t port, bool ps5);
 
+// The version a homebrew enabler gives right after its name in a greeting
+// ("220 GoldHEN v2.4b18 …" gives "2.4b18" for "GoldHEN"); "" when the
+// greeting does not name it, or names it without a version.
+std::string henVersionInGreeting(const std::string &greeting, const std::string &hen);
+
 struct ConsoleStatus
 {
 	ServiceStatus remotePlay;

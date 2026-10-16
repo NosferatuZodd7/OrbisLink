@@ -8,6 +8,7 @@
 #include "orbislink/net/net_utils.h"
 
 #include <algorithm>
+#include <cctype>
 
 namespace orbislink {
 
@@ -99,6 +100,32 @@ std::string knownPortUse(uint16_t port, bool ps5)
 		case 12800: return ps5 ? "etaHEN's DPI v2 installer" : "Remote Package Installer";
 		default: return std::string();
 	}
+}
+
+std::string henVersionInGreeting(const std::string &greeting, const std::string &hen)
+{
+	if(hen.empty())
+		return std::string();
+	const size_t at = toLower(greeting).find(toLower(hen));
+	if(at == std::string::npos)
+		return std::string();
+	size_t start = at + hen.size();
+	while(start < greeting.size() && std::string(" _-:").find(greeting[start]) != std::string::npos)
+		++start;
+	if(start < greeting.size() && (greeting[start] == 'v' || greeting[start] == 'V'))
+		++start;
+	size_t end = start;
+	while(end < greeting.size()
+		&& (std::isalnum(static_cast<unsigned char>(greeting[end])) || greeting[end] == '.'))
+		++end;
+	std::string version = greeting.substr(start, end - start);
+	while(!version.empty() && version.back() == '.')
+		version.pop_back();
+	// A version starts with a number and has a dot: "2.4b18", "2.5B".
+	if(version.empty() || !std::isdigit(static_cast<unsigned char>(version.front()))
+		|| version.find('.') == std::string::npos)
+		return std::string();
+	return version;
 }
 
 ProbeResult probeConsoleServices(const std::string &address, uint16_t ftpPort,

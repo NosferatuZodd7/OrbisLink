@@ -33,7 +33,7 @@ FocusScope {
     readonly property var batch: pickedKeys.length > 0 ? shelf.batchActions(pickedKeys) : ({})
     function pickable(card) {
         var actions = card.actions || []
-        return card.card === "title" && ["convert", "pack", "install", "convertOnly", "packOnly", "copyToPc"]
+        return card.card === "title" && ["convert", "pack", "install", "convertOnly", "packOnly", "copyToPc", "delete"]
             .some(function (a) { return actions.indexOf(a) >= 0 })
     }
     // The last one picked or left, where a Shift+click run starts from.
@@ -637,6 +637,14 @@ FocusScope {
                         primary: (view.batch.install || 0) === 0
                         enabled: app.canUseFtp
                         onClicked: copyDialog.ask(view.pickedKeys)
+                    }
+                    StyledButton {
+                        visible: (view.batch["delete"] || 0) > 0
+                        text: qsTr("Delete (%1)").arg(view.batch["delete"] || 0)
+                        iconName: "trash"
+                        danger: true
+                        enabled: app.canUseFtp
+                        onClicked: bulkRemoval.ask(view.pickedKeys)
                     }
                     StyledButton {
                         visible: (view.batch.convertOnly || 0) > 0
@@ -1297,6 +1305,93 @@ FocusScope {
                         shelf.act(removal.index, "delete")
                         removal.close()
                         details.close()
+                    }
+                }
+            }
+        }
+    }
+
+    // ── the files picked, deleted from the console together, asked first
+    Dialog {
+        id: bulkRemoval
+        property var keys: []
+        property var names: []
+        function ask(picked) {
+            var cards = view.cardsFor(picked).filter(function (c) {
+                return (c.actions || []).indexOf("delete") >= 0
+            })
+            keys = cards.map(function (c) { return c.key })
+            names = cards.map(function (c) { return c.name })
+            if (keys.length > 0)
+                open()
+        }
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(460, parent.width - 32)
+        modal: true
+        padding: 0
+        Overlay.modal: Rectangle { color: Theme.scrim }
+        background: Rectangle {
+            color: Theme.dialogFill
+            border.color: Theme.border
+            radius: Theme.radiusDialog
+        }
+        header: DialogHeader {
+            title: qsTr("Delete %n file(s) from the console?", "", bulkRemoval.keys.length)
+            dialog: bulkRemoval
+        }
+        contentItem: ColumnLayout {
+            spacing: 6
+            Text {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                Layout.topMargin: 6
+                text: {
+                    var shown = bulkRemoval.names.slice(0, 4)
+                    var more = bulkRemoval.names.length - shown.length
+                    return shown.join(", ") + (more > 0 ? " " + qsTr("and %n more", "", more) : "")
+                }
+                color: Theme.text
+                font.pixelSize: 13
+                font.weight: Font.DemiBold
+                wrapMode: Text.WrapAnywhere
+                maximumLineCount: 3
+                elide: Text.ElideRight
+            }
+            Text {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                Layout.bottomMargin: 6
+                wrapMode: Text.WordWrap
+                color: Theme.textSecondary
+                font.pixelSize: 13
+                text: qsTr("The files go from the console. What was installed from them stays installed.")
+            }
+        }
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                spacing: 8
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("Cancel")
+                    onClicked: bulkRemoval.close()
+                }
+                StyledButton {
+                    text: qsTr("Delete")
+                    iconName: "trash"
+                    danger: true
+                    solid: true
+                    onClicked: {
+                        shelf.actMany(bulkRemoval.keys, "delete")
+                        bulkRemoval.close()
+                        view.stopPicking()
                     }
                 }
             }
