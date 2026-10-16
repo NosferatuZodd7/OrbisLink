@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The PS5 homebrew store: the apps of the homebrew.page catalog (checked by
-// its signature) as cards. A click opens one — what it is, what it does on
-// the console, its licence and source — and installs it on a jailbroken PS5:
-// its folder goes to /data/homebrew, where ShadowMountPlus finds it and puts
-// it on the home screen.
+// The homebrew store: the apps of every store turned on, together, as
+// cards — homebrew.page's catalog (checked by its signature), whose apps are
+// folders for a jailbroken PS5 (they go to /data/homebrew, where
+// ShadowMountPlus puts them on the home screen), and the Homebrew Store
+// databases (PKG-Zone, and those added), whose apps are packages installed
+// through the queue on the console in use. An app in more than one store
+// shows each store's tag, and installing it asks which store to take it
+// from. A click opens one — what it is, what it does on the console, its
+// licence and source.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -67,15 +71,65 @@ Item {
             list.push(a)
         }
         list.sort(function (x, y) {
-            // What can be installed first, then by name.
-            if (x.available !== y.available) return x.available ? -1 : 1
+            // What can be installed on this console first, then by name.
+            if (x.installable !== y.installable) return x.installable ? -1 : 1
             return x.name.localeCompare(y.name)
         })
         return list
     }
     function kindLabel(k) {
         return k === "app" ? qsTr("Apps") : k === "game" ? qsTr("Games") : k === "tool" ? qsTr("Tools")
-             : k === "emulator" ? qsTr("Emulators") : k.charAt(0).toUpperCase() + k.slice(1)
+             : k === "emulator" ? qsTr("Emulators") : k === "media" ? qsTr("Media") : k === "theme" ? qsTr("Themes")
+             : k === "mod" ? qsTr("Mods") : k.charAt(0).toUpperCase() + k.slice(1)
+    }
+    // The stores turned on, by name, and those that could not be read.
+    readonly property var storesOn: {
+        var names = []
+        for (var i = 0; i < store.stores.length; ++i)
+            if (store.stores[i].enabled)
+                names.push(store.stores[i].name)
+        return names
+    }
+    readonly property var storeTroubles: {
+        var lines = []
+        for (var i = 0; i < store.stores.length; ++i) {
+            var s = store.stores[i]
+            if (!s.enabled || s.error.length === 0)
+                continue
+            lines.push(s.offline ? qsTr("%1 did not answer (%2): its apps are the ones kept from last time.").arg(s.name).arg(s.error)
+                                 : qsTr("%1 could not be read: %2").arg(s.name).arg(s.error))
+        }
+        return lines
+    }
+    // The stores an app can come from now, onto the console in use.
+    function readySources(app) {
+        var list = []
+        var sources = app.sources !== undefined ? app.sources : []
+        for (var i = 0; i < sources.length; ++i) {
+            var s = sources[i]
+            if (s.installable && (s.format === "pkg" ? store.canInstallPackages : store.canInstall))
+                list.push(s)
+        }
+        return list
+    }
+    // Installing: straight away from the one store that can, else asking.
+    function installApp(app) {
+        var ready = readySources(app)
+        if (ready.length === 1)
+            store.install(app.titleId, ready[0].store)
+        else if (ready.length > 1)
+            sourceDialog.ask(app, ready)
+    }
+    function formatLabel(f) {
+        return f === "folder" ? qsTr("app folder") : qsTr("package")
+    }
+    // Why none of its stores can put it on this console, in a word or two.
+    function briefNote(app) {
+        var sources = app.sources !== undefined ? app.sources : []
+        for (var i = 0; i < sources.length; ++i)
+            if (sources[i].brief.length > 0)
+                return sources[i].brief
+        return qsTr("Not for this console")
     }
     // "45% · 3.2 MB/s" while bytes move (the download, the copy to the
     // PS5); "" in the stages that have none to count.
@@ -123,7 +177,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         anchors.leftMargin: root.framed ? Theme.gutter : 0
-        anchors.rightMargin: !root.framed ? 0 : window.panelShown ? 8 : Theme.gutter
+        anchors.rightMargin: !root.framed ? 0 : window.sideShown ? 8 : Theme.gutter
         anchors.topMargin: root.framed ? 4 : 0
         anchors.bottomMargin: root.framed ? 4 : 0
         radius: Theme.radius
@@ -158,16 +212,18 @@ Item {
                         font.weight: Font.DemiBold
                     }
                     Text {
-                        text: store.loading ? qsTr("Reading the catalog…")
-                            : store.offline ? qsTr("%n app(s) · the catalog kept from last time (the site did not answer)", "",
-                                                   store.apps.length)
-                            : qsTr("%n app(s) · %1, checked by its signature", "", store.apps.length)
-                              .arg(store.catalogSource.length > 0 ? store.catalogSource : "homebrew.page")
-                        color: store.offline ? Theme.warn : Theme.textSecondary
+                        text: store.loading && store.apps.length === 0 ? qsTr("Reading the stores…")
+                            : root.storesOn.length === 0 ? qsTr("Every store is turned off")
+                            : qsTr("%n app(s) · %1", "", store.apps.length).arg(root.storesOn.join(", "))
+                              + (store.loading ? "  ·  " + qsTr("still reading…") : "")
+                        color: root.storeTroubles.length > 0 ? Theme.warn : Theme.textSecondary
                         font.pixelSize: 12
+                        ToolTip.visible: troublesHover.hovered && root.storeTroubles.length > 0
+                        ToolTip.text: root.storeTroubles.join("\n")
+                        HoverHandler { id: troublesHover }
                     }
                 }
-                // The PS5 apps go to.
+                // The console apps go to: the one in use.
                 StyledButton {
                     id: targetChip
                     visible: store.consoles.length > 0
@@ -177,8 +233,9 @@ Item {
                     Layout.maximumWidth: 260
                     enabled: store.working.length === 0
                     ToolTip.visible: hovered
-                    ToolTip.text: store.canInstall ? qsTr("Apps are installed on this PS5")
-                                                   : qsTr("This PS5's FTP is not answering: apps can be looked at, not installed")
+                    ToolTip.text: store.consoles.length > 1
+                                  ? qsTr("Apps are installed on this console, the one in use. Click for another (it becomes the one in use).")
+                                  : qsTr("Apps are installed on this console")
                     onClicked: if (store.consoles.length > 1) targetMenu.popup(targetChip, 0, targetChip.height + 4)
                 }
                 Item { Layout.fillWidth: true }
@@ -186,20 +243,21 @@ Item {
                     iconName: store.loading ? "loader" : "refresh"
                     enabled: !store.loading
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Read the catalog again")
+                    ToolTip.text: qsTr("Read the stores again")
                     onClicked: root.filter === "local" ? store.scanLocal() : store.refresh()
                 }
                 StyledToolButton {
                     iconName: "sliders"
                     ToolTip.visible: hovered
-                    ToolTip.text: qsTr("The catalog's address")
-                    onClicked: catalogDialog.ask()
+                    ToolTip.text: qsTr("The stores: add one, turn them on and off")
+                    onClicked: storesDialog.open()
                 }
             }
 
             // ── what is needed, when it is not there
             Rectangle {
-                visible: !store.canInstall
+                visible: store.consoles.length === 0
+                         || (store.targetType === "ps5" && !store.canInstall)
                 Layout.fillWidth: true
                 implicitHeight: needRow.implicitHeight + 24
                 radius: 14
@@ -225,9 +283,10 @@ Item {
                         color: Theme.text
                         font.pixelSize: 13
                         text: store.consoles.length === 0
-                              ? qsTr("These apps are for a jailbroken PS5. Add your PS5 under Settings → Consoles to install them.")
+                              ? qsTr("These apps are for a jailbroken console. Add yours under Settings → Consoles to install them.")
                               : qsTr("%1's FTP is not answering. Turn on FTP in etaHEN (FTP=1 in config.ini), with "
-                                     + "kstuff and ShadowMountPlus running, to install apps.").arg(store.targetName)
+                                     + "kstuff and ShadowMountPlus running, to install app folders; packages wait "
+                                     + "in the queue for its installer.").arg(store.targetName)
                     }
                 }
             }
@@ -302,7 +361,7 @@ Item {
                     clip: true
                     readonly property int columns: Math.max(1, Math.floor(width / 300))
                     cellWidth: Math.floor(width / columns)
-                    cellHeight: 112
+                    cellHeight: 124
                     model: root.shown
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: ScrollBar { policy: grid.contentHeight > grid.height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded }
@@ -400,7 +459,7 @@ Item {
                                                 text: parent.state === "soon" ? qsTr("Coming soon")
                                                     : parent.state === "update" ? qsTr("Update")
                                                     : parent.state === "installed" ? qsTr("Installed", "one app")
-                                                    : qsTr("Not a folder app")
+                                                    : root.briefNote(cell.modelData)
                                                 color: parent.tone
                                                 font.pixelSize: 10
                                                 font.weight: Font.DemiBold
@@ -411,6 +470,31 @@ Item {
                                             text: cell.modelData.size
                                             color: Theme.textMuted
                                             font.pixelSize: 11
+                                        }
+                                    }
+                                    // The stores it is in, as tags.
+                                    Row {
+                                        visible: !cell.busy
+                                        spacing: 4
+                                        Repeater {
+                                            model: cell.modelData.stores
+                                            Rectangle {
+                                                required property string modelData
+                                                implicitWidth: tagText.implicitWidth + 12
+                                                implicitHeight: 16
+                                                radius: 5
+                                                color: Theme.alpha(Theme.textSecondary, 0.10)
+                                                border.width: 1
+                                                border.color: Theme.alpha(Theme.textSecondary, 0.25)
+                                                Text {
+                                                    id: tagText
+                                                    anchors.centerIn: parent
+                                                    text: parent.modelData
+                                                    color: Theme.textSecondary
+                                                    font.pixelSize: 9
+                                                    font.weight: Font.Medium
+                                                }
+                                            }
                                         }
                                     }
                                     Rectangle {
@@ -639,9 +723,11 @@ Item {
                     text: root.filter === "local"
                           ? qsTr("An archive of this PC installs the same way, as its folder in /data/homebrew; being "
                                  + "your own file, nothing checks it against the catalog. Only install what you trust.")
-                          : qsTr("Each app installs as its folder in /data/homebrew on the PS5, checked against the "
-                               + "catalog first; ShadowMountPlus (with kstuff) puts it on the home screen. No package "
-                               + "is built. The apps are their authors' work, under their own licences.")
+                          : qsTr("homebrew.page's apps install as their folder in /data/homebrew on a PS5, checked "
+                               + "against the catalog first; ShadowMountPlus (with kstuff) puts them on the home "
+                               + "screen. A store's packages are downloaded to this PC (checked against their MD5 when "
+                               + "the store has one) and installed through the queue on the console in use. The apps "
+                               + "are their authors' work, under their own licences.")
                 }
             }
         }
@@ -701,6 +787,13 @@ Item {
                 if (store.apps[i].titleId === app.titleId)
                     return store.apps[i]
             return app
+        }
+        readonly property var sources: listed.sources !== undefined ? listed.sources : []
+        readonly property bool fromCatalog: {
+            for (var i = 0; i < sources.length; ++i)
+                if (sources[i].format === "folder")
+                    return true
+            return false
         }
         function ask(titleId) {
             store.showDetails(titleId)
@@ -791,7 +884,7 @@ Item {
                         // Installed but not on the home screen: ShadowMountPlus,
                         // which puts it there, says why in its log.
                         StyledButton {
-                            visible: detailDialog.listed.installed === true && !detailDialog.busy
+                            visible: detailDialog.listed.installedAs === "folder" && !detailDialog.busy
                             chip: true
                             iconName: detailDialog.checking ? "loader" : "info"
                             text: qsTr("Not on the home screen?")
@@ -860,19 +953,78 @@ Item {
                     font.pixelSize: 12
                 }
                 Text {
-                    visible: detailDialog.app.description !== undefined && detailDialog.app.description.length > 0
+                    // The catalog's words, else the store's few lines.
+                    readonly property string words: detailDialog.app.description !== undefined
+                                                    && detailDialog.app.description.length > 0
+                                                    ? detailDialog.app.description
+                                                    : detailDialog.listed.description !== undefined
+                                                      ? detailDialog.listed.description : ""
+                    visible: words.length > 0
                     Layout.fillWidth: true
                     Layout.leftMargin: Theme.dialogMargin
                     Layout.rightMargin: Theme.dialogMargin
                     wrapMode: Text.WordWrap
-                    text: detailDialog.app.description !== undefined ? detailDialog.app.description : ""
+                    textFormat: Text.PlainText
+                    text: words
                     color: Theme.text
                     font.pixelSize: 13
                     lineHeight: 1.2
                 }
+                // Where it can come from: each store, what it has of it and
+                // whether that goes on this console.
+                ColumnLayout {
+                    visible: detailDialog.sources.length > 0
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.dialogMargin
+                    Layout.rightMargin: Theme.dialogMargin
+                    spacing: 4
+                    Text {
+                        text: qsTr("In the stores")
+                        color: Theme.text
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                    }
+                    Repeater {
+                        model: detailDialog.sources
+                        RowLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            spacing: 8
+                            Rectangle {
+                                Layout.alignment: Qt.AlignTop
+                                implicitWidth: sourceTag.implicitWidth + 12
+                                implicitHeight: 18
+                                radius: 5
+                                color: Theme.alpha(Theme.textSecondary, 0.10)
+                                border.width: 1
+                                border.color: Theme.alpha(Theme.textSecondary, 0.25)
+                                Text {
+                                    id: sourceTag
+                                    anchors.centerIn: parent
+                                    text: parent.parent.modelData.storeName
+                                    color: Theme.textSecondary
+                                    font.pixelSize: 10
+                                    font.weight: Font.Medium
+                                }
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                text: [root.formatLabel(parent.modelData.format), parent.modelData.version,
+                                       parent.modelData.size,
+                                       parent.modelData.firmware !== undefined && parent.modelData.firmware.length > 0
+                                       ? qsTr("PS4 firmware %1").arg(parent.modelData.firmware) : ""]
+                                      .filter(function (t) { return t && t.length > 0 }).join("  ·  ")
+                                      + (parent.modelData.note.length > 0 ? "\n" + parent.modelData.note : "")
+                                color: parent.modelData.installable ? Theme.textSecondary : Theme.warn
+                                font.pixelSize: 12
+                            }
+                        }
+                    }
+                }
                 // What it does on the console, as the catalog's scan found.
                 ColumnLayout {
-                    visible: detailDialog.app.ready === true
+                    visible: detailDialog.app.ready === true && detailDialog.fromCatalog
                     Layout.fillWidth: true
                     Layout.leftMargin: Theme.dialogMargin
                     Layout.rightMargin: Theme.dialogMargin
@@ -988,7 +1140,7 @@ Item {
                 anchors.rightMargin: Theme.dialogMargin
                 spacing: 8
                 StyledButton {
-                    visible: detailDialog.listed.installed === true && !detailDialog.busy
+                    visible: detailDialog.listed.installedAs === "folder" && !detailDialog.busy
                     danger: true
                     iconName: "trash"
                     text: qsTr("Remove")
@@ -1049,14 +1201,16 @@ Item {
                     onClicked: detailDialog.close()
                 }
                 StyledButton {
+                    readonly property int ready: root.readySources(detailDialog.listed).length
                     visible: !detailDialog.busy && detailDialog.listed.installable === true
                     primary: true
                     iconName: detailDialog.listed.update ? "arrow-up" : "download"
-                    text: detailDialog.listed.update ? qsTr("Update on %1").arg(store.targetName)
+                    text: (detailDialog.listed.update ? qsTr("Update on %1").arg(store.targetName)
                         : detailDialog.listed.installed ? qsTr("Install again")
-                        : store.targetName.length > 0 ? qsTr("Install on %1").arg(store.targetName) : qsTr("Install")
-                    enabled: store.canInstall && store.working.length === 0
-                    onClicked: store.install(detailDialog.listed.titleId)
+                        : store.targetName.length > 0 ? qsTr("Install on %1").arg(store.targetName) : qsTr("Install"))
+                          + (ready > 1 ? "…" : "")
+                    enabled: ready > 0 && store.working.length === 0
+                    onClicked: root.installApp(detailDialog.listed)
                 }
             }
         }
@@ -1078,12 +1232,358 @@ Item {
             model: store.consoles
             delegate: StyledMenuItem {
                 required property var modelData
-                text: modelData.name + (modelData.ftp ? "" : "  ·  " + qsTr("no FTP"))
+                text: modelData.name + (modelData.type.length > 0 ? "  ·  " + modelData.type.toUpperCase() : "")
+                      + (modelData.ftp ? "" : "  ·  " + qsTr("no FTP"))
                 iconName: modelData.target ? "check" : "gamepad"
                 onTriggered: store.setTarget(modelData.address)
             }
             onObjectAdded: (index, object) => targetMenu.insertItem(index, object)
             onObjectRemoved: (index, object) => targetMenu.removeItem(object)
+        }
+    }
+
+    // ── which store an app in more than one comes from
+    Dialog {
+        id: sourceDialog
+        property var app: ({})
+        property var choices: []
+        function ask(app, choices) {
+            sourceDialog.app = app
+            sourceDialog.choices = choices
+            open()
+        }
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(480, parent.width - 32)
+        modal: true
+        padding: 0
+        Overlay.modal: Rectangle { color: Theme.scrim }
+        background: Rectangle {
+            color: Theme.dialogFill
+            border.color: Theme.border
+            radius: Theme.radiusDialog
+        }
+        header: DialogHeader {
+            title: qsTr("Install %1 from which store?").arg(sourceDialog.app.name !== undefined ? sourceDialog.app.name : "")
+            dialog: sourceDialog
+        }
+        contentItem: ColumnLayout {
+            spacing: 8
+            Text {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                wrapMode: Text.WordWrap
+                text: qsTr("It is in more than one store. Each has its own copy, and it goes on %1 from the one you pick.")
+                      .arg(store.targetName)
+                color: Theme.textSecondary
+                font.pixelSize: 13
+            }
+            Repeater {
+                model: sourceDialog.choices
+                Rectangle {
+                    id: choice
+                    required property var modelData
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.dialogMargin
+                    Layout.rightMargin: Theme.dialogMargin
+                    implicitHeight: 52
+                    radius: 12
+                    color: choiceArea.containsMouse ? Theme.controlHover : Theme.panelAltFill
+                    border.width: 1
+                    border.color: Theme.glassEdge
+                    MouseArea {
+                        id: choiceArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            store.install(sourceDialog.app.titleId, choice.modelData.store)
+                            sourceDialog.close()
+                        }
+                    }
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 14
+                        anchors.rightMargin: 14
+                        spacing: 10
+                        Icon {
+                            name: choice.modelData.format === "folder" ? "folder" : "package"
+                            size: 18
+                            color: Theme.textSecondary
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 1
+                            Text {
+                                text: choice.modelData.storeName
+                                color: Theme.text
+                                font.pixelSize: 13
+                                font.weight: Font.DemiBold
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                                text: [root.formatLabel(choice.modelData.format), choice.modelData.version,
+                                       choice.modelData.size].filter(function (t) { return t && t.length > 0 }).join("  ·  ")
+                                color: Theme.textSecondary
+                                font.pixelSize: 11
+                            }
+                        }
+                        Icon {
+                            name: "download"
+                            size: 16
+                            color: Theme.accent
+                        }
+                    }
+                }
+            }
+            Item { implicitHeight: 4 }
+        }
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("Cancel")
+                    onClicked: sourceDialog.close()
+                }
+            }
+        }
+    }
+
+    // ── the stores: those built in and the user's, on or off, and adding one
+    Dialog {
+        id: storesDialog
+        property string message: ""
+        property bool failed: false
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(620, parent.width - 32)
+        height: Math.min(implicitHeight, parent.height - 48)
+        modal: true
+        padding: 0
+        Overlay.modal: Rectangle { color: Theme.scrim }
+        background: Rectangle {
+            color: Theme.dialogFill
+            border.color: Theme.border
+            radius: Theme.radiusDialog
+        }
+        onOpened: {
+            message = ""
+            newStoreField.text = ""
+            newStoreName.text = ""
+        }
+        Connections {
+            target: store
+            function onStoreAdded(ok, message) {
+                storesDialog.failed = !ok
+                storesDialog.message = message
+                if (ok) {
+                    newStoreField.text = ""
+                    newStoreName.text = ""
+                }
+            }
+        }
+        header: DialogHeader {
+            title: qsTr("Stores")
+            dialog: storesDialog
+        }
+        contentItem: ScrollView {
+            id: storesScroll
+            clip: true
+            implicitHeight: Math.min(storesColumn.implicitHeight, 520)
+            contentWidth: availableWidth
+            ColumnLayout {
+                id: storesColumn
+                width: storesScroll.availableWidth
+                spacing: 10
+                Text {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.dialogMargin
+                    Layout.rightMargin: Theme.dialogMargin
+                    wrapMode: Text.WordWrap
+                    text: qsTr("The apps of every store turned on are shown together; an app in more than one shows "
+                               + "each store's tag, and installing it asks which to take it from.")
+                    color: Theme.textSecondary
+                    font.pixelSize: 13
+                }
+                Repeater {
+                    model: store.stores
+                    Rectangle {
+                        id: storeRow
+                        required property var modelData
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Theme.dialogMargin
+                        Layout.rightMargin: Theme.dialogMargin
+                        implicitHeight: storeRowLayout.implicitHeight + 20
+                        radius: 12
+                        color: Theme.panelAltFill
+                        border.width: 1
+                        border.color: Theme.glassEdge
+                        opacity: modelData.enabled ? 1.0 : 0.7
+                        RowLayout {
+                            id: storeRowLayout
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.leftMargin: 14
+                            anchors.rightMargin: 10
+                            spacing: 10
+                            Icon {
+                                name: storeRow.modelData.kind === "catalog" ? "shield-check" : "store"
+                                size: 18
+                                color: storeRow.modelData.enabled ? Theme.accent : Theme.textSecondary
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 2
+                                Text {
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                    text: storeRow.modelData.name
+                                    color: Theme.text
+                                    font.pixelSize: 13
+                                    font.weight: Font.DemiBold
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.WordWrap
+                                    text: [storeRow.modelData.address,
+                                           storeRow.modelData.kind === "catalog"
+                                           ? qsTr("signed catalog · PS5 app folders") : qsTr("packages · PS4 and PS5"),
+                                           storeRow.modelData.enabled && storeRow.modelData.count > 0
+                                           ? qsTr("%n app(s)", "", storeRow.modelData.count) : ""]
+                                          .filter(function (t) { return t.length > 0 }).join("  ·  ")
+                                    color: Theme.textSecondary
+                                    font.pixelSize: 11
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    visible: storeRow.modelData.enabled && storeRow.modelData.error.length > 0
+                                    wrapMode: Text.WordWrap
+                                    text: storeRow.modelData.offline
+                                          ? qsTr("Did not answer (%1): the apps kept from last time are shown.").arg(storeRow.modelData.error)
+                                          : storeRow.modelData.error
+                                    color: Theme.warn
+                                    font.pixelSize: 11
+                                }
+                            }
+                            // homebrew.page's catalog can come from a mirror.
+                            StyledButton {
+                                visible: storeRow.modelData.kind === "catalog"
+                                chip: true
+                                iconName: "link"
+                                text: store.catalogAddress.length > 0 ? qsTr("Mirror ✓") : qsTr("Mirror…")
+                                ToolTip.visible: hovered
+                                ToolTip.text: qsTr("A mirror of the catalog, tried first")
+                                onClicked: catalogDialog.ask()
+                            }
+                            StyledCheck {
+                                Layout.fillWidth: false
+                                implicitWidth: 40
+                                checked: storeRow.modelData.enabled
+                                ToolTip.visible: hovered
+                                ToolTip.text: checked ? qsTr("Shown: click to leave its apps out")
+                                                      : qsTr("Left out: click to show its apps")
+                                onToggled: store.setStoreEnabled(storeRow.modelData.url, checked)
+                            }
+                            StyledToolButton {
+                                visible: !storeRow.modelData.builtIn
+                                iconName: "trash"
+                                ToolTip.visible: hovered
+                                ToolTip.text: qsTr("Take this store away")
+                                onClicked: store.removeStore(storeRow.modelData.url)
+                            }
+                        }
+                    }
+                }
+                // Adding one.
+                Text {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.dialogMargin
+                    Layout.rightMargin: Theme.dialogMargin
+                    Layout.topMargin: 4
+                    text: qsTr("Add a store")
+                    color: Theme.text
+                    font.pixelSize: 13
+                    font.weight: Font.DemiBold
+                }
+                Text {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.dialogMargin
+                    Layout.rightMargin: Theme.dialogMargin
+                    wrapMode: Text.WordWrap
+                    text: qsTr("The address of a Homebrew Store (the one whose store.db the PS4's Homebrew Store "
+                               + "reads, as PKG-Zone's). Its apps are its own: nothing signs them, so only add stores "
+                               + "you trust.")
+                    color: Theme.textSecondary
+                    font.pixelSize: 12
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.dialogMargin
+                    Layout.rightMargin: Theme.dialogMargin
+                    spacing: 8
+                    StyledField {
+                        id: newStoreField
+                        Layout.fillWidth: true
+                        placeholderText: "https://…"
+                        enabled: !store.addingStore
+                        onTextEdited: storesDialog.message = ""
+                        onAccepted: addStoreButton.clicked()
+                    }
+                    StyledField {
+                        id: newStoreName
+                        Layout.preferredWidth: 150
+                        placeholderText: qsTr("Name (optional)")
+                        enabled: !store.addingStore
+                        onAccepted: addStoreButton.clicked()
+                    }
+                    StyledButton {
+                        id: addStoreButton
+                        primary: true
+                        iconName: store.addingStore ? "loader" : "plus"
+                        text: store.addingStore ? qsTr("Looking…") : qsTr("Add")
+                        enabled: !store.addingStore && newStoreField.text.trim().length > 0
+                        onClicked: {
+                            if (!store.addStore(newStoreField.text, newStoreName.text)) {
+                                storesDialog.failed = true
+                                storesDialog.message = qsTr("That is not an http(s) address.")
+                            }
+                        }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.dialogMargin
+                    Layout.rightMargin: Theme.dialogMargin
+                    visible: storesDialog.message.length > 0
+                    wrapMode: Text.WordWrap
+                    text: storesDialog.message
+                    color: storesDialog.failed ? Theme.error : Theme.ok
+                    font.pixelSize: 12
+                }
+                Item { implicitHeight: 4 }
+            }
+        }
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("Close")
+                    onClicked: storesDialog.close()
+                }
+            }
         }
     }
 

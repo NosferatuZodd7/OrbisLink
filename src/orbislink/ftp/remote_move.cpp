@@ -180,4 +180,60 @@ FtpResult moveOnConsole(FtpClient &ftp, const std::string &fromPath, const std::
 	return FtpResult::success();
 }
 
+FtpResult removeOnConsole(FtpClient &ftp, const std::string &pathIn, bool isDirectory,
+	const std::function<bool(int done, int total)> &progress)
+{
+	const std::string path = normalizeRemotePath(pathIn);
+	if(!isDirectory)
+		return ftp.removeFile(path);
+	// What is in it first: an empty folder is then just the folder.
+	std::vector<Item> items { { std::string(), true, 0 } };
+	std::string why;
+	if(!walk(ftp, path, std::string(), &items, &why))
+		return FtpResult::failure(why);
+	const int total = static_cast<int>(items.size());
+	int done = 0;
+	// What is in a folder before the folder: the walk lists folders first.
+	for(auto it = items.rbegin(); it != items.rend(); ++it)
+	{
+		if(progress && !progress(done, total))
+		{
+			FtpResult cancelled = FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Operation cancelled."));
+			cancelled.cancelled = true;
+			return cancelled;
+		}
+		const std::string target = it->relative.empty() ? path : path + "/" + it->relative;
+		const FtpResult removed = it->directory ? ftp.removeDirectory(target) : ftp.removeFile(target);
+		if(!removed.ok)
+			return FtpResult::failure(removed.message + " (" + target + ")");
+		++done;
+	}
+	if(progress)
+		progress(total, total);
+	return FtpResult::success();
+}
+
+FtpResult listTreeOnConsole(FtpClient &ftp, const std::string &rootIn, std::vector<RemoteTreeFile> *files,
+	std::vector<std::string> *folders)
+{
+	const std::string root = normalizeRemotePath(rootIn);
+	std::vector<Item> items;
+	std::string why;
+	if(!walk(ftp, root, std::string(), &items, &why))
+		return FtpResult::failure(why);
+	if(folders)
+		folders->push_back(std::string());
+	for(const Item &item : items)
+	{
+		if(item.directory)
+		{
+			if(folders)
+				folders->push_back(item.relative);
+			continue;
+		}
+		files->push_back({ root + "/" + item.relative, item.relative, item.size });
+	}
+	return FtpResult::success();
+}
+
 } // namespace orbislink

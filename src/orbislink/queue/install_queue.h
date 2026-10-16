@@ -67,6 +67,10 @@ struct QueueTask
 	bool copyOnly = false;
 	// Sent, and then installed by the console from where it was put (a PS5).
 	bool installedFromConsole = false;
+	// Queued ahead of the tasks still waiting, not after them: the install
+	// of a package just sent goes on at once, before the next upload. Not
+	// kept (only where it is queued counts).
+	bool next = false;
 	std::string message;    // error or information for the UI
 	uint32_t errorCode = 0;
 	int attempts = 0;

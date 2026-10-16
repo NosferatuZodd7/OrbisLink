@@ -229,6 +229,26 @@ ORBISLINK_TEST(keeps_order_across_different_titles)
 	CHECK_EQ(tasks[2].titleId, std::string("CUSA00001"));
 }
 
+ORBISLINK_TEST(an_install_after_an_upload_goes_before_the_tasks_waiting)
+{
+	PkgFile first("next-first.pkg", gameOptions("CUSA00003", "First"));
+	PkgFile second("next-second.pkg", gameOptions("CUSA00004", "Second"));
+	PkgFile sent("next-sent.pkg", gameOptions("CUSA00005", "Sent"));
+
+	InstallQueue queue(InstallQueue::Dependencies {}, Settings {});
+	queue.enqueue({ first.path, second.path }, TransferMode::FtpUpload);
+	// What an upload queues once it is done: its install, to go next.
+	queue.enqueue({ sent.path }, TransferMode::DirectInstall, nullptr, nullptr,
+		[](QueueTask &install) { install.next = true; });
+
+	const auto tasks = queue.tasks();
+	CHECK_EQ(tasks.size(), static_cast<size_t>(3));
+	CHECK_EQ(tasks[0].titleId, std::string("CUSA00005"));
+	CHECK(tasks[0].mode == TransferMode::DirectInstall);
+	CHECK_EQ(tasks[1].titleId, std::string("CUSA00003"));
+	CHECK_EQ(tasks[2].titleId, std::string("CUSA00004"));
+}
+
 ORBISLINK_TEST(refuses_invalid_files)
 {
 	PkgOptions broken;

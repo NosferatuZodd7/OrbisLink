@@ -47,6 +47,22 @@ TransferMode transferModeFromName(const std::string &name, TransferMode fallback
 	return fallback;
 }
 
+std::vector<StoreSource> Settings::defaultStores()
+{
+	return {
+		{ "homebrew.page", "https://homebrew.page/api/v1/", "catalog", true },
+		{ "PKG-Zone", "https://api.pkg-zone.com", "hb-store", true },
+	};
+}
+
+bool Settings::builtInStore(const StoreSource &source)
+{
+	for(const StoreSource &builtIn : defaultStores())
+		if(builtIn.kind == source.kind && toLower(builtIn.url) == toLower(source.url))
+			return true;
+	return false;
+}
+
 std::string Settings::toJson() const
 {
 	Json root = Json::makeObject();
@@ -147,6 +163,7 @@ std::string Settings::toJson() const
 	root.set("first_run_done", Json::fromBool(firstRunDone));
 	root.set("games_folder", Json::fromString(gamesFolder));
 	root.set("convert_output_folder", Json::fromString(convertOutputFolder));
+	root.set("keep_converted_packages", Json::fromBool(keepConvertedPackages));
 	root.set("install_storage", Json::fromString(installStorage));
 	root.set("save_vault_folder", Json::fromString(saveVaultFolder));
 	Json places = Json::makeArray();
@@ -168,6 +185,17 @@ std::string Settings::toJson() const
 	root.set("console_copy_folder", Json::fromString(consoleCopyFolder));
 	root.set("store_catalog_address", Json::fromString(storeCatalogAddress));
 	root.set("store_local_folder", Json::fromString(storeLocalFolder));
+	Json storeItems = Json::makeArray();
+	for(const StoreSource &source : stores)
+	{
+		Json item = Json::makeObject();
+		item.set("name", Json::fromString(source.name));
+		item.set("url", Json::fromString(source.url));
+		item.set("kind", Json::fromString(source.kind));
+		item.set("enabled", Json::fromBool(source.enabled));
+		storeItems.push(std::move(item));
+	}
+	root.set("stores", storeItems);
 	Json links = Json::makeObject();
 	for(const auto &pair : saveAccountLinks)
 		links.set(pair.first, Json::fromString(pair.second));
@@ -323,6 +351,7 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.firstRunDone = root["first_run_done"].toLooseBool(settings.firstRunDone);
 	settings.gamesFolder = root["games_folder"].toString(settings.gamesFolder);
 	settings.convertOutputFolder = root["convert_output_folder"].toString(settings.convertOutputFolder);
+	settings.keepConvertedPackages = root["keep_converted_packages"].toLooseBool(settings.keepConvertedPackages);
 	settings.installStorage = root["install_storage"].toString(settings.installStorage);
 	if(settings.installStorage != "usb" && settings.installStorage != "ext")
 		settings.installStorage = "internal";
@@ -346,6 +375,40 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.consoleCopyFolder = root["console_copy_folder"].toString(settings.consoleCopyFolder);
 	settings.storeCatalogAddress = root["store_catalog_address"].toString(settings.storeCatalogAddress);
 	settings.storeLocalFolder = root["store_local_folder"].toString(settings.storeLocalFolder);
+	if(root["stores"].isArray())
+	{
+		std::vector<StoreSource> stores;
+		auto known = [&stores](const StoreSource &source) {
+			for(const StoreSource &other : stores)
+				if(other.kind == source.kind && toLower(other.url) == toLower(source.url))
+					return true;
+			return false;
+		};
+		for(const Json &input : root["stores"].items())
+		{
+			if(!input.isObject())
+				continue;
+			StoreSource source;
+			source.name = trim(input["name"].toString());
+			source.url = trim(input["url"].toString());
+			source.kind = input["kind"].toString();
+			source.enabled = input["enabled"].toLooseBool(true);
+			if(source.url.empty() || (source.kind != "catalog" && source.kind != "hb-store") || known(source))
+				continue;
+			// The catalog is the built-in one only: its mirror is set apart.
+			if(source.kind == "catalog" && !Settings::builtInStore(source))
+				continue;
+			if(source.name.empty())
+				source.name = source.url;
+			stores.push_back(source);
+		}
+		// The built-in stores are always there, where they were or first.
+		const std::vector<StoreSource> defaults = Settings::defaultStores();
+		for(size_t i = 0; i < defaults.size(); ++i)
+			if(!known(defaults[i]))
+				stores.insert(stores.begin() + static_cast<std::ptrdiff_t>(std::min(i, stores.size())), defaults[i]);
+		settings.stores = stores;
+	}
 	if(root["save_account_links"].isObject())
 		for(const auto &pair : root["save_account_links"].members())
 			if(pair.second.isString())

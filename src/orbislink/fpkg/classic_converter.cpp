@@ -220,6 +220,9 @@ bool prepareClassic(const DiscInfo &disc, const EmulatorInfo &emulators,
 	const bool ps2 = disc.platform == "ps2";
 	if(disc.platform != "ps1" && disc.platform != "ps2")
 		return fail("this is not a PS1 or PS2 disc");
+	if(disc.titleId.size() != 9 && !disc.bootFile.empty())
+		return fail("the disc starts " + disc.bootFile + ", not a game: it is a disc of software or a tool (such as "
+			"PS2 Linux, which needs the PS2's hard disk and network adapter), not one the PS4's emulator can start");
 	if(disc.titleId.size() != 9)
 		return fail("the disc's serial could not be read");
 	const std::string emuDir = ps2 ? emulators.ps2Dir : emulators.ps1Dir;

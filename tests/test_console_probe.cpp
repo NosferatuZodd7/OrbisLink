@@ -298,6 +298,18 @@ ORBISLINK_TEST(finds_the_hosts_with_a_port_open)
 	CHECK(hostsWithPort({ "127.0.0.1" }, closedPort(), 500).empty());
 }
 
+ORBISLINK_TEST(reads_the_jailbreak_version_from_a_greeting_that_gives_it)
+{
+	CHECK_EQ(henVersionInGreeting("220 GoldHEN v2.4b18.3 FTP Server", "GoldHEN"), std::string("2.4b18.3"));
+	CHECK_EQ(henVersionInGreeting("220 goldhen_V2.4b17. ready", "GoldHEN"), std::string("2.4b17"));
+	CHECK_EQ(henVersionInGreeting("220 etaHEN 2.5B by LM", "etaHEN"), std::string("2.5B"));
+	// No version, another name, or a number that is not a version.
+	CHECK(henVersionInGreeting("220 GoldHEN FTP Server", "GoldHEN").empty());
+	CHECK(henVersionInGreeting("220 FTP server 1.0A for PS5 by LM.", "etaHEN").empty());
+	CHECK(henVersionInGreeting("220 GoldHEN 2121", "GoldHEN").empty());
+	CHECK(henVersionInGreeting("220 GoldHEN v2.4", "").empty());
+}
+
 ORBISLINK_TEST(empty_address_does_not_go_to_the_network)
 {
 	const ProbeResult result = probeConsoleServices("   ", 2121, 12800, 1000);

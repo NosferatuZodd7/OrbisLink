@@ -29,6 +29,9 @@ struct DiscInfo
 	uint32_t sectorSize = 2048;
 	uint32_t dataOffset = 0;
 	int discNumber = 0;    // from "(Disc 2)" in the name, 0 if none
+	// What SYSTEM.CNF starts when it is not a game's serial ("RUNTIME.ELF"):
+	// a disc of software or a tool (PS2 Linux, a demo disc), not a game.
+	std::string bootFile;
 	std::string problem;   // why it cannot be read, if it cannot
 };
 

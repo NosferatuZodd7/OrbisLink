@@ -4,6 +4,7 @@
 #include "orbislink/ftp/ftp_client.h"
 #include "orbislink/saves/save_vault.h"
 
+#include <QElapsedTimer>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -14,6 +15,7 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <set>
 #include <mutex>
 #include <thread>
 #include <vector>
@@ -72,6 +74,10 @@ public:
 
 	// Reads the console (when its FTP answers) and the vault.
 	Q_INVOKABLE void refresh();
+	// A read when the page shows again: only when the last one is older
+	// than a minute, or was of another console (the refresh button reads
+	// at once).
+	Q_INVOKABLE void refreshIfStale();
 	// Shows another console's saves (its address).
 	Q_INVOKABLE void setSource(const QString &address);
 	// Backs up the given saves (keys) to the PC; with none, every save on
@@ -141,6 +147,12 @@ private:
 	double progress_ = 0.0;
 	// The console picked to be shown; empty: the one in use.
 	QString source_;
+	// When the last read of a console ended, and which console it was.
+	QElapsedTimer lastScan_;
+	QString lastScanned_;
+	// What each console was asked for and does not have (see
+	// SaveVault::missingMeta), by its address: asked once while the app runs.
+	std::map<QString, std::set<std::string>> missingMeta_;
 	std::thread worker_;
 	// Reading the users of the console saves are to be sent to.
 	std::thread inspector_;

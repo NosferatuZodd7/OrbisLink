@@ -483,6 +483,10 @@ void SavesController::run(const QString &what, Job job)
 		SaveVault vault(root);
 		vault.setLinks(known);
 		vault.setUsbDrives(drivesWithSaves());
+		{
+			std::lock_guard<std::mutex> lock(mutex_);
+			vault.setMissingMeta(missingMeta_[shown.address]);
+		}
 		if(reachable)
 		{
 			// Whose each console user is, first: the saves are filed by it.
@@ -525,9 +529,19 @@ void SavesController::run(const QString &what, Job job)
 			list = vault.vaultSaves();
 		}
 		publish(list, vault, reachable && scanError.empty() ? &remote : nullptr);
-		QMetaObject::invokeMethod(this, [this, message, error, reachable]() {
+		{
+			std::lock_guard<std::mutex> lock(mutex_);
+			missingMeta_[shown.address] = vault.missingMeta();
+		}
+		const QString address = shown.address;
+		QMetaObject::invokeMethod(this, [this, message, error, reachable, address]() {
 			busy_ = false;
 			scanned_ = scanned_ || reachable;
+			if(reachable)
+			{
+				lastScan_.restart();
+				lastScanned_ = address;
+			}
 			status_.clear();
 			progress_ = 0.0;
 			emit busyChanged();
@@ -541,6 +555,16 @@ void SavesController::run(const QString &what, Job job)
 void SavesController::refresh()
 {
 	run(tr("Reading the console's saves…"), nullptr);
+}
+
+void SavesController::refreshIfStale()
+{
+	if(busy_)
+		return;
+	const bool fresh = scanned_ && lastScan_.isValid() && lastScan_.elapsed() < 60 * 1000
+		&& lastScanned_ == consoleAt(source()).address;
+	if(!fresh)
+		refresh();
 }
 
 void SavesController::backup(const QStringList &keys)

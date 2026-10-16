@@ -31,6 +31,7 @@
 #include <QSet>
 #include <QStandardPaths>
 #include <QStorageInfo>
+#include <QTimer>
 #include <QUrl>
 
 #include <algorithm>
@@ -183,6 +184,11 @@ struct GamesController::Job
 	QString remotePath;
 	QString storageFolder;
 	QString fetchedFolder;
+	// What it is made from, in bytes (the disc, or the folder packed): its
+	// weight in the panel's totals.
+	uint64_t sourceBytes = 0;
+	// Its package was deleted from the output folder once the console had it.
+	bool pkgRemoved = false;
 	std::atomic<bool> cancel { false };
 #ifdef ORBISLINK_HAS_FPKG
 	fpkg::DiscInfo disc;
@@ -243,7 +249,11 @@ struct GamesController::Job
 GamesController::GamesController(AppController *app, QObject *parent) : QObject(parent), app_(app)
 {
 	connect(app_, &AppController::settingsChanged, this, &GamesController::foldersChanged);
-	connect(app_, &AppController::transfersChanged, this, &GamesController::updateProgress);
+	connect(app_, &AppController::transfersChanged, this, [this]() {
+		updateProgress();
+		if(dropDeliveredPackages())
+			publish();
+	});
 #ifdef ORBISLINK_HAS_FPKG
 	assetsState_ = fpkg::hasClassicsAssets(assetsFolder().toStdString()) ? QStringLiteral("ready")
 																		  : QStringLiteral("missing");
@@ -519,6 +529,7 @@ void GamesController::rescan()
 			m[QStringLiteral("sizeText")] = sizeText(d.size);
 			m[QStringLiteral("disc")] = d.discNumber;
 			m[QStringLiteral("convertible")] = d.titleId.size() == 9;
+			m[QStringLiteral("bootFile")] = QString::fromStdString(d.bootFile);
 			list << m;
 		}
 		if(!self)
@@ -991,9 +1002,30 @@ void GamesController::openOutputFolder() const
 		QDesktopServices::openUrl(QUrl::fromLocalFile(outputFolder()));
 }
 
+void GamesController::requestPublish()
+{
+	constexpr qint64 kEvery = 200;
+	if(!published_.isValid() || published_.elapsed() >= kEvery)
+	{
+		publish();
+		return;
+	}
+	if(!publishTimer_)
+	{
+		publishTimer_ = new QTimer(this);
+		publishTimer_->setSingleShot(true);
+		connect(publishTimer_, &QTimer::timeout, this, [this]() { publish(); });
+	}
+	if(!publishTimer_->isActive())
+		publishTimer_->start(static_cast<int>(kEvery - published_.elapsed()));
+}
+
 void GamesController::publish()
 {
 	publishPending_ = false;
+	published_.restart();
+	if(publishTimer_)
+		publishTimer_->stop();
 	QVariantList list;
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
@@ -1025,7 +1057,15 @@ void GamesController::publish()
 			m[QStringLiteral("bytesLeft")] = moving && job->meterTotal > job->meterNow
 				? static_cast<double>(job->meterTotal - job->meterNow) : 0.0;
 			m[QStringLiteral("bytesTotal")] = moving ? static_cast<double>(job->meterTotal) : 0.0;
+			uint64_t size = job->sourceBytes;
+#ifdef ORBISLINK_HAS_FPKG
+			if(size == 0)
+				size = job->disc.size;
+#endif
+			m[QStringLiteral("size")] = static_cast<double>(size);
 			m[QStringLiteral("message")] = job->message;
+			m[QStringLiteral("note")] = job->pkgRemoved
+				? tr("The package was deleted from the output folder: the console has it.") : QString();
 			m[QStringLiteral("install")] = job->install;
 			m[QStringLiteral("send")] = job->install || job->sendBack;
 			m[QStringLiteral("pkgPath")] = job->pkgPath;
@@ -1034,9 +1074,71 @@ void GamesController::publish()
 			list << m;
 		}
 	}
-	conversions_ = list;
+	// Once, whole: a list without the package's journey first would turn a
+	// card that is sending back to "converted" for an instant — its
+	// animation started again and its colour flickered at every tick.
+	conversions_ = withTransfers(list);
 	emit conversionsChanged();
 	updateProgress();
+}
+
+bool GamesController::dropDeliveredPackages()
+{
+	const Settings settings = app_->settings();
+	if(settings.keepConvertedPackages || settings.convertOutputFolder.empty())
+		return false;
+	const QString folder = QFileInfo(QString::fromStdString(settings.convertOutputFolder)).absoluteFilePath();
+	const QVariantMap transfers = app_->transfers();
+	QStringList delivered;
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		for(const auto &job : jobs_)
+		{
+			if(job->state != QLatin1String("done") || job->pkgPath.isEmpty() || job->pkgRemoved
+				|| !(job->install || job->sendBack))
+				continue;
+			const QVariantMap t = transfers.value(AppController::transferKey(job->pkgPath)).toMap();
+			// An earlier send of the same file says nothing about this one.
+			if(!job->staleTaskId.isEmpty() && t.value(QStringLiteral("taskId")).toString() == job->staleTaskId)
+				continue;
+			const QString stage = t.value(QStringLiteral("stage")).toString();
+			const bool onConsole = stage == QLatin1String("installed")
+				|| (!job->install && stage == QLatin1String("sent"));
+			// Only a package of the output folder: never one of the person's own.
+			if(!onConsole || QFileInfo(job->pkgPath).absolutePath() != folder)
+				continue;
+			job->pkgRemoved = true;
+			delivered << job->pkgPath;
+		}
+	}
+	for(const QString &path : delivered)
+	{
+		if(QFile::remove(path))
+			logInfo("Games: " + QDir::toNativeSeparators(path).toStdString()
+				+ " deleted from the output folder: the console has it");
+		else if(QFileInfo::exists(path))
+			logWarning("Games: could not delete " + QDir::toNativeSeparators(path).toStdString());
+	}
+	return !delivered.isEmpty();
+}
+
+QVariantList GamesController::withTransfers(QVariantList conversions) const
+{
+	const QVariantMap transfers = app_->transfers();
+	for(QVariant &v : conversions)
+	{
+		QVariantMap m = v.toMap();
+		const QString pkg = m.value(QStringLiteral("pkgPath")).toString();
+		const QString key = pkg.isEmpty() ? QString() : AppController::transferKey(pkg);
+		QVariantMap transfer = key.isEmpty() ? QVariantMap() : transfers.value(key).toMap();
+		const QString stale = m.value(QStringLiteral("staleTaskId")).toString();
+		if(!stale.isEmpty() && transfer.value(QStringLiteral("taskId")).toString() == stale)
+			transfer.clear();
+		m[QStringLiteral("pkgKey")] = key;
+		m[QStringLiteral("transfer")] = transfer;
+		v = m;
+	}
+	return conversions;
 }
 
 void GamesController::updateProgress()
@@ -1108,20 +1210,7 @@ void GamesController::updateProgress()
 
 	// Each conversion's card follows its package to the end: sending,
 	// installing, and how that ended.
-	QVariantList conversions = conversions_;
-	for(QVariant &v : conversions)
-	{
-		QVariantMap m = v.toMap();
-		const QString pkg = m.value(QStringLiteral("pkgPath")).toString();
-		const QString key = pkg.isEmpty() ? QString() : AppController::transferKey(pkg);
-		QVariantMap transfer = key.isEmpty() ? QVariantMap() : transfers.value(key).toMap();
-		const QString stale = m.value(QStringLiteral("staleTaskId")).toString();
-		if(!stale.isEmpty() && transfer.value(QStringLiteral("taskId")).toString() == stale)
-			transfer.clear();
-		m[QStringLiteral("pkgKey")] = key;
-		m[QStringLiteral("transfer")] = transfer;
-		v = m;
-	}
+	const QVariantList conversions = withTransfers(conversions_);
 	if(conversions != conversions_)
 	{
 		conversions_ = conversions;
@@ -1186,7 +1275,7 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 #ifdef ORBISLINK_HAS_FPKG
 	auto schedulePublish = [this]() {
 		if(!publishPending_.exchange(true))
-			QMetaObject::invokeMethod(this, [this]() { publish(); }, Qt::QueuedConnection);
+			QMetaObject::invokeMethod(this, [this]() { requestPublish(); }, Qt::QueuedConnection);
 	};
 	schedulePublish();
 
@@ -1379,6 +1468,7 @@ bool GamesController::runPack(const std::shared_ptr<Job> &job, const std::functi
 		if(!plan.title.empty())
 			job->title = QString::fromStdString(plan.title);
 		job->titleId = QString::fromStdString(plan.titleId);
+		job->sourceBytes = plan.bytes;
 	}
 	logInfo("Games: packing \"" + plan.title + "\" (" + plan.contentId + ", " + std::to_string(plan.files.size())
 		+ " files" + (plan.gp4.empty() ? std::string() : ", as " + plan.gp4 + " says") + ")");

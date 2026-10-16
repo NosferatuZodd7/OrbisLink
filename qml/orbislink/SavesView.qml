@@ -248,11 +248,37 @@ Item {
         else next[key] = true
         selected = next
     }
-    function selectAll() {
-        var next = {}
-        for (var i = 0; i < shown.length; ++i)
-            next[shown[i].key] = true
+    // Whether every save of the list is selected.
+    function allPicked(list) {
+        for (var i = 0; i < list.length; ++i)
+            if (selected[list[i].key] !== true)
+                return false
+        return list.length > 0
+    }
+    readonly property bool allShownPicked: allPicked(shown)
+    // Selects every save of the list, whatever else is selected already;
+    // when they all are, unselects them.
+    function pickAll(list) {
+        var next = Object.assign({}, selected)
+        var drop = allPicked(list)
+        for (var i = 0; i < list.length; ++i) {
+            if (drop)
+                delete next[list[i].key]
+            else
+                next[list[i].key] = true
+        }
         selected = next
+    }
+    // The saves shown of each game, by its title ID.
+    readonly property var shownByGame: {
+        var map = {}
+        for (var i = 0; i < shown.length; ++i) {
+            var id = shown[i].titleId
+            if (map[id] === undefined)
+                map[id] = []
+            map[id].push(shown[i])
+        }
+        return map
     }
     function selectedKeys() { return Object.keys(selected) }
     // Of the selection, how many can go each way.
@@ -272,12 +298,13 @@ Item {
         app.probeFtp(all)
     }
 
+    // Shown again: read again only when the last read is a minute old (the
+    // refresh button reads at once).
     onVisibleChanged: {
         if (!visible)
             return
         probeConsoles()
-        if (!saves.busy)
-            saves.refresh()
+        saves.refreshIfStale()
     }
     // Shown from the start (a page opened by --demo-view).
     Component.onCompleted: if (visible) visibleChanged()
@@ -327,7 +354,7 @@ Item {
     Rectangle {
         anchors.fill: parent
         anchors.leftMargin: root.framed ? Theme.gutter : 0
-        anchors.rightMargin: !root.framed ? 0 : window.panelShown ? 8 : Theme.gutter
+        anchors.rightMargin: !root.framed ? 0 : window.sideShown ? 8 : Theme.gutter
         anchors.topMargin: root.framed ? 4 : 0
         anchors.bottomMargin: root.framed ? 4 : 0
         radius: Theme.radius
@@ -678,13 +705,19 @@ Item {
                     }
                 }
                 Item { Layout.fillWidth: true }
+                // Everything shown, even with some selected already; once it
+                // all is, nothing at all.
                 StyledButton {
                     chip: true
-                    iconName: root.selectedCount > 0 && root.selectedCount === root.shown.length ? "square" : "square-check"
-                    text: root.selectedCount > 0 && root.selectedCount === root.shown.length
-                          ? qsTr("Select none") : qsTr("Select all")
+                    iconName: root.allShownPicked ? "square" : "square-check"
+                    text: root.allShownPicked ? qsTr("Select none") : qsTr("Select all")
                     enabled: root.shown.length > 0
-                    onClicked: root.selectedCount === root.shown.length ? root.selected = ({}) : root.selectAll()
+                    onClicked: {
+                        if (root.allShownPicked)
+                            root.selected = ({})
+                        else
+                            root.pickAll(root.shown)
+                    }
                 }
             }
 
@@ -758,6 +791,20 @@ Item {
                                         text: entry.modelData.titleId
                                         color: Theme.textMuted
                                         font.pixelSize: 11
+                                    }
+                                    // Every save of the game, or none of them.
+                                    StyledButton {
+                                        readonly property var mine: root.shownByGame[entry.modelData.titleId] || []
+                                        readonly property bool all: root.allPicked(mine)
+                                        chip: true
+                                        iconName: all ? "square" : "square-check"
+                                        text: all ? qsTr("Unselect %n", "", mine.length)
+                                                  : qsTr("Select %n", "", mine.length)
+                                        enabled: mine.length > 0
+                                        ToolTip.visible: hovered
+                                        ToolTip.text: all ? qsTr("Unselect every save of this game")
+                                                          : qsTr("Select every save of this game")
+                                        onClicked: root.pickAll(mine)
                                     }
                                 }
                             }

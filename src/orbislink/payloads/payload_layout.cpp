@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <regex>
 
 namespace orbislink {
 namespace payloads {
@@ -120,6 +121,35 @@ std::string lowerExtension(const std::string &fileName)
 	std::transform(ext.begin(), ext.end(), ext.begin(),
 		[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 	return ext;
+}
+
+std::string payloadKey(const std::string &fileName)
+{
+	std::string key = fileName;
+	std::transform(key.begin(), key.end(), key.begin(),
+		[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+	// Its types: "x.elf", "x.bin", "x.self", "x.prx"…
+	for(bool again = true; again;)
+	{
+		again = false;
+		for(const char *ext : { ".elf", ".bin", ".self", ".prx", ".sprx", ".lua", ".jar", ".js", ".so" })
+		{
+			const std::string e(ext);
+			if(key.size() > e.size() && key.compare(key.size() - e.size(), e.size(), e) == 0)
+			{
+				key.resize(key.size() - e.size());
+				again = true;
+			}
+		}
+	}
+	// Then a version at the end, after "-", "_", " " or ".": "-2.5b",
+	// "_v1.10", " 1.0", "_v2.4b18.3" — a "v" or a dot in it, so "_30_fps"
+	// stays part of the name.
+	static const std::regex version(R"(^(.+?)[-_ .](v\d+(\.\d+)*[a-z]*\d*(\.\d+)*|\d+(\.\d+)+[a-z]*\d*(\.\d+)*)$)");
+	std::smatch found;
+	if(std::regex_match(key, found, version))
+		key = found[1].str();
+	return key;
 }
 
 std::vector<Folder> folders(Kind kind)

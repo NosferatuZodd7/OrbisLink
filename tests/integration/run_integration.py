@@ -105,7 +105,9 @@ def main() -> int:
         [sys.executable, arguments.mock, "--ftp-port", str(ftp_port),
          "--api-port", str(api_port), "--root", console_root, "--print-ports",
          # Every upload loses its connection once on the way: it has to go on.
-         "--ftp-drop-once", str(1024 * 1024)],
+         "--ftp-drop-once", str(1024 * 1024),
+         # Every download too, with the "426" a console's server answers then.
+         "--ftp-drop-download-once", str(1536 * 1024)],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
         encoding="utf-8", errors="replace", env=child_env())
     try:
@@ -154,7 +156,7 @@ def main() -> int:
         downloaded = os.path.join(workspace, "round-trip.pkg")
         get = runner.run("ftp-get", *common, remote, downloaded)
         runner.check(get.returncode == 0 and digest(downloaded) == pkg_digest,
-                     "ftp-get brings the file back unchanged")
+                     "ftp-get brings the file back unchanged, going on from where a 426 cut it")
 
         mkdir = runner.run("ftp-mkdir", *common, "/data/pkg/subfolder")
         runner.check(mkdir.returncode == 0
@@ -193,6 +195,20 @@ def main() -> int:
                      and open(os.path.join(usb, "bundle", "top.txt")).read() == "top"
                      and open(os.path.join(usb, "bundle", "inner", "deep.txt")).read() == "deep" * 1000,
                      "ftp-mv moves a whole folder onto another disk")
+
+        # A folder with things in it: the console's server refuses RMD for
+        # it, so what is inside goes first.
+        full = os.path.join(console_root, "data", "pkg", "full")
+        os.makedirs(os.path.join(full, "a", "b"))
+        for relative in ("one.bin", os.path.join("a", "two.bin"), os.path.join("a", "b", "three.bin")):
+            with open(os.path.join(full, relative), "w") as handle:
+                handle.write(relative)
+        plain = runner.run("ftp-rm", *common, "/data/pkg/full", expect=1)
+        runner.check(plain.returncode != 0 and os.path.isdir(full),
+                     "ftp-rm of a folder without --recursive leaves it")
+        removed = runner.run("ftp-rm", *common, "--recursive", "/data/pkg/full")
+        runner.check(removed.returncode == 0 and not os.path.exists(full),
+                     "ftp-rm --recursive deletes a folder with everything in it")
 
         with open(os.path.join(console_root, "data", "pkg", "other.bin"), "w") as handle:
             handle.write("other")

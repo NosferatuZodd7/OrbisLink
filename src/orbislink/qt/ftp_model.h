@@ -6,11 +6,12 @@
 #include <QAbstractListModel>
 #include <QList>
 #include <QString>
+#include <QVariantMap>
 #include <vector>
 
 namespace orbislink {
 
-// Modelo do FtpBrowser.
+// The FtpBrowser's list.
 class FtpModel : public QAbstractListModel
 {
 	Q_OBJECT
@@ -34,6 +35,8 @@ public:
 
 	void setEntries(const std::vector<FtpEntry> &entries);
 	void clear();
+	// A row as { name, path, isDirectory, size }, for picking several.
+	Q_INVOKABLE QVariantMap get(int row) const;
 
 signals:
 	void countChanged();

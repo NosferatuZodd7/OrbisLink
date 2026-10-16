@@ -422,6 +422,7 @@ void PayloadsController::run(const QString &what, Job job, bool rescan)
 				folders_ = folders;
 				configs_ = configs;
 				scanned_ = true;
+				describeFiles();
 				emit foldersChanged();
 			}
 			emit busyChanged();
@@ -772,6 +773,9 @@ void PayloadsController::refreshCatalog()
 			catalogOffline_ = offline;
 			catalogError_ = error;
 			publishCatalog();
+			// The list's words for what is on the console.
+			describeFiles();
+			emit foldersChanged();
 		}, Qt::QueuedConnection);
 	});
 }
@@ -816,6 +820,117 @@ QVariantList PayloadsController::copiesOf(const CatalogPayload &payload) const
 		}
 	}
 	return copies;
+}
+
+QString PayloadsController::knownDescription(const QString &fileName) const
+{
+	const QString key = QString::fromStdString(payloadKey(fileName.toStdString()));
+	struct Known
+	{
+		const char *keys; // the names it goes by, "|" between them
+		const char *text;
+	};
+	// GoldHEN's own plugins (GoldHEN_Plugins_Repository), then the payloads
+	// people keep on a PS4 and a PS5. What they do, in a line.
+	static const Known known[] = {
+		{ "afr", QT_TR_NOOP("Redirects a game's files to /data/, for mods (Application File Redirector).") },
+		{ "button_swap", QT_TR_NOOP("Swaps the X and O buttons, as on consoles of Asian regions.") },
+		{ "force_1080p_display", QT_TR_NOOP("Tells games the console is connected to a 1080p display.") },
+		{ "force_30_fps", QT_TR_NOOP("Makes any game run at 30 FPS.") },
+		{ "fliprate_remover", QT_TR_NOOP("Removes the frame-rate limit of games that set it with sceVideoOutSetFlipRate.") },
+		{ "frame_logger", QT_TR_NOOP("Logs frame-time statistics.") },
+		{ "gamepad_helper", QT_TR_NOOP("Dead zones, touchpad button, button mapping and vibration strength of your own.") },
+		{ "game_patch", QT_TR_NOOP("Applies GoldHEN's game patches (/data/GoldHEN/patches) before a game starts.") },
+		{ "no_share_watermark", QT_TR_NOOP("Removes the watermark, and the video and screenshot blocks, of games.") },
+		{ "goldhen", QT_TR_NOOP("GoldHEN itself: the PS4's homebrew enabler, loaded again at every boot.") },
+		{ "ps4debug", QT_TR_NOOP("A debugger for PS4 cheat and trainer tools (PS4 Cheater, Reaper…).") },
+		{ "ftp|ftp-server|ftps4|ftpsrv", QT_TR_NOOP("An FTP server on the console, to reach its files from a PC.") },
+		{ "app2usb", QT_TR_NOOP("Moves installed games to a USB drive, linked back so they still start.") },
+		{ "app-dumper|app_dumper|dumper|ps5-app-dumper", QT_TR_NOOP("Copies installed games out of the console (to a USB drive).") },
+		{ "backup|db-backup", QT_TR_NOOP("Backs up the console's system databases to a USB drive.") },
+		{ "restore|db-restore", QT_TR_NOOP("Puts back the system databases a backup payload saved.") },
+		{ "disable-updates|disable_updates|block-updates", QT_TR_NOOP("Stops the console from downloading system updates.") },
+		{ "enable-updates|enable_updates", QT_TR_NOOP("Lets the console download system updates again.") },
+		{ "history-blocker|history_blocker", QT_TR_NOOP("Stops the web browser from keeping its history.") },
+		{ "kernel-dumper|kernel_dumper", QT_TR_NOOP("Copies the console's kernel to a USB drive.") },
+		{ "module-dumper|module_dumper", QT_TR_NOOP("Copies the system's modules to a USB drive.") },
+		{ "fan-threshold|fan_threshold|fan threshold|fan-control", QT_TR_NOOP("Sets the temperature at which the fan speeds up.") },
+		{ "todex", QT_TR_NOOP("Makes the console report itself as a test kit (DEX).") },
+		{ "mira", QT_TR_NOOP("Mira: an older homebrew enabler, with plugins of its own.") },
+		{ "hen|vtx-hen", QT_TR_NOOP("HEN: an older homebrew enabler.") },
+		{ "disable-aslr|disable_aslr", QT_TR_NOOP("Turns off address space randomisation, for debugging.") },
+		{ "exit-idu|exit_idu", QT_TR_NOOP("Takes the console out of its demo (kiosk) mode.") },
+		{ "etahen", QT_TR_NOOP("etaHEN: the PS5's homebrew enabler (FTP, the package installer, cheats, plugins).") },
+		{ "kstuff|kstuff-lite", QT_TR_NOOP("Kernel patches that let fake packages (fPKG) run, and turn on the debug settings.") },
+		{ "elfldr|elf-loader|elfloader", QT_TR_NOOP("The ELF loader: it takes payloads on port 9021.") },
+		{ "shadowmountplus|shadowmount", QT_TR_NOOP("Mounts game images, and puts homebrew app folders on the home screen.") },
+		{ "ps5debug", QT_TR_NOOP("A debugger for PS5 cheat tools.") },
+		{ "klogsrv|klog", QT_TR_NOOP("Sends the kernel's log over the network.") },
+		{ "byepervisor", QT_TR_NOOP("Lifts the hypervisor's protections, on the early firmwares it works on.") },
+		{ "gdbsrv", QT_TR_NOOP("A GDB debugging server on the console.") },
+		{ "offact", QT_TR_NOOP("Activates a PSN account on the console offline.") },
+	};
+	for(const Known &entry : known)
+		for(const QString &name : QString::fromLatin1(entry.keys).split(QLatin1Char('|')))
+			if(key == name)
+				return tr(entry.text);
+	return QString();
+}
+
+QString PayloadsController::typeDescription(const QString &fileName, const QString &folderId) const
+{
+	const Kind kind = consoleKind();
+	const std::string ext = lowerExtension(fileName.toStdString());
+	if(ext == ".prx" || ext == ".sprx")
+		return kind == Kind::Ps4 ? tr("A GoldHEN plugin: games load it while it is on.")
+								 : tr("A plugin, loaded by the homebrew enabler.");
+	if(folderId.contains(QLatin1String("plugin")))
+		return tr("A plugin, loaded by the homebrew enabler.");
+	const uint16_t port = loaderPort(kind, fileName.toStdString());
+	if(ext == ".elf" || ext == ".self")
+		return tr("An ELF payload: the ELF loader runs it (port %1).").arg(port);
+	if(ext == ".bin")
+		return kind == Kind::Ps4 ? tr("A payload: GoldHEN's loader runs it (port %1).").arg(port)
+								 : tr("A payload for the exploit's loader (port %1).").arg(port);
+	if(ext == ".lua" || ext == ".jar" || ext == ".js")
+		return tr("A script for its loader (port %1).").arg(port);
+	return QString();
+}
+
+void PayloadsController::describeFiles()
+{
+	for(QVariant &f : folders_)
+	{
+		QVariantMap folder = f.toMap();
+		const QString folderId = folder.value(QStringLiteral("id")).toString();
+		QVariantList files = folder.value(QStringLiteral("files")).toList();
+		for(QVariant &v : files)
+		{
+			QVariantMap file = v.toMap();
+			const QString name = file.value(QStringLiteral("name")).toString();
+			const QString detailsName = file.value(QStringLiteral("detailsName")).toString();
+			QString description;
+			// The payload list's words, for the one it is.
+			for(const CatalogPayload &payload : catalogList_)
+			{
+				const bool same = detailsName.isEmpty() ? isFileOf(payload, name.toStdString())
+					: detailsName.compare(QString::fromStdString(payload.name), Qt::CaseInsensitive) == 0;
+				if(same && !payload.description.empty())
+				{
+					description = QString::fromStdString(payload.description);
+					break;
+				}
+			}
+			if(description.isEmpty())
+				description = knownDescription(name);
+			file[QStringLiteral("description")] = description;
+			// Nothing known of it: at least what kind of file it is.
+			file[QStringLiteral("typeNote")] = description.isEmpty() ? typeDescription(name, folderId) : QString();
+			v = file;
+		}
+		folder[QStringLiteral("files")] = files;
+		f = folder;
+	}
 }
 
 void PayloadsController::publishCatalog()

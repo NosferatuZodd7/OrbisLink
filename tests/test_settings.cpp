@@ -22,6 +22,7 @@ ORBISLINK_TEST(settings_round_trip)
 	settings.ftpMaxConnections = 2;
 	settings.ftpAdvancedMode = true;
 	settings.language = "en";
+	settings.keepConvertedPackages = true;
 
 	bool ok = false;
 	const Settings restored = Settings::fromJson(settings.toJson(), &ok);
@@ -35,6 +36,7 @@ ORBISLINK_TEST(settings_round_trip)
 	CHECK_EQ(restored.ftpMaxConnections, 2);
 	CHECK(restored.ftpAdvancedMode);
 	CHECK_EQ(restored.language, std::string("en"));
+	CHECK(restored.keepConvertedPackages);
 }
 
 ORBISLINK_TEST(defaults_follow_the_specification)
@@ -47,6 +49,8 @@ ORBISLINK_TEST(defaults_follow_the_specification)
 	CHECK_EQ(settings.ftpUploadDirectory, std::string("/data/pkg/"));
 	CHECK(settings.restrictToConsoleIp);
 	CHECK(!settings.installAfterUpload);
+	// A package the converter made goes once the console has it.
+	CHECK(!settings.keepConvertedPackages);
 	CHECK(!settings.ftpAdvancedMode);
 	CHECK(!settings.debugLogging);
 	CHECK(settings.checkForUpdates);
@@ -357,6 +361,34 @@ ORBISLINK_TEST(overlay_opacity_round_trip_within_its_limits)
 	// Below what can be read, or past opaque: brought back.
 	CHECK(std::abs(Settings::fromJson(R"({"overlay_opacity":0.1})", &ok).overlayOpacity - Settings::kOverlayMinOpacity) < 1e-9);
 	CHECK(std::abs(Settings::fromJson(R"({"overlay_opacity":3})", &ok).overlayOpacity - 1.0) < 1e-9);
+}
+
+ORBISLINK_TEST(stores_round_trip_and_keep_the_built_in_ones)
+{
+	Settings settings;
+	CHECK_EQ(settings.stores.size(), static_cast<size_t>(2));
+	CHECK(Settings::builtInStore(settings.stores[0]));
+	CHECK(Settings::builtInStore(settings.stores[1]));
+	settings.stores[1].enabled = false;
+	settings.stores.push_back({ "Friend's store", "https://store.example.org", "hb-store", true });
+	bool ok = false;
+	const Settings restored = Settings::fromJson(settings.toJson(), &ok);
+	CHECK(ok);
+	CHECK_EQ(restored.stores.size(), static_cast<size_t>(3));
+	CHECK(!restored.stores[1].enabled);
+	CHECK_EQ(restored.stores[2].name, std::string("Friend's store"));
+	CHECK(!Settings::builtInStore(restored.stores[2]));
+	// A list without the built-in ones gets them back, first; nothing twice,
+	// no other catalog, no kind it does not know.
+	const Settings edited = Settings::fromJson(R"({"stores":[
+		{"name":"Mine","url":"https://mine.example.org","kind":"hb-store"},
+		{"name":"Again","url":"https://MINE.example.org","kind":"hb-store"},
+		{"name":"Other","url":"https://other.example.org/api/v1/","kind":"catalog"},
+		{"name":"Odd","url":"https://odd.example.org","kind":"ftp"}]})", &ok);
+	CHECK_EQ(edited.stores.size(), static_cast<size_t>(3));
+	CHECK_EQ(edited.stores[0].kind, std::string("catalog"));
+	CHECK_EQ(edited.stores[1].name, std::string("PKG-Zone"));
+	CHECK_EQ(edited.stores[2].name, std::string("Mine"));
 }
 
 ORBISLINK_TEST(library_locations_round_trip)

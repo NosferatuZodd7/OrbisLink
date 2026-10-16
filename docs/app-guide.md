@@ -17,8 +17,9 @@ Its jobs, around one PlayStation at a time — the **console in use**:
 4. **Save vault** — every save on the console read and backed up on the PC,
    kept as the PS4 keeps saves on a USB drive, and sent to any console of
    the same PSN account (PS4 or PS5).
-5. **Homebrew store** — the PS5 homebrew apps of the homebrew.page catalog,
-   looked at and installed on a jailbroken PS5 in one click.
+5. **Homebrew store** — the apps of several stores at once (homebrew.page's
+   PS5 catalog, PKG-Zone, and any Homebrew Store the user adds), looked at
+   and installed on a jailbroken PS4 or PS5 in one click.
 
 ## Words used in the app
 
@@ -74,7 +75,7 @@ Left of the services, the console the file actions go to:
 
 | Situation | Looks like | Click |
 |---|---|---|
-| Console in use answers on FTP (jailbreak) | Its name in **gold**, the jailbreak's name (GoldHEN, etaHEN, HEN) beside it, a glow pulsing slowly. Sending and installing work. | Opens the consoles page. |
+| Console in use answers on FTP (jailbreak) | Its name in **gold**, its firmware (as Remote Play's discovery reports it, "9.00"), the jailbreak's name (GoldHEN, etaHEN, HEN) and its version when its FTP greeting gives one ("GoldHEN 2.4b18"), a glow pulsing slowly. The tooltip says the firmware too, and when the jailbreak does not say its version over the network. Sending and installing work. | Opens the consoles page. |
 | It answers, but only for Remote Play | Its name in the app's blue, pulsing. Remote Play works; sending and installing do not. | Opens the consoles page. |
 | It does not answer | Its name faded, "not connected" ("looking…" while checking). | Looks for it again (checks the services now). |
 | No console saved | Not shown. | — |
@@ -159,6 +160,17 @@ the console goes back to a game or the home screen (PS button).
 
 ### Queue tab
 
+The tabs (Queue, Files) only show while there is a card: with none, the side
+panel is the Files tab alone.
+
+Every job is a card — whatever it is: a send or install, a conversion, a copy
+to this PC, a store install, a library job — in three groups, each named on
+its first card: **Under way** on top (lit, a little apart from the rest),
+**Waiting** (their icon's badge breathes in grey: in line, not stuck), and
+**Finished** at the end, with **Clear finished**, which clears every
+finished card of every kind. A card moves between them without the list
+jumping.
+
 Each file being sent or installed is a card: title, size, state, bar,
 speed and time left. A package's card also says the firmware it needs
 (*FW 9.00*), and, in amber, what to know before it goes:
@@ -181,7 +193,21 @@ as the console's firmware is known.
 | ⟲ | Tries a failed or cancelled task again. |
 | ✕ | Cancels a running task; removes a finished one. |
 
-Footer: total speed, what is left of the total, **Pause / Resume** for the whole queue. Each has a fixed place: the button stays on the right whatever the figures say. The speed and what is left count every job under way, not only the queue's: a conversion's own step, a copy to this PC, a store install.
+Footer: how far the jobs of this round have got (a percentage of all of them,
+done ones too, so it never goes back when one more is added), *n jobs to go*,
+*about … left* (from the pace of the round, steadied) and a bar; then the
+total speed, what is left of how much, and **Pause / Resume** for the whole
+queue. Each has a fixed place: the button stays on the right whatever the
+figures say. The speed and what is left count every job under way, not only
+the queue's: a conversion's own step, a copy to this PC, a store install.
+
+An install that follows an upload (*install after sending*) goes on at once,
+before the next upload waiting.
+
+**Closing the panel while jobs run** leaves a narrow rail on the right: a
+ring with the round's percentage, and the picture of each job under way or
+waiting, with its stage as a badge (its name and state in a tooltip). A click
+opens the panel again. With nothing running, closing it closes it.
 
 Every card that can go again has the same ⟲ — a send or install, a conversion
 that failed or was cancelled, a copy to this PC — and the same ✕.
@@ -212,14 +238,19 @@ asked for — Convert (or Pack), Send, Install; only Convert for *Convert
 only* — instead of separate queue cards (see *Games*), with the speed and
 the time left of the step under way while it moves bytes (from the console,
 the emulator files, the image, the upload, the install). It turns green
-once it is done: the package made, sent, or installed;
+once it is done: the package made, sent, or installed; once the console has
+the package (installed, or sent when it was not to be installed) it is
+deleted from the output folder, and the card says so — unless Settings →
+Games keeps them (*Keep the packages the converter makes*). Only the
+converter's own packages, in its output folder, are ever deleted;
 closing it takes its finished queue tasks along. A package sent and then
 installed is one card too (the install's). The tab's number counts cards.
 
-Installs and removals from the **Homebrew store** have their cards here too,
-under *Homebrew store*: the app's icon, the PS5, the stage, the bar, the
-percentage, the speed, how much of how much and the time left; ✕ cancels one
-under way or removes a finished one, **Clear finished** clears them all.
+Installs and removals from the **Homebrew store** have their cards here too:
+the app's icon, the console, the stage, the bar, the percentage, the speed,
+how much of how much and the time left; ✕ cancels one under way or removes a
+finished one. A store's package is *Downloading*, then *In the queue*: its
+install is the queue's own card.
 
 Whatever is installed, from wherever, is followed here: a package already on
 the console (*Install* in the console library, *Install on the console* in the
@@ -285,14 +316,19 @@ The console's files. Needs FTP.
 | Pinned folders (tags) | Click: opens it. ✕: removes it from the top. **Pin this folder** pins the one that is open (also *Pin to the top* in a folder's menu). A PS4 and a PS5 each keep their own, in the settings: a PS4's start as `/data/`, `/data/pkg/`, `/data/GoldHEN/`, `/user/app/`, `/mnt/usb0/`; a PS5's as `/data/`, `/data/etaHEN/`, `/data/homebrew/`, `/mnt/usb0/`, `/mnt/ext0/`. |
 | One click on a folder | Opens it. |
 | One click on a file, or ⋮, or right click | The file's menu. |
-| 🗑 | Deletes on the console (asks first). |
+| ○ at the left of a row (or Ctrl+click; Shift+click from the last one picked) | Picks it; while some are picked, a click on a row picks it too, and a bar at the bottom (in place of the new-folder row) says how many, with ☑ all / none, **Download to the desktop**, **Download to…**, **Move to…**, **Delete on the console** and ✕. |
+| 🗑 | Deletes on the console, after asking: a folder with everything inside it (what is inside first, then the folder). The row says *deleting…* until it is gone. |
+| The line under the list | How many folders and files the folder has and their size; the free space of its disk when the console's FTP says it (GoldHEN's and etaHEN's do not). |
+| A file arriving | Listed as soon as its upload starts, with its percentage (*waiting* while it is in line). |
 | Drag a row onto a folder row | Moves it there. |
 | Drag a file out of the window | Copies it to where it is dropped (a file over 64 MB is fetched first with *Get it ready to drag*). |
 | New folder + **Create** | Makes a folder here. |
 
 Row menu: Open · Pin to the top / Remove from the top (folders) · **Install on the console** (a `.pkg` on a
 PS5: installed from where it is, as Prospero Manager's *already on the PS5* does) · Use as the upload folder · Download to the desktop ·
-Download to… (files and whole folders) · Get it ready to drag · Show the local
+Download to… (files and whole folders: each one a card in the Queue tab; a
+transfer the console breaks — its 426 — goes on from where it stopped) · Get
+it ready to drag · Show the local
 copy · Copy the path · Rename… · **Move to…** (a folder tree of the console:
 quick access on the left, folders that open on the right, **New folder**,
 then **Move here**) · Delete on the console. A move is a rename on the
@@ -386,7 +422,9 @@ along the bottom says how many and what can be done to all of them —
 **Convert and install** (discs are converted and app folders packed first,
 one after the other, then each is sent and installed; just **Install** when
 they are all packages), **Only convert**, **Copy to this PC** (games installed
-on the console); **Pick all** picks every one shown. **Done** or Esc ends it,
+on the console), **Delete (n)** (packages in the console's places: one
+question naming them, then deleted together; what was installed from them
+stays installed); **Pick all** picks every one shown. **Done** or Esc ends it,
 and so does opening another folder. A game that cannot be done the way chosen
 is left as it is, and a note says how many.
 
@@ -611,7 +649,7 @@ console lets that be read, its size and where it stands:
 | **Send what's missing** | Sends back every save this console had and lost (see below). |
 | Owners | One chip per owner — the PSN account (PSID) — named after the Account ID kept in the app, else the console's name for its user (`username.dat`), else the PSID; or one per console user whose PSID is not known yet. **Link…** says which of the Account IDs kept in the app (Settings → Account IDs) a console user is. Most of the time it is not needed: a console user's PSID is read from the console's own list of saves, and from the saves themselves where the console lets them be read. A save whose PSID is still not known asks for the link when it is backed up, then goes. With one owner chosen, everything on the page is that owner's. |
 | Filters | All · Not backed up (on the console, or only on a USB drive) · Changed (and older) · Only on the PC. |
-| Click on a save · **Select all** | Selects; the top strip then offers **Back up to PC**, **Send to <console>** and **Delete…** for the selection. |
+| Click on a save · **Select all** · **Select <n>** (each game) | Selects; the top strip then offers **Back up to PC**, **Send to <console>** and **Delete…** for the selection. **Select all** selects every save shown, whatever was selected before; once they all are, it is **Select none** and clears the selection. **Select <n>** beside a game's name does the same for that game's saves (**Unselect <n>** once they all are), keeping the rest of the selection. |
 | **Send to <console>** | Named after the console it sends to: the one shown, or another picked with the arrow next to it (only consoles whose FTP answers). Always asks first, naming the console and its type: the game has to be closed. For each owner, it shows who gets the saves there: the user of that console with the same PSID. When none is known, it lists that console's users whose PSID is not known, to say which one it is (kept from then on). Each save replaces that user's copy with the latest backup and is checked to have arrived whole (an error otherwise); one the console does not list is also added to its list of saves (below). On a PS5, a PS4 game's saves are those of its PS4 version (CUSA); its PS5 version keeps saves of its own. |
 | **Delete…** | From the PC only (it warns when a save is not on the console, as the PC's may be its only copy). |
 | Folder chip · ⚙ | Opens the folder on the PC · changes it. |
@@ -682,28 +720,38 @@ What the consoles allow, and why the page works this way:
 
 ## Homebrew store
 
-The PS5 homebrew apps of the homebrew.page catalog — the one ProsperoStore
-reads — and installing them on a jailbroken PS5 (etaHEN's FTP on, kstuff and
-ShadowMountPlus running). The catalog is used only when its signature
-(Ed25519, either of the two keys the catalog publishes) and the SHA-256 of
-each of its files check out; a catalog older than one already seen is
-refused. When the site does not answer, the last catalog kept is shown, and
-the header says so. Each app's icon is downloaded once.
+The apps of every store turned on, shown together:
+
+| Store | What it has | Checked by | Installs as |
+|---|---|---|---|
+| **homebrew.page** (built in) | PS5 homebrew apps, the catalog ProsperoStore reads | Its signature (Ed25519, either of the two keys the catalog publishes) and the SHA-256 of each of its files; a catalog older than one already seen is refused | The app's folder, on a jailbroken PS5 (etaHEN's FTP on, kstuff and ShadowMountPlus running) |
+| **PKG-Zone** (built in) | PS4 homebrew packages, some for the PS5 too: the store the PS4's Homebrew Store reads | The MD5 the store gives for its database (`api.php?db_check_hash=true`), and a package's MD5 when the store has one; nothing signs them | A package, downloaded to this PC and installed through the queue on the console in use |
+| A store the user adds | Any Homebrew Store laid out as PKG-Zone's (`store.db`, `api.php`, the packages' addresses) | The same | The same |
+
+An app in more than one store is one card with each store's name below it as
+a tag; installing it asks which store to take it from (only those whose copy
+goes on the console in use). When a store does not answer, the copy of it
+kept from last time is shown, and the header (its tooltip) and the Stores
+window say so. The Homebrew Stores answer only to their own app's user agent,
+which the app sends. Icons are downloaded once and kept; a Homebrew Store's
+are asked for one every second and a half at most, as those stores count the
+requests.
 
 | Item | Does |
 |---|---|
-| PS5 chip (header) | The PS5 apps go to: the one in use when it is a PS5, else the first PS5 whose FTP answers. With several PS5s, a click lists them to pick another. |
-| Search · chips | Search by name, author or title ID · All, by kind (apps, games, tools…), **Installed**, **Updates**, **On this PC**. |
+| Console chip (header) | The console apps go to: the one in use. With several, a click lists them (with PS4/PS5, "no FTP"); picking another makes it the console in use. |
+| Search · chips | Search by name, author or title ID · All, by kind (apps, games, tools, emulators, media, themes, mods…), **Installed**, **Updates**, **On this PC**. What can be installed on the console in use comes first. |
 | **On this PC** | The app archives (`.zip`) in a folder of this PC (Downloads until another is chosen with **Change…**): each with its name, title ID, version, size and file, whether the PS5 has it (and an older version), and **Install** / **Update** / **Install again**; a ZIP that is not an app says why. **Install a file…** takes any archive. They install the way the catalog's do (staging folder, 777, `/data/homebrew/<TITLE ID>`, ShadowMountPlus), but being the user's own files nothing checks them against the catalog. |
-| Sliders (header) | **The catalog's address**: a mirror of the user's own, tried before homebrew.page and its mirror (**Built-in addresses** goes back to those alone). Whatever it serves is checked against the catalog's signature as always, so a mirror cannot change the apps; the header says which site the catalog came from. |
-| A card | Icon, name, author, version, size, and **Installed** / **Update** / **Coming soon**. A click opens it. |
-| The app's window | What it is (description), version, size, title ID, date, licence; **On the console**: whether it stays in the app sandbox, uses the network, starts helper payloads (as the catalog's scan found); **What's new**; links to its source code, catalog page and release. |
-| **Install on <PS5>** · **Update on <PS5>** · **Install again** | Downloads the app's ZIP, checks it against the catalog's SHA-256 (a mismatch is not installed), copies its folder to a staging folder on the PS5 (`/data/orbislink/staging`), sets everything in it to 777 (the console starts an app only then: CE-107750-0 otherwise; a server that cannot is said so), then moves it to `/data/homebrew/<TITLE ID>`. An update keeps the copy it replaces in `/data/orbislink/previous/<TITLE ID>`, and what the user put in the app's folder — games, saves, settings: what the new archive does not have — moves on into the new folder, as copying the new version over the old one would keep it. ShadowMountPlus puts it on the home screen: at once when its API lets the network in, else at its next scan (every 15 seconds). |
+| Sliders (header) · **Stores** | Every store: its name, address, kind and how many apps it has, why it could not be read; a switch shows or leaves out its apps; the user's own have 🗑. **Mirror…** on homebrew.page's row: a mirror of the catalog of the user's own, tried before homebrew.page and its mirror (**Built-in addresses** goes back to those alone); whatever it serves is checked against the catalog's signature as always, so a mirror cannot change the apps. **Add a store**: an address (and a name, else its host) is looked at first — a Homebrew Store is added with its apps; a copy of homebrew.page's catalog becomes its mirror; anything else is said so. |
+| A card | Icon, name, author, version, size, **Installed** / **Update** / **Coming soon**, or why it does not go on this console (**For the PS5**, **For the PS4**); the stores it is in, as tags. A click opens it. |
+| The app's window | What it is (description), version, size, title ID, date, licence; **In the stores**: each store's copy — an app folder or a package, its version and size, the PS4 firmware it needs, and why it does not go on this console when it does not (a PS4 package the store does not say runs on the PS5; a PS5 build of its own that the store does not hand out at the package's address); for the catalog's, **On the console**: whether it stays in the app sandbox, uses the network, starts helper payloads (as the catalog's scan found), **What's new**, and links to its source code, catalog page and release. |
+| **Install on <console>** · **Update on <console>** · **Install again** | From the store picked (asked when more than one can). An **app folder**: downloads the app's ZIP, checks it against the catalog's SHA-256 (a mismatch is not installed), copies its folder to a staging folder on the PS5 (`/data/orbislink/staging`), sets everything in it to 777 (the console starts an app only then: CE-107750-0 otherwise; a server that cannot is said so), then moves it to `/data/homebrew/<TITLE ID>`. An update keeps the copy it replaces in `/data/orbislink/previous/<TITLE ID>`, and what the user put in the app's folder — games, saves, settings: what the new archive does not have — moves on into the new folder, as copying the new version over the old one would keep it. ShadowMountPlus puts it on the home screen: at once when its API lets the network in, else at its next scan (every 15 seconds). A **package**: downloaded to the store's folder of this PC ("Name_TITLEID_v1.00.pkg"; a download that breaks goes on from where it stopped), checked against the store's MD5 when it has one and to be a package at all, then queued to install on the console in use like any other package; one already downloaded whole is used again. |
 | After an install | ShadowMountPlus is asked to look at once (its API); when its API does not let the network in, ShadowMountPlus is **started again**: its file on the console (etaHEN's payloads or plugins, the autoloader, PLDMGR), else the payload library's, goes to the ELF loader (9021). A new ShadowMountPlus asks the one running to stop and scans everything at once. |
-| **Not on the home screen?** (an installed app) | Reads ShadowMountPlus's log on the PS5 (`/data/shadowmount/debug.log`, over FTP) and says what it did with the app: registered it, saw it while it was still changing, could not read its `param.json`, had it refused by the console (with the code), gave up after failed tries, kept another copy with the same title ID, or never saw it (not running, or no log); the log lines about it are shown. It also asks ShadowMountPlus to look again, retrying what it gave up on — when its API lets the network in. Every install asks the same. |
-| **Remove** | Asks ShadowMountPlus to uninstall it (when its API lets the network in), then deletes its folder. Its saves stay. Without the API, its icon goes when ShadowMountPlus removes missing games, or by deleting it on the console. |
-| Progress | On the card, at the foot of the app's window and as a card in the Queue tab: the stage (downloading, copying to the PS5, putting it in place, starting ShadowMountPlus again), the percentage, the speed over the last seconds, how much of how much and the time left. The copy counts the app's files as they reach the PS5. |
-| **Cancel** | Stops an install under way, mid-file too; nothing in place changes. |
+| **Not on the home screen?** (an installed app folder) | Reads ShadowMountPlus's log on the PS5 (`/data/shadowmount/debug.log`, over FTP) and says what it did with the app: registered it, saw it while it was still changing, could not read its `param.json`, had it refused by the console (with the code), gave up after failed tries, kept another copy with the same title ID, or never saw it (not running, or no log); the log lines about it are shown. It also asks ShadowMountPlus to look again, retrying what it gave up on — when its API lets the network in. Every install asks the same. |
+| **Remove** (an app folder) | Asks ShadowMountPlus to uninstall it (when its API lets the network in), then deletes its folder. Its saves stay. Without the API, its icon goes when ShadowMountPlus removes missing games, or by deleting it on the console. A package's app is uninstalled from the library (Installed on the console). |
+| Installed, updates | App folders: those in `/data/homebrew` of the PS5. Packages: what the console has in `/user/app`, its version from the system's copy of its `param.sfo`; a store's newer version is an **Update**. |
+| Progress | On the card, at the foot of the app's window and as a card in the Queue tab: the stage (downloading, copying to the PS5, putting it in place, starting ShadowMountPlus again), the percentage, the speed over the last seconds, how much of how much and the time left. The copy counts the app's files as they reach the PS5. A package's card says **Downloading**, then **In the queue**; the queue's own card follows its install. |
+| **Cancel** | Stops an install or a download under way, mid-file too; nothing in place changes. |
 
 The app's folder in the ZIP is the one with `sce_sys/param.json` and
 `eboot.bin`, at the top or up to three folders down (a release folder with a
@@ -711,9 +759,10 @@ data folder and the licences beside it is common); the shallowest wins, then
 the one named after the title ID, and two that tie are refused. What is
 beside it in the archive is not installed — as ProsperoStore does.
 
-No package is built: on the PS5 the app folder is the install, which is why
-apps the catalog offers only as disc images are listed but not installed.
-Building a PS5 fake package (fpkg) is not something any open tool does yet.
+No package is built for homebrew.page's apps: on the PS5 the app folder is the
+install, which is why apps the catalog offers only as disc images are listed
+but not installed. Building a PS5 fake package (fpkg) is not something any
+open tool does yet.
 
 ## Payloads
 
@@ -744,7 +793,13 @@ the autoloader's.
 | **What the console answered** | What a payload sent prints, as the PS5's ELF loader passes it back (GoldHEN's BinLoader says nothing); **Clear** empties it. |
 | **Order and waits…** (the autoloader, PLDMGR) | The autoload list as steps: ↑ ↓ change the order, *wait … ms* is the pause before that one (`!<ms>` in the file; 1000 is one second), ✕ takes it out of the list, **Add a file from the folder** puts one at the end. **Save on the console** writes the list back; comment lines in it stay at the top. |
 
-A PLDMGR payload's version, from its `.json`, shows beside its name.
+A PLDMGR payload's version, from its `.json`, shows beside its name. Under
+each file, what it does: the payload library's description when it is one of
+its payloads, else what is known of it (GoldHEN's own plugins, and the
+payloads people keep on a PS4 and a PS5: GoldHEN, etaHEN, kstuff, the FTP
+servers, ps4debug, app2usb, the dumpers, the update blockers…), else what
+kind of file it is and which loader takes it. A description cut short shows
+whole in its tooltip.
 
 Without FTP the page says so; payloads from this PC can still be sent.
 
@@ -789,7 +844,8 @@ only if its SHA-256 matches the list.
 | Save vault: back up, send to a console | yes | yes | — | — |
 | Save vault: see or delete what the PC holds | no | — | — | — |
 | Homebrew store: look at the apps | no (internet) | — | — | — |
-| Homebrew store: install, update, remove (also from an archive of this PC) | a PS5 | yes | — | — |
+| Homebrew store: install, update, remove an app folder (also from an archive of this PC) | a PS5 | yes | — | — |
+| Homebrew store: install a store's package | yes (the console in use) | as for any package | yes (waits for it) | — |
 | Library: uninstall a game or its update | a PS4 | yes | Remote Package Installer | — |
 | Payloads: see, add, rename, delete, auto-start, edit settings | yes | yes | — | — |
 | Payloads: run one now | yes | to run one from the console | — | — |
@@ -817,7 +873,7 @@ only if its SHA-256 matches the list.
 | Everything the QML calls (`app`) | `src/orbislink/qt/app_controller.*` |
 | Games (`games`) | `src/orbislink/qt/games_controller.*` |
 | Save vault (`saves`) | `SavesView.qml`, `src/orbislink/qt/saves_controller.*`, `src/orbislink/saves` |
-| Homebrew store (`store`) | `StoreView.qml`, `src/orbislink/qt/store_controller.*`, `src/orbislink/store` |
+| Homebrew store (`store`) | `StoreView.qml`, `src/orbislink/qt/store_controller.*` (the stores together, installing from each), `src/orbislink/store` (homebrew.page's catalog `store_catalog.*`, a Homebrew Store's addresses and checks `hb_store.*`), `src/orbislink/qt/hb_store_db.*` (reading a `store.db`, through Qt Sql) |
 | Payloads (`payloads`) | `PayloadsView.qml`, `src/orbislink/qt/payloads_controller.*`, `src/orbislink/payloads/payload_layout.*` (folders, `autoload.txt`, `plugins.ini`), `src/orbislink/net/payload_sender.*` (to a loader port) |
 | Remote Play (`stream`) | `src/orbislink/qt/stream_controller.*` |
 | Queue, FTP, installer | `src/orbislink/queue`, `ftp`, `installer` |

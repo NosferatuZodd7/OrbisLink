@@ -20,6 +20,7 @@
 
 #include <QClipboard>
 #include <QCryptographicHash>
+#include <QDateTime>
 #include <QColor>
 #include <QCoreApplication>
 #include <QDesktopServices>
@@ -549,8 +550,10 @@ void AppController::setConsoleStartMode(const QString &address, const QString &s
 
 // GoldHEN keeps /data/GoldHEN and etaHEN /data/etaHEN; anything else with
 // an FTP server is some other HEN.
-std::string AppController::detectJailbreak(const std::string &address, uint16_t port)
+std::string AppController::detectJailbreak(const std::string &address, uint16_t port,
+	const std::string &greeting, std::string *version)
 {
+	version->clear();
 	FtpClient::Config config;
 	config.host = address;
 	config.port = port;
@@ -566,10 +569,12 @@ std::string AppController::detectJailbreak(const std::string &address, uint16_t 
 		std::string name = entry.name;
 		for(char &c : name)
 			c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-		if(name == "goldhen")
-			return "GoldHEN";
-		if(name == "etahen")
-			return "etaHEN";
+		for(const char *hen : { "GoldHEN", "etaHEN" })
+			if(name == toLower(hen))
+			{
+				*version = henVersionInGreeting(greeting, hen);
+				return hen;
+			}
 	}
 	return "HEN";
 }
@@ -593,18 +598,26 @@ void AppController::probeFtp(const QStringList &addresses)
 	std::thread([this, life = lifeline_, targets, known]() {
 		QVariantMap answers;
 		QVariantMap found;
+		QVariantMap versions;
 		for(const auto &target : targets)
 		{
 			const QString address = QString::fromStdString(target.first);
-			const bool reachable = tcpProbe(target.first, target.second, 1200);
-			answers[address] = reachable;
 			// Once per console: which enabler it runs, from the folder each
-			// one leaves in /data.
-			if(reachable && !known.contains(address))
-				found[address] = QString::fromStdString(detectJailbreak(target.first, target.second));
+			// one leaves in /data, and its version if its greeting says it.
+			const bool ask = !known.contains(address);
+			std::string greeting;
+			const bool reachable = tcpProbe(target.first, target.second, 1200, ask ? &greeting : nullptr);
+			answers[address] = reachable;
+			if(reachable && ask)
+			{
+				std::string version;
+				found[address] = QString::fromStdString(
+					detectJailbreak(target.first, target.second, greeting, &version));
+				versions[address] = QString::fromStdString(version);
+			}
 		}
 		life->post(
-			[this, answers, found]() {
+			[this, answers, found, versions]() {
 				probingFtp_ = false;
 				QVariantMap merged = ftpReachable_;
 				for(auto it = answers.begin(); it != answers.end(); ++it)
@@ -612,10 +625,14 @@ void AppController::probeFtp(const QStringList &addresses)
 				QVariantMap jailbreaks = jailbreaks_;
 				for(auto it = found.begin(); it != found.end(); ++it)
 					jailbreaks[it.key()] = it.value();
-				if(merged != ftpReachable_ || jailbreaks != jailbreaks_)
+				QVariantMap henVersions = henVersions_;
+				for(auto it = versions.begin(); it != versions.end(); ++it)
+					henVersions[it.key()] = it.value();
+				if(merged != ftpReachable_ || jailbreaks != jailbreaks_ || henVersions != henVersions_)
 				{
 					ftpReachable_ = merged;
 					jailbreaks_ = jailbreaks;
+					henVersions_ = henVersions;
 					emit ftpReachableChanged();
 				}
 			});
@@ -1138,6 +1155,15 @@ void AppController::refreshQueueModel()
 			? 100.0 * static_cast<double>(task.doneBytes) / static_cast<double>(task.totalBytes) : 0.0;
 		item[QStringLiteral("sending")] = task.state == TaskState::Sending;
 		uploads << item;
+		// One that starts going into the folder on screen: the list is read
+		// again, so it shows there at once, with how far it is.
+		if(task.state == TaskState::Sending && !uploadsListed_.contains(QString::fromStdString(task.id))
+			&& normalizeRemotePath(item.value(QStringLiteral("directory")).toString().toStdString())
+				== normalizeRemotePath(ftpPath_.toStdString()))
+		{
+			uploadsListed_.insert(QString::fromStdString(task.id));
+			QTimer::singleShot(1500, this, [this]() { refreshFtpListing(false); });
+		}
 	}
 	if(uploads != ftpUploads_)
 	{
@@ -1669,6 +1695,21 @@ void AppController::removeTask(const QString &id)
 		refreshQueueModel();
 }
 
+void AppController::clearFinishedTasks()
+{
+	if(!queue_)
+		return;
+	bool removed = false;
+	std::vector<QueueTask> all = queue_->tasks();
+	const std::vector<QueueTask> done = queue_->history();
+	all.insert(all.end(), done.begin(), done.end());
+	for(const QueueTask &task : all)
+		if(task.isTerminal())
+			removed = queue_->remove(task.id) || removed;
+	if(removed)
+		refreshQueueModel();
+}
+
 void AppController::removeFinishedTasksOf(const QString &localPath)
 {
 	if(!queue_ || localPath.isEmpty())
@@ -1765,8 +1806,14 @@ void AppController::refreshFtpListing(bool announce)
 {
 	// Refresh is the only one that does not complain: it happens by itself
 	// after other operations, and a notice for each one would be noise.
-	if(!ftp_ || ftpBusy_)
+	if(!ftp_)
 		return;
+	// A listing under way: another one once it is in.
+	if(ftpBusy_)
+	{
+		ftpRelist_ = true;
+		return;
+	}
 	setFtpBusy(true);
 	const std::string path = ftpPath_.toStdString();
 	std::thread([this, life = lifeline_, ftp = ftp_, path, announce]() {
@@ -1797,6 +1844,7 @@ void AppController::refreshFtpListing(bool announce)
 				if(result.ok)
 				{
 					ftpModel_.setEntries(entries);
+					updateFtpSpace(entries);
 					if(announce && missing.isEmpty())
 						setStatusMessage(tr("%1: %2 entries").arg(ftpPath_).arg(entries.size()));
 				}
@@ -1812,31 +1860,133 @@ void AppController::refreshFtpListing(bool announce)
 						tr("I could not list %1: %2").arg(ftpPath_).arg(error), true);
 				}
 				setFtpBusy(false);
+				if(ftpRelist_)
+				{
+					ftpRelist_ = false;
+					refreshFtpListing(false);
+				}
 			});
+	}).detach();
+}
+
+namespace {
+
+// The disk a path of the console is on, as its first folders say: "/data",
+// "/user", "/mnt/usb0".
+QString diskOf(const QString &path)
+{
+	const QStringList parts = path.split(QLatin1Char('/'), Qt::SkipEmptyParts);
+	if(parts.isEmpty())
+		return QStringLiteral("/");
+	if(parts.first() == QLatin1String("mnt") && parts.size() > 1)
+		return QStringLiteral("/mnt/") + parts.at(1);
+	return QLatin1Char('/') + parts.first();
+}
+
+} // namespace
+
+void AppController::updateFtpSpace(const std::vector<FtpEntry> &entries)
+{
+	int folders = 0;
+	int files = 0;
+	qint64 bytes = 0;
+	for(const FtpEntry &entry : entries)
+	{
+		if(entry.isDirectory)
+			++folders;
+		else
+		{
+			++files;
+			bytes += entry.size;
+		}
+	}
+	const QString disk = diskOf(ftpPath_);
+	QVariantMap space;
+	space[QStringLiteral("folders")] = folders;
+	space[QStringLiteral("files")] = files;
+	space[QStringLiteral("bytes")] = static_cast<double>(bytes);
+	const auto known = ftpFree_.constFind(disk);
+	space[QStringLiteral("free")] = known != ftpFree_.cend() ? static_cast<double>(known->first) : -1.0;
+	if(space != ftpSpace_)
+	{
+		ftpSpace_ = space;
+		emit ftpSpaceChanged();
+	}
+	// The room left, asked once in a while for each disk ("/" is not one).
+	const qint64 now = QDateTime::currentSecsSinceEpoch();
+	if(!ftp_ || disk == QLatin1String("/") || (known != ftpFree_.cend() && now - known->second < 30))
+		return;
+	ftpFree_[disk] = qMakePair(known != ftpFree_.cend() ? known->first : qint64(-1), now);
+	std::thread([this, life = lifeline_, ftp = ftp_, disk]() {
+		int64_t free = -1;
+		if(!ftp->freeSpace(disk.toStdString(), &free))
+			return;
+		life->post([this, disk, free]() {
+			ftpFree_[disk] = qMakePair(static_cast<qint64>(free), QDateTime::currentSecsSinceEpoch());
+			if(diskOf(ftpPath_) != disk)
+				return;
+			ftpSpace_[QStringLiteral("free")] = static_cast<double>(free);
+			emit ftpSpaceChanged();
+		});
 	}).detach();
 }
 
 void AppController::ftpDelete(const QString &path, bool isDirectory)
 {
-	if(!ftpReady(tr("Delete")))
+	ftpDeleteMany({ QVariantMap { { QStringLiteral("path"), path }, { QStringLiteral("isDirectory"), isDirectory } } });
+}
+
+void AppController::ftpDeleteMany(const QVariantList &items)
+{
+	if(items.isEmpty() || !ftpReady(tr("Delete")))
 		return;
-	setFtpBusy(true);
-	const std::string target = path.toStdString();
-	std::thread([this, life = lifeline_, ftp = ftp_, target, isDirectory]() {
-		const FtpResult result = isDirectory ? ftp->removeDirectory(target) : ftp->removeFile(target);
-		const QString message = translateMessage(result.message);
-		const bool ok = result.ok;
-		life->post(
-			[this, ok, message]() {
-				setFtpBusy(false);
-				setStatusMessage(ok ? tr("Deleted.") : tr("FTP: %1").arg(message));
-				// Deleting is destructive: always confirm, whether it worked or not.
-				emit notify(tr("Delete"),
-					ok ? tr("Deleted from the console.") : tr("I could not delete it: %1").arg(message),
-					!ok);
-				if(ok)
-					ftpRefresh();
+	std::vector<std::pair<std::string, bool>> targets;
+	for(const QVariant &value : items)
+	{
+		const QVariantMap item = value.toMap();
+		const QString path = item.value(QStringLiteral("path")).toString();
+		if(path.isEmpty() || ftpDeleting_.contains(path))
+			continue;
+		targets.emplace_back(path.toStdString(), item.value(QStringLiteral("isDirectory")).toBool());
+		ftpDeleting_ << path;
+	}
+	if(targets.empty())
+		return;
+	emit ftpDeletingChanged();
+	std::thread([this, life = lifeline_, ftp = ftp_, targets]() {
+		int deleted = 0;
+		QString failure;
+		for(const auto &[target, isDirectory] : targets)
+		{
+			// A folder goes with everything in it: a console's server refuses
+			// RMD for one that is not empty ("QUOT string not accepted").
+			const FtpResult result = removeOnConsole(*ftp, target, isDirectory);
+			const QString path = QString::fromStdString(target);
+			if(result.ok)
+			{
+				++deleted;
+				logInfo("FTP: deleted " + target);
+			}
+			else if(failure.isEmpty())
+				failure = tr("%1: %2").arg(QString::fromStdString(baseName(target)), translateMessage(result.message));
+			life->post([this, path]() {
+				ftpDeleting_.removeAll(path);
+				emit ftpDeletingChanged();
+				refreshFtpListing(false);
 			});
+		}
+		const int count = static_cast<int>(targets.size());
+		life->post([this, deleted, count, failure]() {
+			const bool ok = failure.isEmpty();
+			setStatusMessage(ok ? tr("Deleted.") : tr("FTP: %1").arg(failure));
+			// Deleting is destructive: always confirm, whether it worked or not.
+			emit notify(tr("Delete"),
+				ok ? tr("%n item(s) deleted from the console.", "", deleted)
+				   : count > 1 ? tr("%1 of %2 deleted. I could not delete %3").arg(deleted).arg(count).arg(failure)
+							   : tr("I could not delete it: %1").arg(failure),
+				!ok);
+			refreshFtpListing(false);
+		});
 	}).detach();
 }
 
@@ -1909,21 +2059,32 @@ void AppController::ftpRename(const QString &path, const QString &newName)
 
 void AppController::ftpMove(const QString &path, const QString &destinationDir)
 {
+	ftpMoveMany({ path }, destinationDir);
+}
+
+void AppController::ftpMoveMany(const QStringList &paths, const QString &destinationDir)
+{
 	const QString dir = destinationDir.trimmed();
-	if(dir.isEmpty() || path.isEmpty())
+	if(dir.isEmpty() || paths.isEmpty())
 	{
 		emit notify(tr("Move"), tr("Type the folder to move it to."), true);
 		return;
 	}
 	if(!ftpReady(tr("Move")))
 		return;
-	const std::string from = normalizeRemotePath(path.toStdString());
-	std::string name = from;
-	while(!name.empty() && name.back() == '/')
-		name.pop_back();
-	name = name.substr(name.find_last_of('/') + 1);
-	const std::string to = normalizeRemotePath(dir.toStdString() + "/" + name);
-	if(to == from)
+	std::vector<std::pair<std::string, std::string>> moves;
+	for(const QString &path : paths)
+	{
+		const std::string from = normalizeRemotePath(path.toStdString());
+		std::string name = from;
+		while(!name.empty() && name.back() == '/')
+			name.pop_back();
+		name = name.substr(name.find_last_of('/') + 1);
+		const std::string to = normalizeRemotePath(dir.toStdString() + "/" + name);
+		if(!name.empty() && to != from)
+			moves.emplace_back(from, to);
+	}
+	if(moves.empty())
 		return;
 	// Between two disks it is copied through this PC, on the transfer bar:
 	// one transfer at a time there.
@@ -1938,43 +2099,62 @@ void AppController::ftpMove(const QString &path, const QString &destinationDir)
 	const std::string scratch = QDir(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))
 									.filePath(QStringLiteral("moving"))
 									.toStdString();
-	const QString shownName = QString::fromStdString(name);
-	std::thread([this, life = lifeline_, ftp = ftp_, cancel = downloadCancel_, from, to, scratch, shownName]() {
-		int64_t lastPost = 0;
+	std::thread([this, life = lifeline_, ftp = ftp_, cancel = downloadCancel_, moves, scratch]() {
 		bool shown = false;
-		bool throughPc = false;
-		const FtpResult result = moveOnConsole(*ftp, from, to, scratch,
-			[&](int64_t done, int64_t total) {
-				if(cancel->load())
-					return false;
-				const int64_t now = monotonicMillis();
-				if(!shown || now - lastPost >= 200)
-				{
-					const double fraction = total > 0 ? static_cast<double>(done) / static_cast<double>(total) : 0.0;
-					const bool first = !shown;
-					shown = true;
-					lastPost = now;
-					life->post([this, fraction, first, shownName]() {
-						if(first)
-						{
-							downloadActive_ = true;
-							downloadMoving_ = true;
-							downloadName_ = shownName;
-							setStatusMessage(tr("Moving %1 to another disk through this PC…").arg(shownName));
-						}
-						downloadProgress_ = fraction;
-						emit downloadChanged();
-					});
-				}
-				return true;
-			},
-			&throughPc);
-		const QString message = translateMessage(result.message);
-		const bool ok = result.ok;
-		const bool cancelled = result.cancelled;
-		const QString target = QString::fromStdString(to);
+		bool cancelled = false;
+		int moved = 0;
+		QString failure;
+		QString lastTarget;
+		for(const auto &[from, to] : moves)
+		{
+			const QString shownName = QString::fromStdString(baseName(from));
+			int64_t lastPost = 0;
+			bool announced = false;
+			bool throughPc = false;
+			const FtpResult result = moveOnConsole(*ftp, from, to, scratch,
+				[&](int64_t done, int64_t total) {
+					if(cancel->load())
+						return false;
+					const int64_t now = monotonicMillis();
+					if(!announced || now - lastPost >= 200)
+					{
+						const double fraction = total > 0 ? static_cast<double>(done) / static_cast<double>(total) : 0.0;
+						const bool first = !announced;
+						announced = true;
+						shown = true;
+						lastPost = now;
+						life->post([this, fraction, first, shownName]() {
+							if(first)
+							{
+								downloadActive_ = true;
+								downloadMoving_ = true;
+								downloadName_ = shownName;
+								setStatusMessage(tr("Moving %1 to another disk through this PC…").arg(shownName));
+							}
+							downloadProgress_ = fraction;
+							emit downloadChanged();
+						});
+					}
+					return true;
+				},
+				&throughPc);
+			if(result.cancelled || cancel->load())
+			{
+				cancelled = true;
+				break;
+			}
+			if(!result.ok)
+			{
+				if(failure.isEmpty())
+					failure = tr("%1: %2").arg(shownName, translateMessage(result.message));
+				continue;
+			}
+			++moved;
+			lastTarget = QString::fromStdString(to);
+		}
+		const int count = static_cast<int>(moves.size());
 		life->post(
-			[this, ok, cancelled, message, target, shown]() {
+			[this, moved, count, cancelled, failure, lastTarget, shown]() {
 				setFtpBusy(false);
 				if(shown)
 				{
@@ -1985,10 +2165,14 @@ void AppController::ftpMove(const QString &path, const QString &destinationDir)
 				}
 				if(cancelled)
 					setStatusMessage(tr("Move cancelled: the original is where it was."));
+				else if(!failure.isEmpty())
+				{
+					setStatusMessage(tr("FTP: %1").arg(failure));
+					emit notify(tr("Move"), count > 1 ? tr("%1 of %2 moved. I could not move %3").arg(moved).arg(count).arg(failure)
+													 : tr("I could not move it: %1").arg(failure), true);
+				}
 				else
-					setStatusMessage(ok ? tr("Moved to %1").arg(target) : tr("FTP: %1").arg(message));
-				if(!ok && !cancelled)
-					emit notify(tr("Move"), tr("I could not move it: %1").arg(message), true);
+					setStatusMessage(count > 1 ? tr("%n item(s) moved.", "", moved) : tr("Moved to %1").arg(lastTarget));
 				ftpRefresh();
 			});
 	}).detach();
@@ -2795,6 +2979,7 @@ QVariantMap AppController::settingsMap() const
 	map[QStringLiteral("checkAlreadyInstalled")] = settings_.checkAlreadyInstalled;
 	map[QStringLiteral("installAfterUpload")] = settings_.installAfterUpload;
 	map[QStringLiteral("deleteFromConsoleAfterInstall")] = settings_.deleteFromConsoleAfterInstall;
+	map[QStringLiteral("keepConvertedPackages")] = settings_.keepConvertedPackages;
 	map[QStringLiteral("ftpMaxConnections")] = settings_.ftpMaxConnections;
 	map[QStringLiteral("ftpAdvancedMode")] = settings_.ftpAdvancedMode;
 	map[QStringLiteral("debugLogging")] = settings_.debugLogging;
@@ -2865,6 +3050,7 @@ void AppController::applySettings(const QVariantMap &values)
 	settings_.installAfterUpload = boolOr("installAfterUpload", settings_.installAfterUpload);
 	settings_.deleteFromConsoleAfterInstall =
 		boolOr("deleteFromConsoleAfterInstall", settings_.deleteFromConsoleAfterInstall);
+	settings_.keepConvertedPackages = boolOr("keepConvertedPackages", settings_.keepConvertedPackages);
 	settings_.ftpMaxConnections = intOr("ftpMaxConnections", settings_.ftpMaxConnections);
 	settings_.ftpAdvancedMode = boolOr("ftpAdvancedMode", settings_.ftpAdvancedMode);
 	settings_.theme = stringOr("theme", settings_.theme);

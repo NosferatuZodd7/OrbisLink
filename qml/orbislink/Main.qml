@@ -27,7 +27,10 @@ ApplicationWindow {
     // Whether the side panel is on screen; without it the page takes the
     // window's right gutter, so it lines up with the top bar.
     readonly property bool panelShown: panelVisible && panelAllowed && !streamFullscreen
-                                         || games.conversions.length > 0
+    // The panel closed while jobs go on: a narrow column with them instead,
+    // until they are done.
+    readonly property bool railShown: !panelShown && !streamFullscreen && transferPanel.busy
+    readonly property bool sideShown: panelShown || railShown
     // What the main area shows: the consoles ("home"), "games", "store",
     // "saves" or "payloads".
     property string view: typeof demoView !== "undefined" && demoView.length > 0
@@ -453,9 +456,11 @@ ApplicationWindow {
 
                         // Queue and files as a segmented control.
                         // Without FTP on the console there is only the queue: no tabs.
+                        // With nothing in the queue there is only the file list:
+                        // the queue's tab comes back with its first job.
                         TabBar {
                             id: tabs
-                            visible: !window.ftpAbsent
+                            visible: !window.ftpAbsent && transferPanel.cardCount > 0
                             Layout.fillWidth: true
                             currentIndex: demoTab
                             padding: 4
@@ -477,12 +482,29 @@ ApplicationWindow {
                         StackLayout {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            currentIndex: window.ftpAbsent ? 0 : tabs.currentIndex
+                            currentIndex: window.ftpAbsent ? 0 : transferPanel.cardCount === 0 ? 1 : tabs.currentIndex
 
                             TransferPanel { id: transferPanel }
                             FtpBrowser { }
                         }
                     }
+                }
+            }
+
+            Item {
+                Layout.fillHeight: true
+                // The column itself is 64 wide, with the panel's margins.
+                Layout.preferredWidth: 64 + 8 + Theme.gutter
+                visible: window.railShown
+
+                QueueRail {
+                    anchors.fill: parent
+                    anchors.rightMargin: Theme.gutter
+                    anchors.topMargin: 4
+                    anchors.bottomMargin: 4
+                    anchors.leftMargin: 8
+                    panel: transferPanel
+                    onOpenRequested: window.panelVisible = true
                 }
             }
         }

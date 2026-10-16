@@ -967,7 +967,9 @@ std::vector<SaveInfo> SaveVault::scan(SaveRemote &remote, std::string *error, co
 		// servers do not let it be read; the names then come from the game.
 		std::vector<FtpEntry> meta;
 		std::string metaError;
-		remote.list(consoleMetaRoot(account, titleId), &meta, &metaError);
+		const std::string metaKey = "meta:" + account + "/" + titleId;
+		if(!missingMeta_.count(metaKey) && !remote.list(consoleMetaRoot(account, titleId), &meta, &metaError))
+			missingMeta_.insert(metaKey);
 
 		for(auto &pair : byDir)
 		{

@@ -17,6 +17,12 @@ Rectangle {
     //   message }
     property var job: ({})
     property string fallbackIcon: "package"
+    // Where it is, as the other cards say it (StageLoader): in the icon's
+    // corner. None when empty.
+    property string stage: ""
+    property bool waiting: false
+    // Under way: lit, above the others.
+    property bool highlighted: false
     property string stateText: ""
     property bool showBar: true
     // Whether a working job can be stopped from here.
@@ -40,7 +46,8 @@ Rectangle {
     radius: 16
     color: Theme.panelAltFill
     border.width: 1
-    border.color: working ? Theme.alpha(Theme.accent, 0.6) : Theme.border
+    border.color: card.highlighted ? Theme.alpha(Theme.accent, 0.7)
+                : working && !card.waiting ? Theme.alpha(Theme.accent, 0.45) : Theme.border
     implicitHeight: column.implicitHeight + 24
 
     ColumnLayout {
@@ -73,6 +80,26 @@ Rectangle {
                     name: card.fallbackIcon
                     size: 22
                     color: Theme.textSecondary
+                }
+                Rectangle {
+                    visible: badge.visible
+                    anchors.fill: badge
+                    anchors.margins: -2
+                    radius: width / 2
+                    color: Theme.panelFill
+                }
+                StageLoader {
+                    id: badge
+                    visible: card.stage.length > 0
+                    stage: card.stage
+                    percent: card.job.percent || 0
+                    waiting: card.waiting
+                    width: 22
+                    height: 22
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.rightMargin: -5
+                    anchors.bottomMargin: -5
                 }
             }
             ColumnLayout {
