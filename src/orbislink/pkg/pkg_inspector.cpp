@@ -192,7 +192,15 @@ PkgInfo PkgInspector::inspect(const std::string &path, int64_t size, const ByteR
 	if(!(header[kOffMagic] == 0x7F && header[kOffMagic + 1] == 'C' && header[kOffMagic + 2] == 'N'
 		   && header[kOffMagic + 3] == 'T'))
 	{
-		info.error = QT_TRANSLATE_NOOP("Messages", "Not a valid PS4 pkg.");
+		// The older consoles' packages start with "\x7FPKG", then their
+		// platform (1: PS3; 2: PSP and PS Vita): not for a PS4, but files an
+		// emulator on the console (RPCS3) may want copied over.
+		const bool older = header[kOffMagic] == 0x7F && header[kOffMagic + 1] == 'P' && header[kOffMagic + 2] == 'K'
+			&& header[kOffMagic + 3] == 'G';
+		const unsigned platform = older ? (static_cast<unsigned>(header[4]) << 8) | header[5] : 0;
+		info.error = older && platform == 1 ? QT_TRANSLATE_NOOP("Messages", "A PS3 package, not a PS4 one.")
+			: older && platform == 2 ? QT_TRANSLATE_NOOP("Messages", "A PSP or PS Vita package, not a PS4 one.")
+			: QT_TRANSLATE_NOOP("Messages", "Not a valid PS4 pkg.");
 		return info;
 	}
 

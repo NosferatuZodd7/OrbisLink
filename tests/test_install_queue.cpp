@@ -267,25 +267,37 @@ ORBISLINK_TEST(refuses_invalid_files)
 ORBISLINK_TEST(copies_any_file_over_ftp_but_installs_only_packages)
 {
 	const std::string iso = writeTempFile("Some Game (Europe).iso", std::vector<uint8_t>(4096, 0x58));
-	PkgOptions broken;
-	broken.validMagic = false;
-	const std::string badPkg = writeTempFile("broken-copy.pkg", buildPkg(broken));
+	// A PS3 package (for RPCS3 on the console): "\x7FPKG", platform 1.
+	std::vector<uint8_t> ps3(8192, 0);
+	ps3[0] = 0x7F;
+	ps3[1] = 'P';
+	ps3[2] = 'K';
+	ps3[3] = 'G';
+	ps3[5] = 1;
+	const std::string ps3Pkg = writeTempFile("A PS3 Game.pkg", ps3);
 
 	InstallQueue queue(InstallQueue::Dependencies {}, Settings {});
 	std::vector<std::string> rejected;
-	// Over FTP an ISO goes as it is; a broken .pkg is still turned away.
-	const auto ids = queue.enqueue({ iso, badPkg }, TransferMode::FtpUpload, &rejected);
-	CHECK_EQ(ids.size(), static_cast<size_t>(1));
-	CHECK_EQ(rejected.size(), static_cast<size_t>(1));
+	// Over FTP both go as they are, a .pkg that is not a PS4 one too.
+	const auto ids = queue.enqueue({ iso, ps3Pkg }, TransferMode::FtpUpload, &rejected);
+	CHECK_EQ(ids.size(), static_cast<size_t>(2));
+	CHECK(rejected.empty());
 	const auto tasks = queue.tasks();
-	CHECK_EQ(tasks.size(), static_cast<size_t>(1));
-	CHECK_EQ(tasks[0].title, baseName(iso));
-	CHECK(tasks[0].title.find("Some Game (Europe).iso") != std::string::npos);
-	CHECK_EQ(tasks[0].totalBytes, static_cast<int64_t>(4096));
-	// And never to be installed directly.
+	CHECK_EQ(tasks.size(), static_cast<size_t>(2));
+	for(const QueueTask &task : tasks)
+	{
+		CHECK(task.title == baseName(iso) || task.title == baseName(ps3Pkg));
+		CHECK(task.category == PkgCategory::Unknown);
+		CHECK_EQ(task.totalBytes, task.title == baseName(iso) ? static_cast<int64_t>(4096) : static_cast<int64_t>(8192));
+	}
+	// And never to be installed directly, saying what it is.
 	CHECK(queue.enqueue({ iso }, TransferMode::DirectInstall).empty());
+	std::vector<std::string> refused;
+	CHECK(queue.enqueue({ ps3Pkg }, TransferMode::DirectInstall, &refused).empty());
+	CHECK_EQ(refused.size(), static_cast<size_t>(1));
+	CHECK(refused[0].find("A PS3 package, not a PS4 one.") != std::string::npos);
 	removeTempFile(iso);
-	removeTempFile(badPkg);
+	removeTempFile(ps3Pkg);
 }
 
 ORBISLINK_TEST(direct_install_end_to_end)

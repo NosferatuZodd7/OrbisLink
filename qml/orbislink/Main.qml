@@ -196,22 +196,25 @@ ApplicationWindow {
                 onImplicitWidthChanged: Qt.callLater(fit)
                 Component.onCompleted: Qt.callLater(fit)
 
-                // The app's symbol as the console's avatar.
+                // The app's symbol as the console's avatar: its own colours on
+                // a quiet disc, big enough to read.
                 Rectangle {
                     Layout.alignment: Qt.AlignVCenter
                     implicitWidth: 38
                     implicitHeight: 38
                     radius: 19
-                    color: Theme.accentFill
+                    color: Theme.controlFill
                     border.width: 1
-                    border.color: Theme.alpha(Theme.accent, 0.35)
+                    border.color: Theme.glassEdge
                     Image {
                         anchors.centerIn: parent
                         source: "qrc:/icons/mark.png"
-                        sourceSize.width: 48
-                        sourceSize.height: 48
-                        width: 24
-                        height: 24
+                        sourceSize.width: 64
+                        sourceSize.height: 64
+                        width: 32
+                        height: 32
+                        smooth: true
+                        mipmap: true
                     }
                 }
 
