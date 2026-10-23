@@ -115,6 +115,7 @@ std::vector<StreamCredentials> CredentialStore::all() const
 		StreamCredentials credentials;
 		credentials.nickname = entry["nickname"].toString();
 		credentials.hostId = entry["host_id"].toString();
+		credentials.accountId = entry["account_id"].toString();
 		credentials.registKey = entry["regist_key"].toString();
 		credentials.rpKeyHex = entry["rp_key"].toString();
 		credentials.rpKeyType = static_cast<uint32_t>(entry["rp_key_type"].toInt());
@@ -130,9 +131,16 @@ std::vector<StreamCredentials> CredentialStore::all() const
 	return out;
 }
 
-StreamCredentials CredentialStore::load(const std::string &hostId) const
+StreamCredentials CredentialStore::load(const std::string &hostId, const std::string &accountId) const
 {
 	const std::vector<StreamCredentials> stored = all();
+	if(!accountId.empty())
+	{
+		for(const StreamCredentials &credentials : stored)
+			if(iequals(credentials.hostId, hostId) && credentials.accountId == accountId)
+				return credentials;
+		return {};
+	}
 	for(const StreamCredentials &credentials : stored)
 	{
 		if(iequals(credentials.hostId, hostId))
@@ -145,31 +153,26 @@ StreamCredentials CredentialStore::load(const std::string &hostId) const
 	return {};
 }
 
-bool CredentialStore::save(const StreamCredentials &credentials)
+std::vector<StreamCredentials> CredentialStore::forHost(const std::string &hostId) const
 {
-	if(credentials.registKey.empty() || credentials.rpKeyHex.empty())
-		return false;
+	std::vector<StreamCredentials> out;
+	for(const StreamCredentials &credentials : all())
+		if(iequals(credentials.hostId, hostId))
+			out.push_back(credentials);
+	return out;
+}
 
-	std::vector<StreamCredentials> stored = all();
-	bool replaced = false;
-	for(StreamCredentials &existing : stored)
-	{
-		if(iequals(existing.hostId, credentials.hostId))
-		{
-			existing = credentials;
-			replaced = true;
-			break;
-		}
-	}
-	if(!replaced)
-		stored.push_back(credentials);
+namespace {
 
+bool writeAll(const std::string &path, const std::vector<StreamCredentials> &stored)
+{
 	Json root = Json::makeArray();
 	for(const StreamCredentials &c : stored)
 	{
 		Json entry = Json::makeObject();
 		entry.set("nickname", Json::fromString(c.nickname));
 		entry.set("host_id", Json::fromString(c.hostId));
+		entry.set("account_id", Json::fromString(c.accountId));
 		entry.set("regist_key", Json::fromString(c.registKey));
 		entry.set("rp_key", Json::fromString(c.rpKeyHex));
 		entry.set("rp_key_type", Json::fromInt(c.rpKeyType));
@@ -179,35 +182,79 @@ bool CredentialStore::save(const StreamCredentials &credentials)
 	}
 
 	SettingsStore::ensureDirectory(SettingsStore::defaultDirectory());
-	std::ofstream file(path_, std::ios::binary | std::ios::trunc);
+	std::ofstream file(path, std::ios::binary | std::ios::trunc);
 	if(!file)
 	{
-		logError("Could not save the Remote Play credentials to " + path_);
+		logError("Could not save the Remote Play credentials to " + path);
 		return false;
 	}
 	file << root.dump() << "\n";
 	return file.good();
 }
 
-bool CredentialStore::forget(const std::string &hostId)
+} // namespace
+
+bool CredentialStore::save(const StreamCredentials &credentials)
+{
+	if(credentials.registKey.empty() || credentials.rpKeyHex.empty())
+		return false;
+
+	std::vector<StreamCredentials> stored = all();
+	bool replaced = false;
+	for(StreamCredentials &existing : stored)
+	{
+		if(iequals(existing.hostId, credentials.hostId) && existing.accountId == credentials.accountId)
+		{
+			existing = credentials;
+			replaced = true;
+			break;
+		}
+	}
+	if(!replaced)
+		stored.push_back(credentials);
+	return writeAll(path_, stored);
+}
+
+bool CredentialStore::adopt(const std::string &hostId, const std::string &accountId)
+{
+	if(hostId.empty() || accountId.empty())
+		return false;
+	std::vector<StreamCredentials> stored = all();
+	StreamCredentials *orphan = nullptr;
+	for(StreamCredentials &existing : stored)
+	{
+		if(!iequals(existing.hostId, hostId))
+			continue;
+		if(existing.accountId == accountId)
+			return false;
+		if(existing.accountId.empty() && !orphan)
+			orphan = &existing;
+	}
+	if(!orphan)
+		return false;
+	orphan->accountId = accountId;
+	return writeAll(path_, stored);
+}
+
+bool CredentialStore::forget(const std::string &hostId, const std::string &accountId)
 {
 	std::vector<StreamCredentials> stored = all();
 	const size_t before = stored.size();
 	for(size_t i = 0; i < stored.size();)
 	{
-		if(iequals(stored[i].hostId, hostId))
+		if(iequals(stored[i].hostId, hostId) && (accountId.empty() || stored[i].accountId == accountId))
 			stored.erase(stored.begin() + static_cast<long>(i));
 		else
 			++i;
 	}
 	if(stored.size() == before)
 		return false;
-
-	// Rewrites the file without the forgotten console.
-	std::remove(path_.c_str());
-	for(const StreamCredentials &c : stored)
-		save(c);
-	return true;
+	if(stored.empty())
+	{
+		std::remove(path_.c_str());
+		return true;
+	}
+	return writeAll(path_, stored);
 }
 
 } // namespace orbislink

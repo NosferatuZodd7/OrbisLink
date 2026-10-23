@@ -153,7 +153,7 @@ Dialog {
                   ? qsTr("This build has no Remote Play, so it can't search the network. Type "
                          + "the address below.")
                   : qsTr("No console answered. Check that it's on, on the same network, with "
-                         + "Remote Play enabled — or type the address below.")
+                         + "Remote Play enabled or its FTP server running — or type the address below.")
         }
 
         Repeater {
@@ -183,7 +183,8 @@ Dialog {
                         border.color: Theme.border
                         Text {
                             anchors.centerIn: parent
-                            text: modelData.ps5 ? "PS5" : "PS4"
+                            // Found by its FTP server alone, it may not say which it is.
+                            text: modelData.kind === "ps5" ? "PS5" : modelData.kind === "ps4" ? "PS4" : "FTP"
                             color: Theme.text
                             font.pixelSize: 12
                             font.weight: Font.Bold
@@ -199,8 +200,9 @@ Dialog {
                         }
                         Text {
                             text: modelData.address + "  ·  "
-                                  + (modelData.state === "standby" ? qsTr("in rest mode")
-                                                                   : qsTr("ready"))
+                                  + (modelData.state === "ftp" ? qsTr("its FTP server answered (Remote Play did not)")
+                                     : modelData.state === "standby" ? qsTr("in rest mode")
+                                     : qsTr("ready"))
                             color: Theme.textSecondary
                             font.pixelSize: 12
                         }
@@ -212,8 +214,7 @@ Dialog {
                         primary: !line.listed
                         implicitHeight: 36
                         minimumWidth: 100
-                        onClicked: dialog.add(modelData.name, modelData.address,
-                                                    modelData.ps5 ? "ps5" : "ps4")
+                        onClicked: dialog.add(modelData.name, modelData.address, modelData.kind || "")
                     }
                 }
             }

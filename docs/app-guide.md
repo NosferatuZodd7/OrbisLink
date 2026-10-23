@@ -7,13 +7,19 @@ something else in the app, one of the two is wrong.
 
 ## What the app does
 
-Three jobs, around one PlayStation at a time — the **console in use**:
+Its jobs, around one PlayStation at a time — the **console in use**:
 
 1. **Remote Play** — the console's picture, sound and controls on the PC.
 2. **Files** — packages (`.pkg`) and any other file to the console, over FTP
    or by direct install, and files back from it.
 3. **PS1/PS2 games** — disc images on the PC turned into PS4 packages, then
    (optionally) sent and installed.
+4. **Save vault** — every save on the console read and backed up on the PC,
+   kept as the PS4 keeps saves on a USB drive, and sent to any console of
+   the same PSN account (PS4 or PS5).
+5. **Homebrew store** — the apps of several stores at once (homebrew.page's
+   PS5 catalog, PKG-Zone, and any Homebrew Store the user adds), looked at
+   and installed on a jailbroken PS4 or PS5 in one click.
 
 ## Words used in the app
 
@@ -30,42 +36,46 @@ Three jobs, around one PlayStation at a time — the **console in use**:
 ## The window
 
 ```
-┌ top bar ─────────────────────────────────────────────────────────────┐
-│ logo  console name/IP        [console chip] [Remote Play] [FTP] [Installer]  ⟳ ▣ 🗎 ◐ ⚙ │
-├──────────────────────────────────────────────┬───────────────────────┤
-│ stage: consoles · Remote Play · PS1/PS2 Games │ side panel: Queue | Files (FTP) │
-├──────────────────────────────────────────────┴───────────────────────┤
-│ status line: last message                     Local HTTP: … · version │
-└──────────────────────────────────────────────────────────────────────┘
+┌ top bar ───────────────────────────────────────────────────────────────────┐
+│ logo  name/IP      [console chip] [🎮 FTP 📦] │ [▶ 💿 🗄] │ ⟳ ▣ 🗎 [☾ ◐ ☀ ✨] ⚙ │
+├────────────────────────────────────────────────────┬───────────────────────┤
+│ stage: consoles · Remote Play · Games · Saves       │ side panel: Queue | Files (FTP) │
+├────────────────────────────────────────────────────┴───────────────────────┤
+│ status line: last message                      Local HTTP: … · version     │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Top bar
 
-In a narrow window the bar squeezes instead of overflowing: first the
-service pills become dots and the page buttons icons (names in their
-tooltips), then the console's name and address on the left go (the console
-chip still shows it). The window cannot be made narrower than where that fits.
+Three groups, apart: what is (the console and its services), where to go
+(the pages) and the tools. Everything is an icon, with its name and what it
+means in the tooltip. In a narrow window the console's name and address on
+the left go (the console chip still shows it); the window cannot be made
+narrower than where the rest fits.
 
 | Item | What it shows | Click |
 |---|---|---|
 | Logo, name, IP | The console in use. | — |
-| **Back to Remote Play** | Only while a Remote Play session runs and another page is open. | Back to the picture. |
-| **PS1/PS2 Games** | Highlighted while that page is open. | Opens / closes the games page. |
 | **Console chip** | See *Console chip* below. | See below. |
-| Remote Play / FTP / Installer | A dot per service of the console in use: green available, amber checking, red not answering, grey not applicable. Hover: why. | — |
+| 🎮 · **FTP** · 📦 | Remote Play, FTP (the word in small bold letters) and the installer, each with a dot at the corner: green available (with a soft ring), amber checking (it breathes), red not answering, grey not applicable. Hover: a small card with the name, the state in its colour and, when something is off, what to do. When FTP is silent on its port, 1337, 2121 and 21 (and 9090 on a PS5) are asked once a minute; if one greets as FTP the app keeps that port and says so in the status line. | — |
+| ▶ | Only while a Remote Play session runs and another page is open. | Back to the picture. |
+| 💿 | Games: the console's library and the PS1/PS2 converter; lit while that page is open. | Opens / closes the games page. |
+| 🏪 | The homebrew store; lit while that page is open (only in builds with the store). | Opens / closes the store. |
+| 🗄 | The save vault; lit while that page is open. | Opens / closes the save vault. |
+| ⚡ | The payload manager; lit while that page is open. | Opens / closes the payloads page. |
 | ⟳ | | Checks the three services now. |
 | ▣ | | Shows / hides the side panel (F9). Locked while full screen. |
 | 🗎 | | Log and diagnostics (Ctrl+L): log, copy, save a diagnostics file. |
-| ◐ | | Dark / system / light theme. |
+| ☾ ◐ ☀ ✨ | Only one is lit. | Dark, glass or light: the plain theme (custom colours step aside, kept for ✨). ✨ Custom: the saved look chosen in Settings → Personalisation (or the colours set aside); with none yet, opens that page. |
 | ⚙ | | Settings (Ctrl+,). |
 
 ### Console chip
 
-Left of the service dots, the console the file actions go to:
+Left of the services, the console the file actions go to:
 
 | Situation | Looks like | Click |
 |---|---|---|
-| Console in use answers on FTP (jailbreak) | Its name in **gold**, the jailbreak's name (GoldHEN, etaHEN, HEN) beside it, a glow pulsing slowly. Sending and installing work. | Opens the consoles page. |
+| Console in use answers on FTP (jailbreak) | Its name in **gold**, its firmware (as Remote Play's discovery reports it, "9.00"), the jailbreak's name (GoldHEN, etaHEN, HEN) and its version when its FTP greeting gives one ("GoldHEN 2.4b18"), a glow pulsing slowly. The tooltip says the firmware too, and when the jailbreak does not say its version over the network. Sending and installing work. | Opens the consoles page. |
 | It answers, but only for Remote Play | Its name in the app's blue, pulsing. Remote Play works; sending and installing do not. | Opens the consoles page. |
 | It does not answer | Its name faded, "not connected" ("looking…" while checking). | Looks for it again (checks the services now). |
 | No console saved | Not shown. | — |
@@ -87,11 +97,33 @@ centred and wrap onto more rows.
 | 🔗 | Registers this PC for Remote Play (the console shows an 8-digit PIN). |
 | ✕ | Removes the console from the list (asks first). |
 | Gold badge | The console has a jailbreak (FTP answers). |
+| 👤 Account ⌄ (console in use) | The account (PSID) Remote Play goes in with on this console. A click lists the saved accounts — the one in use ticked, the ones this PC is not registered with on this console marked — and **Manage accounts…** (Settings → Account IDs). The choice is kept for this console. |
 
 One click, one request: after a click the card takes no other until the
 console has answered (Remote Play connected or failed, FTP found or not).
 
-**Add console**: name, IP and type; it is probed straight away.
+**Which account.** Connecting uses the account shown on the card. Only
+when the console has none of the saved accounts yet, and two or more are
+saved, connecting first asks which one; with one, that one is used. Each account has its own registration on each
+console and its own Remote Play PIN — a session never uses another
+account's. An account not registered on the console yet goes to
+registration first, with its own 8-digit PIN filled in when it has one
+saved. When the console asks for the account's passcode while connecting,
+the 4-digit PIN saved for that account is sent once; if it has none, or the
+console refuses it, the PIN is asked for.
+
+**Add console**: name, IP and type; it is probed straight away. Its
+**On the network** list searches as it opens (and with **Search again**): the
+Remote Play search goes to every network interface's own broadcast address,
+three times over three seconds, and on a small private network (a /23 or
+smaller, as a home's is) to every address of it one by one — a single
+broadcast to 255.255.255.255 can leave through the wrong adapter (a VPN, a
+virtual machine's) and some routers do not pass broadcasts between Wi-Fi and
+cable. At the same time it looks for the ports a jailbroken console opens
+(2121 GoldHEN's or ftpsrv's FTP, 1337 etaHEN's, 12800 Remote Package
+Installer), so one with Remote Play turned off shows up too, marked *its FTP
+server answered*: **PS4** when the installer answers, **PS5** when etaHEN's
+FTP does, **FTP** when it cannot tell.
 
 ## Remote Play session
 
@@ -106,12 +138,54 @@ The picture fills the stage. Moving the mouse shows the toolbar:
 | Full screen | Full screen on / off (F11; Esc leaves the session). |
 | **End the session** | Disconnects. |
 
+**Pages over the picture.** While a session is on screen, the top bar's
+Games, Homebrew store, Save vault and Payloads buttons open their page over
+the picture instead of in place of it, so the game stays in sight: a panel
+sized for the room there is, with a bar on top holding the page's name, an
+opacity slider (70 % to 100 %, kept for next time) and ✕. The slider sets how
+much of the game shows through the panel; the writing on it stays a step
+clearer, and the bar is always clearer still, so it can be found even with
+the panel faint. The same button again, ✕ or Esc (once nothing inside the
+page took it — the library's Esc first goes up a folder) closes it. While a
+page is open the keyboard is the page's, not the console's; it goes back to
+the console when the page closes. Full screen (F11) closes the page. Without
+a session the pages open in the main area, as always.
+
+Video apps (YouTube, Netflix…) and other protected screens are not sent over
+Remote Play. While the console shows one, the picture stays dark with a
+notice saying so; the session carries on, and the picture comes back once
+the console goes back to a game or the home screen (PS button).
+
 ## Side panel
 
 ### Queue tab
 
+The tabs (Queue, Files) only show while there is a card: with none, the side
+panel is the Files tab alone.
+
+Every job is a card — whatever it is: a send or install, a conversion, a copy
+to this PC, a store install, a library job — in three groups, each named on
+its first card: **Under way** on top (lit, a little apart from the rest),
+**Waiting** (their icon's badge breathes in grey: in line, not stuck), and
+**Finished** at the end, with **Clear finished**, which clears every
+finished card of every kind. A card moves between them without the list
+jumping.
+
 Each file being sent or installed is a card: title, size, state, bar,
-speed and time left.
+speed and time left. A package's card also says the firmware it needs
+(*FW 9.00*), and, in amber, what to know before it goes:
+
+- **An official store package** (Sony-signed, not a fake package): it
+  installs only with its licence — a jailbroken console takes fake packages
+  (fpkg). Told apart by the package header's type field, as PS4 PKG Tool does.
+- **A firmware above the PS4's**: a game or its update made for a newer
+  firmware than the one the console in use runs (as Remote Play discovery
+  reports it) installs but does not start; look for a version backported to
+  that firmware. A PS5 runs PS4 games whatever their firmware, so it is
+  never said there.
+
+Each warning also shows as a notice when the package is queued, or as soon
+as the console's firmware is known.
 
 | On a card | Does |
 |---|---|
@@ -119,7 +193,37 @@ speed and time left.
 | ⟲ | Tries a failed or cancelled task again. |
 | ✕ | Cancels a running task; removes a finished one. |
 
-Footer: total speed, what is left of the total, **Pause / Resume** for the whole queue. Each has a fixed place: the button stays on the right whatever the figures say.
+Footer: how far the jobs of this round have got (a percentage of all of them,
+done ones too, so it never goes back when one more is added), *n jobs to go*,
+*about … left* (from the pace of the round, steadied) and a bar; then the
+total speed, what is left of how much, and **Pause / Resume** for the whole
+queue. Each has a fixed place: the button stays on the right whatever the
+figures say. The speed and what is left count every job under way, not only
+the queue's: a conversion's own step, a copy to this PC, a store install.
+
+An install that follows an upload (*install after sending*) goes on at once,
+before the next upload waiting.
+
+**Closing the panel while jobs run** leaves a narrow rail on the right: a
+ring with the round's percentage, and the picture of each job under way or
+waiting, with its stage as a badge (its name and state in a tooltip). A click
+opens the panel again. With nothing running, closing it closes it.
+
+Every card that can go again has the same ⟲ — a send or install, a conversion
+that failed or was cancelled, a copy to this PC — and the same ✕.
+
+Closing the app keeps what was not finished: the queue, and the conversions
+and copies to this PC under way or waiting. They come back the next time as
+cards *Stopped when the app closed*, with ⟲ to go on — a copy from where it
+was (what was copied is kept), a conversion from the start. They do not start
+on their own: the console may be off. Logging out or shutting down the
+computer (SIGTERM on Linux and macOS) closes the app the same way.
+
+When a long job comes to its end — an install or upload, a conversion, a copy
+to this PC, a store install, a download — with the window in the background,
+a system notification says so: Windows's notification area, the desktop's
+notifications on Linux (D-Bus), macOS's own. In front, the window's notice is
+enough.
 
 Every upload and install is followed here, never in the Files tab: sending
 opens this tab, and the file list keeps showing the console's folders (a file
@@ -129,10 +233,78 @@ When Remote Package Installer stops answering, the queue pauses and shows
 *Waiting for Remote Package Installer*: it checks every few seconds and goes
 on by itself when the installer is back (**Try now** forces it).
 
-A converted PS1/PS2 game shows as **one** card with three bars — Convert,
-Send, Install — instead of separate queue cards (see *PS1/PS2 Games*);
+A converted PS1/PS2 game shows as **one** card with a bar for each step
+asked for — Convert (or Pack), Send, Install; only Convert for *Convert
+only* — instead of separate queue cards (see *Games*), with the speed and
+the time left of the step under way while it moves bytes (from the console,
+the emulator files, the image, the upload, the install). It turns green
+once it is done: the package made, sent, or installed; once the console has
+the package (installed, or sent when it was not to be installed) it is
+deleted from the output folder, and the card says so — unless Settings →
+Games keeps them (*Keep the packages the converter makes*). Only the
+converter's own packages, in its output folder, are ever deleted;
 closing it takes its finished queue tasks along. A package sent and then
 installed is one card too (the install's). The tab's number counts cards.
+
+Installs and removals from the **Homebrew store** have their cards here too:
+the app's icon, the console, the stage, the bar, the percentage, the speed,
+how much of how much and the time left; ✕ cancels one under way or removes a
+finished one. A store's package is *Downloading*, then *In the queue*: its
+install is the queue's own card.
+
+Whatever is installed, from wherever, is followed here: a package already on
+the console (*Install* in the console library, *Install on the console* in the
+Files tab) is a queue card *Install on the console*, its bar following the
+installer's task, or else how much of the package the console has copied
+into `/user/app/<TITLE ID>` (`/user/patch/` for an update); a disc converted
+from the library is a conversion card; what the library's other buttons set
+going — putting an app on the home screen, running a payload — has a card
+under *Console library*, with a moving bar while it runs and what came of it
+after.
+
+A game copied from the console to this PC (**Copy to this PC**) has its card
+there too: its icon, the step (*Copying the game (1 of 3)*, the update, an
+add-on), the bar, the percentage, the speed, how much of how much and the time
+left; ✕ stops it (what was copied is kept, and copying it again goes on from
+there). Done, it says *On this PC* in green, with 📂 to open its folder.
+Copies go one game at a time, each at the full speed of the network.
+
+On a PS5 whose installer is etaHEN's **DPI v2** (it only starts installs and
+reports nothing back), a direct install is followed by what the PC has served:
+the card is done once the console has taken the whole package, and the
+console finishes the install on its own (its notifications show it).
+
+On a PS5 with no installer on port 12800 the app looks for the **Prospero
+Manager** payload (port 7070): when it answers, the installer indicator is
+green and packages go through its package API — a package already on the
+console by its path (*Send and install*, *Convert and install*, *Install on
+the console*), one on this PC by its address (*Install directly*). The card
+is done once Prospero Manager says the console has queued the install; a
+refusal comes back with the console's code.
+
+When the console's installer does not answer, an install is not lost: it
+waits in the queue — the bar at the top and the card say what to do — and
+goes on by itself once the installer answers. As the queue starts waiting, a
+window says it in steps, for the console in use:
+
+- **PS4**: open **Remote Package Installer** on the console and keep it in
+  the foreground while installs are sent (in the background it does not
+  answer).
+- **PS5**: **in Payloads, press ▶ on Prospero Manager**, or turn on etaHEN's
+  DPI v2; the window has **Open Payloads**, and tells how to have it every
+  time (its switch in Payloads: it then starts with each jailbreak).
+
+Using FTP while it does not answer (the Files tab, a drop on *Send over
+FTP*) opens the same kind of window. On a PS4: GoldHEN has to be loaded again
+after the console restarts, and its FTP server on (it is by default). On a
+PS5: load the ftpsrv payload (with the payload loader, or **Send from this
+PC…** in Payloads), or turn on etaHEN's FTP. OrbisLink does nothing on the
+console by itself here: it only says what to do.
+
+A task the console still keeps from an earlier try (error 0x80990015,
+*TASK_DUPLICATED*) is removed and the install asked for again, when the
+installer can find it (Remote Package Installer's API); otherwise the card
+says to delete it from the console's Downloads list.
 
 ### Files (FTP) tab
 
@@ -140,20 +312,31 @@ The console's files. Needs FTP.
 
 | Action | Does |
 |---|---|
-| Path field, ↑, ⟳ | Where you are; one level up; list again. |
-| Pinned folders (tags) | Click: opens it. ✕: removes it from the top. **Pin this folder** pins the one that is open (also *Pin to the top* in a folder's menu). They start as `/data/`, `/data/pkg/`, `/data/GoldHEN/`, `/user/app/`, `/mnt/usb0/` and are kept in the settings. |
+| Path field, ↑, ⟳ | Where you are; one level up; list again. A folder the console does not have (the PS4's `/data/pkg/` on a PS5) opens the nearest one up that it has, and the status line says so. |
+| Pinned folders (tags) | Click: opens it. ✕: removes it from the top. **Pin this folder** pins the one that is open (also *Pin to the top* in a folder's menu). A PS4 and a PS5 each keep their own, in the settings: a PS4's start as `/data/`, `/data/pkg/`, `/data/GoldHEN/`, `/user/app/`, `/mnt/usb0/`; a PS5's as `/data/`, `/data/etaHEN/`, `/data/homebrew/`, `/mnt/usb0/`, `/mnt/ext0/`. |
 | One click on a folder | Opens it. |
 | One click on a file, or ⋮, or right click | The file's menu. |
-| 🗑 | Deletes on the console (asks first). |
+| ○ at the left of a row (or Ctrl+click; Shift+click from the last one picked) | Picks it; while some are picked, a click on a row picks it too, and a bar at the bottom (in place of the new-folder row) says how many, with ☑ all / none, **Download to the desktop**, **Download to…**, **Move to…**, **Delete on the console** and ✕. |
+| 🗑 | Deletes on the console, after asking: a folder with everything inside it (what is inside first, then the folder). The row says *deleting…* until it is gone. |
+| The line under the list | How many folders and files the folder has and their size; the free space of its disk when the console's FTP says it (GoldHEN's and etaHEN's do not). |
+| A file arriving | Listed as soon as its upload starts, with its percentage (*waiting* while it is in line). |
 | Drag a row onto a folder row | Moves it there. |
 | Drag a file out of the window | Copies it to where it is dropped (a file over 64 MB is fetched first with *Get it ready to drag*). |
 | New folder + **Create** | Makes a folder here. |
 
-Row menu: Open · Pin to the top / Remove from the top (folders) · Use as the upload folder · Download to the desktop ·
-Download to… (files and whole folders) · Get it ready to drag · Show the local
+Row menu: Open · Pin to the top / Remove from the top (folders) · **Install on the console** (a `.pkg` on a
+PS5: installed from where it is, as Prospero Manager's *already on the PS5* does) · Use as the upload folder · Download to the desktop ·
+Download to… (files and whole folders: each one a card in the Queue tab; a
+transfer the console breaks — its 426 — goes on from where it stopped) · Get
+it ready to drag · Show the local
 copy · Copy the path · Rename… · **Move to…** (a folder tree of the console:
 quick access on the left, folders that open on the right, **New folder**,
-then **Move here**) · Delete on the console.
+then **Move here**) · Delete on the console. A move is a rename on the
+console; between two disks (`/data` and a USB drive, say) the console cannot
+rename, so it is copied through this PC — each file brought here, sent to its
+new place and its size checked, with the bar and **Cancel** at the foot of the
+tab — and only then is the original deleted. Nothing is overwritten: a name
+already taken there is said so.
 
 ## Dropping files on the window
 
@@ -161,13 +344,205 @@ Dragging `.pkg` files (or folders with them) over the window shows two zones:
 
 | Zone | Does | Needs |
 |---|---|---|
-| **Send over FTP** | Copies them to the folder the Files tab is in. | FTP |
-| **Install directly** | The console downloads them from this PC and installs. | Installer |
+| **Send over FTP** | Copies them to the folder the Files tab is in (the zone names it). Any other file dropped (a disc image for the USB drive, a payload, a PS3 package for RPCS3) is copied as it is and never installed — a `.pkg` that is not a PS4 one too, even with *Install after upload* on; its card says *Copied to the console (not a PS4 package, so not installed)*. | FTP |
+| **Install directly** | The console downloads them from this PC and installs. Only PS4 packages: anything else is turned away saying what it is (*A PS3 package, not a PS4 one*, *A PSP or PS Vita package…*) and that **Send over FTP** copies it as it is. | Installer |
+
+On a PS5, a package sent with *install after sending* (and a converted game's
+**Send and install**) is installed from where it was put, by its path on the
+console — nothing is sent twice. If the console's installer does not take a
+path, it is installed from this PC instead.
 
 If a file with the same name is already on the console: **Replace**,
 **Keep both** (new name) or **Skip**.
 
-## PS1/PS2 Games page
+## Games page
+
+Two tabs, kept apart, as converting is a choice and not a step:
+
+- **All games** (it opens on this one): the library, every place games can
+  be — on the console and on this PC — shown as their covers.
+- **PS1/PS2 converter** (optional): PS1/PS2 discs on this PC made into PS4
+  packages. Only in builds with the converter.
+
+| Item | Does |
+|---|---|
+| ‹ | Back to the consoles. |
+| Folder chip, ⟳ (converter) | Changes the games folder; looks again. |
+
+### All games (the library)
+
+The library shows every place games can be the way the console shows its
+own library and folders: covers on square tiles, the one picked framed in
+the accent colour and slightly larger, a folder as a tile of the covers of
+the first games in it. It keeps the app's look (its colours, its cards, its
+buttons); only the way things are laid out comes from the console.
+
+**Home** has the places, in sections:
+
+| Section | Places | Shows up |
+|---|---|---|
+| Favourites | Any place marked with ★. | When one is marked. |
+| Console | **Console library** (every `OrbisLinkFPKG` folder: `/data/OrbisLinkFPKG`, `/mnt/usb0`–`usb7`, `/mnt/ext0`–`ext1`), **Installed on the console** (see below), each **Console USB** / extended storage drive the console has, **data/pkg** (the console's upload folder; its path can be changed), and console folders added by hand. | With a console set; open when its FTP answers. |
+| USB drives | Each drive plugged into this PC (Windows: a removable drive; Linux: under `/media` or `/run/media`; macOS: under `/Volumes`). | By itself, as it is plugged in or taken out (checked every few seconds while the tab is open). |
+| This PC | **Desktop**, **Downloads**, **Documents** (put there the first time; they can be taken off), and whole drives added from the list (`C:\`, `/`). | — |
+| Your folders | Folders added by hand. | — |
+
+Each place's tile shows the covers of the first games in it — taken from its
+folders when it has none at the top — and, when it holds folders, a folder
+tile among them; under it, its name and how many things it holds. A place
+that is not there now (a drive taken out, the console's FTP down) is faded
+and says *Not available*.
+
+**Inside a place** the same cards: folders first (each with a few covers of
+what is in it, a folder tile when it has folders inside, and how many things
+it holds), then the games and files, in sections — *Games and apps*,
+*Updates and add-ons*, *Payloads*, *Other files* — when sorted by type. A
+game card has its cover filling the tile, with rounded corners (the
+details show it whole), its name, its platform and version, what kind of
+file it is in the corner (PKG, ISO, CUE, APP…) and a green glow around it
+when the console in use has it installed. Only what the app can do something with is shown:
+packages, PS1/PS2 discs (a `.cue` and its track as one), PS5 images, app
+folders, payloads, archives and folders; pictures, documents and the rest
+are left out.
+
+**Only games | Everything**, on the left above the cards (on by default:
+*Only games*): only games, apps, their updates and add-ons, and the folders
+that lead to one — a game up to three folders down, or an app folder — are
+shown; payloads, archives and folders with no game in them are left out.
+A folder found to lead to a game is remembered with the rest of what was
+read; one with none is looked through again each time it is shown, since a
+game put further down leaves the folder itself as it was. *Everything* shows all that the place holds, as
+before. A folder with things but no game says so, with **Show everything**.
+
+**Select**, beside it, picks several games at once: a round mark shows on
+each game that can be picked, a click picks it (or un-picks it), Shift+click
+picks every one from the last picked to it, Space picks the one framed and
+Ctrl+A every one shown, and a bar
+along the bottom says how many and what can be done to all of them —
+**Convert and install** (discs are converted and app folders packed first,
+one after the other, then each is sent and installed; just **Install** when
+they are all packages), **Only convert**, **Copy to this PC** (games installed
+on the console), **Delete (n)** (packages in the console's places: one
+question naming them, then deleted together; what was installed from them
+stays installed); **Pick all** picks every one shown. **Done** or Esc ends it,
+and so does opening another folder. A game that cannot be done the way chosen
+is left as it is, and a note says how many.
+
+**Installed on the console** lists what the console has installed, as its
+home screen does: each game or app under `/user/app`, with its name and
+version — the update's, when one is installed — from the system's own copy of
+its `param.sfo` (`param.json` on a PS5) in `/system_data/priv/appmeta/<TITLE ID>`
+(`external/` for the extended storage, `/user/appmeta` when neither has it),
+its icon from `/user/appmeta`, and what it has — the game's package, its update (`/user/patch`), its
+add-ons (`/user/addcont`). **Copy to this PC** (on its details, or for
+several picked with **Select**) asks first: with the update and the add-ons
+or not, the folder they go to (**Change…**; *Documents/OrbisLink/From the
+console* until one is chosen), how much it is and how much room that drive
+has. Each game gets a folder of its own (`Demo-Game [CUSA00001]`), its files
+named after it (`Demo-Game_CUSA00001.pkg`, `…_patch_01.02.pkg`,
+`…_EXTRAPACK0000001.pkg`). The packages are copied as the console has them:
+a fake package (a converted game, or one made with a packager) installs again
+on any console with a homebrew enabler; a game from the PlayStation Store or
+a disc stays tied to its licence, and only a dump made on the console plays
+elsewhere. A title with no package on the console (one ShadowMountPlus puts
+on the home screen from its own folder) is listed but cannot be copied from
+here.
+
+On a PS4, its details also have **Uninstall…** (under **…**): the add-ons, the
+update and the game go from the console through Remote Package Installer
+(its saves stay), and **Uninstall the update…** puts the game back at the
+version it was installed with. Both ask first, have their card in the Queue
+tab, and the list is read again after; a card that failed (Remote Package
+Installer not open, say) has ↻ to try again once it is — as do a game put on
+the home screen and a payload run from the library. A PS5's installer (etaHEN's DPI) has
+no such call: there, the console's own menu uninstalls. How much room the
+console's drives have left is not shown: its FTP does not say.
+
+**Cheats and patches** (on an installed game's details; **Cheats** on a PS5)
+shows what the cheat lists have for that game: [GoldHEN's cheat
+repository](https://github.com/GoldHEN/GoldHEN_Cheat_Repository), and on a PS5
+[etaHEN's](https://github.com/etaHEN/PS5_Cheats) too. Each file (JSON, SHN or
+MC4) says the version of the game it is for — those for the version installed
+come first, the others say *another version* — and lists its cheats and who
+made them (an MC4 file is encrypted: its cheats show only in the console's
+menu). **Send to the console** puts it where the console's cheat menu looks,
+named the way it matches the game (`CUSA00207_01.09.json`, a version written
+`1.05` or `01_05` in the list becomes `01.05`): `/data/GoldHEN/cheats/<format>/`
+on a PS4, `/data/etaHEN/cheats/<format>/` on a PS5, where the file is also
+added to etaHEN's list (`/data/etaHEN/cheats/<format>.txt`) — etaHEN reads it
+when it starts, or after **Reload cheats** in its toolbox. **Delete** takes a
+file off (and out of etaHEN's list); cheat files for the game that the lists
+do not name (put there another way) show under *Also on the console for this
+game*. On a PS4, **Patches** lists the game patches of
+[illusion0001's archive](https://github.com/illusion0001/PS4-PS5-Game-Patch)
+for the version installed (60 FPS, no motion blur, skipped intros…), each with
+a switch: turning one on sends the game's patch file to
+`/data/GoldHEN/patches/xml/<TITLE ID>.xml` and writes `1` in the switch
+GoldHEN's game_patch plugin reads for it
+(`/data/GoldHEN/patches/settings/0x<hash>.txt`, the same one GoldHEN's own menu
+turns on and off); off writes `0`. It applies the next time the game starts,
+and only when plugins.ini loads game_patch — the dialog says when it does not.
+The lists and the archive are kept on this PC and fetched again after half a
+day (**Fetch the lists again** does it now); without the internet, the copy
+kept is used and the dialog says so.
+
+While a place is being read for the first time, grey cards with a light
+sweeping across stand where its games will be; the other pages do the same for
+their lists (saves, the store, the FTP files, the cheats). Pictures are made at
+the screen's own pixels — scaled down smoothly, their corners cut — so they
+stay sharp on any screen and at any scale.
+
+A card's picture, the first found of:
+
+1. one the app already has for that game (by title ID or serial, from any copy of it seen before);
+2. an image beside it named after it (`Game.jpg`, `Game-cover.png`, `<TITLE ID>.jpg`);
+3. its own metadata: a package's `ICON0`, an app folder's `sce_sys/icon0.png`;
+4. for a PS1/PS2 disc, the cover collection by its serial (the same xlenore collections the converter and emulators use);
+5. none: a disc drawn in its place — a CD for PS1, a DVD for PS2, a Blu-ray for the rest — or a folder, payload or archive sign.
+
+Pictures and what each file is are kept (in the app's cache folder, by the
+file's path, size and date), so a folder opened again shows at once and only
+what changed is read again. A folder is shown as soon as it is listed, and
+fills in as each thing is read; nothing is read whole.
+
+| Item | Does |
+|---|---|
+| Path under the title (Library › Desktop › Retro) | Each part goes back there. |
+| ‹, Esc, Backspace | One level up (Esc in the search field clears it instead). |
+| Arrow keys, Home, End | Move the frame; Enter or Space opens the card. |
+| Click on a place or folder | Opens it. |
+| Click on a game | Its details: the cover, what it is, and a grouped list (title ID, serial, version, for a package whether it is **Fake (fpkg)** or **Official (store)** and the **firmware** it needs, size, date, place, file); the same warnings as the Queue tab's card; its path along the bottom; one row of buttons — the main one on the right, the others under **…**. What needs the console is left out while its FTP does not answer, and a line says so. |
+| Only games · Everything | See above; kept in the settings. |
+| Select · Done | See above: several games picked, one thing done to all. |
+| Search field | At home: across every place marked *Search* (names two levels into each place, one on the console, none under a whole drive), by game name, file name, folder, extension or place. Inside a place: only there. Ctrl+F goes to it. |
+| Filter | All (the chip says *Filter*), Games found, PKG files, Folders, Other supported files. |
+| Sort | By type (in sections), by name, newest first. |
+| ⟳ | Reads the folder again (at home: every place). |
+| ☰ (a folder of this PC) | **Organise packages**: every `.pkg` in the folder and its folders (four levels down), renamed from what each says about itself. A name preset — *{TITLE} [{TITLE_ID}] [{CATEGORY}] [v{VERSION}]*, *{TITLE_ID} - {TITLE} ({CATEGORY} {VERSION})*, *{TITLE} ({REGION}) v{VERSION}*, *{CONTENT_ID}* — or one's own with the placeholders {TITLE} {TITLE_ID} {VERSION} {CATEGORY} {REGION} {CONTENT_ID} {FIRMWARE} {TYPE}; **Number them in install order** (00 the game, 01 its update, 02 its add-ons); **A folder per game** (*Title (TITLE ID)*: an update and the add-ons go in their game's). The list shows each file and the name it would get, before anything changes; a second copy of the same package (content ID, kind, version) is marked and left as it is, and a name already taken gets *(2)*. **Organise** renames them; folders left empty are removed (never the folder organised). Names are made safe on every system (no `: * ? " < > |`, at most 200 bytes). |
+| Folder + | Adds a place: a folder of this PC (the system's folder picker), a folder of the console (its path), Desktop, Downloads, Documents, the console's data/pkg, or a whole drive of this PC. |
+| Sliders | **Places in the library**: one list, every row the same height and columns — the place (its name, renamed where it is, empty for its folder's; its path under it, which a console place's can be changed in place), **Favourite** ★, **Search** (whether the search looks in it), and 🗑 to take it off — the folder itself is never touched. |
+
+A game's buttons:
+
+| It is | On this PC | On the console |
+|---|---|---|
+| `.pkg` | **Install on the console** (it downloads it from this PC), **Send to the console** (FTP, to the upload folder), **Show in its folder**. | **Install** (PS5: from where it is, followed in the Queue tab; a PS4 installs from Debug Settings → Package Installer, which the details say), **Delete from the console…**. |
+| PS1/PS2 disc | **Convert and install**, **Only convert** (the package goes to the output folder), **Send the disc file**, **Show in its folder**. | **Convert and install**, **Only convert** (the package goes back beside the disc), **Delete…**. |
+| PS4 app or game folder (`sce_sys/param.sfo`; what a converter leaves before packing, often with a `.gp4`) | **Pack and install**: made into a `.pkg` in the output folder, then sent and installed like a converted game (its card in the Queue tab: Pack, Send, Install); **Only pack**: the package stays in the output folder; **Show in its folder**. The `.gp4` in the folder (or beside it, named after it) is followed when there is one: its files, where each goes in the package, its content ID; paths of the PC it was made on are found again in the folder by their place in the package, and what it leaves out (the converter's notes) stays out. Without one, the whole folder goes in but for the tools' leftovers (`.gp4`, `.complete`, `desktop.ini`…), under the content ID of its `param.sfo`. | — (on the console, a PS4 folder is not packed: copy it to this PC first). |
+| PS5 image or app folder | **Show in its folder** (it is copied to `/data/homebrew` on the PS5, where ShadowMountPlus finds it). | **Put on the home screen** (PS5): moved into the folder ShadowMountPlus mounts from on the same drive, then ShadowMountPlus is asked to scan, or started again. |
+| Payload | **Run on the console** (sent from this PC to its loader). | **Run**, **Delete…**. |
+
+Nothing is installed, sent or run by itself: only these buttons do. Every
+install, conversion and job shows in the side panel's Queue tab.
+
+Changes are followed: a folder of this PC open, and each place's top
+folder, are watched, and read again when something is added or taken away;
+a drive taken out while open says so (*… was taken out. Plug it in again and
+it opens here.*) and comes back when it is plugged in again; the console's
+places follow its FTP coming and going; the console library is read again
+after an install or a package put back.
+
+### PS1/PS2 converter
 
 1. **Choose games folder…** — the folder with the disc images (`.iso`,
    `.bin/.cue`, `.img`, also in sub-folders). The app finds which are PS1 and
@@ -175,13 +550,21 @@ If a file with the same name is already on the console: **Replace**,
 2. The first conversion downloads the Classics files once (about 109 MB);
    **Download now** does it earlier. Nothing else has to be provided.
 
+Each game's card is the library's (**All games**): the same size, its cover
+on top — from the cover collection by its serial, cached once found; a disc
+stands in until then — the platform in its corner, the name and the serial
+and size under it. The game's dialog shows the cover too, and so does its
+card in the Queue tab while it is converted, sent and installed. While it is
+on its way, the step's ring sits over the cover with a bar along its bottom,
+and the line under the name says the step and how far it is; when it is over
+(the package made, sent or installed) the ring turns green with a ✓. Every
+game picture in the app has one of a few sizes (a card in a grid, a place on
+the library's home, a picture in a row, the large one of a details dialog).
+
 | Item | Does |
 |---|---|
-| ‹ | Back to the consoles. |
-| Folder chip | Changes the games folder. |
-| ⟳ | Looks again. |
 | Game card | Opens the game's dialog. |
-| ☐ on a card | Selects it; with several selected, **Continue…** opens one dialog for all. |
+| ○ on a card (or Ctrl/Shift+click) | Selects it; with several selected, **Continue…** opens one dialog for all. |
 
 ### Game dialog
 
@@ -191,36 +574,273 @@ packages are saved (**Change…**).
 | Button | Does | Needs |
 |---|---|---|
 | **Convert only** | Makes the package in the output folder. | Nothing (no console). |
-| **Convert and install** | Makes it, sends it over FTP to `/data/OrbisLinkFPKG/` on the console (made if missing), installs it, then deletes that copy. The package stays in the output folder. | FTP of the console in use; the installer for the last step (the queue waits for it). |
+| **Convert and install** | Makes it, sends it over FTP to the folder chosen under *On the console* (made if missing) and installs it. A PS4 installs it from this PC and the copy there is then deleted; a PS5 installs it from where it was put, and the copy stays until you delete it. The package stays in the output folder. | FTP of the console in use; the installer for the last step (the queue waits for it). |
 | **Send and install** | Shown instead when the package was made before and *Use the existing package* is chosen: skips the conversion. | Same as above. |
 | **Send disc file** | Sends the disc image itself over FTP. | FTP. |
+
+**On the console:** where the package goes — **Its memory**
+(`/data/OrbisLinkFPKG/`), a **USB drive** (`/mnt/usb0/OrbisLinkFPKG/`) or the
+**Extended storage** (`/mnt/ext0/OrbisLinkFPKG/`). The dialog asks the
+console which drives it has, and marks *not found* the one that shows
+nothing (still selectable: an empty drive shows nothing too). The choice is
+kept in the settings.
 
 Without a console connected, the dialog says so, the buttons that send are
 off, and **Convert only** still works.
 
+### What the console takes, and from where
+
+| You have | What happens | From |
+|---|---|---|
+| A PS4 package (`.pkg`, fake-signed) | Installed by the installer: Remote Package Installer on a PS4, etaHEN's DPI v2 on a PS5 (PS4 packages on a PS5 need etaHEN with kstuff). | This PC (*Install directly*), or a copy on the console: its memory, a USB drive, the extended storage (PS5: **Install on the console** in the Files tab, or *Send and install*). |
+| A PS1/PS2 disc (`.iso`, `.bin/.cue`, `.img`) | Converted here into a PS4 package, then as above. The image itself is not installable; *Send disc file* only copies it. | Same. |
+| A PS5 game as a folder, or as an image (`.ffpkg`, `.exfat`, `.ffpfs`) | Not installed: ShadowMountPlus mounts it and puts it on the home screen. Copy it over FTP into a folder it looks in. | `/data/homebrew`, `/mnt/usb0`–`/mnt/usb7` and their `homebrew` folders, `/mnt/ext0`, `/mnt/ext1` and theirs (ShadowMountPlus's own list, first level of sub-folders). |
+| A homebrew app from the store | Its folder goes to `/data/homebrew`; ShadowMountPlus registers it. | The Homebrew store page. |
+
 ### Conversion card (Queue tab)
 
 Stages: waiting → (emulator files the first time) → cover → converting →
-signing → sending → installing → installed. Each of Convert / Send / Install
-has its own bar; ✕ cancels while it runs and removes the card when it is
-over; ⟲ retries a failed send or install; 📂 opens the output folder.
+signing → sending → installing → installed. Each step asked for has its own
+bar — Convert alone for *Convert only*; Convert and Send for a disc of the
+console put back without installing; Convert, Send and Install otherwise —
+and under them, while one moves bytes, its speed and the time left. Done
+(package ready, on the console, installed), the card is green. ✕ cancels
+while it runs and removes the card when it is over; ⟲ retries a failed send
+or install; 📂 opens the output folder.
 
 ### How a package is made
 
 PS2 discs exactly as easy-ps2-fpkg makes them: the "Jak v2" emulator as it
 comes, its config with the game's serial, its own `param.sfo` with the game's
 IDs and name, the official cover by serial (else the emulator's art), the disc
-as `image/disc01.iso`. PS1 discs as PS Classics fPKG Builder does.
+as `image/disc01.iso`. A PS2 game on CD kept as a raw `.bin` (with its
+`.cue`: 2352 bytes a sector) goes in as the ISO inside it — 2048 bytes of
+each sector, taken while the package is built, the `.bin` left as it is: the
+emulator reads only an ISO, and crashes (CE-34878-0) on the raw image. PS1
+discs as PS Classics fPKG Builder does.
+
+## Save vault
+
+A place on this PC with a copy of every save, to put back whatever a console
+loses and to take a save from one console to another of the same PSN
+account (a PS4 game's save goes from a PS4 to a PS5 and back). It needs the
+console's FTP (GoldHEN, etaHEN); without it, the page shows what the PC
+holds. Backing up only reads the console; sending writes the save where the
+console keeps it.
+
+Opening the page reads a console — the one in use, or another picked in the
+header: every user, every game with saves, and each save with its icon, its
+name, what the game wrote about it (chapter, level, percentage…) where the
+console lets that be read, its size and where it stands:
+
+| Badge | Means |
+|---|---|
+| ✓ On the PC | The console's save is the one backed up (or the copy sent there). |
+| ↺ Changed since the backup | The console's save is not the PC's: the game wrote to it after the last backup, or it is that console's own save of that name. |
+| ↓ The PC has a newer one | The console has the copy of an earlier backup; a newer one came from another console. **Back up** leaves it out (it would put the earlier save over the newer one): send the PC's copy instead. |
+| ⇧ Not backed up | Only on the console. |
+| USB On a USB drive · On the console's USB drive | Only on a USB drive the PS4 copied it to (below): not on the console, not backed up. |
+| 🗄 Only on the PC | Not on this console: it lost it, or it was never there (another console's). |
+
+| Item | Does |
+|---|---|
+| Console chip (header) | The console whose saves are shown. With more than one console, a click lists them all (with PS4/PS5, and "no FTP" for those whose FTP does not answer) to show another one's saves. |
+| **Back up all to PC** | Backs up every save that is not backed up or changed, in one click. |
+| **Send what's missing** | Sends back every save this console had and lost (see below). |
+| Owners | One chip per owner — the PSN account (PSID) — named after the Account ID kept in the app, else the console's name for its user (`username.dat`), else the PSID; or one per console user whose PSID is not known yet. **Link…** says which of the Account IDs kept in the app (Settings → Account IDs) a console user is. Most of the time it is not needed: a console user's PSID is read from the console's own list of saves, and from the saves themselves where the console lets them be read. A save whose PSID is still not known asks for the link when it is backed up, then goes. With one owner chosen, everything on the page is that owner's. |
+| Filters | All · Not backed up (on the console, or only on a USB drive) · Changed (and older) · Only on the PC. |
+| Click on a save · **Select all** · **Select <n>** (each game) | Selects; the top strip then offers **Back up to PC**, **Send to <console>** and **Delete…** for the selection. **Select all** selects every save shown, whatever was selected before; once they all are, it is **Select none** and clears the selection. **Select <n>** beside a game's name does the same for that game's saves (**Unselect <n>** once they all are), keeping the rest of the selection. |
+| **Send to <console>** | Named after the console it sends to: the one shown, or another picked with the arrow next to it (only consoles whose FTP answers). Always asks first, naming the console and its type: the game has to be closed. For each owner, it shows who gets the saves there: the user of that console with the same PSID. When none is known, it lists that console's users whose PSID is not known, to say which one it is (kept from then on). Each save replaces that user's copy with the latest backup and is checked to have arrived whole (an error otherwise); one the console does not list is also added to its list of saves (below). On a PS5, a PS4 game's saves are those of its PS4 version (CUSA); its PS5 version keeps saves of its own. |
+| **Delete…** | From the PC only (it warns when a save is not on the console, as the PC's may be its only copy). |
+| Folder chip · ⚙ | Opens the folder on the PC · changes it. |
+| ⟳ | Reads the console again. |
+
+PS1/PS2 games converted to packages keep their memory cards as ordinary
+PS4 saves, so they are in the vault like any other game.
+
+The vault is laid out as the PS4 lays out the saves it copies to a USB
+drive:
+
+```
+<vault>/PS4/SAVEDATA/<PSID>/<game>/<save>       the encrypted image
+<vault>/PS4/SAVEDATA/<PSID>/<game>/<save>.bin   its key
+<vault>/.vault/<PSID>/<game>/<save>/            names, dates, icon, the 4 backups before,
+                                                and which console users have which copy
+```
+
+The PSID is the owner's PSN account in 16 hex digits, as the PS4 names it.
+One save of a game is one save whatever console it is on: the PS4's and the
+PS5's copies of it are the same backup. Saves copied in by hand from a PS4's
+USB drive (its `PS4` folder into the vault folder) show up as well.
+
+**USB drives.** Saves the PS4 copied to a USB drive (*Settings → Application
+Saved Data Management → Copy to USB Storage Device*, which writes the same
+`PS4/SAVEDATA/<PSID>/<game>` layout) are looked for too: on the console's
+own drives (`/mnt/usb0`–`usb7`, over FTP) and on every drive of this PC with
+a `PS4/SAVEDATA` folder at its root. One that is nowhere else shows *On a USB
+drive* (or *On the console's USB drive*) and counts as not backed up. The
+drive is only read: **Back up** copies the save into the vault folder chosen
+in the header, always; **Send to <console>** backs it up there first, then
+sends it. A save that is also on the console is backed up from the console.
+A vault folder that is itself on a USB drive is not read twice.
+
+A game's name, for saves that do not carry it, comes from the console's
+copy of the game's `param.sfo` (`/system_data/priv/appmeta`, then
+`/user/appmeta`); a game no longer installed shows its ID. Backups
+made by earlier versions move to this layout once their PSID is known.
+
+Sending a save a console does not list: each console keeps a list of each
+user's saves (`/system_data/savedata/<user>/db/user/savedata.db`, SQLite —
+a PS5 keeps its list of PS4 saves there too), and a save whose files are
+there but has no row in it is not shown. So, after sending the files, the
+app reads that list, adds the missing rows — the same row Apollo Save Tool
+adds when it creates a save: game, save, names, size in 32 KiB blocks,
+owner's account and user — checks the result with SQLite and writes it
+back, reading it again to make sure it is exactly the edited one (otherwise
+the console's own goes back). A row already there is only no longer marked
+broken. The list as the console had it is kept first in
+`<vault>/.vault/console-lists/<user>/` (the last 5). If a save does not show
+yet, restart the console. A PS5 user that never had a PS4 save has no such
+list yet: start a PS4 game there once and save, then send again.
+
+What the consoles allow, and why the page works this way:
+
+- A save is two files on the console, `sdimg_<name>` (the encrypted image,
+  with the save's own param.sfo inside) and `<name>.bin` (its key); the
+  system's own copy of them (`sce_bu_<name>`) is not kept.
+- The game open on the console in use (Remote Play's discovery says which)
+  is left alone: a save copied while its game writes it comes out
+  corrupted, either way.
+- A save counts as on the console only with its own image and key: with
+  only the system's copies (`sce_bu_`) left, the console shows it broken,
+  and it is offered for sending back.
+- Saves are kept as the console has them: encrypted, for the account they
+  came from. They go only to a console user of that account (the same PSID),
+  on any console.
+
+## Homebrew store
+
+The apps of every store turned on, shown together:
+
+| Store | What it has | Checked by | Installs as |
+|---|---|---|---|
+| **homebrew.page** (built in) | PS5 homebrew apps, the catalog ProsperoStore reads | Its signature (Ed25519, either of the two keys the catalog publishes) and the SHA-256 of each of its files; a catalog older than one already seen is refused | The app's folder, on a jailbroken PS5 (etaHEN's FTP on, kstuff and ShadowMountPlus running) |
+| **PKG-Zone** (built in) | PS4 homebrew packages, some for the PS5 too: the store the PS4's Homebrew Store reads | The MD5 the store gives for its database (`api.php?db_check_hash=true`), and a package's MD5 when the store has one; nothing signs them | A package, downloaded to this PC and installed through the queue on the console in use |
+| A store the user adds | Any Homebrew Store laid out as PKG-Zone's (`store.db`, `api.php`, the packages' addresses) | The same | The same |
+
+An app in more than one store is one card with each store's name below it as
+a tag; installing it asks which store to take it from (only those whose copy
+goes on the console in use). When a store does not answer, the copy of it
+kept from last time is shown, and the header (its tooltip) and the Stores
+window say so. The Homebrew Stores answer only to their own app's user agent,
+which the app sends. Icons are downloaded once and kept; a Homebrew Store's
+are asked for one every two seconds at most, as those stores count the
+requests.
+
+The apps are always in order of downloads, the most downloaded first —
+whatever filter or search is on. A Homebrew Store says how many times each app
+was downloaded one app at a time (`download.php?tid=<ID>&check=true`, as its
+own app asks; the database's column for it is not kept up to date), so the
+counts are asked for one every three seconds, in the background, and kept on
+this PC for a week (`downloads.json` beside the store's database). The first
+time, the order forms as they come, and a line under the header says how far
+it got; a store that refuses (PKG-Zone answers an error page when asked too
+often) is left alone for three minutes, and after a third refusal the rest wait
+for the next reading. homebrew.page does not count downloads: its apps (and any
+app no store counted) come after the counted ones, by name.
+
+| Item | Does |
+|---|---|
+| Console chip (header) | The console apps go to: the one in use. With several, a click lists them (with PS4/PS5, "no FTP"); picking another makes it the console in use. |
+| Search · chips | Search by name, author or title ID · **PS4** / **PS5**: only the apps for that console (with how many; a click again shows both), together with the other chips · All (how many, for the console picked), by kind (apps, games, tools, emulators, media, themes, mods…), **Installed**, **Updates**, **On this PC**. |
+| **On this PC** | The app archives (`.zip`) in a folder of this PC (Downloads until another is chosen with **Change…**): each with its name, title ID, version, size and file, whether the PS5 has it (and an older version), and **Install** / **Update** / **Install again**; a ZIP that is not an app says why. **Install a file…** takes any archive. They install the way the catalog's do (staging folder, 777, `/data/homebrew/<TITLE ID>`, ShadowMountPlus), but being the user's own files nothing checks them against the catalog. |
+| Sliders (header) · **Stores** | Every store: its name, address, kind and how many apps it has, why it could not be read; a switch shows or leaves out its apps; the user's own have 🗑. **Mirror…** on homebrew.page's row: a mirror of the catalog of the user's own, tried before homebrew.page and its mirror (**Built-in addresses** goes back to those alone); whatever it serves is checked against the catalog's signature as always, so a mirror cannot change the apps. **Add a store**: an address (and a name, else its host) is looked at first — a Homebrew Store is added with its apps; a copy of homebrew.page's catalog becomes its mirror; anything else is said so. |
+| A card | Icon, name, and beside it **PS4** (blue) / **PS5** (white): the consoles what its stores hand out runs on (homebrew.page's folders: the PS5; a package: where its store says, the PS5 only when the PS5 build is that same package); author, version, size, how many times it was downloaded (⤓ 2.7M; the exact number in its tooltip), **Installed** / **Update** / **Coming soon**, or why it does not go on this console (**For the PS5**, **For the PS4**); the stores it is in, as tags. A click opens it. |
+| The app's window | What it is (description), version, size, title ID, the consoles it is for (**PS4** / **PS5**) and how many times it was downloaded, date, licence; **In the stores**: each store's copy — an app folder or a package, its version and size, the PS4 firmware it needs, and why it does not go on this console when it does not (a PS4 package the store does not say runs on the PS5; a PS5 build of its own that the store does not hand out at the package's address); for the catalog's, **On the console**: whether it stays in the app sandbox, uses the network, starts helper payloads (as the catalog's scan found), **What's new**, and links to its source code, catalog page and release. |
+| **Install on <console>** · **Update on <console>** · **Install again** | From the store picked (asked when more than one can). An **app folder**: downloads the app's ZIP, checks it against the catalog's SHA-256 (a mismatch is not installed), copies its folder to a staging folder on the PS5 (`/data/orbislink/staging`), sets everything in it to 777 (the console starts an app only then: CE-107750-0 otherwise; a server that cannot is said so), then moves it to `/data/homebrew/<TITLE ID>`. An update keeps the copy it replaces in `/data/orbislink/previous/<TITLE ID>`, and what the user put in the app's folder — games, saves, settings: what the new archive does not have — moves on into the new folder, as copying the new version over the old one would keep it. ShadowMountPlus puts it on the home screen: at once when its API lets the network in, else at its next scan (every 15 seconds). A **package**: downloaded to the store's folder of this PC ("Name_TITLEID_v1.00.pkg"; a download that breaks goes on from where it stopped), checked against the store's MD5 when it has one and to be a package at all, then queued to install on the console in use like any other package; one already downloaded whole is used again. |
+| After an install | ShadowMountPlus is asked to look at once (its API); when its API does not let the network in, ShadowMountPlus is **started again**: its file on the console (etaHEN's payloads or plugins, the autoloader, PLDMGR), else the payload library's, goes to the ELF loader (9021). A new ShadowMountPlus asks the one running to stop and scans everything at once. |
+| **Not on the home screen?** (an installed app folder) | Reads ShadowMountPlus's log on the PS5 (`/data/shadowmount/debug.log`, over FTP) and says what it did with the app: registered it, saw it while it was still changing, could not read its `param.json`, had it refused by the console (with the code), gave up after failed tries, kept another copy with the same title ID, or never saw it (not running, or no log); the log lines about it are shown. It also asks ShadowMountPlus to look again, retrying what it gave up on — when its API lets the network in. Every install asks the same. |
+| **Remove** (an app folder) | Asks ShadowMountPlus to uninstall it (when its API lets the network in), then deletes its folder. Its saves stay. Without the API, its icon goes when ShadowMountPlus removes missing games, or by deleting it on the console. A package's app is uninstalled from the library (Installed on the console). |
+| Installed, updates | App folders: those in `/data/homebrew` of the PS5. Packages: what the console has in `/user/app`, its version from the system's copy of its `param.sfo`; a store's newer version is an **Update**. |
+| Progress | On the card, at the foot of the app's window and as a card in the Queue tab: the stage (downloading, copying to the PS5, putting it in place, starting ShadowMountPlus again), the percentage, the speed over the last seconds, how much of how much and the time left. The copy counts the app's files as they reach the PS5. A package's card says **Downloading**, then **In the queue**; the queue's own card follows its install. |
+| **Cancel** | Stops an install or a download under way, mid-file too; nothing in place changes. |
+
+The app's folder in the ZIP is the one with `sce_sys/param.json` and
+`eboot.bin`, at the top or up to three folders down (a release folder with a
+data folder and the licences beside it is common); the shallowest wins, then
+the one named after the title ID, and two that tie are refused. What is
+beside it in the archive is not installed — as ProsperoStore does.
+
+No package is built for homebrew.page's apps: on the PS5 the app folder is the
+install, which is why apps the catalog offers only as disc images are listed
+but not installed. Building a PS5 fake package (fpkg) is not something any
+open tool does yet.
+
+## Payloads
+
+What a jailbroken console keeps in its payload and plugin folders, read
+over its FTP, for the console in use or another picked in the header. What
+the page shows follows the console: a PS4 is GoldHEN's, a PS5 etaHEN's and
+the autoloader's.
+
+| Console | Folder | What it is | Starts by itself when switched on |
+|---|---|---|---|
+| PS4 | `/data/GoldHEN/payloads` | `goldhen.bin` is GoldHEN itself: the PPPwn loader starts it at every boot (marked **the jailbreak**; deleting it asks twice as clearly). | — |
+| PS4 | `/data/payloads` | The payload library Payload Guest lists. | — |
+| PS4 | `/data/GoldHEN/plugins` | `.prx` plugins. | Loads with every game: its line in `[default]` of `/data/GoldHEN/plugins.ini` says `=true` (the per-game sections are left alone). |
+| PS5 | `/data/etaHEN/payloads`, `/data/etaHEN/plugins` | etaHEN's payloads (`.elf`) and plugins (`.plugin`). | Starts when etaHEN loads: a `<name>.auto_start` file sits next to it, which is how etaHEN marks it. |
+| PS5 | `/data/ps5_autoloader` | The autoloader's files. | Listed in its `autoload.txt` (one file name per line, in order; `!<ms>` lines wait between them). Switching one off takes its wait out with it. |
+| PS5 | `/data/pldmgr/payloads` | PLK's Payload Manager (PLDMGR): a folder per payload, a `.json` of its details beside each file (added files get a folder of their own; deleting or renaming takes the `.json` along). | Listed in `/data/pldmgr/autoload.txt`, the same format: it starts when the Payload Manager loads. |
+
+| Item | Does |
+|---|---|
+| Console chip (header) | The console shown; with several, a click lists them (those without FTP say so). |
+| **Send from this PC…** | Runs a payload from this PC on the console now, without copying it: choose the file, the port is filled in for it (PS4: GoldHEN's BinLoader, 9090, on in GoldHEN's settings; PS5: ELF to 9021 — etaHEN's loader or elfldr —, `.bin` to the exploit's 9020, `.lua` 9026, `.jar` 9025, `.js` 50000) and can be changed. |
+| ⟳ | Reads the console again. |
+| **Add…** (each folder) | Copies files from this PC into it; a folder the console does not have yet is made. |
+| Switch (each file) | Whether it starts by itself, as the table above says. |
+| ▶ | Runs that payload now: fetched from the console and sent to its loader port. |
+| ⬇ · ✎ · 🗑 | Downloads it to this PC's downloads folder · renames it (its auto-start follows: the marker, its line in `autoload.txt` or `plugins.ini`) · deletes it, with its auto-start, after asking. |
+| **Settings files** · **Edit** | `/data/GoldHEN/plugins.ini` (PS4); `/data/etaHEN/config.ini`, `/data/ps5_autoloader/autoload.txt`, `/data/pldmgr/autoload.txt` and `/data/pldmgr/pldmgr_config.txt` (PS5), opened as text; **Save on the console** writes it back (a file not there yet is made). |
+| **What the console answered** | What a payload sent prints, as the PS5's ELF loader passes it back (GoldHEN's BinLoader says nothing); **Clear** empties it. |
+| **Order and waits…** (the autoloader, PLDMGR) | The autoload list as steps: ↑ ↓ change the order, *wait … ms* is the pause before that one (`!<ms>` in the file; 1000 is one second), ✕ takes it out of the list, **Add a file from the folder** puts one at the end. **Save on the console** writes the list back; comment lines in it stay at the top. |
+
+A PLDMGR payload's version, from its `.json`, shows beside its name. Under
+each file, what it does: the payload library's description when it is one of
+its payloads, else what is known of it (GoldHEN's own plugins, and the
+payloads people keep on a PS4 and a PS5: GoldHEN, etaHEN, kstuff, the FTP
+servers, ps4debug, app2usb, the dumpers, the update blockers…), else what
+kind of file it is and which loader takes it. A description cut short shows
+whole in its tooltip.
+
+Without FTP the page says so; payloads from this PC can still be sent.
+
+### Library (PS5)
+
+The community's PS5 payloads: the list PLK's Payload Manager reads
+(itsPLK/ps5-payloads-mirror), each payload's latest release mirrored, with
+its SHA-256 and where it comes from. The list is read when the tab first
+opens (⟳ reads it again) and kept: when the site does not answer, the last
+one is shown and said so. A payload is downloaded once to this PC and used
+only if its SHA-256 matches the list.
+
+| Item | Does |
+|---|---|
+| Search · chips | By name or description · All, by category, **Installed**, **Updates**. |
+| A row | Name, version, description, category and date; **Installed**, or **Update: v1.10 → v1.11** when a copy on the console is older (its version from PLDMGR's `.json`, else from its file name). *in …* says which folders have it. |
+| ↗ | Its author's page. |
+| ▶ | Runs it now, without installing it: downloaded (or this PC's copy) and sent to the loader port for it (ELF 9021, `.bin` 9020). What it prints shows above the list. |
+| **Install…** · **Update…** · **Install again…** | Puts it in a folder on the console: etaHEN's payloads, the autoloader or PLDMGR (in PLDMGR, in a folder of its name with the same `.json` PLDMGR writes). An older copy in that folder is replaced, and whether it started by itself carries over (its marker, or its place in `autoload.txt`). Needs FTP. |
 
 ## Settings
 
 | Section | Holds |
 |---|---|
 | Consoles | Saved consoles: name, IP, type; add / remove. |
-| Account IDs (PSID) | PSN accounts for Remote Play registration. |
-| Console in use | Which console; FTP port, user, upload folder, connections, advanced mode (protected system folders); installer port and install options; local HTTP server. |
+| Account IDs (PSID) | PSN accounts for Remote Play: name, Account ID and its own **Remote Play PIN** (optional: 4 digits, the account's passcode, sent when the console asks for it; 8 digits, the pairing PIN, filled in when the account registers — the console shows a new one each time). Each row says which consoles the account is registered on. Editing one account's PIN never changes another's. |
+| Console in use | Which console; FTP port, user, upload folder, connections, advanced mode (protected system folders); installer port and install options; local HTTP server. While the address is typed the console is checked; when FTP answers on another port than the typed one, a line says which, with **Use port N**. |
 | Remote Play | Resolution, frame rate, bitrate, hardware decoding, rumble, touchpad from the mouse, full screen on connect. |
-| Personalisation | The app's colours, on top of the theme picked in the top bar: accent, jailbreak (GoldHEN gold), available, checking, error, window background, panels, text. A click on a colour opens a picker (square, hue strip, hex code, suggestions); ↺ puts the theme's colour back. **Saved looks**: give the theme and colours in use a name to keep them; **Apply** brings one back, 🗑 deletes it. Changes show at once. |
+| Personalisation | The app's colours, on top of the theme picked in the top bar: accent, jailbreak (GoldHEN gold), available, checking, error, window background, panels, text. A click on a colour opens a picker (square, hue strip, hex code, suggestions); ↺ puts the theme's colour back. **Saved looks**: give the theme and colours in use a name to keep them; **Apply** brings one back (it is then the one ✨ in the top bar brings), 🗑 deletes it. Changes show at once. |
 | General | Language, theme, updates (channel: stable or testing), advanced options. |
 
 ## What needs what
@@ -233,6 +853,23 @@ as `image/disc01.iso`. PS1 discs as PS Classics fPKG Builder does.
 | Install directly | yes | — | yes | — |
 | Files tab (browsing also works while an upload runs) | yes | yes | — | — |
 | Remote Play | yes | — | — | yes |
+| Save vault: back up, send to a console | yes | yes | — | — |
+| Save vault: see or delete what the PC holds | no | — | — | — |
+| Homebrew store: look at the apps | no (internet) | — | — | — |
+| Homebrew store: install, update, remove an app folder (also from an archive of this PC) | a PS5 | yes | — | — |
+| Homebrew store: install a store's package | yes (the console in use) | as for any package | yes (waits for it) | — |
+| Library: uninstall a game or its update | a PS4 | yes | Remote Package Installer | — |
+| Payloads: see, add, rename, delete, auto-start, edit settings | yes | yes | — | — |
+| Payloads: run one now | yes | to run one from the console | — | — |
+| Payloads library: look, run one now | internet | — | — | — |
+| Library: this PC's places and USB drives, their covers, search | no (internet for disc covers) | — | — | — |
+| Library: the console's places; put on the home screen, run | yes | yes | — | — |
+| Library: install a package, convert and install a disc | yes | yes | yes (waits for it) | — |
+| Library: only convert a console disc (the package stays in its folder) | yes | yes | — | — |
+| Library: only pack a PS4 app folder of this PC | no | — | — | — |
+| Library: what the console has installed; copy it to this PC | yes | yes | — | — |
+| Library: pack and install a PS4 app folder of this PC | yes | yes | yes (waits for it) | — |
+| Payloads library: install, update | yes | yes | — | — |
 
 ## Where it lives in the code
 
@@ -240,11 +877,16 @@ as `image/disc01.iso`. PS1 discs as PS Classics fPKG Builder does.
 |---|---|
 | Window, top bar, side panel, drop handling | `qml/orbislink/Main.qml` |
 | Consoles page, Remote Play stage, keyboard map dialog | `StreamArea.qml`, `ConsoleCard.qml`, `AddConsoleCard.qml`, `KeyboardMap.qml` |
-| Queue and conversion cards | `TransferPanel.qml`, `StageLoader.qml` |
+| Queue and conversion cards | `TransferPanel.qml`, `JobCard.qml` (store and library cards), `StageLoader.qml` |
 | Files tab | `FtpBrowser.qml`, `FtpFolderPicker.qml` |
 | Games page | `GamesView.qml`, `GameCard.qml`, `GameDialog.qml` |
+| Library (`shelf`) | `ShelfView.qml` (the view, keys, details, places), `SourceCard.qml`, `FolderCard.qml`, `TitleCard.qml` (the game card), `ShelfTile.qml` (what they share), `CoverArt.qml`, `DiscPlaceholder.qml`; `src/orbislink/qt/shelf_controller.*` (places, USB drives, moving around, the work thread, watching, search, filter, sort, buttons); `src/orbislink/library/shelf.*` (reading a folder of this PC or of the console, telling things apart, pictures, folder previews, the cache); `src/orbislink/library/installed_titles.*` (what the console has installed, and the names of its copies); `src/orbislink/library/pkg_organizer.*` and `OrganizeDialog.qml` (organising a folder's packages); the copies themselves in `src/orbislink/qt/library_controller.*` |
+| Console library (`consoleLibrary`) | `src/orbislink/qt/library_controller.*` (the console's `OrbisLinkFPKG` folders and the buttons for things on the console), `src/orbislink/library/console_library.*` (kinds, drives, `param.json`/`param.sfo`, reads in blocks), `src/orbislink/qt/shadowmount_control.*` (asking ShadowMountPlus to scan, or starting it again) |
 | Everything the QML calls (`app`) | `src/orbislink/qt/app_controller.*` |
 | Games (`games`) | `src/orbislink/qt/games_controller.*` |
+| Save vault (`saves`) | `SavesView.qml`, `src/orbislink/qt/saves_controller.*`, `src/orbislink/saves` |
+| Homebrew store (`store`) | `StoreView.qml`, `src/orbislink/qt/store_controller.*` (the stores together, installing from each), `src/orbislink/store` (homebrew.page's catalog `store_catalog.*`, a Homebrew Store's addresses and checks `hb_store.*`), `src/orbislink/qt/hb_store_db.*` (reading a `store.db`, through Qt Sql) |
+| Payloads (`payloads`) | `PayloadsView.qml`, `src/orbislink/qt/payloads_controller.*`, `src/orbislink/payloads/payload_layout.*` (folders, `autoload.txt`, `plugins.ini`), `src/orbislink/net/payload_sender.*` (to a loader port) |
 | Remote Play (`stream`) | `src/orbislink/qt/stream_controller.*` |
 | Queue, FTP, installer | `src/orbislink/queue`, `ftp`, `installer` |
 | Package builder, disc scanner, Classics files | `src/orbislink/fpkg` |

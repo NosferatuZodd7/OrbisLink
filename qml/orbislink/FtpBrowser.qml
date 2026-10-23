@@ -8,10 +8,9 @@ import QtQuick.Layouts
 Item {
     id: root
 
-    // Last folder chosen in "Download to…".
     // The uploads going into the folder on screen: they show in the list
-    // right away, faded, with a thin progress bar, and become normal rows
-    // once they arrive (the list refreshes itself then).
+    // right away, with how far they are (a percentage and a thin bar), and
+    // become normal rows once they arrive (the list refreshes itself then).
     readonly property string shownDirectory: {
         var path = app.ftpPath
         while (path.length > 1 && path.charAt(path.length - 1) === "/")
@@ -35,19 +34,93 @@ Item {
         return false
     }
 
-    function beingUploaded(name) {
+    // The upload of a file of this folder still on its way, or null.
+    function uploadOf(name) {
         for (var i = 0; i < uploadsHere.length; ++i)
             if (uploadsHere[i].name === name)
-                return true
-        return false
+                return uploadsHere[i]
+        return null
     }
 
-    // A file or a whole folder to the PC (empty destination: the desktop).
-    function download(path, name, isDirectory, destination) {
-        if (isDirectory)
-            app.ftpDownloadFolder(path, name, destination)
+    // Several rows picked — with their round mark, Ctrl+click or Shift+click
+    // — to download, move or delete together: path → true. Another folder
+    // starts with none.
+    property var picked: ({})
+    readonly property int pickedCount: Object.keys(picked).length
+    readonly property bool picking: pickedCount > 0
+    property int pickAnchor: -1
+    function togglePick(index, path) {
+        var next = Object.assign({}, picked)
+        if (next[path])
+            delete next[path]
         else
-            app.ftpDownload(path, name, destination)
+            next[path] = true
+        picked = next
+        pickAnchor = index
+    }
+    function pickRange(index) {
+        var from = pickAnchor < 0 ? index : Math.min(pickAnchor, index)
+        var to = pickAnchor < 0 ? index : Math.max(pickAnchor, index)
+        var next = Object.assign({}, picked)
+        for (var i = from; i <= to; ++i) {
+            var row = app.files.get(i)
+            if (row.path)
+                next[row.path] = true
+        }
+        picked = next
+        pickAnchor = index
+    }
+    function pickAll() {
+        var next = {}
+        for (var i = 0; i < app.files.count; ++i) {
+            var row = app.files.get(i)
+            if (row.path)
+                next[row.path] = true
+        }
+        picked = next
+    }
+    function clearPicks() {
+        picked = ({})
+        pickAnchor = -1
+    }
+    // The rows picked, as the list has them now.
+    function pickedRows() {
+        var rows = []
+        for (var i = 0; i < app.files.count; ++i) {
+            var row = app.files.get(i)
+            if (picked[row.path] === true)
+                rows.push(row)
+        }
+        return rows
+    }
+    Connections {
+        target: app
+        function onFtpPathChanged() { root.clearPicks() }
+    }
+    // What left the list (deleted, moved) is not picked any more.
+    Connections {
+        target: app.files
+        function onModelReset() {
+            if (!root.picking)
+                return
+            var still = {}
+            for (var i = 0; i < app.files.count; ++i) {
+                var path = app.files.get(i).path
+                if (root.picked[path] === true)
+                    still[path] = true
+            }
+            root.picked = still
+        }
+    }
+
+    // Files and folders to the PC: each one a card in the queue, where it
+    // can be followed, stopped and taken up again (empty destination: the
+    // desktop).
+    function download(rows, destination) {
+        if (rows.length === 0)
+            return
+        consoleLibrary.download(rows, destination)
+        notice.show(qsTr("%n item(s) added to the queue.", "", rows.length))
     }
 
     property url lastDestination
@@ -95,6 +168,8 @@ Item {
                 color: Theme.text
                 font.pixelSize: 12
                 selectByMouse: true
+                selectionColor: Theme.alpha(Theme.accent, 0.35)
+                selectedTextColor: Theme.text
                 background: Rectangle {
                     color: Theme.controlFill
                     border.color: pathField.activeFocus ? Theme.accent : Theme.border
@@ -102,11 +177,14 @@ Item {
                 }
                 onAccepted: app.ftpNavigate(text)
             }
+            // While the folder is being read, its icon turns: the rows stay
+            // where they are, with nothing over them.
             StyledToolButton {
                 iconName: "refresh"
                 iconSize: 16
                 implicitWidth: 32
                 implicitHeight: 32
+                spinning: app.ftpBusy
                 onClicked: app.ftpRefresh()
                 enabled: !app.ftpBusy
             }
@@ -204,24 +282,44 @@ Item {
                 delegate: ItemDelegate {
                     id: row
                     width: files.width
-                    // A file still arriving is listed like the others; its
-                    // progress is in the queue.
-                    readonly property bool arriving: root.beingUploaded(model.name)
+                    // A file still on its way here: how far it is.
+                    readonly property var upload: root.uploadOf(model.name)
+                    readonly property bool arriving: upload !== null
+                    // Being deleted: the row says so where it is.
+                    readonly property bool deleting: app.ftpDeleting.indexOf(model.path) >= 0
+                    readonly property bool picked: root.picked[model.path] === true
                     height: 34
+                    opacity: deleting ? 0.55 : 1.0
+                    Behavior on opacity { NumberAnimation { duration: Theme.fast } }
                     // The Basic style pads 12px all round, which in a 34px row
                     // squeezes the content into a sliver and leaves it off the
                     // lit box. The row sets its own.
                     topPadding: 0
                     bottomPadding: 0
-                    leftPadding: 12
+                    leftPadding: 8
                     rightPadding: 6
 
-                    // The row under the mouse lights up; folders open with a
-                    // double click, so they get the hand.
+                    // The row under the mouse lights up, a picked one stays lit;
+                    // an upload draws its progress along the bottom.
                     background: Rectangle {
                         radius: 8
-                        color: row.hovered ? Theme.controlHover : "transparent"
+                        color: row.picked ? Theme.alpha(Theme.accent, 0.14)
+                             : row.hovered ? Theme.controlHover : "transparent"
+                        border.width: row.picked ? 1 : 0
+                        border.color: Theme.alpha(Theme.accent, 0.45)
                         Behavior on color { ColorAnimation { duration: Theme.fast } }
+                        Rectangle {
+                            visible: row.arriving
+                            anchors.left: parent.left
+                            anchors.bottom: parent.bottom
+                            anchors.leftMargin: 8
+                            anchors.bottomMargin: 2
+                            height: 2
+                            radius: 1
+                            width: (parent.width - 16) * Math.max(0, Math.min(1, (row.upload ? row.upload.percent : 0) / 100))
+                            color: Theme.accent
+                            Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+                        }
                     }
                     HoverHandler {
                         cursorShape: model.isDirectory ? Qt.PointingHandCursor : Qt.ArrowCursor
@@ -258,6 +356,29 @@ Item {
 
                     contentItem: RowLayout {
                         spacing: 8
+
+                        // The round mark that picks the row: under the mouse,
+                        // and on every row while some are picked.
+                        Rectangle {
+                            Layout.preferredWidth: 18
+                            Layout.preferredHeight: 18
+                            radius: 9
+                            opacity: root.picking || row.hovered ? 1.0 : 0.0
+                            Behavior on opacity { NumberAnimation { duration: Theme.fast } }
+                            color: row.picked ? Theme.accent : "transparent"
+                            border.width: 1.5
+                            border.color: row.picked ? Theme.accent : Theme.alpha(Theme.textSecondary, 0.7)
+                            Icon {
+                                anchors.centerIn: parent
+                                visible: row.picked
+                                name: "check"
+                                size: 11
+                                strokeWidth: 3
+                                color: "#FFFFFF"
+                            }
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: root.togglePick(index, model.path) }
+                        }
 
                         Item {
                             Layout.fillWidth: true
@@ -297,10 +418,22 @@ Item {
                                     dragged = false
                                 }
                                 // One click opens a folder; on a file it shows
-                                // what can be done with it.
+                                // what can be done with it. With Ctrl it picks
+                                // the row, with Shift every row up to it; while
+                                // some are picked, a click picks too.
                                 onClicked: (mouse) => {
                                     if (dragged)
                                         return
+                                    if (mouse.button === Qt.LeftButton) {
+                                        if (mouse.modifiers & Qt.ShiftModifier) {
+                                            root.pickRange(index)
+                                            return
+                                        }
+                                        if ((mouse.modifiers & Qt.ControlModifier) || root.picking) {
+                                            root.togglePick(index, model.path)
+                                            return
+                                        }
+                                    }
                                     if (mouse.button === Qt.LeftButton && model.isDirectory)
                                         app.ftpNavigate(model.path)
                                     else
@@ -365,22 +498,41 @@ Item {
                         }
 
                         Text {
-                            text: row.preparing ? qsTr("getting it…") : row.arriving ? qsTr("arriving…") : model.sizeText
-                            color: row.preparing || row.arriving ? Theme.accent : Theme.textMuted
+                            text: row.deleting ? qsTr("deleting…")
+                                : row.preparing ? qsTr("getting it…")
+                                : row.arriving ? (row.upload.sending ? Math.floor(row.upload.percent) + "%" : qsTr("waiting"))
+                                : model.sizeText
+                            color: row.deleting ? Theme.error
+                                 : row.preparing || row.arriving ? Theme.accent : Theme.textMuted
                             font.pixelSize: 11
+                            font.weight: row.arriving ? Font.DemiBold : Font.Normal
                         }
                         StyledToolButton {
                             iconName: "more"
                             iconSize: 14
                             implicitWidth: 26; implicitHeight: 26
+                            enabled: !row.deleting
                             onClicked: rowMenu.popupFor(model.path, model.name, model.isDirectory, model.size, model.sizeText, row)
                         }
-                        StyledToolButton {
-                            iconName: "trash"
-                            iconSize: 14
-                            danger: true
-                            implicitWidth: 26; implicitHeight: 26
-                            onClicked: confirmDelete.open(model.path, model.isDirectory, model.name)
+                        // Deleting: the row's own wheel, where its bin was.
+                        Item {
+                            implicitWidth: 26
+                            implicitHeight: 26
+                            Spinner {
+                                anchors.centerIn: parent
+                                visible: row.deleting
+                                size: 14
+                                color: Theme.error
+                            }
+                            StyledToolButton {
+                                anchors.fill: parent
+                                visible: !row.deleting
+                                iconName: "trash"
+                                iconSize: 14
+                                danger: true
+                                onClicked: confirmDelete.openRows([{ path: model.path, name: model.name,
+                                                                     isDirectory: model.isDirectory }])
+                            }
                         }
                     }
                 }
@@ -393,22 +545,93 @@ Item {
                     font.pixelSize: 12
                 }
 
-                BusyIndicator {
+                Column {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.topMargin: 6
+                    visible: app.ftpBusy && files.count === 0
+                    Repeater {
+                        model: parent.visible ? 8 : 0
+                        SkeletonRow {
+                            required property int index
+                            width: parent.width
+                            compact: true
+                            delay: index * 60
+                        }
+                    }
+                }
+            }
+
+            // A word that something went to the queue, for a moment.
+            Rectangle {
+                id: notice
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 10
+                width: Math.min(parent.width - 24, noticeText.implicitWidth + 28)
+                height: 30
+                radius: 15
+                color: Theme.menuFill
+                border.width: 1
+                border.color: Theme.alpha(Theme.accent, 0.5)
+                opacity: 0
+                visible: opacity > 0
+                Behavior on opacity { NumberAnimation { duration: Theme.normal } }
+                function show(text) {
+                    noticeText.text = text
+                    opacity = 1
+                    noticeTimer.restart()
+                }
+                Text {
+                    id: noticeText
                     anchors.centerIn: parent
-                    running: app.ftpBusy
-                    visible: app.ftpBusy
+                    width: parent.width - 20
+                    horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight
+                    color: Theme.text
+                    font.pixelSize: 12
+                }
+                Timer {
+                    id: noticeTimer
+                    interval: 2600
+                    onTriggered: notice.opacity = 0
                 }
             }
         }
 
-        // Transfer in progress (from the console to the PC).
+        // What the folder holds, and the room left on its disk when the
+        // console's server says.
+        Text {
+            Layout.fillWidth: true
+            readonly property var space: app.ftpSpace
+            visible: files.count > 0
+            text: {
+                var parts = []
+                if ((space.folders || 0) > 0)
+                    parts.push(qsTr("%n folder(s)", "", space.folders))
+                if ((space.files || 0) > 0)
+                    parts.push(qsTr("%n file(s)", "", space.files) + " · " + app.queue.bytesText(space.bytes || 0))
+                if (space.free !== undefined && space.free >= 0)
+                    parts.push(qsTr("%1 free on this disk").arg(app.queue.bytesText(space.free)))
+                return parts.join("  ·  ")
+            }
+            color: Theme.textMuted
+            font.pixelSize: 11
+            elide: Text.ElideRight
+        }
+
+        // A move between two disks of the console (through this PC), or a
+        // file brought here to be dragged out: one at a time, here.
+        // Downloads go to the queue.
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
             visible: app.downloadActive
 
             Text {
-                text: qsTr("Downloading %1").arg(app.downloadName)
+                text: app.downloadMoving ? qsTr("Moving %1").arg(app.downloadName)
+                                         : qsTr("Downloading %1").arg(app.downloadName)
                 color: Theme.textMuted
                 font.pixelSize: 11
                 elide: Text.ElideMiddle
@@ -433,25 +656,114 @@ Item {
             }
         }
 
+        // What can be done with the rows picked, all at once: in place of the
+        // new folder's field, so the rows never move under the mouse.
+        Rectangle {
+            Layout.fillWidth: true
+            visible: root.picking
+            implicitHeight: 38
+            radius: 12
+            color: Theme.alpha(Theme.accent, 0.10)
+            border.width: 1
+            border.color: Theme.alpha(Theme.accent, 0.4)
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 12
+                anchors.rightMargin: 4
+                spacing: 2
+
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("%n selected", "", root.pickedCount)
+                    color: Theme.text
+                    font.pixelSize: 12
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                }
+                StyledToolButton {
+                    readonly property bool all: root.pickedCount === app.files.count
+                    iconName: all ? "square" : "square-check"
+                    iconSize: 15
+                    implicitWidth: 30; implicitHeight: 30
+                    ToolTip.visible: hovered
+                    ToolTip.text: all ? qsTr("Clear the selection") : qsTr("Select all")
+                    onClicked: all ? root.clearPicks() : root.pickAll()
+                }
+                StyledToolButton {
+                    iconName: "download"
+                    iconSize: 15
+                    implicitWidth: 30; implicitHeight: 30
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Download to the desktop")
+                    onClicked: {
+                        root.download(root.pickedRows(), "")
+                        root.clearPicks()
+                    }
+                }
+                StyledToolButton {
+                    iconName: "save"
+                    iconSize: 15
+                    implicitWidth: 30; implicitHeight: 30
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Download to…")
+                    onClicked: {
+                        destinationDialog.rows = root.pickedRows()
+                        destinationDialog.open()
+                    }
+                }
+                StyledToolButton {
+                    iconName: "folder-open"
+                    iconSize: 15
+                    implicitWidth: 30; implicitHeight: 30
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Move to…")
+                    onClicked: {
+                        var paths = root.pickedRows().map(function (row) { return row.path })
+                        folderPicker.openForMany(paths, qsTr("%n item(s)", "", paths.length), app.ftpPath)
+                    }
+                }
+                StyledToolButton {
+                    iconName: "trash"
+                    iconSize: 15
+                    danger: true
+                    implicitWidth: 30; implicitHeight: 30
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Delete on the console")
+                    onClicked: confirmDelete.openRows(root.pickedRows())
+                }
+                StyledToolButton {
+                    iconName: "close"
+                    iconSize: 15
+                    implicitWidth: 30; implicitHeight: 30
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Clear the selection")
+                    onClicked: root.clearPicks()
+                }
+            }
+        }
+
         RowLayout {
             Layout.fillWidth: true
+            visible: !root.picking
             spacing: 6
-            TextField {
+            StyledField {
                 id: newFolderName
                 Layout.fillWidth: true
-                placeholderText: qsTr("new folder")
-                color: Theme.text
+                implicitHeight: 34
                 font.pixelSize: 12
-                background: Rectangle {
-                    color: Theme.controlFill
-                    border.color: newFolderName.activeFocus ? Theme.accent : Theme.border
-                    radius: 10
+                placeholderText: qsTr("New folder name")
+                onAccepted: if (text.trim().length > 0 && !app.ftpBusy) create()
+                function create() {
+                    app.ftpMakeDirectory(text.trim())
+                    text = ""
                 }
             }
             StyledButton {
                 text: qsTr("Create")
-                enabled: newFolderName.text.length > 0 && !app.ftpBusy
-                onClicked: { app.ftpMakeDirectory(newFolderName.text); newFolderName.text = "" }
+                iconName: "folder-plus"
+                enabled: newFolderName.text.trim().length > 0 && !app.ftpBusy
+                onClicked: newFolderName.create()
             }
         }
     }
@@ -474,6 +786,9 @@ Item {
             targetSizeText = sizeText
             targetRow = rowItem
             popup()
+        }
+        function targetRows() {
+            return [{ path: targetPath, name: targetName, isDirectory: targetIsDirectory, size: targetSize }]
         }
 
         // Room above and below so the highlight of the first and last
@@ -574,16 +889,26 @@ Item {
             onTriggered: app.setFtpUploadDirectory(rowMenu.targetPath)
         }
         StyledMenuItem {
+            // A package already on a PS5 installs from there, as it is.
+            text: qsTr("Install on the console")
+            iconName: "package"
+            visible: app.installsFromConsole && !rowMenu.targetIsDirectory
+                     && rowMenu.targetName.toLowerCase().endsWith(".pkg")
+            height: visible ? implicitHeight : 0
+            onTriggered: app.installFromConsole(rowMenu.targetPath)
+        }
+        StyledMenuItem {
             text: qsTr("Download to the desktop")
             iconName: "download"
-            enabled: !app.downloadActive
-            onTriggered: root.download(rowMenu.targetPath, rowMenu.targetName, rowMenu.targetIsDirectory, "")
+            onTriggered: root.download(rowMenu.targetRows(), "")
         }
         StyledMenuItem {
             text: qsTr("Download to…")
             iconName: "save"
-            enabled: !app.downloadActive
-            onTriggered: destinationDialog.open()
+            onTriggered: {
+                destinationDialog.rows = rowMenu.targetRows()
+                destinationDialog.open()
+            }
         }
         StyledMenuItem {
             text: qsTr("Get it ready to drag")
@@ -615,6 +940,17 @@ Item {
         }
 
         StyledMenuItem {
+            text: qsTr("Select")
+            iconName: "square-check"
+            onTriggered: {
+                for (var i = 0; i < app.files.count; ++i)
+                    if (app.files.get(i).path === rowMenu.targetPath) {
+                        root.togglePick(i, rowMenu.targetPath)
+                        break
+                    }
+            }
+        }
+        StyledMenuItem {
             text: qsTr("Copy the path")
             iconName: "copy"
             onTriggered: app.copyToClipboard(rowMenu.targetPath)
@@ -633,20 +969,23 @@ Item {
             text: qsTr("Delete on the console")
             iconName: "trash"
             danger: true
-            onTriggered: confirmDelete.open(rowMenu.targetPath, rowMenu.targetIsDirectory,
-                rowMenu.targetName)
+            onTriggered: confirmDelete.openRows(rowMenu.targetRows())
         }
     }
 
     FolderDialog {
         id: destinationDialog
+        // What goes there: the rows of the menu, or those picked.
+        property var rows: []
         title: qsTr("Where to save")
         currentFolder: root.lastDestination.length > 0
             ? root.lastDestination
             : "file://" + app.defaultDownloadDirectory()
         onAccepted: {
             root.lastDestination = selectedFolder
-            root.download(rowMenu.targetPath, rowMenu.targetName, rowMenu.targetIsDirectory, selectedFolder)
+            root.download(rows, selectedFolder)
+            if (rows.length > 1)
+                root.clearPicks()
         }
     }
 
@@ -724,15 +1063,27 @@ Item {
     // "Move to…": the console's folders as a tree.
     FtpFolderPicker {
         id: folderPicker
-        onChosen: (path) => app.ftpMove(movingPath, path)
+        onChosen: (path) => {
+            if (movingPaths.length > 0) {
+                app.ftpMoveMany(movingPaths, path)
+                root.clearPicks()
+            } else
+                app.ftpMove(movingPath, path)
+        }
     }
 
     // Deleting on the console always asks first.
     Dialog {
         id: confirmDelete
-        property string targetPath: ""
-        property bool targetIsDirectory: false
-        property string targetName: ""
+        // [{ path, name, isDirectory }]
+        property var targets: []
+        readonly property bool single: targets.length === 1
+        readonly property bool anyFolder: {
+            for (var i = 0; i < targets.length; ++i)
+                if (targets[i].isDirectory)
+                    return true
+            return false
+        }
         parent: Overlay.overlay
         anchors.centerIn: parent
         // Fixed width: without it the dialog sizes itself by the text and the
@@ -741,10 +1092,10 @@ Item {
         modal: true
         padding: 0
 
-        function open(path, isDirectory, name) {
-            targetPath = path
-            targetIsDirectory = isDirectory
-            targetName = name
+        function openRows(rows) {
+            if (rows.length === 0)
+                return
+            targets = rows
             visible = true
         }
 
@@ -759,7 +1110,8 @@ Item {
         }
 
         header: DialogHeader {
-            title: confirmDelete.targetIsDirectory ? qsTr("Delete the folder on the console?") : qsTr("Delete on the console?")
+            title: !confirmDelete.single ? qsTr("Delete %n item(s) on the console?", "", confirmDelete.targets.length)
+                 : confirmDelete.anyFolder ? qsTr("Delete the folder on the console?") : qsTr("Delete on the console?")
             dialog: confirmDelete
         }
 
@@ -791,7 +1143,12 @@ Item {
                 spacing: 6
                 Text {
                     Layout.fillWidth: true
-                    text: confirmDelete.targetName
+                    // One name, or the first few.
+                    text: {
+                        var names = confirmDelete.targets.slice(0, 4).map(function (t) { return t.name })
+                        var more = confirmDelete.targets.length - names.length
+                        return names.join(", ") + (more > 0 ? " " + qsTr("and %n more", "", more) : "")
+                    }
                     color: Theme.text
                     font.pixelSize: 14
                     font.weight: Font.DemiBold
@@ -801,10 +1158,14 @@ Item {
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: confirmDelete.targetIsDirectory
-                        ? qsTr("The folder and everything inside it are deleted from the console. "
-                               + "This cannot be undone.")
-                        : qsTr("The file is deleted from the console. This cannot be undone.")
+                    text: confirmDelete.anyFolder
+                        ? (confirmDelete.single
+                           ? qsTr("The folder and everything inside it are deleted from the console. "
+                                  + "This cannot be undone.")
+                           : qsTr("They are deleted from the console, folders with everything inside them. "
+                                  + "This cannot be undone."))
+                        : confirmDelete.single ? qsTr("The file is deleted from the console. This cannot be undone.")
+                        : qsTr("The files are deleted from the console. This cannot be undone.")
                     color: Theme.textSecondary
                     font.pixelSize: 13
                     wrapMode: Text.WordWrap
@@ -833,7 +1194,9 @@ Item {
                     solid: true
                     minimumWidth: 110
                     onClicked: {
-                        app.ftpDelete(confirmDelete.targetPath, confirmDelete.targetIsDirectory)
+                        app.ftpDeleteMany(confirmDelete.targets)
+                        if (!confirmDelete.single)
+                            root.clearPicks()
                         confirmDelete.close()
                     }
                 }

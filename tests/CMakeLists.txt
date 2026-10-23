@@ -11,6 +11,12 @@ set(ORBISLINK_TESTS
 	test_console_probe
 	test_update
 	test_pcm_convert
+	test_save_vault
+	test_payload
+	test_library
+	test_shelf
+	test_organizer
+	test_cheats
 )
 
 # The Remote Play tests need the stream library.
@@ -50,6 +56,36 @@ if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET Qt6::Multimedia)
 	target_link_libraries(test_pcm_queue PRIVATE orbislink_core Qt6::Core Qt6::Multimedia)
 	target_include_directories(test_pcm_queue PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 	add_test(NAME test_pcm_queue COMMAND test_pcm_queue)
+endif()
+
+# The homebrew store: signed catalog, ZIP apps, install into place.
+if(TARGET orbislink_store)
+	add_executable(test_store test_store.cpp)
+	target_link_libraries(test_store PRIVATE orbislink_store)
+	target_include_directories(test_store PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+	add_test(NAME test_store COMMAND test_store)
+endif()
+
+# A Homebrew Store's database (store.db, SQLite through Qt Sql): what the
+# store page lists from it.
+if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET Qt6::Sql AND TARGET orbislink_store)
+	add_executable(test_hb_store_db
+		test_hb_store_db.cpp
+		${CMAKE_SOURCE_DIR}/src/orbislink/qt/hb_store_db.cpp)
+	target_link_libraries(test_hb_store_db PRIVATE orbislink_store Qt6::Core Qt6::Sql)
+	target_include_directories(test_hb_store_db PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+	add_test(NAME test_hb_store_db COMMAND test_hb_store_db)
+endif()
+
+# Adding a lost save's row to a copy of the PS4's list of saves (SQLite,
+# through Qt Sql): what goes back to the console must be whole.
+if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET Qt6::Sql)
+	add_executable(test_save_database
+		test_save_database.cpp
+		${CMAKE_SOURCE_DIR}/src/orbislink/qt/save_database.cpp)
+	target_link_libraries(test_save_database PRIVATE orbislink_core Qt6::Core Qt6::Sql)
+	target_include_directories(test_save_database PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+	add_test(NAME test_save_database COMMAND test_save_database)
 endif()
 
 # Keyboard as controller: the key swap rules live on the Qt side

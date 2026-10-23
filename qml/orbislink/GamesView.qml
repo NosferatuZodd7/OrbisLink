@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// PS1/PS2 Games: the discs found in a folder of the PC, as cards. A click
-// opens one; the box in a card's corner selects it, and with several
-// selected a bar at the bottom does the same to all of them.
+// Games. All games: the library (ShelfView.qml), every place games can be —
+// the console's folders and drives, this PC's — shown as their covers.
+// Apart from it, the PS1/PS2 converter, for whoever wants it: the discs
+// found in a folder on this PC, as cards; a click opens one, the box in a
+// card's corner selects it, and with several selected a bar at the bottom
+// does the same to all of them.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -14,8 +17,15 @@ Item {
 
     signal back()
 
+    // In the main area, framed as a panel with a way back; over Remote Play
+    // (SectionOverlay) the overlay is the frame, shows the name and closes it.
+    property bool framed: true
+
     // The "path" of each selected game.
     property var selected: []
+    // 0: all games, the console's library; 1: the PS1/PS2 converter (where
+    // the demo discs are).
+    property int tab: typeof demoGames !== "undefined" && demoGames ? 1 : 0
 
     function isSelected(path) { return selected.indexOf(path) >= 0 }
     function toggle(path) {
@@ -49,19 +59,19 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        anchors.leftMargin: Theme.gutter
-        anchors.rightMargin: window.panelShown ? 8 : Theme.gutter
-        anchors.topMargin: 4
-        anchors.bottomMargin: 4
+        anchors.leftMargin: root.framed ? Theme.gutter : 0
+        anchors.rightMargin: !root.framed ? 0 : window.sideShown ? 8 : Theme.gutter
+        anchors.topMargin: root.framed ? 4 : 0
+        anchors.bottomMargin: root.framed ? 4 : 0
         radius: Theme.radius
-        color: Theme.panelFill
-        border.width: 1
+        color: root.framed ? Theme.panelFill : "transparent"
+        border.width: root.framed ? 1 : 0
         border.color: Theme.glassEdge
         clip: true
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 24
+            anchors.margins: root.framed ? 24 : 18
             spacing: 16
 
             // ── header
@@ -69,6 +79,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 12
                 StyledToolButton {
+                    visible: root.framed
                     iconName: "chevron-left"
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Back to the consoles")
@@ -77,14 +88,17 @@ Item {
                 ColumnLayout {
                     spacing: 2
                     Text {
-                        text: qsTr("PS1/PS2 Games")
+                        visible: root.framed
+                        text: qsTr("Games")
                         color: Theme.text
                         font.pixelSize: Theme.fontTitle
                         font.weight: Font.DemiBold
                     }
                     Text {
-                        text: games.gamesFolder.length === 0 ? qsTr("Choose the folder where your disc images are.")
-                              : games.scanning ? games.scanStatus
+                        text: root.tab === 0
+                              ? (shelf.level === "home" ? qsTr("%n place(s)", "", shelf.count)
+                                 : shelf.loading ? qsTr("Reading…") : qsTr("%n item(s)", "", shelf.count))
+                              : games.gamesFolder.length === 0 ? qsTr("Choose the folder where your disc images are.")
                               : games.scanStatus
                         color: Theme.textSecondary
                         font.pixelSize: 12
@@ -93,7 +107,7 @@ Item {
                 Item { Layout.fillWidth: true }
                 // The games folder, as a chip that changes it.
                 StyledButton {
-                    visible: games.gamesFolder.length > 0
+                    visible: root.tab === 1 && games.gamesFolder.length > 0
                     iconName: "folder-open"
                     chip: true
                     text: games.gamesFolder
@@ -103,12 +117,53 @@ Item {
                     onClicked: gamesFolderDialog.open()
                 }
                 StyledToolButton {
-                    visible: games.gamesFolder.length > 0
+                    visible: root.tab === 1 && games.gamesFolder.length > 0
                     iconName: "refresh"
                     enabled: !games.scanning
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Look again")
                     onClicked: games.rescan()
+                }
+            }
+
+            // ── all games | the PS1/PS2 converter, apart: converting is a
+            // choice, not a step
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 14
+                TabBar {
+                    id: placeTabs
+                    Layout.preferredWidth: games.available ? 380 : 190
+                    currentIndex: root.tab
+                    onCurrentIndexChanged: root.tab = currentIndex
+                    padding: 4
+                    spacing: 4
+                    background: Rectangle {
+                        radius: 12
+                        color: Theme.controlFill
+                        border.width: 1
+                        border.color: Theme.glassEdge
+                    }
+                    // Halves, or all of it where this build has no converter.
+                    readonly property real half: (availableWidth - spacing) / 2
+                    StyledTab {
+                        width: games.available ? placeTabs.half : placeTabs.availableWidth
+                        text: qsTr("All games")
+                    }
+                    StyledTab {
+                        visible: games.available
+                        width: games.available ? placeTabs.half : 0
+                        text: qsTr("PS1/PS2 converter")
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    color: Theme.textMuted
+                    font.pixelSize: 12
+                    text: root.tab === 0
+                          ? qsTr("Your games on the console and on this PC, place by place")
+                          : qsTr("Optional: PS1/PS2 discs on this PC made into PS4 packages")
                 }
             }
 
@@ -120,7 +175,7 @@ Item {
                 readonly property bool busy: state_ === "downloading" || state_ === "unpacking"
                 readonly property color tone: state_ === "error" ? Theme.error : Theme.accent
                 Layout.fillWidth: true
-                visible: games.gamesFolder.length > 0 && state_ !== "ready"
+                visible: root.tab === 1 && games.gamesFolder.length > 0 && state_ !== "ready"
                 radius: 14
                 color: Theme.alpha(tone, 0.08)
                 border.width: 1
@@ -184,7 +239,7 @@ Item {
 
             // ── nothing chosen yet: centred in the page, both ways
             Item {
-                visible: games.gamesFolder.length === 0
+                visible: root.tab === 1 && games.gamesFolder.length === 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
@@ -228,9 +283,19 @@ Item {
                 }
             }
 
-            // ── the games: centred, as many to a row as fit
+            // ── the console's library
+            ShelfView {
+                id: shelfView
+                visible: root.tab === 0
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                onVisibleChanged: if (visible) forceActiveFocus()
+            }
+            Binding { target: shelf; property: "active"; value: root.visible && root.tab === 0 }
+
+            // ── the games: as many to a row as fit, as the library lays them out
             Item {
-                visible: games.gamesFolder.length > 0
+                visible: root.tab === 1 && games.gamesFolder.length > 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
@@ -246,50 +311,72 @@ Item {
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-                    Flow {
+                    // The same cards as the library's, in the same grid.
+                    Grid {
                         id: gamesFlow
-                        readonly property int cell: 236 + spacing
-                        readonly property int fits: Math.max(1, Math.floor((gamesScroll.width - 28 + spacing) / cell))
-                        x: Math.round((gamesScroll.width - width) / 2)
+                        readonly property int cell: Theme.gameTile + Theme.gameTileGap
+                        readonly property int fits: Math.max(1, Math.floor((gamesScroll.width - 28) / cell))
+                        x: 14
                         y: 14
-                        width: Math.max(0, Math.min(fits, games.games.length) * cell - spacing)
-                        spacing: 18
+                        columns: fits
 
                         Repeater {
                             model: games.games
-                            GameCard {
+                            Item {
                                 required property var modelData
-                                game: modelData
-                                selected: root.isSelected(modelData.path)
-                                progress: games.progress[modelData.path] || null
-                                onToggle: root.toggle(modelData.path)
-                                onOpen: gameDialog.begin([modelData])
+                                width: gamesFlow.cell
+                                height: Theme.gameTile + Theme.gameTileNames
+                                GameCard {
+                                    id: gameCard
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    game: parent.modelData
+                                    checked: root.isSelected(parent.modelData.path)
+                                    progress: games.progress[parent.modelData.path] || null
+                                    onToggle: root.toggle(parent.modelData.path)
+                                    onOpen: gameDialog.begin([parent.modelData])
+                                }
                             }
                         }
                     }
                 }
 
-                // Looking, or found nothing.
+                // Looking: the shape of the cards about to come.
+                Grid {
+                    id: discSkeletons
+                    visible: games.scanning && games.games.length === 0
+                    readonly property int cell: Theme.gameTile + Theme.gameTileGap
+                    readonly property int fits: Math.max(1, Math.floor(parent.width / cell))
+                    y: 14
+                    columns: fits
+                    Repeater {
+                        model: discSkeletons.visible ? discSkeletons.fits * 2 : 0
+                        Item {
+                            required property int index
+                            width: discSkeletons.cell
+                            height: Theme.gameTile + Theme.gameTileNames
+                            SkeletonTile {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                artSize: Theme.gameTile
+                                delay: (parent.index % discSkeletons.fits) * 90
+                            }
+                        }
+                    }
+                }
+
+                // Found nothing.
                 Column {
                     anchors.centerIn: parent
-                    visible: games.scanning || games.games.length === 0
+                    visible: !games.scanning && games.games.length === 0
                     spacing: 12
-                    BusyIndicator {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        visible: games.scanning
-                        running: games.scanning
-                    }
                     Icon {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        visible: !games.scanning
                         name: "disc"
                         size: 44
                         color: Theme.alpha(Theme.textSecondary, 0.7)
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: games.scanning ? qsTr("Looking for games…")
-                                             : qsTr("No PS1 or PS2 discs in this folder.")
+                        text: qsTr("No PS1 or PS2 discs in this folder.")
                         color: Theme.textSecondary
                         font.pixelSize: 13
                     }
@@ -301,7 +388,7 @@ Item {
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
-            anchors.bottomMargin: root.selected.length > 0 ? 20 : -height
+            anchors.bottomMargin: root.selected.length > 0 && root.tab === 1 ? 20 : -height
             Behavior on anchors.bottomMargin { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
             width: Math.min(parent.width - 48, bar.implicitWidth + 32)
             height: 60

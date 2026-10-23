@@ -56,4 +56,13 @@ Item {
         loops: Animation.Infinite
         onStopped: icon.rotation = 0
     }
+    // The animator hands back the angle it got to once it has stopped, after
+    // the line above: the icon that takes the spinner's place (a "+" after
+    // "loader") is set upright again a moment later.
+    onSpinningChanged: if (!spinning) upright.restart()
+    Timer {
+        id: upright
+        interval: 120
+        onTriggered: if (!icon.spinning) icon.rotation = 0
+    }
 }

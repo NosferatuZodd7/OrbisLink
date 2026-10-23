@@ -11,6 +11,7 @@
 // them).
 #pragma once
 
+#include <QElapsedTimer>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -27,6 +28,8 @@
 #include <mutex>
 #include <thread>
 
+class QTimer;
+
 namespace orbislink {
 
 class AppController;
@@ -37,6 +40,12 @@ class GamesController : public QObject
 	Q_PROPERTY(bool available READ available CONSTANT)
 	Q_PROPERTY(QString gamesFolder READ gamesFolder NOTIFY foldersChanged)
 	Q_PROPERTY(QString outputFolder READ outputFolder NOTIFY foldersChanged)
+	// Where on the console a game goes to be installed ("internal", "usb",
+	// "ext"), its folder there, and which drives the console has:
+	// { checked, usb, ext } (checked: false until it was asked).
+	Q_PROPERTY(QString storage READ storage NOTIFY foldersChanged)
+	Q_PROPERTY(QString storageFolder READ storageFolder NOTIFY foldersChanged)
+	Q_PROPERTY(QVariantMap drives READ drives NOTIFY drivesChanged)
 	// The emulator files: "missing" (downloaded with the first conversion),
 	// "downloading", "unpacking", "ready" or "error" (assetsMessage says why).
 	Q_PROPERTY(QString assetsState READ assetsState NOTIFY assetsChanged)
@@ -60,6 +69,11 @@ public:
 	bool available() const;
 	QString gamesFolder() const;
 	QString outputFolder() const;
+	QString storage() const;
+	QString storageFolder() const;
+	QVariantMap drives() const { return drives_; }
+	// The folder a game goes to on that storage.
+	static QString folderOn(const QString &storage);
 	QString assetsState() const { return assetsState_; }
 	double assetsPercent() const { return assetsPercent_; }
 	QString assetsMessage() const { return assetsMessage_; }
@@ -73,6 +87,10 @@ public:
 	// Folders come as paths or file:// URLs (what FolderDialog gives).
 	Q_INVOKABLE void setGamesFolder(const QString &folder);
 	Q_INVOKABLE void setOutputFolder(const QString &folder);
+	Q_INVOKABLE void setStorage(const QString &storage);
+	Q_INVOKABLE QString folderFor(const QString &storage) const { return folderOn(storage); }
+	// Asks the console in use over FTP which drives it has (drives).
+	Q_INVOKABLE void checkDrives();
 	Q_INVOKABLE void rescan();
 	// Gets the emulator files now instead of with the first conversion.
 	Q_INVOKABLE void downloadAssets();
@@ -88,7 +106,23 @@ public:
 	Q_INVOKABLE QString existingPackage(const QString &path, const QString &title) const;
 	// The disc files themselves, over FTP, to the folder the file list is in.
 	Q_INVOKABLE void sendToConsole(const QStringList &paths);
+	// A disc that is on the console (its path there): fetched to this PC,
+	// converted, and its package sent back to the same folder and, unless
+	// `install` is false, installed. `platform` ("ps1"/"ps2") is what it was
+	// read as there, for the card.
+	Q_INVOKABLE void convertFromConsole(const QString &remotePath, const QString &title, const QString &platform,
+		bool install = true);
+	// A disc anywhere on this PC (not only in the games folder): converted
+	// and, when asked, sent and installed.
+	Q_INVOKABLE void convertFile(const QString &path, bool install);
+	// A PS4 app or game folder on this PC (what a converter leaves before
+	// packing): made into a package, following its .gp4 when it has one,
+	// and, when asked, sent and installed (library/folder_package.h).
+	Q_INVOKABLE void packFolder(const QString &folder, bool install);
 	Q_INVOKABLE void cancelConversion(const QString &id);
+	// A conversion that failed, was cancelled or was cut short by the app
+	// closing, made again on the same card.
+	Q_INVOKABLE void retryConversion(const QString &id);
 	Q_INVOKABLE void clearFinishedConversions();
 	// Takes a finished conversion's card away.
 	Q_INVOKABLE void removeConversion(const QString &id);
@@ -96,6 +130,9 @@ public:
 	// A folder as FolderDialog wants it (empty: the user's documents).
 	Q_INVOKABLE QUrl folderUrl(const QString &path) const;
 	Q_INVOKABLE QString packageNameFor(const QString &path, const QString &title) const;
+	// A PS1/PS2 game's name from the emulator's title lists ("SLUS20946"),
+	// empty when they are not here yet or do not have it. Any thread.
+	QString classicTitle(const QString &platform, const QString &titleId) const;
 
 signals:
 	void foldersChanged();
@@ -103,21 +140,46 @@ signals:
 	void conversionsChanged();
 	void progressChanged();
 	void assetsChanged();
+	void drivesChanged();
 
 private:
+	// The output folder, made in the documents when none was chosen.
+	void ensureOutputFolder();
 	struct Job;
 	QString toLocalPath(const QString &folder) const;
 	QString assetsFolder() const;
 	// Downloads and unpacks the emulator files unless they are there; one
-	// at a time, from any thread. `progress` gets "download"/"unpack" and a
-	// percentage; returning false cancels.
-	bool ensureAssets(const std::function<bool(const QString &, double)> &progress, QString *error);
+	// at a time, from any thread. `progress` gets "download"/"unpack", a
+	// percentage and the bytes done of all; returning false cancels.
+	bool ensureAssets(const std::function<bool(const QString &, double, uint64_t, uint64_t)> &progress,
+		QString *error);
 	void setAssets(const QString &state, double percent, const QString &message = {});
 	QVariantMap gameByPath(const QString &path) const;
 	void workerLoop();
 	void runJob(const std::shared_ptr<Job> &job);
+	// The end of a job: its state, then the package on its way.
+	void finishJob(const std::shared_ptr<Job> &job, bool ok, const std::string &pkgPath, const std::string &error);
+	bool runPack(const std::shared_ptr<Job> &job, const std::function<void()> &tick, std::string *pkgPath,
+		std::string *error);
+	// On the worker: a job's disc from the console to this PC.
+	bool fetchFromConsole(const std::shared_ptr<Job> &job, const std::function<void()> &tick);
 	void publish();
+	// A progress tick from the worker: published at most every 200 ms, so
+	// the interface (and every card's binding) is not woken hundreds of
+	// times a second.
+	void requestPublish();
+	// The conversions with their package's journey (sending, installing),
+	// as the queue has it.
+	QVariantList withTransfers(QVariantList conversions) const;
+	// The packages made here that are on the console now (installed, or sent
+	// when not installed): deleted from the output folder, unless the
+	// settings keep them. Whether any was.
+	bool dropDeliveredPackages();
 	void updateProgress();
+	// The conversions not finished when the app closes, kept for the next
+	// time (conversions.json beside the settings) and shown then, stopped.
+	void saveUnfinished() const;
+	void loadUnfinished();
 
 	AppController *app_;
 	QString assetsState_;
@@ -138,7 +200,11 @@ private:
 	std::condition_variable wakeup_;
 	std::atomic<bool> stopping_ { false };
 	std::atomic<bool> publishPending_ { false };
+	QElapsedTimer published_;
+	QTimer *publishTimer_ = nullptr;
 	std::thread worker_;
+	std::thread drivesThread_;
+	QVariantMap drives_;
 	int nextId_ = 1;
 };
 

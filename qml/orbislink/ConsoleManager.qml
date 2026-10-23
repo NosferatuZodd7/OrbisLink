@@ -357,8 +357,8 @@ ColumnLayout {
                               ? qsTr("Confirm?") : qsTr("Forget registration")
                         minimumWidth: 90
                         ToolTip.visible: hovered
-                        ToolTip.text: qsTr("Removes this PC's Remote Play registration on this console. "
-                                           + "Connecting again will need a new PIN.")
+                        ToolTip.text: qsTr("Removes this PC's Remote Play registrations on this console, "
+                                           + "every account's. Connecting again will need a new PIN.")
                         onClicked: manager.confirmForget(row.modelData.address, row.registration.hostId)
                     }
                     StyledButton {

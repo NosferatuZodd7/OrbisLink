@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 cmake_minimum_required(VERSION 3.16)
-project(OrbisLink VERSION 1.2.0 LANGUAGES C CXX)
+project(OrbisLink VERSION 1.3.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -54,21 +54,33 @@ if(ORBISLINK_ENABLE_STREAM)
 endif()
 
 add_library(orbislink_core STATIC
+	src/orbislink/cheats/cheats.cpp
 	src/orbislink/common/json.cpp
 	src/orbislink/common/log.cpp
 	src/orbislink/common/pcm_convert.cpp
 	src/orbislink/common/util.cpp
 	src/orbislink/console/console_manager.cpp
 	src/orbislink/ftp/ftp_client.cpp
+	src/orbislink/ftp/remote_move.cpp
 	src/orbislink/http/local_http_server.cpp
 	src/orbislink/installer/error_codes.cpp
 	src/orbislink/installer/rpi_client.cpp
+	src/orbislink/library/console_library.cpp
+	src/orbislink/library/folder_package.cpp
+	src/orbislink/library/installed_titles.cpp
+	src/orbislink/library/pkg_organizer.cpp
+	src/orbislink/library/shelf.cpp
 	src/orbislink/net/http_client.cpp
+	src/orbislink/net/lan_scan.cpp
 	src/orbislink/net/net_utils.cpp
+	src/orbislink/net/payload_sender.cpp
+	src/orbislink/payloads/payload_catalog.cpp
+	src/orbislink/payloads/payload_layout.cpp
 	src/orbislink/net/socket_compat.cpp
 	src/orbislink/pkg/pkg_inspector.cpp
 	src/orbislink/pkg/sfo_parser.cpp
 	src/orbislink/queue/install_queue.cpp
+	src/orbislink/saves/save_vault.cpp
 	src/orbislink/settings/settings_store.cpp
 	src/orbislink/update/sha256.cpp
 	src/orbislink/update/update_checker.cpp
@@ -121,6 +133,29 @@ if(OpenSSL_FOUND)
 	target_link_libraries(orbislink-fpkg PRIVATE orbislink_fpkg)
 endif()
 
+# The PS5 homebrew store: the signed catalog of homebrew.page (Ed25519,
+# through OpenSSL) and its ZIP apps (the inflater of the fpkg library).
+if(TARGET orbislink_fpkg)
+	add_library(orbislink_store STATIC
+		src/orbislink/store/store_catalog.cpp
+		src/orbislink/store/hb_store.cpp
+		src/orbislink/store/shadowmount_log.cpp
+		src/orbislink/store/store_installer.cpp
+		src/orbislink/store/zip_reader.cpp
+	)
+	target_include_directories(orbislink_store PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+	target_link_libraries(orbislink_store PUBLIC orbislink_core orbislink_fpkg OpenSSL::Crypto)
+	target_compile_definitions(orbislink_store PUBLIC ORBISLINK_HAS_STORE=1)
+	if(MSVC)
+		target_compile_options(orbislink_store PRIVATE /W4)
+	else()
+		target_compile_options(orbislink_store PRIVATE -Wall -Wextra)
+		if(ORBISLINK_WARNINGS_AS_ERRORS)
+			target_compile_options(orbislink_store PRIVATE -Werror)
+		endif()
+	endif()
+endif()
+
 target_compile_definitions(orbislink_core PUBLIC
 	ORBISLINK_REPOSITORY_STRING="${ORBISLINK_REPOSITORY}")
 target_include_directories(orbislink_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -157,7 +192,9 @@ if(ORBISLINK_BUILD_CLI)
 endif()
 
 if(ORBISLINK_BUILD_GUI)
-	set(ORBISLINK_QT_COMPONENTS Core Gui Qml Quick QuickControls2)
+	# Sql (its SQLite driver) edits a copy of the PS4's list of saves when a
+	# save it lost is put back.
+	set(ORBISLINK_QT_COMPONENTS Core Gui Qml Quick QuickControls2 Sql)
 	if(ORBISLINK_ENABLE_STREAM)
 		# The Remote Play video goes through QML's VideoOutput: Qt converts
 		# the YUV on the GPU, instead of us doing it on the CPU.
@@ -173,7 +210,15 @@ if(ORBISLINK_BUILD_GUI)
 		qt_add_executable(orbislink-gui
 			src/orbislink/qt/main.cpp
 			src/orbislink/qt/app_controller.cpp
+			src/orbislink/qt/cheats_controller.cpp
+			src/orbislink/qt/cover_provider.cpp
 			src/orbislink/qt/games_controller.cpp
+			src/orbislink/qt/saves_controller.cpp
+			src/orbislink/qt/payloads_controller.cpp
+			src/orbislink/qt/shadowmount_control.cpp
+			src/orbislink/qt/library_controller.cpp
+			src/orbislink/qt/shelf_controller.cpp
+			src/orbislink/qt/save_database.cpp
 			src/orbislink/qt/queue_model.cpp
 			src/orbislink/qt/ftp_model.cpp
 			src/orbislink/qt/startup.cpp
@@ -196,9 +241,23 @@ if(ORBISLINK_BUILD_GUI)
 		target_compile_definitions(orbislink-gui PRIVATE
 			ORBISLINK_VERSION_STRING="${ORBISLINK_VERSION_NAME}")
 		target_link_libraries(orbislink-gui PRIVATE
-			orbislink_core Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2)
+			orbislink_core Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::Sql)
 		if(TARGET orbislink_fpkg)
 			target_link_libraries(orbislink-gui PRIVATE orbislink_fpkg)
+		endif()
+		# The desktop's notifications on Linux and the like (org.freedesktop.Notifications).
+		# Optional: without Qt D-Bus the window flashes instead.
+		if(UNIX AND NOT APPLE)
+			find_package(Qt6 COMPONENTS DBus QUIET)
+			if(TARGET Qt6::DBus)
+				target_link_libraries(orbislink-gui PRIVATE Qt6::DBus)
+				target_compile_definitions(orbislink-gui PRIVATE ORBISLINK_HAS_DBUS=1)
+			endif()
+		endif()
+		if(TARGET orbislink_store)
+			target_sources(orbislink-gui PRIVATE src/orbislink/qt/store_controller.cpp
+				src/orbislink/qt/hb_store_db.cpp)
+			target_link_libraries(orbislink-gui PRIVATE orbislink_store)
 		endif()
 		if(ORBISLINK_ENABLE_STREAM)
 			target_link_libraries(orbislink-gui PRIVATE orbislink_stream Qt6::Multimedia)

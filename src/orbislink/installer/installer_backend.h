@@ -15,6 +15,9 @@ struct InstallerResult
 	std::string message;      // message already worded for the user
 	long httpStatus = 0;
 	std::string rawBody;      // raw reply, for the log/diagnostics
+	// Nothing answered: the installer is not running (not a refusal). The
+	// queue then waits for it instead of failing the task.
+	bool unavailable = false;
 
 	static InstallerResult success() { InstallerResult r; r.ok = true; return r; }
 	static InstallerResult failure(const std::string &message, uint32_t code = 0)
@@ -61,7 +64,7 @@ struct TaskProgress
 	bool finished() const { return lengthTotal > 0 && transferredTotal >= lengthTotal; }
 };
 
-// Sub-tipos de tarefa aceites por /api/find_task (README do instalador).
+// Task sub-types /api/find_task takes (the installer's README).
 enum class TaskSubType { Game = 6, AdditionalContent = 7, Patch = 8, License = 9 };
 
 // Abstract interface (§5.4): lets the installer be swapped without touching the UI.
@@ -95,6 +98,14 @@ public:
 	virtual InstallerResult uninstallPatch(const std::string &titleId) = 0;
 	virtual InstallerResult uninstallAdditionalContent(const std::string &contentId) = 0;
 	virtual InstallerResult uninstallTheme(const std::string &contentId) = 0;
+
+	// Whether an install it starts can be followed (taskProgress and the
+	// task commands). An installer that only starts installs (etaHEN's
+	// DPI v2) is followed by what the PC serves.
+	virtual bool followsTasks() const { return true; }
+	// Whether it can install a package already on the console, by its path
+	// there (the PS5's installers can; the PS4's takes only http://).
+	virtual bool installsFromConsole() const { return false; }
 };
 
 } // namespace orbislink

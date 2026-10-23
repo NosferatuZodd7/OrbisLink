@@ -27,14 +27,81 @@ ApplicationWindow {
     // Whether the side panel is on screen; without it the page takes the
     // window's right gutter, so it lines up with the top bar.
     readonly property bool panelShown: panelVisible && panelAllowed && !streamFullscreen
-                                         || games.conversions.length > 0
-    // What the main area shows: the consoles ("home") or the PS1/PS2 games.
-    property string view: typeof demoGames !== "undefined" && demoGames ? "games" : "home"
+    // The panel closed while jobs go on: a narrow column with them instead,
+    // until they are done.
+    readonly property bool railShown: !panelShown && !streamFullscreen && transferPanel.busy
+    readonly property bool sideShown: panelShown || railShown
+    // What the main area shows: the consoles ("home"), "games", "store",
+    // "saves" or "payloads".
+    property string view: typeof demoView !== "undefined" && demoView.length > 0
+                          ? (demoView === "store-local" ? "store"
+                             : demoView === "payloads-library" ? "payloads" : demoView)
+                          : typeof demoGames !== "undefined" && demoGames ? "games" : "home"
     readonly property string panelLockReason: qsTr("This console only offers Remote Play: it has "
         + "neither FTP nor the remote installer running (a jailbreak adds them).")
     // Full screen for the stream: hides the top bar and the side panel,
     // and the window takes up the whole screen.
     property bool streamFullscreen: false
+
+    // Remote Play's picture on screen: a page opened then shows over it
+    // (SectionOverlay), so the game stays in sight; otherwise it takes the
+    // main area, as always.
+    readonly property bool demoSectionOn: typeof demoSection !== "undefined" && demoSection.length > 0
+    readonly property bool streamOnScreen: (demoSectionOn || typeof stream !== "undefined" && stream !== null
+                                            && stream.streaming) && view === "home" && !streamFullscreen
+    // The page over the picture ("games", "store", "saves", "payloads"), or "".
+    property string overSection: ""
+    onStreamOnScreenChanged: if (!streamOnScreen) overSection = ""
+    // The keyboard goes with what is in front: the page while it is open,
+    // the console again once it closes.
+    onOverSectionChanged: {
+        if (overSection.length > 0)
+            sectionOverlay.forceActiveFocus()
+        else
+            streamArea.focusPicture()
+    }
+    // A page's button: over the picture while it plays, in the main area
+    // otherwise; the same button again closes it.
+    function openSection(name) {
+        if (streamOnScreen) {
+            overSection = overSection === name ? "" : name
+            return
+        }
+        overSection = ""
+        view = view === name ? "home" : name
+    }
+    // A page, open (over the picture while it plays), whatever was before.
+    function showSection(name) {
+        if (streamOnScreen)
+            overSection = name
+        else
+            view = name
+    }
+    // A page's own way back: out of the overlay, or back to the consoles.
+    function closeSection() {
+        if (overSection.length > 0)
+            overSection = ""
+        else
+            view = "home"
+    }
+    function sectionTitle(name) {
+        switch (name) {
+        case "games": return qsTr("Games")
+        case "store": return qsTr("Homebrew store")
+        case "saves": return qsTr("Save vault")
+        case "payloads": return qsTr("Payloads")
+        }
+        return ""
+    }
+    function sectionIcon(name) {
+        switch (name) {
+        case "games": return "disc"
+        case "store": return "store"
+        case "saves": return "archive"
+        case "payloads": return "zap"
+        }
+        return ""
+    }
 
     function setStreamFullscreen(isActive) {
         if (streamFullscreen === isActive)
@@ -115,53 +182,45 @@ ApplicationWindow {
                 anchors.rightMargin: 12
                 spacing: 10
 
-                // A narrow window squeezes the bar instead of pushing its
-                // right end out: 1 — the services become dots and the page
-                // buttons icons; 2 — the console's name and address go too
-                // (the console chip still shows it). It widens again only
-                // with room to spare, so it never flickers between the two.
-                property int squeeze: 0
-                readonly property real saving1: remotePlayDot.labelWidth + ftpDot.labelWidth
-                    + installerDot.labelWidth + gamesText.width + 8
-                    + (backButton.visible ? backText.width + 8 : 0)
-                readonly property real saving2: consoleInfo.implicitWidth + spacing + 2
+                // A narrow window drops the console's name and address on the
+                // left (the console chip still shows it); they come back only
+                // with room to spare, so it never flickers.
+                property bool tight: false
                 function fit() {
-                    var need = implicitWidth
-                    if (need > width + 0.5 && squeeze < 2)
-                        squeeze += 1
-                    else if (squeeze === 2 && need + saving2 + 16 <= width)
-                        squeeze = 1
-                    else if (squeeze === 1 && need + saving1 + 16 <= width)
-                        squeeze = 0
+                    if (!tight && implicitWidth > width + 0.5)
+                        tight = true
+                    else if (tight && implicitWidth + consoleInfo.implicitWidth + spacing + 18 <= width)
+                        tight = false
                 }
                 onWidthChanged: Qt.callLater(fit)
                 onImplicitWidthChanged: Qt.callLater(fit)
                 Component.onCompleted: Qt.callLater(fit)
-                TextMetrics { id: gamesText; font.pixelSize: 12; font.weight: Font.Medium; text: qsTr("PS1/PS2 Games") }
-                TextMetrics { id: backText; font.pixelSize: 12; font.weight: Font.DemiBold; text: qsTr("Back to Remote Play") }
 
-                // The app's symbol as the console's avatar.
+                // The app's symbol as the console's avatar: its own colours on
+                // a quiet disc, big enough to read.
                 Rectangle {
                     Layout.alignment: Qt.AlignVCenter
                     implicitWidth: 38
                     implicitHeight: 38
                     radius: 19
-                    color: Theme.accentFill
+                    color: Theme.controlFill
                     border.width: 1
-                    border.color: Theme.alpha(Theme.accent, 0.35)
+                    border.color: Theme.glassEdge
                     Image {
                         anchors.centerIn: parent
                         source: "qrc:/icons/mark.png"
-                        sourceSize.width: 48
-                        sourceSize.height: 48
-                        width: 24
-                        height: 24
+                        sourceSize.width: 64
+                        sourceSize.height: 64
+                        width: 32
+                        height: 32
+                        smooth: true
+                        mipmap: true
                     }
                 }
 
                 ColumnLayout {
                     id: consoleInfo
-                    visible: barRow.squeeze < 2
+                    visible: !barRow.tight
                     spacing: 1
                     Layout.leftMargin: 2
                     Text {
@@ -180,69 +239,90 @@ ApplicationWindow {
 
                 Item { Layout.fillWidth: true }
 
-                // Away from a Remote Play session that is still running: one
-                // click goes back to the picture.
-                StyledButton {
-                    id: backButton
-                    readonly property bool live: typeof stream !== "undefined" && stream !== null
-                                                 && stream.streaming
-                    visible: live && window.view !== "home"
-                    text: barRow.squeeze > 0 ? "" : qsTr("Back to Remote Play")
-                    iconName: "gamepad"
-                    chip: true
-                    primary: true
-                    implicitHeight: 36
-                    ToolTip.visible: hovered
-                    ToolTip.text: barRow.squeeze > 0 ? qsTr("Back to Remote Play") + " — " + qsTr("The session is still running")
-                                                     : qsTr("The session is still running")
-                    onClicked: window.view = "home"
-                }
-
-                // PS1/PS2 games: a page of its own, in place of the consoles.
-                StyledButton {
-                    visible: games.available
-                    text: barRow.squeeze > 0 ? "" : qsTr("PS1/PS2 Games")
-                    iconName: "disc"
-                    chip: true
-                    primary: window.view === "games"
-                    implicitHeight: 36
-                    ToolTip.visible: hovered
-                    ToolTip.text: (barRow.squeeze > 0 ? qsTr("PS1/PS2 Games") + " — " : "")
-                                  + (window.view === "games" ? qsTr("Back to the consoles")
-                                     : qsTr("Find PS1 and PS2 discs on this PC, convert them into packages and install them on the console"))
-                    onClicked: window.view = window.view === "games" ? "home" : "games"
-                }
-                Item { implicitWidth: 6 }
-
-                // The console everything goes to.
+                // ── What is: the console everything goes to, and its services.
                 ConsoleChip {
                     onShowConsoles: window.view = "home"
                 }
-
-                ServiceIndicator {
-                    id: remotePlayDot
-                    compact: barRow.squeeze > 0
-                    label: qsTr("Remote Play")
-                    state_: app.remotePlayState
-                    hint: app.remotePlayHint
-                }
-                ServiceIndicator {
-                    id: ftpDot
-                    compact: barRow.squeeze > 0
-                    label: qsTr("FTP")
-                    state_: app.ftpState
-                    hint: app.ftpHint
-                }
-                ServiceIndicator {
-                    id: installerDot
-                    compact: barRow.squeeze > 0
-                    label: qsTr("Installer")
-                    state_: app.installerState
-                    hint: app.installerHint
+                BarGroup {
+                    ServiceIndicator {
+                        label: qsTr("Remote Play")
+                        iconName: "gamepad"
+                        state_: app.remotePlayState
+                        hint: app.remotePlayHint
+                    }
+                    ServiceIndicator {
+                        label: qsTr("FTP")
+                        state_: app.ftpState
+                        hint: app.ftpHint
+                    }
+                    ServiceIndicator {
+                        label: qsTr("Installer")
+                        iconName: "package"
+                        state_: app.installerState
+                        hint: app.installerHint
+                    }
                 }
 
-                Item { implicitWidth: 6 }
+                BarDivider {}
 
+                // ── Where to go: the pages, as icons.
+                BarGroup {
+                    // Away from a Remote Play session that is still running: one
+                    // click goes back to the picture.
+                    StyledToolButton {
+                        readonly property bool live: typeof stream !== "undefined" && stream !== null
+                                                     && stream.streaming
+                        visible: live && window.view !== "home"
+                        iconName: "play"
+                        active: true
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Back to Remote Play") + " — " + qsTr("The session is still running")
+                        onClicked: window.view = "home"
+                    }
+                    StyledToolButton {
+                        iconName: "disc"
+                        active: window.view === "games" || window.overSection === "games"
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Games") + " — "
+                                      + (window.overSection === "games" ? qsTr("Close") : window.view === "games" ? qsTr("Back to the consoles")
+                                         : games.available
+                                         ? qsTr("Every game and app in the console's library, and the PS1/PS2 converter")
+                                         : qsTr("Every game and app in the console's library"))
+                        onClicked: window.openSection("games")
+                    }
+                    StyledToolButton {
+                        visible: typeof store !== "undefined" && store !== null
+                        iconName: "store"
+                        active: window.view === "store" || window.overSection === "store"
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Homebrew store") + " — "
+                                      + (window.overSection === "store" ? qsTr("Close") : window.view === "store" ? qsTr("Back to the consoles")
+                                         : qsTr("Find PS5 homebrew apps and install them on the console"))
+                        onClicked: window.openSection("store")
+                    }
+                    StyledToolButton {
+                        iconName: "archive"
+                        active: window.view === "saves" || window.overSection === "saves"
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Save vault") + " — "
+                                      + (window.overSection === "saves" ? qsTr("Close") : window.view === "saves" ? qsTr("Back to the consoles")
+                                         : qsTr("Back up the console's saves on this PC"))
+                        onClicked: window.openSection("saves")
+                    }
+                    StyledToolButton {
+                        iconName: "zap"
+                        active: window.view === "payloads" || window.overSection === "payloads"
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Payloads") + " — "
+                                      + (window.overSection === "payloads" ? qsTr("Close") : window.view === "payloads" ? qsTr("Back to the consoles")
+                                         : qsTr("See and manage the console's payloads and plugins, and run one now"))
+                        onClicked: window.openSection("payloads")
+                    }
+                }
+
+                BarDivider {}
+
+                // ── Tools.
                 StyledToolButton {
                     iconName: "refresh"
                     ToolTip.visible: hovered
@@ -268,7 +348,13 @@ ApplicationWindow {
                     ToolTip.text: qsTr("Log and diagnostics (Ctrl+L)")
                     onClicked: diagnosticsDialog.open()
                 }
-                ThemeSwitcher {}
+                ThemeSwitcher {
+                    onCustomRequested: {
+                        settingsDialog.loadValues()
+                        settingsDialog.section = 4
+                        settingsDialog.open()
+                    }
+                }
                 StyledToolButton {
                     iconName: "settings"
                     ToolTip.visible: hovered
@@ -284,22 +370,58 @@ ApplicationWindow {
             Layout.fillHeight: true
             spacing: 0
 
-            GamesView {
+            // Each page's place in the main area (the pages themselves are
+            // further down: over Remote Play they move into the overlay).
+            Item {
+                id: gamesSlot
                 visible: window.view === "games"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                onBack: window.view = "home"
             }
-
-            StreamArea {
-                visible: window.view !== "games"
+            Item {
+                id: savesSlot
+                visible: window.view === "saves"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                // Back to the home page: whatever was open on top of the
-                // cards gets out of the way of the console just registered.
-                onRegisteredHere: {
-                    settingsDialog.close()
-                    firstRunWizard.close()
+            }
+            Item {
+                id: payloadsSlot
+                visible: window.view === "payloads"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+            }
+            Item {
+                id: storeSlot
+                visible: window.view === "store"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+            }
+
+            Item {
+                visible: window.view !== "games" && window.view !== "saves" && window.view !== "store"
+                         && window.view !== "payloads"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+
+                StreamArea {
+                    id: streamArea
+                    anchors.fill: parent
+                    // Back to the home page: whatever was open on top of the
+                    // cards gets out of the way of the console just registered.
+                    onRegisteredHere: {
+                        settingsDialog.close()
+                        firstRunWizard.close()
+                    }
+                }
+
+                // A page over the picture, while Remote Play plays.
+                SectionOverlay {
+                    id: sectionOverlay
+                    anchors.fill: parent
+                    section: window.overSection
+                    title: window.sectionTitle(window.overSection)
+                    iconName: window.sectionIcon(window.overSection)
+                    onClosed: window.overSection = ""
                 }
             }
 
@@ -337,9 +459,11 @@ ApplicationWindow {
 
                         // Queue and files as a segmented control.
                         // Without FTP on the console there is only the queue: no tabs.
+                        // With nothing in the queue there is only the file list:
+                        // the queue's tab comes back with its first job.
                         TabBar {
                             id: tabs
-                            visible: !window.ftpAbsent
+                            visible: !window.ftpAbsent && transferPanel.cardCount > 0
                             Layout.fillWidth: true
                             currentIndex: demoTab
                             padding: 4
@@ -361,12 +485,29 @@ ApplicationWindow {
                         StackLayout {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            currentIndex: window.ftpAbsent ? 0 : tabs.currentIndex
+                            currentIndex: window.ftpAbsent ? 0 : transferPanel.cardCount === 0 ? 1 : tabs.currentIndex
 
                             TransferPanel { id: transferPanel }
                             FtpBrowser { }
                         }
                     }
+                }
+            }
+
+            Item {
+                Layout.fillHeight: true
+                // The column itself is 64 wide, with the panel's margins.
+                Layout.preferredWidth: 64 + 8 + Theme.gutter
+                visible: window.railShown
+
+                QueueRail {
+                    anchors.fill: parent
+                    anchors.rightMargin: Theme.gutter
+                    anchors.topMargin: 4
+                    anchors.bottomMargin: 4
+                    anchors.leftMargin: 8
+                    panel: transferPanel
+                    onOpenRequested: window.panelVisible = true
                 }
             }
         }
@@ -407,6 +548,41 @@ ApplicationWindow {
                     font.pixelSize: 12
                 }
             }
+        }
+    }
+
+    // ───────────────────────────── the pages
+    // In their place in the main area, or — over Remote Play — in the overlay.
+    GamesView {
+        parent: window.overSection === "games" ? sectionOverlay.slot : gamesSlot
+        anchors.fill: parent
+        visible: window.view === "games" || window.overSection === "games"
+        framed: window.overSection !== "games"
+        onBack: window.closeSection()
+    }
+    SavesView {
+        parent: window.overSection === "saves" ? sectionOverlay.slot : savesSlot
+        anchors.fill: parent
+        visible: window.view === "saves" || window.overSection === "saves"
+        framed: window.overSection !== "saves"
+        onBack: window.closeSection()
+    }
+    PayloadsView {
+        parent: window.overSection === "payloads" ? sectionOverlay.slot : payloadsSlot
+        anchors.fill: parent
+        visible: window.view === "payloads" || window.overSection === "payloads"
+        framed: window.overSection !== "payloads"
+        onBack: window.closeSection()
+    }
+    Loader {
+        // Only in builds with the store.
+        active: typeof store !== "undefined" && store !== null
+        parent: window.overSection === "store" ? sectionOverlay.slot : storeSlot
+        anchors.fill: parent
+        visible: window.view === "store" || window.overSection === "store"
+        sourceComponent: StoreView {
+            framed: window.overSection !== "store"
+            onBack: window.closeSection()
         }
     }
 
@@ -456,6 +632,10 @@ ApplicationWindow {
     }
     DiagnosticsDialog { id: diagnosticsDialog }
     UploadConflictDialog { id: uploadConflictDialog }
+    ServiceHelpDialog {
+        id: serviceHelpDialog
+        onOpenPayloads: window.showSection("payloads")
+    }
     FirstRunWizard { id: firstRunWizard }
     UpdateDialog { id: updateDialog }
 
@@ -463,6 +643,7 @@ ApplicationWindow {
         target: app
         function onUpdateAvailable(version) { updateDialog.open() }
         function onUploadConflicts(conflicts) { uploadConflictDialog.begin(conflicts) }
+        function onServiceHelp(kind, title, text) { serviceHelpDialog.begin(kind, title, text) }
         // Files were queued: show where they can be followed.
         function onShowPanel(which) {
             window.panelVisible = true
@@ -494,6 +675,28 @@ ApplicationWindow {
         running: typeof demoUpdate !== "undefined" && demoUpdate
         interval: 1500
         onTriggered: { app.loadDemoUpdate(); updateDialog.open() }
+    }
+
+    // A few things of the top bar together, on one soft surface.
+    component BarGroup: Rectangle {
+        default property alias content: groupRow.data
+        implicitWidth: groupRow.implicitWidth + 6
+        implicitHeight: 40
+        radius: 13
+        color: Theme.controlFill
+        border.width: 1
+        border.color: Theme.glassEdge
+        Row {
+            id: groupRow
+            anchors.centerIn: parent
+            spacing: 1
+        }
+    }
+    // Between what is (the console and its services) and what can be done.
+    component BarDivider: Rectangle {
+        implicitWidth: 1
+        implicitHeight: 22
+        color: Theme.glassEdge
     }
 
     // The theme comes from the settings and changes in real time.
@@ -531,6 +734,10 @@ ApplicationWindow {
 
     Component.onCompleted: {
         applyTheme()
+        if (demoSectionOn) {
+            overSection = demoSection
+            return
+        }
         if (typeof demoSettings !== "undefined" && demoSettings) {
             settingsDialog.loadValues()
             settingsDialog.open()
@@ -551,6 +758,50 @@ ApplicationWindow {
         target: app
         function onNotify(title, message, error) {
             toast.show(title + (message.length > 0 ? " — " + message : ""), error)
+        }
+    }
+
+    // Every other tooltip of the app (the attached ToolTip, one instance
+    // shared by all) in the app's look: a dark rounded card with wrapped
+    // text, not the Basic style's plain box across the window.
+    Item {
+        id: tooltipLook
+        Component {
+            id: tooltipBackground
+            Rectangle {
+                color: Theme.dialogFill
+                radius: 10
+                border.width: 1
+                border.color: Theme.border
+            }
+        }
+        Component {
+            id: tooltipContent
+            Item {
+                required property ToolTip control
+                implicitWidth: Math.min(360, label.implicitWidth)
+                implicitHeight: label.implicitHeight
+                Text {
+                    id: label
+                    width: parent.width
+                    text: parent.control.text
+                    color: Theme.text
+                    font.pixelSize: 12
+                    lineHeight: 1.15
+                    wrapMode: Text.WordWrap
+                }
+            }
+        }
+        Component.onCompleted: {
+            var shared = ToolTip.toolTip
+            // Made inside the tooltip's own item, where the style's parts live.
+            var host = shared.background ? shared.background.parent : shared.contentItem.parent
+            shared.background = tooltipBackground.createObject(host)
+            shared.contentItem = tooltipContent.createObject(host, { control: shared })
+            shared.padding = 10
+            shared.leftPadding = 12
+            shared.rightPadding = 12
+            shared.margins = 12
         }
     }
 

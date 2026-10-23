@@ -9,7 +9,10 @@
 namespace orbislink {
 
 // Transfer mode chosen in the DropOverlay (§5.7).
-enum class TransferMode { DirectInstall, FtpUpload };
+// DirectInstall: the console downloads the package from this PC and
+// installs it. FtpUpload: a copy to a folder of the console. ConsoleInstall:
+// a package already on the console (a PS5), installed from where it is.
+enum class TransferMode { DirectInstall, FtpUpload, ConsoleInstall };
 
 const char *transferModeName(TransferMode mode);
 TransferMode transferModeFromName(const std::string &name, TransferMode fallback);
@@ -46,6 +49,35 @@ struct ConsoleEntry
 	std::string startMode;
 };
 
+// A place on the games page's shelf: a folder of this PC (a drive's root
+// too) or of the console in use. Taking one off the shelf never touches
+// the folder itself.
+struct LibraryLocation
+{
+	std::string id;
+	// What the shelf calls it; the folder's own name when empty.
+	std::string name;
+	std::string path;
+	// "pc" or "console".
+	std::string where = "pc";
+	bool favorite = false;
+	// Whether the shelf's search looks in it.
+	bool inSearch = true;
+};
+
+// A store the homebrew store page shows the apps of, all of them together.
+struct StoreSource
+{
+	// What its tag on each app says.
+	std::string name;
+	std::string url;
+	// "catalog": homebrew.page's signed catalog (PS5 app folders), built in;
+	// "hb-store": a Homebrew Store's database (store.db) and its packages,
+	// as PKG-Zone has them (built in) and anyone can host.
+	std::string kind;
+	bool enabled = true;
+};
+
 // A PSN Account ID saved under a name of the user's choosing, so it can be
 // picked for any console instead of being typed again.
 struct SavedAccount
@@ -53,6 +85,10 @@ struct SavedAccount
 	std::string label;
 	// In base64, the only form Remote Play accepts.
 	std::string accountId;
+	// This account's Remote Play PIN, only ever used for this account: four
+	// digits are its passcode, answered when the console asks for it while
+	// connecting; eight are the pairing PIN, filled in when registering it.
+	std::string remotePlayPin;
 };
 
 struct Settings
@@ -71,9 +107,12 @@ struct Settings
 	// Installation
 	TransferMode defaultMode = TransferMode::DirectInstall;
 	std::string ftpUploadDirectory = "/data/pkg/";
-	// The folders pinned at the top of the Files tab, in order.
+	// The folders pinned at the top of the Files tab, in order: a PS4's
+	// and a PS5's, which keep things in different places.
 	std::vector<std::string> ftpPinnedFolders { "/data/", "/data/pkg/", "/data/GoldHEN/", "/user/app/",
 		"/mnt/usb0/" };
+	std::vector<std::string> ftpPinnedFoldersPs5 { "/data/", "/data/etaHEN/", "/data/homebrew/",
+		"/mnt/usb0/", "/mnt/ext0/" };
 	bool checkAlreadyInstalled = true;
 	bool installAfterUpload = false;
 	// After uploading via FTP and installing, delete the copy on the
@@ -115,6 +154,11 @@ struct Settings
 	// background, panel, text → "#RRGGBB"), and the saved looks.
 	std::map<std::string, std::string> themeColors;
 	std::vector<ThemePreset> themePresets;
+	// The custom look the "custom" button brings back: a saved look by name,
+	// or else the last colours set aside when a plain theme was picked.
+	std::string activePreset;
+	std::map<std::string, std::string> lastCustomColors;
+	std::string lastCustomTheme;
 	std::string language = "en";    // "en" or "pt_PT"
 	bool debugLogging = false;
 	// "Updates over the internet". On by default: with a public repository
@@ -138,6 +182,42 @@ struct Settings
 	// PS1/PS2 games: where the discs are and where converted packages go.
 	std::string gamesFolder;
 	std::string convertOutputFolder;
+	// A package the converter made (from a disc, or a folder) stays in the
+	// output folder once it is on the console; off, it is deleted then
+	// (installed, or sent when not installing).
+	bool keepConvertedPackages = false;
+	// Where on the console a game goes to be installed: "internal"
+	// (/data), "usb" (/mnt/usb0) or "ext" (the extended storage, /mnt/ext0).
+	std::string installStorage = "internal";
+	// The save vault on this PC (empty: Documents/OrbisLink/Saves).
+	std::string saveVaultFolder;
+	// The games page's shelf: the places added to it, and whether the usual
+	// ones (the Desktop, Downloads, Documents, the console's data/pkg) were
+	// put there once — taken off, they stay off.
+	std::vector<LibraryLocation> libraryLocations;
+	bool libraryLocationsSeeded = false;
+	// Only games (and the folders that lead to them), or everything.
+	bool libraryOnlyGames = true;
+	// How opaque a page shown over Remote Play is (kOverlayMinOpacity to
+	// 1: below that, a busy picture under it makes it hard to read).
+	static constexpr double kOverlayMinOpacity = 0.7;
+	double overlayOpacity = 0.9;
+	// Where games installed on the console are copied to on this PC (empty:
+	// Documents/OrbisLink/From the console).
+	std::string consoleCopyFolder;
+	// The homebrew store: a catalog address of the user's own (a mirror),
+	// tried first ("" for the built-in ones), and the folder of this PC
+	// whose app archives the store shows under "On this PC".
+	std::string storeCatalogAddress;
+	std::string storeLocalFolder;
+	// The stores whose apps the store page shows: the built-in ones (which
+	// can be turned off, not taken away) and those the user added.
+	std::vector<StoreSource> stores = defaultStores();
+	static std::vector<StoreSource> defaultStores();
+	static bool builtInStore(const StoreSource &source);
+	// Console user folder ("1a2b3c4d") → its owner's Account ID (base64),
+	// which gives the PSID its backups are filed under.
+	std::map<std::string, std::string> saveAccountLinks;
 
 	std::string toJson() const;
 	static Settings fromJson(const std::string &text, bool *ok = nullptr);

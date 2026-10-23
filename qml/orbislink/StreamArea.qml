@@ -18,6 +18,28 @@ Item {
     // so the connection would only start on a second click.
     function chooseAndConnect(address) {
         app.selectConsole(address)
+        root.connectConsole()
+    }
+    // Every connection starts here, with the account shown on the card; with
+    // two or more saved accounts and none chosen for this console, which one
+    // is asked first. The session then uses that account's own registration
+    // and PIN (never another account's).
+    function connectConsole() {
+        if (stream.streaming || stream.sessionState === "connecting" || stream.connectStage.length > 0)
+            return
+        var accounts = app.accounts
+        // The account on the card goes in; the question comes only when the
+        // console has none of the saved ones yet.
+        var chosen = false
+        for (var i = 0; i < accounts.length; ++i)
+            if (accounts[i].accountId === stream.savedAccountId)
+                chosen = true
+        if (accounts.length >= 2 && !chosen) {
+            accountPicker.ask()
+            return
+        }
+        if (accounts.length >= 1 && !chosen)
+            stream.useAccount(accounts[0].accountId)
         stream.connectOneClick()
     }
     // Whether a saved console answers on FTP: for the one in use, what the
@@ -46,7 +68,7 @@ Item {
         anchors.leftMargin: root.free ? 0 : Theme.gutter
         anchors.topMargin: root.free ? 0 : 4
         anchors.bottomMargin: root.free ? 0 : 4
-        anchors.rightMargin: root.free ? 0 : window.panelShown ? 8 : Theme.gutter
+        anchors.rightMargin: root.free ? 0 : window.sideShown ? 8 : Theme.gutter
         radius: root.free ? 0 : Theme.radius
         // Black whenever there is (or will be) a picture; idle, it follows the theme.
         color: root.streaming ? "#000000" : Theme.stageIdle
@@ -95,6 +117,47 @@ Item {
     }
 
     readonly property bool videoReady: videoLoader.status === Loader.Ready
+    // The keyboard back to the picture (a page over it was closed).
+    function focusPicture() {
+        if (videoReady && streaming)
+            videoLoader.item.forceActiveFocus()
+    }
+
+    // The console is showing something it does not stream (YouTube, a film):
+    // the picture goes dark, and this says why instead of looking frozen.
+    Column {
+        anchors.centerIn: videoLoader
+        width: Math.min(420, videoLoader.width - 48)
+        spacing: 10
+        visible: root.streaming && stream.cantDisplay
+
+        Icon {
+            anchors.horizontalCenter: parent.horizontalCenter
+            name: "monitor"
+            size: 34
+            color: "#d0d4dc"
+        }
+        Text {
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            color: "#ffffff"
+            font.pixelSize: 15
+            font.weight: Font.DemiBold
+            text: qsTr("The console is not streaming this screen")
+        }
+        Text {
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            color: "#b8bdc8"
+            font.pixelSize: 12
+            lineHeight: 1.2
+            text: qsTr("Video apps such as YouTube or Netflix are not sent over Remote Play. "
+                       + "Close the app or press the PS button for the home screen; the "
+                       + "picture comes back by itself.")
+        }
+    }
 
     onStreamingChanged: {
         if (streaming) {
@@ -172,7 +235,7 @@ Item {
                     connecting: modelData.active && root.sessionState === "connecting"
                     searching: modelData.active && root.built && stream.searching
                     stage: modelData.active && root.built ? stream.connectStage : ""
-                    onConnect: stream.connectOneClick()
+                    onConnect: root.connectConsole()
                     onCancel: {
                         if (stream.connectStage.length > 0)
                             stream.cancelOneClick()
@@ -180,6 +243,20 @@ Item {
                             stream.stopStream()
                     }
                     onEdit: registerDialog.open()
+                    accounts: app.accounts
+                    account: root.built ? stream.savedAccountId : ""
+                    registeredAccounts: root.built ? stream.registeredAccounts : []
+                    // The choice is this console's from now on: the next
+                    // connection goes in with it, without asking.
+                    onChooseAccount: function (accountId) {
+                        stream.useAccount(accountId)
+                        app.rememberAccountId(accountId)
+                    }
+                    onManageAccounts: {
+                        settingsDialog.loadValues()
+                        settingsDialog.section = 1
+                        settingsDialog.open()
+                    }
                     // Another console: it becomes the console in use and connects
                     // right away, in the same click (see chooseAndConnect).
                     onChoose: root.chooseAndConnect(modelData.address)
@@ -541,8 +618,12 @@ Item {
             clip: true
             ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
             contentWidth: availableWidth
+            // Told outright, so the end is always in reach (see SettingsPage).
+            contentHeight: keysColumn.implicitHeight
+            ScrollBar.vertical.policy: contentHeight > height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
 
             ColumnLayout {
+                id: keysColumn
                 width: keysScroll.availableWidth - Theme.dialogMargin * 2
                 x: Theme.dialogMargin
                 spacing: 18
@@ -732,6 +813,14 @@ Item {
     // ───────────────────────────── registration
     StreamRegisterDialog { id: registerDialog }
 
+    AccountPickerDialog {
+        id: accountPicker
+        onChosen: function (accountId) {
+            stream.useAccount(accountId)
+            stream.connectOneClick()
+        }
+    }
+
     // The card the eye should go to after registering.
     property string spotlightAddress: ""
     Timer {
@@ -809,8 +898,13 @@ Item {
                 Layout.topMargin: Theme.dialogInner
                 wrapMode: Text.WordWrap
                 text: loginPinDialog.incorrect
-                      ? qsTr("That PIN was wrong. Try again.")
-                      : qsTr("The console is asking for the account's login PIN.")
+                      ? (root.built && stream.accountPin(stream.savedAccountId).length === 4
+                         ? qsTr("The console refused that PIN. If the one saved for this account changed, "
+                                + "correct it in Settings → Account IDs.")
+                         : qsTr("That PIN was wrong. Try again."))
+                      : root.built && stream.accountName.length > 0
+                        ? qsTr("The console is asking for the login PIN of %1.").arg(stream.accountName)
+                        : qsTr("The console is asking for the account's login PIN.")
                 color: loginPinDialog.incorrect ? Theme.error : Theme.textSecondary
                 font.pixelSize: 12
             }

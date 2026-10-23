@@ -1,0 +1,202 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+#pragma once
+
+#include "orbislink/ftp/ftp_client.h"
+
+#include <QMap>
+#include <QObject>
+#include <QSet>
+#include <QString>
+#include <QVariantList>
+#include <QVector>
+
+#include <atomic>
+#include <condition_variable>
+#include <deque>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <thread>
+
+namespace orbislink {
+
+class AppController;
+class GamesController;
+
+// The console library for QML (`consoleLibrary`): what is in the
+// OrbisLinkFPKG folders of the console in use — its memory, its USB drives,
+// its extended storage — read over FTP and told apart (see
+// library/console_library.h), each with the one thing that makes it
+// playable: install a package, convert a PS1/PS2 disc, hand a PS5 image or
+// app folder to ShadowMountPlus, run a payload.
+class LibraryController : public QObject
+{
+	Q_OBJECT
+	// [{ path, name, folder, drive ("internal"/"usb"/"ext"), size, sizeText,
+	//    kind ("package"/"disc"/"image"/"folder"/"payload"/"archive"),
+	//    group ("games": games and apps, "extras": patches, add-ons and
+	//    themes, "payloads", "other": what cannot be used as it is),
+	//    title, titleId, version, platform ("ps4"/"ps5"/"ps1"/"ps2"/""),
+	//    category, icon (a data: URL or ""), installed,
+	//    action ("install"/"convert"/"mount"/"run"/""), note }]
+	Q_PROPERTY(QVariantList items READ items NOTIFY itemsChanged)
+	// What the library's buttons set going that the installs panel shows
+	// (installs and conversions have their own cards there):
+	// [{ id, kind ("mount"/"run"/"copy"), name, icon, console, state
+	//    ("working"/"done"/"error"/"cancelled"), stageText, message; a copy
+	//    also percent, speedText, etaText, amountText and folder }]
+	Q_PROPERTY(QVariantList jobs READ jobs NOTIFY jobsChanged)
+	// The library folders the console has: [{ path, drive }].
+	Q_PROPERTY(QVariantList folders READ folders NOTIFY itemsChanged)
+	Q_PROPERTY(bool scanning READ scanning NOTIFY itemsChanged)
+	Q_PROPERTY(bool scanned READ scanned NOTIFY itemsChanged)
+	Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
+	Q_PROPERTY(QString status READ status NOTIFY itemsChanged)
+	// What the console in use is, as the actions depend on it.
+	Q_PROPERTY(bool ps5 READ ps5 NOTIFY itemsChanged)
+
+public:
+	LibraryController(AppController *app, GamesController *games, QObject *parent = nullptr);
+	~LibraryController() override;
+
+	QVariantList items() const { return items_; }
+	QVariantList jobs() const { return jobs_; }
+	QVariantList folders() const { return folders_; }
+	bool scanning() const { return scanning_; }
+	bool scanned() const { return scanned_; }
+	bool busy() const { return busy_; }
+	QString status() const { return status_; }
+	bool ps5() const;
+
+	// Reads the folders again.
+	Q_INVOKABLE void refresh();
+	// Does the item's action.
+	Q_INVOKABLE void act(const QString &path);
+	// A disc: converted, its package put back beside it and, when asked,
+	// installed.
+	Q_INVOKABLE void convert(const QString &path, bool install);
+	// Deletes a file from the library.
+	Q_INVOKABLE void remove(const QString &path);
+	// Deletes files of the console, one after the other, as one job.
+	void removeMany(const QStringList &paths);
+	Q_INVOKABLE void removeJob(const QString &id);
+	// Does `action` ("install", "convert", "convertOnly", "mount", "run",
+	// "delete") to a thing on the console, in this library or anywhere
+	// else there: `item` has its path, name, title, platform and, to run
+	// it, size and port.
+	void perform(const QVariantMap &item, const QString &action);
+	Q_INVOKABLE void clearFinishedJobs();
+
+	// One file of the console to copy to this PC.
+	struct CopyItem
+	{
+		QString remote;
+		QString local;
+		qint64 size = 0;
+		// "game", "update", "addon"
+		QString what;
+	};
+	// Copies a title's files from the console into `folder`, as they are:
+	// one card in the installs panel, one title at a time, each at the
+	// network's full speed.
+	void copyToPc(const QString &title, const QString &icon, const QString &folder, const QVector<CopyItem> &files);
+	// Files and folders of the console (from the file list) to `folder` on
+	// this PC (empty: the desktop), each one card in the installs panel, on
+	// the same way as the copies above: [{ path, name, isDirectory, size }].
+	// A folder comes with everything in it, into a folder of its name; what
+	// has a name already taken there gets another ("name (2)").
+	Q_INVOKABLE void download(const QVariantList &items, const QString &folder);
+	// Stops a copy (waiting or under way); what was copied of the file
+	// under way is kept and the next copy of it goes on from there.
+	Q_INVOKABLE void cancelJob(const QString &id);
+	// A copy that failed, was stopped or was cut short by the app closing,
+	// on its way again on the same card (from where it was); any other job
+	// that failed (put on the home screen, run, uninstall), done again.
+	Q_INVOKABLE void retryJob(const QString &id);
+	// Opens the folder a copy went to.
+	Q_INVOKABLE void openJobFolder(const QString &id);
+	// A title the console has installed, taken off it through the installer
+	// (Remote Package Installer, PS4): its add-ons, its update and the game,
+	// or only the update. `item` has its titleId, title, picture and parts
+	// ([{ what: "game"/"update"/"addon", path }]).
+	void uninstall(const QVariantMap &item, bool updateOnly);
+
+signals:
+	void itemsChanged();
+	void jobsChanged();
+	void busyChanged();
+	void finished(const QString &message, bool error);
+
+private:
+	// The item at that path (empty when there is none).
+	QVariantMap itemAt(const QString &path) const;
+	// A job on the action thread; refreshes after when asked. With a `kind`,
+	// it has a card in the installs panel.
+	void runAction(const QString &what, std::function<QString(FtpClient &ftp, bool *error)> job, bool rescan,
+		const QVariantMap &item = QVariantMap(), const QString &kind = QString());
+	// The name of the console in use, for the cards.
+	QString consoleName() const;
+	void updateJob(const QString &id, const QVariantMap &fields);
+	// The queue tasks that had finished (sent or installed) when the
+	// library was last read: one finishing after that changes what it shows.
+	QSet<QString> finishedTasks() const;
+	struct CopyJob
+	{
+		QString id;
+		QString title;
+		QString icon;
+		QString folder;
+		QVector<CopyItem> files;
+		// A folder of the console whose files are listed when the copy
+		// starts, each to its place under `folder`.
+		QString remoteFolder;
+		FtpClient::Config config;
+		std::shared_ptr<std::atomic<bool>> cancel;
+	};
+	void enqueueCopy(CopyJob job);
+	// The card of a copy, waiting.
+	QVariantMap copyCard(const CopyJob &job, const QString &itemKind, qint64 total) const;
+	void copyLoop();
+	void runCopy(const CopyJob &job);
+	// The copies not finished when the app closes, kept for the next time
+	// (copies.json beside the settings) and shown then, stopped, to go on.
+	void saveUnfinishedCopies() const;
+	void loadUnfinishedCopies();
+
+	AppController *app_;
+	GamesController *games_;
+	QVariantList items_;
+	QVariantList folders_;
+	QVariantList jobs_;
+	int nextJob_ = 1;
+	QSet<QString> finishedSeen_;
+	bool scanning_ = false;
+	bool scanned_ = false;
+	bool busy_ = false;
+	QString status_;
+	std::atomic<bool> cancel_ { false };
+	std::thread scanner_;
+	std::thread worker_;
+
+	// The copies to this PC, one after the other on their own thread.
+	std::mutex copyMutex_;
+	std::condition_variable copyWake_;
+	std::deque<CopyJob> copies_;
+	std::map<QString, std::shared_ptr<std::atomic<bool>>> copyCancels_;
+	std::thread copier_;
+	// Every copy's recipe, by its card (interface thread only): to go again.
+	QMap<QString, CopyJob> copyRecipes_;
+	// The same for the other jobs with a card (put on the home screen, run,
+	// uninstall): what runAction() was given, to give it again.
+	struct ActionRecipe
+	{
+		QString what;
+		std::function<QString(FtpClient &ftp, bool *error)> job;
+		bool rescan = false;
+		QVariantMap item;
+		QString kind;
+	};
+	QMap<QString, ActionRecipe> actionRecipes_;
+};
+
+} // namespace orbislink

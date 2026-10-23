@@ -62,6 +62,15 @@ void FtpModel::setEntries(const std::vector<FtpEntry> &entries)
 	emit countChanged();
 }
 
+QVariantMap FtpModel::get(int row) const
+{
+	if(row < 0 || row >= rows_.size())
+		return {};
+	const Row &entry = rows_.at(row);
+	return { { QStringLiteral("name"), entry.name }, { QStringLiteral("path"), entry.path },
+		{ QStringLiteral("isDirectory"), entry.isDirectory }, { QStringLiteral("size"), static_cast<double>(entry.size) } };
+}
+
 void FtpModel::clear()
 {
 	beginResetModel();

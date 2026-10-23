@@ -9,6 +9,7 @@
 #include "orbislink/fpkg/disc_scanner.h"
 #include "orbislink/fpkg/param_sfo.h"
 #include "orbislink/fpkg/pkg_builder.h"
+#include "orbislink/pkg/pkg_inspector.h"
 #include "test_support.h"
 
 #include <algorithm>
@@ -16,6 +17,9 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#ifndef _WIN32
+#include <sys/resource.h>
+#endif
 
 using namespace orbislink::fpkg;
 using namespace orbislink_test;
@@ -214,6 +218,10 @@ ORBISLINK_TEST(builds_the_same_package_as_pkgtool)
 	CHECK(lastImage > 3u * 1024 * 1024);
 	CHECK_EQ(fs::file_size(out), uintmax_t(6619136));
 	CHECK_EQ(hex(fileSha(out)), std::string(EXPECTED_SHA));
+	// What it makes is a fake package, and reads as one.
+	const orbislink::PkgInfo info = orbislink::PkgInspector().inspect(out.u8string());
+	CHECK(info.valid);
+	CHECK(!info.official);
 	cleanUp(dir);
 }
 
@@ -227,6 +235,40 @@ ORBISLINK_TEST(cancelling_leaves_no_file)
 	CHECK(!ok);
 	CHECK_EQ(error, std::string("cancelled"));
 	CHECK(!fs::exists(out));
+	cleanUp(dir);
+}
+
+// A dumped game is thousands of files: more than a process may keep open at
+// once (on Windows about 500). They are opened as they are read.
+ORBISLINK_TEST(a_folder_of_many_files_packs_whatever_the_open_file_limit)
+{
+	const fs::path dir = makeProject();
+	PkgRequest request = makeRequest(dir);
+	for(int i = 0; i < 300; ++i)
+	{
+		const std::string name = "bake_texture/part" + std::to_string(i) + ".pbkt";
+		writeFile(dir / "proj" / name, pattern(100 + i, 10 + i));
+		PkgSource source;
+		source.targetPath = name;
+		source.sourcePath = (dir / "proj" / name).u8string();
+		request.files.push_back(source);
+	}
+#ifndef _WIN32
+	// Fewer than the files: the package is still made.
+	rlimit before {};
+	getrlimit(RLIMIT_NOFILE, &before);
+	rlimit low = before;
+	low.rlim_cur = std::min<rlim_t>(before.rlim_cur, 64);
+	setrlimit(RLIMIT_NOFILE, &low);
+#endif
+	std::string error;
+	const bool ok = buildFakePkg(request, (dir / "many.pkg").u8string(), {}, &error);
+#ifndef _WIN32
+	setrlimit(RLIMIT_NOFILE, &before);
+#endif
+	CHECK_EQ(error, std::string());
+	CHECK(ok);
+	CHECK(orbislink::PkgInspector().inspect((dir / "many.pkg").u8string()).valid);
 	cleanUp(dir);
 }
 
@@ -278,6 +320,26 @@ ORBISLINK_TEST(scans_ps1_and_ps2_discs)
 	CHECK_EQ(discs[1].platform, std::string("ps2"));
 	CHECK_EQ(discs[1].titleId, std::string("SLUS20946"));
 	CHECK_EQ(discs[1].region, std::string("USA"));
+	fs::remove_all(dir);
+}
+
+// A disc that starts a program, not a game (PS2 Linux's, a demo disc's):
+// it is listed, says what it starts, and is not converted.
+ORBISLINK_TEST(a_disc_that_starts_no_game_says_so)
+{
+	const fs::path dir = fs::temp_directory_path() / "orbislink-test-tool-disc";
+	fs::remove_all(dir);
+	writeFile(dir / "Linux Release 1.0.iso", makeDisc("BOOT2 = cdrom0:\\RUNTIME.ELF;1\r\nVER = 1.00\r\n", false));
+	const auto discs = scanFolder(dir.u8string());
+	CHECK_EQ(discs.size(), size_t(1));
+	CHECK_EQ(discs[0].platform, std::string("ps2"));
+	CHECK(discs[0].titleId.empty());
+	CHECK_EQ(discs[0].bootFile, std::string("RUNTIME.ELF"));
+	PkgRequest request;
+	ClassicResult result;
+	std::string error;
+	CHECK(!prepareClassic(discs[0], EmulatorInfo(), ClassicOptions(), &request, &result, &error));
+	CHECK(error.find("RUNTIME.ELF") != std::string::npos);
 	fs::remove_all(dir);
 }
 
@@ -482,3 +544,64 @@ ORBISLINK_TEST(a_ps1_disc_becomes_a_ps1_classic)
 }
 
 TEST_MAIN()
+
+// A PS2 game on CD, as a raw .bin (2352 bytes a sector): the package gets the
+// ISO inside it, byte for byte the package made from that ISO.
+ORBISLINK_TEST(a_raw_ps2_cd_image_is_packed_as_its_iso)
+{
+	const fs::path dir = makeProject();
+	// The project's disc as a raw mode 2 image: a header of 24 bytes, the
+	// 2048 of data and 280 of error codes per sector; more sectors than one
+	// read takes, and a disc whose size is not a whole number of them.
+	const Bytes iso = pattern(1300 * 2048, 9);
+	writeFile(dir / "proj/image/disc01.iso", iso);
+	Bytes raw;
+	for(size_t s = 0; s < iso.size() / 2048; ++s)
+	{
+		Bytes header(24, 0xAB);
+		header[15] = 2;
+		raw.insert(raw.end(), header.begin(), header.end());
+		raw.insert(raw.end(), iso.begin() + static_cast<std::ptrdiff_t>(s * 2048),
+			iso.begin() + static_cast<std::ptrdiff_t>((s + 1) * 2048));
+		raw.insert(raw.end(), 280, 0xCD);
+	}
+	raw.insert(raw.end(), 100, 0xEF); // a cut sector at the end: left out
+	writeFile(dir / "disc.bin", raw);
+
+	std::string error;
+	CHECK(buildFakePkg(makeRequest(dir), (dir / "from-iso.pkg").u8string(), {}, &error));
+	PkgRequest request = makeRequest(dir);
+	request.files.back().sourcePath = (dir / "disc.bin").u8string();
+	request.files.back().rawSectorSize = 2352;
+	request.files.back().rawDataOffset = 24;
+	CHECK(buildFakePkg(request, (dir / "from-bin.pkg").u8string(), {}, &error));
+	CHECK_EQ(error, std::string());
+	CHECK_EQ(hex(fileSha(dir / "from-bin.pkg")), hex(fileSha(dir / "from-iso.pkg")));
+
+	// The scanner says how the disc holds its sectors, and the converter
+	// takes the ISO out of a raw PS2 image.
+	writeFile(dir / "Game (USA).bin", makeDisc("BOOT2 = cdrom0:\\SLUS_209.46;1\r\n", true));
+	const DiscInfo disc = inspectDisc((dir / "Game (USA).bin").u8string());
+	CHECK_EQ(disc.platform, std::string("ps2"));
+	CHECK_EQ(disc.sectorSize, uint32_t(2352));
+	CHECK_EQ(disc.dataOffset, uint32_t(24));
+	const fs::path emuDir = makeEmulatorBundle();
+	ClassicOptions options;
+	options.outputDir = (dir / "out").u8string();
+	options.now = 1577836800;
+	PkgRequest classic;
+	ClassicResult result;
+	CHECK(prepareClassic(disc, findEmulators(emuDir.u8string()), options, &classic, &result, &error));
+	const PkgSource *image = source(classic, "image/disc01.iso");
+	CHECK(image != nullptr);
+	CHECK_EQ(image->rawSectorSize, uint32_t(2352));
+	CHECK_EQ(image->rawDataOffset, uint32_t(24));
+	// A plain ISO is taken as it is.
+	writeFile(dir / "Plain (USA).iso", makeDisc("BOOT2 = cdrom0:\\SLUS_209.46;1\r\n", false));
+	const DiscInfo plain = inspectDisc((dir / "Plain (USA).iso").u8string());
+	CHECK_EQ(plain.sectorSize, uint32_t(2048));
+	CHECK(prepareClassic(plain, findEmulators(emuDir.u8string()), options, &classic, &result, &error));
+	CHECK_EQ(source(classic, "image/disc01.iso")->rawSectorSize, uint32_t(0));
+	fs::remove_all(emuDir);
+	cleanUp(dir);
+}

@@ -3,8 +3,9 @@
 // The console everything goes to, in the top bar, left of the services.
 //
 // * It answers: its name with the app's glow, breathing slowly — in gold,
-//   with the jailbreak's name, when it has one (GoldHEN, etaHEN, HEN).
-//   A click opens the consoles page.
+//   with the jailbreak's name, when it has one (GoldHEN, etaHEN, HEN). Its
+//   firmware follows once Remote Play has told it, and the jailbreak's
+//   version when its FTP says it. A click opens the consoles page.
 // * It does not answer: its name faded. A click looks for it again.
 // * No console saved: nothing.
 import QtQuick
@@ -22,6 +23,10 @@ Item {
     readonly property bool checking: !connected && (app.ftpState === "checking"
                                                     || app.remotePlayState === "checking")
     readonly property string jailbreak: ftpUp ? (app.jailbreaks[app.consoleAddress] || "") : ""
+    readonly property string henVersion: jailbreak.length > 0 ? (app.henVersions[app.consoleAddress] || "") : ""
+    // "GoldHEN 2.4b18", or the name alone when its version is not known.
+    readonly property string henLabel: henVersion.length > 0 ? jailbreak + " " + henVersion : jailbreak
+    readonly property string firmware: connected ? app.consoleFirmware : ""
     readonly property bool gold: ftpUp
     readonly property color tone: gold ? Theme.hen : Theme.accent
 
@@ -80,10 +85,19 @@ Item {
             font.pixelSize: 12
             font.weight: Font.DemiBold
         }
+        // The firmware, as quiet as the rest is loud.
+        Text {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: chip.firmware.length > 0
+            text: chip.firmware
+            color: Theme.textSecondary
+            font.pixelSize: 11
+            font.weight: Font.Medium
+        }
         Text {
             anchors.verticalCenter: parent.verticalCenter
             visible: text.length > 0
-            text: chip.jailbreak.length > 0 ? chip.jailbreak
+            text: chip.jailbreak.length > 0 ? chip.henLabel
                 : chip.checking ? qsTr("looking…")
                 : !chip.connected ? qsTr("not connected") : ""
             color: chip.jailbreak.length > 0 ? (Theme.light ? Qt.darker(Theme.hen, 1.25) : Theme.hen)
@@ -105,11 +119,14 @@ Item {
 
     ToolTip.visible: hover.hovered
     ToolTip.delay: 300
-    ToolTip.text: !chip.connected
+    ToolTip.text: (!chip.connected
         ? qsTr("%1 (%2) is not answering. Click to look for it again.").arg(app.consoleName).arg(app.consoleAddress)
         : chip.gold
         ? qsTr("Connected to %1 (%2) — %3: sending and installing work.")
-            .arg(app.consoleName).arg(app.consoleAddress).arg(chip.jailbreak.length > 0 ? chip.jailbreak : qsTr("FTP"))
+            .arg(app.consoleName).arg(app.consoleAddress).arg(chip.jailbreak.length > 0 ? chip.henLabel : qsTr("FTP"))
         : qsTr("%1 (%2) answers, but has no FTP: Remote Play works; sending and installing need a jailbreak.")
-            .arg(app.consoleName).arg(app.consoleAddress)
+            .arg(app.consoleName).arg(app.consoleAddress))
+        + (chip.firmware.length > 0 ? "\n" + qsTr("Firmware %1.").arg(chip.firmware) : "")
+        + (chip.jailbreak.length > 0 && chip.henVersion.length === 0
+           ? "\n" + qsTr("%1 does not say its version over the network.").arg(chip.jailbreak) : "")
 }

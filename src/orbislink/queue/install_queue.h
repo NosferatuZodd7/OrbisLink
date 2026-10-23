@@ -62,6 +62,15 @@ struct QueueTask
 	std::string remoteDirectory;
 	bool installAfter = false;
 	bool deleteAfterInstall = false;
+	// FTP upload only: copied and left there, never installed, whatever the
+	// settings say (a package sent back to the console's library).
+	bool copyOnly = false;
+	// Sent, and then installed by the console from where it was put (a PS5).
+	bool installedFromConsole = false;
+	// Queued ahead of the tasks still waiting, not after them: the install
+	// of a package just sent goes on at once, before the next upload. Not
+	// kept (only where it is queued counts).
+	bool next = false;
 	std::string message;    // error or information for the UI
 	uint32_t errorCode = 0;
 	int attempts = 0;
@@ -117,14 +126,18 @@ public:
 		std::vector<std::string> *rejected = nullptr,
 		const std::vector<std::string> *remoteNames = nullptr);
 	// An FTP upload to `directory` that installs the package once it lands
-	// and then deletes the copy on the console.
-	std::string enqueueUploadAndInstall(const std::string &path, const std::string &directory,
+	// and then deletes the copy on the console; with `install` false, one
+	// that leaves it there, not installed.
+	std::string enqueueUploadTo(const std::string &path, const std::string &directory, bool install,
 		std::string *error = nullptr);
 	// As above; `adjust` sets each task up before anything can pick it.
 	std::vector<std::string> enqueue(const std::vector<std::string> &paths, TransferMode mode,
 		std::vector<std::string> *rejected, const std::vector<std::string> *remoteNames,
 		const std::function<void(QueueTask &)> &adjust);
 	std::string enqueueOne(const std::string &path, TransferMode mode, std::string *error = nullptr);
+	// A package already on the console, installed from where it is (a PS5):
+	// what it is comes from reading it there.
+	std::string enqueueConsoleInstall(const std::string &remotePath, const PkgInfo &info);
 
 	void start();
 	void stop();
@@ -162,6 +175,13 @@ private:
 	void workerLoop();
 	bool takeNextTask(QueueTask *task);
 	void runDirectInstall(QueueTask task);
+	// Asks the console to install `uri` (an http:// address, or on a PS5 a
+	// path there); a task left by an earlier try is cleared first.
+	InstallerResult startInstall(const QueueTask &task, const std::string &uri, InstallTaskHandle *handle);
+	// An install the installer cannot report on (etaHEN's DPI v2): followed
+	// by what the console takes from the PC.
+	void followServedInstall(QueueTask task);
+	void runConsoleInstall(QueueTask task);
 	// The install task created by "install after upload" needs to know
 	// which file to delete on the console when it finishes.
 	void setCleanupPath(const std::string &id, const std::string &remotePath);
@@ -169,6 +189,10 @@ private:
 	void finishTask(QueueTask task);
 	void updateTask(const QueueTask &task);
 	void notify(const QueueTask &task);
+	// Nothing answered the install: the installer is not running.
+	static bool installerAway(const InstallerResult &result);
+	// What the card says while the queue waits for it.
+	std::string waitingReason(const InstallerResult &result) const;
 	void requeueForServiceLoss(QueueTask task, const std::string &reason);
 	static void sortBatch(std::vector<QueueTask> &batch);
 

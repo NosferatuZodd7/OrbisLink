@@ -3,6 +3,8 @@
 #include "orbislink/settings/settings_store.h"
 #include "test_support.h"
 
+#include <cmath>
+
 #include <cstdio>
 #include <sstream>
 
@@ -20,6 +22,7 @@ ORBISLINK_TEST(settings_round_trip)
 	settings.ftpMaxConnections = 2;
 	settings.ftpAdvancedMode = true;
 	settings.language = "en";
+	settings.keepConvertedPackages = true;
 
 	bool ok = false;
 	const Settings restored = Settings::fromJson(settings.toJson(), &ok);
@@ -33,6 +36,7 @@ ORBISLINK_TEST(settings_round_trip)
 	CHECK_EQ(restored.ftpMaxConnections, 2);
 	CHECK(restored.ftpAdvancedMode);
 	CHECK_EQ(restored.language, std::string("en"));
+	CHECK(restored.keepConvertedPackages);
 }
 
 ORBISLINK_TEST(defaults_follow_the_specification)
@@ -45,6 +49,8 @@ ORBISLINK_TEST(defaults_follow_the_specification)
 	CHECK_EQ(settings.ftpUploadDirectory, std::string("/data/pkg/"));
 	CHECK(settings.restrictToConsoleIp);
 	CHECK(!settings.installAfterUpload);
+	// A package the converter made goes once the console has it.
+	CHECK(!settings.keepConvertedPackages);
 	CHECK(!settings.ftpAdvancedMode);
 	CHECK(!settings.debugLogging);
 	CHECK(settings.checkForUpdates);
@@ -270,6 +276,43 @@ ORBISLINK_TEST(saved_account_ids_round_trip_and_include_those_in_use)
 	CHECK_EQ(reloaded.accounts[0].label, std::string("Main"));
 }
 
+// Each account keeps its own Remote Play PIN: saved, read back, and never
+// shared with another account.
+ORBISLINK_TEST(each_account_keeps_its_own_remote_play_pin)
+{
+	Settings settings;
+	SavedAccount first;
+	first.label = "Main";
+	first.accountId = "AQIDBAUGBwg=";
+	first.remotePlayPin = "1234";
+	SavedAccount second;
+	second.label = "Second";
+	second.accountId = "CAcGBQQDAgE=";
+	second.remotePlayPin = "87654321";
+	SavedAccount third;
+	third.label = "Third";
+	third.accountId = "AAAAAAAAAAE=";
+	settings.accounts = { first, second, third };
+
+	Settings reloaded = Settings::fromJson(settings.toJson());
+	CHECK_EQ(reloaded.accounts.size(), size_t(3));
+	CHECK_EQ(reloaded.accounts[0].remotePlayPin, std::string("1234"));
+	CHECK_EQ(reloaded.accounts[1].remotePlayPin, std::string("87654321"));
+	CHECK(reloaded.accounts[2].remotePlayPin.empty());
+
+	// Changing one leaves the others as they were.
+	reloaded.accounts[0].remotePlayPin = "4321";
+	const Settings again = Settings::fromJson(reloaded.toJson());
+	CHECK_EQ(again.accounts[0].remotePlayPin, std::string("4321"));
+	CHECK_EQ(again.accounts[1].remotePlayPin, std::string("87654321"));
+	CHECK(again.accounts[2].remotePlayPin.empty());
+
+	// Never in a diagnostics report.
+	const std::string redacted = redactSensitive(settings.toJson());
+	CHECK(redacted.find("87654321") == std::string::npos);
+	CHECK(redacted.find("\"1234\"") == std::string::npos);
+}
+
 ORBISLINK_TEST(theme_colours_presets_and_pad_map_round_trip)
 {
 	Settings settings;
@@ -277,6 +320,7 @@ ORBISLINK_TEST(theme_colours_presets_and_pad_map_round_trip)
 	settings.themePresets.push_back({ "Night", "glass", { { "panel", "#101010" } } });
 	settings.padBindings = { { "a", "circle" }, { "b", "cross" } };
 	settings.ftpPinnedFolders = { "/data/", "/data/OrbisLinkFPKG/" };
+	settings.ftpPinnedFoldersPs5 = { "/data/etaHEN/", "/mnt/ext1/" };
 	bool ok = false;
 	const Settings restored = Settings::fromJson(settings.toJson(), &ok);
 	CHECK(ok);
@@ -287,6 +331,97 @@ ORBISLINK_TEST(theme_colours_presets_and_pad_map_round_trip)
 	CHECK(restored.themePresets[0].colors == settings.themePresets[0].colors);
 	CHECK(restored.padBindings == settings.padBindings);
 	CHECK(restored.ftpPinnedFolders == settings.ftpPinnedFolders);
+	CHECK(restored.ftpPinnedFoldersPs5 == settings.ftpPinnedFoldersPs5);
+
+	// Settings saved before the PS5 had its own: its defaults, the PS4's kept.
+	const Settings older = Settings::fromJson(R"({"ftp_pinned_folders":["/data/"]})", &ok);
+	CHECK(ok);
+	CHECK_EQ(older.ftpPinnedFolders.size(), static_cast<size_t>(1));
+	CHECK_EQ(older.ftpPinnedFoldersPs5.size(), Settings().ftpPinnedFoldersPs5.size());
+}
+
+ORBISLINK_TEST(install_storage_round_trip)
+{
+	CHECK_EQ(Settings().installStorage, std::string("internal"));
+	Settings settings;
+	settings.installStorage = "usb";
+	bool ok = false;
+	CHECK_EQ(Settings::fromJson(settings.toJson(), &ok).installStorage, std::string("usb"));
+	CHECK(ok);
+	// Anything else reads as the console's memory.
+	CHECK_EQ(Settings::fromJson(R"({"install_storage":"floppy"})", &ok).installStorage, std::string("internal"));
+}
+
+ORBISLINK_TEST(overlay_opacity_round_trip_within_its_limits)
+{
+	Settings settings;
+	settings.overlayOpacity = 0.8;
+	bool ok = false;
+	CHECK(std::abs(Settings::fromJson(settings.toJson(), &ok).overlayOpacity - 0.8) < 1e-9);
+	// Below what can be read, or past opaque: brought back.
+	CHECK(std::abs(Settings::fromJson(R"({"overlay_opacity":0.1})", &ok).overlayOpacity - Settings::kOverlayMinOpacity) < 1e-9);
+	CHECK(std::abs(Settings::fromJson(R"({"overlay_opacity":3})", &ok).overlayOpacity - 1.0) < 1e-9);
+}
+
+ORBISLINK_TEST(stores_round_trip_and_keep_the_built_in_ones)
+{
+	Settings settings;
+	CHECK_EQ(settings.stores.size(), static_cast<size_t>(2));
+	CHECK(Settings::builtInStore(settings.stores[0]));
+	CHECK(Settings::builtInStore(settings.stores[1]));
+	settings.stores[1].enabled = false;
+	settings.stores.push_back({ "Friend's store", "https://store.example.org", "hb-store", true });
+	bool ok = false;
+	const Settings restored = Settings::fromJson(settings.toJson(), &ok);
+	CHECK(ok);
+	CHECK_EQ(restored.stores.size(), static_cast<size_t>(3));
+	CHECK(!restored.stores[1].enabled);
+	CHECK_EQ(restored.stores[2].name, std::string("Friend's store"));
+	CHECK(!Settings::builtInStore(restored.stores[2]));
+	// A list without the built-in ones gets them back, first; nothing twice,
+	// no other catalog, no kind it does not know.
+	const Settings edited = Settings::fromJson(R"({"stores":[
+		{"name":"Mine","url":"https://mine.example.org","kind":"hb-store"},
+		{"name":"Again","url":"https://MINE.example.org","kind":"hb-store"},
+		{"name":"Other","url":"https://other.example.org/api/v1/","kind":"catalog"},
+		{"name":"Odd","url":"https://odd.example.org","kind":"ftp"}]})", &ok);
+	CHECK_EQ(edited.stores.size(), static_cast<size_t>(3));
+	CHECK_EQ(edited.stores[0].kind, std::string("catalog"));
+	CHECK_EQ(edited.stores[1].name, std::string("PKG-Zone"));
+	CHECK_EQ(edited.stores[2].name, std::string("Mine"));
+}
+
+ORBISLINK_TEST(library_locations_round_trip)
+{
+	Settings settings;
+	CHECK(settings.libraryLocations.empty());
+	CHECK(!settings.libraryLocationsSeeded);
+	LibraryLocation games;
+	games.id = "loc-1";
+	games.name = "My games";
+	games.path = "/media/games";
+	games.favorite = true;
+	games.inSearch = false;
+	LibraryLocation pkg;
+	pkg.id = "loc-2";
+	pkg.path = "/data/pkg/";
+	pkg.where = "console";
+	settings.libraryLocations = { games, pkg };
+	settings.libraryLocationsSeeded = true;
+	bool ok = false;
+	const Settings restored = Settings::fromJson(settings.toJson(), &ok);
+	CHECK(ok);
+	CHECK(restored.libraryLocationsSeeded);
+	CHECK_EQ(restored.libraryLocations.size(), static_cast<size_t>(2));
+	CHECK_EQ(restored.libraryLocations[0].name, std::string("My games"));
+	CHECK_EQ(restored.libraryLocations[0].path, std::string("/media/games"));
+	CHECK_EQ(restored.libraryLocations[0].where, std::string("pc"));
+	CHECK(restored.libraryLocations[0].favorite);
+	CHECK(!restored.libraryLocations[0].inSearch);
+	CHECK_EQ(restored.libraryLocations[1].where, std::string("console"));
+	CHECK(restored.libraryLocations[1].inSearch);
+	// One without a path is not a place.
+	CHECK(Settings::fromJson(R"({"library_locations":[{"id":"x","path":""}]})", &ok).libraryLocations.empty());
 }
 
 ORBISLINK_TEST(hand_edited_theme_colours_are_checked)

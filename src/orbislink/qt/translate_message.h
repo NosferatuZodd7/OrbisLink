@@ -14,7 +14,8 @@ namespace orbislink {
 // interface.
 //
 // Those carrying a value at the end ("text: value" or "text (detail)")
-// are translated up to the value, which stays as it came.
+// are translated up to the value, which stays as it came; those naming a
+// file first ("name.pkg: text") have the text after the name translated.
 inline QString translateMessage(const std::string &message)
 {
 	const QString original = QString::fromStdString(message);
@@ -30,6 +31,14 @@ inline QString translateMessage(const std::string &message)
 		const QString translated = QCoreApplication::translate("Messages", start.c_str());
 		if(translated != QString::fromStdString(start))
 			return translated + QString::fromStdString(message.substr(pos));
+	}
+	const size_t named = message.find(": ");
+	if(named != std::string::npos)
+	{
+		const std::string rest = message.substr(named + 2);
+		const QString translated = QCoreApplication::translate("Messages", rest.c_str());
+		if(translated != QString::fromStdString(rest))
+			return QString::fromStdString(message.substr(0, named + 2)) + translated;
 	}
 	return original;
 }

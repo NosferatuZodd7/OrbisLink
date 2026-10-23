@@ -97,10 +97,14 @@ QString Diagnostics::report(AppController *app)
 		if(!app->remotePlayHint().isEmpty())
 			out << "  — " << app->remotePlayHint();
 		out << "\n";
-		out << "FTP              " << app->ftpState();
+		out << "FTP              " << app->ftpState() << " (port " << app->activeFtpPort() << ")";
 		if(!app->ftpHint().isEmpty())
 			out << "  — " << app->ftpHint();
 		out << "\n";
+		// The set port did not greet as FTP: what each usual FTP port said.
+		const QString search = app->ftpSearchReport();
+		if(!search.isEmpty())
+			out << "FTP ports asked\n" << search;
 		out << "Installer        " << app->installerState();
 		if(!app->installerHint().isEmpty())
 			out << "  — " << app->installerHint();

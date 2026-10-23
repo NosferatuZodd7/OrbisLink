@@ -8,6 +8,7 @@
 #include "orbislink/common/util.h"
 #include "orbislink/console/console_manager.h"
 #include "orbislink/ftp/ftp_client.h"
+#include "orbislink/ftp/remote_move.h"
 #include "orbislink/http/local_http_server.h"
 #include "orbislink/installer/rpi_client.h"
 #include "orbislink/net/net_utils.h"
@@ -16,9 +17,11 @@
 #include "orbislink/settings/settings_store.h"
 
 #include <chrono>
+#include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <set>
 #include <sstream>
 #include <thread>
 
@@ -49,6 +52,10 @@ struct Options
 
 Options parseOptions(int argc, char **argv, int from)
 {
+	// Switches: never followed by a value, so what comes after them is not
+	// taken for one ("ftp-rm --recursive /data/pkg/old").
+	static const std::set<std::string> switches { "debug", "advanced", "ftp", "install-after-upload",
+		"delete-after-install", "recursive" };
 	Options options;
 	for(int i = from; i < argc; ++i)
 	{
@@ -59,7 +66,7 @@ Options parseOptions(int argc, char **argv, int from)
 			std::string key = argument.substr(2, equals == std::string::npos ? std::string::npos : equals - 2);
 			if(equals != std::string::npos)
 				options.values[key] = argument.substr(equals + 1);
-			else if(i + 1 < argc && !startsWith(argv[i + 1], "--"))
+			else if(i + 1 < argc && !startsWith(argv[i + 1], "--") && !switches.count(key))
 				options.values[key] = argv[++i];
 			else
 				options.values[key] = "1";
@@ -86,8 +93,11 @@ Commands:
   ftp-ls --host <ip> [path]            Lists a folder on the console.
   ftp-put --host <ip> <local> [remote] Uploads a file over FTP.
   ftp-get --host <ip> <remote> <local> Downloads a file over FTP.
-  ftp-rm --host <ip> <remote>          Deletes a file on the console.
+  ftp-rm --host <ip> <remote>          Deletes a file on the console (--recursive: a folder
+                                       with everything in it).
   ftp-mkdir --host <ip> <remote>       Creates a folder on the console.
+  ftp-mv --host <ip> <from> <to>      Moves a file or folder on the console
+                                      (between disks, through this PC).
 
 Common options:
   --ftp-port <n>        (default 2121)
@@ -165,6 +175,8 @@ int commandInspect(const Options &options)
 				  << "  Type        : " << pkgCategoryLabel(info.kind) << " ("
 				  << (info.category.empty() ? pkgCategoryCode(info.kind) : info.category) << ")\n"
 				  << "  Version     : " << (info.appVersion.empty() ? "-" : info.appVersion) << "\n"
+				  << "  Package     : " << (info.official ? "official (store)" : "fake (fpkg)") << "\n"
+				  << "  Firmware    : " << (info.requiredFirmware ? firmwareText(info.requiredFirmware) + " or newer" : "-") << "\n"
 				  << "  Size        : " << humanBytes(info.fileSize) << "\n"
 				  << "  Icon        : " << (info.iconPng.empty() ? "no" : humanBytes(static_cast<int64_t>(info.iconPng.size())))
 				  << "\n";
@@ -419,6 +431,26 @@ int commandFtp(const std::string &command, const Options &options)
 		return 0;
 	}
 
+	if(command == "ftp-mv")
+	{
+		if(options.positional.size() < 2)
+		{
+			std::cerr << "Give the path to move and its new path.\n";
+			return 2;
+		}
+		bool throughPc = false;
+		const std::string scratch = (std::filesystem::temp_directory_path() / "orbislink-cli-move").string();
+		const FtpResult result = moveOnConsole(client, options.positional[0], options.positional[1], scratch,
+			nullptr, &throughPc);
+		if(!result.ok)
+		{
+			std::cerr << "FTP: " << result.message << "\n";
+			return 1;
+		}
+		std::cout << (throughPc ? "Moved through this PC.\n" : "Moved.\n");
+		return 0;
+	}
+
 	if(command == "ftp-rm" || command == "ftp-mkdir")
 	{
 		if(options.positional.empty())
@@ -426,8 +458,9 @@ int commandFtp(const std::string &command, const Options &options)
 			std::cerr << "Give the remote path.\n";
 			return 2;
 		}
-		const FtpResult result = command == "ftp-rm" ? client.removeFile(options.positional[0])
-													 : client.makeDirectory(options.positional[0]);
+		const FtpResult result = command == "ftp-mkdir" ? client.makeDirectory(options.positional[0])
+			: options.has("recursive") ? removeOnConsole(client, options.positional[0], true)
+									   : client.removeFile(options.positional[0]);
 		if(!result.ok)
 		{
 			std::cerr << "FTP: " << result.message << "\n";

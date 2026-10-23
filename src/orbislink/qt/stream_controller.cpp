@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "orbislink/qt/stream_controller.h"
 
+#include "orbislink/net/lan_scan.h"
+
 #include "orbislink/qt/translate_message.h"
 #include "orbislink/stream/account_id.h"
 #include "orbislink/common/util.h"
@@ -14,6 +16,9 @@
 #include <QMetaObject>
 #include <algorithm>
 #include <thread>
+#include <QSet>
+#include <set>
+#include <map>
 
 #include <chiaki/controller.h>
 
@@ -90,9 +95,14 @@ StreamController::StreamController(QObject *parent)
 					lastSessionEndMs_ = QDateTime::currentMSecsSinceEpoch();
 				sessionState_ = slug;
 				sessionDetail_ = message;
+				const bool wasStreaming = streaming_;
 				streaming_ = state == SessionState::Connected;
 				if(streaming_)
 				{
+					// The account the console just let in becomes this
+					// console's usual one: the picker offers it first.
+					if(!wasStreaming && !credentials_.accountId.empty())
+						emit accountIdAccepted(QString::fromStdString(credentials_.accountId));
 					gamepad_.start();
 					hardwareDecoder_ = lastHardwareDecoder_ = session_->usingHardwareDecoder();
 					lastFrameCount_ = video_.framesDelivered();
@@ -113,6 +123,7 @@ StreamController::StreamController(QObject *parent)
 				}
 				if(state == SessionState::Stopped || state == SessionState::Failed)
 				{
+					cantDisplay_ = false;
 					audio_.stop();
 					video_.clear();
 					frameWidth_ = frameHeight_ = 0;
@@ -126,6 +137,26 @@ StreamController::StreamController(QObject *parent)
 	});
 
 	session_->setFrameCallback([this](AVFrame *frame) { video_.presentFrame(frame); });
+
+	session_->setDisplayCallback([this](bool blocked) {
+		QMetaObject::invokeMethod(
+			this,
+			[this, blocked]() {
+				if(cantDisplay_ == blocked)
+					return;
+				cantDisplay_ = blocked;
+				logInfo(blocked ? "Remote Play: the console is showing something it does not stream."
+								: "Remote Play: the console is streaming the picture again.");
+				emit sessionChanged();
+				if(blocked)
+					emit notify(tr("Remote Play"),
+						tr("The console is showing something it does not stream, such as a video app "
+						   "(YouTube, Netflix…). Close it or go back to the home screen and the picture "
+						   "comes back."),
+						false);
+			},
+			Qt::QueuedConnection);
+	});
 
 	session_->setRumbleCallback([this](uint8_t left, uint8_t right) {
 		QMetaObject::invokeMethod(
@@ -150,7 +181,7 @@ StreamController::StreamController(QObject *parent)
 
 	session_->setLoginPinCallback([this](bool incorrect) {
 		QMetaObject::invokeMethod(
-			this, [this, incorrect]() { emit loginPinRequested(incorrect); },
+			this, [this, incorrect]() { answerLoginPin(incorrect); },
 			Qt::QueuedConnection);
 	});
 
@@ -209,6 +240,7 @@ StreamController::StreamController(QObject *parent)
 
 StreamController::~StreamController()
 {
+	lifeline_->cut();
 	if(session_)
 		session_->stop();
 }
@@ -249,6 +281,24 @@ void StreamController::applySettings(const Settings &settings)
 	for(const ConsoleEntry &console : settings.consoles)
 		if(console.address == settings.consoleAddress && !console.accountId.empty())
 			accountId_ = QString::fromStdString(console.accountId);
+	accountNames_.clear();
+	accountPins_.clear();
+	for(const SavedAccount &account : settings.accounts)
+	{
+		accountNames_[account.accountId] = account.label;
+		accountPins_[account.accountId] = account.remotePlayPin;
+	}
+	// Registrations made before each account had its own belong to the
+	// account the console registered with (the one stored with it).
+	consoleHostIds_.clear();
+	for(const ConsoleEntry &console : settings.consoles)
+	{
+		consoleHostIds_[console.address] = console.hostId;
+		if(!console.hostId.empty() && !console.accountId.empty())
+			store_.adopt(console.hostId, console.accountId);
+	}
+	loadCredentials();
+	emit registrationChanged();
 	keyboard_.setBindings(settings.keyboardBindings);
 	gamepad_.setButtonMap(settings.padBindings);
 	emit settingsApplied();
@@ -356,7 +406,68 @@ QString StreamController::keyName(int key) const
 
 void StreamController::loadCredentials()
 {
-	credentials_ = store_.load(host_.id);
+	// The chosen account's own registration on this console, never
+	// another account's. With no account at all, the console's as before.
+	const std::string account = accountId_.toStdString();
+	credentials_ = account.empty() ? store_.load(host_.id) : store_.load(host_.id, account);
+}
+
+QString StreamController::accountName() const
+{
+	const auto found = accountNames_.find(accountId_.toStdString());
+	return found == accountNames_.end() ? QString() : QString::fromStdString(found->second);
+}
+
+QStringList StreamController::registeredAccounts() const
+{
+	QStringList out;
+	std::string hostId = host_.id;
+	if(hostId.empty())
+	{
+		const auto known = consoleHostIds_.find(address_.toStdString());
+		if(known != consoleHostIds_.end())
+			hostId = known->second;
+	}
+	if(hostId.empty())
+		return out;
+	for(const StreamCredentials &credentials : store_.forHost(hostId))
+		if(!credentials.accountId.empty())
+			out << QString::fromStdString(credentials.accountId);
+	return out;
+}
+
+QString StreamController::accountPin(const QString &accountId) const
+{
+	const AccountId parsed = parseAccountId(accountId.toStdString());
+	const auto found = accountPins_.find(parsed.valid ? parsed.base64 : accountId.toStdString());
+	return found == accountPins_.end() ? QString() : QString::fromStdString(found->second);
+}
+
+void StreamController::useAccount(const QString &accountId)
+{
+	const AccountId parsed = parseAccountId(accountId.toStdString());
+	const QString chosen = parsed.valid ? QString::fromStdString(parsed.base64) : accountId.trimmed();
+	if(chosen == accountId_)
+		return;
+	accountId_ = chosen;
+	loadCredentials();
+	emit settingsApplied();
+	emit registrationChanged();
+}
+
+void StreamController::answerLoginPin(bool incorrect)
+{
+	// Only this account's PIN, and only once: a PIN the console refused is
+	// not sent again, and another account's is never tried.
+	const QString pin = accountPin(accountId_);
+	if(!incorrect && !loginPinSent_ && pin.length() == 4)
+	{
+		loginPinSent_ = true;
+		logInfo("Remote Play: the console asked for the account's PIN; sending the one saved for this account.");
+		session_->setLoginPin(pin.toStdString());
+		return;
+	}
+	emit loginPinRequested(incorrect);
 }
 
 void StreamController::applyHost(const HostInfo &info)
@@ -365,6 +476,7 @@ void StreamController::applyHost(const HostInfo &info)
 	consoleState_ = info.found ? stateName(info.state) : QStringLiteral("offline");
 	consoleName_ = QString::fromStdString(info.name);
 	runningApp_ = QString::fromStdString(info.runningAppName);
+	runningAppTitleId_ = QString::fromStdString(info.runningAppTitleId);
 	loadCredentials();
 	emit consoleChanged();
 	emit registrationChanged();
@@ -390,7 +502,7 @@ void StreamController::probeConsoles(const QStringList &addresses)
 	std::vector<std::string> items;
 	for(const QString &address : addresses)
 		items.push_back(address.toStdString());
-	std::thread([this, items]() {
+	std::thread([this, life = lifeline_, items]() {
 		std::vector<HostInfo> replies;
 		for(const std::string &address : items)
 		{
@@ -398,15 +510,13 @@ void StreamController::probeConsoles(const QStringList &addresses)
 			info.address = address;
 			replies.push_back(info);
 		}
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, replies]() {
 				probing_ = false;
 				for(const HostInfo &info : replies)
 					consoleStates_[QString::fromStdString(info.address)] = describeHost(info);
 				emit consoleStatesChanged();
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -417,18 +527,61 @@ void StreamController::scanNetwork()
 	scanning_ = true;
 	scanResults_.clear();
 	emit scanChanged();
-	std::thread([this]() {
-		const std::vector<HostInfo> found = StreamDiscovery::scan(2500);
-		QMetaObject::invokeMethod(
-			this,
-			[this, found]() {
+	std::thread([this, life = lifeline_]() {
+		// Beside Remote Play's own search, the ports a jailbroken console
+		// opens — GoldHEN's or ftpsrv's FTP (2121), etaHEN's (1337), Remote
+		// Package Installer (12800) — so one with Remote Play turned off is
+		// found too.
+		std::map<std::string, std::set<uint16_t>> ports;
+		std::thread sweep([&ports]() {
+			std::vector<std::string> hosts = lanTargets(localInterfaces()).hosts;
+			if(hosts.size() > 512)
+				hosts.resize(512);
+			for(const uint16_t port : { uint16_t(2121), uint16_t(1337), uint16_t(12800) })
+				for(const std::string &host : hostsWithPort(hosts, port, 900))
+					ports[host].insert(port);
+		});
+		const std::vector<HostInfo> found = StreamDiscovery::scan(3000);
+		sweep.join();
+		life->post(
+			[this, found, ports]() {
 				scanning_ = false;
 				scanResults_.clear();
+				QSet<QString> seen;
 				for(const HostInfo &info : found)
-					scanResults_.append(describeHost(info));
+				{
+					QVariantMap row = describeHost(info);
+					const auto open = ports.find(info.address);
+					if(open != ports.end() && !open->second.empty())
+						row[QStringLiteral("ftpPort")] = *open->second.begin();
+					row[QStringLiteral("kind")] = info.ps5 ? QStringLiteral("ps5") : QStringLiteral("ps4");
+					scanResults_.append(row);
+					seen.insert(QString::fromStdString(info.address));
+				}
+				for(const auto &entry : ports)
+				{
+					const QString address = QString::fromStdString(entry.first);
+					if(seen.contains(address))
+						continue;
+					const std::set<uint16_t> &open = entry.second;
+					// The installer is a PS4's; etaHEN's FTP port a PS5's; 2121
+					// alone could be either.
+					const QString kind = open.count(12800) ? QStringLiteral("ps4")
+						: open.count(1337) ? QStringLiteral("ps5") : QString();
+					QVariantMap row;
+					row[QStringLiteral("state")] = QStringLiteral("ftp");
+					row[QStringLiteral("name")] = QString();
+					row[QStringLiteral("address")] = address;
+					row[QStringLiteral("ps5")] = kind == QLatin1String("ps5");
+					row[QStringLiteral("kind")] = kind;
+					row[QStringLiteral("registered")] = false;
+					row[QStringLiteral("hostId")] = QString();
+					row[QStringLiteral("ftpPort")] = open.count(1337) ? 1337 : open.count(2121) ? 2121 : 0;
+					row[QStringLiteral("installer")] = open.count(12800) > 0;
+					scanResults_.append(row);
+				}
 				emit scanChanged();
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -454,10 +607,9 @@ void StreamController::probe(bool reportResult)
 	emit consoleChanged();
 
 	const std::string address = address_.toStdString();
-	std::thread([this, address]() {
+	std::thread([this, life = lifeline_, address]() {
 		const HostInfo info = StreamDiscovery::probe(address, 1500);
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, info, address]() {
 				searching_ = false;
 				const bool announce = notifyWhenDone_;
@@ -491,8 +643,7 @@ void StreamController::probe(bool reportResult)
 					emit notify(tr("Search"),
 						tr("%1 found and ready.").arg(name.isEmpty() ? address_ : name),
 						false);
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -507,21 +658,19 @@ void StreamController::wakeUp()
 	const std::string address = address_.toStdString();
 	const uint64_t credential = credentials_.wakeupCredential();
 	const bool ps5 = credentials_.ps5;
-	std::thread([this, address, credential, ps5]() {
+	std::thread([this, life = lifeline_, address, credential, ps5]() {
 		std::string err;
 		const bool ok = StreamDiscovery::wakeup(address, credential, ps5, &err);
 		const QString message = ok
 			? tr("Request sent. The console takes a few seconds to wake up.")
 			: translateMessage(err);
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, ok, message]() {
 				emit notify(tr("Wake the console"), message, !ok);
 				// No notice: just woken, it is normal not to answer yet.
 				if(ok)
 					probe(false);
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -588,10 +737,9 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 		const QString accountCopy = accountIdBase64;
 		registering_ = true;
 		emit registrationChanged();
-		std::thread([this, address, pinCopy, accountCopy]() {
+		std::thread([this, life = lifeline_, address, pinCopy, accountCopy]() {
 			const HostInfo info = StreamDiscovery::probe(address, 1500);
-			QMetaObject::invokeMethod(
-				this,
+			life->post(
 				[this, info, pinCopy, accountCopy]() {
 					registering_ = false;
 					applyHost(info);
@@ -603,8 +751,7 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 						return;
 					}
 					registerConsole(pinCopy, accountCopy);
-				},
-				Qt::QueuedConnection);
+				});
 		}).detach();
 		return;
 	}
@@ -641,16 +788,18 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 	const QString accountToSave = QString::fromStdString(account.base64);
 	const bool started = registration_->start(
 		request,
-		[this, accountToSave](bool ok, StreamCredentials credentials, std::string error) {
+		[this, life = lifeline_, accountToSave](bool ok, StreamCredentials credentials, std::string error) {
 			const QString message = translateMessage(error);
-			QMetaObject::invokeMethod(
-				this,
+			life->post(
 				[this, ok, credentials, message, accountToSave]() {
 					registering_ = false;
 					if(ok)
 					{
-						credentials_ = credentials;
-						store_.save(credentials);
+						// The registration belongs to the account it was made with.
+						StreamCredentials stored = credentials;
+						stored.accountId = accountToSave.toStdString();
+						credentials_ = stored;
+						store_.save(stored);
 						// Stored only after the console accepts it: a wrong
 						// ID does not get in the way of the next attempt.
 						if(!accountToSave.isEmpty())
@@ -668,8 +817,7 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 						emit notify(tr("Registration"), message, true);
 					}
 					emit registrationChanged();
-				},
-				Qt::QueuedConnection);
+				});
 		},
 		&err);
 
@@ -693,7 +841,8 @@ void StreamController::forgetConsole()
 {
 	if(!credentials_.valid)
 		return;
-	forgetRegistration(QString::fromStdString(credentials_.hostId));
+	forgetRegistration(QString::fromStdString(credentials_.hostId),
+		QString::fromStdString(credentials_.accountId));
 }
 
 QVariantList StreamController::registrations() const
@@ -705,17 +854,22 @@ QVariantList StreamController::registrations() const
 		entry[QStringLiteral("hostId")] = QString::fromStdString(credentials.hostId);
 		entry[QStringLiteral("name")] = QString::fromStdString(credentials.nickname);
 		entry[QStringLiteral("ps5")] = credentials.ps5;
+		entry[QStringLiteral("accountId")] = QString::fromStdString(credentials.accountId);
+		const auto name = accountNames_.find(credentials.accountId);
+		entry[QStringLiteral("accountName")] = name == accountNames_.end()
+			? QString() : QString::fromStdString(name->second);
 		items.append(entry);
 	}
 	return items;
 }
 
-void StreamController::forgetRegistration(const QString &hostId)
+void StreamController::forgetRegistration(const QString &hostId, const QString &accountId)
 {
 	const std::string id = hostId.toStdString();
-	if(id.empty() || !store_.forget(id))
+	const std::string account = accountId.toStdString();
+	if(id.empty() || !store_.forget(id, account))
 		return;
-	if(iequals(credentials_.hostId, id))
+	if(iequals(credentials_.hostId, id) && (account.empty() || credentials_.accountId == account))
 		credentials_ = {};
 	emit registrationChanged();
 	emit notify(tr("Remote Play"), tr("Registration removed from this PC."), false);
@@ -754,6 +908,7 @@ void StreamController::startStream()
 {
 	if(!retryingInUse_)
 		inUseRetries_ = 0;
+	loginPinSent_ = false;
 	if(streaming_)
 	{
 		emit notify(tr("Remote Play"), tr("The session is already running."), false);
@@ -818,17 +973,15 @@ void StreamController::connectOneClick()
 	const quint64 run = ++oneClickRun_;
 	setConnectStage(QStringLiteral("checking"));
 	const std::string address = address_.toStdString();
-	std::thread([this, address, run]() {
+	std::thread([this, life = lifeline_, address, run]() {
 		const HostInfo info = StreamDiscovery::probe(address, 1500);
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, info, address, run]() {
 				if(run != oneClickRun_ || address != address_.toStdString())
 					return;
 				applyHost(info);
 				oneClickDecide(info);
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 
@@ -902,10 +1055,9 @@ void StreamController::oneClickPoll()
 	}
 	const quint64 run = oneClickRun_;
 	const std::string address = address_.toStdString();
-	std::thread([this, address, run]() {
+	std::thread([this, life = lifeline_, address, run]() {
 		const HostInfo info = StreamDiscovery::peek(address, 1500);
-		QMetaObject::invokeMethod(
-			this,
+		life->post(
 			[this, info, address, run]() {
 				if(run != oneClickRun_ || address != address_.toStdString()
 					|| connectStage_ != QLatin1String("waking"))
@@ -918,8 +1070,7 @@ void StreamController::oneClickPoll()
 				}
 				applyHost(info);
 				oneClickDecide(info);
-			},
-			Qt::QueuedConnection);
+			});
 	}).detach();
 }
 

@@ -31,6 +31,11 @@ QMutex g_logMutex;
 QtMessageHandler g_previousHandler = nullptr;
 QString g_logPath;
 QAtomicInt g_windowCreationFailed { 0 };
+#ifdef Q_OS_WIN
+DWORD g_mainThreadId = 0;
+// The log's path, ready before any crash: the handler must not allocate.
+wchar_t g_crashLogPath[MAX_PATH] = { 0 };
+#endif
 
 QString dataDirectory()
 {
@@ -124,84 +129,150 @@ void handler(QtMsgType type, const QMessageLogContext &context, const QString &m
 } // namespace
 
 #ifdef Q_OS_WIN
+namespace {
+
+// Module and offset of an address ("Qt6Core.dll+0xF2088"): the address
+// alone changes on every start (ASLR) and tells nobody anything.
+void describeAddress(const void *address, char *out, size_t size)
+{
+	char module[MAX_PATH] = "unknown";
+	unsigned long long offset = reinterpret_cast<unsigned long long>(address);
+	HMODULE handle = nullptr;
+	if(address
+		&& GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+				| GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+			static_cast<LPCSTR>(address), &handle)
+		&& handle)
+	{
+		char full[MAX_PATH] = { 0 };
+		if(GetModuleFileNameA(handle, full, MAX_PATH))
+		{
+			const char *name = strrchr(full, '\\');
+			strncpy_s(module, sizeof(module), name ? name + 1 : full, _TRUNCATE);
+		}
+		offset = static_cast<unsigned long long>(reinterpret_cast<const unsigned char *>(address)
+			- reinterpret_cast<const unsigned char *>(handle));
+	}
+	_snprintf_s(out, size, _TRUNCATE, "%s+0x%llX", module, offset);
+}
+
+void writeText(HANDLE file, const char *text)
+{
+	DWORD written = 0;
+	WriteFile(file, text, static_cast<DWORD>(strlen(text)), &written, nullptr);
+}
+
+#if defined(_MSC_VER) && defined(_M_X64)
+// The crashed thread's own calls, unwound from the moment of the crash
+// with the tables every x64 module carries. Stack memory may be what broke,
+// so a fault while reading it only ends the walk.
+int walkCrashedStack(const CONTEXT *crashed, void **frames, int max)
+{
+	CONTEXT context = *crashed;
+	int count = 0;
+	__try
+	{
+		// A call through a null pointer lands on address 0 with the
+		// caller's return address on top of the stack.
+		if(context.Rip == 0 && context.Rsp != 0)
+		{
+			context.Rip = *reinterpret_cast<const DWORD64 *>(context.Rsp);
+			context.Rsp += 8;
+		}
+		while(count < max && context.Rip != 0)
+		{
+			frames[count++] = reinterpret_cast<void *>(context.Rip);
+			DWORD64 imageBase = 0;
+			PRUNTIME_FUNCTION function = RtlLookupFunctionEntry(context.Rip, &imageBase, nullptr);
+			if(!function)
+			{
+				// A leaf function: the return address is right on top.
+				context.Rip = *reinterpret_cast<const DWORD64 *>(context.Rsp);
+				context.Rsp += 8;
+				continue;
+			}
+			void *handlerData = nullptr;
+			DWORD64 establisher = 0;
+			RtlVirtualUnwind(UNW_FLAG_NHANDLER, imageBase, context.Rip, function, &context,
+				&handlerData, &establisher, nullptr);
+		}
+	}
+	__except(EXCEPTION_EXECUTE_HANDLER)
+	{
+	}
+	return count;
+}
+#endif
+
+} // namespace
+
 // Last resort: if the process crashes, it is logged instead of vanishing
 // without a trace. Written with the Windows API and without allocating
 // memory — inside an exception handler the process state cannot be
 // trusted.
 LONG WINAPI crashHandler(EXCEPTION_POINTERS *info)
 {
-	wchar_t path[MAX_PATH];
-	const QString target = logPath();
-	const int copied = target.toWCharArray(path);
-	path[copied < MAX_PATH ? copied : MAX_PATH - 1] = L'\0';
+	// Only the first crash is reported: another thread crashing while this
+	// one writes would interleave the two.
+	static volatile LONG entered = 0;
+	if(InterlockedExchange(&entered, 1) != 0)
+	{
+		Sleep(INFINITE);
+		return EXCEPTION_EXECUTE_HANDLER;
+	}
 
-	HANDLE file = CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ, nullptr,
+	HANDLE file = CreateFileW(g_crashLogPath, FILE_APPEND_DATA, FILE_SHARE_READ, nullptr,
 		OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
 	if(file != INVALID_HANDLE_VALUE)
 	{
-		char buffer[256];
-		const DWORD code = info && info->ExceptionRecord
-			? info->ExceptionRecord->ExceptionCode
-			: 0;
-		const void *address = info && info->ExceptionRecord
-			? info->ExceptionRecord->ExceptionAddress
-			: nullptr;
-		// Resolve the address to module + offset: without this the address
-		// changes on every start (ASLR) and tells nobody anything.
-		char module[MAX_PATH] = "unknown";
-		unsigned long long offset = 0;
-		HMODULE handle = nullptr;
-		if(address
-			&& GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
-					| GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-				static_cast<LPCSTR>(address), &handle)
-			&& handle)
+		char buffer[320];
+		char where[MAX_PATH + 32];
+		const EXCEPTION_RECORD *record = info ? info->ExceptionRecord : nullptr;
+		const DWORD code = record ? record->ExceptionCode : 0;
+		describeAddress(record ? record->ExceptionAddress : nullptr, where, sizeof(where));
+		_snprintf_s(buffer, sizeof(buffer), _TRUNCATE,
+			"FATAL: the process crashed (code 0x%08lX at %s), thread %lu%s\r\n",
+			static_cast<unsigned long>(code), where, GetCurrentThreadId(),
+			GetCurrentThreadId() == g_mainThreadId ? " (the window's)" : "");
+		writeText(file, buffer);
+
+		// Which memory it tried to touch, and how: reading address 0 is a
+		// null pointer, a small address a field of one, anything else freed
+		// or overwritten memory.
+		if(record && code == EXCEPTION_ACCESS_VIOLATION && record->NumberParameters >= 2)
 		{
-			char full[MAX_PATH] = { 0 };
-			if(GetModuleFileNameA(handle, full, MAX_PATH))
-			{
-				const char *name = strrchr(full, '\\');
-				strncpy_s(module, sizeof(module), name ? name + 1 : full, _TRUNCATE);
-			}
-			offset = static_cast<unsigned long long>(
-				reinterpret_cast<const unsigned char *>(address)
-				- reinterpret_cast<const unsigned char *>(handle));
+			const ULONG_PTR kind = record->ExceptionInformation[0];
+			_snprintf_s(buffer, sizeof(buffer), _TRUNCATE, "  %s address 0x%llX\r\n",
+				kind == 0 ? "reading" : kind == 1 ? "writing" : "executing",
+				static_cast<unsigned long long>(record->ExceptionInformation[1]));
+			writeText(file, buffer);
 		}
 
-		const int length = _snprintf_s(buffer, sizeof(buffer), _TRUNCATE,
-			"FATAL: the process crashed (code 0x%08lX at %s+0x%llX)\r\n",
-			static_cast<unsigned long>(code), module, offset);
-		DWORD written = 0;
-		if(length > 0)
-			WriteFile(file, buffer, static_cast<DWORD>(length), &written, nullptr);
-
-		// And the call stack, module by module.
-		void *frames[24];
-		const USHORT captured = CaptureStackBackTrace(0, 24, frames, nullptr);
-		for(USHORT i = 0; i < captured; ++i)
+#if defined(_MSC_VER) && defined(_M_X64)
+		void *frames[32];
+		const int walked = info && info->ContextRecord
+			? walkCrashedStack(info->ContextRecord, frames, 32)
+			: 0;
+		for(int i = 0; i < walked; ++i)
 		{
-			HMODULE frameModule = nullptr;
-			char frameName[MAX_PATH] = "?";
-			unsigned long long frameOffset = 0;
-			if(GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
-						| GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-					static_cast<LPCSTR>(frames[i]), &frameModule)
-				&& frameModule)
+			describeAddress(frames[i], where, sizeof(where));
+			_snprintf_s(buffer, sizeof(buffer), _TRUNCATE, "  at %02d: %s\r\n", i, where);
+			writeText(file, buffer);
+		}
+		if(walked == 0)
+#endif
+		{
+			// The way into this handler, when the crashed stack cannot be
+			// walked.
+			void *handlerFrames[24];
+			const USHORT captured = CaptureStackBackTrace(0, 24, handlerFrames, nullptr);
+			for(USHORT i = 0; i < captured; ++i)
 			{
-				char full[MAX_PATH] = { 0 };
-				if(GetModuleFileNameA(frameModule, full, MAX_PATH))
-				{
-					const char *name = strrchr(full, '\\');
-					strncpy_s(frameName, sizeof(frameName), name ? name + 1 : full, _TRUNCATE);
-				}
-				frameOffset = static_cast<unsigned long long>(
-					reinterpret_cast<const unsigned char *>(frames[i])
-					- reinterpret_cast<const unsigned char *>(frameModule));
+				describeAddress(handlerFrames[i], where, sizeof(where));
+				_snprintf_s(buffer, sizeof(buffer), _TRUNCATE, "  stack %02u: %s\r\n",
+					static_cast<unsigned>(i), where);
+				writeText(file, buffer);
 			}
-			const int frameLength = _snprintf_s(buffer, sizeof(buffer), _TRUNCATE,
-				"  stack %02u: %s+0x%llX\r\n", static_cast<unsigned>(i), frameName, frameOffset);
-			if(frameLength > 0)
-				WriteFile(file, buffer, static_cast<DWORD>(frameLength), &written, nullptr);
 		}
 		CloseHandle(file);
 	}
@@ -225,15 +296,31 @@ void installFileLogger()
 #ifdef Q_OS_WIN
 	// Without this, running the application from a command line shows
 	// nothing: it is a windowed executable, it has no console of its own.
-	if(AttachConsole(ATTACH_PARENT_PROCESS))
+	// Output already sent to a file or a pipe (diagnostics.bat does that)
+	// stays there; only output going nowhere is pointed at the console.
+	const auto redirected = [](DWORD which) {
+		const HANDLE handle = GetStdHandle(which);
+		if(!handle || handle == INVALID_HANDLE_VALUE)
+			return false;
+		const DWORD type = GetFileType(handle);
+		return type == FILE_TYPE_DISK || type == FILE_TYPE_PIPE;
+	};
+	const bool outRedirected = redirected(STD_OUTPUT_HANDLE);
+	const bool errRedirected = redirected(STD_ERROR_HANDLE);
+	if((!outRedirected || !errRedirected) && AttachConsole(ATTACH_PARENT_PROCESS))
 	{
 		FILE *stream = nullptr;
-		freopen_s(&stream, "CONOUT$", "w", stdout);
-		freopen_s(&stream, "CONOUT$", "w", stderr);
+		if(!outRedirected)
+			freopen_s(&stream, "CONOUT$", "w", stdout);
+		if(!errRedirected)
+			freopen_s(&stream, "CONOUT$", "w", stderr);
 	}
 #endif
 	g_logPath = resolveLogPath();
 #ifdef Q_OS_WIN
+	g_mainThreadId = GetCurrentThreadId();
+	const int copied = g_logPath.left(MAX_PATH - 1).toWCharArray(g_crashLogPath);
+	g_crashLogPath[copied] = L'\0';
 	SetUnhandledExceptionFilter(crashHandler);
 #endif
 	g_previousHandler = qInstallMessageHandler(handler);

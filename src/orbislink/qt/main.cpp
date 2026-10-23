@@ -4,7 +4,16 @@
 
 #include "orbislink/common/log.h"
 #include "orbislink/qt/app_controller.h"
+#include "orbislink/qt/cheats_controller.h"
+#include "orbislink/qt/cover_provider.h"
 #include "orbislink/qt/games_controller.h"
+#include "orbislink/qt/saves_controller.h"
+#include "orbislink/qt/library_controller.h"
+#include "orbislink/qt/shelf_controller.h"
+#include "orbislink/qt/payloads_controller.h"
+#ifdef ORBISLINK_HAS_STORE
+#include "orbislink/qt/store_controller.h"
+#endif
 #include "orbislink/settings/settings_store.h"
 #include "orbislink/qt/ftp_model.h"
 #include "orbislink/qt/queue_model.h"
@@ -33,8 +42,30 @@
 #include <memory>
 #include <QSGRendererInterface>
 #include <QTimer>
+#ifndef _WIN32
+#include <QSocketNotifier>
+#include <csignal>
+#include <unistd.h>
+#endif
 
 using namespace orbislink;
+
+#ifndef _WIN32
+namespace {
+
+// The signal handler only writes a byte here; the application reads it and
+// closes, outside the handler.
+int quitPipe[2] = { -1, -1 };
+
+void onQuitSignal(int)
+{
+	const char byte = 1;
+	const ssize_t written = ::write(quitPipe[1], &byte, 1);
+	(void)written;
+}
+
+} // namespace
+#endif
 
 int main(int argc, char **argv)
 {
@@ -75,6 +106,28 @@ int main(int argc, char **argv)
 	}
 
 	QGuiApplication app(argc, argv);
+#ifndef _WIN32
+	// Logging out or shutting down sends SIGTERM, Ctrl+C in a terminal
+	// SIGINT: the application closes as it does from its window, so the
+	// queue and the copies and conversions not finished are kept for the
+	// next time.
+	if(::pipe(quitPipe) == 0)
+	{
+		auto *quitNotifier = new QSocketNotifier(quitPipe[0], QSocketNotifier::Read, &app);
+		QObject::connect(quitNotifier, &QSocketNotifier::activated, &app, []() {
+			char byte = 0;
+			const ssize_t got = ::read(quitPipe[0], &byte, 1);
+			(void)got;
+			QCoreApplication::quit();
+		});
+		struct sigaction action {};
+		action.sa_handler = onQuitSignal;
+		sigemptyset(&action.sa_mask);
+		action.sa_flags = SA_RESTART;
+		sigaction(SIGTERM, &action, nullptr);
+		sigaction(SIGINT, &action, nullptr);
+	}
+#endif
 	// The window and taskbar icon. On Windows the file's own icon comes
 	// from the .rc resource; this is the one the running application shows.
 	app.setWindowIcon(QIcon(QStringLiteral(":/icons/mark.png")));
@@ -120,11 +173,18 @@ int main(int argc, char **argv)
 	bool demoWizard = false;
 	bool demoUpdate = false;
 	bool demoGames = false;
+	// A page opened at start: "games", "store", "store-local", "saves",
+	// "payloads", "payloads-library".
+	QString demoView;
+	// A page opened over the stage as it is over a Remote Play session
+	// (SectionOverlay): "games", "store", "saves", "payloads".
+	QString demoSection;
 	QString demoTheme;
 	bool printDiagnostics = false;
 	bool selfTestDrag = false;
 	QStringList enqueuePaths;
 	QStringList uploadPaths;
+	QString ftpFolder;
 	const QStringList arguments = app.arguments();
 	for(int i = 1; i < arguments.size(); ++i)
 	{
@@ -155,6 +215,10 @@ int main(int argc, char **argv)
 			demoUpdate = true;
 		else if(argument == QStringLiteral("--demo-games"))
 			demoGames = true;
+		else if(argument == QStringLiteral("--demo-view") && i + 1 < arguments.size())
+			demoView = arguments[++i];
+		else if(argument == QStringLiteral("--demo-section") && i + 1 < arguments.size())
+			demoSection = arguments[++i];
 		else if(argument == QStringLiteral("--demo-theme") && i + 1 < arguments.size())
 			demoTheme = arguments[++i];
 		else if(argument == QStringLiteral("--print-diagnostics"))
@@ -165,6 +229,8 @@ int main(int argc, char **argv)
 			enqueuePaths << arguments[++i];
 		else if(argument == QStringLiteral("--enqueue-ftp") && i + 1 < arguments.size())
 			uploadPaths << arguments[++i];
+		else if(argument == QStringLiteral("--ftp-folder") && i + 1 < arguments.size())
+			ftpFolder = arguments[++i];
 	}
 
 	// Translations. The source language is English; Portuguese is chosen in
@@ -218,19 +284,24 @@ int main(int argc, char **argv)
 	}
 	if(!enqueuePaths.isEmpty())
 		controller->addPaths(enqueuePaths, 0);
-	// The same as dropping on "Send over FTP", after the window is up (the
-	// question about names already taken needs it).
+	// The Files tab opened on a folder (--ftp-folder), as if browsed to.
+	if(!ftpFolder.isEmpty())
+		controller->ftpNavigate(ftpFolder);
+	// The same as dropping on "Send over FTP" — into the folder the Files tab
+	// has open — after the window is up (the question about names already
+	// taken needs it).
 	if(!uploadPaths.isEmpty())
 		QTimer::singleShot(1500, controller.get(),
-			[&controller, uploadPaths]() { controller->addPaths(uploadPaths, 1); });
+			[&controller, uploadPaths]() { controller->addPaths(uploadPaths, 1, controller->ftpPath()); });
 
-	// Important notices also go to the system, so they arrive with the
-	// window minimised. Where there is no notification area, this does
-	// nothing and the application carries on the same.
+	// A long job's end also goes to the system, so it arrives with the
+	// window in the background (in front, the window's own notice is
+	// enough). Where there are no notifications, the window flashes.
 	Notifier notifier;
-	QObject::connect(controller.get(), &AppController::notify, &notifier,
+	QObject::connect(controller.get(), &AppController::jobFinished, &notifier,
 		[&notifier](const QString &title, const QString &message, bool error) {
-			notifier.show(title, message, error);
+			if(QGuiApplication::applicationState() != Qt::ApplicationActive)
+				notifier.show(title, message, error);
 		});
 
 	startup::markLaunchStarted();
@@ -238,6 +309,21 @@ int main(int argc, char **argv)
 	// PS1/PS2 discs: found, sent or converted. Made before the engine, so it
 	// outlives the interface that reads it when the application closes.
 	auto games = std::make_unique<GamesController>(controller.get());
+	// The save vault, the same way.
+	auto saves = std::make_unique<SavesController>(controller.get());
+	// The payloads and plugins of a jailbroken console, the same way.
+	auto payloads = std::make_unique<PayloadsController>(controller.get());
+	// What is in the console's OrbisLinkFPKG folders, the same way.
+	auto consoleLibrary = std::make_unique<LibraryController>(controller.get(), games.get());
+	// The games page's library: the console's places and this PC's, as covers.
+	auto shelf = std::make_unique<ShelfController>(controller.get(), games.get(), consoleLibrary.get(),
+		payloads.get());
+	// Cheats and game patches for the games the console has, the same way.
+	auto cheats = std::make_unique<CheatsController>(controller.get());
+#ifdef ORBISLINK_HAS_STORE
+	// The PS5 homebrew store, the same way.
+	auto store = std::make_unique<StoreController>(controller.get());
+#endif
 
 	QQmlApplicationEngine engine;
 	QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,
@@ -246,8 +332,20 @@ int main(int argc, char **argv)
 				QCoreApplication::translate("main", "Could not load the interface (%1).").arg(url.toString()));
 			QCoreApplication::exit(1);
 		});
+	// Game pictures made at the screen's own pixels (CoverArt.qml).
+	engine.addImageProvider(QStringLiteral("cover"), new CoverImageProvider);
 	engine.rootContext()->setContextProperty(QStringLiteral("app"), controller.get());
 	engine.rootContext()->setContextProperty(QStringLiteral("games"), games.get());
+	engine.rootContext()->setContextProperty(QStringLiteral("saves"), saves.get());
+	engine.rootContext()->setContextProperty(QStringLiteral("payloads"), payloads.get());
+	engine.rootContext()->setContextProperty(QStringLiteral("consoleLibrary"), consoleLibrary.get());
+	engine.rootContext()->setContextProperty(QStringLiteral("shelf"), shelf.get());
+	engine.rootContext()->setContextProperty(QStringLiteral("cheats"), cheats.get());
+#ifdef ORBISLINK_HAS_STORE
+	engine.rootContext()->setContextProperty(QStringLiteral("store"), store.get());
+#else
+	engine.rootContext()->setContextProperty(QStringLiteral("store"), QVariant());
+#endif
 
 #ifdef ORBISLINK_HAS_STREAM
 	// Remote Play is a separate controller, but it follows the console
@@ -275,6 +373,7 @@ int main(int argc, char **argv)
 	QObject::connect(stream.get(), &StreamController::consoleChanged, controller.get(),
 		[&controller, &stream]() {
 			controller->reportRemotePlayState(stream->consoleState(), stream->runningApp());
+			controller->reportConsoleFirmware(stream->hostAddress(), stream->systemVersion());
 		});
 	// Stream notifications appear in the same bar as the others.
 	QObject::connect(stream.get(), &StreamController::notify, controller.get(),
@@ -295,6 +394,8 @@ int main(int argc, char **argv)
 	engine.rootContext()->setContextProperty(QStringLiteral("demoOverlay"), demoOverlay);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoTab"), demoTab);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoGames"), demoGames);
+	engine.rootContext()->setContextProperty(QStringLiteral("demoView"), demoView);
+	engine.rootContext()->setContextProperty(QStringLiteral("demoSection"), demoSection);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoSettings"), demoSettings);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoMenu"), demoMenu);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoRegister"), demoRegister);

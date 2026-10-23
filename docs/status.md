@@ -34,9 +34,17 @@ Last review: v1.1.0.
 | ✅ | Dragging files and folders onto the window (looks for .pkg files inside) |
 | ✅ | Choosing between installing and uploading over FTP when dropping |
 | 🟡 | A 10 GB+ install on a real console |
-| ✅ | Installing automatically after the FTP upload (the file stays on the console and is installed from the PC, because the installer only downloads over HTTP) |
+| ✅ | Installing automatically after the FTP upload (on a PS4 the file stays on the console and is installed from the PC, because the installer only downloads over HTTP; on a PS5 it is installed by its path there) |
 | ✅ | Deleting the uploaded copy from the console after installing |
-| 🟡 | Installing on a PS5 through etaHEN's DPI v2 (same API as the PS4 installer; not yet confirmed on a real PS5) |
+| 🟡 | Installing on a PS5 through etaHEN's DPI v2: its own protocol (a form with `url`, a path on the console or an http:// address; a text reply), told apart from Remote Package Installer's JSON API by asking; checked against etaHEN's source and the fake console, not yet on a real PS5 |
+| 🟡 | Installing on a PS5 through Prospero Manager (port 7070) when there is no DPI v2: its package API (`/api/pkg/install` with a path or an address, `/api/pkg/status` until *queued*), checked against its source and the fake console, not yet on a real PS5 |
+| ✅ | Error 0x80990015 (a task left by an earlier try): the task is removed and the install asked again |
+| ✅ | Official (store) packages told apart from fake ones (the header's type field at 0x04, as PS4 PKG Tool does), and a warning before one goes: it installs only with its licence |
+| ✅ | The firmware a package needs (PUBTOOLINFO's sdk_ver, else SYSTEM_VER), shown on the queue card and in the library's details, with a warning when a game or update needs more than the PS4 in use runs (its firmware from Remote Play discovery) |
+| 🟡 | PS2 games on CD kept as a raw `.bin`/`.cue` (2352 bytes a sector) packed with the ISO inside them, the image the PS2 emulator reads (the raw image made it crash, CE-34878-0); the package is byte for byte the one made from that ISO, not yet run on a real PS4 |
+| ✅ | Organising the packages of a folder of this PC: renamed from a pattern of placeholders, numbered in install order, a folder per game, copies of the same package left alone; shown before anything changes |
+| 🟡 | Cheats for an installed game, from GoldHEN's cheat repository (and etaHEN's PS5 one on a PS5): the files for the version installed with their cheats' names, sent to GoldHEN's or etaHEN's cheat folder (and etaHEN's list) and taken off again; checked against the real repositories, etaHEN's source and the fake consoles, not yet on a real console |
+| 🟡 | Game patches on a PS4 (illusion0001's archive): each patch for the version installed with its switch, the file GoldHEN's game_patch plugin reads and the switch named by the same hash it works out (checked against the plugin's own code); not yet on a real PS4 |
 
 ## 2. FTP
 
@@ -44,7 +52,10 @@ Last review: v1.1.0.
 |---|---|
 | ✅ | Connection to the GoldHEN server (2121, anonymous, passive) |
 | 🟡 | Connection to etaHEN's FTP server on a PS5 (1337, its own port setting) |
-| ✅ | List, browse, create folder, delete, rename |
+| ✅ | FTP on another port: 1337, 2121 and 21 (and 9090 on a PS5) are asked, and the one that greets as FTP is kept |
+| ✅ | List, browse, create folder (one already there is fine), delete, rename |
+| ✅ | Move between disks (`/data` ↔ USB), where the console cannot rename: copied through the PC, checked, then the original deleted |
+| ✅ | Dropping on *Send over FTP* copies to the folder the Files tab has open; any file goes as it is — a disc image, a payload, a package for another console (a PS3 one for RPCS3, told apart by its header) — and only a PS4 package is ever installed |
 | ✅ | Upload files with progress and cancellation |
 | ✅ | Download files to the PC (menu, double click, or a chosen folder) |
 | ✅ | Drag from the window to the desktop (downloads to a local cache first) |
@@ -53,6 +64,10 @@ Last review: v1.1.0.
 | ✅ | Automatic reconnection with exponential back-off |
 | ✅ | Menu per file and per folder |
 | 🟡 | Resuming an interrupted upload (`REST`/`APPE` implemented; GoldHEN's server still has to be confirmed to accept it) |
+| ✅ | Downloads (files and whole folders) as cards in the queue; one the console breaks (its 426) goes on from where it stopped (`REST`), while each try gets further; tested against the fake console |
+| ✅ | Several files and folders picked at once (click, Ctrl+click, Shift+click) and downloaded, moved or deleted together; a folder deleted with everything inside it, what is inside first |
+| ✅ | A file being uploaded listed with its percentage as soon as its upload starts; the folder's totals under the list, and its disk's free space when the server says it (`AVBL`: GoldHEN's and etaHEN's do not, so only the totals show) |
+| 🟡 | Save vault: saves a PS4 copied to a USB drive (`PS4/SAVEDATA`), on the console's drives (`/mnt/usbN`) or on a drive plugged into this PC, shown and backed up into the vault folder (the drive is only read); checked with the fake console and in the tests |
 
 ## 3. Remote Play
 
@@ -60,6 +75,7 @@ Last review: v1.1.0.
 |---|---|
 | ✅ | `chiaki-lib` building without changing a line of the submodule |
 | ✅ | Console discovery (987/UDP on the PS4, 9302/UDP on the PS5): state, name, version, running game |
+| 🟡 | The network search: every interface's broadcast address, three rounds, every address of a small private network one by one, and the ports of a jailbroken console (2121, 1337, 12800) for one with Remote Play off; checked against the fake console and in the tests, not yet on the network that missed a real PS4 |
 | ✅ | Several consoles: each in its own box on the stage, with its state; "Add console" scans the network or takes an IP |
 | ✅ | One click connects: checks the console, wakes it if in rest mode, waits until it is ready and connects — or opens the registration |
 | 🟡 | Waking a console from rest mode (still to be confirmed on a real console) |
@@ -79,6 +95,7 @@ Last review: v1.1.0.
 | 🟡 | Controller rumble (through SDL; the DualSense adaptive triggers are for later) |
 | ✅ | Touchpad through the mouse |
 | ✅ | Full screen (F11, Esc to leave) |
+| 🟡 | Games, store, save vault and payloads as a page over the picture while a session is on screen, with an opacity slider (70–100 %, kept) and the keyboard the page's while it is open; checked with the demo stage, not yet over a real session |
 | ✅ | Choosing resolution, fps and bitrate in the settings |
 | ⬜ | Remote Play over PSN (needs a libcurl with WebSockets) |
 
@@ -102,11 +119,18 @@ Last review: v1.1.0.
 | ✅ | The title bar asks Windows for its own translucent material (acrylic in the "glass" theme, mica in the others) and, where there is none, the theme colour or the dark bar. The diagnostics say which one was used |
 | 🟡 | Whole window translucent with the system material behind the content — means painting the window transparent, which can come out black with software rendering |
 | ✅ | First-run wizard (3 steps, with a live console check); can be reopened from the settings |
-| ✅ | System notifications on Windows (`Shell_NotifyIconW`); elsewhere, a notice in the window and the window flashes |
+| ✅ | System notifications when a long job ends with the window in the background: Windows (`Shell_NotifyIconW`), Linux (org.freedesktop.Notifications over D-Bus), macOS (osascript); elsewhere the window flashes |
 | ✅ | Live log window (Ctrl+L), with a filter and Remote Play detail |
 | ✅ | Exporting diagnostics to a file, with versions, network, settings (without secrets), the last Remote Play attempt and the end of the log |
 | ✅ | English (source language and default) and Portuguese, chosen in the settings; the log and the diagnostics are always in English |
 | ⬜ | Shortcut to the queue in full screen |
+| ✅ | One queue for every job, in three groups (under way, lit and on top; waiting, with a breathing badge; finished, at the end, with one **Clear finished** for all), totals for the round (percentage, jobs to go, time left from its pace) and a compact rail with the jobs when the panel is closed while they run; the tabs only while there is a card |
+| ✅ | A converted package deleted from the output folder once the console has it (a setting keeps them) |
+| 🟡 | The console chip's firmware (Remote Play discovery) and the jailbreak's version when its FTP greeting gives it; checked with the fake console — GoldHEN's own greeting still to be seen, and etaHEN's does not give it |
+| ✅ | Save vault: **Select all** selects everything shown (then **Select none**), and each game a button for its saves |
+| ✅ | Library: packages in the console's places deleted together, after one question |
+| ✅ | Payloads and plugins say what they do: the payload library's words, else what is known of the common ones (GoldHEN's plugins, PS4 and PS5 payloads), else the kind of file and its loader |
+| 🟡 | Homebrew store with several stores at once: homebrew.page, PKG-Zone (its `store.db`, read through its MD5) and any Homebrew Store added; an app in more than one shows each store's tag and asks which to take it from; a store's packages downloaded (resumed, checked against their MD5) and installed through the queue on a PS4 or a PS5. Always in order of downloads (PKG-Zone's counts, asked one app at a time, one every three seconds, kept a week; homebrew.page counts none, so its apps come after), with **PS4** / **PS5** tags on each card and filters for each console. Checked against PKG-Zone's real database and counts and a fake store with the fake console, not yet on a real console |
 
 ## 5. Packaging and CI
 
@@ -125,10 +149,11 @@ Last review: v1.1.0.
 | ✅ | Stable or testing channel (pre-releases), and the repository is a setting — the project can move without recompiling |
 | ✅ | Every push to the `beta` branch publishes a `vX.Y.Z-dev.N` test build, which the testing channel receives; the five most recent are kept |
 | ✅ | The Windows dependencies (vcpkg) are cached per vcpkg version, and only after a complete install |
+| ✅ | On every push, a look for names `<windows.h>` turns into macros (`scripts/check-win32-names.py`): the Windows build itself only runs on pull requests and by hand |
 
 ## 6. Tests
 
-17 automated suites, all running in CI:
+28 automated suites, all running in CI:
 
 | | |
 |---|---|
@@ -146,6 +171,8 @@ Last review: v1.1.0.
 | ✅ | End-to-end integration against the mock console (install, FTP, download back, upload-and-install) |
 | ✅ | Interface: the window opens and draws (smoke test) |
 | ✅ | Interface: drag and drop follows the cursor and accepts the file |
+| ✅ | Cheats and game patches: the repositories' lists (and the oddly named files in them), the cheat files of each format, a patch XML, etaHEN's lists and GoldHEN's patch switch hash (against values from game_patch's own code) |
+| ✅ | Homebrew stores: a store's addresses, its MD5 answer, versions as the stores write them, which console an app is for, how many times an app was downloaded (the store's answer), and reading a `store.db` laid out as PKG-Zone's |
 | ⬜ | Remote Play session with synthetic video — a test that does not need a console is missing |
 
 ---

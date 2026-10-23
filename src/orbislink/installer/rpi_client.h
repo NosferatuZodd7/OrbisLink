@@ -3,12 +3,22 @@
 
 #include "orbislink/installer/installer_backend.h"
 
+#include <atomic>
 #include <string>
 
 namespace orbislink {
 
-// Client for Remote Package Installer's (flatz) HTTP API, port 12800. etaHEN's
-// DPI v2 on the PS5 speaks the same install API.
+// Client for Remote Package Installer's (flatz) HTTP API, port 12800.
+//
+// On a PS5 the same port may instead be etaHEN's DPI v2, which only starts
+// installs: a form POST with "url" (an http:// address, or a path on the
+// console such as /data/pkg/game.pkg) that answers "SUCCESS: …" or
+// "FAILED: … (0x8099…)" in plain text (etaHEN's DirectPKGInstaller.cpp).
+// With `ps5` set, the client finds out which one answers and speaks it; when
+// nothing answers there, it looks for the Prospero Manager payload on its own
+// port (7070), whose package API takes {"path"} or {"url"} at
+// /api/pkg/install and says at /api/pkg/status when the console has queued
+// the install (ProsperoMgr's api_routes.cpp and pkg_installer.cpp).
 //
 // Every endpoint, field and format was confirmed in the installer's source
 // code (server.c) and its README — see docs/validation.md. Note: the replies
@@ -24,6 +34,11 @@ public:
 		int timeoutMs = 10000; // §5.4
 		int maxAttempts = 3;   // 3 attempts with 1 s, 2 s, 4 s backoff
 		int backoffBaseMs = 1000;
+		// A PS5: the installer may be etaHEN's DPI v2, or Prospero Manager.
+		bool ps5 = false;
+		uint16_t prosperoPort = 7070;
+		// How long to wait for Prospero Manager to say an install is queued.
+		int prosperoWaitMs = 120000;
 	};
 
 	explicit RpiClient(Config config);
@@ -54,12 +69,37 @@ public:
 
 	const Config &config() const { return config_; }
 
+	bool followsTasks() const override
+	{
+		const int known = protocol_.load();
+		return known != static_cast<int>(Protocol::DpiV2) && known != static_cast<int>(Protocol::ProsperoMgr);
+	}
+	bool installsFromConsole() const override { return config_.ps5; }
+
 private:
+	enum class Protocol
+	{
+		Unknown,
+		Rpi,
+		DpiV2,
+		ProsperoMgr,
+	};
+	// Which installer answers (asked once, then remembered).
+	Protocol protocol();
+	InstallerResult installDpiV2(const std::string &url);
+	std::string prosperoEndpoint() const;
+	// Prospero Manager's package API answers (and how, for the detail).
+	bool prosperoAnswers(std::string *detail = nullptr);
+	// One package (a path on the console or an http:// address), followed
+	// until the console has queued it.
+	InstallerResult installProspero(const std::string &target);
+
 	// Sends the POST with retries and returns the already validated body.
 	InstallerResult call(const std::string &path, const std::string &jsonBody, std::string *body);
 	InstallerResult taskCommand(const std::string &path, int taskId);
 
 	Config config_;
+	std::atomic<int> protocol_ { 0 };
 };
 
 } // namespace orbislink
