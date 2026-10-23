@@ -55,7 +55,7 @@ Last review: v1.1.0.
 | ✅ | FTP on another port: 1337, 2121 and 21 (and 9090 on a PS5) are asked, and the one that greets as FTP is kept |
 | ✅ | List, browse, create folder (one already there is fine), delete, rename |
 | ✅ | Move between disks (`/data` ↔ USB), where the console cannot rename: copied through the PC, checked, then the original deleted |
-| ✅ | Dropping on *Send over FTP* copies to the folder the Files tab has open |
+| ✅ | Dropping on *Send over FTP* copies to the folder the Files tab has open; any file goes as it is — a disc image, a payload, a package for another console (a PS3 one for RPCS3, told apart by its header) — and only a PS4 package is ever installed |
 | ✅ | Upload files with progress and cancellation |
 | ✅ | Download files to the PC (menu, double click, or a chosen folder) |
 | ✅ | Drag from the window to the desktop (downloads to a local cache first) |

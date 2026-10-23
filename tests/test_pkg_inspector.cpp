@@ -141,6 +141,27 @@ ORBISLINK_TEST(rejects_invalid_magic)
 	removeTempFile(path);
 }
 
+ORBISLINK_TEST(names_the_older_consoles_packages)
+{
+	// "\x7FPKG" and the platform at offset 4: 1 for the PS3, 2 for the PSP
+	// and the PS Vita.
+	for(const uint8_t platform : { uint8_t(1), uint8_t(2) })
+	{
+		std::vector<uint8_t> bytes(8192, 0);
+		bytes[0] = 0x7F;
+		bytes[1] = 'P';
+		bytes[2] = 'K';
+		bytes[3] = 'G';
+		bytes[5] = platform;
+		const std::string path = writeTempFile("older.pkg", bytes);
+		const PkgInfo info = PkgInspector().inspect(path);
+		CHECK(!info.valid);
+		CHECK_EQ(info.error, std::string(platform == 1 ? "A PS3 package, not a PS4 one."
+			: "A PSP or PS Vita package, not a PS4 one."));
+		removeTempFile(path);
+	}
+}
+
 ORBISLINK_TEST(rejects_too_small_file)
 {
 	std::vector<uint8_t> tiny(100, 0);

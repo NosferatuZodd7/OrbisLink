@@ -344,8 +344,8 @@ Dragging `.pkg` files (or folders with them) over the window shows two zones:
 
 | Zone | Does | Needs |
 |---|---|---|
-| **Send over FTP** | Copies them to the folder the Files tab is in (the zone names it). Any other file dropped (a disc image for the USB drive, a payload) is copied as it is; only a damaged `.pkg` is turned away. | FTP |
-| **Install directly** | The console downloads them from this PC and installs. | Installer |
+| **Send over FTP** | Copies them to the folder the Files tab is in (the zone names it). Any other file dropped (a disc image for the USB drive, a payload, a PS3 package for RPCS3) is copied as it is and never installed — a `.pkg` that is not a PS4 one too, even with *Install after upload* on; its card says *Copied to the console (not a PS4 package, so not installed)*. | FTP |
+| **Install directly** | The console downloads them from this PC and installs. Only PS4 packages: anything else is turned away saying what it is (*A PS3 package, not a PS4 one*, *A PSP or PS Vita package…*) and that **Send over FTP** copies it as it is. | Installer |
 
 On a PS5, a package sent with *install after sending* (and a converted game's
 **Send and install**) is installed from where it was put, by its path on the

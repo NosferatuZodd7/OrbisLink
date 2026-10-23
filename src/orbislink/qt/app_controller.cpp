@@ -1441,8 +1441,13 @@ void AppController::enqueueFiles(const QStringList &files, TransferMode transfer
 	readPackageFacts(accepted, taskIds);
 
 	refreshQueueModel();
+	// To install, a file has to be a PS4 package; any other file (a PS3
+	// package for RPCS3, an ISO) goes over FTP as it is.
 	if(!rejected.empty())
-		setStatusMessage(translateMessage(rejected.front()));
+		setStatusMessage(translateMessage(rejected.front())
+			+ (transferMode == TransferMode::DirectInstall
+					? QStringLiteral(" ") + tr("To copy a file as it is, drop it on Send over FTP.")
+					: QString()));
 	else
 		setStatusMessage(tr("%n file(s) queued.", "", static_cast<int>(ids.size())));
 	if(ids.empty())

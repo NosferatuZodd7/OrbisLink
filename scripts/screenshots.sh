@@ -228,6 +228,15 @@ with open(sys.argv[1], "w") as f:
     json.dump(settings, f)
 PY
 shot 14-library.png --screenshot-delay 8000 --demo-view games
+# The store is in order of downloads, which the app asks PKG-Zone for one app
+# at a time (minutes, the first time). A downloads.json kept by a run of the
+# app (ORBISLINK_STORE_COUNTS=…/hb-stores/api.pkg-zone.com/downloads.json)
+# lets the picture show that order at once.
+if [ -n "${ORBISLINK_STORE_COUNTS:-}" ] && [ -f "$ORBISLINK_STORE_COUNTS" ]; then
+	COUNTS_DIR="$DEMO_HOME/.cache/OrbisLink/OrbisLink/store/hb-stores/api.pkg-zone.com"
+	mkdir -p "$COUNTS_DIR"
+	cp "$ORBISLINK_STORE_COUNTS" "$COUNTS_DIR/downloads.json"
+fi
 shot 17-store.png --screenshot-delay 40000 --demo-view store
 shot 18-payloads-ps5.png --screenshot-delay 10000 --demo-view payloads-library
 

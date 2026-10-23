@@ -295,10 +295,11 @@ std::vector<std::string> InstallQueue::enqueue(const std::vector<std::string> &p
 	{
 		const std::string &path = paths[index];
 		const PkgInfo info = inspector.inspect(path);
-		// Any other file can still be copied over FTP as it is (an ISO for
-		// the USB drive, a payload): only a broken .pkg is turned away.
-		const bool plainCopy = !info.valid && mode == TransferMode::FtpUpload
-			&& fileExtensionLower(path) != ".pkg" && fileSize(path) >= 0;
+		// Any other file is still copied over FTP as it is (an ISO for the
+		// USB drive, a payload, a PS3 package for RPCS3) — never installed.
+		const bool plainCopy = !info.valid && mode == TransferMode::FtpUpload && fileSize(path) >= 0;
+		if(plainCopy && fileExtensionLower(path) == ".pkg")
+			logInfo("Not a PS4 package (" + info.error + "): " + path + " is copied over FTP as it is, not installed.");
 		if(!info.valid && !plainCopy)
 		{
 			const std::string reason = info.error.empty() ? QT_TRANSLATE_NOOP("Messages", "This file is not a valid PS4 pkg.")
@@ -1166,13 +1167,9 @@ void InstallQueue::runFtpUpload(QueueTask task)
 
 	PkgInspector inspector(PkgInspector::Options { false, 4u * 1024 * 1024, 0 });
 	const PkgInfo info = inspector.inspect(task.localPath);
-	if(!info.valid && fileExtensionLower(task.localPath) == ".pkg")
-	{
-		task.state = TaskState::Error;
-		task.message = info.error.empty() ? QT_TRANSLATE_NOOP("Messages", "This file is not a valid PS4 pkg.") : info.error;
-		finishTask(task);
-		return;
-	}
+	// A .pkg that is not a PS4 one (a PS3 package for RPCS3) goes over as it
+	// is, like any other file; the card says it was only copied.
+	const bool foreignPackage = !info.valid && fileExtensionLower(task.localPath) == ".pkg";
 	if(info.valid)
 		task.totalBytes = info.fileSize;
 
@@ -1233,7 +1230,10 @@ void InstallQueue::runFtpUpload(QueueTask task)
 
 	task.doneBytes = task.totalBytes;
 	task.state = TaskState::Completed;
-	task.message = std::string(QT_TRANSLATE_NOOP("Messages", "Sent to the console")) + ": " + task.remotePath;
+	task.message = foreignPackage
+		? std::string(QT_TRANSLATE_NOOP("Messages", "Copied to the console (not a PS4 package, so not installed)"))
+			+ ": " + task.remotePath
+		: std::string(QT_TRANSLATE_NOOP("Messages", "Sent to the console")) + ": " + task.remotePath;
 
 	// "Install after upload". The remote installer only accepts HTTP URLs
 	// (see docs/validation.md), so it cannot be pointed at the file that
