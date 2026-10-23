@@ -62,6 +62,11 @@ std::string hbStoreHashUrl(const std::string &base);
 // The hash the store answers ({"hash":"…"}), in lower case; "" when the
 // answer is not one.
 std::string parseHbStoreHash(const std::string &body);
+// How many times an app was downloaded, as the store's own app asks it (the
+// database's column for it is not kept up to date): one address per app, and
+// its answer ({"number_of_downloads":"2706838"}); -1 when it is not one.
+std::string hbStoreDownloadsUrl(const std::string &base, const std::string &titleId);
+long long parseHbStoreDownloads(const std::string &body);
 // Whether the bytes begin as an SQLite database.
 bool looksLikeSqlite(const std::string &bytes);
 

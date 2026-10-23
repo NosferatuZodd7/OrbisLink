@@ -49,6 +49,12 @@ class StoreController : public QObject
 	// Reading the catalog, and why it could not be (empty when it was).
 	Q_PROPERTY(bool loading READ loading NOTIFY stateChanged)
 	Q_PROPERTY(QString error READ error NOTIFY stateChanged)
+	// The first time a store's downloads are counted (the page's order forms
+	// as they come): how many so far, of how many; 0 of 0 the rest of the time.
+	Q_PROPERTY(int countsDone READ countsDone NOTIFY countsChanged)
+	Q_PROPERTY(int countsTotal READ countsTotal NOTIFY countsChanged)
+	// The store refused for now: the counting waits a few minutes.
+	Q_PROPERTY(bool countsWaiting READ countsWaiting NOTIFY countsChanged)
 	// The catalog shown is the last one kept: the site did not answer.
 	Q_PROPERTY(bool offline READ offline NOTIFY appsChanged)
 	// The app whose details were asked for, once read:
@@ -106,6 +112,9 @@ public:
 	bool addingStore() const { return addingStore_; }
 	bool loading() const { return loading_; }
 	QString error() const { return error_; }
+	int countsDone() const { return countsDone_; }
+	int countsTotal() const { return countsTotal_; }
+	bool countsWaiting() const { return countsWaiting_; }
 	bool offline() const { return offline_; }
 	QVariantMap detail() const { return detail_; }
 	QString working() const { return working_; }
@@ -178,6 +187,7 @@ signals:
 	void catalogAddressChanged();
 	void localChanged();
 	void storesChanged();
+	void countsChanged();
 	// The outcome of an install or a removal, for a notice.
 	void finished(const QString &message, bool error);
 	// Whether the store asked for was added, and what was found there.
@@ -190,13 +200,24 @@ private:
 	};
 	// A Homebrew Store as last read: its apps, and why it could not be read
 	// (shown from the copy kept, then).
+	// How many times an app was downloaded, and when the store said so
+	// (seconds since 1970).
+	struct Downloads
+	{
+		long long count = -1;
+		long long checked = 0;
+	};
 	struct HbStore
 	{
 		StoreSource source;
 		std::vector<store::HbStoreApp> apps;
 		bool offline = false;
 		QString error;
+		// By title ID, as kept on this PC (downloads.json by its database).
+		std::map<std::string, Downloads> downloads;
 	};
+	static std::map<std::string, Downloads> readDownloads(const std::string &path);
+	static void writeDownloads(const std::string &path, const std::map<std::string, Downloads> &downloads);
 	// On a worker: the store's database, fetched again when the store's MD5
 	// says it changed, else the copy kept.
 	static HbStore loadHbStore(const StoreSource &source, const std::string &cacheDir,
@@ -243,6 +264,9 @@ private:
 	QVariantList apps_;
 	bool loading_ = false;
 	QString error_;
+	int countsDone_ = 0;
+	int countsTotal_ = 0;
+	bool countsWaiting_ = false;
 	bool offline_ = false;
 	QVariantMap detail_;
 	QString working_;

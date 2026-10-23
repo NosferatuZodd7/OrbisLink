@@ -552,6 +552,15 @@ ORBISLINK_TEST(a_homebrew_store_is_reached_at_its_base)
 		std::string("0b3e3a4d1a3cf0febef61517106ad0d7"));
 	CHECK(parseHbStoreHash("<html>500</html>").empty());
 	CHECK(parseHbStoreHash(R"({"hash":"not-a-hash"})").empty());
+	// How many times an app was downloaded, one app at a time.
+	CHECK_EQ(hbStoreDownloadsUrl("https://store.example.org", "TEST00001"),
+		std::string("https://store.example.org/download.php?tid=TEST00001&check=true"));
+	CHECK_EQ(parseHbStoreDownloads(R"({"number_of_downloads":"2706838"})"), 2706838LL);
+	CHECK_EQ(parseHbStoreDownloads(R"({"number_of_downloads":42})"), 42LL);
+	CHECK_EQ(parseHbStoreDownloads(R"({"number_of_downloads":"0"})"), 0LL);
+	CHECK_EQ(parseHbStoreDownloads(R"({"number_of_downloads":-3})"), -1LL);
+	CHECK_EQ(parseHbStoreDownloads(R"({"number_of_downloads":"many"})"), -1LL);
+	CHECK_EQ(parseHbStoreDownloads("<html>500</html>"), -1LL);
 	CHECK(looksLikeSqlite(std::string("SQLite format 3\0rest", 20)));
 	CHECK(!looksLikeSqlite("<!DOCTYPE html>"));
 	CHECK_EQ(md5Hex("abc"), std::string("900150983cd24fb0d6963f7d28e17f72"));

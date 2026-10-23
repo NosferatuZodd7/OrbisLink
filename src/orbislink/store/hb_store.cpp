@@ -140,6 +140,28 @@ std::string parseHbStoreHash(const std::string &body)
 	return hash;
 }
 
+std::string hbStoreDownloadsUrl(const std::string &base, const std::string &titleId)
+{
+	return base + "/download.php?tid=" + titleId + "&check=true";
+}
+
+long long parseHbStoreDownloads(const std::string &body)
+{
+	const Json root = Json::parse(body);
+	if(!root.isObject())
+		return -1;
+	const Json &count = root["number_of_downloads"];
+	// A string of digits, or a number.
+	const std::string text = count.isString() ? trim(count.toString())
+		: count.isNumber() ? std::to_string(count.toInt(-1)) : std::string();
+	if(text.empty() || text.size() > 15)
+		return -1;
+	for(char c : text)
+		if(!std::isdigit(static_cast<unsigned char>(c)))
+			return -1;
+	return std::stoll(text);
+}
+
 bool looksLikeSqlite(const std::string &bytes)
 {
 	return bytes.compare(0, 16, std::string("SQLite format 3\0", 16)) == 0;
