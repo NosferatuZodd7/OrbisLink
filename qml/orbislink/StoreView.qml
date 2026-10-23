@@ -28,6 +28,29 @@ Item {
     // or "local" — the app archives of a folder of this PC.
     property string filter: typeof demoView !== "undefined" && demoView === "store-local" ? "local" : "all"
     property string search: ""
+    // Only the apps for one console ("ps4", "ps5"), or for any ("").
+    property string platform: ""
+
+    function runsOn(app, platform) {
+        return platform.length === 0 || (app.platforms !== undefined && app.platforms.indexOf(platform) >= 0)
+    }
+    function platformCount(platform) {
+        var n = 0
+        for (var i = 0; i < store.apps.length; ++i)
+            if (runsOn(store.apps[i], platform))
+                ++n
+        return n
+    }
+    readonly property int ps4Count: platformCount("ps4")
+    readonly property int ps5Count: platformCount("ps5")
+    // 2706838 → "2.7M", 15234 → "15K": how many times, in short.
+    function shortCount(n) {
+        if (n >= 1000000)
+            return qsTr("%1M", "millions of downloads").arg(Number(n / 1000000).toLocaleString(Qt.locale(), "f", n >= 10000000 ? 0 : 1))
+        if (n >= 1000)
+            return qsTr("%1K", "thousands of downloads").arg(Number(n / 1000).toLocaleString(Qt.locale(), "f", n >= 10000 ? 0 : 1))
+        return String(n)
+    }
 
     readonly property var kinds: {
         var seen = {}
@@ -65,14 +88,18 @@ Item {
             if (filter === "installed" && !a.installed) continue
             if (filter === "updates" && !a.update) continue
             if (filter !== "all" && filter !== "installed" && filter !== "updates" && a.kind !== filter) continue
+            if (!runsOn(a, platform)) continue
             if (needle.length > 0 && a.name.toLowerCase().indexOf(needle) < 0
                     && a.author.toLowerCase().indexOf(needle) < 0 && a.titleId.toLowerCase().indexOf(needle) < 0)
                 continue
             list.push(a)
         }
         list.sort(function (x, y) {
-            // What can be installed on this console first, then by name.
-            if (x.installable !== y.installable) return x.installable ? -1 : 1
+            // The most downloaded first, whatever is shown; those no store
+            // counts (homebrew.page does not) after them, by name.
+            var dx = x.downloads !== undefined ? x.downloads : -1
+            var dy = y.downloads !== undefined ? y.downloads : -1
+            if (dx !== dy) return dy - dx
             return x.name.localeCompare(y.name)
         })
         return list
@@ -148,6 +175,26 @@ Item {
              : stage
     }
 
+    // The console an app is for, as a tag: the PS4's blue, the PS5's white.
+    component PlatformTag: Rectangle {
+        required property string platform
+        readonly property color tone: platform === "ps4" ? Theme.accent : Theme.text
+        implicitWidth: platformText.implicitWidth + 12
+        implicitHeight: 18
+        radius: 6
+        color: Theme.alpha(tone, 0.14)
+        border.width: 1
+        border.color: Theme.alpha(tone, 0.45)
+        Text {
+            id: platformText
+            anchors.centerIn: parent
+            text: parent.platform === "ps4" ? "PS4" : "PS5"
+            color: parent.tone
+            font.pixelSize: 10
+            font.weight: Font.Bold
+        }
+    }
+
     onVisibleChanged: if (visible && store.apps.length === 0 && !store.loading) store.refresh()
     // Shown from the start (a page opened by --demo-view).
     Component.onCompleted: {
@@ -203,6 +250,9 @@ Item {
                     onClicked: root.back()
                 }
                 ColumnLayout {
+                    // Never wider than the header has room for: a long line
+                    // (many stores) is cut, not the page pushed wider.
+                    Layout.maximumWidth: Math.max(220, root.width - 520)
                     spacing: 2
                     Text {
                         visible: root.framed
@@ -212,6 +262,8 @@ Item {
                         font.weight: Font.DemiBold
                     }
                     Text {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
                         text: store.loading && store.apps.length === 0 ? qsTr("Reading the stores…")
                             : root.storesOn.length === 0 ? qsTr("Every store is turned off")
                             : qsTr("%n app(s) · %1", "", store.apps.length).arg(root.storesOn.join(", "))
@@ -221,6 +273,18 @@ Item {
                         ToolTip.visible: troublesHover.hovered && root.storeTroubles.length > 0
                         ToolTip.text: root.storeTroubles.join("\n")
                         HoverHandler { id: troublesHover }
+                    }
+                    // The first time a store's downloads are counted: the order
+                    // forms as they come.
+                    Text {
+                        visible: store.countsTotal > 0 && !store.loading
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        text: store.countsWaiting
+                              ? qsTr("Ordering by downloads: the store is busy, waiting… %1 of %2").arg(store.countsDone).arg(store.countsTotal)
+                              : qsTr("Ordering by downloads… %1 of %2").arg(store.countsDone).arg(store.countsTotal)
+                        color: Theme.textSecondary
+                        font.pixelSize: 11
                     }
                 }
                 // The console apps go to: the one in use.
@@ -304,10 +368,38 @@ Item {
                 Flow {
                     Layout.fillWidth: true
                     spacing: 6
+                    // Only one console's apps: a click again shows both.
+                    Repeater {
+                        model: root.filter === "local" ? [] : ["ps4", "ps5"]
+                        StyledButton {
+                            required property string modelData
+                            readonly property string label: modelData === "ps4" ? "PS4" : "PS5"
+                            chip: true
+                            iconName: "gamepad"
+                            primary: root.platform === modelData
+                            text: label + "  " + (modelData === "ps4" ? root.ps4Count : root.ps5Count)
+                            ToolTip.visible: hovered
+                            ToolTip.text: root.platform === modelData
+                                          ? qsTr("Showing only the apps for the %1. Click again to show those for both consoles.").arg(label)
+                                          : qsTr("Show only the apps for the %1").arg(label)
+                            onClicked: root.platform = root.platform === modelData ? "" : modelData
+                        }
+                    }
+                    Item {
+                        visible: root.filter !== "local"
+                        width: 7
+                        height: 30
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 1
+                            height: 18
+                            color: Theme.glassEdge
+                        }
+                    }
                     StyledButton {
                         chip: true
                         primary: root.filter === "all"
-                        text: qsTr("All") + "  " + store.apps.length
+                        text: qsTr("All") + "  " + root.platformCount(root.platform)
                         onClicked: root.filter = "all"
                     }
                     Repeater {
@@ -419,13 +511,25 @@ Item {
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     spacing: 3
-                                    Text {
+                                    // Its name, and the consoles it is for.
+                                    RowLayout {
                                         Layout.fillWidth: true
-                                        elide: Text.ElideRight
-                                        text: cell.modelData.name
-                                        color: Theme.text
-                                        font.pixelSize: 14
-                                        font.weight: Font.DemiBold
+                                        spacing: 4
+                                        Text {
+                                            Layout.fillWidth: true
+                                            elide: Text.ElideRight
+                                            text: cell.modelData.name
+                                            color: Theme.text
+                                            font.pixelSize: 14
+                                            font.weight: Font.DemiBold
+                                        }
+                                        Repeater {
+                                            model: cell.modelData.platforms !== undefined ? cell.modelData.platforms : []
+                                            PlatformTag {
+                                                required property string modelData
+                                                platform: modelData
+                                            }
+                                        }
                                     }
                                     Text {
                                         Layout.fillWidth: true
@@ -470,6 +574,29 @@ Item {
                                             text: cell.modelData.size
                                             color: Theme.textMuted
                                             font.pixelSize: 11
+                                        }
+                                        // How many times it was downloaded, as its store counts.
+                                        Row {
+                                            visible: cell.modelData.downloads !== undefined && cell.modelData.downloads >= 0
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            spacing: 2
+                                            Icon {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                name: "download"
+                                                size: 11
+                                                color: Theme.textMuted
+                                            }
+                                            Text {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                text: root.shortCount(cell.modelData.downloads)
+                                                color: Theme.textMuted
+                                                font.pixelSize: 11
+                                            }
+                                            HoverHandler { id: countHover }
+                                            ToolTip.visible: countHover.hovered
+                                            ToolTip.text: qsTr("Downloaded %1 times, as %2 counts")
+                                                          .arg(Number(cell.modelData.downloads).toLocaleString(Qt.locale(), "f", 0))
+                                                          .arg(cell.modelData.stores.join(", "))
                                         }
                                     }
                                     // The stores it is in, as tags.
@@ -861,6 +988,26 @@ Item {
                                   .filter(function (t) { return t !== undefined && t.length > 0 }).join("  ·  ")
                             color: Theme.textSecondary
                             font.pixelSize: 12
+                        }
+                        // The consoles it is for, and how many times it was downloaded.
+                        RowLayout {
+                            readonly property var platforms: detailDialog.listed.platforms !== undefined ? detailDialog.listed.platforms : []
+                            readonly property real downloads: detailDialog.listed.downloads !== undefined ? detailDialog.listed.downloads : -1
+                            visible: platforms.length > 0 || downloads >= 0
+                            spacing: 6
+                            Repeater {
+                                model: parent.platforms
+                                PlatformTag {
+                                    required property string modelData
+                                    platform: modelData
+                                }
+                            }
+                            Text {
+                                visible: parent.downloads >= 0
+                                text: qsTr("Downloaded %1 times").arg(Number(parent.downloads).toLocaleString(Qt.locale(), "f", 0))
+                                color: Theme.textSecondary
+                                font.pixelSize: 12
+                            }
                         }
                         Text {
                             Layout.fillWidth: true

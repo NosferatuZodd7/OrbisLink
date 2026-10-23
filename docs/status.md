@@ -130,7 +130,7 @@ Last review: v1.1.0.
 | ✅ | Save vault: **Select all** selects everything shown (then **Select none**), and each game a button for its saves |
 | ✅ | Library: packages in the console's places deleted together, after one question |
 | ✅ | Payloads and plugins say what they do: the payload library's words, else what is known of the common ones (GoldHEN's plugins, PS4 and PS5 payloads), else the kind of file and its loader |
-| 🟡 | Homebrew store with several stores at once: homebrew.page, PKG-Zone (its `store.db`, read through its MD5) and any Homebrew Store added; an app in more than one shows each store's tag and asks which to take it from; a store's packages downloaded (resumed, checked against their MD5) and installed through the queue on a PS4 or a PS5. Checked against PKG-Zone's real database and a fake store with the fake console, not yet on a real console |
+| 🟡 | Homebrew store with several stores at once: homebrew.page, PKG-Zone (its `store.db`, read through its MD5) and any Homebrew Store added; an app in more than one shows each store's tag and asks which to take it from; a store's packages downloaded (resumed, checked against their MD5) and installed through the queue on a PS4 or a PS5. Always in order of downloads (PKG-Zone's counts, asked one app at a time, one every three seconds, kept a week; homebrew.page counts none, so its apps come after), with **PS4** / **PS5** tags on each card and filters for each console. Checked against PKG-Zone's real database and counts and a fake store with the fake console, not yet on a real console |
 
 ## 5. Packaging and CI
 
@@ -172,7 +172,7 @@ Last review: v1.1.0.
 | ✅ | Interface: the window opens and draws (smoke test) |
 | ✅ | Interface: drag and drop follows the cursor and accepts the file |
 | ✅ | Cheats and game patches: the repositories' lists (and the oddly named files in them), the cheat files of each format, a patch XML, etaHEN's lists and GoldHEN's patch switch hash (against values from game_patch's own code) |
-| ✅ | Homebrew stores: a store's addresses, its MD5 answer, versions as the stores write them, which console an app is for, and reading a `store.db` laid out as PKG-Zone's |
+| ✅ | Homebrew stores: a store's addresses, its MD5 answer, versions as the stores write them, which console an app is for, how many times an app was downloaded (the store's answer), and reading a `store.db` laid out as PKG-Zone's |
 | ⬜ | Remote Play session with synthetic video — a test that does not need a console is missing |
 
 ---

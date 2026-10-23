@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "orbislink/qt/store_controller.h"
 
+#include "orbislink/common/json.h"
 #include "orbislink/common/log.h"
 #include "orbislink/common/util.h"
 #include "orbislink/ftp/ftp_client.h"
@@ -406,10 +407,50 @@ QVariantMap StoreController::sourceFor(const StoreSource &source, const store::S
 		else
 			installable = true;
 	}
+	// The consoles what it hands out runs on: a catalog's folder on the PS5;
+	// a package where the store says, the PS5 only when it is that package.
+	QStringList platforms;
+	if(folder)
+		platforms << QStringLiteral("ps5");
+	else if(package)
+	{
+		if(package->forPs4())
+			platforms << QStringLiteral("ps4");
+		if(package->ps5PackageIsThisOne())
+			platforms << QStringLiteral("ps5");
+	}
+	item[QStringLiteral("platforms")] = platforms;
 	item[QStringLiteral("installable")] = installable;
 	item[QStringLiteral("note")] = note;
 	item[QStringLiteral("brief")] = brief;
 	return item;
+}
+
+std::map<std::string, StoreController::Downloads> StoreController::readDownloads(const std::string &path)
+{
+	std::map<std::string, Downloads> out;
+	std::string text;
+	if(!readWhole(path, &text))
+		return out;
+	// {"ITEM00001": [2706838, 1760000000], …}: the count and when it was asked.
+	const Json root = Json::parse(text);
+	for(const auto &member : root.members())
+		if(member.second.isArray() && member.second.size() == 2)
+			out[member.first] = { member.second.at(0).toInt(-1), member.second.at(1).toInt(0) };
+	return out;
+}
+
+void StoreController::writeDownloads(const std::string &path, const std::map<std::string, Downloads> &downloads)
+{
+	Json root = Json::makeObject();
+	for(const auto &entry : downloads)
+	{
+		Json pair = Json::makeArray();
+		pair.push(Json::fromInt(entry.second.count));
+		pair.push(Json::fromInt(entry.second.checked));
+		root.set(entry.first, pair);
+	}
+	writeWhole(path, root.dump());
 }
 
 void StoreController::publish()
@@ -430,10 +471,21 @@ void StoreController::publish()
 			card[QStringLiteral("available")] = false;
 			card[QStringLiteral("update")] = false;
 			card[QStringLiteral("description")] = description;
+			card[QStringLiteral("platforms")] = QStringList();
+			card[QStringLiteral("downloads")] = -1LL;
 			found = cards.emplace(titleId, card).first;
 			order.push_back(titleId);
 		}
 		QVariantMap &card = found->second;
+		// The most any of its stores counted; the consoles any of them has it for.
+		card[QStringLiteral("downloads")] = std::max(card.value(QStringLiteral("downloads")).toLongLong(),
+			fields.value(QStringLiteral("downloads"), -1LL).toLongLong());
+		QStringList platforms = card.value(QStringLiteral("platforms")).toStringList();
+		for(const QString &platform : source.value(QStringLiteral("platforms")).toStringList())
+			if(!platforms.contains(platform))
+				platforms << platform;
+		platforms.sort();
+		card[QStringLiteral("platforms")] = platforms;
 		QStringList names = card.value(QStringLiteral("stores")).toStringList();
 		names << source.value(QStringLiteral("storeName")).toString();
 		card[QStringLiteral("stores")] = names;
@@ -483,6 +535,8 @@ void StoreController::publish()
 				fields[QStringLiteral("released")] = QString::fromStdString(app.released.substr(0, 10));
 				fields[QStringLiteral("sandbox")] = QString();
 				fields[QStringLiteral("format")] = QStringLiteral("pkg");
+				const auto counted = hb.downloads.find(app.titleId);
+				fields[QStringLiteral("downloads")] = counted == hb.downloads.end() ? -1LL : counted->second.count;
 				const QVariantMap from = sourceFor(source, nullptr, &app);
 				const auto installed = installedPackages_.find(app.titleId);
 				const bool update = installed != installedPackages_.end() && from.value(QStringLiteral("installable")).toBool()
@@ -578,6 +632,7 @@ StoreController::HbStore StoreController::loadHbStore(const StoreSource &source,
 		out.offline = false;
 		out.error = tr("its database cannot be read: %1").arg(why);
 	}
+	out.downloads = readDownloads(joinPath(hbStoreDir(cacheDir, base), "downloads.json"));
 	return out;
 }
 
@@ -761,51 +816,157 @@ void StoreController::refresh()
 				scanLocal();
 		}, Qt::QueuedConnection);
 
-		// A store's pictures: kept for good once had, and asked for one every
-		// second and a half at most (the stores count the requests).
+		// A store's pictures, beside the counts below: kept for good once had,
+		// and asked for one every two seconds at most (the stores count the
+		// requests), the most downloaded first.
+		const auto pause = [this](std::chrono::steady_clock::time_point since, int ms) {
+			while(!cancel_ && !stopIcons_ && std::chrono::steady_clock::now() - since < std::chrono::milliseconds(ms))
+				std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		};
+		std::thread pictures([this, &hbStores, &cache, &pictured, &batch, &flush, &pause]() {
+			for(const HbStore &hb : hbStores)
+			{
+				const std::string dir = joinPath(hbStoreDir(cache, store::hbStoreBase(hb.source.url)), "icons");
+				const auto downloadsOf = [&hb](const store::HbStoreApp *app) {
+					const auto found = hb.downloads.find(app->titleId);
+					return found == hb.downloads.end() ? -1LL : found->second.count;
+				};
+				std::vector<const store::HbStoreApp *> sorted;
+				for(const store::HbStoreApp &app : hb.apps)
+					sorted.push_back(&app);
+				std::sort(sorted.begin(), sorted.end(), [&downloadsOf](const store::HbStoreApp *a, const store::HbStoreApp *b) {
+					if(downloadsOf(a) != downloadsOf(b))
+						return downloadsOf(a) > downloadsOf(b);
+					return QString::fromStdString(a->name).compare(QString::fromStdString(b->name), Qt::CaseInsensitive) < 0;
+				});
+				for(const store::HbStoreApp *app : sorted)
+				{
+					if(cancel_ || stopIcons_)
+						break;
+					if(pictured.count(app->titleId) || app->image.empty())
+						continue;
+					const std::string stem = joinPath(dir, sanitizeFileName(app->titleId + "-" + app->version));
+					std::string path = fileSize(stem + ".png") > 0 ? stem + ".png" : stem + ".jpg";
+					if(fileSize(path) <= 0)
+					{
+						const auto started = std::chrono::steady_clock::now();
+						HttpClient http(15000);
+						HttpClient::FetchOptions options;
+						options.headers.push_back(std::string("User-Agent: ") + store::kHbStoreAgent);
+						options.cancel = &stopIcons_;
+						const HttpResponse picture = http.fetch(app->image, options);
+						const bool good = picture.transportOk && picture.status == 200 && looksLikePicture(picture.body);
+						if(good)
+						{
+							path = stem + (picture.body.compare(0, 4, "\x89PNG") == 0 ? ".png" : ".jpg");
+							writeWhole(path, picture.body);
+						}
+						pause(started, 2000);
+						if(!good)
+							continue;
+					}
+					batch[app->titleId] = path;
+					pictured.insert(app->titleId);
+					if(batch.size() >= 12)
+						flush();
+				}
+				flush();
+			}
+		});
+
+		// How many times each app of a store was downloaded, for the page's
+		// order: asked one app at a time, as the store's own app does, one
+		// every three seconds (more and the store refuses for minutes), and
+		// kept for a week.
 		for(const HbStore &hb : hbStores)
 		{
-			const std::string dir = joinPath(hbStoreDir(cache, store::hbStoreBase(hb.source.url)), "icons");
-			std::vector<const store::HbStoreApp *> sorted;
+			const std::string base = store::hbStoreBase(hb.source.url);
+			if(base.empty())
+				continue;
+			const std::string file = joinPath(hbStoreDir(cache, base), "downloads.json");
+			std::map<std::string, Downloads> counts = hb.downloads;
+			const long long now = std::chrono::duration_cast<std::chrono::seconds>(
+				std::chrono::system_clock::now().time_since_epoch()).count();
+			std::vector<std::string> due;
 			for(const store::HbStoreApp &app : hb.apps)
-				sorted.push_back(&app);
-			// In the order the page shows them, by name.
-			std::sort(sorted.begin(), sorted.end(), [](const store::HbStoreApp *a, const store::HbStoreApp *b) {
-				return QString::fromStdString(a->name).compare(QString::fromStdString(b->name), Qt::CaseInsensitive) < 0;
-			});
-			for(const store::HbStoreApp *app : sorted)
 			{
-				if(cancel_ || stopIcons_)
-					break;
-				if(pictured.count(app->titleId) || app->image.empty())
-					continue;
-				const std::string stem = joinPath(dir, sanitizeFileName(app->titleId + "-" + app->version));
-				std::string path = fileSize(stem + ".png") > 0 ? stem + ".png" : stem + ".jpg";
-				if(fileSize(path) <= 0)
-				{
-					HttpClient http(15000);
-					HttpClient::FetchOptions options;
-					options.headers.push_back(std::string("User-Agent: ") + store::kHbStoreAgent);
-					options.cancel = &stopIcons_;
-					const HttpResponse picture = http.fetch(app->image, options);
-					const bool good = picture.transportOk && picture.status == 200 && looksLikePicture(picture.body);
-					if(good)
-					{
-						path = stem + (picture.body.compare(0, 4, "\x89PNG") == 0 ? ".png" : ".jpg");
-						writeWhole(path, picture.body);
-					}
-					for(int i = 0; i < 15 && !cancel_ && !stopIcons_; ++i)
-						std::this_thread::sleep_for(std::chrono::milliseconds(100));
-					if(!good)
-						continue;
-				}
-				batch[app->titleId] = path;
-				pictured.insert(app->titleId);
-				if(batch.size() >= 12)
-					flush();
+				const auto had = counts.find(app.titleId);
+				if(had == counts.end() || had->second.checked > now || now - had->second.checked >= 7 * 24 * 3600)
+					due.push_back(app.titleId);
 			}
-			flush();
+			if(due.empty())
+				continue;
+			// Most already counted: the order changes once, at the end. The
+			// first time it forms as the counts come, and the page says so.
+			const bool first = due.size() * 5 > hb.apps.size();
+			const auto progress = [this, first](int done, int total, bool waiting) {
+				if(!first || cancel_)
+					return;
+				QMetaObject::invokeMethod(this, [this, done, total, waiting]() {
+					countsDone_ = done;
+					countsTotal_ = total;
+					countsWaiting_ = waiting;
+					emit countsChanged();
+				}, Qt::QueuedConnection);
+			};
+			const auto post = [this, &counts, &file, &hb]() {
+				writeDownloads(file, counts);
+				if(cancel_)
+					return;
+				QMetaObject::invokeMethod(this, [this, url = hb.source.url, counts]() {
+					for(HbStore &kept : hbStores_)
+						if(kept.source.url == url)
+							kept.downloads = counts;
+					publish();
+				}, Qt::QueuedConnection);
+			};
+			bool changed = false;
+			int since = 0;
+			int refusals = 0;
+			size_t next = 0;
+			progress(0, static_cast<int>(due.size()), false);
+			while(next < due.size() && !cancel_ && !stopIcons_)
+			{
+				const auto started = std::chrono::steady_clock::now();
+				HttpClient http(15000);
+				HttpClient::FetchOptions options;
+				options.headers.push_back(std::string("User-Agent: ") + store::kHbStoreAgent);
+				options.cancel = &stopIcons_;
+				const HttpResponse answer = http.fetch(store::hbStoreDownloadsUrl(base, due[next]), options);
+				const long long count = answer.transportOk && answer.status == 200
+					? store::parseHbStoreDownloads(answer.body) : -1;
+				if(count < 0)
+				{
+					if(cancel_ || stopIcons_)
+						break;
+					// Refused (it says so with an error page): three minutes,
+					// then the same app again; the third time, the rest wait
+					// for the next reading.
+					logWarning("Store: " + base + " did not say how many times " + due[next] + " was downloaded ("
+						+ (answer.transportOk ? "HTTP " + std::to_string(answer.status) : answer.error) + ")");
+					if(++refusals >= 3)
+						break;
+					progress(static_cast<int>(next), static_cast<int>(due.size()), true);
+					pause(started, 180000);
+					continue;
+				}
+				counts[due[next]] = { count, now };
+				changed = true;
+				++next;
+				progress(static_cast<int>(next), static_cast<int>(due.size()), false);
+				if(first && ++since >= 25)
+				{
+					post();
+					since = 0;
+					changed = false;
+				}
+				pause(started, 3000);
+			}
+			if(changed)
+				post();
+			progress(0, 0, false);
 		}
+		pictures.join();
 	});
 }
 
