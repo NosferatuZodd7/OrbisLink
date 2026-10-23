@@ -7,7 +7,25 @@
 #include "orbislink/installer/rpi_client.h"
 #include "orbislink/net/net_utils.h"
 
+#include <algorithm>
+#include <cctype>
+
 namespace orbislink {
+
+namespace {
+
+// How often FTP is looked for on the other ports while the set one is silent.
+constexpr int64_t kFtpSearchEveryMs = 60 * 1000;
+
+bool activeConsoleIsPs5(const Settings &settings)
+{
+	for(const ConsoleEntry &console : settings.consoles)
+		if(console.address == settings.consoleAddress)
+			return console.type == "ps5";
+	return false;
+}
+
+} // namespace
 
 const char *serviceStateSymbol(ServiceState state)
 {
@@ -21,8 +39,97 @@ const char *serviceStateSymbol(ServiceState state)
 	return "🟡";
 }
 
+std::vector<uint16_t> ftpPortCandidates(uint16_t preferred, bool ps5)
+{
+	std::vector<uint16_t> ports;
+	auto add = [&ports](uint16_t port) {
+		if(port != 0 && std::find(ports.begin(), ports.end(), port) == ports.end())
+			ports.push_back(port);
+	};
+	add(preferred);
+	add(ps5 ? 1337 : 2121);
+	add(ps5 ? 2121 : 1337);
+	add(21);
+	if(ps5)
+		add(9090);
+	return ports;
+}
+
+std::vector<PortAnswer> askPorts(const std::string &address, const std::vector<uint16_t> &ports,
+	int timeoutMs)
+{
+	std::vector<PortAnswer> answers(ports.size());
+	std::vector<std::thread> threads;
+	threads.reserve(ports.size());
+	for(size_t i = 0; i < ports.size(); ++i)
+	{
+		answers[i].port = ports[i];
+		threads.emplace_back([&address, &answers, i, timeoutMs]() {
+			std::string greeting;
+			answers[i].open = tcpProbe(address, answers[i].port, timeoutMs, &greeting);
+			answers[i].greeting = trim(greeting);
+		});
+	}
+	for(std::thread &thread : threads)
+		thread.join();
+	return answers;
+}
+
+uint16_t pickFtpPort(const std::vector<PortAnswer> &answers, uint16_t preferred)
+{
+	for(const PortAnswer &answer : answers)
+		if(answer.port == preferred && answer.ftp())
+			return preferred;
+	for(const PortAnswer &answer : answers)
+		if(answer.ftp())
+			return answer.port;
+	for(const PortAnswer &answer : answers)
+		if(answer.port == preferred && answer.open && answer.greeting.empty())
+			return preferred;
+	return 0;
+}
+
+std::string knownPortUse(uint16_t port, bool ps5)
+{
+	switch(port)
+	{
+		case 21: return "the standard FTP port";
+		case 1337: return ps5 ? "etaHEN's FTP (FTP=1 in config.ini)" : "FTP payloads";
+		case 2121: return ps5 ? "the ftpsrv payload's FTP" : "GoldHEN's FTP";
+		case 9090: return ps5 ? "etaHEN's DPI v1 package installer (DPI=1), not FTP" : "GoldHEN's payload loader";
+		case 12800: return ps5 ? "etaHEN's DPI v2 installer" : "Remote Package Installer";
+		default: return std::string();
+	}
+}
+
+std::string henVersionInGreeting(const std::string &greeting, const std::string &hen)
+{
+	if(hen.empty())
+		return std::string();
+	const size_t at = toLower(greeting).find(toLower(hen));
+	if(at == std::string::npos)
+		return std::string();
+	size_t start = at + hen.size();
+	while(start < greeting.size() && std::string(" _-:").find(greeting[start]) != std::string::npos)
+		++start;
+	if(start < greeting.size() && (greeting[start] == 'v' || greeting[start] == 'V'))
+		++start;
+	size_t end = start;
+	while(end < greeting.size()
+		&& (std::isalnum(static_cast<unsigned char>(greeting[end])) || greeting[end] == '.'))
+		++end;
+	std::string version = greeting.substr(start, end - start);
+	while(!version.empty() && version.back() == '.')
+		version.pop_back();
+	// A version starts with a number and has a dot: "2.4b18", "2.5B".
+	if(version.empty() || !std::isdigit(static_cast<unsigned char>(version.front()))
+		|| version.find('.') == std::string::npos)
+		return std::string();
+	return version;
+}
+
 ProbeResult probeConsoleServices(const std::string &address, uint16_t ftpPort,
-	uint16_t installerPort, int timeoutMs)
+	uint16_t installerPort, int timeoutMs, const std::vector<uint16_t> &otherFtpPorts, bool ps5)
 {
 	ProbeResult result;
 	if(trim(address).empty())
@@ -31,15 +138,20 @@ ProbeResult probeConsoleServices(const std::string &address, uint16_t ftpPort,
 		return result;
 	}
 
-	// FTP: TCP connection to the FTP port + banner (§5.1). The connection alone
-	// says the service is up; the banner only enriches the message.
-	std::string banner;
-	result.ftpOk = tcpProbe(address, ftpPort, timeoutMs, &banner);
-	const std::string trimmed = trim(banner);
-	if(result.ftpOk)
-		result.ftpDetail = trimmed.empty() ? "connected, no banner" : trimmed;
-	else
-		result.ftpDetail = trimmed;
+	// FTP: a connection to each port and the greeting it sends (§5.1). An
+	// FTP server greets with "220"; one that takes the connection and says
+	// nothing still counts on the set port (it may be busy), never on another.
+	std::vector<uint16_t> ports { ftpPort };
+	for(uint16_t port : otherFtpPorts)
+		if(port != 0 && std::find(ports.begin(), ports.end(), port) == ports.end())
+			ports.push_back(port);
+	result.ftpPorts = askPorts(address, ports, timeoutMs);
+	result.ftpPort = pickFtpPort(result.ftpPorts, ftpPort);
+	result.ftpOk = result.ftpPort != 0;
+	const uint16_t shown = result.ftpOk ? result.ftpPort : ftpPort;
+	for(const PortAnswer &answer : result.ftpPorts)
+		if(answer.port == shown)
+			result.ftpDetail = result.ftpOk && answer.greeting.empty() ? "connected, no banner" : answer.greeting;
 
 	// Installer: any HTTP reply on 12800 counts as available.
 	RpiClient::Config rpiConfig;
@@ -47,6 +159,7 @@ ProbeResult probeConsoleServices(const std::string &address, uint16_t ftpPort,
 	rpiConfig.port = installerPort;
 	rpiConfig.timeoutMs = timeoutMs + 1000;
 	rpiConfig.maxAttempts = 1;
+	rpiConfig.ps5 = ps5;
 	RpiClient installer(rpiConfig);
 	std::string detail;
 	result.installerOk = installer.probe(&detail);
@@ -154,12 +267,50 @@ ConsoleStatus ConsoleManager::checkNow()
 		result.installer.state = ServiceState::Unavailable;
 		result.installer.detail = "no console address";
 		result.ftp.checkedAtMs = result.installer.checkedAtMs = now;
+		result.ftpPort = 0;
 	}
 	else
 	{
-		const ProbeResult probe =
-			probeConsoleServices(cfg.consoleAddress, cfg.ftpPort, cfg.installerPort);
+		ProbeResult probe = probeConsoleServices(cfg.consoleAddress, cfg.ftpPort, cfg.installerPort, 2000, {},
+			activeConsoleIsPs5(cfg));
 
+		// The set port does not greet as FTP: once a minute at most, the
+		// other ports FTP servers use are asked too, and FTP is used where
+		// it answers.
+		const bool greeted = !probe.ftpPorts.empty() && probe.ftpPorts.front().ftp();
+		bool searched = false;
+		if(!greeted)
+		{
+			std::lock_guard<std::mutex> lock(mutex_);
+			searched = lastFtpSearchMs_ < 0 || now - lastFtpSearchMs_ >= kFtpSearchEveryMs;
+			if(searched)
+				lastFtpSearchMs_ = now;
+		}
+		if(searched)
+		{
+			std::vector<uint16_t> others = ftpPortCandidates(cfg.ftpPort, activeConsoleIsPs5(cfg));
+			others.erase(others.begin());
+			std::vector<PortAnswer> answers = probe.ftpPorts;
+			const std::vector<PortAnswer> more = askPorts(cfg.consoleAddress, others, 2000);
+			answers.insert(answers.end(), more.begin(), more.end());
+			const uint16_t found = pickFtpPort(answers, cfg.ftpPort);
+			if(found != 0 && found != cfg.ftpPort)
+			{
+				for(const PortAnswer &answer : answers)
+					if(answer.port == found)
+						probe.ftpDetail = answer.greeting;
+				logInfo("FTP answers on port " + std::to_string(found) + ", not on " + std::to_string(cfg.ftpPort)
+					+ " (" + probe.ftpDetail + ")");
+				std::lock_guard<std::mutex> lock(mutex_);
+				settings_.ftpPort = found;
+			}
+			probe.ftpPort = found;
+			probe.ftpOk = found != 0;
+			result.ftpSearch = answers;
+			result.ftpSearchAtMs = now;
+		}
+
+		result.ftpPort = probe.ftpPort;
 		result.ftp.state = probe.ftpOk ? ServiceState::Available : ServiceState::Unavailable;
 		result.ftp.detail = probe.ftpDetail;
 		result.ftp.hint = probe.ftpOk
@@ -182,6 +333,9 @@ ConsoleStatus ConsoleManager::checkNow()
 		std::lock_guard<std::mutex> lock(mutex_);
 		status_.ftp = result.ftp;
 		status_.installer = result.installer;
+		status_.ftpPort = result.ftpPort;
+		status_.ftpSearch = result.ftpSearch;
+		status_.ftpSearchAtMs = result.ftpSearchAtMs;
 		result = status_;
 	}
 	publish(result);

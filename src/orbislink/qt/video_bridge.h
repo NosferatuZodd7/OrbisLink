@@ -4,6 +4,7 @@
 #include <QImage>
 #include <QMutex>
 #include <QObject>
+#include <QPointer>
 #include <QVideoFrame>
 #include <atomic>
 
@@ -51,7 +52,9 @@ private slots:
 	void deliver(const QVideoFrame &frame);
 
 private:
-	QVideoSink *sink_ = nullptr;
+	// The sink belongs to the QML video item, which can go before this
+	// bridge (closing the window, the video part reloading).
+	QPointer<QVideoSink> sink_;
 	std::atomic<qint64> frames_ { 0 };
 	bool announced_ = false;
 	bool unsupportedReported_ = false;

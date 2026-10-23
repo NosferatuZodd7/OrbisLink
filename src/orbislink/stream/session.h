@@ -58,6 +58,9 @@ public:
 	// of samples per channel.
 	using AudioSettingsCallback = std::function<void(unsigned int channels, unsigned int rate)>;
 	using AudioCallback = std::function<void(const int16_t *pcm, size_t samples)>;
+	// The console is showing something it will not stream (a video app, a
+	// protected screen): true while it lasts, false once the picture is back.
+	using DisplayCallback = std::function<void(bool blocked)>;
 
 	StreamSession();
 	~StreamSession();
@@ -67,6 +70,7 @@ public:
 	void setLoginPinCallback(LoginPinCallback callback);
 	void setAudioCallbacks(AudioSettingsCallback settings, AudioCallback frames);
 	void setRumbleCallback(RumbleCallback callback);
+	void setDisplayCallback(DisplayCallback callback);
 
 	bool start(const Config &config, std::string *error = nullptr);
 	void stop();

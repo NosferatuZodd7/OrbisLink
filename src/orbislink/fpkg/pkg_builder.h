@@ -24,6 +24,11 @@ struct PkgSource
 	std::string sourcePath;
 	// ...or bytes already in memory (used when sourcePath is empty).
 	Bytes data;
+	// A raw CD image on disk (2352 or 2336 bytes a sector) taken as the
+	// plain ISO inside it: of each sector, the 2048 bytes of data at
+	// `rawDataOffset`. 0 for a file taken as it is.
+	uint32_t rawSectorSize = 0;
+	uint32_t rawDataOffset = 0;
 };
 
 struct PkgRequest

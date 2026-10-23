@@ -5,6 +5,7 @@
 #include "orbislink/common/log.h"
 #include "orbislink/common/util.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cstdlib>
 #include <fstream>
@@ -32,7 +33,7 @@ bool isThemeColor(const std::string &value)
 
 const char *transferModeName(TransferMode mode)
 {
-	return mode == TransferMode::FtpUpload ? "ftp" : "direct";
+	return mode == TransferMode::FtpUpload ? "ftp" : mode == TransferMode::ConsoleInstall ? "console" : "direct";
 }
 
 TransferMode transferModeFromName(const std::string &name, TransferMode fallback)
@@ -41,7 +42,25 @@ TransferMode transferModeFromName(const std::string &name, TransferMode fallback
 		return TransferMode::FtpUpload;
 	if(name == "direct")
 		return TransferMode::DirectInstall;
+	if(name == "console")
+		return TransferMode::ConsoleInstall;
 	return fallback;
+}
+
+std::vector<StoreSource> Settings::defaultStores()
+{
+	return {
+		{ "homebrew.page", "https://homebrew.page/api/v1/", "catalog", true },
+		{ "PKG-Zone", "https://api.pkg-zone.com", "hb-store", true },
+	};
+}
+
+bool Settings::builtInStore(const StoreSource &source)
+{
+	for(const StoreSource &builtIn : defaultStores())
+		if(builtIn.kind == source.kind && toLower(builtIn.url) == toLower(source.url))
+			return true;
+	return false;
 }
 
 std::string Settings::toJson() const
@@ -74,6 +93,10 @@ std::string Settings::toJson() const
 	for(const std::string &folder : ftpPinnedFolders)
 		pinned.push(Json::fromString(folder));
 	root.set("ftp_pinned_folders", pinned);
+	Json pinnedPs5 = Json::makeArray();
+	for(const std::string &folder : ftpPinnedFoldersPs5)
+		pinnedPs5.push(Json::fromString(folder));
+	root.set("ftp_pinned_folders_ps5", pinnedPs5);
 	root.set("check_already_installed", Json::fromBool(checkAlreadyInstalled));
 	root.set("install_after_upload", Json::fromBool(installAfterUpload));
 	root.set("delete_from_console_after_install", Json::fromBool(deleteFromConsoleAfterInstall));
@@ -98,6 +121,7 @@ std::string Settings::toJson() const
 		Json input = Json::makeObject();
 		input.set("label", Json::fromString(account.label));
 		input.set("account_id", Json::fromString(account.accountId));
+		input.set("remote_play_pin", Json::fromString(account.remotePlayPin));
 		savedAccounts.push(std::move(input));
 	}
 	root.set("accounts", savedAccounts);
@@ -127,12 +151,55 @@ std::string Settings::toJson() const
 		presets.push(std::move(item));
 	}
 	root.set("theme_presets", presets);
+	root.set("theme_active_preset", Json::fromString(activePreset));
+	Json lastColors = Json::makeObject();
+	for(const auto &pair : lastCustomColors)
+		lastColors.set(pair.first, Json::fromString(pair.second));
+	root.set("theme_last_custom", lastColors);
+	root.set("theme_last_custom_base", Json::fromString(lastCustomTheme));
 	root.set("language", Json::fromString(language));
 	root.set("debug_logging", Json::fromBool(debugLogging));
 	root.set("check_for_updates", Json::fromBool(checkForUpdates));
 	root.set("first_run_done", Json::fromBool(firstRunDone));
 	root.set("games_folder", Json::fromString(gamesFolder));
 	root.set("convert_output_folder", Json::fromString(convertOutputFolder));
+	root.set("keep_converted_packages", Json::fromBool(keepConvertedPackages));
+	root.set("install_storage", Json::fromString(installStorage));
+	root.set("save_vault_folder", Json::fromString(saveVaultFolder));
+	Json places = Json::makeArray();
+	for(const LibraryLocation &place : libraryLocations)
+	{
+		Json item = Json::makeObject();
+		item.set("id", Json::fromString(place.id));
+		item.set("name", Json::fromString(place.name));
+		item.set("path", Json::fromString(place.path));
+		item.set("where", Json::fromString(place.where));
+		item.set("favorite", Json::fromBool(place.favorite));
+		item.set("in_search", Json::fromBool(place.inSearch));
+		places.push(std::move(item));
+	}
+	root.set("library_locations", places);
+	root.set("library_locations_seeded", Json::fromBool(libraryLocationsSeeded));
+	root.set("library_only_games", Json::fromBool(libraryOnlyGames));
+	root.set("overlay_opacity", Json::fromDouble(overlayOpacity));
+	root.set("console_copy_folder", Json::fromString(consoleCopyFolder));
+	root.set("store_catalog_address", Json::fromString(storeCatalogAddress));
+	root.set("store_local_folder", Json::fromString(storeLocalFolder));
+	Json storeItems = Json::makeArray();
+	for(const StoreSource &source : stores)
+	{
+		Json item = Json::makeObject();
+		item.set("name", Json::fromString(source.name));
+		item.set("url", Json::fromString(source.url));
+		item.set("kind", Json::fromString(source.kind));
+		item.set("enabled", Json::fromBool(source.enabled));
+		storeItems.push(std::move(item));
+	}
+	root.set("stores", storeItems);
+	Json links = Json::makeObject();
+	for(const auto &pair : saveAccountLinks)
+		links.set(pair.first, Json::fromString(pair.second));
+	root.set("save_account_links", links);
 	root.set("update_repository", Json::fromString(updateRepository));
 	root.set("update_repository_default", Json::fromString(ORBISLINK_REPOSITORY_STRING));
 	root.set("update_channel", Json::fromString(updateChannel));
@@ -186,6 +253,13 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 			if(folder.isString() && !folder.toString().empty())
 				settings.ftpPinnedFolders.push_back(folder.toString());
 	}
+	if(root["ftp_pinned_folders_ps5"].isArray())
+	{
+		settings.ftpPinnedFoldersPs5.clear();
+		for(const Json &folder : root["ftp_pinned_folders_ps5"].items())
+			if(folder.isString() && !folder.toString().empty())
+				settings.ftpPinnedFoldersPs5.push_back(folder.toString());
+	}
 	settings.checkAlreadyInstalled =
 		root["check_already_installed"].toLooseBool(settings.checkAlreadyInstalled);
 	settings.installAfterUpload = root["install_after_upload"].toLooseBool(settings.installAfterUpload);
@@ -222,6 +296,7 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 			SavedAccount account;
 			account.label = input["label"].toString();
 			account.accountId = input["account_id"].toString();
+			account.remotePlayPin = input["remote_play_pin"].toString();
 			settings.accounts.push_back(account);
 		}
 	}
@@ -250,6 +325,9 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 		return colors;
 	};
 	settings.themeColors = readColors(root["theme_colors"]);
+	settings.lastCustomColors = readColors(root["theme_last_custom"]);
+	settings.lastCustomTheme = root["theme_last_custom_base"].toString();
+	settings.activePreset = root["theme_active_preset"].toString();
 	if(root["theme_presets"].isArray())
 	{
 		for(const Json &item : root["theme_presets"].items())
@@ -273,6 +351,68 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.firstRunDone = root["first_run_done"].toLooseBool(settings.firstRunDone);
 	settings.gamesFolder = root["games_folder"].toString(settings.gamesFolder);
 	settings.convertOutputFolder = root["convert_output_folder"].toString(settings.convertOutputFolder);
+	settings.keepConvertedPackages = root["keep_converted_packages"].toLooseBool(settings.keepConvertedPackages);
+	settings.installStorage = root["install_storage"].toString(settings.installStorage);
+	if(settings.installStorage != "usb" && settings.installStorage != "ext")
+		settings.installStorage = "internal";
+	settings.saveVaultFolder = root["save_vault_folder"].toString(settings.saveVaultFolder);
+	if(root["library_locations"].isArray())
+		for(const Json &input : root["library_locations"].items())
+		{
+			LibraryLocation place;
+			place.id = input["id"].toString();
+			place.name = input["name"].toString();
+			place.path = input["path"].toString();
+			place.where = input["where"].toString("pc") == "console" ? "console" : "pc";
+			place.favorite = input["favorite"].toLooseBool(false);
+			place.inSearch = input["in_search"].toLooseBool(true);
+			if(!place.id.empty() && !place.path.empty())
+				settings.libraryLocations.push_back(place);
+		}
+	settings.libraryLocationsSeeded = root["library_locations_seeded"].toLooseBool(settings.libraryLocationsSeeded);
+	settings.libraryOnlyGames = root["library_only_games"].toLooseBool(settings.libraryOnlyGames);
+	settings.overlayOpacity = std::min(1.0, std::max(kOverlayMinOpacity, root["overlay_opacity"].toDouble(settings.overlayOpacity)));
+	settings.consoleCopyFolder = root["console_copy_folder"].toString(settings.consoleCopyFolder);
+	settings.storeCatalogAddress = root["store_catalog_address"].toString(settings.storeCatalogAddress);
+	settings.storeLocalFolder = root["store_local_folder"].toString(settings.storeLocalFolder);
+	if(root["stores"].isArray())
+	{
+		std::vector<StoreSource> stores;
+		auto known = [&stores](const StoreSource &source) {
+			for(const StoreSource &other : stores)
+				if(other.kind == source.kind && toLower(other.url) == toLower(source.url))
+					return true;
+			return false;
+		};
+		for(const Json &input : root["stores"].items())
+		{
+			if(!input.isObject())
+				continue;
+			StoreSource source;
+			source.name = trim(input["name"].toString());
+			source.url = trim(input["url"].toString());
+			source.kind = input["kind"].toString();
+			source.enabled = input["enabled"].toLooseBool(true);
+			if(source.url.empty() || (source.kind != "catalog" && source.kind != "hb-store") || known(source))
+				continue;
+			// The catalog is the built-in one only: its mirror is set apart.
+			if(source.kind == "catalog" && !Settings::builtInStore(source))
+				continue;
+			if(source.name.empty())
+				source.name = source.url;
+			stores.push_back(source);
+		}
+		// The built-in stores are always there, where they were or first.
+		const std::vector<StoreSource> defaults = Settings::defaultStores();
+		for(size_t i = 0; i < defaults.size(); ++i)
+			if(!known(defaults[i]))
+				stores.insert(stores.begin() + static_cast<std::ptrdiff_t>(std::min(i, stores.size())), defaults[i]);
+		settings.stores = stores;
+	}
+	if(root["save_account_links"].isObject())
+		for(const auto &pair : root["save_account_links"].members())
+			if(pair.second.isString())
+				settings.saveAccountLinks[pair.first] = pair.second.toString();
 	{
 		const std::string stored = root["update_repository"].toString(settings.updateRepository);
 		const bool hasDefault = root["update_repository_default"].isString();
@@ -366,20 +506,21 @@ void normaliseAccounts(Settings &settings)
 				return &account;
 		return nullptr;
 	};
-	auto add = [&](const std::string &rawId, const std::string &label) {
+	auto add = [&](const std::string &rawId, const std::string &label, const std::string &pin) {
 		const std::string id = trim(rawId);
 		if(id.empty() || find(id))
 			return;
 		SavedAccount account;
 		account.accountId = id;
 		account.label = trim(label).empty() ? "PSN account " + std::to_string(clean.size() + 1) : trim(label);
+		account.remotePlayPin = trim(pin);
 		clean.push_back(account);
 	};
 	for(const SavedAccount &account : settings.accounts)
-		add(account.accountId, account.label);
+		add(account.accountId, account.label, account.remotePlayPin);
 	for(const ConsoleEntry &console : settings.consoles)
-		add(console.accountId, console.name);
-	add(settings.streamAccountId, std::string());
+		add(console.accountId, console.name, std::string());
+	add(settings.streamAccountId, std::string(), std::string());
 	settings.accounts = clean;
 }
 

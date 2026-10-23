@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "orbislink/common/util.h"
 #include "orbislink/http/local_http_server.h"
+#include "orbislink/installer/error_codes.h"
+#include "orbislink/net/http_client.h"
 #include "orbislink/queue/install_queue.h"
 #include "test_fixtures.h"
 #include "test_support.h"
@@ -24,6 +26,15 @@ public:
 	std::atomic<bool> available { true };
 	std::atomic<bool> alreadyInstalled { false };
 	std::atomic<int> failWithCode { 0 };
+	// The first installs answer "task duplicated", as when an earlier try
+	// left its task in the console's downloads.
+	std::atomic<int> duplicatedTimes { 0 };
+	// What find_task answers (-1: no such task).
+	std::atomic<int> staleTask { -1 };
+	std::atomic<int> unregisterCalls { 0 };
+	std::string foundFor;
+	// Like etaHEN's DPI v2: starts installs and says nothing more.
+	std::atomic<bool> onlyStarts { false };
 	std::atomic<int> installCalls { 0 };
 	std::atomic<int> stopCalls { 0 };
 	std::atomic<int64_t> totalBytes { 0 };
@@ -44,6 +55,14 @@ public:
 	{
 		if(!available.load())
 			return InstallerResult::failure("Remote installer unavailable. Open Remote Package Installer on the console.");
+		if(duplicatedTimes.load() > 0)
+		{
+			--duplicatedTimes;
+			InstallerResult result;
+			result.errorCode = kBgftTaskDuplicated;
+			result.message = describeConsoleError(kBgftTaskDuplicated);
+			return result;
+		}
 		if(failWithCode.load() != 0)
 		{
 			InstallerResult result;
@@ -96,19 +115,25 @@ public:
 		return InstallerResult::success();
 	}
 
-	InstallerResult findTask(const std::string &, TaskSubType, int *) override
+	InstallerResult findTask(const std::string &contentId, TaskSubType, int *taskId) override
 	{
-		return InstallerResult::failure("not used");
+		if(staleTask.load() < 0)
+			return InstallerResult::failure("no such task");
+		foundFor = contentId;
+		if(taskId)
+			*taskId = staleTask.load();
+		return InstallerResult::success();
 	}
 	InstallerResult startTask(int) override { return InstallerResult::success(); }
 	InstallerResult stopTask(int) override { ++stopCalls; return InstallerResult::success(); }
 	InstallerResult pauseTask(int) override { return InstallerResult::success(); }
 	InstallerResult resumeTask(int) override { return InstallerResult::success(); }
-	InstallerResult unregisterTask(int) override { return InstallerResult::success(); }
+	InstallerResult unregisterTask(int) override { ++unregisterCalls; return InstallerResult::success(); }
 	InstallerResult uninstallGame(const std::string &) override { return InstallerResult::success(); }
 	InstallerResult uninstallPatch(const std::string &) override { return InstallerResult::success(); }
 	InstallerResult uninstallAdditionalContent(const std::string &) override { return InstallerResult::success(); }
 	InstallerResult uninstallTheme(const std::string &) override { return InstallerResult::success(); }
+	bool followsTasks() const override { return !onlyStarts.load(); }
 };
 
 struct PkgFile
@@ -204,6 +229,26 @@ ORBISLINK_TEST(keeps_order_across_different_titles)
 	CHECK_EQ(tasks[2].titleId, std::string("CUSA00001"));
 }
 
+ORBISLINK_TEST(an_install_after_an_upload_goes_before_the_tasks_waiting)
+{
+	PkgFile first("next-first.pkg", gameOptions("CUSA00003", "First"));
+	PkgFile second("next-second.pkg", gameOptions("CUSA00004", "Second"));
+	PkgFile sent("next-sent.pkg", gameOptions("CUSA00005", "Sent"));
+
+	InstallQueue queue(InstallQueue::Dependencies {}, Settings {});
+	queue.enqueue({ first.path, second.path }, TransferMode::FtpUpload);
+	// What an upload queues once it is done: its install, to go next.
+	queue.enqueue({ sent.path }, TransferMode::DirectInstall, nullptr, nullptr,
+		[](QueueTask &install) { install.next = true; });
+
+	const auto tasks = queue.tasks();
+	CHECK_EQ(tasks.size(), static_cast<size_t>(3));
+	CHECK_EQ(tasks[0].titleId, std::string("CUSA00005"));
+	CHECK(tasks[0].mode == TransferMode::DirectInstall);
+	CHECK_EQ(tasks[1].titleId, std::string("CUSA00003"));
+	CHECK_EQ(tasks[2].titleId, std::string("CUSA00004"));
+}
+
 ORBISLINK_TEST(refuses_invalid_files)
 {
 	PkgOptions broken;
@@ -217,6 +262,42 @@ ORBISLINK_TEST(refuses_invalid_files)
 	CHECK_EQ(rejected.size(), static_cast<size_t>(1));
 	CHECK(rejected[0].find("valid PS4 pkg") != std::string::npos);
 	removeTempFile(path);
+}
+
+ORBISLINK_TEST(copies_any_file_over_ftp_but_installs_only_packages)
+{
+	const std::string iso = writeTempFile("Some Game (Europe).iso", std::vector<uint8_t>(4096, 0x58));
+	// A PS3 package (for RPCS3 on the console): "\x7FPKG", platform 1.
+	std::vector<uint8_t> ps3(8192, 0);
+	ps3[0] = 0x7F;
+	ps3[1] = 'P';
+	ps3[2] = 'K';
+	ps3[3] = 'G';
+	ps3[5] = 1;
+	const std::string ps3Pkg = writeTempFile("A PS3 Game.pkg", ps3);
+
+	InstallQueue queue(InstallQueue::Dependencies {}, Settings {});
+	std::vector<std::string> rejected;
+	// Over FTP both go as they are, a .pkg that is not a PS4 one too.
+	const auto ids = queue.enqueue({ iso, ps3Pkg }, TransferMode::FtpUpload, &rejected);
+	CHECK_EQ(ids.size(), static_cast<size_t>(2));
+	CHECK(rejected.empty());
+	const auto tasks = queue.tasks();
+	CHECK_EQ(tasks.size(), static_cast<size_t>(2));
+	for(const QueueTask &task : tasks)
+	{
+		CHECK(task.title == baseName(iso) || task.title == baseName(ps3Pkg));
+		CHECK(task.category == PkgCategory::Unknown);
+		CHECK_EQ(task.totalBytes, task.title == baseName(iso) ? static_cast<int64_t>(4096) : static_cast<int64_t>(8192));
+	}
+	// And never to be installed directly, saying what it is.
+	CHECK(queue.enqueue({ iso }, TransferMode::DirectInstall).empty());
+	std::vector<std::string> refused;
+	CHECK(queue.enqueue({ ps3Pkg }, TransferMode::DirectInstall, &refused).empty());
+	CHECK_EQ(refused.size(), static_cast<size_t>(1));
+	CHECK(refused[0].find("A PS3 package, not a PS4 one.") != std::string::npos);
+	removeTempFile(iso);
+	removeTempFile(ps3Pkg);
 }
 
 ORBISLINK_TEST(direct_install_end_to_end)
@@ -351,6 +432,185 @@ ORBISLINK_TEST(pauses_the_queue_when_the_installer_goes_down)
 	server.stop();
 }
 
+ORBISLINK_TEST(removes_a_task_left_on_the_console_and_tries_again)
+{
+	PkgFile game("duplicated-game.pkg", gameOptions("CUSA00014", "Left Behind"));
+
+	LocalHttpServer server;
+	LocalHttpServer::Config config;
+	config.bindAddress = "127.0.0.1";
+	config.port = 0;
+	config.autoSelectPort = false;
+	CHECK(server.start(config, nullptr));
+
+	FakeInstaller installer;
+	installer.duplicatedTimes.store(1);
+	installer.staleTask.store(7);
+	installer.totalBytes.store(fileSize(game.path));
+
+	InstallQueue::Dependencies deps;
+	deps.httpServer = &server;
+	deps.installer = &installer;
+	Settings settings;
+	settings.checkAlreadyInstalled = false;
+
+	InstallQueue queue(deps, settings, fastTuning());
+	const std::string id = queue.enqueueOne(game.path, TransferMode::DirectInstall);
+	queue.start();
+	CHECK(waitFor([&]() {
+		QueueTask task;
+		return queue.task(id, &task) && task.isTerminal();
+	}));
+	queue.stop();
+
+	QueueTask task;
+	CHECK(queue.task(id, &task));
+	CHECK(task.state == TaskState::Completed);
+	CHECK_EQ(installer.foundFor, std::string("UP0001-CUSA00014_00-ORBISLINKTEST001"));
+	CHECK_EQ(installer.unregisterCalls.load(), 1);
+	CHECK_EQ(installer.installCalls.load(), 1);
+	server.stop();
+}
+
+ORBISLINK_TEST(says_what_to_do_when_the_left_task_cannot_be_found)
+{
+	PkgFile game("duplicated2-game.pkg", gameOptions("CUSA00015", "Still There"));
+
+	LocalHttpServer server;
+	LocalHttpServer::Config config;
+	config.bindAddress = "127.0.0.1";
+	config.port = 0;
+	config.autoSelectPort = false;
+	CHECK(server.start(config, nullptr));
+
+	FakeInstaller installer;
+	installer.duplicatedTimes.store(5);
+
+	InstallQueue::Dependencies deps;
+	deps.httpServer = &server;
+	deps.installer = &installer;
+	Settings settings;
+	settings.checkAlreadyInstalled = false;
+
+	InstallQueue queue(deps, settings, fastTuning());
+	const std::string id = queue.enqueueOne(game.path, TransferMode::DirectInstall);
+	queue.start();
+	CHECK(waitFor([&]() {
+		QueueTask task;
+		return queue.task(id, &task) && task.isTerminal();
+	}));
+	queue.stop();
+
+	QueueTask task;
+	CHECK(queue.task(id, &task));
+	CHECK(task.state == TaskState::Error);
+	CHECK_EQ(task.errorCode, kBgftTaskDuplicated);
+	CHECK(task.message.find("Downloads list") != std::string::npos);
+	CHECK_EQ(installer.unregisterCalls.load(), 0);
+	CHECK_EQ(installer.duplicatedTimes.load(), 4);
+	server.stop();
+}
+
+ORBISLINK_TEST(an_install_without_progress_is_followed_by_what_the_pc_serves)
+{
+	PkgFile game("served-game.pkg", gameOptions("CUSA00016", "Served Game"));
+
+	LocalHttpServer server;
+	LocalHttpServer::Config config;
+	config.bindAddress = "127.0.0.1";
+	config.port = 0;
+	config.autoSelectPort = false;
+	CHECK(server.start(config, nullptr));
+
+	FakeInstaller installer;
+	installer.onlyStarts.store(true);
+
+	InstallQueue::Dependencies deps;
+	deps.httpServer = &server;
+	deps.installer = &installer;
+	Settings settings;
+	settings.checkAlreadyInstalled = false;
+
+	InstallQueue queue(deps, settings, fastTuning());
+	const std::string id = queue.enqueueOne(game.path, TransferMode::DirectInstall);
+	queue.start();
+	CHECK(waitFor([&]() { return installer.installCalls.load() == 1; }));
+	// The console takes the whole package from the PC.
+	const HttpResponse taken = HttpClient(4000).get(installer.lastUrls.at(0));
+	CHECK(taken.transportOk);
+	CHECK_EQ(static_cast<int64_t>(taken.body.size()), fileSize(game.path));
+	CHECK(waitFor([&]() {
+		QueueTask task;
+		return queue.task(id, &task) && task.isTerminal();
+	}));
+	queue.stop();
+
+	QueueTask task;
+	CHECK(queue.task(id, &task));
+	CHECK(task.state == TaskState::Completed);
+	CHECK_EQ(task.doneBytes, task.totalBytes);
+	CHECK(task.message.find("notifications") != std::string::npos);
+	server.stop();
+}
+
+ORBISLINK_TEST(installs_a_package_already_on_the_console)
+{
+	PkgOptions options = gameOptions("CUSA00017", "On The Console");
+	const std::vector<uint8_t> bytes = buildPkg(options);
+	const std::string local = writeTempFile("console-game.pkg", bytes);
+	const PkgInfo info = PkgInspector().inspect(local);
+	CHECK(info.valid);
+
+	FakeInstaller installer;
+	installer.totalBytes.store(info.fileSize);
+	InstallQueue::Dependencies deps;
+	deps.installer = &installer;
+	InstallQueue queue(deps, Settings {}, fastTuning());
+	const std::string id = queue.enqueueConsoleInstall("/mnt/usb0/OrbisLinkFPKG/game.pkg", info);
+	queue.start();
+	CHECK(waitFor([&]() {
+		QueueTask task;
+		return queue.task(id, &task) && task.isTerminal();
+	}));
+	queue.stop();
+
+	QueueTask task;
+	CHECK(queue.task(id, &task));
+	CHECK(task.state == TaskState::Completed);
+	CHECK(task.mode == TransferMode::ConsoleInstall);
+	CHECK_EQ(task.title, std::string("Console title"));
+	CHECK_EQ(task.doneBytes, task.totalBytes);
+	// The console was given the path, not an address on this PC.
+	CHECK_EQ(installer.lastUrls.at(0), std::string("/mnt/usb0/OrbisLinkFPKG/game.pkg"));
+	removeTempFile(local);
+}
+
+ORBISLINK_TEST(a_console_install_nothing_reports_on_ends_with_a_word)
+{
+	PkgOptions options = gameOptions("CUSA00018", "Quiet Install");
+	const std::string local = writeTempFile("quiet-game.pkg", buildPkg(options));
+	const PkgInfo info = PkgInspector().inspect(local);
+
+	FakeInstaller installer;
+	installer.onlyStarts.store(true);
+	InstallQueue::Dependencies deps;
+	deps.installer = &installer;
+	InstallQueue queue(deps, Settings {}, fastTuning());
+	const std::string id = queue.enqueueConsoleInstall("/data/OrbisLinkFPKG/quiet.pkg", info);
+	queue.start();
+	CHECK(waitFor([&]() {
+		QueueTask task;
+		return queue.task(id, &task) && task.isTerminal();
+	}));
+	queue.stop();
+
+	QueueTask task;
+	CHECK(queue.task(id, &task));
+	CHECK(task.state == TaskState::Completed);
+	CHECK(task.message.find("notifications") != std::string::npos);
+	removeTempFile(local);
+}
+
 ORBISLINK_TEST(skips_installed_title_when_the_policy_says_so)
 {
 	PkgFile game("existing-game.pkg", gameOptions("CUSA00013", "Existing Game"));
@@ -434,6 +694,38 @@ ORBISLINK_TEST(upload_keeps_the_name_chosen_for_the_console)
 			CHECK_EQ(task.remoteName, std::string("rename-game-1.pkg"));
 		else
 			CHECK(task.remoteName.empty());
+	}
+	std::remove(path.c_str());
+}
+
+ORBISLINK_TEST(a_package_put_back_in_the_library_is_only_copied)
+{
+	// A converted disc from the console's library: its package goes back to
+	// the disc's folder, installed or, when asked, only left there — even
+	// with "install after upload" on — and that survives a restart.
+	PkgFile kept("library-kept.pkg", gameOptions("CUSA00017", "Kept Game"));
+	PkgFile installed("library-installed.pkg", gameOptions("CUSA00018", "Installed Game"));
+	Settings settings;
+	settings.installAfterUpload = true;
+	InstallQueue original(InstallQueue::Dependencies {}, settings);
+	const std::string folder = "/mnt/usb0/OrbisLinkFPKG/";
+	CHECK(!original.enqueueUploadTo(kept.path, folder, false).empty());
+	CHECK(!original.enqueueUploadTo(installed.path, folder, true).empty());
+	const std::string path = ".orbislink-test-queue-library.json";
+	CHECK(original.save(path));
+
+	InstallQueue restored(InstallQueue::Dependencies {}, settings);
+	CHECK(restored.load(path));
+	const auto tasks = restored.tasks();
+	CHECK_EQ(tasks.size(), static_cast<size_t>(2));
+	for(const QueueTask &task : tasks)
+	{
+		CHECK(task.mode == TransferMode::FtpUpload);
+		CHECK_EQ(task.remoteDirectory, folder);
+		const bool install = task.title == "Installed Game";
+		CHECK(task.copyOnly == !install);
+		CHECK(task.installAfter == install);
+		CHECK(task.deleteAfterInstall == install);
 	}
 	std::remove(path.c_str());
 }

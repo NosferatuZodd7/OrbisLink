@@ -6,17 +6,19 @@ A desktop app that brings together, in one window, **Remote Play** for a PS4
 or PS5, **installing .pkg files by drag and drop**, and an **FTP client** for
 the console.
 
-> **Status:** stable **v1.2.0**. Remote Play works on real PS4 and PS5
+> **Status:** stable **v1.3.0**. Remote Play works on real PS4 and PS5
 > consoles (discovery, registration, 1080p/60 video, sound, microphone,
 > controller and keyboard). Installing pkg files and FTP need a PS4 with
-> GoldHEN, or a PS5 with a jailbreak that provides them (etaHEN). The `beta`
-> branch has a lot more, still being tested on real consoles — see
-> [What works, and what is in development](#what-works-and-what-is-in-development).
-> The app is in English, with a Portuguese translation.
+> GoldHEN, or a PS5 with a jailbreak that provides them (etaHEN). Besides
+> those: a games library, the PS1/PS2 converter, a homebrew store of several
+> stores, a save vault and a payload manager — some of it still to be
+> confirmed on real consoles, as
+> [What works, and what is in development](#what-works-and-what-is-in-development)
+> says. The app is in English, with a Portuguese translation.
 
 ## What works, and what is in development
 
-There are two versions: the **stable** one (v1.2.0, this branch) and the
+There are two versions: the **stable** one (v1.3.0, this branch) and the
 **beta** (test builds from the `beta` branch, `vX.Y.Z-dev.N`), where new work
 lands first. The app is made for the PS4 and the PS5 alike. To try the beta:
 **Settings → Updates → Testing (branch builds)**, or a pre-release from the
@@ -29,57 +31,55 @@ Releases page.
 | 🚧 | Not working yet, or still being built |
 | — | Does not apply to that console |
 
-### Stable (v1.2.0)
+### Stable (v1.3.0)
 
 | Feature | PS4 | PS5 |
 |---|---|---|
 | Remote Play: discovery, registration, 1080p/60 video, sound, controller, keyboard as a controller | ✅ | ✅ |
 | Microphone | 🧪 | ✅ (in a voice party) |
 | Waking the console from rest mode with one click | 🧪 | 🧪 |
-| FTP browser: browse, upload, download, rename, delete | ✅ (GoldHEN) | 🧪 only on the port set by hand (the beta finds it by itself) |
-| Installing .pkg files by drag and drop | ✅ (Remote Package Installer) | 🚧 (in the beta: 🧪) |
-| PS1/PS2 discs made into PS4 packages (no console needed) | ✅ | ✅ |
-| PS1/PS2 packages sent and installed | ✅ | 🧪 sent · 🚧 installed (by hand on the console) |
-| Several consoles, keyboard map, themes and colours, updates | ✅ | ✅ |
-
-### New in the beta
-
-| Feature | PS4 | PS5 |
-|---|---|---|
+| Remote Play: several PSN accounts, each with its own PIN, picked on the console's card; no crash when the console is showing a video app | 🧪 | 🧪 |
+| Remote Play: Games, the store, the save vault and payloads open over the picture, with a slider for how see-through they are, so the game stays in sight | 🧪 | 🧪 |
+| Adding a console: the search asks every network adapter and every address of a home network, and finds a console with Remote Play off by its FTP | 🧪 | 🧪 |
+| The console's firmware and its jailbreak's version (when its FTP says it) beside its name in the top bar | 🧪 | 🧪 |
+| FTP browser: browse, upload, download, rename, delete | ✅ (GoldHEN) | ✅ (etaHEN, ftpsrv) |
 | FTP found by itself when the set port is silent (2121, 1337, 21, and 9090 on a PS5) | 🧪 | ✅ |
-| Files tab: moving between drives (internal ↔ USB), copied through the PC; a drop goes into the folder that is open | 🧪 | 🧪 |
-| Sending any file (an ISO too) to the console's memory or a USB drive | 🧪 | 🧪 |
-| PS1/PS2 packages sent over FTP (on a PS5 too, now that its FTP is found) | ✅ | ✅ |
-| Installing on a PS5 without going to the console: etaHEN's DPI v2, or Prospero Manager's API when there is no DPI v2 | — | 🧪 |
+| Files tab: several files and folders picked at once, downloaded, moved or deleted together; folders deleted with everything inside; downloads in the queue that go on after the console breaks them; moving between drives (internal ↔ USB), copied through the PC; a drop goes into the folder that is open | 🧪 | 🧪 |
+| Sending any file (an ISO, a PS3 package for RPCS3) to the console's memory or a USB drive, as it is — only a PS4 package is ever installed | 🧪 | 🧪 |
+| Installing .pkg files by drag and drop | ✅ (Remote Package Installer) | 🧪 (etaHEN's DPI v2, or Prospero Manager's API when there is no DPI v2) |
 | When the installer or FTP is not running, a window says what to do on that console (PS4: open Remote Package Installer, GoldHEN's FTP; PS5: Prospero Manager or DPI v2, ftpsrv or etaHEN's FTP) | ✅ | ✅ |
+| One queue for every job (installs, copies, conversions, the store), in three groups — under way, waiting, finished — with the round's percentage, jobs to go and time left, and a narrow rail with the jobs when the panel is closed; kept across restarts; a system notification when a long job ends; a failed job can be tried again | 🧪 | 🧪 |
+| Each package says whether it is fake (fpkg) or official, and the firmware it needs | ✅ | ✅ |
+| A warning before an official package goes (it installs only with its licence), or a game needing a newer firmware than the PS4's | 🧪 | 🧪 official only (a PS5 runs PS4 games whatever their firmware) |
+| PS1/PS2 discs made into PS4 packages (no console needed) | ✅ | ✅ |
+| PS1/PS2 packages sent and installed; the package left on the PC deleted once the console has it (a setting keeps them) | ✅ | ✅ sent · 🧪 installed |
 | **Games**: one library of every place games can be (the console's `OrbisLinkFPKG` folders, its USB drives and `data/pkg`, this PC's drives and folders), with covers, search and an *Only games* filter; the PS1/PS2 converter in its own tab | 🧪 | 🧪 |
-| Games: pick several and convert or install them together; choose the console's memory, a USB drive or the extended storage | 🧪 | 🧪 |
+| Games: pick several and convert, install or delete them together; choose the console's memory, a USB drive or the extended storage | 🧪 | 🧪 |
 | Games: what the console has installed (with each game's name and version), copying a game to this PC, the console's free space | 🧪 | 🧪 |
 | Games: uninstalling a game or its update | 🧪 | — |
 | Packing a PS4 app folder from this PC into a .pkg and installing it | 🧪 | 🧪 |
-| Each package says whether it is fake (fpkg) or official, and the firmware it needs | ✅ | ✅ |
-| A warning before an official package goes (it installs only with its licence), or a game needing a newer firmware than the PS4's | 🧪 | 🧪 official only (a PS5 runs PS4 games whatever their firmware) |
 | Organising a folder of packages on this PC: names from what they say, install order (game, update, add-ons), a folder per game, copies left alone | ✅ | ✅ |
 | Games: **cheats** for an installed game (GoldHEN's cheat repository, and etaHEN's on a PS5) sent to the console's cheat folder or taken off it | 🧪 | 🧪 |
 | Games: **game patches** (illusion0001's: 60 FPS, no motion blur, skipped intros…), each with a switch for GoldHEN's game_patch plugin | 🧪 | — |
 | PS5 games as folders or images (`.ffpkg`, `.exfat`) put on the home screen through ShadowMountPlus | — | 🧪 |
-| **Homebrew store**: the PS5 homebrew apps of the signed homebrew.page catalog — install, update, remove; app archives (`.zip`) from this PC; a catalog address of your own | — | 🧪 |
-| **Save vault**: every save backed up to this PC, sent back when the console loses it, or taken to another console of the same PSN account (PS4 ↔ PS5); saves the PS4 copied to a USB drive (on the console or plugged into the PC) are found too and backed up to the vault folder | 🧪 | 🧪 |
-| **Payloads**: what the console keeps in its payload and plugin folders — add, rename, delete, start at boot, run now, edit the settings files; the community's PS5 payload list | 🧪 | 🧪 |
-| Remote Play: several PSN accounts, each with its own PIN, picked on the console's card | 🧪 | 🧪 |
-| Remote Play: no crash when the console is showing a video app | 🧪 | 🧪 |
-| Remote Play: Games, the store, the save vault and payloads open over the picture, with a slider for how see-through they are, so the game stays in sight | 🧪 | 🧪 |
-| Adding a console: the search asks every network adapter and every address of a home network, and finds a console with Remote Play off by its FTP | 🧪 | 🧪 |
-| One queue for every job (installs, copies, conversions, the store), kept across restarts; a system notification when a long job ends; a failed uninstall, mount or run can be tried again | 🧪 | 🧪 |
+| **Homebrew store**: the apps of several stores together — homebrew.page's signed catalog (PS5 app folders), PKG-Zone's packages (PS4, and PS5 where the store says so) and any Homebrew Store you add; an app in more than one shows each store's tag, and installing it asks which to take it from; the most downloaded first, with **PS4** / **PS5** on each app and a filter for each console; install, update, remove; app archives (`.zip`) from this PC | 🧪 | 🧪 |
+| **Save vault**: every save backed up to this PC, sent back when the console loses it, or taken to another console of the same PSN account (PS4 ↔ PS5); saves the PS4 copied to a USB drive (on the console or plugged into the PC) are found too; all of a game's saves, or all shown, picked in one click | 🧪 | 🧪 |
+| **Payloads**: what the console keeps in its payload and plugin folders, each with what it does — add, rename, delete, start at boot, run now, edit the settings files; the community's PS5 payload list | 🧪 | 🧪 |
+| Several consoles, keyboard map, themes and colours, updates | ✅ | ✅ |
 | Minimal top bar; hovering FTP or the installer shows a card with its state and what to do | ✅ | ✅ |
+
+### New in the beta
+
+Nothing yet: what was in the beta is the stable v1.3.0 above. New work
+lands in the beta first, and shows here.
 
 Everything still missing, and why, is in
 [What is missing, and why](#what-is-missing-and-why).
 
 ## The interface
 
-The screenshots show the current beta with a PS4 (GoldHEN) and a PS5
-(etaHEN) side by side.
+The screenshots show v1.3.0 with a PS4 (GoldHEN) and a PS5 (etaHEN) side
+by side.
 
 ![Remote Play](docs/images/06-remote-play.png)
 
@@ -108,12 +108,11 @@ changed on the map, and the change is saved.*
 
 ![PS1/PS2 converter](docs/images/13-games.png)
 
-*The PS1/PS2 converter (its own page in the stable version, a tab of
-**Games** in the beta): the discs in a folder of the PC (.iso, .bin/.cue,
-.img), each recognised from the disc itself (serial and region). One click
-opens a game; the box in the corner selects several.*
+*The PS1/PS2 converter (a tab of **Games**): the discs in a folder of the PC
+(.iso, .bin/.cue, .img), each recognised from the disc itself (serial and
+region). One click opens a game; the box in the corner selects several.*
 
-### New pages in the beta
+### Games, store, save vault and payloads
 
 | Games library — PS5 | Homebrew store — PS5 |
 |---|---|
@@ -121,8 +120,8 @@ opens a game; the box in the corner selects several.*
 
 *Games: every place games can be, on the console and on this PC — here a
 PS5's library folder, with homebrew apps beside a PS4 package. Homebrew
-store: the PS5 homebrew of the homebrew.page catalog; RetroArch and VLC are
-installed on this PS5.*
+store: the apps of homebrew.page and PKG-Zone together, the most downloaded
+first, each with the consoles it is for (PS4, PS5) and its store's tag.*
 
 | Save vault — PS4 | Payloads — PS4 (GoldHEN) |
 |---|---|
@@ -130,8 +129,8 @@ installed on this PS5.*
 
 *Save vault: every save on the console, whose it is, and whether this PC has
 a backup of it; a PS4 game's saves also go to a PS5 of the same PSN account.
-Payloads: GoldHEN's payloads and plugins on a PS4 — and etaHEN's, the
-autoloader's and PLDMGR's on a PS5.*
+Payloads: GoldHEN's payloads and plugins on a PS4, each saying what it does —
+and etaHEN's, the autoloader's and PLDMGR's on a PS5.*
 
 ![Payloads library on a PS5](docs/images/18-payloads-ps5.png)
 
@@ -156,10 +155,11 @@ artwork is shown.
 For the user's own consoles, for homebrew and copies of games the user
 legally owns. **The app does not include, download, index or suggest sources
 of games**, and it does not run a jailbreak: the console must already be
-running GoldHEN (PS4) or a jailbreak such as etaHEN (PS5). In the beta, the
-homebrew store only lists homebrew apps (from a signed catalog, or archives
-on this PC), and the Payloads page starts or installs a payload only when the
-user asks.
+running GoldHEN (PS4) or a jailbreak such as etaHEN (PS5). The homebrew store
+comes with two homebrew stores — homebrew.page's signed catalog and PKG-Zone,
+the store the PS4's Homebrew Store reads; a store the user adds is the user's
+own choice. The Payloads page starts or installs a payload only when the user
+asks.
 
 ## What the console needs
 
@@ -169,15 +169,15 @@ user asks.
 | PS4 — GoldHEN FTP server | 2121 | comes with GoldHEN, on by default |
 | PS4 — Remote Package Installer (flatz) | 12800 | install it and **keep the app open and in the foreground** while commands are sent |
 | PS5 — etaHEN FTP server | 1337 | `FTP=1` in etaHEN's `config.ini` |
-| PS5 — ftpsrv payload FTP server | 2121 | load the payload (the beta finds the port by itself) |
+| PS5 — ftpsrv payload FTP server | 2121 | load the payload (the app finds the port by itself) |
 | PS5 — etaHEN DPI v2 installer | 12800 | `DPI_v2=1` in etaHEN's `config.ini` |
-| PS5 — Prospero Manager (beta, when there is no DPI v2) | 7070 | load the Prospero Manager payload |
+| PS5 — Prospero Manager (when there is no DPI v2) | 7070 | load the Prospero Manager payload |
 
 The PS5 FTP port has its own setting, because it differs from the PS4's:
-with a PS5 in use, the settings show and edit the PS5 port. In the beta,
-when the set port does not greet as FTP, the app also asks the usual ones
-and moves to the one that answers. Installing on a PS5 is only in the beta
-(DPI v2 or Prospero Manager), and still has to be confirmed on a real PS5.
+with a PS5 in use, the settings show and edit the PS5 port. When the set
+port does not greet as FTP, the app also asks the usual ones and moves to the
+one that answers. Installing on a PS5 (DPI v2 or Prospero Manager) still has
+to be confirmed on a real PS5.
 
 ### Registering Remote Play
 
@@ -226,8 +226,8 @@ field from a saved one.
 
 ### PS1 and PS2 games
 
-**PS1/PS2 Games** (top bar) finds the PS1 and PS2 disc images in a folder of
-the PC and shows them as cards. For each game, or several selected:
+**Games → PS1/PS2 converter** finds the PS1 and PS2 disc images in a folder
+of the PC and shows them as cards. For each game, or several selected:
 
 - **Convert and install** turns the disc into a PS4 package (a PS2 or PS1
   Classic), sends it to the console over FTP and installs it (Remote Package
@@ -252,8 +252,8 @@ discs use the PS1 emulator from the same download, as PS Classics fPKG
 Builder does; they need a single .bin (games with one file per track have to
 be joined first).
 
-In the beta this page becomes **Games**: a library of every place games can
-be, on the console and on this PC, with the PS1/PS2 converter in its own tab.
+The rest of **Games** is a library of every place games can be, on the
+console and on this PC; a disc found there converts the same way.
 
 ## Download (pre-built)
 
@@ -433,13 +433,13 @@ The full list, checked against the code, is in
 Sony's *holepunch* infrastructure, which chiaki-ng supports but which needs
 an account and an authentication path this project does not have yet.
 
-**Installing on a PS5.** The stable version only speaks Remote Package
-Installer's API, which the PS5 does not have. The beta speaks etaHEN's DPI v2
+**Installing on a PS5.** Remote Package Installer's API is not on the PS5,
+so the app speaks etaHEN's DPI v2
 and Prospero Manager's package API; both were checked against their source
 and the mock console, and still have to be confirmed on a real PS5.
 
 **PS5 game packages.** No open tool builds PS5 fake packages yet, so PS5
-games and apps go on the home screen through ShadowMountPlus (beta) instead
+games and apps go on the home screen through ShadowMountPlus instead
 of being installed.
 
 **Real blur behind the glass.** The visual language is built from stacked
@@ -458,7 +458,7 @@ hundred euros a year, which is not justified for a project that is not sold.
 - [x] Remote Play discovery and registration (PS4 and PS5)
 - [x] Microphone in a PS5 party
 - [x] PS2 disc converted, sent and installed on a PS4 (Remote Package Installer)
-- [x] FTP on a jailbroken PS5: browse, upload, move folders (beta)
+- [x] FTP on a jailbroken PS5: browse, upload, move folders
 - [ ] Waking a PS5 from rest mode with one click
 - [ ] Stable stream during a 10 GB+ FTP upload
 - [ ] Direct install of a pkg > 4 GB
@@ -466,11 +466,12 @@ hundred euros a year, which is not justified for a project that is not sold.
 - [ ] Network drop halfway and resume
 - [ ] Windows firewall blocking → correct message
 - [ ] FTP upload resume with `REST`/`APPE` (to be confirmed, see `docs/validation.md` §9)
-- [ ] Install on a PS5 through DPI v2 or Prospero Manager (beta)
-- [ ] Moving files between the console's drives (beta)
-- [ ] Save vault: back up and send back, PS4 and PS5 (beta)
-- [ ] Payloads page on a PS4 and a PS5 (beta)
-- [ ] Homebrew store app installed and on the home screen of a PS5 (beta)
+- [ ] Install on a PS5 through DPI v2 or Prospero Manager
+- [ ] Moving files between the console's drives
+- [ ] Save vault: back up and send back, PS4 and PS5
+- [ ] Payloads page on a PS4 and a PS5
+- [ ] Homebrew store app installed and on the home screen of a PS5
+- [ ] A PKG-Zone package installed from the store on a PS4 and a PS5
 
 ## Licence
 
@@ -508,12 +509,19 @@ Sources consulted to implement the protocols:
 [GoldHEN](https://github.com/GoldHEN/GoldHEN),
 [etaHEN](https://github.com/etaHEN/etaHEN) and the
 [OpenOrbis PS4 Toolchain](https://github.com/OpenOrbis/OpenOrbis-PS4-Toolchain).
-In the beta, telling official packages from fake ones, the firmware a package
+Telling official packages from fake ones, the firmware a package
 needs and organising a folder of packages follow
 [PS4 PKG Tool](https://github.com/pearlxcore/PS4PKGTool), by pearlxcore
 (GPL-3.0), rewritten in C++.
-The beta's cheats come from the
+The cheats come from the
 [GoldHEN Cheat Repository](https://github.com/GoldHEN/GoldHEN_Cheat_Repository)
 and [etaHEN's PS5 cheats](https://github.com/etaHEN/PS5_Cheats), its game
 patches from [illusion0001's PS4-PS5-Game-Patch](https://github.com/illusion0001/PS4-PS5-Game-Patch),
 all downloaded at run time (none is part of OrbisLink).
+The homebrew store reads [homebrew.page's catalog](https://github.com/blackbearreloaded/ps5-homebrew-catalog)
+by its documented API, and Homebrew Store databases (PKG-Zone's and the
+like) as LightningMods' [PS4 Homebrew Store](https://github.com/LightningMods/PS4-Store)
+reads them; the GoldHEN plugins' descriptions follow the
+[GoldHEN Plugins Repository](https://github.com/GoldHEN/GoldHEN_Plugins_Repository).
+No app of any store is part of OrbisLink: they are their authors' work,
+downloaded when the user installs them.

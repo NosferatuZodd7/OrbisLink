@@ -7,6 +7,7 @@
 #include <QHash>
 #include <QList>
 #include <QString>
+#include <QVariantList>
 #include <QVariantMap>
 
 namespace orbislink {
@@ -21,6 +22,15 @@ class QueueModel : public QAbstractListModel
 	Q_PROPERTY(QString remainingText READ remainingText NOTIFY summaryChanged)
 	// The size of everything still to go, as a whole (what is left is part of it).
 	Q_PROPERTY(QString totalText READ totalText NOTIFY summaryChanged)
+	// The same as numbers, for the panel to add the other jobs' (conversions,
+	// copies, the store) to them.
+	Q_PROPERTY(double bytesPerSecond READ bytesPerSecond NOTIFY summaryChanged)
+	Q_PROPERTY(double bytesLeft READ bytesLeft NOTIFY summaryChanged)
+	Q_PROPERTY(double bytesTotal READ bytesTotal NOTIFY summaryChanged)
+	// Every row as a map with the roles' names (and totalBytes, doneBytes,
+	// bytesPerSecond), for the panel to lay the queue's cards out with the
+	// other jobs'.
+	Q_PROPERTY(QVariantList rows READ rows NOTIFY rowsChanged)
 
 public:
 	enum Roles {
@@ -45,6 +55,10 @@ public:
 		// Whether ↑ / ↓ can move this waiting task (never past the one running).
 		CanMoveUpRole,
 		CanMoveDownRole,
+		// The firmware the package needs ("9.00"), and what to know before
+		// it goes (an official package; one above the PS4's firmware).
+		FirmwareRole,
+		WarningRole,
 	};
 
 	explicit QueueModel(QObject *parent = nullptr);
@@ -56,6 +70,14 @@ public:
 	QString totalSpeedText() const;
 	QString remainingText() const;
 	QString totalText() const;
+	double bytesPerSecond() const;
+	double bytesLeft() const;
+	double bytesTotal() const;
+	// "147.5 MB", as everywhere in the app.
+	Q_INVOKABLE QString bytesText(double bytes) const;
+	// "4 min 20 s", as everywhere in the app.
+	Q_INVOKABLE QString durationText(double seconds) const;
+	QVariantList rows() const;
 	// The cards the panel shows: rows neither superseded nor followed by a
 	// conversion card (`followed`: their localKey → true).
 	Q_INVOKABLE int shownCount(const QVariantMap &followed) const;
@@ -63,12 +85,14 @@ public:
 	// Chamado de qualquer thread.
 	void applySnapshot(const std::vector<QueueTask> &tasks);
 	void setIcon(const QString &taskId, const QString &dataUri);
+	void setPackageFacts(const QString &taskId, const QString &firmware, const QString &warning);
 	// The same file, however its path is written (case aside on Windows).
 	static QString fileKey(const QString &localPath);
 
 signals:
 	void countChanged();
 	void summaryChanged();
+	void rowsChanged();
 
 private:
 	struct Row
@@ -86,6 +110,7 @@ private:
 		QString message;
 		QString mode;
 		bool active = false;
+		bool install = false;
 		double bytesPerSecond = 0.0;
 		qint64 remainingBytes = 0;
 		qint64 totalBytes = 0;
@@ -98,7 +123,7 @@ private:
 			return id == o.id && title == o.title && titleId == o.titleId && category == o.category
 				&& state == o.state && stateLabel == o.stateLabel && percent == o.percent
 				&& sizeText == o.sizeText && speedText == o.speedText && etaText == o.etaText
-				&& message == o.message && mode == o.mode && active == o.active
+				&& message == o.message && mode == o.mode && active == o.active && install == o.install
 				&& bytesPerSecond == o.bytesPerSecond && remainingBytes == o.remainingBytes
 				&& totalBytes == o.totalBytes
 				&& localKey == o.localKey && superseded == o.superseded
@@ -108,6 +133,8 @@ private:
 
 	QList<Row> rows_;
 	QHash<QString, QString> icons_;
+	QHash<QString, QString> firmware_;
+	QHash<QString, QString> warnings_;
 };
 
 } // namespace orbislink

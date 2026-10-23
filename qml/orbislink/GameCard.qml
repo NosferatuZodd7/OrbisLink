@@ -1,231 +1,115 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// A PS1 or PS2 disc found on the PC, as a card like the consoles': the
-// platform large, the name, the serial and region. The box in the corner
-// selects it (for doing several at once); a click anywhere else opens it.
+// A PS1 or PS2 disc found on the PC, as a card of the same size and shape
+// as the library's (ShelfTile, Theme.gameTile): its cover on top (a disc
+// until it is found), the platform in its corner, the name and the serial
+// under it. The round box in the other corner selects it, to do several at
+// once; a click anywhere else opens it. While it is on its way to the
+// console, the step's loader sits over the cover, a bar fills along its
+// bottom, and the line under the name says where it is.
 import QtQuick
 import QtQuick.Controls.Basic
 
-Item {
+ShelfTile {
     id: card
 
     property var game: ({})
-    property bool selected: false
+    // Picked, to do several at once.
+    property bool checked: false
     // Where it is on its way to the console (games.progress), or null.
     property var progress: null
     readonly property string stage: progress ? progress.stage : ""
     readonly property bool busy: stage === "waiting" || stage === "converting"
                                  || stage === "sending" || stage === "installing"
     readonly property bool ps2: game.platform === "ps2"
-    readonly property color tone: ps2 ? Theme.accent : Theme.textSecondary
+    // The game's cover, from the collection by its serial (shelf.cover).
+    readonly property string cover: shelf.coverRevision >= 0 ? shelf.cover(game.platform || "", game.serial || "") : ""
 
     signal open()
     signal toggle()
 
-    // A square, like every card.
-    implicitWidth: 236
-    implicitHeight: 236
-
-    readonly property bool hover: area.containsMouse
-
-    scale: area.pressed ? Theme.pressScale : 1.0
-    Behavior on scale { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
-    transform: Translate {
-        y: card.hover && !area.pressed ? -5 : 0
-        Behavior on y { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
+    artSize: Theme.gameTile
+    title: (game.title || "") + (game.disc > 0 ? qsTr(" (disc %1)").arg(game.disc) : "")
+    subtitle: stage.length > 0 ? stageText : [game.serial, game.sizeText].filter(function (s) {
+        return s && s.length > 0
+    }).join("  ·  ")
+    // The tile's own click (ShelfTile's) covers the cover: on the round box,
+    // or with Ctrl or Shift held, it picks; anywhere else it opens.
+    function onBox(point) {
+        return point.x >= box.x - 4 && point.x <= box.x + box.width + 4
+            && point.y >= box.y - 4 && point.y <= box.y + box.height + 4
+    }
+    readonly property bool overBox: hover && onBox(pointer)
+    onActivated: (modifiers) => {
+        if (onBox(clickPoint) || (modifiers & (Qt.ControlModifier | Qt.ShiftModifier)))
+            card.toggle()
+        else
+            card.open()
     }
 
-    // The same soft frame the console cards have.
-    Repeater {
-        model: 3
-        Rectangle {
-            anchors.fill: body
-            anchors.margins: -(index + 1) * 3
-            radius: body.radius + (index + 1) * 3
-            color: "transparent"
-            border.width: 3
-            border.color: card.selected
-                ? Theme.alpha(Theme.accent, (Theme.light ? 0.10 : 0.14) - index * 0.04)
-                : Qt.rgba(0, 0, 0, Theme.light ? 0.025 - index * 0.008 : 0.10 - index * 0.03)
+    // What the step under way is, in a few words.
+    readonly property string stageText: {
+        var p = card.progress
+        if (!p) return ""
+        var pct = Math.floor(p.percent || 0) + "%"
+        switch (p.stage) {
+        case "waiting": return qsTr("Waiting to convert")
+        case "converting":
+            if (p.step === "download") return qsTr("Emulator files · %1").arg(pct)
+            if (p.step === "unpack") return qsTr("Unpacking · %1").arg(pct)
+            if (p.step === "cover") return qsTr("Getting the cover")
+            return qsTr("Converting · %1").arg(pct)
+        case "converted": return qsTr("Package ready")
+        case "sending": return p.waiting ? qsTr("Waiting to send") : qsTr("Sending · %1").arg(pct)
+        case "sent": return qsTr("On the console")
+        case "installing": return p.waiting ? qsTr("Waiting to install") : qsTr("Installing · %1").arg(pct)
+        case "installed": return qsTr("Installed")
         }
+        return p.message ? p.message : qsTr("Failed")
     }
 
-    Rectangle {
-        id: body
+    CoverArt {
         anchors.fill: parent
-        radius: Theme.radius
-        border.width: card.selected || card.busy ? 2 : 1
-        border.color: card.busy ? Theme.alpha(stageLoader.tone, 0.75)
-                    : card.selected ? Theme.accent
-                    : card.hover ? Theme.alpha(card.tone, 0.6) : Theme.cardEdge
-        Behavior on border.color { ColorAnimation { duration: Theme.cardEase } }
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: Theme.cardTop }
-            GradientStop { position: 1.0; color: card.selected ? Theme.cardActiveBottom : Theme.cardBottom }
-        }
+        crop: true
+        picture: card.cover
+        placeholder: card.ps2 ? "dvd" : "cd"
+        label: card.ps2 ? "PS2" : "PS1"
+    }
 
-        // The platform, large, as the console cards show "PS4".
-        Text {
-            x: 20
-            y: 34
-            text: card.ps2 ? "PS2" : "PS1"
-            color: card.ps2 ? Theme.accent : Theme.cardText
-            font.pixelSize: 44
-            font.weight: Font.Black
-            font.letterSpacing: -1
-        }
-        Icon {
-            anchors.right: parent.right
-            anchors.rightMargin: 22
-            y: 46
-            name: "disc"
-            size: 30
-            color: Theme.alpha(card.tone, 0.55)
-        }
+    // Picked: the cover a shade of the accent colour, as in the library.
+    Rectangle {
+        anchors.fill: parent
+        visible: card.checked
+        radius: 6
+        color: Theme.alpha(Theme.accent, 0.22)
+        border.width: 2
+        border.color: Theme.accent
+    }
 
-        Column {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.leftMargin: 20
-            anchors.rightMargin: 20
-            y: 100
-            spacing: 6
-            Text {
-                width: parent.width
-                text: card.game.title + (card.game.disc > 0 ? qsTr(" (disc %1)").arg(card.game.disc) : "")
-                color: Theme.cardText
-                font.pixelSize: Theme.fontCardTitle
-                font.weight: Font.DemiBold
-                wrapMode: Text.WordWrap
-                maximumLineCount: 2
-                elide: Text.ElideRight
-                lineHeight: 1.1
-            }
-            Text {
-                width: parent.width
-                text: [card.game.serial, card.game.region].filter(function (s) { return s && s.length > 0 }).join("  ·  ")
-                color: Theme.cardTextMuted
-                font.pixelSize: 12
-                elide: Text.ElideRight
-            }
+    // On its way: the cover dimmed, the step's loader over it, and a bar
+    // along its bottom in the step's colour.
+    Rectangle {
+        anchors.fill: parent
+        visible: card.stage.length > 0
+        radius: 6
+        color: Qt.rgba(0, 0, 0, 0.55)
+        StageLoader {
+            id: stageLoader
+            anchors.centerIn: parent
+            // Over and done (the package made, sent, installed): green.
+            stage: card.stage === "converted" || card.stage === "sent" ? "done" : card.stage
+            percent: card.progress ? card.progress.percent || 0 : 0
+            waiting: card.progress ? card.progress.waiting === true : false
         }
-
-        // The file, at the bottom (or, while it is on its way, where it is).
-        Row {
-            visible: card.stage.length === 0
-            anchors.left: parent.left
-            anchors.leftMargin: 20
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 18
-            spacing: 6
-            Icon {
-                anchors.verticalCenter: parent.verticalCenter
-                name: "file"
-                size: 13
-                color: Theme.cardTextMuted
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: card.game.sizeText + "  ·  ." + card.game.format
-                color: Theme.cardTextMuted
-                font.pixelSize: 11
-            }
-        }
-        // No emulator for it yet: it can be sent, not converted.
-        Icon {
-            visible: !card.game.convertible && card.stage.length === 0
-            anchors.right: parent.right
-            anchors.rightMargin: 18
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 16
-            name: "warning"
-            size: 15
-            color: Theme.warn
-        }
-
-        // ── On its way: the step's own loader, what it is doing, and a
-        // bar along the bottom edge in the step's colour.
-        Row {
-            visible: card.stage.length > 0
-            anchors.left: parent.left
-            anchors.leftMargin: 16
-            anchors.right: parent.right
-            anchors.rightMargin: 16
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 16
-            spacing: 10
-            StageLoader {
-                id: stageLoader
-                anchors.verticalCenter: parent.verticalCenter
-                stage: card.stage
-                percent: card.progress ? card.progress.percent || 0 : 0
-                waiting: card.progress ? card.progress.waiting === true : false
-            }
-            Column {
-                anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - stageLoader.width - parent.spacing
-                spacing: 1
-                Text {
-                    width: parent.width
-                    elide: Text.ElideRight
-                    text: {
-                        var p = card.progress
-                        if (!p) return ""
-                        var pct = Math.floor(p.percent || 0) + "%"
-                        switch (p.stage) {
-                        case "waiting": return qsTr("Waiting to convert")
-                        case "converting":
-                            if (p.step === "download") return qsTr("Emulator files · %1").arg(pct)
-                            if (p.step === "unpack") return qsTr("Unpacking · %1").arg(pct)
-                            if (p.step === "cover") return qsTr("Getting the cover")
-                            return qsTr("Converting · %1").arg(pct)
-                        case "converted": return qsTr("Package ready")
-                        case "sending": return p.waiting ? qsTr("Waiting to send") : qsTr("Sending · %1").arg(pct)
-                        case "sent": return qsTr("On the console")
-                        case "installing": return p.waiting ? qsTr("Waiting to install") : qsTr("Installing · %1").arg(pct)
-                        case "installed": return qsTr("Installed")
-                        }
-                        return qsTr("Failed")
-                    }
-                    color: Theme.light ? Qt.darker(stageLoader.tone, 1.15) : Qt.lighter(stageLoader.tone, 1.2)
-                    font.pixelSize: 12
-                    font.weight: Font.DemiBold
-                }
-                Text {
-                    width: parent.width
-                    elide: Text.ElideRight
-                    text: {
-                        var s = card.stage
-                        if (s === "converting" && card.progress && (card.progress.step === "download"
-                                                                   || card.progress.step === "unpack"))
-                            return qsTr("downloaded once")
-                        if (s === "waiting" || s === "converting") return qsTr("into a PS4 package")
-                        if (s === "converted") return qsTr("saved on this PC")
-                        if (s === "sending") return qsTr("over FTP to the console")
-                        if (s === "sent") return qsTr("sent over FTP")
-                        if (s === "installing") return qsTr("on the console")
-                        if (s === "installed") return qsTr("ready to play")
-                        return card.progress && card.progress.message ? card.progress.message : ""
-                    }
-                    color: Theme.cardTextMuted
-                    font.pixelSize: 11
-                }
-            }
-        }
-
-        // A bar near the bottom edge, in the step's colour, inset so it
-        // stays clear of the rounded corners.
         Rectangle {
             visible: card.busy
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            anchors.leftMargin: Theme.radius
-            anchors.rightMargin: Theme.radius
-            anchors.bottomMargin: 6
+            anchors.margins: 8
             height: 3
             radius: 1.5
-            color: Theme.alpha(stageLoader.tone, 0.16)
+            color: Theme.alpha(stageLoader.tone, 0.25)
             Rectangle {
                 height: parent.height
                 radius: parent.radius
@@ -238,37 +122,75 @@ Item {
         }
     }
 
-    MouseArea {
-        id: area
-        anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: card.open()
+    // The platform, in the corner, as the library shows a file's kind.
+    Rectangle {
+        visible: card.stage.length === 0
+        anchors.left: parent.left
+        anchors.bottom: parent.bottom
+        anchors.margins: 6
+        radius: 6
+        color: Theme.alpha(Theme.cardBottom, 0.88)
+        border.width: 1
+        border.color: Theme.cardEdge
+        implicitWidth: platformLabel.implicitWidth + 12
+        implicitHeight: 18
+        Text {
+            id: platformLabel
+            anchors.centerIn: parent
+            text: card.ps2 ? "PS2" : "PS1"
+            color: card.ps2 ? Theme.accent : Theme.cardText
+            font.pixelSize: 10
+            font.weight: Font.DemiBold
+            font.letterSpacing: 0.6
+        }
     }
 
-    // The selection box, above the click area so it gets its own click.
+    // No emulator for it yet: it can be sent, not converted.
     Rectangle {
-        anchors.top: parent.top
+        visible: !card.game.convertible && card.stage.length === 0
         anchors.right: parent.right
-        anchors.margins: 14
-        width: 30
-        height: 30
-        radius: 9
-        color: boxArea.containsMouse ? Theme.controlHover : "transparent"
+        anchors.bottom: parent.bottom
+        anchors.margins: 6
+        width: 22
+        height: 22
+        radius: 11
+        color: Theme.alpha(Theme.cardBottom, 0.88)
         Icon {
             anchors.centerIn: parent
-            name: card.selected ? "square-check" : "square"
-            size: 20
-            color: card.selected ? Theme.accent : Theme.cardTextMuted
+            name: "warning"
+            size: 13
+            color: Theme.warn
         }
-        MouseArea {
-            id: boxArea
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: card.toggle()
+        HoverHandler { id: warnHover }
+        ToolTip.visible: warnHover.hovered
+        ToolTip.text: (card.game.bootFile || "").length > 0
+                      ? qsTr("This disc starts %1, not a game: a disc of software or a tool (PS2 Linux, a demo "
+                             + "disc…). There is no game in it to convert.").arg(card.game.bootFile)
+                      : qsTr("No emulator for this game yet: it can be sent as it is, not converted")
+    }
+
+    // The round box that picks it, above the card's own click.
+    Rectangle {
+        id: box
+        x: 6
+        y: 6
+        width: 24
+        height: 24
+        radius: 12
+        visible: card.checked || card.hover
+        color: card.checked ? Theme.accent : card.overBox ? Theme.alpha(Theme.accent, 0.55)
+                                                          : Theme.alpha("#000000", 0.35)
+        border.width: 2
+        border.color: card.checked ? Theme.accent : "#FFFFFF"
+        Icon {
+            anchors.centerIn: parent
+            visible: card.checked
+            name: "check"
+            size: 14
+            strokeWidth: 2.5
+            color: "#FFFFFF"
         }
-        ToolTip.visible: boxArea.containsMouse
-        ToolTip.text: card.selected ? qsTr("Unselect") : qsTr("Select, to do several at once")
+        ToolTip.visible: card.overBox
+        ToolTip.text: card.checked ? qsTr("Unselect") : qsTr("Select, to do several at once")
     }
 }

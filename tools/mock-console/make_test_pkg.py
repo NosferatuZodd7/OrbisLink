@@ -26,7 +26,10 @@ CONTENT_TYPE_AC = 0x1B
 FLAG_FIRST_PATCH = 0x00100000
 
 
-def build_sfo(entries: dict[str, str]) -> bytes:
+def build_sfo(entries: dict[str, "str | bytes | int"]) -> bytes:
+    """Text values are stored as NUL-terminated UTF-8; bytes values as they
+    are (the "special" format of binary entries such as ACCOUNT_ID); ints as
+    32-bit integers (SYSTEM_VER)."""
     keys = sorted(entries)
     header_size = 0x14
     index_size = len(keys) * 0x10
@@ -34,15 +37,20 @@ def build_sfo(entries: dict[str, str]) -> bytes:
     key_table = bytearray()
     value_table = bytearray()
     index = bytearray()
-    key_offsets, value_offsets, value_sizes = [], [], []
+    key_offsets, value_offsets, value_sizes, formats = [], [], [], []
 
     for key in keys:
         key_offsets.append(len(key_table))
         key_table += key.encode("utf-8") + b"\0"
-        value = entries[key].encode("utf-8") + b"\0"
+        raw = entries[key]
+        if isinstance(raw, int):
+            value = struct.pack("<I", raw)
+        else:
+            value = raw if isinstance(raw, bytes) else raw.encode("utf-8") + b"\0"
         value_offsets.append(len(value_table))
         value_table += value
         value_sizes.append(len(value))
+        formats.append(0x0404 if isinstance(raw, int) else 0x0004 if isinstance(raw, bytes) else 0x0204)
     while len(key_table) % 4:
         key_table += b"\0"
 
@@ -50,7 +58,7 @@ def build_sfo(entries: dict[str, str]) -> bytes:
     value_table_offset = key_table_offset + len(key_table)
 
     for i, _ in enumerate(keys):
-        index += struct.pack("<HHIII", key_offsets[i], 0x0204, value_sizes[i],
+        index += struct.pack("<HHIII", key_offsets[i], formats[i], value_sizes[i],
                              value_sizes[i], value_offsets[i])
 
     header = struct.pack("<4sIIII", b"\x00PSF", 0x00000101, key_table_offset,
@@ -81,17 +89,25 @@ def build_icon_png(size: int = 64, seed: int = 0) -> bytes:
 
 
 def build_pkg(content_id: str, title: str, category: str, app_version: str,
-              padding: int) -> bytes:
+              padding: int, icon: bytes | None = None, system_ver: int = 0,
+              official: bool = False) -> bytes:
     title_id = content_id.split("-")[1].split("_")[0]
-    sfo = build_sfo({
+    params = {
         "APP_VER": app_version,
         "CATEGORY": category,
         "CONTENT_ID": content_id,
         "TITLE": title,
         "TITLE_ID": title_id,
         "VERSION": app_version,
-    })
-    icon = build_icon_png(64, sum(content_id.encode("ascii")) % 200)
+    }
+    # The firmware it needs, as a real package says it (0x09008000: 9.00).
+    if system_ver:
+        params["SYSTEM_VER"] = system_ver
+    sfo = build_sfo(params)
+    # None: a gradient; b"": no icon at all.
+    if icon is None:
+        icon = build_icon_png(64, sum(content_id.encode("ascii")) % 200)
+    entries = [(ENTRY_ID_PARAM_SFO, sfo)] + ([(ENTRY_ID_ICON0_PNG, icon)] if icon else [])
 
     if category == "ac":
         content_type, content_flags = CONTENT_TYPE_AC, 0
@@ -102,7 +118,9 @@ def build_pkg(content_id: str, title: str, category: str, app_version: str,
 
     header = bytearray(PKG_HEADER_SIZE)
     header[0:4] = b"\x7fCNT"
-    struct.pack_into(">I", header, 0x10, 2)                     # entry_count
+    # The type field: 0x81… is how a store (official) package says it.
+    struct.pack_into(">I", header, 0x04, 0x81000000 if official else 0x00000001)
+    struct.pack_into(">I", header, 0x10, len(entries))          # entry_count
     struct.pack_into(">I", header, 0x18, ENTRY_TABLE_OFFSET)    # entry_table_offset
     header[0x40:0x40 + len(content_id)] = content_id.encode("ascii")
     struct.pack_into(">I", header, 0x74, content_type)
@@ -110,8 +128,7 @@ def build_pkg(content_id: str, title: str, category: str, app_version: str,
 
     payload = bytearray()
     offset = PKG_HEADER_SIZE
-    for index, (entry_id, blob) in enumerate(
-            ((ENTRY_ID_PARAM_SFO, sfo), (ENTRY_ID_ICON0_PNG, icon))):
+    for index, (entry_id, blob) in enumerate(entries):
         base = ENTRY_TABLE_OFFSET + index * ENTRY_SIZE
         struct.pack_into(">I", header, base + 0x00, entry_id)
         struct.pack_into(">I", header, base + 0x10, offset)
@@ -136,10 +153,24 @@ def main() -> int:
     parser.add_argument("--app-version", default="01.00")
     parser.add_argument("--padding", type=int, default=1024 * 1024,
                         help="padding bytes after the metadata")
+    parser.add_argument("--icon", help="a PNG to use as ICON0.PNG instead of the gradient")
+    parser.add_argument("--no-icon", action="store_true", help="no ICON0.PNG at all")
+    parser.add_argument("--firmware", default="",
+                        help="the firmware it needs, as SYSTEM_VER (e.g. 9.00 or 11.00)")
+    parser.add_argument("--official", action="store_true",
+                        help="mark it as a store (official) package instead of a fake one")
     arguments = parser.parse_args()
 
+    icon = b"" if arguments.no_icon else None
+    if arguments.icon:
+        with open(arguments.icon, "rb") as handle:
+            icon = handle.read()
+    system_ver = 0
+    if arguments.firmware:
+        major, minor = arguments.firmware.split(".")
+        system_ver = (int(major, 16) << 24) | (int(minor, 16) << 16)
     data = build_pkg(arguments.content_id, arguments.title, arguments.category,
-                     arguments.app_version, arguments.padding)
+                     arguments.app_version, arguments.padding, icon, system_ver, arguments.official)
     with open(arguments.output, "wb") as handle:
         handle.write(data)
     print(f"{arguments.output}: {len(data)} bytes")

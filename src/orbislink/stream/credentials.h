@@ -21,12 +21,23 @@ public:
 
 	static std::string defaultPath();
 
-	// Returns the credentials for the requested host-id, or valid=false.
-	StreamCredentials load(const std::string &hostId) const;
-	// All registered consoles.
+	// The registration on that console for that account (base64), or
+	// valid=false. Never another account's: each account registers on its
+	// own. With no account, the console's registration as before.
+	StreamCredentials load(const std::string &hostId, const std::string &accountId = std::string()) const;
+	// All registrations, every console and account.
 	std::vector<StreamCredentials> all() const;
+	// The registrations on one console, one per account.
+	std::vector<StreamCredentials> forHost(const std::string &hostId) const;
+	// Stores it, replacing the one for the same console and account.
 	bool save(const StreamCredentials &credentials);
-	bool forget(const std::string &hostId);
+	// A registration made before accounts were told apart (no account) is
+	// given the account it was made with. False when there is none, or that
+	// account already has its own.
+	bool adopt(const std::string &hostId, const std::string &accountId);
+	// Forgets that account's registration on the console; with no account,
+	// every registration on it.
+	bool forget(const std::string &hostId, const std::string &accountId = std::string());
 
 	const std::string &path() const { return path_; }
 

@@ -27,11 +27,13 @@ import os
 import shutil
 import socket
 import socketserver
+import stat
 import struct
 import sys
 import tempfile
 import threading
 import time
+import urllib.parse
 import urllib.request
 
 # ---------------------------------------------------------------- FTP
@@ -41,10 +43,23 @@ class FtpSession(threading.Thread):
 
     # Pause after each block received, to watch uploads in progress (--ftp-slow).
     upload_delay = 0.0
+    # Pause after each block sent, to watch downloads in progress (--ftp-slow-download).
+    download_delay = 0.0
     # Cuts the data connection once per file after this many bytes, to try
     # resuming (--ftp-drop-once).
     drop_after = 0
     dropped: set = set()
+    # Cuts each download once after this many bytes and answers "426", as
+    # GoldHEN's server does when a transfer breaks (--ftp-drop-download-once).
+    drop_download_after = 0
+    dropped_downloads: set = set()
+    # Answers AVBL with the room left on the disk of the root (--ftp-avbl):
+    # the consoles' servers do not.
+    avbl = False
+    # What it says on connecting (--ftp-greeting).
+    greeting = "220 GoldHEN FTP Server (mock-console)"
+    # The address the console listens on (--host): data connections too.
+    host = "127.0.0.1"
 
     def __init__(self, conn: socket.socket, root: str) -> None:
         super().__init__(daemon=True)
@@ -73,6 +88,14 @@ class FtpSession(threading.Thread):
             parts.append(part)
         return os.path.join(self.root, *parts)
 
+    def disk_of(self, local: str) -> str:
+        """The disk a path is on, as the console has them: each /mnt/<name> is
+        one (a USB drive, the extended storage), everything else another."""
+        relative = os.path.relpath(local, self.root).replace(os.sep, "/").split("/")
+        if len(relative) >= 2 and relative[0] == "mnt":
+            return "mnt/" + relative[1]
+        return "/"
+
     def open_data(self) -> socket.socket | None:
         if not self.data_listener:
             self.send("425 No data connection")
@@ -93,7 +116,7 @@ class FtpSession(threading.Thread):
             self.data_listener.close()
         listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        listener.bind(("127.0.0.1", 0))
+        listener.bind((self.host, 0))
         listener.listen(1)
         self.data_listener = listener
         return listener.getsockname()[1]
@@ -101,15 +124,15 @@ class FtpSession(threading.Thread):
     @staticmethod
     def listing_line(path: str, name: str) -> str:
         stats = os.stat(path)
-        is_dir = os.path.isdir(path)
-        perms = "drwxr-xr-x" if is_dir else "-rw-r--r--"
+        # As they are: SITE CHMOD changes them, as on the consoles' servers.
+        perms = stat.filemode(stats.st_mode)
         stamp = time.strftime("%b %d %H:%M", time.localtime(stats.st_mtime))
         return f"{perms}   1 ps4      ps4      {stats.st_size:>12} {stamp} {name}"
 
     # -- lifecycle --------------------------------------------------
     def run(self) -> None:
         try:
-            self.send("220 GoldHEN FTP Server (mock-console)")
+            self.send(FtpSession.greeting)
             buffer = b""
             while True:
                 chunk = self.conn.recv(4096)
@@ -164,7 +187,7 @@ class FtpSession(threading.Thread):
             self.send("250 Folder changed")
         elif command == "PASV":
             port = self.make_passive()
-            self.send(f"227 Entering Passive Mode (127,0,0,1,{port >> 8},{port & 0xFF})")
+            self.send(f"227 Entering Passive Mode ({self.host.replace('.', ',')},{port >> 8},{port & 0xFF})")
         elif command == "EPSV":
             port = self.make_passive()
             self.send(f"229 Entering Extended Passive Mode (|||{port}|)")
@@ -211,6 +234,11 @@ class FtpSession(threading.Thread):
         elif command == "RNTO":
             if not self.rename_from:
                 self.send("503 RNFR is missing")
+            elif self.disk_of(self.rename_from) != self.disk_of(self.local_path(argument)):
+                # As on a console: rename() cannot cross from one disk to
+                # another (/data and a USB drive), and the server says so.
+                self.send("550 Cross-device link")
+                self.rename_from = None
             else:
                 try:
                     os.replace(self.rename_from, self.local_path(argument))
@@ -218,6 +246,18 @@ class FtpSession(threading.Thread):
                 except OSError:
                     self.send("550 Could not rename")
                 self.rename_from = None
+        elif command == "SITE":
+            parts = argument.split(" ", 2)
+            if len(parts) == 3 and parts[0].upper() == "CHMOD":
+                try:
+                    os.chmod(self.local_path(parts[2]), int(parts[1], 8))
+                    self.send("200 SITE CHMOD command ok")
+                except (OSError, ValueError):
+                    self.send("550 Could not change the permissions")
+            else:
+                self.send("500 SITE command not understood")
+        elif command == "AVBL" and FtpSession.avbl:
+            self.send(f"213 {shutil.disk_usage(self.root).free}")
         elif command == "NOOP":
             self.send("200 Ok")
         elif command == "QUIT":
@@ -260,7 +300,25 @@ class FtpSession(threading.Thread):
                 if self.rest_offset:
                     handle.seek(self.rest_offset)
                     self.rest_offset = 0
-                shutil.copyfileobj(handle, data.makefile("wb"))
+                cut = FtpSession.drop_download_after
+                if cut and path not in FtpSession.dropped_downloads and handle.tell() < cut:
+                    FtpSession.dropped_downloads.add(path)
+                    data.sendall(handle.read(cut - handle.tell()))
+                    data.close()
+                    self.send("426 Connection closed; transfer aborted")
+                    return
+                if FtpSession.download_delay:
+                    out = data.makefile("wb")
+                    while True:
+                        block = handle.read(64 * 1024)
+                        if not block:
+                            break
+                        out.write(block)
+                        out.flush()
+                        time.sleep(FtpSession.download_delay)
+                    out.close()
+                else:
+                    shutil.copyfileobj(handle, data.makefile("wb"))
             self.send("226 Transfer complete")
         finally:
             data.close()
@@ -298,12 +356,13 @@ class FtpSession(threading.Thread):
 
 
 class FtpServer(threading.Thread):
-    def __init__(self, port: int, root: str) -> None:
+    def __init__(self, port: int, root: str, host: str = "127.0.0.1") -> None:
         super().__init__(daemon=True)
         self.root = root
+        FtpSession.host = host
         self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.listener.bind(("127.0.0.1", port))
+        self.listener.bind((host, port))
         self.listener.listen(8)
         self.port = self.listener.getsockname()[1]
         self.running = True
@@ -460,9 +519,109 @@ class InstallerState:
                 task["message"] = str(error)
 
 
+class ProsperoManagerHandler(http.server.BaseHTTPRequestHandler):
+    """Answers like the Prospero Manager payload's package API (port 7070):
+    POST /api/pkg/install with {"path"} or {"url"} starts one install at a
+    time; GET /api/pkg/status says how it went."""
+    protocol_version = "HTTP/1.1"
+    root = ""
+    lock = threading.Lock()
+    job = {"phase": "idle", "loaded": 0, "total": 0, "speed_bps": 0, "content_id": "",
+           "title": "", "error": "", "has_staged_file": False}
+    running = False
+    # How long handing a package to the console takes (seconds).
+    install_delay = 0.6
+    # Paths and addresses it was asked to install.
+    installed: list[str] = []
+
+    def log_message(self, *args) -> None:
+        pass
+
+    def _json(self, body: dict, status: int = 200) -> None:
+        payload = json.dumps(body).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def do_GET(self) -> None:  # noqa: N802
+        if self.path.split("?")[0] == "/api/pkg/status":
+            with ProsperoManagerHandler.lock:
+                self._json(dict(ProsperoManagerHandler.job))
+            return
+        self._json({"error": "not found"}, 404)
+
+    @staticmethod
+    def _content_id(data: bytes) -> str:
+        return data[0x40:0x64].split(b"\0")[0].decode("ascii", "replace") if len(data) >= 0x64 else ""
+
+    def _work(self, path: str, url: str) -> None:
+        cls = ProsperoManagerHandler
+        try:
+            if url:
+                with urllib.request.urlopen(url, timeout=30) as response:
+                    data = response.read()
+                with cls.lock:
+                    cls.job["loaded"] = cls.job["total"] = len(data)
+                    cls.job["phase"] = "installing"
+            else:
+                local = os.path.join(cls.root, path.lstrip("/"))
+                with open(local, "rb") as handle:
+                    data = handle.read(0x1000)
+            time.sleep(cls.install_delay)
+            if data[:4] != b"\x7fCNT":
+                raise ValueError("not a PKG file")
+            with cls.lock:
+                cls.job["phase"] = "queued"
+                cls.job["content_id"] = self._content_id(data)
+                cls.installed.append(url or path)
+            print(f"Prospero Manager: install queued for {url or path}", flush=True)
+        except Exception as error:  # noqa: BLE001
+            with cls.lock:
+                cls.job["phase"] = "error"
+                cls.job["error"] = "the PKG service could not queue the install (error:install:0x80990015)" \
+                    if isinstance(error, ValueError) else f"could not open the package: {error}"
+        finally:
+            with cls.lock:
+                cls.running = False
+
+    def do_POST(self) -> None:  # noqa: N802
+        length = int(self.headers.get("Content-Length", "0"))
+        raw = self.rfile.read(length).decode("utf-8") if length else "{}"
+        if self.path.split("?")[0] != "/api/pkg/install":
+            self._json({"error": "not found"}, 404)
+            return
+        try:
+            request = json.loads(raw)
+        except json.JSONDecodeError:
+            request = {}
+        path = request.get("path", "")
+        url = request.get("url", "")
+        if not path and not url:
+            self._json({"error": "missing 'path' or 'url'"}, 400)
+            return
+        cls = ProsperoManagerHandler
+        with cls.lock:
+            if cls.running:
+                self._json({"error": "a PKG install is already in progress"}, 409)
+                return
+            cls.running = True
+            cls.job = {"phase": "downloading" if url else "installing", "loaded": 0, "total": 0,
+                       "speed_bps": 0, "content_id": "", "title": "", "error": "", "has_staged_file": False}
+        threading.Thread(target=self._work, args=(path, url), daemon=True).start()
+        self._json({"ok": True, "started": True})
+
+
 class InstallerApiHandler(http.server.BaseHTTPRequestHandler):
     state: InstallerState = None  # type: ignore[assignment]
     protocol_version = "HTTP/1.1"
+    # Answers like etaHEN's DPI v2 (PS5) instead of Remote Package Installer.
+    dpi_v2 = False
+    root = ""
+    # Paths on the console DPI v2 was asked to install.
+    installed_paths: list[str] = []
 
     def log_message(self, *args) -> None:  # silences the per-line log
         pass
@@ -480,11 +639,50 @@ class InstallerApiHandler(http.server.BaseHTTPRequestHandler):
         # Real format: hexadecimal without quotes (deliberately not valid JSON).
         self._reply('{ "status": "fail", "error_code": 0x%08X }' % code)
 
+    def _text(self, body: str, content_type: str = "text/plain") -> None:
+        payload = body.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(payload)
+
     def do_GET(self) -> None:  # noqa: N802
+        if InstallerApiHandler.dpi_v2:
+            self._text("<!DOCTYPE html><html><head><title>etaHEN DPIv2</title></head></html>", "text/html")
+            return
         self._reply('{ "status": "success" }')
+
+    def _dpi_v2_post(self, raw: str) -> None:
+        # A form with "url": an http:// address or a path on the console.
+        if "application/x-www-form-urlencoded" not in self.headers.get("Content-Type", ""):
+            # A JSON request is dropped without a reply, as libmicrohttpd does.
+            self.close_connection = True
+            return
+        fields = urllib.parse.parse_qs(raw)
+        url = (fields.get("url") or [""])[0]
+        if not url:
+            self._text("No data received")
+            return
+        if url.startswith("http://") or url.startswith("https://"):
+            InstallerApiHandler.state.start_install([url])
+        else:
+            local = os.path.join(InstallerApiHandler.root, url.lstrip("/"))
+            if not os.path.isfile(local):
+                code = 0x8099001B  # SCE_BGFT_ERROR_PARAM_URI_NOENT
+                self._text("FAILED: Install failed with error SCE_BGFT_ERROR_PARAM_URI_NOENT, code %d "
+                           "(0x%X) for URL: %s" % (code - (1 << 32), code, url))
+                return
+            InstallerApiHandler.installed_paths.append(url)
+            print(f"DPI v2: installing {url}", flush=True)
+        self._text(f"SUCCESS: Direct install console Task started for URL: {url}")
 
     def do_POST(self) -> None:  # noqa: N802
         length = int(self.headers.get("Content-Length", "0"))
+        if InstallerApiHandler.dpi_v2:
+            self._dpi_v2_post(self.rfile.read(length).decode("utf-8") if length else "")
+            return
         raw = self.rfile.read(length).decode("utf-8") if length else "{}"
         try:
             request = json.loads(raw)
@@ -543,7 +741,20 @@ class InstallerApiHandler(http.server.BaseHTTPRequestHandler):
             self._reply('{ "status": "success", "task_id": 1 }')
         elif path in ("/api/uninstall_game", "/api/uninstall_patch", "/api/uninstall_ac",
                       "/api/uninstall_theme"):
-            state.installed.pop(request.get("title_id", ""), None)
+            title_id = request.get("title_id", "")
+            content_id = request.get("content_id", "")
+            state.installed.pop(title_id, None)
+            # Its folders go too, as on a real console.
+            user = os.path.join(self.root, "user")
+            if path == "/api/uninstall_game" and title_id:
+                for part in ("app", "appmeta", "patch"):
+                    shutil.rmtree(os.path.join(user, part, title_id), ignore_errors=True)
+            elif path == "/api/uninstall_patch" and title_id:
+                shutil.rmtree(os.path.join(user, "patch", title_id), ignore_errors=True)
+            elif path == "/api/uninstall_ac" and len(content_id) >= 20:
+                # UP9000-CUSA00001_00-EXTRAPACK0000001: the title, then the label.
+                shutil.rmtree(os.path.join(user, "addcont", content_id[7:16], content_id[20:]),
+                              ignore_errors=True)
             self._reply('{ "status": "success" }')
         else:
             self.send_error(404, "Not Found")
@@ -563,10 +774,14 @@ class DiscoveryServer:
     is in rest mode.
     """
 
-    def __init__(self, port: int, state: str = "ready", name: str = "Living room PS4") -> None:
+    def __init__(self, port: int, state: str = "ready", name: str = "Living room PS4",
+                 host: str = "127.0.0.1", ps5: bool = False) -> None:
         self.port = port
         self.state = state
         self.name = name
+        self.ps5 = ps5
+        # Only its own address: another fake console may answer on the next.
+        self.host = host
         self._socket: socket.socket | None = None
         self._thread: threading.Thread | None = None
         self._running = False
@@ -574,7 +789,7 @@ class DiscoveryServer:
     def start(self) -> None:
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._socket.bind(("0.0.0.0", self.port))
+        self._socket.bind((self.host, self.port))
         self.port = self._socket.getsockname()[1]
         self._running = True
         self._thread = threading.Thread(target=self._loop, daemon=True)
@@ -591,14 +806,15 @@ class DiscoveryServer:
         else:
             lines = ["HTTP/1.1 200 Ok"]
         lines += [
-            "host-id:1122334455AA",
-            "host-type:PS4",
+            "host-id:" + ("1122334455BB" if self.ps5 else "1122334455AA"),
+            "host-type:" + ("PS5" if self.ps5 else "PS4"),
             f"host-name:{self.name}",
             "host-request-port:997",
-            "device-discovery-protocol-version:00020020",
-            "system-version:09000000",
+            # chiaki-ng tells a PS5 by its discovery protocol version.
+            "device-discovery-protocol-version:" + ("00030010" if self.ps5 else "00020020"),
+            "system-version:" + ("09050001" if self.ps5 else "09000000"),
         ]
-        if self.state == "ready":
+        if self.state == "ready" and not self.ps5:
             lines += ["running-app-name:Bloodborne", "running-app-titleid:CUSA00207"]
         return ("\r\n".join(lines) + "\r\n").encode("utf-8")
 
@@ -616,22 +832,102 @@ class DiscoveryServer:
                 pass
 
 
+class PayloadLoader:
+    """Payload loader port (the PS5's ELF loader on 9021, GoldHEN's
+    BinLoader on 9090): takes a payload, says how big it was and, like the
+    PS5's loader, hands what the "payload" prints back over the same
+    connection before closing it."""
+
+    def __init__(self, port: int, host: str = "127.0.0.1") -> None:
+        self.port = port
+        self.host = host
+        self._socket: socket.socket | None = None
+        self._running = False
+
+    def start(self) -> None:
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._socket.bind((self.host, self.port))
+        self._socket.listen(4)
+        self.port = self._socket.getsockname()[1]
+        self._running = True
+        threading.Thread(target=self._loop, daemon=True).start()
+
+    def stop(self) -> None:
+        self._running = False
+        if self._socket:
+            self._socket.close()
+
+    def _loop(self) -> None:
+        while self._running:
+            try:
+                conn, _ = self._socket.accept()
+            except OSError:
+                return
+            threading.Thread(target=self._serve, args=(conn,), daemon=True).start()
+
+    @staticmethod
+    def _serve(conn: socket.socket) -> None:
+        received = bytearray()
+        # The sender keeps the connection open to hear back: the payload has
+        # arrived once nothing more comes for a moment.
+        conn.settimeout(0.6)
+        try:
+            while True:
+                chunk = conn.recv(65536)
+                if not chunk:
+                    break
+                received += chunk
+        except socket.timeout:
+            pass
+        kind = "ELF" if received[:4] == b"\x7fELF" else "binary"
+        try:
+            conn.sendall(f"[loader] {kind} payload, {len(received)} bytes\n".encode())
+            time.sleep(0.2)
+            conn.sendall(b"payload: hello from the fake console\n")
+        except OSError:
+            pass
+        conn.close()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Fake console for OrbisLink")
     parser.add_argument("--ftp-port", type=int, default=2121)
     parser.add_argument("--api-port", type=int, default=12800)
     parser.add_argument("--root", default=None, help="folder acting as the console file system")
+    parser.add_argument("--host", default="127.0.0.1",
+                        help="loopback address to listen on: 127.0.0.2 and so on make a second console")
     parser.add_argument("--slow", type=float, default=0.0, metavar="SECONDS",
                         help="delay per downloaded block (for demos)")
     parser.add_argument("--ftp-slow", type=float, default=0.0, metavar="SECONDS",
                         help="delay per uploaded block over FTP (to watch uploads in progress)")
+    parser.add_argument("--ftp-slow-download", type=float, default=0.0, metavar="SECONDS",
+                        help="delay per downloaded block over FTP (to watch copies to the PC in progress)")
     parser.add_argument("--ftp-drop-once", type=int, default=0, metavar="BYTES",
                         help="cuts each upload once after this many bytes (to try resuming)")
+    parser.add_argument("--ftp-drop-download-once", type=int, default=0, metavar="BYTES",
+                        help="cuts each download once after this many bytes with a 426 (to try resuming)")
+    parser.add_argument("--ftp-avbl", action="store_true",
+                        help="answers AVBL with the free space (the consoles' servers do not)")
+    parser.add_argument("--ftp-greeting", default=FtpSession.greeting, metavar="TEXT",
+                        help="what the FTP server says on connecting")
     parser.add_argument("--discovery-port", type=int, default=0, metavar="PORT",
                         help="answers Remote Play discovery on this port "
                              "(987 is the real one, but needs privileges)")
     parser.add_argument("--discovery-state", default="ready", choices=["ready", "standby"],
                         help="state the fake console reports")
+    parser.add_argument("--discovery-name", default="Living room PS4",
+                        help="the console's name in the discovery reply")
+    parser.add_argument("--discovery-ps5", action="store_true",
+                        help="answer discovery as a PS5 (9302/UDP is the real port)")
+    parser.add_argument("--loader-port", type=int, default=0, metavar="PORT",
+                        help="takes payloads on this port and answers like the PS5's ELF loader")
+    parser.add_argument("--dpi-v2", action="store_true",
+                        help="answer on the API port like etaHEN's DPI v2 (PS5)")
+    parser.add_argument("--no-api", action="store_true",
+                        help="no installer on the API port (a PS5 without etaHEN's DPI v2)")
+    parser.add_argument("--prospero-port", type=int, default=-1, metavar="PORT",
+                        help="answers like the Prospero Manager payload's package API (7070 is the real one)")
     parser.add_argument("--print-ports", action="store_true",
                         help="prints the chosen ports as JSON and keeps running")
     arguments = parser.parse_args()
@@ -643,32 +939,56 @@ def main() -> int:
     os.makedirs(downloads, exist_ok=True)
 
     FtpSession.upload_delay = arguments.ftp_slow
+    FtpSession.download_delay = arguments.ftp_slow_download
     FtpSession.drop_after = arguments.ftp_drop_once
-    ftp = FtpServer(arguments.ftp_port, root)
+    FtpSession.drop_download_after = arguments.ftp_drop_download_once
+    FtpSession.avbl = arguments.ftp_avbl
+    FtpSession.greeting = arguments.ftp_greeting
+    ftp = FtpServer(arguments.ftp_port, root, arguments.host)
     ftp.start()
 
     InstallerApiHandler.state = InstallerState(downloads, chunk_delay=arguments.slow)
-    api = ThreadingHttpServer(("127.0.0.1", arguments.api_port), InstallerApiHandler)
-    api_thread = threading.Thread(target=api.serve_forever, daemon=True)
-    api_thread.start()
+    InstallerApiHandler.dpi_v2 = arguments.dpi_v2
+    InstallerApiHandler.root = root
+    api = None
+    if not arguments.no_api:
+        api = ThreadingHttpServer((arguments.host, arguments.api_port), InstallerApiHandler)
+        threading.Thread(target=api.serve_forever, daemon=True).start()
+
+    prospero = None
+    if arguments.prospero_port >= 0:
+        ProsperoManagerHandler.root = root
+        prospero = ThreadingHttpServer((arguments.host, arguments.prospero_port), ProsperoManagerHandler)
+        threading.Thread(target=prospero.serve_forever, daemon=True).start()
 
     discovery = None
     if arguments.discovery_port:
-        discovery = DiscoveryServer(arguments.discovery_port, arguments.discovery_state)
+        discovery = DiscoveryServer(arguments.discovery_port, arguments.discovery_state,
+                                    name=arguments.discovery_name, host=arguments.host,
+                                    ps5=arguments.discovery_ps5)
         try:
             discovery.start()
         except PermissionError:
             print("No permission for the discovery port; Remote Play disabled.", flush=True)
             discovery = None
 
-    info = {"ftp_port": ftp.port, "api_port": api.server_address[1], "root": root}
+    loader = None
+    if arguments.loader_port:
+        loader = PayloadLoader(arguments.loader_port, arguments.host)
+        loader.start()
+
+    info = {"ftp_port": ftp.port, "api_port": api.server_address[1] if api else 0, "root": root}
+    if prospero:
+        info["prospero_port"] = prospero.server_address[1]
+    if loader:
+        info["loader_port"] = loader.port
     if discovery:
         info["discovery_port"] = discovery.port
     if arguments.print_ports:
         print(json.dumps(info), flush=True)
     else:
-        print(f"Fake console: FTP on 127.0.0.1:{info['ftp_port']}, "
-              f"API on 127.0.0.1:{info['api_port']} (root: {root})", flush=True)
+        print(f"Fake console: FTP on {arguments.host}:{info['ftp_port']}, "
+              f"API on {arguments.host}:{info['api_port']} (root: {root})", flush=True)
 
     try:
         while True:
@@ -676,10 +996,15 @@ def main() -> int:
     except KeyboardInterrupt:
         pass
     finally:
-        api.shutdown()
+        if api:
+            api.shutdown()
+        if prospero:
+            prospero.shutdown()
         ftp.stop()
         if discovery:
             discovery.stop()
+        if loader:
+            loader.stop()
     return 0
 
 

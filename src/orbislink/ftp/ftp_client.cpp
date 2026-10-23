@@ -160,6 +160,15 @@ std::string curlMessage(CURLcode code, const char *errorBuffer)
 	return detail;
 }
 
+// A failure to read: the server refusing, or the file not being there, is
+// its answer and not a dropped connection.
+FtpResult readFailure(CURLcode code, const char *errorBuffer)
+{
+	FtpResult result = FtpResult::failure(curlMessage(code, errorBuffer));
+	result.final = code == CURLE_REMOTE_ACCESS_DENIED || code == CURLE_REMOTE_FILE_NOT_FOUND;
+	return result;
+}
+
 } // namespace
 
 // Room for one more transfer (upload or download). Listing, renaming and
@@ -300,11 +309,20 @@ FtpResult FtpClient::withRetries(const std::string &what, const std::function<Ft
 			std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
 		}
 		result = operation();
-		if(result.ok || result.cancelled)
+		if(result.ok || result.cancelled || result.final)
 			break;
 	}
+	// The server saying the file or folder is not there is its answer, often
+	// an expected one (a game without metadata, a folder another console
+	// has, a drive not plugged in): whoever asked decides whether it is an
+	// error and says so. Only the detailed log keeps it.
 	if(!result.ok && !result.cancelled)
-		logError("FTP: " + what + " failed: " + result.message);
+	{
+		if(result.final)
+			logDebug("FTP: " + what + ": the console answered \"" + result.message + "\"");
+		else
+			logError("FTP: " + what + " failed: " + result.message);
+	}
 	return result;
 }
 
@@ -377,7 +395,7 @@ FtpResult FtpClient::list(const std::string &remoteDir, std::vector<FtpEntry> *e
 		const CURLcode code = curl_easy_perform(curl);
 		curl_easy_cleanup(curl);
 		if(code != CURLE_OK)
-			return FtpResult::failure(curlMessage(code, errorBuffer));
+			return readFailure(code, errorBuffer);
 		if(entries)
 			*entries = parseListing(listing, dir);
 		return FtpResult::success();
@@ -403,8 +421,6 @@ FtpResult FtpClient::remoteSize(const std::string &remotePath, int64_t *size)
 		curl_easy_setopt(curl, CURLOPT_HEADERDATA, &headers);
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, appendToString);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &headers);
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, appendToString);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &headers);
 
 		const CURLcode code = curl_easy_perform(curl);
 		curl_off_t remote = -1;
@@ -412,7 +428,7 @@ FtpResult FtpClient::remoteSize(const std::string &remotePath, int64_t *size)
 			curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &remote);
 		curl_easy_cleanup(curl);
 		if(code != CURLE_OK)
-			return FtpResult::failure(curlMessage(code, errorBuffer));
+			return readFailure(code, errorBuffer);
 		if(size)
 			*size = static_cast<int64_t>(remote);
 		return FtpResult::success();
@@ -447,6 +463,11 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 	FtpResult result;
 	int failuresWithoutHeadway = 0;
 	bool appendWorks = true;
+	// Going on from what the console has is only right once those bytes are
+	// this file's: asked to resume, or written by an attempt of this call.
+	// Before that, what is there may be the file being replaced — appending
+	// to it would leave the right size and the wrong content.
+	bool remoteIsOurs = resume;
 	for(int attempt = 0;; ++attempt)
 	{
 		if(attempt > 0)
@@ -464,7 +485,7 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 			}
 			int64_t remote = -1;
 			alreadyThere = 0;
-			if(appendWorks && querySize(path, &remote) && remote > 0 && remote < localSize)
+			if(remoteIsOurs && appendWorks && querySize(path, &remote) && remote > 0 && remote < localSize)
 				alreadyThere = remote;
 			if(alreadyThere > 0)
 				logInfo("FTP: " + what + " goes on from " + std::to_string(alreadyThere) + " bytes.");
@@ -474,6 +495,8 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 		result = uploadOnce(localPath, path, progress, localSize, alreadyThere, &reached);
 		if(result.ok || result.cancelled)
 			break;
+		if(reached > alreadyThere)
+			remoteIsOurs = true;
 		if(alreadyThere > 0 && reached == alreadyThere)
 			appendWorks = false; // the server may not take APPE: start over next time
 		const bool headway = reached > alreadyThere + (1 << 20);
@@ -568,54 +591,253 @@ FtpResult FtpClient::uploadOnce(const std::string &localPath, const std::string 
 	return FtpResult::success();
 }
 
+namespace {
+
+// A download's progress: `carried` bytes came in earlier tries of the same
+// call, and this try started with `start` bytes in the file.
+struct DownloadState
+{
+	FtpProgressCallback callback;
+	const std::atomic<bool> *cancel = nullptr;
+	int64_t carried = 0;
+	int64_t start = 0;
+	int64_t *reached = nullptr;
+	bool cancelled = false;
+};
+
+int downloadProgress(void *userdata, curl_off_t dlTotal, curl_off_t dlNow, curl_off_t, curl_off_t)
+{
+	auto *state = static_cast<DownloadState *>(userdata);
+	if(state->cancel && state->cancel->load())
+	{
+		state->cancelled = true;
+		return 1;
+	}
+	*state->reached = std::max(*state->reached, state->start + static_cast<int64_t>(dlNow));
+	const int64_t done = std::max<int64_t>(0, state->carried + static_cast<int64_t>(dlNow));
+	const int64_t total = dlTotal > 0 ? std::max<int64_t>(0, state->carried + static_cast<int64_t>(dlTotal)) : 0;
+	if(state->callback && !state->callback(done, total))
+	{
+		state->cancelled = true;
+		return 1;
+	}
+	return 0;
+}
+
+} // namespace
+
 FtpResult FtpClient::download(const std::string &remotePath, const std::string &localPath,
 	FtpProgressCallback progress, bool resume)
 {
 	const std::string path = normalizeRemotePath(remotePath);
-	int64_t existing = resume ? fileSize(localPath) : -1;
-	if(existing < 0)
-		existing = 0;
+	// What is here already counts only when asked to go on from it.
+	const int64_t initial = resume ? std::max<int64_t>(0, fileSize(localPath)) : 0;
+	int64_t from = initial;
+	cancel_.store(false);
+	const std::string what = "download " + baseName(path);
+	FtpResult result;
+	int failuresWithoutHeadway = 0;
+	bool restWorks = true;
+	for(int attempt = 0;; ++attempt)
+	{
+		if(attempt > 0)
+		{
+			const int delayMs = 500 * (1 << std::min(failuresWithoutHeadway, 4));
+			logWarning("FTP: " + what + " failed (" + result.message + "); retrying in "
+				+ std::to_string(delayMs) + " ms.");
+			std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
+			if(cancel_.load())
+			{
+				result.cancelled = true;
+				result.ok = false;
+				result.message = QT_TRANSLATE_NOOP("Messages", "Operation cancelled.");
+				break;
+			}
+			// What the tries before brought is this file's: the next one goes
+			// on from there, when the server takes REST.
+			from = restWorks ? std::max<int64_t>(0, fileSize(localPath)) : 0;
+			if(from > 0)
+				logInfo("FTP: " + what + " goes on from " + std::to_string(from) + " bytes.");
+		}
+		int64_t reached = from;
+		bool restRefused = false;
+		result = downloadOnce(path, localPath, progress, from, from - initial, &reached, &restRefused);
+		if(result.ok || result.cancelled || result.final)
+			break;
+		if(restRefused)
+			restWorks = false;
+		const bool headway = reached > from + (1 << 20);
+		failuresWithoutHeadway = headway ? 0 : failuresWithoutHeadway + 1;
+		if(failuresWithoutHeadway >= std::max(1, config().maxRetries) || attempt >= 50)
+			break;
+	}
+	// The server saying the file is not there (or not readable) is its
+	// answer: whoever asked decides whether it is an error.
+	if(!result.ok && !result.cancelled)
+	{
+		if(result.final)
+			logDebug("FTP: " + what + ": the console answered \"" + result.message + "\"");
+		else
+			logError("FTP: " + what + " failed: " + result.message);
+	}
+	return result;
+}
 
-	return withRetries("download " + baseName(path), [&]() -> FtpResult {
+FtpResult FtpClient::downloadOnce(const std::string &path, const std::string &localPath,
+	const FtpProgressCallback &progress, int64_t from, int64_t carried, int64_t *reached, bool *restRefused)
+{
+	Slot slot(this);
+	const Config cfg = config();
+	// Big writes to the disk too, set before the file is opened.
+	std::vector<char> diskBuffer(1024 * 1024);
+	std::ofstream output;
+	output.rdbuf()->pubsetbuf(diskBuffer.data(), static_cast<std::streamsize>(diskBuffer.size()));
+	output.open(localPath, std::ios::binary | (from > 0 ? std::ios::app : std::ios::trunc));
+	if(!output)
+		return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Messages", "Could not write to the file")) + ": " + localPath);
+
+	CURL *curl = curl_easy_init();
+	if(!curl)
+		return FtpResult::failure("could not initialise libcurl");
+
+	char errorBuffer[CURL_ERROR_SIZE] = { 0 };
+	DownloadState state;
+	state.callback = progress;
+	state.cancel = &cancel_;
+	state.carried = carried;
+	state.start = from;
+	state.reached = reached;
+
+	applyCommonOptions(curl, cfg, errorBuffer);
+	curl_easy_setopt(curl, CURLOPT_URL, urlFor(path).c_str());
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeToStream);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &output);
+	// Bigger reads: fewer system calls on a fast network (512 KB is the
+	// most every libcurl takes).
+	curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, 512L * 1024);
+	curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+	curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, downloadProgress);
+	curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &state);
+	if(from > 0)
+		curl_easy_setopt(curl, CURLOPT_RESUME_FROM_LARGE, static_cast<curl_off_t>(from));
+
+	const CURLcode code = curl_easy_perform(curl);
+	curl_easy_cleanup(curl);
+	output.close();
+	if(state.cancelled)
+	{
+		FtpResult result;
+		result.cancelled = true;
+		result.message = QT_TRANSLATE_NOOP("Messages", "Operation cancelled.");
+		return result;
+	}
+	if(code == CURLE_FTP_COULDNT_USE_REST)
+		*restRefused = true;
+	if(code != CURLE_OK)
+		return readFailure(code, errorBuffer);
+	return FtpResult::success();
+}
+
+bool FtpClient::freeSpace(const std::string &remoteDir, int64_t *bytes)
+{
+	if(noFreeSpace_.load())
+		return false;
+	const Config cfg = config();
+	CURL *curl = curl_easy_init();
+	if(!curl)
+		return false;
+	char errorBuffer[CURL_ERROR_SIZE] = { 0 };
+	std::string replies;
+	// "*": a server without AVBL answers with an error, and that is no failure.
+	struct curl_slist *commands = curl_slist_append(nullptr, ("*AVBL " + normalizeRemotePath(remoteDir)).c_str());
+	applyCommonOptions(curl, cfg, errorBuffer);
+	curl_easy_setopt(curl, CURLOPT_URL, ("ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/").c_str());
+	curl_easy_setopt(curl, CURLOPT_QUOTE, commands);
+	curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+	curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, appendToString);
+	curl_easy_setopt(curl, CURLOPT_HEADERDATA, &replies);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+	const CURLcode code = curl_easy_perform(curl);
+	curl_slist_free_all(commands);
+	curl_easy_cleanup(curl);
+	if(code != CURLE_OK)
+		return false;
+	// "213 123456789": the bytes free.
+	std::istringstream lines(replies);
+	std::string line;
+	while(std::getline(lines, line))
+	{
+		if(line.size() < 5 || line.compare(0, 4, "213 ") != 0)
+			continue;
+		const std::string number = trim(line.substr(4));
+		if(number.empty() || number.find_first_not_of("0123456789") != std::string::npos)
+			continue;
+		try
+		{
+			*bytes = static_cast<int64_t>(std::stoll(number));
+			return true;
+		}
+		catch(...)
+		{
+		}
+	}
+	logInfo("FTP: the server does not say how much room is left (AVBL).");
+	noFreeSpace_.store(true);
+	return false;
+}
+
+namespace {
+
+struct RangeState
+{
+	std::vector<uint8_t> *bytes = nullptr;
+	size_t wanted = 0;
+};
+
+// Keeps what was asked for, then stops the transfer: a server that ignores
+// the end of the range would otherwise send the rest of the file.
+size_t appendRange(char *data, size_t size, size_t count, void *userdata)
+{
+	auto *state = static_cast<RangeState *>(userdata);
+	const size_t bytes = size * count;
+	const size_t room = state->wanted - std::min(state->wanted, state->bytes->size());
+	const size_t taken = std::min(room, bytes);
+	state->bytes->insert(state->bytes->end(), reinterpret_cast<const uint8_t *>(data),
+		reinterpret_cast<const uint8_t *>(data) + taken);
+	return state->bytes->size() >= state->wanted ? 0 : bytes;
+}
+
+} // namespace
+
+FtpResult FtpClient::read(const std::string &remotePath, int64_t offset, size_t length, std::vector<uint8_t> *bytes)
+{
+	const std::string path = normalizeRemotePath(remotePath);
+	bytes->clear();
+	if(length == 0)
+		return FtpResult::success();
+	return withRetries("read " + baseName(path), [&]() -> FtpResult {
 		Slot slot(this);
 		const Config cfg = config();
-		std::ofstream output(localPath,
-			std::ios::binary | (existing > 0 ? std::ios::app : std::ios::trunc));
-		if(!output)
-			return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Messages", "Could not write to the file")) + ": " + localPath);
-
+		bytes->clear();
 		CURL *curl = curl_easy_init();
 		if(!curl)
 			return FtpResult::failure("could not initialise libcurl");
-
 		char errorBuffer[CURL_ERROR_SIZE] = { 0 };
-		ProgressState state;
-		state.callback = progress;
-		state.cancel = &cancel_;
-
+		RangeState state;
+		state.bytes = bytes;
+		state.wanted = length;
+		const std::string range = std::to_string(offset) + "-" + std::to_string(offset + static_cast<int64_t>(length) - 1);
 		applyCommonOptions(curl, cfg, errorBuffer);
 		curl_easy_setopt(curl, CURLOPT_URL, urlFor(path).c_str());
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeToStream);
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &output);
-		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-		curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progressCallback);
-		curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &state);
-		if(existing > 0)
-			curl_easy_setopt(curl, CURLOPT_RESUME_FROM_LARGE, static_cast<curl_off_t>(existing));
-
+		curl_easy_setopt(curl, CURLOPT_RANGE, range.c_str());
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, appendRange);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &state);
 		const CURLcode code = curl_easy_perform(curl);
 		curl_easy_cleanup(curl);
-		output.close();
-		if(state.cancelled)
-		{
-			FtpResult result;
-			result.cancelled = true;
-			result.message = QT_TRANSLATE_NOOP("Messages", "Operation cancelled.");
-			return result;
-		}
-		if(code != CURLE_OK)
-			return FtpResult::failure(curlMessage(code, errorBuffer));
-		return FtpResult::success();
+		// Stopped on purpose once it had everything.
+		if(bytes->size() >= length || code == CURLE_OK)
+			return FtpResult::success();
+		return readFailure(code, errorBuffer);
 	});
 }
 
@@ -643,7 +865,13 @@ FtpResult runQuoteCommands(const FtpClient::Config &cfg, const std::string &host
 	curl_easy_cleanup(curl);
 	(void)host;
 	if(code != CURLE_OK)
-		return FtpResult::failure(curlMessage(code, errorBuffer));
+	{
+		FtpResult result = FtpResult::failure(curlMessage(code, errorBuffer));
+		// The server refusing the command is its answer (a folder that is
+		// not empty, a rename across disks): asking again changes nothing.
+		result.final = code == CURLE_QUOTE_ERROR;
+		return result;
+	}
 	return FtpResult::success();
 }
 
@@ -657,8 +885,13 @@ FtpResult FtpClient::makeDirectory(const std::string &remotePath)
 			"mode in the settings."));
 	return withRetries("create folder " + path, [&]() -> FtpResult {
 		const Config cfg = config();
-		return runQuoteCommands(cfg, cfg.host, { "MKD " + path },
-			"ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/");
+		const std::string base = "ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/";
+		const FtpResult made = runQuoteCommands(cfg, cfg.host, { "MKD " + path }, base);
+		// A folder that is there already is what was asked for. Some servers
+		// (the PS5's ftpsrv) refuse MKD for it; going into it tells.
+		if(!made.ok && runQuoteCommands(cfg, cfg.host, { "CWD " + path }, base).ok)
+			return FtpResult::success();
+		return made;
 	});
 }
 
@@ -700,6 +933,19 @@ FtpResult FtpClient::rename(const std::string &fromPath, const std::string &toPa
 		return runQuoteCommands(cfg, cfg.host, { "RNFR " + from, "RNTO " + to },
 			"ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/");
 	});
+}
+
+FtpResult FtpClient::setPermissions(const std::string &remotePath, const std::string &mode)
+{
+	const std::string path = normalizeRemotePath(remotePath);
+	if(mode.empty() || mode.size() > 4 || mode.find_first_not_of("01234567") != std::string::npos)
+		return FtpResult::failure("not an octal mode: " + mode);
+	if(!isWriteAllowed(path))
+		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
+			"mode in the settings."));
+	const Config cfg = config();
+	return runQuoteCommands(cfg, cfg.host, { "SITE CHMOD " + mode + " " + path },
+		"ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/");
 }
 
 } // namespace orbislink

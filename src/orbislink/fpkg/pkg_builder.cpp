@@ -20,6 +20,9 @@ namespace {
 
 namespace fs = std::filesystem;
 
+// The sector of a plain ISO, what a raw CD image is read as.
+constexpr uint32_t kIsoSector = 2048;
+
 enum : uint32_t {
 	kDigests = 0x1,
 	kEntryKeys = 0x10,
@@ -332,6 +335,62 @@ std::string majorParamString(const ParamSfo &sfo)
 	return s;
 }
 
+// The files a package is made from, opened as they are read and only a few
+// at a time: a game has thousands of them, more than a process may keep
+// open at once (on Windows the C runtime stops at about 500, and the
+// package then failed with "cannot open" on a file that is there).
+class SourceFiles
+{
+public:
+	void read(const std::string &path, uint64_t offset, uint8_t *out, size_t length)
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		std::ifstream &in = open(path);
+		in.clear();
+		in.seekg(static_cast<std::streamoff>(offset));
+		in.read(reinterpret_cast<char *>(out), static_cast<std::streamsize>(length));
+		if(!in)
+			throw std::runtime_error("reading " + path + " failed");
+	}
+
+private:
+	std::ifstream &open(const std::string &path)
+	{
+		const auto found = open_.find(path);
+		if(found != open_.end())
+		{
+			found->second.used = ++clock_;
+			return *found->second.stream;
+		}
+		// Room for it: the one read longest ago closes.
+		if(open_.size() >= kOpen)
+		{
+			auto oldest = open_.begin();
+			for(auto it = open_.begin(); it != open_.end(); ++it)
+				if(it->second.used < oldest->second.used)
+					oldest = it;
+			open_.erase(oldest);
+		}
+		auto stream = std::make_unique<std::ifstream>(fs::u8path(path), std::ios::binary);
+		if(!*stream)
+			throw std::runtime_error("cannot open " + path);
+		Open &slot = open_[path];
+		slot.stream = std::move(stream);
+		slot.used = ++clock_;
+		return *slot.stream;
+	}
+
+	static constexpr size_t kOpen = 32;
+	struct Open
+	{
+		std::unique_ptr<std::ifstream> stream;
+		uint64_t used = 0;
+	};
+	std::mutex mutex_;
+	std::map<std::string, Open> open_;
+	uint64_t clock_ = 0;
+};
+
 class Builder
 {
 public:
@@ -354,7 +413,7 @@ private:
 	const PkgRequest &req_;
 	PkgProgress progress_;
 	FsDir root_;
-	std::vector<std::shared_ptr<std::ifstream>> handles_;
+	std::shared_ptr<SourceFiles> sources_ = std::make_shared<SourceFiles>();
 	ParamSfo sfo_;
 	std::vector<std::pair<uint32_t, Bytes>> sceSysEntries_;
 
@@ -388,19 +447,47 @@ void Builder::buildTree()
 			const auto size = fs::file_size(fs::u8path(src.sourcePath), ec);
 			if(ec)
 				throw std::runtime_error("cannot read " + src.sourcePath);
-			auto in = std::make_shared<std::ifstream>(fs::u8path(src.sourcePath), std::ios::binary);
-			if(!*in)
+			// Readable now, so a file that is not fails before any work;
+			// it is opened again when its turn comes.
+			if(!std::ifstream(fs::u8path(src.sourcePath), std::ios::binary))
 				throw std::runtime_error("cannot open " + src.sourcePath);
-			handles_.push_back(in);
-			file->size = size;
 			const std::string name = src.sourcePath;
-			file->read = [in, name](uint64_t offset, uint8_t *out, size_t length) {
-				in->clear();
-				in->seekg(static_cast<std::streamoff>(offset));
-				in->read(reinterpret_cast<char *>(out), static_cast<std::streamsize>(length));
-				if(!*in)
-					throw std::runtime_error("reading " + name + " failed");
+			auto readAt = [sources = sources_, name](uint64_t offset, uint8_t *out, size_t length) {
+				sources->read(name, offset, out, length);
 			};
+			const uint32_t raw = src.rawSectorSize;
+			if(raw > kIsoSector && src.rawDataOffset + kIsoSector <= raw)
+			{
+				// A raw CD image: the ISO in it, 2048 bytes of each sector,
+				// read a run of whole sectors at a time.
+				const uint32_t at = src.rawDataOffset;
+				file->size = size / raw * kIsoSector;
+				auto buffer = std::make_shared<Bytes>();
+				file->read = [readAt, raw, at, buffer](uint64_t offset, uint8_t *out, size_t length) {
+					while(length > 0)
+					{
+						const uint64_t first = offset / kIsoSector;
+						const size_t count = std::min<size_t>(512, (offset % kIsoSector + length + kIsoSector - 1) / kIsoSector);
+						buffer->resize(static_cast<size_t>(count) * raw);
+						readAt(first * raw, buffer->data(), buffer->size());
+						size_t skip = static_cast<size_t>(offset % kIsoSector);
+						for(size_t i = 0; i < count && length > 0; ++i)
+						{
+							const size_t take = std::min<size_t>(kIsoSector - skip, length);
+							std::memcpy(out, buffer->data() + i * raw + at + skip, take);
+							out += take;
+							offset += take;
+							length -= take;
+							skip = 0;
+						}
+					}
+				};
+			}
+			else
+			{
+				file->size = size;
+				file->read = readAt;
+			}
 		}
 		file->compressedSize = file->size;
 		dir->files.push_back(std::move(file));

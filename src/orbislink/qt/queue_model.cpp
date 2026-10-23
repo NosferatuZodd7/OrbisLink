@@ -37,6 +37,8 @@ QHash<int, QByteArray> QueueModel::roleNames() const
 		{ SupersededRole, "superseded" },
 		{ CanMoveUpRole, "canMoveUp" },
 		{ CanMoveDownRole, "canMoveDown" },
+		{ FirmwareRole, "firmware" },
+		{ WarningRole, "warning" },
 	};
 }
 
@@ -65,15 +67,87 @@ QVariant QueueModel::data(const QModelIndex &index, int role) const
 		case CanMoveUpRole: return row.canMoveUp;
 		case CanMoveDownRole: return row.canMoveDown;
 		case IconRole: return icons_.value(row.id);
+		case FirmwareRole: return firmware_.value(row.id);
+		case WarningRole: return warnings_.value(row.id);
 		default: return {};
 	}
 }
 
-QString QueueModel::totalSpeedText() const
+double QueueModel::bytesPerSecond() const
 {
 	double total = 0.0;
 	for(const Row &row : rows_)
 		total += row.bytesPerSecond;
+	return total;
+}
+
+double QueueModel::bytesLeft() const
+{
+	qint64 remaining = 0;
+	for(const Row &row : rows_)
+		remaining += row.remainingBytes;
+	return static_cast<double>(remaining);
+}
+
+double QueueModel::bytesTotal() const
+{
+	qint64 total = 0;
+	for(const Row &row : rows_)
+		if(row.state != QLatin1String("completed") && row.state != QLatin1String("error")
+			&& row.state != QLatin1String("cancelled"))
+			total += row.totalBytes;
+	return static_cast<double>(total);
+}
+
+QString QueueModel::bytesText(double bytes) const
+{
+	return QString::fromStdString(humanBytes(static_cast<int64_t>(bytes)));
+}
+
+QString QueueModel::durationText(double seconds) const
+{
+	return QString::fromStdString(humanDuration(static_cast<int64_t>(seconds + 0.5)));
+}
+
+QVariantList QueueModel::rows() const
+{
+	QVariantList list;
+	list.reserve(rows_.size());
+	for(const Row &row : rows_)
+	{
+		QVariantMap map;
+		map[QStringLiteral("taskId")] = row.id;
+		map[QStringLiteral("title")] = row.title;
+		map[QStringLiteral("titleId")] = row.titleId;
+		map[QStringLiteral("category")] = row.category;
+		map[QStringLiteral("state")] = row.state;
+		map[QStringLiteral("stateLabel")] = row.stateLabel;
+		map[QStringLiteral("percent")] = row.percent;
+		map[QStringLiteral("sizeText")] = row.sizeText;
+		map[QStringLiteral("speedText")] = row.speedText;
+		map[QStringLiteral("etaText")] = row.etaText;
+		map[QStringLiteral("message")] = row.message;
+		map[QStringLiteral("mode")] = row.mode;
+		map[QStringLiteral("install")] = row.install;
+		map[QStringLiteral("active")] = row.active;
+		map[QStringLiteral("localKey")] = row.localKey;
+		map[QStringLiteral("superseded")] = row.superseded;
+		map[QStringLiteral("canMoveUp")] = row.canMoveUp;
+		map[QStringLiteral("canMoveDown")] = row.canMoveDown;
+		map[QStringLiteral("iconSource")] = icons_.value(row.id);
+		map[QStringLiteral("firmware")] = firmware_.value(row.id);
+		map[QStringLiteral("warning")] = warnings_.value(row.id);
+		map[QStringLiteral("totalBytes")] = static_cast<double>(row.totalBytes);
+		map[QStringLiteral("doneBytes")] = static_cast<double>(row.totalBytes - row.remainingBytes);
+		map[QStringLiteral("bytesPerSecond")] = row.bytesPerSecond;
+		list << map;
+	}
+	return list;
+}
+
+QString QueueModel::totalSpeedText() const
+{
+	const double total = bytesPerSecond();
 	if(total < 1.0)
 		return QStringLiteral("—");
 	return QString::fromStdString(humanBytes(static_cast<int64_t>(total))) + QStringLiteral("/s");
@@ -81,24 +155,18 @@ QString QueueModel::totalSpeedText() const
 
 QString QueueModel::remainingText() const
 {
-	qint64 remaining = 0;
-	for(const Row &row : rows_)
-		remaining += row.remainingBytes;
+	const double remaining = bytesLeft();
 	if(remaining <= 0)
 		return QStringLiteral("—");
-	return QString::fromStdString(humanBytes(remaining));
+	return QString::fromStdString(humanBytes(static_cast<int64_t>(remaining)));
 }
 
 QString QueueModel::totalText() const
 {
-	qint64 total = 0;
-	for(const Row &row : rows_)
-		if(row.state != QLatin1String("completed") && row.state != QLatin1String("error")
-			&& row.state != QLatin1String("cancelled"))
-			total += row.totalBytes;
+	const double total = bytesTotal();
 	if(total <= 0)
 		return QStringLiteral("—");
-	return QString::fromStdString(humanBytes(total));
+	return QString::fromStdString(humanBytes(static_cast<int64_t>(total)));
 }
 
 int QueueModel::shownCount(const QVariantMap &followed) const
@@ -134,9 +202,13 @@ void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
 		row.message = translateMessage(task.message);
 		row.mode = task.mode == TransferMode::DirectInstall
 			? QCoreApplication::translate("QueueModel", "Direct install")
+			: task.mode == TransferMode::ConsoleInstall
+			? QCoreApplication::translate("QueueModel", "Install on the console")
 			: QCoreApplication::translate("QueueModel", "FTP upload");
 		row.active = task.state == TaskState::Installing || task.state == TaskState::Sending
 			|| task.state == TaskState::Validating;
+		// An install (from the PC, or of what is on the console), not a copy.
+		row.install = task.mode != TransferMode::FtpUpload;
 		row.bytesPerSecond = row.active ? task.bytesPerSecond : 0.0;
 		row.remainingBytes = task.totalBytes > task.doneBytes ? task.totalBytes - task.doneBytes : 0;
 		row.totalBytes = task.totalBytes;
@@ -184,6 +256,7 @@ void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
 			emit dataChanged(index(i), index(i));
 		}
 		emit summaryChanged();
+		emit rowsChanged();
 		return;
 	}
 	beginResetModel();
@@ -191,6 +264,7 @@ void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
 	endResetModel();
 	emit countChanged();
 	emit summaryChanged();
+	emit rowsChanged();
 }
 
 QString QueueModel::fileKey(const QString &localPath)
@@ -210,6 +284,22 @@ void QueueModel::setIcon(const QString &taskId, const QString &dataUri)
 		if(rows_[i].id == taskId)
 		{
 			emit dataChanged(index(i), index(i), { IconRole });
+			emit rowsChanged();
+			break;
+		}
+	}
+}
+
+void QueueModel::setPackageFacts(const QString &taskId, const QString &firmware, const QString &warning)
+{
+	firmware_.insert(taskId, firmware);
+	warnings_.insert(taskId, warning);
+	for(int i = 0; i < rows_.size(); ++i)
+	{
+		if(rows_[i].id == taskId)
+		{
+			emit dataChanged(index(i), index(i), { FirmwareRole, WarningRole });
+			emit rowsChanged();
 			break;
 		}
 	}

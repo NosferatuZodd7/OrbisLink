@@ -11,12 +11,29 @@ Item {
     // The dialog the ✕ closes; without one there is no ✕.
     property var dialog: null
     property bool closable: dialog !== null
+    // A ‹ before the title, back to where the dialog was opened from.
+    property bool backable: false
+    property string backText: qsTr("Back")
+    signal back()
 
     implicitHeight: Theme.dialogHeader
 
-    Text {
+    StyledToolButton {
+        id: backButton
+        visible: header.backable
         anchors.left: parent.left
-        anchors.leftMargin: Theme.dialogMargin
+        anchors.leftMargin: 14
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.verticalCenterOffset: 4
+        iconName: "chevron-left"
+        ToolTip.visible: hovered
+        ToolTip.text: header.backText
+        onClicked: header.back()
+    }
+
+    Text {
+        anchors.left: backButton.visible ? backButton.right : parent.left
+        anchors.leftMargin: backButton.visible ? 6 : Theme.dialogMargin
         anchors.right: closeButton.visible ? closeButton.left : parent.right
         anchors.rightMargin: 12
         anchors.verticalCenter: parent.verticalCenter

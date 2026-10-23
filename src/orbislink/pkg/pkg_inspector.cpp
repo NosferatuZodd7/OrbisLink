@@ -8,6 +8,7 @@
 #include "orbislink/pkg/sfo_parser.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 
 namespace orbislink {
@@ -18,6 +19,7 @@ namespace {
 // flatz/ps4_remote_pkg_installer/pkg.h.
 constexpr size_t kHeaderReadSize = 0x1000; // enough for every field up to 0x430
 constexpr size_t kOffMagic = 0x00;
+constexpr size_t kOffPkgType = 0x04;
 constexpr size_t kOffEntryCount = 0x10;
 constexpr size_t kOffEntryTableOffset = 0x18;
 constexpr size_t kOffContentId = 0x40;
@@ -84,6 +86,38 @@ int pkgCategoryInstallOrder(PkgCategory category)
 	return 5;
 }
 
+std::string firmwareText(uint16_t version)
+{
+	if(version == 0)
+		return std::string();
+	char text[8];
+	std::snprintf(text, sizeof text, "%X.%02X", (version >> 8) & 0xFF, version & 0xFF);
+	return text;
+}
+
+uint16_t firmwareFromSystemVer(uint32_t value)
+{
+	// 0x09008001 (SYSTEM_VER, sdk_ver) or already 0x0900.
+	const uint32_t compact = value <= 0xFFFF ? value : value >> 16;
+	return static_cast<uint16_t>(compact);
+}
+
+uint16_t firmwareFromDiscovery(const std::string &digits)
+{
+	// "09000000": the first four digits are the version, read as BCD.
+	if(digits.size() < 4)
+		return 0;
+	uint16_t version = 0;
+	for(size_t i = 0; i < 4; ++i)
+	{
+		const char c = digits[i];
+		if(c < '0' || c > '9')
+			return 0;
+		version = static_cast<uint16_t>((version << 4) | static_cast<uint16_t>(c - '0'));
+	}
+	return version;
+}
+
 PkgInspector::PkgInspector() = default;
 
 PkgInspector::PkgInspector(Options options) : options_(options) {}
@@ -113,15 +147,32 @@ bool PkgInspector::hasPkgMagic(const std::string &path)
 
 PkgInfo PkgInspector::inspect(const std::string &path) const
 {
-	PkgInfo info;
-	info.path = path;
-
 	const int64_t size = fileSize(path);
 	if(size < 0)
 	{
+		PkgInfo info;
+		info.path = path;
 		info.error = QT_TRANSLATE_NOOP("Messages", "Could not read the file.");
 		return info;
 	}
+	std::ifstream file(path, std::ios::binary);
+	if(!file)
+	{
+		PkgInfo info;
+		info.path = path;
+		info.fileSize = size;
+		info.error = QT_TRANSLATE_NOOP("Messages", "Could not open the file.");
+		return info;
+	}
+	return inspect(path, size, [&file](int64_t offset, void *buffer, size_t length) {
+		return readAt(file, offset, buffer, length);
+	});
+}
+
+PkgInfo PkgInspector::inspect(const std::string &path, int64_t size, const ByteReader &read) const
+{
+	PkgInfo info;
+	info.path = path;
 	info.fileSize = size;
 	if(size < kMinPkgSize)
 	{
@@ -129,17 +180,10 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 		return info;
 	}
 
-	std::ifstream file(path, std::ios::binary);
-	if(!file)
-	{
-		info.error = QT_TRANSLATE_NOOP("Messages", "Could not open the file.");
-		return info;
-	}
-
 	std::vector<uint8_t> header(kHeaderReadSize, 0);
 	const size_t headerBytes = static_cast<size_t>(
 		size < static_cast<int64_t>(kHeaderReadSize) ? size : static_cast<int64_t>(kHeaderReadSize));
-	if(!readAt(file, 0, header.data(), headerBytes))
+	if(!read(0, header.data(), headerBytes))
 	{
 		info.error = QT_TRANSLATE_NOOP("Messages", "Could not read the pkg header.");
 		return info;
@@ -148,7 +192,15 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 	if(!(header[kOffMagic] == 0x7F && header[kOffMagic + 1] == 'C' && header[kOffMagic + 2] == 'N'
 		   && header[kOffMagic + 3] == 'T'))
 	{
-		info.error = QT_TRANSLATE_NOOP("Messages", "Not a valid PS4 pkg.");
+		// The older consoles' packages start with "\x7FPKG", then their
+		// platform (1: PS3; 2: PSP and PS Vita): not for a PS4, but files an
+		// emulator on the console (RPCS3) may want copied over.
+		const bool older = header[kOffMagic] == 0x7F && header[kOffMagic + 1] == 'P' && header[kOffMagic + 2] == 'K'
+			&& header[kOffMagic + 3] == 'G';
+		const unsigned platform = older ? (static_cast<unsigned>(header[4]) << 8) | header[5] : 0;
+		info.error = older && platform == 1 ? QT_TRANSLATE_NOOP("Messages", "A PS3 package, not a PS4 one.")
+			: older && platform == 2 ? QT_TRANSLATE_NOOP("Messages", "A PSP or PS Vita package, not a PS4 one.")
+			: QT_TRANSLATE_NOOP("Messages", "Not a valid PS4 pkg.");
 		return info;
 	}
 
@@ -157,6 +209,12 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 	info.contentId = readFixedString(header.data() + kOffContentId, kContentIdSize);
 	info.contentType = readBE32(header.data() + kOffContentType);
 	info.contentFlags = readBE32(header.data() + kOffContentFlags);
+	info.pkgType = readBE32(header.data() + kOffPkgType);
+	{
+		const uint32_t type = info.pkgType >> 16;
+		const bool officialDelta = (info.contentType & 0xFF) == kContentTypeDp && (info.contentFlags >> 24) == 0x43;
+		info.official = officialDelta || type == 0x8100 || type == 0x8300;
+	}
 	if(headerBytes >= kOffPackageSize + 8)
 		info.declaredSize = readBE64(header.data() + kOffPackageSize);
 
@@ -185,7 +243,7 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 	}
 
 	std::vector<uint8_t> table(static_cast<size_t>(entryCount) * kTableEntrySize);
-	if(!readAt(file, entryTableOffset, table.data(), table.size()))
+	if(!read(entryTableOffset, table.data(), table.size()))
 	{
 		info.error = QT_TRANSLATE_NOOP("Messages", "Could not read the pkg entry table.");
 		return info;
@@ -215,7 +273,7 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 		&& static_cast<size_t>(sfoSize) <= options_.maxSfoBytes)
 	{
 		std::vector<uint8_t> sfoData(static_cast<size_t>(sfoSize));
-		if(readAt(file, sfoOffset, sfoData.data(), sfoData.size()))
+		if(read(sfoOffset, sfoData.data(), sfoData.size()))
 		{
 			Sfo sfo;
 			std::string sfoError;
@@ -229,6 +287,17 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 				const std::string sfoContentId = sfo.stringValue("CONTENT_ID");
 				if(!sfoContentId.empty())
 					info.contentId = sfoContentId;
+				info.requiredFirmware = firmwareFromSystemVer(sfo.uintValue("SYSTEM_VER"));
+				// "c_date=20150319,sdk_ver=02508011,st_type=digital50,…"
+				const std::string tools = sfo.stringValue("PUBTOOLINFO");
+				const size_t sdk = tools.find("sdk_ver=");
+				if(sdk != std::string::npos)
+				{
+					const uint16_t version = firmwareFromSystemVer(static_cast<uint32_t>(
+						std::strtoul(tools.substr(sdk + 8, 8).c_str(), nullptr, 16)));
+					if(version != 0)
+						info.requiredFirmware = version;
+				}
 			}
 			else
 				logDebug("PARAM.SFO of " + baseName(path) + " unreadable: " + sfoError);
@@ -239,7 +308,7 @@ PkgInfo PkgInspector::inspect(const std::string &path) const
 		&& static_cast<size_t>(iconSize) <= options_.maxIconBytes)
 	{
 		std::vector<uint8_t> icon(static_cast<size_t>(iconSize));
-		if(readAt(file, iconOffset, icon.data(), icon.size()))
+		if(read(iconOffset, icon.data(), icon.size()))
 			info.iconPng = std::move(icon);
 	}
 

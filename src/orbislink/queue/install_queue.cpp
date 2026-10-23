@@ -86,6 +86,8 @@ Json taskToJson(const QueueTask &task)
 	json.set("remote_directory", Json::fromString(task.remoteDirectory));
 	json.set("install_after", Json::fromBool(task.installAfter));
 	json.set("delete_after_install", Json::fromBool(task.deleteAfterInstall));
+	json.set("copy_only", Json::fromBool(task.copyOnly));
+	json.set("installed_from_console", Json::fromBool(task.installedFromConsole));
 	json.set("message", Json::fromString(task.message));
 	json.set("error_code", Json::fromInt(static_cast<int64_t>(task.errorCode)));
 	json.set("attempts", Json::fromInt(task.attempts));
@@ -115,6 +117,8 @@ QueueTask taskFromJson(const Json &json)
 	task.remoteDirectory = json["remote_directory"].toString();
 	task.installAfter = json["install_after"].toLooseBool(false);
 	task.deleteAfterInstall = json["delete_after_install"].toLooseBool(false);
+	task.copyOnly = json["copy_only"].toLooseBool(false);
+	task.installedFromConsole = json["installed_from_console"].toLooseBool(false);
 	task.message = json["message"].toString();
 	task.errorCode = static_cast<uint32_t>(json["error_code"].toInt());
 	task.attempts = static_cast<int>(json["attempts"].toInt());
@@ -122,6 +126,19 @@ QueueTask taskFromJson(const Json &json)
 	task.startedAtUnix = json["started_at"].toInt();
 	task.finishedAtUnix = json["finished_at"].toInt();
 	return task;
+}
+
+// What the console's download list calls a package of this kind.
+TaskSubType taskSubTypeOf(PkgCategory category)
+{
+	switch(category)
+	{
+		case PkgCategory::Patch:
+		case PkgCategory::DeltaPatch: return TaskSubType::Patch;
+		case PkgCategory::Dlc: return TaskSubType::AdditionalContent;
+		default: break;
+	}
+	return TaskSubType::Game;
 }
 
 } // namespace
@@ -200,6 +217,32 @@ void InstallQueue::setCleanupPath(const std::string &id, const std::string &remo
 	}
 }
 
+std::string InstallQueue::enqueueConsoleInstall(const std::string &remotePath, const PkgInfo &info)
+{
+	QueueTask task;
+	task.id = randomToken(8);
+	// The path on the console stands for the file: one card per package.
+	task.localPath = remotePath;
+	task.remotePath = remotePath;
+	task.mode = TransferMode::ConsoleInstall;
+	task.state = TaskState::Pending;
+	task.title = info.displayTitle();
+	task.titleId = info.titleId;
+	task.contentId = info.contentId;
+	task.appVersion = info.appVersion;
+	task.category = info.kind;
+	task.totalBytes = info.fileSize;
+	task.createdAtUnix = nowUnixSeconds();
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		tasks_.push_back(task);
+	}
+	logInfo("Queued: " + task.title + " (installed from " + remotePath + ")");
+	notify(task);
+	wakeup_.notify_all();
+	return task.id;
+}
+
 std::string InstallQueue::enqueueOne(const std::string &path, TransferMode mode, std::string *error)
 {
 	std::vector<std::string> rejected;
@@ -213,15 +256,16 @@ std::string InstallQueue::enqueueOne(const std::string &path, TransferMode mode,
 	return ids.front();
 }
 
-std::string InstallQueue::enqueueUploadAndInstall(const std::string &path,
-	const std::string &directory, std::string *error)
+std::string InstallQueue::enqueueUploadTo(const std::string &path,
+	const std::string &directory, bool install, std::string *error)
 {
 	std::vector<std::string> rejected;
 	const std::vector<std::string> ids = enqueue({ path }, TransferMode::FtpUpload, &rejected,
 		nullptr, [&](QueueTask &task) {
 			task.remoteDirectory = directory;
-			task.installAfter = true;
-			task.deleteAfterInstall = true;
+			task.installAfter = install;
+			task.deleteAfterInstall = install;
+			task.copyOnly = !install;
 		});
 	if(ids.empty())
 	{
@@ -251,7 +295,12 @@ std::vector<std::string> InstallQueue::enqueue(const std::vector<std::string> &p
 	{
 		const std::string &path = paths[index];
 		const PkgInfo info = inspector.inspect(path);
-		if(!info.valid)
+		// Any other file is still copied over FTP as it is (an ISO for the
+		// USB drive, a payload, a PS3 package for RPCS3) — never installed.
+		const bool plainCopy = !info.valid && mode == TransferMode::FtpUpload && fileSize(path) >= 0;
+		if(plainCopy && fileExtensionLower(path) == ".pkg")
+			logInfo("Not a PS4 package (" + info.error + "): " + path + " is copied over FTP as it is, not installed.");
+		if(!info.valid && !plainCopy)
 		{
 			const std::string reason = info.error.empty() ? QT_TRANSLATE_NOOP("Messages", "This file is not a valid PS4 pkg.")
 													  : info.error;
@@ -268,12 +317,12 @@ std::vector<std::string> InstallQueue::enqueue(const std::vector<std::string> &p
 		if(remoteNames && index < remoteNames->size())
 			task.remoteName = (*remoteNames)[index];
 		task.state = TaskState::Pending;
-		task.title = info.displayTitle();
+		task.title = plainCopy ? baseName(path) : info.displayTitle();
 		task.titleId = info.titleId;
 		task.contentId = info.contentId;
 		task.appVersion = info.appVersion;
-		task.category = info.kind;
-		task.totalBytes = info.fileSize;
+		task.category = plainCopy ? PkgCategory::Unknown : info.kind;
+		task.totalBytes = plainCopy ? fileSize(path) : info.fileSize;
 		task.createdAtUnix = nowUnixSeconds();
 		if(adjust)
 			adjust(task);
@@ -284,9 +333,15 @@ std::vector<std::string> InstallQueue::enqueue(const std::vector<std::string> &p
 
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
+		// Where the tasks to go next are put: before the first one waiting.
+		size_t ahead = static_cast<size_t>(std::find_if(tasks_.begin(), tasks_.end(),
+			[](const QueueTask &queued) { return queued.state == TaskState::Pending; }) - tasks_.begin());
 		for(const QueueTask &task : batch)
 		{
-			tasks_.push_back(task);
+			if(task.next)
+				tasks_.insert(tasks_.begin() + static_cast<std::ptrdiff_t>(ahead++), task);
+			else
+				tasks_.push_back(task);
 			ids.push_back(task.id);
 		}
 	}
@@ -552,6 +607,22 @@ void InstallQueue::finishTask(QueueTask task)
 	notify(task);
 }
 
+bool InstallQueue::installerAway(const InstallerResult &result)
+{
+	return result.errorCode == 0
+		&& (result.unavailable || startsWith(result.message, "Remote installer unavailable"));
+}
+
+std::string InstallQueue::waitingReason(const InstallerResult &result) const
+{
+	// On a PS5 the installer is a payload or a setting of etaHEN: what to do.
+	if(deps_.installer && deps_.installer->installsFromConsole())
+		return QT_TRANSLATE_NOOP("Messages", "Waiting for an installer on the console: in Payloads, press ▶ on "
+			"Prospero Manager, or turn on etaHEN's DPI v2 (DPI_v2=1 in config.ini). The install goes on by itself "
+			"once one answers.");
+	return result.message;
+}
+
 void InstallQueue::requeueForServiceLoss(QueueTask task, const std::string &reason)
 {
 	task.state = TaskState::Pending;
@@ -610,6 +681,8 @@ void InstallQueue::workerLoop()
 		cancelCurrent_.store(false);
 		if(task.mode == TransferMode::DirectInstall)
 			runDirectInstall(task);
+		else if(task.mode == TransferMode::ConsoleInstall)
+			runConsoleInstall(task);
 		else
 			runFtpUpload(task);
 	}
@@ -691,7 +764,7 @@ void InstallQueue::runDirectInstall(QueueTask task)
 	updateTask(task);
 
 	InstallTaskHandle handle;
-	const InstallerResult install = deps_.installer->installDirect({ url }, &handle);
+	const InstallerResult install = startInstall(task, url, &handle);
 	if(!install.ok)
 	{
 		deps_.httpServer->unregisterFile(task.httpToken);
@@ -702,9 +775,9 @@ void InstallQueue::runDirectInstall(QueueTask task)
 		else
 			task.message = install.message;
 		// Service down: pause the queue instead of burning the task (§6.3).
-		if(install.errorCode == 0 && startsWith(install.message, "Remote installer unavailable"))
+		if(installerAway(install))
 		{
-			requeueForServiceLoss(task, install.message);
+			requeueForServiceLoss(task, waitingReason(install));
 			return;
 		}
 		task.state = TaskState::Error;
@@ -716,6 +789,12 @@ void InstallQueue::runDirectInstall(QueueTask task)
 	if(!handle.title.empty())
 		task.title = handle.title;
 	updateTask(task);
+
+	if(!deps_.installer->followsTasks())
+	{
+		followServedInstall(task);
+		return;
+	}
 
 	// Poll progress every second, with stall detection.
 	const int64_t startedMs = monotonicMillis();
@@ -767,9 +846,9 @@ void InstallQueue::runDirectInstall(QueueTask task)
 				task.httpToken.clear();
 				task.errorCode = result.errorCode;
 				task.message = result.message;
-				if(result.errorCode == 0 && startsWith(result.message, "Remote installer unavailable"))
+				if(installerAway(result))
 				{
-					requeueForServiceLoss(task, result.message);
+					requeueForServiceLoss(task, waitingReason(result));
 					return;
 				}
 				task.state = TaskState::Error;
@@ -852,6 +931,225 @@ void InstallQueue::runDirectInstall(QueueTask task)
 	}
 }
 
+InstallerResult InstallQueue::startInstall(const QueueTask &task, const std::string &uri, InstallTaskHandle *handle)
+{
+	InstallerResult install = deps_.installer->installDirect({ uri }, handle);
+	// An earlier try left its task in the console's downloads (BGFT "task
+	// duplicated"): that task goes, and the install is asked for once more.
+	if(!install.ok && install.errorCode == kBgftTaskDuplicated && !task.contentId.empty())
+	{
+		int stale = -1;
+		if(deps_.installer->findTask(task.contentId, taskSubTypeOf(task.category), &stale).ok && stale >= 0)
+		{
+			logInfo("The console still had a task for " + task.contentId + " (" + std::to_string(stale)
+				+ "); removing it and asking again.");
+			deps_.installer->stopTask(stale);
+			deps_.installer->unregisterTask(stale);
+			install = deps_.installer->installDirect({ uri }, handle);
+		}
+		else
+			logWarning("The console has a task for " + task.contentId + " that could not be found to remove.");
+	}
+	return install;
+}
+
+void InstallQueue::runConsoleInstall(QueueTask task)
+{
+	task.state = TaskState::Installing;
+	task.message.clear();
+	updateTask(task);
+	if(!deps_.installer)
+	{
+		task.state = TaskState::Error;
+		task.message = QT_TRANSLATE_NOOP("Messages", "Direct install unavailable (HTTP server or installer missing).");
+		finishTask(task);
+		return;
+	}
+
+	InstallTaskHandle handle;
+	const InstallerResult started = startInstall(task, task.remotePath, &handle);
+	if(!started.ok)
+	{
+		task.errorCode = started.errorCode;
+		task.message = started.errorCode != 0 && isOutOfSpaceError(started.errorCode)
+			? describeConsoleError(started.errorCode) : started.message;
+		if(installerAway(started))
+		{
+			requeueForServiceLoss(task, waitingReason(started));
+			return;
+		}
+		task.state = TaskState::Error;
+		finishTask(task);
+		return;
+	}
+	task.consoleTaskId = handle.taskId;
+	if(!handle.title.empty())
+		task.title = handle.title;
+	logInfo("Installing " + task.remotePath + " on the console, from where it is.");
+
+	// Followed by the installer's own task when it reports one; else by the
+	// copy the console makes of it as it installs (/user/app/<ID>/app.pkg,
+	// /user/patch/<ID>/patch.pkg).
+	const bool byTask = handle.taskId >= 0 && deps_.installer->followsTasks();
+	std::string copy;
+	if(!task.titleId.empty() && task.category == PkgCategory::Game)
+		copy = "/user/app/" + task.titleId + "/app.pkg";
+	else if(!task.titleId.empty() && task.category == PkgCategory::Patch)
+		copy = "/user/patch/" + task.titleId + "/patch.pkg";
+
+	const int64_t startedMs = monotonicMillis();
+	int64_t lastBytes = 0;
+	int64_t lastSampleMs = startedMs;
+	int64_t lastMoveMs = startedMs;
+	int failures = 0;
+	for(;;)
+	{
+		if(!running_.load() || cancelCurrent_.load())
+		{
+			if(byTask)
+			{
+				deps_.installer->stopTask(task.consoleTaskId);
+				deps_.installer->unregisterTask(task.consoleTaskId);
+			}
+			task.state = TaskState::Cancelled;
+			task.message = QT_TRANSLATE_NOOP("Messages", "Cancelled by the user.");
+			finishTask(task);
+			return;
+		}
+		std::this_thread::sleep_for(std::chrono::milliseconds(tuning_.progressPollMs));
+
+		int64_t done = task.doneBytes;
+		bool finished = false;
+		if(byTask)
+		{
+			TaskProgress progress;
+			const InstallerResult polled = deps_.installer->taskProgress(task.consoleTaskId, &progress);
+			if(polled.ok)
+			{
+				failures = 0;
+				if(progress.errorResult != 0)
+				{
+					task.errorCode = static_cast<uint32_t>(progress.errorResult);
+					task.message = describeConsoleError(task.errorCode);
+					task.state = TaskState::Error;
+					finishTask(task);
+					return;
+				}
+				if(progress.lengthTotal > 0)
+					task.totalBytes = progress.lengthTotal;
+				done = progress.transferredTotal;
+				finished = progress.finished();
+			}
+			// The task is gone: it finished.
+			else if(++failures >= 3)
+				finished = true;
+		}
+		else if(!copy.empty() && deps_.ftp)
+		{
+			int64_t size = -1;
+			if(deps_.ftp->remoteSize(copy, &size).ok && size >= 0)
+				done = size;
+		}
+
+		const int64_t nowMs = monotonicMillis();
+		if(done > task.doneBytes)
+			lastMoveMs = nowMs;
+		task.doneBytes = task.totalBytes > 0 ? std::min(done, task.totalBytes) : done;
+		const double elapsedSeconds = static_cast<double>(nowMs - lastSampleMs) / 1000.0;
+		if(elapsedSeconds >= 0.5)
+		{
+			const double delta = static_cast<double>(task.doneBytes - lastBytes);
+			task.bytesPerSecond = delta > 0 ? delta / elapsedSeconds : 0.0;
+			lastBytes = task.doneBytes;
+			lastSampleMs = nowMs;
+		}
+		task.etaSeconds = task.bytesPerSecond > 1.0 && task.totalBytes > task.doneBytes
+			? static_cast<int64_t>((task.totalBytes - task.doneBytes) / task.bytesPerSecond)
+			: -1;
+		updateTask(task);
+
+		if(finished || (task.totalBytes > 0 && task.doneBytes >= task.totalBytes))
+		{
+			task.doneBytes = task.totalBytes;
+			task.state = TaskState::Completed;
+			task.message = QT_TRANSLATE_NOOP("Messages", "Installation complete.");
+			finishTask(task);
+			return;
+		}
+		// Nothing to follow it by, or it stopped moving: the console goes on
+		// by itself, and says so in its notifications.
+		if(nowMs - lastMoveMs > 3 * static_cast<int64_t>(tuning_.stallTimeoutMs))
+		{
+			task.state = TaskState::Completed;
+			task.message = QT_TRANSLATE_NOOP("Messages",
+				"The console is installing it: follow it in its notifications.");
+			finishTask(task);
+			return;
+		}
+	}
+}
+
+void InstallQueue::followServedInstall(QueueTask task)
+{
+	const int64_t startedMs = monotonicMillis();
+	int64_t lastBytes = 0;
+	int64_t lastSampleMs = startedMs;
+	int64_t lastMoveMs = startedMs;
+
+	const auto stop = [&](TaskState state, const std::string &message) {
+		deps_.httpServer->unregisterFile(task.httpToken);
+		task.httpToken.clear();
+		task.state = state;
+		task.message = message;
+		finishTask(task);
+	};
+
+	for(;;)
+	{
+		if(!running_.load() || cancelCurrent_.load())
+			return stop(TaskState::Cancelled, QT_TRANSLATE_NOOP("Messages", "Cancelled by the user."));
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(tuning_.progressPollMs));
+
+		ServedFileStats stats;
+		const int64_t sent = deps_.httpServer->statsForToken(task.httpToken, &stats) ? stats.bytesSent : 0;
+		const int64_t nowMs = monotonicMillis();
+		if(sent > task.doneBytes)
+			lastMoveMs = nowMs;
+		task.doneBytes = task.totalBytes > 0 ? std::min(sent, task.totalBytes) : sent;
+
+		const double elapsedSeconds = static_cast<double>(nowMs - lastSampleMs) / 1000.0;
+		if(elapsedSeconds >= 0.5)
+		{
+			const double delta = static_cast<double>(task.doneBytes - lastBytes);
+			task.bytesPerSecond = delta > 0 ? delta / elapsedSeconds : 0.0;
+			lastBytes = task.doneBytes;
+			lastSampleMs = nowMs;
+		}
+		task.etaSeconds = task.bytesPerSecond > 1.0 && task.totalBytes > task.doneBytes
+			? static_cast<int64_t>((task.totalBytes - task.doneBytes) / task.bytesPerSecond)
+			: -1;
+		updateTask(task);
+
+		if(task.totalBytes > 0 && sent >= task.totalBytes)
+		{
+			task.doneBytes = task.totalBytes;
+			std::string message = QT_TRANSLATE_NOOP("Messages",
+				"Sent: the console finishes installing it (see its notifications).");
+			if(!task.cleanupRemotePath.empty() && deps_.ftp && deps_.ftp->removeFile(task.cleanupRemotePath).ok)
+				message += " Copy deleted from the console.";
+			return stop(TaskState::Completed, message);
+		}
+		// §7: nothing taken after the stall time = the console cannot reach the PC.
+		if(sent == 0 && nowMs - startedMs > tuning_.stallTimeoutMs)
+			return stop(TaskState::Error, QT_TRANSLATE_NOOP("Messages", "The console could not download "
+				"from the PC. Check the Windows firewall and that both are on the same network."));
+		if(sent > 0 && nowMs - lastMoveMs > 3 * static_cast<int64_t>(tuning_.stallTimeoutMs))
+			return stop(TaskState::Error, QT_TRANSLATE_NOOP("Messages", "The console stopped downloading "
+				"the package. See its Downloads list."));
+	}
+}
+
 void InstallQueue::runFtpUpload(QueueTask task)
 {
 	const Settings cfg = settings();
@@ -869,13 +1167,9 @@ void InstallQueue::runFtpUpload(QueueTask task)
 
 	PkgInspector inspector(PkgInspector::Options { false, 4u * 1024 * 1024, 0 });
 	const PkgInfo info = inspector.inspect(task.localPath);
-	if(!info.valid && fileExtensionLower(task.localPath) == ".pkg")
-	{
-		task.state = TaskState::Error;
-		task.message = info.error.empty() ? QT_TRANSLATE_NOOP("Messages", "This file is not a valid PS4 pkg.") : info.error;
-		finishTask(task);
-		return;
-	}
+	// A .pkg that is not a PS4 one (a PS3 package for RPCS3) goes over as it
+	// is, like any other file; the card says it was only copied.
+	const bool foreignPackage = !info.valid && fileExtensionLower(task.localPath) == ".pkg";
 	if(info.valid)
 		task.totalBytes = info.fileSize;
 
@@ -936,7 +1230,10 @@ void InstallQueue::runFtpUpload(QueueTask task)
 
 	task.doneBytes = task.totalBytes;
 	task.state = TaskState::Completed;
-	task.message = std::string(QT_TRANSLATE_NOOP("Messages", "Sent to the console")) + ": " + task.remotePath;
+	task.message = foreignPackage
+		? std::string(QT_TRANSLATE_NOOP("Messages", "Copied to the console (not a PS4 package, so not installed)"))
+			+ ": " + task.remotePath
+		: std::string(QT_TRANSLATE_NOOP("Messages", "Sent to the console")) + ": " + task.remotePath;
 
 	// "Install after upload". The remote installer only accepts HTTP URLs
 	// (see docs/validation.md), so it cannot be pointed at the file that
@@ -945,14 +1242,36 @@ void InstallQueue::runFtpUpload(QueueTask task)
 	// stored on the console and gets installed, which is what the option promises.
 	// The install is queued before the upload is marked done, so nothing
 	// sees the package as only "sent" in between.
-	const bool installAfter = cfg.installAfterUpload || task.installAfter;
+	// Only a package installs; any other file was just a copy.
+	bool installAfter = info.valid && !task.copyOnly && (cfg.installAfterUpload || task.installAfter);
 	const bool deleteAfter = task.installAfter ? task.deleteAfterInstall : cfg.deleteFromConsoleAfterInstall;
+	if(installAfter && deps_.installer && deps_.installer->installsFromConsole())
+	{
+		// A PS5 installs the copy just put there, by its path: nothing is
+		// sent twice. (The copy stays: the install reads it as it goes.)
+		InstallTaskHandle handle;
+		const InstallerResult started = startInstall(task, task.remotePath, &handle);
+		if(started.ok)
+		{
+			installAfter = false;
+			task.installedFromConsole = true;
+			task.message = std::string(QT_TRANSLATE_NOOP("Messages",
+				"Sent; the console is installing it (see its notifications)")) + ": " + task.remotePath;
+			logInfo("Uploaded; the console installs " + task.remotePath + ".");
+		}
+		else
+			logWarning("The console did not install " + task.remotePath + " by its path (" + started.message
+				+ "); installing it from the PC.");
+	}
 	if(installAfter)
 	{
 		std::string err;
 		const std::string remotePath = task.remotePath;
+		// Right after this upload, before the next one: the package just
+		// sent installs now, not once every other upload is done.
 		const std::vector<std::string> ids = enqueue({ task.localPath }, TransferMode::DirectInstall,
 			nullptr, nullptr, [&](QueueTask &install) {
+				install.next = true;
 				if(deleteAfter)
 					install.cleanupRemotePath = remotePath;
 			});

@@ -24,12 +24,27 @@ struct DiscInfo
 	std::string title;     // from the file name, tidied
 	std::string format;    // "iso", "bin", "img"
 	uint64_t size = 0;
+	// How the image holds its sectors: 2048 bytes each (a plain ISO), or a
+	// raw CD's 2352 (or 2336) with the 2048 of data at `dataOffset`.
+	uint32_t sectorSize = 2048;
+	uint32_t dataOffset = 0;
 	int discNumber = 0;    // from "(Disc 2)" in the name, 0 if none
+	// What SYSTEM.CNF starts when it is not a game's serial ("RUNTIME.ELF"):
+	// a disc of software or a tool (PS2 Linux, a demo disc), not a game.
+	std::string bootFile;
 	std::string problem;   // why it cannot be read, if it cannot
 };
 
 // Reads one disc image (or cue sheet).
 DiscInfo inspectDisc(const std::string &path);
+
+// The same, from any source of bytes (a file on the console, read in
+// pieces): `read` fills `out` with `size` bytes from `offset`.
+using ByteReader = std::function<bool(uint64_t offset, uint8_t *out, size_t size)>;
+DiscInfo inspectDisc(const std::string &fileName, uint64_t size, const ByteReader &read);
+
+// The image a cue sheet names (its first FILE line), as written there.
+std::string cueImageName(const std::string &cueText);
 
 // Walks `folder` (and up to three levels below) for disc images. `progress`
 // gets each file as it is looked at; returning false stops the scan.

@@ -6,6 +6,16 @@
 #include <QGuiApplication>
 #include <QWindow>
 
+#ifdef ORBISLINK_HAS_DBUS
+#include <QDBusConnection>
+#include <QDBusConnectionInterface>
+#include <QDBusMessage>
+#include <QVariantMap>
+#endif
+#ifdef Q_OS_MACOS
+#include <QProcess>
+#endif
+
 #ifdef _WIN32
 #include <windows.h>
 #include <shellapi.h>
@@ -66,8 +76,12 @@ Notifier::~Notifier()
 
 bool Notifier::available() const
 {
-#ifdef _WIN32
+#if defined(_WIN32) || defined(Q_OS_MACOS)
 	return true;
+#elif defined(ORBISLINK_HAS_DBUS)
+	QDBusConnection bus = QDBusConnection::sessionBus();
+	return bus.isConnected() && bus.interface()
+		&& bus.interface()->isServiceRegistered(QStringLiteral("org.freedesktop.Notifications"));
 #else
 	return false;
 #endif
@@ -91,6 +105,36 @@ void Notifier::show(const QString &title, const QString &message, bool error)
 			_TRUNCATE);
 		wcsncpy_s(data.szInfo, reinterpret_cast<const wchar_t *>(message.utf16()), _TRUNCATE);
 		Shell_NotifyIconW(NIM_MODIFY, &data);
+		return;
+	}
+#endif
+
+#ifdef ORBISLINK_HAS_DBUS
+	if(available())
+	{
+		QDBusMessage call = QDBusMessage::createMethodCall(QStringLiteral("org.freedesktop.Notifications"),
+			QStringLiteral("/org/freedesktop/Notifications"), QStringLiteral("org.freedesktop.Notifications"),
+			QStringLiteral("Notify"));
+		QVariantMap hints;
+		// 1 normal, 2 critical: a failure stays until it is seen.
+		hints.insert(QStringLiteral("urgency"), QVariant::fromValue<uchar>(error ? 2 : 1));
+		call << QStringLiteral("OrbisLink") << 0u << QString()
+			 << (title.isEmpty() ? QStringLiteral("OrbisLink") : title) << message << QStringList() << hints << -1;
+		QDBusConnection::sessionBus().send(call);
+		return;
+	}
+#endif
+
+#ifdef Q_OS_MACOS
+	{
+		auto quoted = [](QString text) {
+			text.replace(QLatin1Char('\\'), QStringLiteral("\\\\")).replace(QLatin1Char('"'), QStringLiteral("\\\""));
+			return QLatin1Char('"') + text + QLatin1Char('"');
+		};
+		const QString header = title.isEmpty() ? QStringLiteral("OrbisLink") : title;
+		QProcess::startDetached(QStringLiteral("osascript"),
+			{ QStringLiteral("-e"),
+				QStringLiteral("display notification %1 with title %2").arg(quoted(message), quoted(header)) });
 		return;
 	}
 #endif

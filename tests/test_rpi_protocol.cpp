@@ -13,9 +13,12 @@
 #include <atomic>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
+#include <mutex>
 #include <sstream>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 using namespace orbislink;
@@ -76,6 +79,14 @@ public:
 	}
 
 	void setResponse(std::string body) { response_ = std::move(body); }
+	// Answers each request by what it asks (method, path, body): the status
+	// code and the body. Set before start().
+	using Handler = std::function<std::pair<int, std::string>(const std::string &, const std::string &,
+		const std::string &)>;
+	void setHandler(Handler handler) { handler_ = std::move(handler); }
+	// Answers like etaHEN's DPI v2: its page at "/", a form POST gets the
+	// reply set, and a JSON POST is dropped without a word.
+	void setDpiV2(bool on) { dpiV2_.store(on); }
 	uint16_t port() const { return port_; }
 	std::string lastPath() const { return lastPath_; }
 	std::string lastBody() const { return lastBody_; }
@@ -118,16 +129,40 @@ private:
 				if(headerEnd != std::string::npos && request.size() >= headerEnd + 4 + contentLength)
 					break;
 			}
+			std::string reply = response_;
+			int status = 200;
 			if(headerEnd != std::string::npos)
 			{
 				const size_t firstSpace = request.find(' ');
 				const size_t secondSpace = request.find(' ', firstSpace + 1);
-				lastPath_ = request.substr(firstSpace + 1, secondSpace - firstSpace - 1);
-				lastBody_ = request.substr(headerEnd + 4, contentLength);
+				const std::string method = request.substr(0, firstSpace);
+				const std::string path = request.substr(firstSpace + 1, secondSpace - firstSpace - 1);
+				const std::string body = request.substr(headerEnd + 4, contentLength);
+				if(dpiV2_.load())
+				{
+					if(method == "GET")
+						reply = "<html><head><title>etaHEN DPIv2</title></head></html>";
+					else if(request.find("application/x-www-form-urlencoded") == std::string::npos)
+					{
+						closeSocketHandle(client);
+						continue;
+					}
+				}
+				if(method == "POST")
+				{
+					lastPath_ = path;
+					lastBody_ = body;
+				}
+				if(handler_)
+				{
+					const std::pair<int, std::string> answer = handler_(method, path, body);
+					status = answer.first;
+					reply = answer.second;
+				}
 			}
-			const std::string response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
-										 "Content-Length: "
-				+ std::to_string(response_.size()) + "\r\nConnection: close\r\n\r\n" + response_;
+			const std::string response = "HTTP/1.1 " + std::to_string(status)
+				+ (status == 200 ? " OK" : " Error") + "\r\nContent-Type: application/json\r\nContent-Length: "
+				+ std::to_string(reply.size()) + "\r\nConnection: close\r\n\r\n" + reply;
 			send(client, response.data(), static_cast<int>(response.size()), 0);
 			closeSocketHandle(client);
 		}
@@ -136,8 +171,10 @@ private:
 	socket_t listen_ = ORBISLINK_INVALID_SOCKET;
 	uint16_t port_ = 0;
 	std::atomic<bool> running_ { false };
+	std::atomic<bool> dpiV2_ { false };
 	std::thread thread_;
 	std::string response_ = R"({ "status": "success" })";
+	Handler handler_;
 	std::string lastPath_;
 	std::string lastBody_;
 };
@@ -193,6 +230,168 @@ ORBISLINK_TEST(console_error_is_translated)
 	CHECK_EQ(result.errorCode, 0x8002001Cu);
 	CHECK(result.message.find("Not enough space") != std::string::npos);
 	CHECK(isOutOfSpaceError(result.errorCode));
+	server.stop();
+}
+
+ORBISLINK_TEST(bgft_codes_are_described)
+{
+	FakeInstallerServer server;
+	CHECK(server.start());
+	server.setResponse(R"({ "status": "fail", "error_code": 0x80990015 })");
+
+	RpiClient client = makeClient(server.port());
+	InstallTaskHandle handle;
+	const InstallerResult result = client.installDirect({ "http://x/y.pkg" }, &handle);
+	CHECK(!result.ok);
+	CHECK_EQ(result.errorCode, kBgftTaskDuplicated);
+	CHECK(result.message.find("TASK_DUPLICATED") != std::string::npos);
+	CHECK(result.message.find("0x80990015") != std::string::npos);
+	CHECK(!isOutOfSpaceError(result.errorCode));
+	CHECK(isOutOfSpaceError(0x80990039u));
+	server.stop();
+}
+
+ORBISLINK_TEST(speaks_etahen_dpi_v2_on_a_ps5)
+{
+	FakeInstallerServer server;
+	CHECK(server.start());
+	server.setDpiV2(true);
+	server.setResponse("SUCCESS: Direct install console Task started for URL: /data/pkg/My Game.pkg");
+
+	RpiClient::Config config;
+	config.host = "127.0.0.1";
+	config.port = server.port();
+	config.timeoutMs = 2000;
+	config.maxAttempts = 1;
+	config.ps5 = true;
+	RpiClient client(config);
+	CHECK(client.installsFromConsole());
+
+	InstallTaskHandle handle;
+	const InstallerResult started = client.installDirect({ "/data/pkg/My Game.pkg" }, &handle);
+	CHECK(started.ok);
+	CHECK_EQ(handle.taskId, -1);
+	CHECK(!client.followsTasks());
+	// A form, with the path as the "url".
+	CHECK_EQ(server.lastBody(), std::string("url=/data/pkg/My%20Game.pkg"));
+
+	server.setResponse("FAILED: Install failed with error SCE_BGFT_ERROR_TASK_DUPLICATED, code -2137456619 "
+		"(0x80990015) for URL: http://x/y.pkg");
+	const InstallerResult refused = client.installDirect({ "http://x/y.pkg" }, &handle);
+	CHECK(!refused.ok);
+	CHECK_EQ(refused.errorCode, kBgftTaskDuplicated);
+	CHECK(refused.message.find("TASK_DUPLICATED") != std::string::npos);
+
+	// What it does not do is said at once, without asking it.
+	bool exists = true;
+	CHECK(!client.isExists("CUSA00001", &exists, nullptr).ok);
+	server.stop();
+}
+
+// A port nobody listens on: opened and closed to get one the system just freed.
+uint16_t closedPort()
+{
+	FakeInstallerServer server;
+	server.start();
+	const uint16_t port = server.port();
+	server.stop();
+	return port;
+}
+
+ORBISLINK_TEST(installs_through_prospero_manager_on_a_ps5_without_dpi)
+{
+	// Prospero Manager's package API: one install at a time (409 while one is
+	// being handed over), then the status says "queued" or "error".
+	std::mutex mutex;
+	std::string phase = "idle";
+	std::string error;
+	int busyOnce = 1;
+	int polls = 0;
+	FakeInstallerServer prospero;
+	prospero.setHandler([&](const std::string &method, const std::string &path, const std::string &body) {
+		std::lock_guard<std::mutex> lock(mutex);
+		if(method == "GET" && path == "/api/pkg/status")
+		{
+			// Handing it over takes a moment.
+			if(phase == "installing" && ++polls >= 2)
+				phase = error.empty() ? "queued" : "error";
+			return std::make_pair(200, R"({"phase":")" + phase + R"(","loaded":0,"total":0,"error":")" + error + "\"}");
+		}
+		if(method == "POST" && path == "/api/pkg/install")
+		{
+			if(busyOnce-- > 0)
+				return std::make_pair(409, std::string(R"({"error":"a PKG install is already in progress"})"));
+			const Json request = Json::parse(body);
+			if(request["path"].toString().empty() && request["url"].toString().empty())
+				return std::make_pair(400, std::string(R"({"error":"missing 'path' or 'url'"})"));
+			phase = "installing";
+			polls = 0;
+			return std::make_pair(200, std::string(R"({"ok":true,"started":true})"));
+		}
+		return std::make_pair(404, std::string(R"({"error":"not found"})"));
+	});
+	CHECK(prospero.start());
+
+	RpiClient::Config config;
+	config.host = "127.0.0.1";
+	config.port = closedPort(); // no DPI v2 there
+	config.prosperoPort = prospero.port();
+	config.timeoutMs = 2000;
+	config.maxAttempts = 1;
+	config.prosperoWaitMs = 10000;
+	config.ps5 = true;
+	RpiClient client(config);
+
+	std::string detail;
+	CHECK(client.probe(&detail));
+	CHECK(detail.find("Prospero Manager") != std::string::npos);
+
+	InstallTaskHandle handle;
+	const InstallerResult started = client.installDirect({ "/data/pkg/My Game.pkg" }, &handle);
+	CHECK(started.ok);
+	CHECK_EQ(handle.taskId, -1);
+	CHECK(!client.followsTasks());
+	CHECK_EQ(prospero.lastPath(), std::string("/api/pkg/install"));
+	CHECK_EQ(Json::parse(prospero.lastBody())["path"].toString(), std::string("/data/pkg/My Game.pkg"));
+
+	// What the console refuses comes back with its code.
+	{
+		std::lock_guard<std::mutex> lock(mutex);
+		error = "the PKG service could not queue the install (error:install:0x80990015)";
+	}
+	const InstallerResult refused = client.installDirect({ "http://192.0.2.1:8765/x.pkg" }, &handle);
+	CHECK(!refused.ok);
+	CHECK_EQ(refused.errorCode, kBgftTaskDuplicated);
+	CHECK_EQ(Json::parse(prospero.lastBody())["url"].toString(), std::string("http://192.0.2.1:8765/x.pkg"));
+
+	// What it does not do is said at once.
+	bool exists = true;
+	CHECK(!client.isExists("PPSA00001", &exists, nullptr).ok);
+
+	// Gone: said so, and looked for again next time.
+	prospero.stop();
+	CHECK(!client.probe(&detail));
+	CHECK(!client.installDirect({ "/data/pkg/My Game.pkg" }, &handle).ok);
+}
+
+ORBISLINK_TEST(a_ps5_with_the_json_api_keeps_it)
+{
+	FakeInstallerServer server;
+	CHECK(server.start());
+	server.setResponse(R"({ "status": "success", "task_id": 0x2A, "title": "Game" })");
+
+	RpiClient::Config config;
+	config.host = "127.0.0.1";
+	config.port = server.port();
+	config.timeoutMs = 2000;
+	config.maxAttempts = 1;
+	config.ps5 = true;
+	RpiClient client(config);
+	InstallTaskHandle handle;
+	CHECK(client.installDirect({ "/data/pkg/game.pkg" }, &handle).ok);
+	CHECK_EQ(handle.taskId, 42);
+	CHECK(client.followsTasks());
+	CHECK_EQ(server.lastPath(), std::string("/api/install"));
 	server.stop();
 }
 

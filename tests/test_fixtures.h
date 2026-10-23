@@ -37,15 +37,19 @@ inline void putBE64(std::vector<uint8_t> &buffer, size_t offset, uint64_t value)
 		buffer[offset + i] = static_cast<uint8_t>((value >> (8 * (7 - i))) & 0xFF);
 }
 
-// PARAM.SFO with string-type entries (format 0x0204).
-inline std::vector<uint8_t> buildSfo(const std::vector<std::pair<std::string, std::string>> &entries)
+// PARAM.SFO with string-type entries (format 0x0204) and, after them,
+// integer ones (format 0x0404).
+inline std::vector<uint8_t> buildSfo(const std::vector<std::pair<std::string, std::string>> &entries,
+	const std::vector<std::pair<std::string, uint32_t>> &ints = {})
 {
+	const size_t count = entries.size() + ints.size();
 	const size_t headerSize = 0x14;
-	const size_t indexSize = entries.size() * 0x10;
+	const size_t indexSize = count * 0x10;
 
 	std::vector<uint8_t> keyTable;
 	std::vector<uint8_t> valueTable;
 	std::vector<uint32_t> keyOffsets, valueOffsets, valueSizes;
+	std::vector<uint16_t> formats;
 
 	for(const auto &entry : entries)
 	{
@@ -57,6 +61,19 @@ inline std::vector<uint8_t> buildSfo(const std::vector<std::pair<std::string, st
 		valueTable.insert(valueTable.end(), entry.second.begin(), entry.second.end());
 		valueTable.push_back(0);
 		valueSizes.push_back(static_cast<uint32_t>(entry.second.size() + 1));
+		formats.push_back(0x0204); // NUL-terminated string
+	}
+	for(const auto &entry : ints)
+	{
+		keyOffsets.push_back(static_cast<uint32_t>(keyTable.size()));
+		keyTable.insert(keyTable.end(), entry.first.begin(), entry.first.end());
+		keyTable.push_back(0);
+
+		valueOffsets.push_back(static_cast<uint32_t>(valueTable.size()));
+		for(int shift = 0; shift < 32; shift += 8)
+			valueTable.push_back(static_cast<uint8_t>(entry.second >> shift));
+		valueSizes.push_back(4);
+		formats.push_back(0x0404); // 32-bit integer
 	}
 	while(keyTable.size() % 4 != 0)
 		keyTable.push_back(0);
@@ -72,13 +89,13 @@ inline std::vector<uint8_t> buildSfo(const std::vector<std::pair<std::string, st
 	putLE32(sfo, 0x04, 0x00000101);
 	putLE32(sfo, 0x08, static_cast<uint32_t>(keyTableOffset));
 	putLE32(sfo, 0x0C, static_cast<uint32_t>(valueTableOffset));
-	putLE32(sfo, 0x10, static_cast<uint32_t>(entries.size()));
+	putLE32(sfo, 0x10, static_cast<uint32_t>(count));
 
-	for(size_t i = 0; i < entries.size(); ++i)
+	for(size_t i = 0; i < count; ++i)
 	{
 		const size_t base = headerSize + i * 0x10;
 		putLE16(sfo, base + 0x00, static_cast<uint16_t>(keyOffsets[i]));
-		putLE16(sfo, base + 0x02, 0x0204); // NUL-terminated string
+		putLE16(sfo, base + 0x02, formats[i]);
 		putLE32(sfo, base + 0x04, valueSizes[i]);
 		putLE32(sfo, base + 0x08, valueSizes[i]);
 		putLE32(sfo, base + 0x0C, valueOffsets[i]);
@@ -93,6 +110,7 @@ struct PkgOptions
 	std::string contentId = "UP0001-CUSA12345_00-ORBISLINKTEST001";
 	uint32_t contentType = 0x1A; // GD
 	uint32_t contentFlags = 0;
+	uint32_t pkgType = 0; // the header's field at 0x04
 	bool includeSfo = true;
 	bool includeIcon = true;
 	bool validMagic = true;
@@ -104,12 +122,13 @@ struct PkgOptions
 		{ "TITLE_ID", "CUSA12345" },
 		{ "VERSION", "01.00" },
 	};
+	std::vector<std::pair<std::string, uint32_t>> sfoInts;
 };
 
 // Generates a minimal but structurally correct .pkg.
 inline std::vector<uint8_t> buildPkg(const PkgOptions &options)
 {
-	const std::vector<uint8_t> sfo = options.includeSfo ? buildSfo(options.sfoEntries)
+	const std::vector<uint8_t> sfo = options.includeSfo ? buildSfo(options.sfoEntries, options.sfoInts)
 													   : std::vector<uint8_t>();
 	// A 1x1 PNG is enough for the test (it only checks that the bytes match).
 	const std::vector<uint8_t> icon = { 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0x01, 0x02 };
@@ -144,6 +163,7 @@ inline std::vector<uint8_t> buildPkg(const PkgOptions &options)
 	putBE32(pkg, 0x18, static_cast<uint32_t>(tableOffset));
 	for(size_t i = 0; i < options.contentId.size() && i < 0x24; ++i)
 		pkg[0x40 + i] = static_cast<uint8_t>(options.contentId[i]);
+	putBE32(pkg, 0x04, options.pkgType);
 	putBE32(pkg, 0x74, options.contentType);
 	putBE32(pkg, 0x78, options.contentFlags);
 

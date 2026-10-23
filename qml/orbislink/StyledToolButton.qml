@@ -14,6 +14,8 @@ ToolButton {
     property bool active: false
     property string iconName: ""
     property real iconSize: 18
+    // The icon turns: something it started is under way.
+    property bool spinning: false
 
     implicitWidth: 36
     implicitHeight: 36
@@ -49,6 +51,7 @@ ToolButton {
             name: button.iconName
             size: button.iconSize
             color: button.tone
+            spinning: button.spinning
         }
         Text {
             anchors.centerIn: parent

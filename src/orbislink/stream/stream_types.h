@@ -37,6 +37,10 @@ struct StreamCredentials
 	bool valid = false;
 	std::string nickname;
 	std::string hostId;       // MAC in hexadecimal, to match with discovery
+	// The PSN Account ID (base64) this registration was made with: each
+	// account registers on its own, and a session uses that account's.
+	// Empty for registrations made before accounts were told apart.
+	std::string accountId;
 	std::string registKey;    // rp_regist_key, texto
 	std::string rpKeyHex;     // rp_key (16 bytes) in hexadecimal
 	uint32_t rpKeyType = 0;
