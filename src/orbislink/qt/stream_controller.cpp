@@ -291,9 +291,11 @@ void StreamController::applySettings(const Settings &settings)
 	// Registrations made before each account had its own belong to the
 	// account the console registered with (the one stored with it).
 	consoleHostIds_.clear();
+	consolePins_.clear();
 	for(const ConsoleEntry &console : settings.consoles)
 	{
 		consoleHostIds_[console.address] = console.hostId;
+		consolePins_[console.address] = console.remotePlayPin;
 		if(!console.hostId.empty() && !console.accountId.empty())
 			store_.adopt(console.hostId, console.accountId);
 	}
@@ -457,13 +459,18 @@ void StreamController::useAccount(const QString &accountId)
 
 void StreamController::answerLoginPin(bool incorrect)
 {
-	// Only this account's PIN, and only once: a PIN the console refused is
-	// not sent again, and another account's is never tried.
-	const QString pin = accountPin(accountId_);
+	// The console's own passcode, or else this account's — and only once: a
+	// PIN the console refused is not sent again, and another account's is
+	// never tried.
+	const auto own = consolePins_.find(address_.toStdString());
+	const bool consoleHasPin = own != consolePins_.end() && own->second.size() == 4;
+	const QString pin = consoleHasPin ? QString::fromStdString(own->second) : accountPin(accountId_);
 	if(!incorrect && !loginPinSent_ && pin.length() == 4)
 	{
 		loginPinSent_ = true;
-		logInfo("Remote Play: the console asked for the account's PIN; sending the one saved for this account.");
+		logInfo(consoleHasPin
+			? "Remote Play: the console asked for its PIN; sending the one saved for this console."
+			: "Remote Play: the console asked for the account's PIN; sending the one saved for this account.");
 		session_->setLoginPin(pin.toStdString());
 		return;
 	}

@@ -47,6 +47,10 @@ struct ConsoleEntry
 	// and the installer alongside) or "ftp" (only the file browser, as an
 	// alternative to FileZilla). Empty means "remoteplay".
 	std::string startMode;
+	// The 4-digit Remote Play passcode this console asks for while
+	// connecting. It belongs to the console: the same account can have a
+	// different one on each. Empty: the account's own PIN, if it has one.
+	std::string remotePlayPin;
 };
 
 // A place on the games page's shelf: a folder of this PC (a drive's root
@@ -87,7 +91,8 @@ struct SavedAccount
 	std::string accountId;
 	// This account's Remote Play PIN, only ever used for this account: four
 	// digits are its passcode, answered when the console asks for it while
-	// connecting; eight are the pairing PIN, filled in when registering it.
+	// connecting (unless the console has its own, ConsoleEntry); eight are
+	// the pairing PIN, filled in when registering it.
 	std::string remotePlayPin;
 };
 

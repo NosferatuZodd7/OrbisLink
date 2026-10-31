@@ -147,9 +147,10 @@ saved, connecting first asks which one; with one, that one is used. Each account
 console and its own Remote Play PIN — a session never uses another
 account's. An account not registered on the console yet goes to
 registration first, with its own 8-digit PIN filled in when it has one
-saved. When the console asks for the account's passcode while connecting,
-the 4-digit PIN saved for that account is sent once; if it has none, or the
-console refuses it, the PIN is asked for.
+saved. When the console asks for the passcode while connecting, the console's own
+4-digit Remote Play PIN (Settings → Consoles → Edit) is sent once — or, when
+the console has none, the one saved for the account; if there is neither, or
+the console refuses it, the PIN is asked for.
 
 **Add console**: name, IP and type; it is probed straight away. Its
 **On the network** list searches as it opens (and with **Search again**): the

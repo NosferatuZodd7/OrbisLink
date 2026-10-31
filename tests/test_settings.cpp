@@ -313,6 +313,35 @@ ORBISLINK_TEST(each_account_keeps_its_own_remote_play_pin)
 	CHECK(redacted.find("\"1234\"") == std::string::npos);
 }
 
+// Each console keeps its own Remote Play passcode: saved with it, read back,
+// left out when it has none, and never in a diagnostics report.
+ORBISLINK_TEST(each_console_keeps_its_own_remote_play_pin)
+{
+	Settings settings;
+	ConsoleEntry living;
+	living.name = "Living room PS4";
+	living.address = "192.0.2.10";
+	living.remotePlayPin = "2468";
+	ConsoleEntry bedroom;
+	bedroom.name = "Bedroom PS5";
+	bedroom.address = "192.0.2.11";
+	settings.consoleAddress = living.address;
+	settings.consoles = { living, bedroom };
+
+	const std::string json = settings.toJson();
+	Settings reloaded = Settings::fromJson(json);
+	CHECK_EQ(reloaded.consoles.size(), size_t(2));
+	CHECK_EQ(reloaded.consoles[0].remotePlayPin, std::string("2468"));
+	CHECK(reloaded.consoles[1].remotePlayPin.empty());
+
+	reloaded.consoles[1].remotePlayPin = "1357";
+	const Settings again = Settings::fromJson(reloaded.toJson());
+	CHECK_EQ(again.consoles[0].remotePlayPin, std::string("2468"));
+	CHECK_EQ(again.consoles[1].remotePlayPin, std::string("1357"));
+
+	CHECK(redactSensitive(json).find("2468") == std::string::npos);
+}
+
 ORBISLINK_TEST(theme_colours_presets_and_pad_map_round_trip)
 {
 	Settings settings;
