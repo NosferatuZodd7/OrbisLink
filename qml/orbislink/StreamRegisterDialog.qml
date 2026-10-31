@@ -34,8 +34,13 @@ Dialog {
     }
 
     // The account being registered starts as the one chosen to connect, with
-    // its own saved pairing PIN when it has one (eight digits).
+    // the pairing PIN (eight digits) saved for this console — or, when the
+    // console has none, the one saved for the account.
     function pinOf(accountId) {
+        var consoles = app.consoles
+        for (var c = 0; c < consoles.length; ++c)
+            if (consoles[c].address === app.consoleAddress && consoles[c].remotePlayPin.length === 8)
+                return consoles[c].remotePlayPin
         var accounts = app.accounts
         for (var i = 0; i < accounts.length; ++i)
             if (accounts[i].accountId === accountId)

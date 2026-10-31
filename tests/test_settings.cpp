@@ -334,10 +334,10 @@ ORBISLINK_TEST(each_console_keeps_its_own_remote_play_pin)
 	CHECK_EQ(reloaded.consoles[0].remotePlayPin, std::string("2468"));
 	CHECK(reloaded.consoles[1].remotePlayPin.empty());
 
-	reloaded.consoles[1].remotePlayPin = "1357";
+	reloaded.consoles[1].remotePlayPin = "13572468";
 	const Settings again = Settings::fromJson(reloaded.toJson());
 	CHECK_EQ(again.consoles[0].remotePlayPin, std::string("2468"));
-	CHECK_EQ(again.consoles[1].remotePlayPin, std::string("1357"));
+	CHECK_EQ(again.consoles[1].remotePlayPin, std::string("13572468"));
 
 	CHECK(redactSensitive(json).find("2468") == std::string::npos);
 }

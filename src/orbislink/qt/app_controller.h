@@ -374,9 +374,10 @@ public:
 		const QString &startMode = QString());
 	// Chooses what a click on the console's card starts: "remoteplay" or "ftp".
 	Q_INVOKABLE void setConsoleStartMode(const QString &address, const QString &startMode);
-	// The console's own Remote Play passcode: 4 digits, or empty for none
-	// (then the account's is used). Returns false, with the reason in the
-	// status bar, when it is not 4 digits.
+	// The console's own Remote Play PIN: 8 digits (the pairing PIN it shows,
+	// filled in when registering), 4 (the passcode it asks for when
+	// connecting), or empty for none (then the account's is used). Returns
+	// false, with the reason in the status bar, when it is neither.
 	Q_INVOKABLE bool setConsolePin(const QString &address, const QString &pin);
 	// Opens the file browser on the console in use: the panel shows the
 	// files, in the upload folder, freshly listed.

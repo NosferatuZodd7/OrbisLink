@@ -47,9 +47,9 @@ struct ConsoleEntry
 	// and the installer alongside) or "ftp" (only the file browser, as an
 	// alternative to FileZilla). Empty means "remoteplay".
 	std::string startMode;
-	// The 4-digit Remote Play passcode this console asks for while
-	// connecting. It belongs to the console: the same account can have a
-	// different one on each. Empty: the account's own PIN, if it has one.
+	// This console's own Remote Play PIN: eight digits are the pairing PIN
+	// it shows, filled in when registering this PC; four are the passcode it
+	// asks for while connecting. Empty: the account's own PIN, if it has one.
 	std::string remotePlayPin;
 };
 

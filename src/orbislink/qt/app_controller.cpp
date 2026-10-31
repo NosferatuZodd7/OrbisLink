@@ -553,9 +553,11 @@ bool AppController::setConsolePin(const QString &address, const QString &pin)
 {
 	const std::string trimmedAddress = address.trimmed().toStdString();
 	const std::string digits = trim(pin.toStdString());
-	if(!digits.empty() && (digits.size() != 4 || digits.find_first_not_of("0123456789") != std::string::npos))
+	if(!digits.empty() && ((digits.size() != 4 && digits.size() != 8)
+							  || digits.find_first_not_of("0123456789") != std::string::npos))
 	{
-		setStatusMessage(tr("The console's Remote Play PIN is 4 digits."));
+		setStatusMessage(tr("The console's Remote Play PIN is 8 digits (the one it shows to register this "
+			"PC) or 4 (the passcode it asks for when connecting)."));
 		return false;
 	}
 	for(ConsoleEntry &console : settings_.consoles)

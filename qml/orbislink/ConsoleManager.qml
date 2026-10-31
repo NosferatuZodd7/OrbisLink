@@ -103,7 +103,7 @@ ColumnLayout {
     function saveEdit(oldAddress, name, address, accountId, startMode, pin) {
         var target = address.trim()
         var digits = pin.trim()
-        pinInvalid = digits.length > 0 && !/^[0-9]{4}$/.test(digits)
+        pinInvalid = digits.length > 0 && !/^([0-9]{4}|[0-9]{8})$/.test(digits)
         if (pinInvalid)
             return
         if (!app.updateConsole(oldAddress, name, target))
@@ -399,18 +399,18 @@ ColumnLayout {
                         model: manager.accountChoices.map(function (a) { return a.label })
                     }
 
-                    // The passcode this console asks for when Remote Play
-                    // connects: it is the console's, not shared with the others.
+                    // This console's own PIN, not shared with the others: the
+                    // pairing PIN it shows (8 digits) or its passcode (4).
                     Text { text: qsTr("Remote Play PIN"); color: Theme.textSecondary; font.pixelSize: Theme.fontSmall }
                     StyledField {
                         id: pinEdit
                         Layout.fillWidth: true
                         font.family: Theme.fontMono
                         echoMode: TextInput.Password
-                        maximumLength: 4
+                        maximumLength: 8
                         inputMethodHints: Qt.ImhDigitsOnly
-                        validator: RegularExpressionValidator { regularExpression: /[0-9]{0,4}/ }
-                        placeholderText: qsTr("4 digits — empty: the account's PIN")
+                        validator: RegularExpressionValidator { regularExpression: /[0-9]{0,8}/ }
+                        placeholderText: qsTr("8 or 4 digits — empty: the account's PIN")
                         onTextChanged: manager.pinInvalid = false
                     }
                     Item { implicitWidth: 1 }
@@ -418,9 +418,11 @@ ColumnLayout {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         text: manager.pinInvalid
-                              ? qsTr("The console's Remote Play PIN is 4 digits.")
-                              : qsTr("Only for this console: sent when it asks for the passcode while Remote Play "
-                                     + "connects. Each console keeps its own.")
+                              ? qsTr("The console's Remote Play PIN is 8 digits (the one it shows to "
+                                     + "register this PC) or 4 (the passcode it asks for when connecting).")
+                              : qsTr("Only for this console. 8 digits: the PIN it shows to register this PC, "
+                                     + "filled in when registering. 4 digits: the passcode it asks for while Remote "
+                                     + "Play connects.")
                         color: manager.pinInvalid ? Theme.error : Theme.textSecondary
                         font.pixelSize: 11
                     }
