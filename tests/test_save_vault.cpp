@@ -5,6 +5,7 @@
 #include "test_fixtures.h"
 #include "test_support.h"
 
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -118,6 +119,25 @@ fs::path makeConsole(const fs::path &root)
 	}
 	writeBytes(root / "user/appmeta/CUSA00001/icon0.png", 128, 'g');
 	return home;
+}
+
+// Everything sync() looks at, for a failure on a machine that is not at hand.
+void describe(const std::vector<SaveInfo> &saves, const std::string &dir)
+{
+	for(const SaveInfo &save : saves)
+	{
+		if(save.dir != dir)
+			continue;
+		std::fprintf(stderr, "        %s: psid %s account %s console %d vault %d usb %d sync %d users %zu copies %zu\n",
+			save.dir.c_str(), save.psid.c_str(), save.account.c_str(), save.onConsole, save.inVault, save.onUsb,
+			static_cast<int>(save.sync()), save.users.size(), save.copies.size());
+		for(const SaveFile &file : save.consoleFiles)
+			std::fprintf(stderr, "          console %s %lld [%s]\n", file.relative.c_str(),
+				static_cast<long long>(file.size), file.modified.c_str());
+		for(const SaveFile &file : save.vaultFiles)
+			std::fprintf(stderr, "          vault   %s %lld [%s]\n", file.relative.c_str(),
+				static_cast<long long>(file.size), file.modified.c_str());
+	}
 }
 
 const SaveInfo *find(const std::vector<SaveInfo> &saves, const std::string &dir)
@@ -520,8 +540,11 @@ ORBISLINK_TEST(saves_copied_from_a_usb_drive_are_read)
 	writeBytes(f.home / "savedata/CUSA36843/sdimg_PREBOOT.SAV", 3000, 'p');
 	writeBytes(f.home / "savedata/CUSA36843/PREBOOT.SAV.bin", 96, 'k');
 	std::string error;
-	const SaveInfo *both = find(vault.scan(console, &error), "PREBOOT.SAV");
+	const std::vector<SaveInfo> scanned = vault.scan(console, &error);
+	const SaveInfo *both = find(scanned, "PREBOOT.SAV");
 	CHECK(both != nullptr);
+	if(both->sync() != SaveSync::Same)
+		describe(scanned, "PREBOOT.SAV");
 	CHECK(both->sync() == SaveSync::Same);
 }
 
