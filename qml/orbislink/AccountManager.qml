@@ -310,8 +310,9 @@ ColumnLayout {
                            ? Theme.error : Theme.textSecondary
                     font.pixelSize: Theme.fontCaption
                     text: qsTr("4 digits: the account's passcode, sent when the console asks for it "
-                               + "while connecting. 8 digits: the pairing PIN, filled in when this "
-                               + "account registers (the console shows a new one each time).")
+                               + "while connecting — unless that console has its own PIN (Consoles → "
+                               + "Edit). 8 digits: the pairing PIN, filled in when this account registers "
+                               + "(the console shows a new one each time).")
                 }
             }
 

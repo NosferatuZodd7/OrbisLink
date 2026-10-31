@@ -97,13 +97,21 @@ ColumnLayout {
                             : app.ftpReachable[entry.address] === true
     }
 
-    function saveEdit(oldAddress, name, address, accountId, startMode) {
+    // The PIN is checked before anything is saved, so a mistyped one never
+    // leaves the console half edited.
+    property bool pinInvalid: false
+    function saveEdit(oldAddress, name, address, accountId, startMode, pin) {
         var target = address.trim()
+        var digits = pin.trim()
+        pinInvalid = digits.length > 0 && !/^[0-9]{4}$/.test(digits)
+        if (pinInvalid)
+            return
         if (!app.updateConsole(oldAddress, name, target))
             return
         editing = ""
         app.setConsoleAccount(target, accountId)
         app.setConsoleStartMode(target, startMode)
+        app.setConsolePin(target, digits)
     }
 
     function confirmForget(key, hostId) {
@@ -326,6 +334,8 @@ ColumnLayout {
                             accountBox.currentIndex = manager.accountIndex(row.modelData.accountId)
                             startBox.currentIndex = row.modelData.startMode === "ftp"
                                                     && manager.ftpOk(row.modelData) ? 1 : 0
+                            pinEdit.text = row.modelData.remotePlayPin || ""
+                            manager.pinInvalid = false
                             manager.editing = row.modelData.address
                         }
                     }
@@ -389,6 +399,32 @@ ColumnLayout {
                         model: manager.accountChoices.map(function (a) { return a.label })
                     }
 
+                    // The passcode this console asks for when Remote Play
+                    // connects: it is the console's, not shared with the others.
+                    Text { text: qsTr("Remote Play PIN"); color: Theme.textSecondary; font.pixelSize: Theme.fontSmall }
+                    StyledField {
+                        id: pinEdit
+                        Layout.fillWidth: true
+                        font.family: Theme.fontMono
+                        echoMode: TextInput.Password
+                        maximumLength: 4
+                        inputMethodHints: Qt.ImhDigitsOnly
+                        validator: RegularExpressionValidator { regularExpression: /[0-9]{0,4}/ }
+                        placeholderText: qsTr("4 digits — empty: the account's PIN")
+                        onTextChanged: manager.pinInvalid = false
+                    }
+                    Item { implicitWidth: 1 }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        text: manager.pinInvalid
+                              ? qsTr("The console's Remote Play PIN is 4 digits.")
+                              : qsTr("Only for this console: sent when it asks for the passcode while Remote Play "
+                                     + "connects. Each console keeps its own.")
+                        color: manager.pinInvalid ? Theme.error : Theme.textSecondary
+                        font.pixelSize: 11
+                    }
+
                     // What a click on the console's card starts.
                     Text { text: qsTr("Start with"); color: Theme.textSecondary; font.pixelSize: Theme.fontSmall }
                     StyledCombo {
@@ -429,7 +465,8 @@ ColumnLayout {
                                 manager.accountChoices[accountBox.currentIndex].accountId,
                                 // Locked: what was chosen before stays stored, for when FTP appears.
                                 startBox.enabled ? (startBox.currentIndex === 1 ? "ftp" : "remoteplay")
-                                                 : row.modelData.startMode)
+                                                 : row.modelData.startMode,
+                                pinEdit.text)
                         }
                     }
                 }

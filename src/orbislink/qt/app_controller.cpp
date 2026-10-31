@@ -290,6 +290,7 @@ QVariantList AppController::consoles() const
 		input[QStringLiteral("startMode")] = console.startMode == "ftp"
 			? QStringLiteral("ftp") : QStringLiteral("remoteplay");
 		input[QStringLiteral("accountId")] = QString::fromStdString(console.accountId);
+		input[QStringLiteral("remotePlayPin")] = QString::fromStdString(console.remotePlayPin);
 		QString accountLabel;
 		for(const SavedAccount &account : settings_.accounts)
 			if(account.accountId == console.accountId)
@@ -546,6 +547,30 @@ void AppController::setConsoleStartMode(const QString &address, const QString &s
 		emit settingsChanged();
 		return;
 	}
+}
+
+bool AppController::setConsolePin(const QString &address, const QString &pin)
+{
+	const std::string trimmedAddress = address.trimmed().toStdString();
+	const std::string digits = trim(pin.toStdString());
+	if(!digits.empty() && (digits.size() != 4 || digits.find_first_not_of("0123456789") != std::string::npos))
+	{
+		setStatusMessage(tr("The console's Remote Play PIN is 4 digits."));
+		return false;
+	}
+	for(ConsoleEntry &console : settings_.consoles)
+	{
+		if(console.address != trimmedAddress)
+			continue;
+		if(console.remotePlayPin != digits)
+		{
+			console.remotePlayPin = digits;
+			store_.save(settings_);
+			emit settingsChanged();
+		}
+		return true;
+	}
+	return false;
 }
 
 // GoldHEN keeps /data/GoldHEN and etaHEN /data/etaHEN; anything else with

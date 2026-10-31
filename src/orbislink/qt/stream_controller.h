@@ -333,6 +333,8 @@ private:
 	// Saved accounts: base64 → name and PIN, from the settings.
 	std::map<std::string, std::string> accountNames_;
 	std::map<std::string, std::string> accountPins_;
+	// Each console's own passcode, by address (empty: none of its own).
+	std::map<std::string, std::string> consolePins_;
 	// The host-id each saved console last reported, by address: which
 	// accounts are registered on a console is known before it answers.
 	std::map<std::string, std::string> consoleHostIds_;
