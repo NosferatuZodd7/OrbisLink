@@ -2,8 +2,9 @@
 //
 // The application's button.
 //
-// Four kinds: primary (solid accent, one per screen at most), secondary (the
-// default: a quiet fill with a thin border), danger (soft red) and chip (a
+// Four kinds, all round-ended: primary (solid accent, one per screen at
+// most), secondary (the default: drawn in outline, filled on hover), danger
+// (red outline; solid for the one action that must stand out) and chip (a
 // smaller secondary). An optional line icon sits before the text.
 import QtQuick
 import QtQuick.Controls.Basic
@@ -27,7 +28,7 @@ Button {
     // Icon and text, or the icon alone when there is no text.
     readonly property real iconSpace: iconName.length > 0 ? (chip ? 14 : 16) + (text.length > 0 ? 8 : 0) : 0
     implicitWidth: Math.max(minimumWidth, keyLabel.implicitWidth + iconSpace + leftPadding + rightPadding)
-    implicitHeight: chip ? 30 : Theme.controlHeight
+    implicitHeight: chip ? 28 : Theme.controlHeight
     // Side padding only: 20 above plus 20 below would not fit in the height.
     leftPadding: chip ? 12 : 18
     rightPadding: chip ? 12 : 18
@@ -41,24 +42,24 @@ Button {
 
     readonly property color backgroundColor: {
         if (!enabled)
-            return primary ? Theme.alpha(Theme.accent, 0.35) : Theme.controlFill
+            return primary ? Theme.alpha(Theme.accent, 0.35) : "transparent"
         if (primary)
             return down ? Qt.darker(Theme.accent, 1.12) : hovered ? Theme.accentHover : Theme.accent
         if (danger && solid)
             return down ? Qt.darker(Theme.error, 1.12) : hovered ? Qt.lighter(Theme.error, 1.08) : Theme.error
         if (danger)
-            return Theme.alpha(Theme.error, hovered ? 0.22 : 0.13)
-        return hovered ? Theme.controlHover : Theme.controlFill
+            return Theme.alpha(Theme.error, down ? 0.22 : hovered ? 0.14 : 0.0)
+        return down ? Theme.controlHover : hovered ? Theme.controlFill : "transparent"
     }
 
     readonly property color textColor: {
         if (!enabled)
-            return primary ? Theme.alpha(Theme.textOnAccent, 0.7) : Theme.textSecondary
+            return primary ? Theme.alpha(Theme.textOnAccent, 0.7) : Theme.alpha(Theme.textSecondary, 0.7)
         if (primary || (danger && solid))
             return Theme.textOnAccent
         if (danger)
             return Theme.error
-        return Theme.text
+        return Theme.ink
     }
 
     // The hand over anything that can be clicked.
@@ -68,37 +69,28 @@ Button {
 
     readonly property color hoverTone: danger ? Theme.error : Theme.accent
 
+    // Round-ended: the primary one solid, the others drawn in outline, as
+    // an engraver would — a line, not a block.
     background: Rectangle {
-        radius: Theme.radiusControl
+        radius: height / 2
         color: button.backgroundColor
         border.width: button.primary || button.solid ? 0 : 1
-        // On hover the edge takes the button's colour: a clear "this one".
-        border.color: button.hovered && button.enabled ? Theme.alpha(button.hoverTone, 0.6)
-                    : button.danger ? Theme.alpha(Theme.error, 0.28) : Theme.glassEdge
+        border.color: !button.enabled ? Theme.alpha(Theme.glassEdge, 0.6)
+                    : button.danger ? Theme.alpha(Theme.error, button.hovered ? 0.75 : 0.45)
+                    : button.hovered ? Theme.alpha(Theme.ink, Theme.light ? 0.55 : 0.45)
+                    : Theme.alpha(Theme.ink, Theme.light ? 0.30 : 0.22)
         Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
         Behavior on border.color { ColorAnimation { duration: Theme.fast } }
 
-        // A soft halo around it while the mouse is over it.
+        // Keyboard focus: a ring in the accent, a little outside.
         Rectangle {
             anchors.fill: parent
             anchors.margins: -3
-            radius: parent.radius + 3
+            radius: height / 2
             color: "transparent"
-            border.width: 3
-            border.color: Theme.alpha(button.hoverTone, button.primary || button.solid ? 0.28 : 0.16)
-            opacity: button.hovered && button.enabled ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: Theme.fast } }
-        }
-
-        // A faint light from above, only on the primary one.
-        Rectangle {
-            anchors.fill: parent
-            radius: parent.radius
-            visible: button.primary && button.enabled
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.14) }
-                GradientStop { position: 1.0; color: "transparent" }
-            }
+            border.width: 2
+            border.color: Theme.alpha(button.hoverTone, 0.55)
+            visible: button.visualFocus
         }
     }
 

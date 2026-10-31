@@ -97,7 +97,8 @@ Item {
             var ctx = getContext("2d")
             controller.prepareContext(ctx)
             var k = controller.scaleFactor > 0 ? controller.scaleFactor : 1
-            var line = Theme.light ? "#475467" : "#C9D2DE"
+            // In the ink of the page, as the atlas's engravings are.
+            var line = Theme.alpha(Theme.ink, Theme.light ? 0.85 : 0.8)
             var y0 = controller.shoulderHeight
             ctx.lineJoin = "round"
             ctx.lineCap = "round"
@@ -231,8 +232,8 @@ Item {
                 ["l2", "L2", 215, 0], ["l1", "L1", 185, 100],
                 ["r2", "R2", 1195, 0], ["r1", "R1", 1165, 100]
             ]
-            var neutral = Theme.light ? "#2B2A29" : "#D4D5D6"
-            ctx.font = "bold 62px sans-serif"
+            var neutral = Theme.ink
+            ctx.font = "bold 62px \"" + Theme.fontSans + "\""
             ctx.textAlign = "center"
             ctx.textBaseline = "middle"
             for (var i = 0; i < shoulders.length; ++i) {
@@ -249,7 +250,7 @@ Item {
                     ctx.strokeStyle = neutral
                     ctx.stroke()
                 }
-                ctx.fillStyle = lit ? "#FFFFFF" : neutral
+                ctx.fillStyle = lit ? Theme.textOnAccent : neutral
                 ctx.fillText(o[1], o[2] + span / 2, o[3] + 46)
             }
         }

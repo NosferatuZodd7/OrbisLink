@@ -132,12 +132,18 @@ int main(int argc, char **argv)
 	// from the .rc resource; this is the one the running application shows.
 	app.setWindowIcon(QIcon(QStringLiteral(":/icons/mark.png")));
 	QQuickStyle::setStyle(QStringLiteral("Basic"));
-	// Inter is shipped with the app, so the interface looks the same on every
+	// Figtree is shipped with the app, so the interface looks the same on every
 	// system instead of taking whatever font each one has.
 	for(const char *weight : {"Regular", "Medium", "SemiBold", "Bold"})
-		QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/Inter-%1.ttf").arg(QLatin1String(weight)));
+		QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/Figtree-%1.ttf").arg(QLatin1String(weight)));
+	// Headings use the serif, technical values (addresses, ports, sizes,
+	// paths) the monospace.
+	for(const char *weight : {"Regular", "SemiBold"})
+		QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/Fraunces-%1.ttf").arg(QLatin1String(weight)));
+	for(const char *weight : {"Regular", "Medium"})
+		QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/JetBrainsMono-%1.ttf").arg(QLatin1String(weight)));
 	{
-		QFont uiFont(QStringLiteral("Inter"));
+		QFont uiFont(QStringLiteral("Figtree"));
 		uiFont.setPixelSize(13);
 		uiFont.setHintingPreference(QFont::PreferNoHinting);
 		app.setFont(uiFont);
@@ -165,6 +171,8 @@ int main(int argc, char **argv)
 	bool demoOverlay = false;
 	int demoTab = 0;
 	bool demoSettings = false;
+	// With --demo-settings: the section opened (6 is About), for the screenshots.
+	int demoSettingsSection = 0;
 	bool demoMenu = false;
 	bool demoRegister = false;
 	bool demoKeys = false;
@@ -199,6 +207,11 @@ int main(int argc, char **argv)
 			demoTab = arguments[++i].toInt();
 		else if(argument == QStringLiteral("--demo-settings"))
 			demoSettings = true;
+		else if(argument == QStringLiteral("--demo-settings-section") && i + 1 < arguments.size())
+		{
+			demoSettings = true;
+			demoSettingsSection = arguments[++i].toInt();
+		}
 		else if(argument == QStringLiteral("--demo-menu"))
 			demoMenu = true;
 		else if(argument == QStringLiteral("--demo-register"))
@@ -397,6 +410,7 @@ int main(int argc, char **argv)
 	engine.rootContext()->setContextProperty(QStringLiteral("demoView"), demoView);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoSection"), demoSection);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoSettings"), demoSettings);
+	engine.rootContext()->setContextProperty(QStringLiteral("demoSettingsSection"), demoSettingsSection);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoMenu"), demoMenu);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoRegister"), demoRegister);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoKeys"), demoKeys);
@@ -405,7 +419,12 @@ int main(int argc, char **argv)
 	engine.rootContext()->setContextProperty(QStringLiteral("demoWizard"), demoWizard);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoUpdate"), demoUpdate);
 	engine.rootContext()->setContextProperty(QStringLiteral("demoTheme"), demoTheme);
-	engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
+	// For working on the interface: ORBISLINK_QML_DIR (the qml/orbislink
+	// folder) loads it from there instead of the copy built into the program,
+	// so a change shows on the next start without building again.
+	const QString qmlDir = qEnvironmentVariable("ORBISLINK_QML_DIR");
+	engine.load(qmlDir.isEmpty() ? QUrl(QStringLiteral("qrc:/qml/Main.qml"))
+	                             : QUrl::fromLocalFile(qmlDir + QStringLiteral("/Main.qml")));
 	if(engine.rootObjects().isEmpty())
 	{
 		startup::reportFatal(QStringLiteral("OrbisLink"),

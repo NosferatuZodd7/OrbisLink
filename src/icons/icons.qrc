@@ -3,5 +3,12 @@
     <qresource prefix="/icons">
         <file alias="logo.png">logoorbis.png</file>
         <file alias="mark.png">orbisDDM.png</file>
+        <!-- The planet of the logo, cut round, for the pages' illustrated corners. -->
+        <file>planet.png</file>
+        <!-- The team's mark: indigo ink for the light theme, ivory for the dark. -->
+        <file>team-ink.png</file>
+        <file>team-ivory.png</file>
+        <!-- A speck of paper grain, tiled faintly over the light theme. -->
+        <file>grain.png</file>
     </qresource>
 </RCC>

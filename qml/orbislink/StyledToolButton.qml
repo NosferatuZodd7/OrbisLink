@@ -27,20 +27,21 @@ ToolButton {
     readonly property color tone: !enabled ? Theme.alpha(Theme.textSecondary, 0.5)
                                 : danger ? Theme.error
                                 : active ? Theme.accent
-                                : hovered ? Theme.text : Theme.textSecondary
+                                : hovered ? Theme.ink : Theme.textSecondary
 
     HoverHandler {
         cursorShape: button.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
     }
 
+    // Round, like a button on an instrument; no frame until it is wanted.
     background: Rectangle {
-        radius: 10
+        radius: Math.min(width, height) / 2
         color: button.active ? Theme.accentFill
              : button.down ? Theme.controlHover
              : button.hovered ? Theme.controlFill
              : "transparent"
-        border.width: button.hovered || button.active ? 1 : 0
-        border.color: button.active ? Theme.alpha(Theme.accent, 0.4) : Theme.glassEdge
+        border.width: button.active || button.visualFocus ? 1 : 0
+        border.color: button.visualFocus ? Theme.accent : Theme.alpha(Theme.accent, 0.4)
         Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
     }
 

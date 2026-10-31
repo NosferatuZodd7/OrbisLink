@@ -25,7 +25,7 @@ Its jobs, around one PlayStation at a time — the **console in use**:
 
 | Word | Meaning |
 |---|---|
-| Console in use | The one console every action goes to. Changing it is done from its card, the console chip (top bar) or Settings → Console in use. |
+| Console in use | The one console every action goes to. Changing it is done from its card on the consoles page or Settings → Console in use; the navigation's console card shows it. |
 | Saved consoles | Every console added; one of them is in use. |
 | Jailbreak | GoldHEN, etaHEN or HEN running on the console. Detected when its FTP server answers; shown in **gold**. |
 | FTP | The console's FTP server (jailbreak only). Needed to send files, browse, and to send converted games. |
@@ -33,60 +33,99 @@ Its jobs, around one PlayStation at a time — the **console in use**:
 | Queue | Everything being sent or installed, one at a time, in order. |
 | Classics files | The PS1/PS2 emulator files a converted game needs; downloaded once by the app. |
 
+## The look
+
+The Celestial Archive: an astronomical atlas printed in a woodblock workshop.
+Three themes share the same shapes — **Dark** (the Observatory: midnight navy,
+warm ivory text), **Glass** (the Observatory with translucent panels over the
+sky) and **Light** (the Archive: indigo ink on aged paper, with a faint grain).
+Deep indigo and parchment carry everything; antique brass marks only what is
+chosen or jailbroken; green, amber and red are kept for states. Titles are set
+in Fraunces (a soft old-style serif), everything that is worked with in
+Figtree, and what is copied or compared — addresses, ports, sizes, versions — in JetBrains Mono.
+Engraved rules (two hairlines meeting a small star) divide a page's title from
+its content; the window's background holds a few stars and engraved orbits,
+painted once.
+
 ## The window
 
 ```
-┌ top bar ───────────────────────────────────────────────────────────────────┐
-│ logo  name/IP      [console chip] [🎮 FTP 📦] │ [▶ 💿 🗄] │ ⟳ ▣ 🗎 [☾ ◐ ☀ ✨] ⚙ │
-├────────────────────────────────────────────────────┬───────────────────────┤
-│ stage: consoles · Remote Play · Games · Saves       │ side panel: Queue | Files (FTP) │
-├────────────────────────────────────────────────────┴───────────────────────┤
-│ status line: last message                      Local HTTP: … · version     │
-└────────────────────────────────────────────────────────────────────────────┘
+┌ navigation ──┬ the page, on the sky ────────────────────┬ transfers ────────────┐
+│ OrbisLink    │ EYEBROW                                  │ TRANSFERS             │
+│ CONSOLE      │ Title                          [actions] │ Console in use        │
+│ [console]    │ ─────────────── ✦ ───────────────        │ Queue (n) | Files     │
+│ PAGES        │                                          │                       │
+│ Consoles     │ consoles · Remote Play · Games · Store · │ the queue, or the     │
+│ Games …      │ Saves · Payloads                         │ console's files       │
+│ Transfers    │                                          │                       │
+│ Log          │ status line: last message   Local HTTP · │                       │
+│ ☾ ◐ ☀ ✨  ⚙  │ version                                  │                       │
+└──────────────┴──────────────────────────────────────────┴───────────────────────┘
 ```
 
-## Top bar
+The window is an atlas laid open: a spine on the left with where to go, the
+page in the middle on the painted sky, and a second spine on the right with
+what is being sent. Every page starts the same way: a small brass eyebrow,
+its title, one line of what is true right now, and its own actions on the
+right.
 
-Three groups, apart: what is (the console and its services), where to go
-(the pages) and the tools. Everything is an icon, with its name and what it
-means in the tooltip. In a narrow window the console's name and address on
-the left go (the console chip still shows it); the window cannot be made
-narrower than where the rest fits.
+## Navigation
+
+The left spine, from the top:
 
 | Item | What it shows | Click |
 |---|---|---|
-| Logo, name, IP | The console in use. | — |
-| **Console chip** | See *Console chip* below. | See below. |
-| 🎮 · **FTP** · 📦 | Remote Play, FTP (the word in small bold letters) and the installer, each with a dot at the corner: green available (with a soft ring), amber checking (it breathes), red not answering, grey not applicable. Hover: a small card with the name, the state in its colour and, when something is off, what to do. When FTP is silent on its port, 1337, 2121 and 21 (and 9090 on a PS5) are asked once a minute; if one greets as FTP the app keeps that port and says so in the status line. | — |
-| ▶ | Only while a Remote Play session runs and another page is open. | Back to the picture. |
-| 💿 | Games: the console's library and the PS1/PS2 converter; lit while that page is open. | Opens / closes the games page. |
-| 🏪 | The homebrew store; lit while that page is open (only in builds with the store). | Opens / closes the store. |
-| 🗄 | The save vault; lit while that page is open. | Opens / closes the save vault. |
-| ⚡ | The payload manager; lit while that page is open. | Opens / closes the payloads page. |
-| ⟳ | | Checks the three services now. |
-| ▣ | | Shows / hides the side panel (F9). Locked while full screen. |
-| 🗎 | | Log and diagnostics (Ctrl+L): log, copy, save a diagnostics file. |
+| Emblem | OrbisLink. | — |
+| **Console** card | See *Console card* below. | See below. |
+| **Consoles** (▶ **Remote Play** while a session runs, with a green dot) | The home page: every console, and the picture during a session. | Opens it; during a session, closes the page shown over the picture. |
+| **Games** · **Homebrew store** · **Save vault** · **Payloads** | The pages; the open one is lit, with a brass star. The store only in builds with it. | Opens the page — over the picture while Remote Play plays (the same item again closes it). |
+| **Transfers** | How many cards the queue has. | Shows / hides the transfers (F9). Locked when the console has neither FTP nor the installer and nothing is queued. |
+| **Log and diagnostics** | | Log, copy, save a diagnostics file (Ctrl+L). |
 | ☾ ◐ ☀ ✨ | Only one is lit. | Dark, glass or light: the plain theme (custom colours step aside, kept for ✨). ✨ Custom: the saved look chosen in Settings → Personalisation (or the colours set aside); with none yet, opens that page. |
-| ⚙ | | Settings (Ctrl+,). |
+| ⚙ **Settings** | | Settings (Ctrl+,). |
+| ‹ | | Folds the navigation to its icons (› opens it again). |
 
-### Console chip
+In a window narrower than about 1140 pixels the navigation folds on its own
+to its icons, each with its name on hover; nothing is lost. The ‹ / › button
+decides instead until the app closes.
 
-Left of the services, the console the file actions go to:
+### Console card
+
+At the top of the navigation, the console every action goes to: a round seal
+with its kind (PS4, PS5), its name, its address and firmware (as Remote
+Play's discovery reports it, "9.00"), its jailbreak in brass with its version
+when its FTP greeting gives one ("GoldHEN 2.4b18"), and its three services
+in a word each.
 
 | Situation | Looks like | Click |
 |---|---|---|
-| Console in use answers on FTP (jailbreak) | Its name in **gold**, its firmware (as Remote Play's discovery reports it, "9.00"), the jailbreak's name (GoldHEN, etaHEN, HEN) and its version when its FTP greeting gives one ("GoldHEN 2.4b18"), a glow pulsing slowly. The tooltip says the firmware too, and when the jailbreak does not say its version over the network. Sending and installing work. | Opens the consoles page. |
-| It answers, but only for Remote Play | Its name in the app's blue, pulsing. Remote Play works; sending and installing do not. | Opens the consoles page. |
-| It does not answer | Its name faded, "not connected" ("looking…" while checking). | Looks for it again (checks the services now). |
-| No console saved | Not shown. | — |
+| Console in use answers on FTP (jailbreak) | A brass ring breathing round the seal, a double brass edge, the jailbreak's tag. Sending and installing work. | Opens the consoles page. |
+| It answers, but only for Remote Play | The ring in the accent. Remote Play works; sending and installing do not. | Opens the consoles page. |
+| It does not answer | The card faded, "not connected" ("looking…" while checking). | Looks for it again. |
+| No console saved | "No console yet". | Opens the consoles page. |
+
+Under it, **Remote Play**, **FTP** and **Installer**, each with a dot and
+its state: green available, amber checking (it breathes), red not answering,
+grey not applicable. Hover: a small card with the name, the state in its
+colour and, when something is off, what to do. ⟳ checks the three services
+now. When FTP is silent on its port, 1337, 2121 and 21 (and 9090 on a PS5) are
+asked once a minute; if one greets as FTP the app keeps that port and says so
+in the status line.
 
 Remote Play is not needed for anything but the picture: converting, sending
 and installing only need the console's FTP (and the installer to install).
 
 ## Consoles page (home)
 
-One square card per saved console, plus **Add console**. The cards are
-centred and wrap onto more rows.
+Over the cards, the page's head: **Your consoles** and one line of what is
+true right now — how many consoles are saved, the one in use,
+its jailbreak (and its version when its FTP says it) and its firmware (once
+Remote Play discovery said it); on the right, while there is something in the
+queue, how many jobs and how fast. Nothing in it is guessed.
+
+One card per saved console, plus **Add console**, in a grid that reflows
+with the window. The console in use has a double brass edge; one with a
+jailbreak is warmed in brass.
 
 | On a card | Does |
 |---|---|
@@ -138,7 +177,7 @@ The picture fills the stage. Moving the mouse shows the toolbar:
 | Full screen | Full screen on / off (F11; Esc leaves the session). |
 | **End the session** | Disconnects. |
 
-**Pages over the picture.** While a session is on screen, the top bar's
+**Pages over the picture.** While a session is on screen, the navigation's
 Games, Homebrew store, Save vault and Payloads buttons open their page over
 the picture instead of in place of it, so the game stays in sight: a panel
 sized for the room there is, with a bar on top holding the page's name, an
@@ -156,12 +195,13 @@ Remote Play. While the console shows one, the picture stays dark with a
 notice saying so; the session carries on, and the picture comes back once
 the console goes back to a game or the home screen (PS button).
 
-## Side panel
+## Transfers
 
 ### Queue tab
 
-The tabs (Queue, Files) only show while there is a card: with none, the side
-panel is the Files tab alone.
+The right spine. The tabs (Queue, Files) only show while there is a card:
+with none, the transfers are the Files tab alone. Hidden while jobs run,
+they leave a narrow column with each job's progress; a click brings them back.
 
 Every job is a card — whatever it is: a send or install, a conversion, a copy
 to this PC, a store install, a library job — in three groups, each named on
@@ -533,7 +573,7 @@ A game's buttons:
 | Payload | **Run on the console** (sent from this PC to its loader). | **Run**, **Delete…**. |
 
 Nothing is installed, sent or run by itself: only these buttons do. Every
-install, conversion and job shows in the side panel's Queue tab.
+install, conversion and job shows in the transfers' Queue tab.
 
 Changes are followed: a folder of this PC open, and each place's top
 folder, are watched, and read again when something is added or taken away;
@@ -840,8 +880,16 @@ only if its SHA-256 matches the list.
 | Account IDs (PSID) | PSN accounts for Remote Play: name, Account ID and its own **Remote Play PIN** (optional: 4 digits, the account's passcode, sent when the console asks for it; 8 digits, the pairing PIN, filled in when the account registers — the console shows a new one each time). Each row says which consoles the account is registered on. Editing one account's PIN never changes another's. |
 | Console in use | Which console; FTP port, user, upload folder, connections, advanced mode (protected system folders); installer port and install options; local HTTP server. While the address is typed the console is checked; when FTP answers on another port than the typed one, a line says which, with **Use port N**. |
 | Remote Play | Resolution, frame rate, bitrate, hardware decoding, rumble, touchpad from the mouse, full screen on connect. |
-| Personalisation | The app's colours, on top of the theme picked in the top bar: accent, jailbreak (GoldHEN gold), available, checking, error, window background, panels, text. A click on a colour opens a picker (square, hue strip, hex code, suggestions); ↺ puts the theme's colour back. **Saved looks**: give the theme and colours in use a name to keep them; **Apply** brings one back (it is then the one ✨ in the top bar brings), 🗑 deletes it. Changes show at once. |
+| Personalisation | The app's colours, on top of the theme picked at the foot of the navigation: accent, jailbreak (GoldHEN gold), available, checking, error, window background, panels, text. A click on a colour opens a picker (square, hue strip, hex code, suggestions); ↺ puts the theme's colour back. **Saved looks**: give the theme and colours in use a name to keep them; **Apply** brings one back (it is then the one ✨ in the navigation brings), 🗑 deletes it. Changes show at once. |
 | General | Language, theme, updates (channel: stable or testing), advanced options. |
+
+Under the sections, **Update check** looks for a new version now, and
+**About OrbisLink** opens the About section in the same window: the app's
+emblem, its version, the update channel and the licence (AGPL-3.0-or-later);
+**Check for updates**, and — in the builds made by CI, which know their
+repository — **Source code** and **Releases**; **Made by**: the team's mark
+(indigo on the light theme, ivory on the dark ones) and Claude, side by side;
+then the work OrbisLink stands on, each with its licence.
 
 ## What needs what
 
@@ -875,7 +923,9 @@ only if its SHA-256 matches the list.
 
 | Area | Files |
 |---|---|
-| Window, top bar, side panel, drop handling | `qml/orbislink/Main.qml` |
+| Window, transfers, drop handling | `qml/orbislink/Main.qml` |
+| Navigation and its console card | `qml/orbislink/SideNav.qml`, `ConsoleChip.qml` |
+| Shared pieces: page head, plate, tag, eyebrow, star | `PageHeader.qml`, `Plate.qml`, `Tag.qml`, `Eyebrow.qml`, `Sparkle.qml` |
 | Consoles page, Remote Play stage, keyboard map dialog | `StreamArea.qml`, `ConsoleCard.qml`, `AddConsoleCard.qml`, `KeyboardMap.qml` |
 | Queue and conversion cards | `TransferPanel.qml`, `JobCard.qml` (store and library cards), `StageLoader.qml` |
 | Files tab | `FtpBrowser.qml`, `FtpFolderPicker.qml` |

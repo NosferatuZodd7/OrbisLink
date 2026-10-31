@@ -15,7 +15,7 @@ import QtQuick.Layouts
 
 ColumnLayout {
     id: manager
-    spacing: 8
+    spacing: 10
 
     readonly property bool hasStream: typeof stream !== "undefined" && stream !== null
     readonly property var registrations: hasStream ? stream.registrations : []
@@ -140,15 +140,14 @@ ColumnLayout {
         onTriggered: { manager.confirming = ""; manager.confirmingAction = "" }
     }
 
-    RowLayout {
-        Layout.fillWidth: true
-        Text {
-            Layout.fillWidth: true
-            text: qsTr("Consoles")
-            color: Theme.text
-            font.pixelSize: Theme.fontTitle
-            font.weight: Font.DemiBold
-        }
+    PageHeader {
+        // Room on the right for the settings dialog's round ✕.
+        Layout.rightMargin: 40
+        Layout.bottomMargin: 8
+        eyebrow: qsTr("Network")
+        title: qsTr("Consoles")
+        subtitle: qsTr("Every console saved on this PC. The one in use is the one FTP, the installer and "
+                       + "Remote Play talk to; its ports are edited below.")
         StyledButton {
             text: qsTr("Add console…")
             primary: true
@@ -159,52 +158,43 @@ ColumnLayout {
     }
 
     // While a session runs, say why the console in use cannot change.
-    Rectangle {
+    Plate {
         visible: manager.sessionActive
         Layout.fillWidth: true
-        implicitHeight: lockRow.implicitHeight + 20
-        radius: 12
-        color: Theme.alpha(Theme.warn, 0.12)
-        border.color: Theme.alpha(Theme.warn, 0.35)
-        Row {
+        implicitHeight: lockRow.implicitHeight + 24
+        radius: Theme.radiusSmall
+        color: Theme.alpha(Theme.warn, 0.10)
+        border.color: Theme.alpha(Theme.warn, 0.40)
+        RowLayout {
             id: lockRow
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: 12
-            anchors.rightMargin: 12
+            anchors.leftMargin: 16
+            anchors.rightMargin: 16
             spacing: 10
             Icon {
-                anchors.verticalCenter: parent.verticalCenter
                 name: "info"
                 size: 16
-                color: Theme.warn
+                color: Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn
             }
             Text {
-                anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - 26
+                Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 text: qsTr("A Remote Play session is running. The console in use cannot be switched, "
                            + "edited or removed until it ends.")
                 color: Theme.text
-                font.pixelSize: 12
+                font.pixelSize: Theme.fontSmall
             }
         }
-    }
-
-    Text {
-        Layout.fillWidth: true
-        text: qsTr("Every console saved on this PC. The one in use is the one FTP, the installer and "
-                   + "Remote Play talk to; its ports are edited below.")
-        color: Theme.textMuted
-        font.pixelSize: 11
-        wrapMode: Text.WordWrap
     }
 
     Repeater {
         model: app.consoles
 
-        delegate: Rectangle {
+        // One plate per console; the one in use is edged in the accent, and a
+        // console that answers on FTP (a jailbreak) takes the brass of its card.
+        delegate: Plate {
             id: row
             required property var modelData
             readonly property bool isEditing: manager.editing === modelData.address
@@ -213,90 +203,69 @@ ColumnLayout {
                 : modelData.type === "ps4" ? "PS4" : "?"
 
             Layout.fillWidth: true
-            implicitHeight: content.implicitHeight + 28
-            radius: 16
-            // Green tone for a console that answers on FTP, as on its card.
+            implicitHeight: content.implicitHeight + 32
             readonly property bool ftpHere: manager.ftpOk(modelData)
-            color: ftpHere ? Qt.tint(Theme.panelAltFill, Theme.alpha(Theme.hen, Theme.light ? 0.10 : 0.10))
-                           : Theme.panelAltFill
-            border.color: modelData.active ? (ftpHere ? Theme.hen : Theme.accent)
-                        : ftpHere ? Theme.alpha(Theme.hen, 0.5) : Theme.border
-            border.width: 1
+            color: modelData.active ? Qt.tint(Theme.panelFill, Theme.alpha(Theme.accent, 0.07)) : Theme.panelFill
+            border.color: modelData.active ? (ftpHere ? Theme.alpha(Theme.henFill, 0.85) : Theme.alpha(Theme.accent, 0.8))
+                        : ftpHere ? Theme.alpha(Theme.henFill, 0.45) : Theme.glassEdge
 
             ColumnLayout {
                 id: content
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                anchors.leftMargin: 12
-                anchors.rightMargin: 12
+                anchors.leftMargin: 18
+                anchors.rightMargin: 16
                 spacing: 8
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 10
+                    spacing: 14
                     visible: !row.isEditing
 
+                    // The kind, in a round seal like the page's.
                     Rectangle {
                         implicitWidth: 46
-                        implicitHeight: 34
-                        radius: 10
-                        color: Theme.controlFill
-                        border.color: Theme.border
+                        implicitHeight: 46
+                        radius: 23
+                        color: Theme.alpha(Theme.ink, Theme.light ? 0.05 : 0.07)
+                        border.width: 1
+                        border.color: row.modelData.active ? Theme.alpha(Theme.brass, 0.6) : Theme.glassEdge
                         Text {
                             anchors.centerIn: parent
                             text: row.kindText
-                            color: Theme.text
-                            font.bold: true
-                            font.pixelSize: 11
+                            color: Theme.ink
+                            font.family: Theme.fontMono
+                            font.weight: Font.Bold
+                            font.pixelSize: Theme.fontCaption
                         }
                     }
 
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 2
+                        spacing: 3
                         RowLayout {
-                            spacing: 6
+                            spacing: 8
                             Text {
                                 text: row.modelData.name
-                                color: Theme.text
+                                color: Theme.ink
+                                font.family: Theme.fontDisplay
                                 font.weight: Font.DemiBold
-                                font.pixelSize: 14
+                                font.pixelSize: Theme.fontCardTitle
                                 elide: Text.ElideRight
                                 Layout.maximumWidth: 220
                             }
-                            Rectangle {
+                            Tag {
                                 visible: row.modelData.active
-                                implicitHeight: 20
-                                implicitWidth: inUseText.implicitWidth + 18
-                                radius: 10
-                                color: Theme.alpha(Theme.ok, 0.14)
-                                border.width: 1
-                                border.color: Theme.alpha(Theme.ok, 0.3)
-                                Text {
-                                    id: inUseText
-                                    anchors.centerIn: parent
-                                    text: qsTr("in use")
-                                    color: Theme.ok
-                                    font.pixelSize: 11
-                                    font.weight: Font.Medium
-                                }
+                                tone: "ok"
+                                text: qsTr("in use")
                             }
                             // The jailbreak, in the same gold as the card.
-                            Rectangle {
+                            Tag {
                                 visible: row.ftpHere
-                                implicitHeight: 20
-                                implicitWidth: henText.implicitWidth + 18
-                                radius: 10
-                                color: Theme.henFill
-                                Text {
-                                    id: henText
-                                    anchors.centerIn: parent
-                                    text: app.jailbreaks[row.modelData.address] || "HEN"
-                                    color: Theme.textOnHen
-                                    font.pixelSize: 11
-                                    font.weight: Font.Bold
-                                }
+                                tone: "brass"
+                                solid: true
+                                text: app.jailbreaks[row.modelData.address] || "HEN"
                             }
                         }
                         Text {
@@ -311,16 +280,27 @@ ColumnLayout {
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
-                        Text {
-                            text: row.modelData.address + "  ·  " + (row.registration
-                                ? qsTr("registered for Remote Play")
-                                : manager.hostIdOf(row.modelData).length > 0
-                                    ? qsTr("not registered")
-                                    : qsTr("registration unknown until it answers"))
-                            color: row.registration ? Theme.ok : Theme.textSecondary
-                            font.pixelSize: 12
-                            elide: Text.ElideRight
+                        RowLayout {
                             Layout.fillWidth: true
+                            spacing: 8
+                            Text {
+                                text: row.modelData.address
+                                color: Theme.text
+                                font.family: Theme.fontMono
+                                font.pixelSize: Theme.fontSmall
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: "·  " + (row.registration
+                                    ? qsTr("registered for Remote Play")
+                                    : manager.hostIdOf(row.modelData).length > 0
+                                        ? qsTr("not registered")
+                                        : qsTr("registration unknown until it answers"))
+                                color: row.registration ? (Theme.light ? Qt.darker(Theme.ok, 1.3) : Theme.ok)
+                                                        : Theme.textSecondary
+                                font.pixelSize: Theme.fontSmall
+                                elide: Text.ElideRight
+                            }
                         }
                     }
 
@@ -385,17 +365,24 @@ ColumnLayout {
                     columnSpacing: 12
                     rowSpacing: 8
 
-                    Text { text: qsTr("Name"); color: Theme.textMuted; font.pixelSize: 12 }
+                    Eyebrow {
+                        Layout.columnSpan: 2
+                        Layout.bottomMargin: 2
+                        text: qsTr("Edit console")
+                    }
+
+                    Text { text: qsTr("Name"); color: Theme.textSecondary; font.pixelSize: Theme.fontSmall; Layout.preferredWidth: 110 }
                     StyledField { id: nameEdit; Layout.fillWidth: true }
 
-                    Text { text: qsTr("IP address"); color: Theme.textMuted; font.pixelSize: 12 }
+                    Text { text: qsTr("IP address"); color: Theme.textSecondary; font.pixelSize: Theme.fontSmall }
                     StyledField {
                         id: addressEdit
                         Layout.fillWidth: true
+                        font.family: Theme.fontMono
                         placeholderText: "192.168.1.42"
                     }
 
-                    Text { text: qsTr("Account ID"); color: Theme.textMuted; font.pixelSize: 12 }
+                    Text { text: qsTr("Account ID"); color: Theme.textSecondary; font.pixelSize: Theme.fontSmall }
                     StyledCombo {
                         id: accountBox
                         Layout.fillWidth: true
@@ -403,7 +390,7 @@ ColumnLayout {
                     }
 
                     // What a click on the console's card starts.
-                    Text { text: qsTr("Start with"); color: Theme.textMuted; font.pixelSize: 12 }
+                    Text { text: qsTr("Start with"); color: Theme.textSecondary; font.pixelSize: Theme.fontSmall }
                     StyledCombo {
                         id: startBox
                         Layout.fillWidth: true
@@ -451,30 +438,27 @@ ColumnLayout {
     }
 
     // Registrations left behind by consoles that are no longer in the list.
-    Text {
+    Eyebrow {
         visible: manager.orphans.length > 0
         Layout.fillWidth: true
-        Layout.topMargin: 4
+        Layout.topMargin: 12
+        Layout.leftMargin: 4
         text: qsTr("Registered on this PC, but not in the list:")
-        color: Theme.textMuted
-        font.pixelSize: 11
     }
 
     Repeater {
         model: manager.orphans
 
-        delegate: Rectangle {
+        delegate: Plate {
             id: orphan
             required property var modelData
             Layout.fillWidth: true
-            implicitHeight: 44
+            implicitHeight: 52
             radius: Theme.radiusSmall
-            color: Theme.panelAltFill
-            border.color: Theme.border
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 12
+                anchors.leftMargin: 16
                 anchors.rightMargin: 12
                 spacing: 10
                 Text {
@@ -483,7 +467,8 @@ ColumnLayout {
                           + "  ·  " + (orphan.modelData.ps5 ? "PS5" : "PS4")
                           + "  ·  " + orphan.modelData.hostId
                     color: Theme.text
-                    font.pixelSize: 12
+                    font.family: Theme.fontMono
+                    font.pixelSize: Theme.fontSmall
                     elide: Text.ElideRight
                 }
                 StyledButton {

@@ -3,7 +3,9 @@
 // Cheats and game patches for a game the console has installed: the cheat
 // files GoldHEN's and etaHEN's lists have for it, with the cheats in each,
 // sent to the console or taken off it; and on a PS4 the game patches of
-// illusion0001's archive, each with its switch for GoldHEN.
+// illusion0001's archive, each with its switch for GoldHEN. Laid out as the
+// games page's other dialogs: the game as the eyebrow, the title in the
+// serif, its facts as tags, the lists in a sunken well.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -63,7 +65,9 @@ Dialog {
         radius: Theme.radiusDialog
     }
 
-    header: DialogHeader {
+    header: ShelfTile.DialogHead {
+        // The game it is for, over what this is.
+        eyebrow: dialog.game.title || dialog.game.titleId || ""
         title: cheats.patchesSupported ? qsTr("Cheats and patches") : qsTr("Cheats")
         dialog: dialog
         backable: dialog.backTo !== null
@@ -80,17 +84,25 @@ Dialog {
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
             spacing: 10
-            Text {
+            // The title ID, the version installed and what loads them, as
+            // tags (the game's name is in the eyebrow above).
+            Flow {
                 Layout.fillWidth: true
-                // The title ID once: a game whose name is not known has it as its title.
-                text: [dialog.game.title !== dialog.game.titleId ? (dialog.game.title || "") : "",
-                       dialog.game.titleId || "",
-                       dialog.game.version ? qsTr("version %1").arg(dialog.game.version) : "",
-                       cheats.ps5 ? qsTr("etaHEN (PS5)") : qsTr("GoldHEN (PS4)")]
-                      .filter(function (part) { return part.length > 0 }).join("  ·  ")
-                color: Theme.textSecondary
-                font.pixelSize: 12
-                elide: Text.ElideRight
+                spacing: 6
+                Tag {
+                    visible: (dialog.game.titleId || "").length > 0
+                    text: dialog.game.titleId || ""
+                    mono: true
+                }
+                Tag {
+                    visible: (dialog.game.version || "").length > 0
+                    text: qsTr("version %1").arg(dialog.game.version || "")
+                    mono: true
+                }
+                Tag {
+                    text: cheats.ps5 ? qsTr("etaHEN (PS5)") : qsTr("GoldHEN (PS4)")
+                    tone: "brass"
+                }
             }
             StyledButton {
                 chip: true
@@ -103,22 +115,25 @@ Dialog {
 
         TabBar {
             visible: cheats.patchesSupported
+            Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
-            Layout.preferredWidth: 360
+            Layout.rightMargin: Theme.dialogMargin
             currentIndex: dialog.tab
             onCurrentIndexChanged: dialog.tab = currentIndex
-            padding: 4
-            spacing: 4
+            padding: 0
+            spacing: 8
             background: Rectangle {
-                radius: 12
-                color: Theme.controlFill
-                border.width: 1
-                border.color: Theme.glassEdge
+                y: parent.height - 1
+                width: parent.width
+                height: 1
+                color: Theme.glassEdge
             }
             StyledTab {
+                width: implicitWidth + 28
                 text: cheats.cheats.length > 0 ? qsTr("Cheats (%1)").arg(cheats.cheats.length) : qsTr("Cheats")
             }
             StyledTab {
+                width: implicitWidth + 28
                 text: cheats.patches.length > 0 ? qsTr("Patches (%1)").arg(cheats.patches.length) : qsTr("Patches")
             }
         }
@@ -147,12 +162,12 @@ Dialog {
                     Layout.topMargin: 1
                     name: "warning"
                     size: 14
-                    color: Theme.warn
+                    color: Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn
                 }
                 Text {
                     Layout.fillWidth: true
                     text: noticeRow.modelData
-                    color: Theme.warn
+                    color: Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
                 }
@@ -166,8 +181,8 @@ Dialog {
             Layout.fillHeight: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
-            radius: 12
-            color: Theme.panelAltFill
+            radius: Theme.radiusSmall + 2
+            color: Theme.light ? Theme.alpha(Theme.ink, 0.04) : Qt.rgba(0, 0, 0, 0.16)
             border.width: 1
             border.color: Theme.glassEdge
             clip: true
@@ -222,8 +237,8 @@ Dialog {
                     required property var modelData
                     width: cheatList.width - 8
                     height: fileColumn.implicitHeight + 20
-                    radius: 10
-                    color: fileCard.modelData.installed ? Theme.alpha(Theme.ok, 0.08) : Theme.controlFill
+                    radius: Theme.radiusSmall
+                    color: fileCard.modelData.installed ? Theme.alpha(Theme.ok, Theme.light ? 0.06 : 0.08) : Theme.panelFill
                     border.width: 1
                     border.color: fileCard.modelData.installed ? Theme.alpha(Theme.ok, 0.35) : Theme.glassEdge
 
@@ -237,40 +252,30 @@ Dialog {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 8
-                            Rectangle {
-                                implicitWidth: formatLabel.implicitWidth + 12
-                                implicitHeight: 18
-                                radius: 5
-                                color: Theme.alpha(Theme.accent, 0.14)
-                                Text {
-                                    id: formatLabel
-                                    anchors.centerIn: parent
-                                    text: fileCard.modelData.format
-                                    color: Theme.accent
-                                    font.pixelSize: 10
-                                    font.weight: Font.DemiBold
-                                }
+                            Tag {
+                                text: fileCard.modelData.format
+                                tone: "accent"
+                                mono: true
                             }
                             Text {
                                 text: qsTr("Version %1").arg(fileCard.modelData.version)
                                       + (fileCard.modelData.variant ? "  ·  " + fileCard.modelData.variant : "")
-                                color: Theme.text
-                                font.pixelSize: 13
+                                color: Theme.ink
+                                font.family: Theme.fontDisplay
+                                font.pixelSize: 15
                                 font.weight: Font.DemiBold
                             }
-                            Text {
+                            Tag {
                                 text: fileCard.modelData.exact ? qsTr("the version installed")
                                                                : qsTr("another version")
-                                color: fileCard.modelData.exact ? Theme.ok : Theme.warn
-                                font.pixelSize: 11
+                                tone: fileCard.modelData.exact ? "ok" : "warn"
                             }
                             Item { Layout.fillWidth: true }
-                            Text {
+                            Tag {
                                 visible: fileCard.modelData.installed
                                 text: qsTr("On the console")
-                                color: Theme.ok
-                                font.pixelSize: 11
-                                font.weight: Font.DemiBold
+                                tone: "ok"
+                                iconName: "check"
                             }
                             StyledButton {
                                 chip: true
@@ -348,8 +353,8 @@ Dialog {
             Layout.fillHeight: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
-            radius: 12
-            color: Theme.panelAltFill
+            radius: Theme.radiusSmall + 2
+            color: Theme.light ? Theme.alpha(Theme.ink, 0.04) : Qt.rgba(0, 0, 0, 0.16)
             border.width: 1
             border.color: Theme.glassEdge
             clip: true
@@ -477,7 +482,15 @@ Dialog {
     footer: Rectangle {
         implicitHeight: Theme.dialogFooter
         color: "transparent"
-        Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.border }
+        Rectangle {
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: Theme.dialogMargin
+            anchors.rightMargin: Theme.dialogMargin
+            height: 1
+            color: Theme.glassEdge
+        }
         RowLayout {
             anchors.fill: parent
             anchors.margins: Theme.dialogInner

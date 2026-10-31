@@ -1,0 +1,8 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- JetBrains Mono, by JetBrains, under the SIL Open Font License 1.1 (LICENSE.txt). -->
+<RCC>
+    <qresource prefix="/fonts">
+        <file>JetBrainsMono-Regular.ttf</file>
+        <file>JetBrainsMono-Medium.ttf</file>
+    </qresource>
+</RCC>

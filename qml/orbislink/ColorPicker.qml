@@ -10,7 +10,7 @@ import QtQuick.Layouts
 Popup {
     id: picker
 
-    property color color: "#388AFF"
+    property color color: "#6C9DA0"
     signal picked(color value)
 
     // Kept apart from `color`: a grey has no hue of its own, and dragging
@@ -34,12 +34,11 @@ Popup {
         picked(color)
     }
 
-    readonly property var suggestions: ["#388AFF", "#7C5CFF", "#E040FB", "#FF4F81", "#EF4444",
-                                        "#FF8A00", "#F5B700", "#22C55E", "#14B8A6", "#06B6D4",
-                                        "#94A3B8", "#FFFFFF"]
+    readonly property var suggestions: ["#173B5C", "#426F89", "#6C9DA0", "#B28A4A", "#C18B43", "#A84D46",
+                                        "#65866A", "#10283D", "#202B32", "#E5D3AE", "#F3E8CC", "#7C5CFF"]
 
-    width: 268
-    padding: 14
+    width: 272
+    padding: 16
     // Never past the window's edges (nor under the taskbar).
     margins: 10
     modal: false
@@ -49,7 +48,7 @@ Popup {
 
     background: Rectangle {
         color: Theme.menuFill
-        radius: 16
+        radius: Theme.radius
         border.width: 1
         border.color: Theme.glassEdge
     }
@@ -57,12 +56,14 @@ Popup {
     contentItem: ColumnLayout {
         spacing: 12
 
+        Eyebrow { text: qsTr("Pick a colour") }
+
         // Saturation left to right, brightness bottom to top.
         Rectangle {
             id: field
             Layout.fillWidth: true
             Layout.preferredHeight: 150
-            radius: 10
+            radius: Theme.radiusSmall
             color: Qt.hsva(picker.hue, 1, 1, 1)
             clip: true
             Rectangle {
@@ -149,9 +150,9 @@ Popup {
             Layout.fillWidth: true
             spacing: 8
             Rectangle {
-                Layout.preferredWidth: 34
-                Layout.preferredHeight: 34
-                radius: 9
+                Layout.preferredWidth: 36
+                Layout.preferredHeight: 36
+                radius: 18
                 color: picker.color
                 border.width: 1
                 border.color: Theme.glassEdge
@@ -177,22 +178,30 @@ Popup {
             }
         }
 
-        // Suggestions.
+        // Suggestions: the atlas's own inks first, then a few to go further.
+        Eyebrow {
+            Layout.topMargin: 2
+            text: qsTr("Suggestions")
+            color: Theme.textSecondary
+        }
         GridLayout {
             Layout.fillWidth: true
             columns: 6
-            rowSpacing: 6
-            columnSpacing: 6
+            rowSpacing: 8
+            columnSpacing: 8
             Repeater {
                 model: picker.suggestions
                 Rectangle {
                     required property string modelData
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 26
-                    radius: 7
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.preferredWidth: 28
+                    Layout.preferredHeight: 28
+                    radius: 14
                     color: modelData
                     border.width: swatchArea.containsMouse ? 2 : 1
                     border.color: swatchArea.containsMouse ? Theme.text : Theme.glassEdge
+                    Accessible.role: Accessible.Button
+                    Accessible.name: modelData
                     MouseArea {
                         id: swatchArea
                         anchors.fill: parent

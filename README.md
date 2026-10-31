@@ -154,7 +154,7 @@ field from a saved one.
 
 ### Games
 
-**Games** (top bar) opens on **All games**: a library laid out the way the
+**Games** (navigation) opens on **All games**: a library laid out the way the
 console shows its own, covers on tiles and folders as tiles of their covers.
 Its places are the console's library (`OrbisLinkFPKG` on its memory, USB
 drives and extended storage), its data/pkg and USB drives, this PC's USB
@@ -164,7 +164,7 @@ cover collection's by its serial — or a disc in its place, and the button
 that makes it playable: install a package, convert a PS1/PS2 disc (and
 install it, or only keep its package), put a PS5 image or app folder on the
 home screen, run a payload. Search across places, filters, sorting, arrow
-keys and Enter; every install and job shows in the side panel's Queue tab.
+keys and Enter; every install and job shows in the transfers' Queue tab.
 
 Every package says whether it is a fake package (fpkg) or an official store
 one, and the firmware it needs; before one goes, the app warns when it is an
@@ -430,8 +430,13 @@ is why this repository exists.
 The copyright notices of chiaki-ng and the other libraries stay where they
 are — they belong to other people and the licence requires keeping them.
 
-The interface is set in [Inter](https://rsms.me/inter/), by Rasmus Andersson,
-under the SIL Open Font License 1.1 (see [`third-party/inter`](third-party/inter)), and
+The interface is set in [Figtree](https://github.com/erikdkennedy/figtree), by Erik
+Kennedy, its titles in [Fraunces](https://github.com/undercasetype/Fraunces), by
+Undercase Type (static instances of the variable font), and its technical values in
+[JetBrains Mono](https://github.com/JetBrains/JetBrainsMono), all three under the SIL
+Open Font License 1.1 (see [`third-party/figtree`](third-party/figtree),
+[`third-party/fraunces`](third-party/fraunces) and
+[`third-party/jetbrains-mono`](third-party/jetbrains-mono)), and
 its icons come from [Lucide](https://lucide.dev/), under the ISC licence (see
 [`third-party/lucide`](third-party/lucide); `scripts/generate-icons.py` turns them into
 `qml/orbislink/Icons.js`).

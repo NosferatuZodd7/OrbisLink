@@ -17,8 +17,9 @@ Item {
 
     signal back()
 
-    // In the main area, framed as a panel with a way back; over Remote Play
-    // (SectionOverlay) the overlay is the frame, shows the name and closes it.
+    // In the main area (framed) the page sits on the sheet with its margins;
+    // over Remote Play (SectionOverlay) the overlay is the frame and closes it.
+    // back() stays for whoever shows it to listen to.
     property bool framed: true
 
     readonly property bool online: saves.online
@@ -351,272 +352,362 @@ Item {
         selected = ({})
     }
 
-    Rectangle {
+    // An owner to show the saves of: a round-ended pill, filled in the
+    // accent when it is the one shown (a chip button cannot say "chosen").
+    component OwnerPill: Rectangle {
+        id: pill
+        property string text: ""
+        property string iconName: "user"
+        property string count: ""
+        property bool chosen: false
+        property string tip: ""
+        signal clicked()
+
+        implicitWidth: pillRow.implicitWidth + 26
+        implicitHeight: 32
+        radius: height / 2
+        color: chosen ? Theme.accentFill : pillHover.hovered ? Theme.alpha(Theme.ink, 0.05) : "transparent"
+        border.width: activeFocus ? 2 : 1
+        border.color: activeFocus ? Theme.alpha(Theme.accent, 0.8)
+                    : chosen ? Theme.alpha(Theme.accent, 0.6) : Theme.glassEdge
+        Behavior on color { ColorAnimation { duration: Theme.fast } }
+
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: text
+        Keys.onSpacePressed: clicked()
+        Keys.onReturnPressed: clicked()
+        ToolTip.visible: pillHover.hovered && tip.length > 0
+        ToolTip.text: tip
+        ToolTip.delay: 400
+
+        HoverHandler { id: pillHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: pill.clicked() }
+
+        Row {
+            id: pillRow
+            anchors.centerIn: parent
+            spacing: 7
+            Icon {
+                anchors.verticalCenter: parent.verticalCenter
+                name: pill.iconName
+                size: 13
+                color: pill.chosen ? Theme.accent : Theme.textSecondary
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                width: Math.min(implicitWidth, 200)
+                elide: Text.ElideRight
+                text: pill.text
+                color: pill.chosen ? Theme.ink : Theme.text
+                font.pixelSize: 12
+                font.weight: pill.chosen ? Font.DemiBold : Font.Medium
+            }
+            Text {
+                visible: pill.count.length > 0
+                anchors.verticalCenter: parent.verticalCenter
+                text: pill.count
+                color: Theme.textSecondary
+                font.family: Theme.fontMono
+                font.pixelSize: 11
+            }
+        }
+    }
+
+    // One of the hero's two figures: where, in small capitals, over how many.
+    component Figure: ColumnLayout {
+        property string label: ""
+        property int value: 0
+        spacing: 0
+        Eyebrow {
+            text: parent.label
+        }
+        Text {
+            text: parent.value
+            color: Theme.ink
+            font.family: Theme.fontDisplay
+            font.pixelSize: Theme.fontTitle
+            font.weight: Font.DemiBold
+        }
+    }
+
+    // The page, straight on the sheet: no panel of its own (in the main
+    // area the sheet is the frame; over Remote Play the overlay is).
+    ColumnLayout {
         anchors.fill: parent
-        anchors.leftMargin: root.framed ? Theme.gutter : 0
-        anchors.rightMargin: !root.framed ? 0 : window.sideShown ? 8 : Theme.gutter
-        anchors.topMargin: root.framed ? 4 : 0
-        anchors.bottomMargin: root.framed ? 4 : 0
-        radius: Theme.radius
-        color: root.framed ? Theme.panelFill : "transparent"
-        border.width: root.framed ? 1 : 0
-        border.color: Theme.glassEdge
-        clip: true
+        anchors.leftMargin: root.framed ? Theme.gutter : 18
+        anchors.rightMargin: root.framed ? Theme.gutter : 18
+        anchors.topMargin: root.framed ? 26 : 18
+        anchors.bottomMargin: root.framed ? 12 : 14
+        spacing: 16
 
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: root.framed ? 24 : 18
-            spacing: 14
+        // ── the page's head: what it is, whose saves, and where they are kept
+        PageHeader {
+            id: pageHeader
+            visible: root.framed
+            eyebrow: qsTr("Backups")
+            title: qsTr("Save vault")
+            subtitle: saves.busy && saves.status.length > 0 ? saves.status
+                    : qsTr("The saves of %1 beside the copies kept on this PC.").arg(saves.sourceName)
 
-            // ── header
-            RowLayout {
+            // The page's actions sit here; over Remote Play, where the
+            // overlay's own header names the page, on the line below.
+            Item {
+                id: headerSlot
+                implicitWidth: childrenRect.width
+                implicitHeight: childrenRect.height
+            }
+        }
+        // Over Remote Play: what stands, in a line, and the same actions.
+        RowLayout {
+            visible: !root.framed
+            Layout.fillWidth: true
+            spacing: 12
+            Text {
                 Layout.fillWidth: true
-                spacing: 12
-                StyledToolButton {
-                    visible: root.framed
-                    iconName: "chevron-left"
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Back to the consoles")
-                    onClicked: root.back()
+                elide: Text.ElideRight
+                text: pageHeader.subtitle
+                color: Theme.textSecondary
+                font.pixelSize: 12
+            }
+            Item {
+                id: overlaySlot
+                implicitWidth: childrenRect.width
+                implicitHeight: childrenRect.height
+            }
+        }
+        Row {
+            id: pageActions
+            parent: root.framed ? headerSlot : overlaySlot
+            spacing: 8
+
+            // Whose saves these are: the console read. Another one with
+            // FTP is a click away.
+            StyledButton {
+                anchors.verticalCenter: parent.verticalCenter
+                id: sourceChip
+                chip: true
+                iconName: "gamepad"
+                text: saves.sourceName + (saves.consoles.length > 1 ? "  ▾" : "")
+                width: Math.min(implicitWidth, 220)
+                enabled: !saves.busy
+                ToolTip.visible: hovered
+                ToolTip.text: saves.consoles.length > 1 ? qsTr("The console whose saves are shown: click for another")
+                                                        : qsTr("The console whose saves are shown")
+                onClicked: if (saves.consoles.length > 1) sourceMenu.popup(sourceChip, 0, sourceChip.height + 4)
+            }
+            StyledToolButton {
+                anchors.verticalCenter: parent.verticalCenter
+                iconName: saves.busy ? "loader" : "refresh"
+                spinning: saves.busy
+                enabled: !saves.busy
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Read the console again")
+                Accessible.name: ToolTip.text
+                onClicked: { root.probeConsoles(); saves.refresh() }
+            }
+        }
+
+        // ── the one thing most people come for: the console against the PC,
+        // and the button that brings them level. With saves selected, what
+        // to do with those instead.
+        Plate {
+            id: hero
+            ornate: true
+            Layout.fillWidth: true
+            implicitHeight: heroRow.implicitHeight + 36
+            color: root.selectedCount > 0 && !saves.busy ? Theme.accentFill : Theme.panelFill
+            Behavior on color { ColorAnimation { duration: Theme.fast } }
+
+            RowLayout {
+                id: heroRow
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: 24
+                anchors.rightMargin: 18
+                spacing: 18
+
+                // The two figures, the console's and the PC's.
+                RowLayout {
+                    visible: root.selectedCount === 0 || saves.busy
+                    spacing: 14
+                    Figure {
+                        label: qsTr("On the console")
+                        value: root.counts.all - root.counts.vault - root.counts.usb
+                    }
+                    Sparkle {
+                        Layout.alignment: Qt.AlignBottom
+                        Layout.bottomMargin: 12
+                        size: 12
+                        color: Theme.brass
+                    }
+                    Figure {
+                        label: qsTr("On this PC")
+                        value: root.counts.same + root.counts.changed + root.counts.older + root.counts.vault
+                    }
                 }
+                // With some selected: how many, in the serif.
                 ColumnLayout {
-                    spacing: 2
-                    Text {
-                        visible: root.framed
-                        text: qsTr("Save vault")
-                        color: Theme.text
-                        font.pixelSize: Theme.fontTitle
-                        font.weight: Font.DemiBold
+                    visible: root.selectedCount > 0 && !saves.busy
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: implicitWidth
+                    spacing: 0
+                    Eyebrow {
+                        text: qsTr("Selection")
                     }
                     Text {
-                        text: saves.busy && saves.status.length > 0 ? saves.status
-                            : qsTr("%1 on the console · %2 on the PC")
-                                .arg(root.counts.all - root.counts.vault - root.counts.usb)
-                                .arg(root.counts.same + root.counts.changed + root.counts.older + root.counts.vault)
+                        text: qsTr("%n selected", "", root.selectedCount)
+                        color: Theme.ink
+                        font.family: Theme.fontDisplay
+                        font.pixelSize: Theme.fontHeading
+                        font.weight: Font.DemiBold
+                    }
+                }
+                Rectangle {
+                    visible: root.selectedCount === 0 || saves.busy
+                    Layout.fillHeight: true
+                    Layout.topMargin: 4
+                    Layout.bottomMargin: 4
+                    implicitWidth: 1
+                    color: Theme.glassEdge
+                }
+
+                StyledButton {
+                    visible: root.selectedCount > 0 && !saves.busy
+                    iconName: "download"
+                    text: qsTr("Back up to PC")
+                    enabled: root.countWhere(function (s) { return root.canBackUp(s) }) > 0
+                    onClicked: root.backupKeys(root.selectedKeys())
+                }
+                // Named after the console it goes to; the arrow picks
+                // another when more than one has FTP.
+                Row {
+                    visible: root.selectedCount > 0 && !saves.busy
+                    spacing: 2
+                    StyledButton {
+                        id: sendButton
+                        // A long console name is cut, not the row.
+                        width: Math.min(implicitWidth, 300)
+                        primary: true
+                        iconName: "upload"
+                        text: root.sendConsole !== null ? qsTr("Send to %1").arg(root.sendConsole.name)
+                                                       : qsTr("Send to a console")
+                        enabled: root.sendConsole !== null && root.countWhere(function (s) { return s.inVault || s.onUsb }) > 0
+                        // The whole name when it is cut.
+                        ToolTip.visible: hovered && (root.sendConsole === null || implicitWidth > width)
+                        ToolTip.text: root.sendConsole === null ? qsTr("No console's FTP is answering.") : text
+                        onClicked: root.askSend(root.selectedKeys(), root.sendConsole.address)
+                    }
+                    StyledToolButton {
+                        visible: root.targets.length > 1
+                        anchors.verticalCenter: parent.verticalCenter
+                        iconName: "chevron-down"
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Send to another console")
+                        Accessible.name: ToolTip.text
+                        onClicked: targetMenu.popup(sendButton, 0, sendButton.height + 4)
+                    }
+                }
+                StyledToolButton {
+                    visible: root.selectedCount > 0 && !saves.busy
+                    danger: true
+                    iconName: "trash"
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Delete from the PC…")
+                    Accessible.name: ToolTip.text
+                    onClicked: confirmDelete.open()
+                }
+                StyledToolButton {
+                    visible: root.selectedCount > 0 && !saves.busy
+                    iconName: "close"
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Clear the selection")
+                    Accessible.name: ToolTip.text
+                    onClicked: root.selected = ({})
+                }
+
+                // Where things stand, in a sentence, and what else to know.
+                ColumnLayout {
+                    visible: root.selectedCount === 0 || saves.busy
+                    Layout.fillWidth: true
+                    // Its width comes from the row alone: the long lines
+                    // wrap to it instead of asking for more.
+                    Layout.preferredWidth: 1
+                    spacing: 4
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: Theme.ink
+                        font.pixelSize: 14
+                        font.weight: Font.DemiBold
+                        text: !root.online ? qsTr("%1's FTP is not answering: this is what the PC holds.").arg(saves.sourceName)
+                            : saves.busy ? saves.status
+                            : root.counts.changed + root.counts.console > 0
+                              ? qsTr("%n save(s) on the console without a backup on the PC.", "", root.counts.changed + root.counts.console)
+                            : root.counts.all > root.counts.usb ? qsTr("Everything on the console is backed up on the PC.")
+                            : root.counts.usb > 0 ? qsTr("%n save(s) on a USB drive without a backup on the PC.", "", root.counts.usb)
+                            : qsTr("Read the console to see its saves.")
+                    }
+                    // The progress of whatever is under way.
+                    Rectangle {
+                        visible: saves.busy
+                        Layout.fillWidth: true
+                        Layout.topMargin: 2
+                        height: 3
+                        radius: 1.5
+                        color: Theme.alpha(Theme.accent, 0.18)
+                        Rectangle {
+                            width: parent.width * Math.max(0.03, Math.min(1, saves.progress))
+                            height: parent.height
+                            radius: parent.radius
+                            color: Theme.accent
+                            Behavior on width { NumberAnimation { duration: 200 } }
+                        }
+                    }
+                    Text {
+                        visible: !saves.busy && root.openGame.length > 0 && saves.source === app.consoleAddress
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        text: qsTr("%1 is open: its saves wait until it closes.")
+                              .arg(root.openGameName.length > 0 ? root.openGameName : root.openGame)
+                        color: Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn
+                        font.pixelSize: 12
+                    }
+                    // Saves only on a USB drive (the console's, or one
+                    // plugged into this PC), when the line above is
+                    // about the console's.
+                    Text {
+                        visible: !saves.busy && root.counts.usb > 0 && root.counts.all > root.counts.usb
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        text: qsTr("%n save(s) on a USB drive without a backup on the PC.", "", root.counts.usb)
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
+                    }
+                    Text {
+                        visible: !saves.busy && root.counts.missing > 0 && root.online
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        text: qsTr("%n save(s) the console no longer has are kept on the PC.", "", root.counts.missing)
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
+                    }
+                    Text {
+                        visible: !saves.busy && root.counts.older > 0 && root.online
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        text: qsTr("%n save(s) on the console are older than the PC's copy (from another console).", "",
+                                   root.counts.older)
                         color: Theme.textSecondary
                         font.pixelSize: 12
                     }
                 }
-                // Whose saves these are: the console read. Another one with
-                // FTP is a click away.
-                StyledButton {
-                    id: sourceChip
-                    chip: true
-                    iconName: "gamepad"
-                    text: saves.sourceName + (saves.consoles.length > 1 ? "  ▾" : "")
-                    Layout.maximumWidth: 260
-                    enabled: !saves.busy
-                    ToolTip.visible: hovered
-                    ToolTip.text: saves.consoles.length > 1 ? qsTr("The console whose saves are shown: click for another")
-                                                            : qsTr("The console whose saves are shown")
-                    onClicked: if (saves.consoles.length > 1) sourceMenu.popup(sourceChip, 0, sourceChip.height + 4)
-                }
-                Item { Layout.fillWidth: true }
-                StyledButton {
-                    iconName: "folder-open"
-                    chip: true
-                    text: saves.vaultFolder
-                    Layout.maximumWidth: 300
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Open the folder on the PC (right click to change it)")
-                    onClicked: saves.openVaultFolder()
-                    TapHandler {
-                        acceptedButtons: Qt.RightButton
-                        onTapped: vaultFolderDialog.open()
-                    }
-                }
-                StyledToolButton {
-                    iconName: "settings"
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Change the folder on the PC")
-                    onClicked: vaultFolderDialog.open()
-                }
-                StyledToolButton {
-                    iconName: saves.busy ? "loader" : "refresh"
-                    enabled: !saves.busy
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Read the console again")
-                    onClicked: { root.probeConsoles(); saves.refresh() }
-                }
-            }
-
-            // ── the one thing most people come for
-            Rectangle {
-                Layout.fillWidth: true
-                implicitHeight: heroRow.implicitHeight + 28
-                radius: 16
-                color: Theme.accentFill
-                border.width: 1
-                border.color: Theme.alpha(Theme.accent, root.selectedCount > 0 ? 0.7 : 0.35)
-                Behavior on border.color { ColorAnimation { duration: Theme.fast } }
-
-                RowLayout {
-                    id: heroRow
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.leftMargin: 18
-                    anchors.rightMargin: 14
-                    spacing: 14
-
-                    Icon {
-                        name: saves.busy ? "loader" : root.selectedCount > 0 ? "square-check" : "archive"
-                        spinning: saves.busy
-                        size: 26
-                        color: Theme.accent
-                    }
-
-                    // With some selected, what to do with them.
-                    Text {
-                        visible: root.selectedCount > 0 && !saves.busy
-                        Layout.fillWidth: true
-                        Layout.minimumWidth: implicitWidth
-                        text: qsTr("%n selected", "", root.selectedCount)
-                        color: Theme.text
-                        font.pixelSize: 14
-                        font.weight: Font.DemiBold
-                    }
+                ColumnLayout {
+                    visible: root.selectedCount === 0 || saves.busy
+                    spacing: 6
                     StyledButton {
-                        visible: root.selectedCount > 0 && !saves.busy
-                        iconName: "download"
-                        text: qsTr("Back up to PC")
-                        enabled: root.countWhere(function (s) { return root.canBackUp(s) }) > 0
-                        onClicked: root.backupKeys(root.selectedKeys())
-                    }
-                    // Named after the console it goes to; the arrow picks
-                    // another when more than one has FTP.
-                    Row {
-                        visible: root.selectedCount > 0 && !saves.busy
-                        spacing: 2
-                        StyledButton {
-                            id: sendButton
-                            // A long console name is cut, not the row.
-                            width: Math.min(implicitWidth, 320)
-                            iconName: "upload"
-                            text: root.sendConsole !== null ? qsTr("Send to %1").arg(root.sendConsole.name)
-                                                           : qsTr("Send to a console")
-                            enabled: root.sendConsole !== null && root.countWhere(function (s) { return s.inVault || s.onUsb }) > 0
-                            // The whole name when it is cut.
-                            ToolTip.visible: hovered && (root.sendConsole === null || implicitWidth > width)
-                            ToolTip.text: root.sendConsole === null ? qsTr("No console's FTP is answering.") : text
-                            onClicked: root.askSend(root.selectedKeys(), root.sendConsole.address)
-                        }
-                        StyledToolButton {
-                            visible: root.targets.length > 1
-                            anchors.verticalCenter: parent.verticalCenter
-                            iconName: "chevron-down"
-                            ToolTip.visible: hovered
-                            ToolTip.text: qsTr("Send to another console")
-                            onClicked: targetMenu.popup(sendButton, 0, sendButton.height + 4)
-                        }
-                    }
-                    StyledToolButton {
-                        visible: root.selectedCount > 0 && !saves.busy
-                        danger: true
-                        iconName: "trash"
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("Delete from the PC…")
-                        onClicked: confirmDelete.open()
-                    }
-                    StyledToolButton {
-                        visible: root.selectedCount > 0 && !saves.busy
-                        iconName: "close"
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("Clear the selection")
-                        onClicked: root.selected = ({})
-                    }
-
-                    ColumnLayout {
-                        visible: root.selectedCount === 0 || saves.busy
-                        Layout.fillWidth: true
-                        // Its width comes from the row alone: the long lines
-                        // wrap to it instead of asking for more.
-                        Layout.preferredWidth: 1
-                        spacing: 4
-                        Text {
-                            Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
-                            color: Theme.text
-                            font.pixelSize: 14
-                            font.weight: Font.DemiBold
-                            text: !root.online ? qsTr("%1's FTP is not answering: this is what the PC holds.").arg(saves.sourceName)
-                                : saves.busy ? saves.status
-                                : root.counts.changed + root.counts.console > 0
-                                  ? qsTr("%n save(s) on the console without a backup on the PC.", "", root.counts.changed + root.counts.console)
-                                : root.counts.all > root.counts.usb ? qsTr("Everything on the console is backed up on the PC.")
-                                : root.counts.usb > 0 ? qsTr("%n save(s) on a USB drive without a backup on the PC.", "", root.counts.usb)
-                                : qsTr("Read the console to see its saves.")
-                        }
-                        // The progress of whatever is under way.
-                        Rectangle {
-                            visible: saves.busy
-                            Layout.fillWidth: true
-                            height: 4
-                            radius: 2
-                            color: Theme.alpha(Theme.accent, 0.18)
-                            Rectangle {
-                                width: parent.width * Math.max(0.03, Math.min(1, saves.progress))
-                                height: parent.height
-                                radius: parent.radius
-                                color: Theme.accent
-                                Behavior on width { NumberAnimation { duration: 200 } }
-                            }
-                        }
-                        Text {
-                            visible: !saves.busy && root.openGame.length > 0 && saves.source === app.consoleAddress
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
-                            text: qsTr("%1 is open: its saves wait until it closes.")
-                                  .arg(root.openGameName.length > 0 ? root.openGameName : root.openGame)
-                            color: Theme.warn
-                            font.pixelSize: 12
-                        }
-                        // Saves only on a USB drive (the console's, or one
-                        // plugged into this PC), when the line above is
-                        // about the console's.
-                        Text {
-                            visible: !saves.busy && root.counts.usb > 0 && root.counts.all > root.counts.usb
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
-                            text: qsTr("%n save(s) on a USB drive without a backup on the PC.", "", root.counts.usb)
-                            color: Theme.textSecondary
-                            font.pixelSize: 12
-                        }
-                        Text {
-                            visible: !saves.busy && root.counts.missing > 0 && root.online
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
-                            text: qsTr("%n save(s) the console no longer has are kept on the PC.", "", root.counts.missing)
-                            color: Theme.textSecondary
-                            font.pixelSize: 12
-                        }
-                        Text {
-                            visible: !saves.busy && root.counts.older > 0 && root.online
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
-                            text: qsTr("%n save(s) on the console are older than the PC's copy (from another console).", "",
-                                       root.counts.older)
-                            color: Theme.textSecondary
-                            font.pixelSize: 12
-                        }
-                    }
-                    StyledButton {
-                        visible: root.online && root.counts.missing > 0 && root.selectedCount === 0
-                        text: qsTr("Send back what's missing")
-                        iconName: "archive-restore"
-                        enabled: !saves.busy
-                        onClicked: {
-                            var keys = []
-                            for (var i = 0; i < saves.saves.length; ++i) {
-                                var s = saves.saves[i]
-                                if (s.sync === "vault" && s.wasHere && s.account.length > 0 && root.inGroup(s))
-                                    keys.push(s.key)
-                            }
-                            root.askSend(keys, saves.source)
-                        }
-                    }
-                    StyledButton {
-                        visible: root.selectedCount === 0 || saves.busy
+                        Layout.alignment: Qt.AlignRight
                         text: qsTr("Back up all to PC")
                         iconName: "download"
                         primary: true
@@ -634,61 +725,99 @@ Item {
                             root.backupKeys(keys)
                         }
                     }
+                    StyledButton {
+                        visible: root.online && root.counts.missing > 0
+                        Layout.alignment: Qt.AlignRight
+                        chip: true
+                        text: qsTr("Send back what's missing")
+                        iconName: "archive-restore"
+                        enabled: !saves.busy
+                        onClicked: {
+                            var keys = []
+                            for (var i = 0; i < saves.saves.length; ++i) {
+                                var s = saves.saves[i]
+                                if (s.sync === "vault" && s.wasHere && s.account.length > 0 && root.inGroup(s))
+                                    keys.push(s.key)
+                            }
+                            root.askSend(keys, saves.source)
+                        }
+                    }
                 }
             }
+        }
 
-            // ── whose saves: one chip per owner (PSID)
+        // ── whose saves: one pill per owner (PSID), and its link to an Account ID
+        RowLayout {
+            Layout.fillWidth: true
+            visible: root.groups.length > 0
+            spacing: 14
+            Eyebrow {
+                Layout.alignment: Qt.AlignTop
+                Layout.topMargin: 10
+                text: qsTr("Accounts")
+            }
             Flow {
                 Layout.fillWidth: true
-                visible: root.groups.length > 0
                 spacing: 6
-                StyledButton {
+                OwnerPill {
                     visible: root.groups.length > 1
-                    chip: true
                     iconName: "users"
-                    primary: root.group === ""
+                    chosen: root.group === ""
                     text: qsTr("Everyone")
                     onClicked: { root.group = ""; root.selected = ({}) }
                 }
                 Repeater {
                     model: root.groups
-                    StyledButton {
+                    OwnerPill {
                         required property var modelData
-                        chip: true
-                        iconName: "user"
-                        primary: root.group === modelData.id
-                        text: root.groupLabel(modelData) + "  " + modelData.count
-                        Layout.maximumWidth: 280
-                        ToolTip.visible: hovered
-                        ToolTip.text: modelData.psidFolder.length > 0
-                                      ? (modelData.user.length > 0
-                                         ? qsTr("PSID %1 · console user %2").arg(modelData.psidFolder)
-                                               .arg(modelData.consoleName.length > 0 ? modelData.consoleName : modelData.user)
-                                         : qsTr("PSID %1 · no user of %2 has it").arg(modelData.psidFolder).arg(saves.sourceName))
-                                      : qsTr("Console user %1 · PSID unknown: link it to an Account ID to back up its saves.")
-                                            .arg(modelData.consoleName.length > 0 ? modelData.consoleName : modelData.user)
+                        chosen: root.group === modelData.id
+                        text: root.groupLabel(modelData)
+                        count: String(modelData.count)
+                        tip: modelData.psidFolder.length > 0
+                             ? (modelData.user.length > 0
+                                ? qsTr("PSID %1 · console user %2").arg(modelData.psidFolder)
+                                      .arg(modelData.consoleName.length > 0 ? modelData.consoleName : modelData.user)
+                                : qsTr("PSID %1 · no user of %2 has it").arg(modelData.psidFolder).arg(saves.sourceName))
+                             : qsTr("Console user %1 · PSID unknown: link it to an Account ID to back up its saves.")
+                                   .arg(modelData.consoleName.length > 0 ? modelData.consoleName : modelData.user)
                         onClicked: { root.group = modelData.id; root.selected = ({}) }
                     }
                 }
-                // The shown owner's console user and its link to an Account
-                // ID: names it, and gives the PSID its saves go under.
-                StyledButton {
-                    readonly property var owner: root.groups.length === 1 ? root.groups[0] : root.shownGroup
-                    visible: owner !== null && owner.user.length > 0
-                    chip: true
-                    iconName: "link"
-                    text: owner === null ? "" : owner.linked ? qsTr("Change the link…")
-                        : owner.psidFolder.length > 0 ? qsTr("Link…") : qsTr("Link to an Account ID…")
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Which of the app's Account IDs this console user is")
-                    onClicked: linkDialog.ask(owner)
-                }
             }
+            // The shown owner's console user and its link to an Account
+            // ID: names it, and gives the PSID its saves go under.
+            StyledButton {
+                readonly property var owner: root.groups.length === 1 ? root.groups[0] : root.shownGroup
+                visible: owner !== null && owner.user.length > 0
+                Layout.alignment: Qt.AlignTop
+                Layout.topMargin: 2
+                chip: true
+                iconName: "link"
+                text: owner === null ? "" : owner.linked ? qsTr("Change the link…")
+                    : owner.psidFolder.length > 0 ? qsTr("Link…") : qsTr("Link to an Account ID…")
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Which of the app's Account IDs this console user is")
+                onClicked: linkDialog.ask(owner)
+            }
+        }
 
-            // ── filters and selection
-            RowLayout {
+        // ── filters as underline tabs on a hairline, and the selection
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 12
+            TabBar {
+                id: filterTabs
+                readonly property var ids: ["all", "console", "changed", "vault"]
                 Layout.fillWidth: true
-                spacing: 6
+                padding: 0
+                spacing: 4
+                currentIndex: Math.max(0, ids.indexOf(root.filter))
+                background: Rectangle {
+                    y: parent.height - 1
+                    width: parent.width
+                    height: 1
+                    color: Theme.glassEdge
+                }
                 Repeater {
                     model: [
                         { id: "all", label: qsTr("All"), n: root.counts.all },
@@ -696,339 +825,430 @@ Item {
                         { id: "changed", label: qsTr("Changed"), n: root.counts.changed + root.counts.older },
                         { id: "vault", label: qsTr("Only on the PC"), n: root.counts.vault }
                     ]
-                    StyledButton {
+                    StyledTab {
                         required property var modelData
-                        chip: true
-                        primary: root.filter === modelData.id
+                        width: implicitWidth
+                        leftPadding: 12
+                        rightPadding: 12
                         text: modelData.label + "  " + modelData.n
                         onClicked: { root.filter = modelData.id; root.selected = ({}) }
                     }
                 }
-                Item { Layout.fillWidth: true }
-                // Everything shown, even with some selected already; once it
-                // all is, nothing at all.
-                StyledButton {
-                    chip: true
-                    iconName: root.allShownPicked ? "square" : "square-check"
-                    text: root.allShownPicked ? qsTr("Select none") : qsTr("Select all")
-                    enabled: root.shown.length > 0
-                    onClicked: {
-                        if (root.allShownPicked)
-                            root.selected = ({})
-                        else
-                            root.pickAll(root.shown)
-                    }
-                }
             }
-
-            // ── the saves, by game
-            Item {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-
-                ListView {
-                    id: list
-                    anchors.fill: parent
-                    clip: true
-                    spacing: 6
-                    model: root.rows
-                    boundsBehavior: Flickable.StopAtBounds
-                    ScrollBar.vertical: ScrollBar { policy: list.contentHeight > list.height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded }
-
-                    delegate: Item {
-                        id: entry
-                        required property var modelData
-                        readonly property bool header: modelData.header === true
-                        width: list.width - (header ? 0 : 14)
-                        height: header ? 54 : 58
-
-                        Loader {
-                            anchors.fill: parent
-                            sourceComponent: entry.header ? gameHeader : saveRow
-                        }
-
-                        // A game: its picture, its name and its ID.
-                        Component {
-                            id: gameHeader
-                            Item {
-                                RowLayout {
-                                    anchors.fill: parent
-                                    anchors.topMargin: 10
-                                    anchors.rightMargin: 14
-                                    spacing: 12
-                                    Rectangle {
-                                        implicitWidth: Theme.gameIcon
-                                        implicitHeight: Theme.gameIcon
-                                        radius: 8
-                                        color: Theme.controlFill
-                                        CoverArt {
-                                            id: sectionIcon
-                                            anchors.fill: parent
-                                            visible: ready
-                                            crop: true
-                                            edge: false
-                                            radius: parent.radius
-                                            picture: entry.modelData.gameIcon.toString()
-                                        }
-                                        Icon {
-                                            anchors.centerIn: parent
-                                            visible: !sectionIcon.ready
-                                            name: "gamepad"
-                                            size: 18
-                                            color: Theme.textSecondary
-                                        }
-                                    }
-                                    Text {
-                                        Layout.fillWidth: true
-                                        elide: Text.ElideRight
-                                        text: entry.modelData.gameTitle.length > 0 ? entry.modelData.gameTitle
-                                                                                   : entry.modelData.titleId
-                                        color: Theme.text
-                                        font.pixelSize: 15
-                                        font.weight: Font.DemiBold
-                                    }
-                                    Text {
-                                        text: entry.modelData.titleId
-                                        color: Theme.textMuted
-                                        font.pixelSize: 11
-                                    }
-                                    // Every save of the game, or none of them.
-                                    StyledButton {
-                                        readonly property var mine: root.shownByGame[entry.modelData.titleId] || []
-                                        readonly property bool all: root.allPicked(mine)
-                                        chip: true
-                                        iconName: all ? "square" : "square-check"
-                                        text: all ? qsTr("Unselect %n", "", mine.length)
-                                                  : qsTr("Select %n", "", mine.length)
-                                        enabled: mine.length > 0
-                                        ToolTip.visible: hovered
-                                        ToolTip.text: all ? qsTr("Unselect every save of this game")
-                                                          : qsTr("Select every save of this game")
-                                        onClicked: root.pickAll(mine)
-                                    }
-                                }
-                            }
-                        }
-
-                        // A save: picked or not, its picture, what it is, and
-                        // where it stands.
-                        Component {
-                            id: saveRow
-                            Rectangle {
-                                id: row
-                                readonly property var modelData: entry.modelData
-                                readonly property bool picked: root.isSelected(modelData.key)
-                                radius: 12
-                                color: picked ? Theme.accentFill
-                                     : rowArea.containsMouse ? Theme.controlHover : Theme.panelAltFill
-                                border.width: 1
-                                border.color: picked ? Theme.alpha(Theme.accent, 0.6) : Theme.glassEdge
-                                Behavior on color { ColorAnimation { duration: Theme.fast } }
-
-                                MouseArea {
-                                    id: rowArea
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.toggle(row.modelData.key)
-                                }
-
-                                RowLayout {
-                                    anchors.fill: parent
-                                    anchors.leftMargin: 12
-                                    anchors.rightMargin: 12
-                                    spacing: 12
-
-                                    Icon {
-                                        name: row.picked ? "square-check" : "square"
-                                        size: 18
-                                        color: row.picked ? Theme.accent : Theme.textSecondary
-                                    }
-                                    Rectangle {
-                                        implicitWidth: Theme.gameIcon
-                                        implicitHeight: Theme.gameIcon
-                                        radius: 8
-                                        color: Theme.controlFill
-                                        CoverArt {
-                                            id: saveIcon
-                                            anchors.fill: parent
-                                            visible: ready
-                                            crop: true
-                                            edge: false
-                                            radius: parent.radius
-                                            // The save's own icon, or else the game's.
-                                            picture: row.modelData.icon.toString().length > 0 ? row.modelData.icon.toString()
-                                                                                             : (row.modelData.gameIcon || "").toString()
-                                        }
-                                        Icon {
-                                            anchors.centerIn: parent
-                                            visible: !saveIcon.ready
-                                            name: "save"
-                                            size: 18
-                                            color: Theme.textSecondary
-                                        }
-                                    }
-                                    ColumnLayout {
-                                        Layout.fillWidth: true
-                                        spacing: 2
-                                        Text {
-                                            Layout.fillWidth: true
-                                            elide: Text.ElideRight
-                                            text: row.modelData.saveTitle
-                                            color: Theme.text
-                                            font.pixelSize: 13
-                                            font.weight: Font.Medium
-                                        }
-                                        RowLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 6
-                                            // Whose it is: the name kept in the app, or the PSID.
-                                            Row {
-                                                readonly property string owner: root.ownerOf(row.modelData)
-                                                readonly property bool named: row.modelData.psidName.length > 0
-                                                                              || row.modelData.consoleUser.length > 0
-                                                visible: owner.length > 0
-                                                spacing: 4
-                                                Icon {
-                                                    anchors.verticalCenter: parent.verticalCenter
-                                                    name: "user"
-                                                    size: 11
-                                                    color: parent.named ? Theme.accent : Theme.textMuted
-                                                }
-                                                Text {
-                                                    anchors.verticalCenter: parent.verticalCenter
-                                                    text: parent.owner
-                                                    color: parent.named ? Theme.accent : Theme.textMuted
-                                                    font.pixelSize: 11
-                                                    font.weight: Font.Medium
-                                                }
-                                            }
-                                            Text {
-                                                Layout.fillWidth: true
-                                                elide: Text.ElideRight
-                                                // What the game says about it (chapter, level…), then the size.
-                                                text: (parent.children[0].visible ? "·  " : "")
-                                                      + [row.modelData.detail, row.modelData.size]
-                                                        .filter(function (t) { return t && t.length > 0 }).join("  ·  ")
-                                                color: Theme.textSecondary
-                                                font.pixelSize: 11
-                                            }
-                                        }
-                                    }
-                                    // Where it stands.
-                                    Rectangle {
-                                        readonly property string sync: row.modelData.sync
-                                        readonly property color tone: sync === "same" ? Theme.ok
-                                                                    : sync === "changed" ? Theme.warn
-                                                                    : sync === "vault" || sync === "older" ? Theme.accent
-                                                                    : sync === "usb" ? Theme.warn
-                                                                    : Theme.textSecondary
-                                        implicitWidth: badgeRow.implicitWidth + 18
-                                        implicitHeight: 26
-                                        radius: 13
-                                        color: Theme.alpha(tone, 0.14)
-                                        border.width: 1
-                                        border.color: Theme.alpha(tone, 0.4)
-                                        Row {
-                                            id: badgeRow
-                                            anchors.centerIn: parent
-                                            spacing: 6
-                                            Icon {
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                name: parent.parent.sync === "same" ? "check"
-                                                    : parent.parent.sync === "changed" ? "history"
-                                                    : parent.parent.sync === "older" ? "arrow-down"
-                                                    : parent.parent.sync === "vault" ? "archive"
-                                                    : parent.parent.sync === "usb" ? "usb" : "upload"
-                                                size: 13
-                                                color: parent.parent.tone
-                                            }
-                                            Text {
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                text: parent.parent.sync === "same" ? qsTr("On the PC")
-                                                    : parent.parent.sync === "changed" ? qsTr("Changed since the backup")
-                                                    : parent.parent.sync === "older" ? qsTr("The PC has a newer one")
-                                                    : parent.parent.sync === "vault" ? qsTr("Only on the PC")
-                                                    : parent.parent.sync === "usb" ? (row.modelData.usbOnConsole ? qsTr("On the console's USB drive")
-                                                                                                            : qsTr("On a USB drive"))
-                                                    : qsTr("Not backed up")
-                                                color: parent.parent.tone
-                                                font.pixelSize: 11
-                                                font.weight: Font.DemiBold
-                                            }
-                                        }
-                                        ToolTip.visible: badgeHover.hovered && row.modelData.backedUpAt.length > 0
-                                        ToolTip.text: qsTr("Last backup: %1 (%n kept)", "", row.modelData.versions)
-                                                      .arg(row.modelData.backedUpAt)
-                                        HoverHandler { id: badgeHover }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Reading: the shape of the rows about to come.
-                Column {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    visible: root.shown.length === 0 && saves.busy
-                    spacing: 6
-                    Repeater {
-                        model: parent.visible ? 5 : 0
-                        SkeletonRow {
-                            required property int index
-                            width: parent.width
-                            delay: index * 80
-                        }
-                    }
-                }
-
-                // Empty.
-                Column {
-                    anchors.centerIn: parent
-                    visible: root.shown.length === 0 && !saves.busy
-                    spacing: 12
-                    Icon {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        name: "archive"
-                        size: 44
-                        color: Theme.alpha(Theme.textSecondary, 0.7)
-                    }
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        horizontalAlignment: Text.AlignHCenter
-                        text: saves.busy ? qsTr("Reading the console's saves…")
-                            : root.filter !== "all" ? qsTr("Nothing here.")
-                            : root.online ? qsTr("No saves on the console or on the PC.")
-                            : qsTr("Connect to a console with FTP (GoldHEN, etaHEN) to see its saves.")
-                        color: Theme.textSecondary
-                        font.pixelSize: 13
-                    }
-                }
-            }
-
-            // The one thing to know, said quietly.
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                Icon {
-                    name: "info"
-                    size: 13
-                    color: Theme.textMuted
-                }
-                Text {
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    color: Theme.textMuted
-                    font.pixelSize: 11
-                    text: qsTr("Saves are kept on the PC as the PS4 copies them to a USB drive: PS4/SAVEDATA/<PSID>/<game>. "
-                               + "A save only goes to a console user with its PSID, on this console or another — a PS4 "
-                               + "game's save works on a PS5 too.")
+            // Everything shown, even with some selected already; once it
+            // all is, nothing at all.
+            StyledButton {
+                chip: true
+                iconName: root.allShownPicked ? "square" : "square-check"
+                text: root.allShownPicked ? qsTr("Select none") : qsTr("Select all")
+                enabled: root.shown.length > 0
+                onClicked: {
+                    if (root.allShownPicked)
+                        root.selected = ({})
+                    else
+                        root.pickAll(root.shown)
                 }
             }
         }
 
+        // ── the saves, by game: a hairline list, each game a heading over
+        // its saves
+        Item {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.topMargin: -8
+
+            ListView {
+                id: list
+                anchors.fill: parent
+                clip: true
+                spacing: 0
+                model: root.rows
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar { policy: list.contentHeight > list.height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded }
+
+                delegate: Item {
+                    id: entry
+                    required property var modelData
+                    required property int index
+                    readonly property bool header: modelData.header === true
+                    width: list.width - 14
+                    height: header ? (index === 0 ? 56 : 68) : 58
+
+                    Loader {
+                        anchors.fill: parent
+                        sourceComponent: entry.header ? gameHeader : saveRow
+                    }
+
+                    // A game: its picture, its name in the serif and its ID.
+                    Component {
+                        id: gameHeader
+                        Item {
+                            RowLayout {
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                anchors.bottomMargin: 6
+                                spacing: 12
+                                Rectangle {
+                                    implicitWidth: 40
+                                    implicitHeight: 40
+                                    radius: 10
+                                    color: Theme.controlFill
+                                    border.width: 1
+                                    border.color: Theme.glassEdge
+                                    CoverArt {
+                                        id: sectionIcon
+                                        anchors.fill: parent
+                                        visible: ready
+                                        crop: true
+                                        edge: false
+                                        radius: parent.radius
+                                        picture: entry.modelData.gameIcon.toString()
+                                    }
+                                    Icon {
+                                        anchors.centerIn: parent
+                                        visible: !sectionIcon.ready
+                                        name: "gamepad"
+                                        size: 18
+                                        color: Theme.textSecondary
+                                    }
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                    text: entry.modelData.gameTitle.length > 0 ? entry.modelData.gameTitle
+                                                                               : entry.modelData.titleId
+                                    color: Theme.ink
+                                    font.family: Theme.fontDisplay
+                                    font.pixelSize: Theme.fontCardTitle
+                                    font.weight: Font.DemiBold
+                                }
+                                Tag {
+                                    text: entry.modelData.titleId
+                                    mono: true
+                                }
+                                // Every save of the game, or none of them.
+                                StyledButton {
+                                    readonly property var mine: root.shownByGame[entry.modelData.titleId] || []
+                                    readonly property bool all: root.allPicked(mine)
+                                    chip: true
+                                    iconName: all ? "square" : "square-check"
+                                    text: all ? qsTr("Unselect %n", "", mine.length)
+                                              : qsTr("Select %n", "", mine.length)
+                                    enabled: mine.length > 0
+                                    ToolTip.visible: hovered
+                                    ToolTip.text: all ? qsTr("Unselect every save of this game")
+                                                      : qsTr("Select every save of this game")
+                                    onClicked: root.pickAll(mine)
+                                }
+                            }
+                        }
+                    }
+
+                    // A save: picked or not, its picture, what it is, its size
+                    // and last backup, and where it stands.
+                    Component {
+                        id: saveRow
+                        Rectangle {
+                            id: row
+                            readonly property var modelData: entry.modelData
+                            readonly property bool picked: root.isSelected(modelData.key)
+                            radius: Theme.radiusSmall
+                            color: picked ? Theme.accentFill
+                                 : rowArea.containsMouse ? Theme.alpha(Theme.ink, 0.05) : "transparent"
+                            border.width: activeFocus ? 2 : picked ? 1 : 0
+                            border.color: activeFocus ? Theme.alpha(Theme.accent, 0.8) : Theme.alpha(Theme.accent, 0.5)
+                            Behavior on color { ColorAnimation { duration: Theme.fast } }
+
+                            activeFocusOnTab: true
+                            Accessible.role: Accessible.CheckBox
+                            Accessible.name: modelData.saveTitle
+                            Accessible.checkable: true
+                            Accessible.checked: picked
+                            Keys.onSpacePressed: root.toggle(modelData.key)
+
+                            // The hairline between saves.
+                            Rectangle {
+                                visible: !row.picked
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                anchors.leftMargin: 44
+                                height: 1
+                                color: Theme.glassEdge
+                            }
+
+                            MouseArea {
+                                id: rowArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.toggle(row.modelData.key)
+                            }
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 12
+                                anchors.rightMargin: 12
+                                spacing: 12
+
+                                Icon {
+                                    name: row.picked ? "square-check" : "square"
+                                    size: 18
+                                    color: row.picked ? Theme.accent : Theme.textSecondary
+                                }
+                                Rectangle {
+                                    implicitWidth: 36
+                                    implicitHeight: 36
+                                    radius: 8
+                                    color: Theme.controlFill
+                                    CoverArt {
+                                        id: saveIcon
+                                        anchors.fill: parent
+                                        visible: ready
+                                        crop: true
+                                        edge: false
+                                        radius: parent.radius
+                                        // The save's own icon, or else the game's.
+                                        picture: row.modelData.icon.toString().length > 0 ? row.modelData.icon.toString()
+                                                                                         : (row.modelData.gameIcon || "").toString()
+                                    }
+                                    Icon {
+                                        anchors.centerIn: parent
+                                        visible: !saveIcon.ready
+                                        name: "save"
+                                        size: 16
+                                        color: Theme.textSecondary
+                                    }
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    Text {
+                                        Layout.fillWidth: true
+                                        elide: Text.ElideRight
+                                        text: row.modelData.saveTitle
+                                        color: Theme.ink
+                                        font.pixelSize: 13
+                                        font.weight: Font.DemiBold
+                                    }
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 6
+                                        // Whose it is: the name kept in the app, or the PSID.
+                                        Row {
+                                            id: ownerLine
+                                            readonly property string owner: root.ownerOf(row.modelData)
+                                            readonly property bool named: row.modelData.psidName.length > 0
+                                                                          || row.modelData.consoleUser.length > 0
+                                            visible: owner.length > 0
+                                            spacing: 4
+                                            Icon {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                name: "user"
+                                                size: 11
+                                                color: ownerLine.named ? Theme.accent : Theme.textSecondary
+                                            }
+                                            Text {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                text: ownerLine.owner
+                                                color: ownerLine.named ? (Theme.light ? Qt.darker(Theme.accent, 1.2) : Theme.accent)
+                                                                       : Theme.textSecondary
+                                                // A bare PSID is an ID: in the mono.
+                                                font.family: ownerLine.named ? Theme.fontSans : Theme.fontMono
+                                                font.pixelSize: 11
+                                                font.weight: Font.Medium
+                                            }
+                                        }
+                                        // What the game says about it (chapter, level…).
+                                        Text {
+                                            Layout.fillWidth: true
+                                            elide: Text.ElideRight
+                                            text: (row.modelData.detail || "").length > 0
+                                                  ? (ownerLine.visible ? "·  " : "") + row.modelData.detail : ""
+                                            color: Theme.textSecondary
+                                            font.pixelSize: 11
+                                        }
+                                    }
+                                }
+                                // Its size, and when it was last backed up.
+                                ColumnLayout {
+                                    spacing: 2
+                                    Text {
+                                        Layout.alignment: Qt.AlignRight
+                                        visible: text.length > 0
+                                        text: row.modelData.size || ""
+                                        color: Theme.text
+                                        font.family: Theme.fontMono
+                                        font.pixelSize: 11
+                                    }
+                                    Text {
+                                        Layout.alignment: Qt.AlignRight
+                                        visible: text.length > 0
+                                        text: row.modelData.backedUpAt
+                                        color: Theme.textSecondary
+                                        font.family: Theme.fontMono
+                                        font.pixelSize: 10
+                                    }
+                                }
+                                // Where it stands.
+                                Tag {
+                                    readonly property string sync: row.modelData.sync
+                                    Layout.preferredWidth: Math.max(implicitWidth, 112)
+                                    tone: sync === "same" ? "ok"
+                                        : sync === "changed" || sync === "usb" ? "warn"
+                                        : sync === "vault" || sync === "older" ? "accent"
+                                        : "neutral"
+                                    iconName: sync === "same" ? "check"
+                                            : sync === "changed" ? "history"
+                                            : sync === "older" ? "arrow-down"
+                                            : sync === "vault" ? "archive"
+                                            : sync === "usb" ? "usb" : "upload"
+                                    text: sync === "same" ? qsTr("On the PC")
+                                        : sync === "changed" ? qsTr("Changed since the backup")
+                                        : sync === "older" ? qsTr("The PC has a newer one")
+                                        : sync === "vault" ? qsTr("Only on the PC")
+                                        : sync === "usb" ? (row.modelData.usbOnConsole ? qsTr("On the console's USB drive")
+                                                                                       : qsTr("On a USB drive"))
+                                        : qsTr("Not backed up")
+                                    ToolTip.visible: badgeHover.hovered && row.modelData.backedUpAt.length > 0
+                                    ToolTip.text: qsTr("Last backup: %1 (%n kept)", "", row.modelData.versions)
+                                                  .arg(row.modelData.backedUpAt)
+                                    HoverHandler { id: badgeHover }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Reading: the shape of the rows about to come.
+            Column {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.topMargin: 12
+                visible: root.shown.length === 0 && saves.busy
+                spacing: 6
+                Repeater {
+                    model: parent.visible ? 5 : 0
+                    SkeletonRow {
+                        required property int index
+                        width: parent.width
+                        delay: index * 80
+                    }
+                }
+            }
+
+            // Empty: the faint planet, what is (not) here, and the way on.
+            ColumnLayout {
+                anchors.centerIn: parent
+                width: Math.min(parent.width - 32, 440)
+                visible: root.shown.length === 0 && !saves.busy
+                spacing: 10
+                Image {
+                    Layout.alignment: Qt.AlignHCenter
+                    source: "qrc:/icons/planet.png"
+                    sourceSize.width: 112
+                    sourceSize.height: 112
+                    fillMode: Image.PreserveAspectFit
+                    opacity: Theme.light ? 0.35 : 0.45
+                }
+                Text {
+                    Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    text: root.filter !== "all" ? qsTr("Nothing here.")
+                        : root.online ? qsTr("No saves on the console or on the PC.")
+                        : qsTr("No console to read")
+                    color: Theme.ink
+                    font.family: Theme.fontDisplay
+                    font.pixelSize: Theme.fontHeading
+                    font.weight: Font.DemiBold
+                }
+                Text {
+                    Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    visible: text.length > 0
+                    text: root.filter !== "all" ? qsTr("No save of this kind for the owner shown.")
+                        : root.online ? qsTr("Saves the console's users make show up here once it is read again.")
+                        : qsTr("Connect to a console with FTP (GoldHEN, etaHEN) to see its saves.")
+                    color: Theme.textSecondary
+                    font.pixelSize: 13
+                }
+                StyledButton {
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.topMargin: 6
+                    visible: root.filter === "all"
+                    iconName: "refresh"
+                    text: qsTr("Read the console again")
+                    onClicked: { root.probeConsoles(); saves.refresh() }
+                }
+                StyledButton {
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.topMargin: 6
+                    visible: root.filter !== "all"
+                    text: qsTr("Show all")
+                    onClicked: { root.filter = "all"; root.selected = ({}) }
+                }
+            }
+        }
+
+        // The one thing to know, said quietly, under a hairline, beside the
+        // folder the vault is in.
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.topMargin: -8
+            implicitHeight: 1
+            color: Theme.glassEdge
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: -6
+            spacing: 8
+            Icon {
+                Layout.alignment: Qt.AlignTop
+                Layout.topMargin: 1
+                name: "info"
+                size: 13
+                color: Theme.textSecondary
+            }
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: Theme.textSecondary
+                font.pixelSize: 11
+                text: qsTr("Saves are kept on the PC as the PS4 copies them to a USB drive: PS4/SAVEDATA/<PSID>/<game>. "
+                           + "A save only goes to a console user with its PSID, on this console or another — a PS4 "
+                           + "game's save works on a PS5 too.")
+            }
+            // Where on this PC they are kept: open it, or (right click, or the
+            // gear) choose another.
+            StyledButton {
+                iconName: "folder-open"
+                chip: true
+                text: saves.vaultFolder
+                font.family: Theme.fontMono
+                Layout.maximumWidth: 240
+                Layout.alignment: Qt.AlignVCenter
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Open the folder on the PC (right click to change it)")
+                onClicked: saves.openVaultFolder()
+                TapHandler {
+                    acceptedButtons: Qt.RightButton
+                    onTapped: vaultFolderDialog.open()
+                }
+            }
+            StyledToolButton {
+                iconName: "settings"
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Change the folder on the PC")
+                Accessible.name: ToolTip.text
+                onClicked: vaultFolderDialog.open()
+            }
+        }
     }
 
     FolderDialog {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Drag-and-drop overlay: two zones, one per mode, on a glass card over the
-// dimmed window.
+// Drag-and-drop overlay: two zones, one per mode, on an ornate plate over
+// the dimmed window.
 // The stream keeps running underneath — nothing is paused.
 //
 // There is no DropArea here. One DropArea per zone does not work: the
@@ -78,50 +78,49 @@ Item {
     // The whole window dims; the picture keeps going underneath.
     Rectangle {
         anchors.fill: parent
-        color: Qt.rgba(4 / 255, 8 / 255, 14 / 255, 0.78)
+        color: Theme.light ? Qt.rgba(32 / 255, 43 / 255, 50 / 255, 0.55) : Qt.rgba(4 / 255, 10 / 255, 18 / 255, 0.78)
     }
 
-    Rectangle {
+    // The sheet: a single ornate plate (brass double edge), since for the
+    // moment of a drop it is the only thing on screen that matters.
+    Plate {
         id: sheet
         anchors.centerIn: parent
         width: Math.min(parent.width - 80, 760)
-        height: Math.min(parent.height - 80, 440)
-        radius: 26
-        color: Qt.rgba(22 / 255, 34 / 255, 54 / 255, 0.92)
-        border.width: 1
-        border.color: Qt.rgba(1, 1, 1, 0.14)
+        height: Math.min(parent.height - 80, 460)
+        radius: Theme.radiusDialog + 6
+        ornate: true
+        color: Theme.dialogFill
         scale: root.active ? 1.0 : 0.96
         Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-        Rectangle {
-            anchors.fill: parent
-            radius: parent.radius
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.07) }
-                GradientStop { position: 0.5; color: "transparent" }
-            }
-        }
-
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 28
-            spacing: 16
+            anchors.margins: 32
+            anchors.topMargin: 28
+            spacing: 6
 
-            Icon {
+            Eyebrow {
                 Layout.alignment: Qt.AlignHCenter
-                name: "package"
-                size: 40
-                strokeWidth: 1.5
-                color: Theme.onStage
+                text: qsTr("Files to the console")
             }
 
             Text {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
                 text: qsTr("Drop to…")
-                color: Theme.onStage
-                font.pixelSize: 22
+                color: Theme.ink
+                font.pixelSize: Theme.fontTitle
+                font.family: Theme.fontDisplay
                 font.weight: Font.DemiBold
+            }
+
+            EngravedRule {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: 220
+                Layout.topMargin: 4
+                Layout.bottomMargin: 14
+                star: true
             }
 
             RowLayout {
@@ -158,11 +157,12 @@ Item {
 
             Text {
                 Layout.fillWidth: true
+                Layout.topMargin: 10
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
                 text: qsTr("Takes several files and folders (it looks for .pkg inside)")
-                color: Theme.onStageMuted
-                font.pixelSize: 12
+                color: Theme.textSecondary
+                font.pixelSize: Theme.fontSmall
             }
         }
     }

@@ -41,7 +41,7 @@ FocusScope {
         id: panel
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: bar.bottom
-        anchors.topMargin: 10
+        anchors.topMargin: 8
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 16
         width: Math.min(parent.width - 32, Math.max(Math.min(720, parent.width - 32), parent.width * 0.74))
@@ -67,25 +67,41 @@ FocusScope {
         Item {
             id: holder
             anchors.fill: parent
+            // The page draws no panel of its own over the picture (margins 0
+            // there): the room around it on this plate is given here.
+            anchors.margins: 20
+            anchors.topMargin: 16
             opacity: overlay.contentOpacity
             // As one picture, so what overlaps inside does not show through itself.
             layer.enabled: opacity < 1
         }
     }
 
-    // The bar: what is open, how see-through, and the way out.
+    // The bar: what is open, how see-through, and the way out — the page's
+    // head, as PageHeader draws it elsewhere: a seal with the page's icon,
+    // the brass eyebrow ("Over Remote Play") and the title in the serif.
     Rectangle {
         id: bar
         anchors.top: parent.top
         anchors.topMargin: 14
         anchors.horizontalCenter: panel.horizontalCenter
         width: panel.width
-        height: 46
-        radius: 23
+        height: 60
+        radius: Theme.radius
         color: Theme.menuFill
         border.width: 1
-        border.color: Theme.alpha(Theme.accent, 0.45)
+        border.color: Theme.alpha(Theme.brass, 0.5)
         opacity: overlay.barOpacity
+
+        // The brass hairline inside the edge, as on an ornate plate.
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 4
+            radius: parent.radius - 4
+            color: "transparent"
+            border.width: 1
+            border.color: Theme.alpha(Theme.brass, 0.2)
+        }
 
         MouseArea {
             anchors.fill: parent
@@ -93,34 +109,48 @@ FocusScope {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 16
-            anchors.rightMargin: 8
-            spacing: 10
-            Icon {
+            anchors.leftMargin: 12
+            anchors.rightMargin: 12
+            spacing: 12
+
+            // The seal.
+            Rectangle {
                 visible: overlay.iconName.length > 0
-                name: overlay.iconName
-                size: 16
-                color: Theme.accent
+                implicitWidth: 36
+                implicitHeight: 36
+                radius: 18
+                color: Theme.alpha(Theme.ink, Theme.light ? 0.06 : 0.07)
+                border.width: 1
+                border.color: Theme.alpha(Theme.brass, 0.55)
+                Icon {
+                    anchors.centerIn: parent
+                    name: overlay.iconName
+                    size: 17
+                    color: Theme.ink
+                }
             }
-            Text {
+            ColumnLayout {
                 Layout.fillWidth: true
-                text: overlay.title
-                color: Theme.text
-                font.pixelSize: 14
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
-            }
-            Text {
-                text: qsTr("Over Remote Play")
-                color: Theme.textSecondary
-                font.pixelSize: 12
-                visible: bar.width > 620
+                spacing: 0
+                Eyebrow {
+                    Layout.fillWidth: true
+                    text: qsTr("Over Remote Play")
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: overlay.title
+                    color: Theme.ink
+                    font.family: Theme.fontDisplay
+                    font.pixelSize: Theme.fontHeading
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                }
             }
             Rectangle {
-                width: 1
-                height: 20
+                implicitWidth: 1
+                implicitHeight: 28
                 color: Theme.glassEdge
-                visible: bar.width > 620
+                visible: bar.width > 520
             }
             Icon {
                 name: "contrast"
@@ -136,6 +166,7 @@ FocusScope {
                 value: app.overlayOpacity
                 onMoved: overlay.shownOpacity = value
                 onPressedChanged: if (!pressed) app.setOverlayOpacity(value)
+                Accessible.name: ToolTip.text
                 ToolTip.visible: hovered || pressed
                 ToolTip.text: qsTr("How opaque this page is over the picture")
 
@@ -143,13 +174,13 @@ FocusScope {
                     x: opacitySlider.leftPadding
                     y: opacitySlider.topPadding + opacitySlider.availableHeight / 2 - height / 2
                     width: opacitySlider.availableWidth
-                    height: 4
-                    radius: 2
-                    color: Theme.alpha(Theme.text, 0.18)
+                    height: 2
+                    radius: 1
+                    color: Theme.alpha(Theme.ink, 0.2)
                     Rectangle {
                         width: opacitySlider.visualPosition * parent.width
                         height: parent.height
-                        radius: 2
+                        radius: 1
                         color: Theme.accent
                     }
                 }
@@ -159,7 +190,7 @@ FocusScope {
                     width: 16
                     height: 16
                     radius: 8
-                    color: "#FFFFFF"
+                    color: Theme.menuFill
                     border.width: 2
                     border.color: Theme.accent
                 }
@@ -174,6 +205,7 @@ FocusScope {
             }
             StyledToolButton {
                 iconName: "close"
+                Accessible.name: ToolTip.text
                 ToolTip.visible: hovered
                 ToolTip.text: qsTr("Close (Esc) — back to the picture")
                 onClicked: overlay.closed()
