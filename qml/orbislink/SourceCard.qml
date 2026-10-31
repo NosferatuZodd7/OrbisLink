@@ -2,9 +2,11 @@
 //
 // A place on the shelf's home: the console's library, a drive, a folder of
 // this PC. Like a folder, it shows the covers of the first games in it, with
-// the sign of what it is in the fourth corner; a badge says where it is
-// (console, USB, PC, folder), a star marks a favourite, and a place that is
-// not there now (a drive taken out, the console off) is shown faded.
+// the sign of what it is in the fourth corner; a tag says where it is
+// (console, USB, PC, folder) and whether it answers, a brass star marks a
+// favourite, and a place that is not there now (a drive taken out, the
+// console off) is shown faded. The console's own places carry a second,
+// brass hairline inside the edge, as the atlas marks what is singled out.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -16,6 +18,7 @@ ShelfTile {
     readonly property var previews: info.previews || []
     readonly property int count: info.count === undefined ? -1 : info.count
     readonly property bool available: info.available !== false
+    readonly property bool isConsole: info.kind === "console"
 
     readonly property string sign: info.kind === "console" ? "gamepad"
                                  : info.kind === "usb" ? "usb"
@@ -29,6 +32,7 @@ ShelfTile {
     title: info.title || ""
     subtitle: !available ? qsTr("Not available")
             : count < 0 ? qsTr("Reading…") : qsTr("%n item(s)", "", count)
+    subtitleMono: false
     dimmed: !available
 
     ToolTip.visible: hover && (info.path || "").length > 0
@@ -37,19 +41,28 @@ ShelfTile {
 
     Rectangle {
         anchors.fill: parent
-        radius: 6
+        radius: card.artRadius
         border.width: 1
-        border.color: Theme.cardEdge
+        border.color: card.isConsole ? Theme.alpha(Theme.brass, 0.55) : Theme.cardEdge
         gradient: Gradient {
             GradientStop { position: 0.0; color: Theme.cardTop }
-            GradientStop { position: 1.0; color: card.info.kind === "console" ? Theme.cardActiveBottom : Theme.cardBottom }
+            GradientStop { position: 1.0; color: card.isConsole ? Theme.cardActiveBottom : Theme.cardBottom }
+        }
+        Rectangle {
+            visible: card.isConsole
+            anchors.fill: parent
+            anchors.margins: 4
+            radius: card.artRadius - 3
+            color: "transparent"
+            border.width: 1
+            border.color: Theme.alpha(Theme.brass, 0.22)
         }
     }
 
     Grid {
         visible: card.previews.length > 0
         anchors.fill: parent
-        anchors.margins: 8
+        anchors.margins: 12
         columns: 2
         spacing: 6
         readonly property real cell: (width - spacing) / 2
@@ -65,64 +78,76 @@ ShelfTile {
                     visible: parent.index < 3 && parent.index < card.previews.length
                     picture: visible ? (card.previews[parent.index].picture || "") : ""
                     placeholder: visible ? (card.previews[parent.index].placeholder || "bd") : "bd"
-                    radius: 4
+                    radius: 6
                 }
                 Rectangle {
                     anchors.fill: parent
                     visible: parent.index < 3 && parent.index >= card.previews.length
-                    radius: 4
-                    color: Theme.alpha(Theme.text, 0.04)
+                    radius: 6
+                    color: Theme.alpha(Theme.ink, 0.04)
+                    border.width: 1
+                    border.color: Theme.alpha(Theme.ink, 0.06)
                 }
                 Icon {
                     visible: parent.index === 3
                     anchors.centerIn: parent
                     name: card.sign
-                    size: parent.width * 0.5
+                    size: parent.width * 0.46
                     strokeWidth: 1.5
-                    color: Theme.alpha(Theme.text, 0.85)
+                    color: Theme.alpha(Theme.ink, 0.8)
                 }
             }
         }
     }
 
-    // No covers yet: the sign alone, large.
-    Icon {
+    // No covers yet: the sign alone, in a ring, with a brass star over it
+    // for the console's own.
+    Item {
         visible: card.previews.length === 0
-        anchors.centerIn: parent
-        name: card.sign
-        size: parent.width * 0.34
-        strokeWidth: 1.4
-        color: Theme.alpha(card.info.kind === "console" ? Theme.accent : Theme.textSecondary, 0.9)
+        anchors.fill: parent
+        Rectangle {
+            id: seal
+            anchors.centerIn: parent
+            anchors.verticalCenterOffset: -10
+            width: parent.width * 0.42
+            height: width
+            radius: width / 2
+            color: Theme.alpha(Theme.ink, 0.04)
+            border.width: 1
+            border.color: Theme.alpha(card.isConsole ? Theme.brass : Theme.ink, card.isConsole ? 0.5 : 0.18)
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: 4
+                radius: width / 2
+                color: "transparent"
+                border.width: 1
+                border.color: Theme.alpha(card.isConsole ? Theme.brass : Theme.ink, 0.12)
+            }
+            Icon {
+                anchors.centerIn: parent
+                name: card.sign
+                size: parent.width * 0.46
+                strokeWidth: 1.4
+                color: Theme.alpha(card.isConsole ? Theme.ink : Theme.textSecondary, 0.9)
+            }
+        }
     }
 
+    // Where it is, and a dot that says whether it answers.
     Rectangle {
         anchors.left: parent.left
         anchors.bottom: parent.bottom
-        anchors.margins: 8
-        radius: 8
-        color: Theme.alpha(Theme.cardBottom, 0.9)
-        border.width: 1
-        border.color: Theme.cardEdge
-        implicitWidth: badgeRow.implicitWidth + 14
-        implicitHeight: 22
-        Row {
-            id: badgeRow
-            anchors.centerIn: parent
-            spacing: 5
-            Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
-                width: 7
-                height: 7
-                radius: 3.5
-                color: card.available ? Theme.ok : Theme.textSecondary
-            }
-            Text {
-                text: card.badge
-                color: Theme.cardText
-                font.pixelSize: 10
-                font.weight: Font.DemiBold
-                font.letterSpacing: 0.4
-            }
+        anchors.margins: 10
+        width: whereTag.implicitWidth
+        height: whereTag.implicitHeight
+        radius: height / 2
+        color: Theme.alpha(Theme.cardBottom, 0.94)
+        Tag {
+            id: whereTag
+            anchors.fill: parent
+            text: card.badge
+            tone: card.available ? "ok" : "neutral"
+            iconName: card.available ? "check" : "close"
         }
     }
 
@@ -130,9 +155,9 @@ ShelfTile {
         visible: card.info.favorite === true
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: 8
+        anchors.margins: 10
         name: "star"
         size: 16
-        color: Theme.hen
+        color: Theme.brass
     }
 }

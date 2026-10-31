@@ -1,0 +1,11 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Figtree, by Erik Kennedy, under the SIL Open Font License 1.1 (LICENSE.txt):
+     static instances of the variable font. -->
+<RCC>
+    <qresource prefix="/fonts">
+        <file>Figtree-Regular.ttf</file>
+        <file>Figtree-Medium.ttf</file>
+        <file>Figtree-SemiBold.ttf</file>
+        <file>Figtree-Bold.ttf</file>
+    </qresource>
+</RCC>

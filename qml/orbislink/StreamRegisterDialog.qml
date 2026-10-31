@@ -55,6 +55,7 @@ Dialog {
     }
 
     header: DialogHeader {
+        eyebrow: qsTr("Remote Play")
         title: qsTr("Register this PC on the console")
         dialog: dialog
     }
@@ -75,7 +76,7 @@ Dialog {
             Text {
                 visible: dialog.busy
                 text: qsTr("Talking to the console…")
-                color: Theme.textMuted
+                color: Theme.textSecondary
                 font.pixelSize: 11
             }
             Item { Layout.fillWidth: true }
@@ -99,84 +100,103 @@ Dialog {
     }
 
     contentItem: ColumnLayout {
-        spacing: 12
+        spacing: 16
 
         // Step by step, because this always fails for the same reasons: an
-        // expired PIN or a swapped Account ID.
-        Rectangle {
+        // expired PIN or a swapped Account ID. Numbered as an atlas numbers
+        // its plates, with no box around them (the dialog is the box).
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
-            Layout.topMargin: Theme.dialogInner
-            color: Theme.panelAltFill
-            border.color: Theme.border
-            radius: 8
-            implicitHeight: steps.implicitHeight + 28
+            Layout.topMargin: 6
+            spacing: 10
 
-            ColumnLayout {
-                id: steps
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.leftMargin: Theme.dialogInner
-                anchors.rightMargin: Theme.dialogInner
-                spacing: 4
-
-                Text {
+            Repeater {
+                model: [
+                    { text: (typeof stream !== "undefined" && stream && stream.consolePs5)
+                            ? qsTr("On the PS5: Settings → System → Remote Play → Link Device, "
+                                   + "signed in with the account you will use.")
+                            : qsTr("On the console: Settings → Remote Play Connection Settings → "
+                                   + "Add Device."),
+                      strong: true },
+                    { text: qsTr("The 8-digit PIN it shows lasts only a few minutes. If it fails, "
+                                 + "ask the console for another."),
+                      strong: false },
+                    { text: app.accounts.length > 1
+                            ? qsTr("This registration belongs to the account below only; each account "
+                                   + "registers by itself.") : "",
+                      strong: false }
+                ]
+                delegate: RowLayout {
+                    required property var modelData
+                    required property int index
+                    visible: modelData.text.length > 0
                     Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    color: Theme.text
-                    font.pixelSize: 12
-                    text: (typeof stream !== "undefined" && stream && stream.consolePs5)
-                          ? qsTr("On the PS5: Settings → System → Remote Play → Link Device, "
-                                 + "signed in with the account you will use.")
-                          : qsTr("On the console: Settings → Remote Play Connection Settings → "
-                                 + "Add Device.")
-                }
-                Text {
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    color: Theme.textMuted
-                    font.pixelSize: 11
-                    text: qsTr("The 8-digit PIN it shows lasts only a few minutes. If it fails, "
-                               + "ask the console for another.")
-                }
-                Text {
-                    visible: app.accounts.length > 1
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    color: Theme.textMuted
-                    font.pixelSize: 11
-                    text: qsTr("This registration belongs to the account below only; each account "
-                               + "registers by itself.")
+                    spacing: 12
+                    // The step's numeral in a small brass ring.
+                    Rectangle {
+                        Layout.alignment: Qt.AlignTop
+                        implicitWidth: 24
+                        implicitHeight: 24
+                        radius: 12
+                        color: "transparent"
+                        border.width: 1
+                        border.color: Theme.alpha(Theme.brass, 0.7)
+                        Text {
+                            anchors.centerIn: parent
+                            text: index + 1
+                            color: Theme.brass
+                            font.family: Theme.fontDisplay
+                            font.pixelSize: 13
+                            font.weight: Font.DemiBold
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        Layout.topMargin: 3
+                        wrapMode: Text.WordWrap
+                        color: modelData.strong ? Theme.text : Theme.textSecondary
+                        font.pixelSize: modelData.strong ? 13 : 12
+                        lineHeight: 1.15
+                        text: modelData.text
+                    }
                 }
             }
         }
 
-        GridLayout {
+        Rectangle {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
-            columns: 2
-            columnSpacing: 12
-            rowSpacing: 8
+            implicitHeight: 1
+            color: Theme.glassEdge
+        }
 
-            Text { text: qsTr("PIN"); color: Theme.textMuted; font.pixelSize: 12 }
+        // The fields, each under its own small-caps label.
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.dialogMargin
+            Layout.rightMargin: Theme.dialogMargin
+            spacing: 6
+
+            Eyebrow { text: qsTr("PIN"); color: Theme.textSecondary }
             StyledField {
                 id: pinField
                 Layout.fillWidth: true
                 placeholderText: "12345678"
+                font.family: Theme.fontMono
                 maximumLength: 8
                 inputMethodHints: Qt.ImhDigitsOnly
                 validator: RegularExpressionValidator { regularExpression: /[0-9]{0,8}/ }
             }
 
             // A saved Account ID fills the field below in one click.
-            Text {
+            Eyebrow {
                 visible: app.accounts.length > 0
+                Layout.topMargin: 8
                 text: qsTr("Saved Account ID")
-                color: Theme.textMuted
-                font.pixelSize: 12
+                color: Theme.textSecondary
             }
             StyledCombo {
                 id: savedBox
@@ -192,12 +212,10 @@ Dialog {
                 }
             }
 
-            Text {
-                text: qsTr("Account ID (PSN)")
-                color: Theme.textMuted
-                font.pixelSize: 12
-                Layout.alignment: Qt.AlignTop
+            Eyebrow {
                 Layout.topMargin: 8
+                text: qsTr("Account ID (PSN)")
+                color: Theme.textSecondary
             }
             AccountIdField {
                 id: accountField
@@ -218,8 +236,9 @@ Dialog {
             Layout.rightMargin: Theme.dialogMargin
             Layout.bottomMargin: Theme.dialogInner
             wrapMode: Text.WordWrap
-            color: Theme.textMuted
+            color: Theme.textSecondary
             font.pixelSize: 11
+            lineHeight: 1.15
             text: qsTr("The Account ID is a 64-bit number belonging to the PSN account that uses "
                        + "the console — it is not the username. Paste it however you have it: "
                        + "hexadecimal, decimal or already in base64. The console only accepts the "

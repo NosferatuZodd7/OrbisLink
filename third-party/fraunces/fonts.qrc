@@ -1,0 +1,9 @@
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Fraunces, by Undercase Type, under the SIL Open Font License 1.1 (LICENSE.txt):
+     static instances of the variable font (opsz 48, SOFT 100, WONK 0). -->
+<RCC>
+    <qresource prefix="/fonts">
+        <file>Fraunces-Regular.ttf</file>
+        <file>Fraunces-SemiBold.ttf</file>
+    </qresource>
+</RCC>

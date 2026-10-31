@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// An icon button of the bar floating over the picture. The picture is always
-// dark, so it is light whatever the theme.
+// An icon button of the bar floating over the picture: round-ended, like the
+// app's other buttons. The picture is always dark, so it is light whatever
+// the theme.
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -23,7 +24,7 @@ Rectangle {
 
     implicitWidth: secondIconName.length > 0 ? 62 : 36
     implicitHeight: 36
-    radius: 10
+    radius: height / 2
     color: lit ? Theme.alpha(Theme.error, 0.85)
          : area.pressed ? Qt.rgba(1, 1, 1, 0.18)
          : area.containsMouse ? Qt.rgba(1, 1, 1, 0.12)
@@ -62,6 +63,8 @@ Rectangle {
         }
     }
 
+    Accessible.role: Accessible.Button
+    Accessible.name: tip
     ToolTip.visible: area.containsMouse && tip.length > 0
     ToolTip.text: tip
     ToolTip.delay: 300

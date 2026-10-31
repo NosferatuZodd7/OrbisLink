@@ -32,7 +32,7 @@ TextField {
         Rectangle {
             anchors.fill: parent
             radius: Theme.radiusField
-            color: Theme.light ? "#FFFFFF" : Theme.controlFill
+            color: Theme.light ? "#FBF6EA" : Theme.controlFill
             border.width: 1
             border.color: field.activeFocus ? Theme.accent : Theme.glassEdge
             Behavior on border.color { ColorAnimation { duration: Theme.fast } }

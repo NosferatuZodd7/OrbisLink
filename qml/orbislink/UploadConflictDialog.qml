@@ -84,59 +84,111 @@ Dialog {
     }
 
     header: DialogHeader {
+        eyebrow: qsTr("Upload over FTP")
         title: qsTr("The file already exists")
         dialog: dialog
     }
 
     contentItem: ColumnLayout {
-        spacing: 14
+        spacing: 16
 
-        RowLayout {
+        // The file, and the two copies side by side: what is on the console
+        // and what would replace it, in a well.
+        Plate {
+            Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
-            Layout.topMargin: 6
-            spacing: 14
-
-            Rectangle {
-                Layout.alignment: Qt.AlignTop
-                implicitWidth: 44
-                implicitHeight: 44
-                radius: 22
-                color: Theme.alpha(Theme.warn, 0.14)
-                Icon {
-                    anchors.centerIn: parent
-                    name: "file"
-                    size: 20
-                    color: Theme.warn
-                }
-            }
+            Layout.topMargin: 4
+            sunken: true
+            radius: 14
+            implicitHeight: fileColumn.implicitHeight + 28
 
             ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 4
-                Text {
+                id: fileColumn
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 14
+                spacing: 12
+
+                RowLayout {
                     Layout.fillWidth: true
-                    text: dialog.item ? dialog.item.name : ""
-                    color: Theme.text
-                    font.pixelSize: 14
-                    font.weight: Font.DemiBold
-                    wrapMode: Text.WrapAnywhere
+                    spacing: 12
+
+                    Rectangle {
+                        Layout.alignment: Qt.AlignTop
+                        implicitWidth: 40
+                        implicitHeight: 40
+                        radius: 20
+                        color: Theme.alpha(Theme.warn, 0.14)
+                        border.color: Theme.alpha(Theme.warn, 0.4)
+                        Icon {
+                            anchors.centerIn: parent
+                            name: "file"
+                            size: 18
+                            color: Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 4
+                        Text {
+                            Layout.fillWidth: true
+                            text: dialog.item ? dialog.item.name : ""
+                            color: Theme.ink
+                            font.family: Theme.fontMono
+                            font.pixelSize: 13
+                            font.weight: Font.DemiBold
+                            wrapMode: Text.WrapAnywhere
+                        }
+                        Text {
+                            visible: dialog.conflicts.length > 1
+                            text: qsTr("File %1 of %2").arg(dialog.current + 1).arg(dialog.conflicts.length)
+                            color: Theme.textSecondary
+                            font.pixelSize: Theme.fontCaption
+                        }
+                    }
                 }
-                Text {
+
+                Rectangle {
                     Layout.fillWidth: true
-                    text: dialog.item
-                          ? qsTr("On the console: %1  ·  This PC: %2")
-                                .arg(dialog.item.remoteSize).arg(dialog.item.localSize)
-                          : ""
-                    color: Theme.textSecondary
-                    font.pixelSize: 12
-                    wrapMode: Text.WordWrap
+                    implicitHeight: 1
+                    color: Theme.glassEdge
                 }
-                Text {
-                    visible: dialog.conflicts.length > 1
-                    text: qsTr("File %1 of %2").arg(dialog.current + 1).arg(dialog.conflicts.length)
-                    color: Theme.textSecondary
-                    font.pixelSize: 11
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 16
+                    Column {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        spacing: 3
+                        Eyebrow { text: qsTr("On the console"); color: Theme.textSecondary }
+                        Text {
+                            text: dialog.item ? dialog.item.remoteSize : ""
+                            color: Theme.ink
+                            font.family: Theme.fontMono
+                            font.pixelSize: Theme.fontSmall + 1
+                        }
+                    }
+                    Rectangle {
+                        implicitWidth: 1
+                        implicitHeight: 30
+                        color: Theme.glassEdge
+                    }
+                    Column {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        spacing: 3
+                        Eyebrow { text: qsTr("This PC"); color: Theme.textSecondary }
+                        Text {
+                            text: dialog.item ? dialog.item.localSize : ""
+                            color: Theme.ink
+                            font.family: Theme.fontMono
+                            font.pixelSize: Theme.fontSmall + 1
+                        }
+                    }
                 }
             }
         }
@@ -146,15 +198,13 @@ Dialog {
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
             spacing: 6
-            Text {
+            Eyebrow {
                 text: qsTr("New name, to keep both")
-                color: Theme.textSecondary
-                font.pixelSize: 12
-                font.weight: Font.DemiBold
             }
             StyledField {
                 id: nameInput
                 Layout.fillWidth: true
+                font.family: Theme.fontMono
                 onAccepted: if (text.trim().length > 0) dialog.answer("rename")
             }
         }

@@ -146,35 +146,37 @@ Item {
 
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 10
-        spacing: 8
+        anchors.topMargin: 12
+        spacing: 10
 
+        // Where the list is: the path in mono, with up and refresh as round
+        // buttons on either side of it.
         RowLayout {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: 4
 
             StyledToolButton {
                 iconName: "arrow-up"
                 iconSize: 16
-                implicitWidth: 32
-                implicitHeight: 32
+                implicitWidth: 34
+                implicitHeight: 34
                 onClicked: app.ftpUp()
                 enabled: !app.ftpBusy
+                Accessible.name: qsTr("Up one folder")
+                ToolTip.visible: hovered
+                ToolTip.delay: 400
+                ToolTip.text: qsTr("Up one folder")
             }
-            TextField {
+            StyledField {
                 id: pathField
                 Layout.fillWidth: true
+                implicitHeight: 34
+                leftPadding: 12
+                rightPadding: 12
                 text: app.ftpPath
-                color: Theme.text
-                font.pixelSize: 12
-                selectByMouse: true
-                selectionColor: Theme.alpha(Theme.accent, 0.35)
-                selectedTextColor: Theme.text
-                background: Rectangle {
-                    color: Theme.controlFill
-                    border.color: pathField.activeFocus ? Theme.accent : Theme.border
-                    radius: 10
-                }
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSmall
+                Accessible.name: qsTr("Folder on the console")
                 onAccepted: app.ftpNavigate(text)
             }
             // While the folder is being read, its icon turns: the rows stay
@@ -182,16 +184,25 @@ Item {
             StyledToolButton {
                 iconName: "refresh"
                 iconSize: 16
-                implicitWidth: 32
-                implicitHeight: 32
+                implicitWidth: 34
+                implicitHeight: 34
                 spinning: app.ftpBusy
                 onClicked: app.ftpRefresh()
                 enabled: !app.ftpBusy
+                Accessible.name: qsTr("Refresh")
+                ToolTip.visible: hovered
+                ToolTip.delay: 400
+                ToolTip.text: qsTr("Refresh")
             }
         }
 
-        // Pinned folders, as tags: a click opens one, its ✕ unpins it; the
-        // last tag pins the folder that is open.
+        // Pinned folders, as round tags under their label: a click opens
+        // one, its ✕ unpins it; the last tag pins the folder that is open.
+        Eyebrow {
+            Layout.topMargin: 2
+            text: qsTr("Pinned")
+            visible: app.ftpShortcuts.length > 0
+        }
         Flow {
             Layout.fillWidth: true
             spacing: 6
@@ -201,13 +212,14 @@ Item {
                     id: tag
                     required property string modelData
                     readonly property bool here: root.samePath(modelData, app.ftpPath)
-                    implicitWidth: tagRow.implicitWidth + 22
-                    implicitHeight: 30
+                    implicitWidth: tagRow.implicitWidth + 18
+                    implicitHeight: 28
                     radius: height / 2
-                    color: here ? Theme.alpha(Theme.accent, 0.16)
-                         : tagHover.hovered ? Theme.controlHover : Theme.controlFill
+                    color: here ? Theme.accentFill
+                         : tagHover.hovered ? Theme.alpha(Theme.ink, 0.07) : "transparent"
                     border.width: 1
-                    border.color: here || tagHover.hovered ? Theme.alpha(Theme.accent, 0.6) : Theme.glassEdge
+                    border.color: here ? Theme.alpha(Theme.accent, 0.6)
+                                : tagHover.hovered ? Theme.alpha(Theme.ink, 0.35) : Theme.glassEdge
                     Behavior on color { ColorAnimation { duration: Theme.fast } }
 
                     HoverHandler { id: tagHover; cursorShape: Qt.PointingHandCursor }
@@ -216,20 +228,21 @@ Item {
                     Row {
                         id: tagRow
                         anchors.verticalCenter: parent.verticalCenter
-                        x: 11
-                        spacing: 6
+                        x: 10
+                        spacing: 5
                         Icon {
                             anchors.verticalCenter: parent.verticalCenter
-                            name: "folder"
-                            size: 13
+                            name: tag.modelData.indexOf("/mnt/") === 0 ? "hard-drive" : "folder"
+                            size: 12
                             color: tag.here ? Theme.accent : Theme.textSecondary
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             text: tag.modelData
-                            color: Theme.text
-                            font.pixelSize: 12
-                            font.weight: Font.Medium
+                            color: tag.here ? Theme.ink : Theme.text
+                            font.family: Theme.fontMono
+                            font.pixelSize: Theme.fontCaption
+                            font.weight: tag.here ? Font.DemiBold : Font.Normal
                         }
                         // Unpin: a small round ✕, clearer once the tag is under the mouse.
                         Rectangle {
@@ -238,12 +251,12 @@ Item {
                             height: 16
                             radius: 8
                             color: unpinHover.hovered ? Theme.alpha(Theme.error, 0.22) : "transparent"
-                            opacity: tagHover.hovered ? 1.0 : 0.45
+                            opacity: tagHover.hovered ? 1.0 : 0.4
                             Behavior on opacity { NumberAnimation { duration: Theme.fast } }
                             Icon {
                                 anchors.centerIn: parent
                                 name: "close"
-                                size: 11
+                                size: 10
                                 color: unpinHover.hovered ? Theme.error : Theme.textSecondary
                             }
                             HoverHandler { id: unpinHover; cursorShape: Qt.PointingHandCursor }
@@ -264,17 +277,19 @@ Item {
             }
         }
 
-        Rectangle {
+        // The folder's contents: a well one step below the spine, its rows
+        // between hairlines.
+        Plate {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            radius: Theme.radius
-            color: Theme.panelAltFill
-            border.color: Theme.border
+            Layout.topMargin: 2
+            sunken: true
+            radius: 14
 
             ListView {
                 id: files
                 anchors.fill: parent
-                anchors.margins: 4
+                anchors.margins: 6
                 clip: true
                 model: app.files
                 ScrollBar.vertical: ScrollBar { }
@@ -288,7 +303,7 @@ Item {
                     // Being deleted: the row says so where it is.
                     readonly property bool deleting: app.ftpDeleting.indexOf(model.path) >= 0
                     readonly property bool picked: root.picked[model.path] === true
-                    height: 34
+                    height: 36
                     opacity: deleting ? 0.55 : 1.0
                     Behavior on opacity { NumberAnimation { duration: Theme.fast } }
                     // The Basic style pads 12px all round, which in a 34px row
@@ -303,11 +318,22 @@ Item {
                     // an upload draws its progress along the bottom.
                     background: Rectangle {
                         radius: 8
-                        color: row.picked ? Theme.alpha(Theme.accent, 0.14)
-                             : row.hovered ? Theme.controlHover : "transparent"
+                        color: row.picked ? Theme.accentFill
+                             : row.hovered ? Theme.alpha(Theme.ink, 0.05) : "transparent"
                         border.width: row.picked ? 1 : 0
                         border.color: Theme.alpha(Theme.accent, 0.45)
                         Behavior on color { ColorAnimation { duration: Theme.fast } }
+                        // The hairline under each row but the last.
+                        Rectangle {
+                            visible: index < files.count - 1 && !row.picked
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            anchors.leftMargin: 8
+                            anchors.rightMargin: 8
+                            height: 1
+                            color: Theme.glassEdge
+                        }
                         Rectangle {
                             visible: row.arriving
                             anchors.left: parent.left
@@ -395,9 +421,10 @@ Item {
                                 Text {
                                     Layout.fillWidth: true
                                     text: model.name
-                                    color: Theme.text
-                                    font.pixelSize: 12
-                                    elide: Text.ElideRight
+                                    color: model.isDirectory ? Theme.ink : Theme.text
+                                    font.pixelSize: Theme.fontSmall + 1
+                                    font.weight: model.isDirectory ? Font.Medium : Font.Normal
+                                    elide: Text.ElideMiddle
                                 }
                             }
 
@@ -502,22 +529,27 @@ Item {
                                 : row.preparing ? qsTr("getting it…")
                                 : row.arriving ? (row.upload.sending ? Math.floor(row.upload.percent) + "%" : qsTr("waiting"))
                                 : model.sizeText
-                            color: row.deleting ? Theme.error
-                                 : row.preparing || row.arriving ? Theme.accent : Theme.textMuted
-                            font.pixelSize: 11
+                            color: row.deleting ? (Theme.light ? Qt.darker(Theme.error, 1.3) : Theme.error)
+                                 : row.preparing || row.arriving ? Theme.accent : Theme.textSecondary
+                            font.pixelSize: Theme.fontCaption
+                            font.family: Theme.fontMono
                             font.weight: row.arriving ? Font.DemiBold : Font.Normal
                         }
                         StyledToolButton {
                             iconName: "more"
-                            iconSize: 14
-                            implicitWidth: 26; implicitHeight: 26
+                            iconSize: 15
+                            implicitWidth: 28; implicitHeight: 28
                             enabled: !row.deleting
+                            Accessible.name: qsTr("More")
+                            ToolTip.visible: hovered
+                            ToolTip.delay: 500
+                            ToolTip.text: qsTr("More")
                             onClicked: rowMenu.popupFor(model.path, model.name, model.isDirectory, model.size, model.sizeText, row)
                         }
                         // Deleting: the row's own wheel, where its bin was.
                         Item {
-                            implicitWidth: 26
-                            implicitHeight: 26
+                            implicitWidth: 28
+                            implicitHeight: 28
                             Spinner {
                                 anchors.centerIn: parent
                                 visible: row.deleting
@@ -528,8 +560,12 @@ Item {
                                 anchors.fill: parent
                                 visible: !row.deleting
                                 iconName: "trash"
-                                iconSize: 14
+                                iconSize: 15
                                 danger: true
+                                Accessible.name: qsTr("Delete on the console")
+                                ToolTip.visible: hovered
+                                ToolTip.delay: 500
+                                ToolTip.text: qsTr("Delete on the console")
                                 onClicked: confirmDelete.openRows([{ path: model.path, name: model.name,
                                                                      isDirectory: model.isDirectory }])
                             }
@@ -537,12 +573,25 @@ Item {
                     }
                 }
 
-                Text {
+                // Nothing here: a small star and one quiet line.
+                Column {
                     anchors.centerIn: parent
+                    width: parent.width - 32
                     visible: files.count === 0 && !app.ftpBusy
-                    text: qsTr("No files (or FTP is down)")
-                    color: Theme.textMuted
-                    font.pixelSize: 12
+                    spacing: 10
+                    Sparkle {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        size: 16
+                        opacity: 0.7
+                    }
+                    Text {
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        text: qsTr("No files (or FTP is down)")
+                        color: Theme.textSecondary
+                        font.pixelSize: Theme.fontSmall
+                    }
                 }
 
                 Column {
@@ -614,10 +663,11 @@ Item {
                     parts.push(qsTr("%n file(s)", "", space.files) + " · " + app.queue.bytesText(space.bytes || 0))
                 if (space.free !== undefined && space.free >= 0)
                     parts.push(qsTr("%1 free on this disk").arg(app.queue.bytesText(space.free)))
-                return parts.join("  ·  ")
+                return parts.join(" · ")
             }
-            color: Theme.textMuted
-            font.pixelSize: 11
+            color: Theme.textSecondary
+            font.family: Theme.fontMono
+            font.pixelSize: Theme.fontCaption
             elide: Text.ElideRight
         }
 
@@ -632,26 +682,39 @@ Item {
             Text {
                 text: app.downloadMoving ? qsTr("Moving %1").arg(app.downloadName)
                                          : qsTr("Downloading %1").arg(app.downloadName)
-                color: Theme.textMuted
-                font.pixelSize: 11
+                color: Theme.textSecondary
+                font.pixelSize: Theme.fontCaption
                 elide: Text.ElideMiddle
-                Layout.maximumWidth: 200
+                Layout.maximumWidth: 150
             }
-            ProgressBar {
+            // The same thin bar as the queue's.
+            Rectangle {
                 Layout.fillWidth: true
-                from: 0
-                to: 1
-                value: app.downloadProgress
+                height: 3
+                radius: 1.5
+                color: Theme.alpha(Theme.accent, 0.18)
+                Rectangle {
+                    width: parent.width * Math.max(0, Math.min(1, app.downloadProgress))
+                    height: parent.height
+                    radius: parent.radius
+                    color: Theme.accent
+                    Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+                }
             }
             Text {
                 text: Math.round(app.downloadProgress * 100) + "%"
-                color: Theme.text
-                font.pixelSize: 11
+                color: Theme.ink
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontCaption
             }
-            StyledButton {
-                text: qsTr("Cancel")
-                implicitHeight: 24
-                font.pixelSize: 10
+            StyledToolButton {
+                iconName: "close"
+                iconSize: 14
+                implicitWidth: 28; implicitHeight: 28
+                danger: true
+                Accessible.name: qsTr("Cancel")
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Cancel")
                 onClicked: app.cancelDownload()
             }
         }
@@ -661,23 +724,23 @@ Item {
         Rectangle {
             Layout.fillWidth: true
             visible: root.picking
-            implicitHeight: 38
-            radius: 12
-            color: Theme.alpha(Theme.accent, 0.10)
+            implicitHeight: 40
+            radius: height / 2
+            color: Theme.accentFill
             border.width: 1
-            border.color: Theme.alpha(Theme.accent, 0.4)
+            border.color: Theme.alpha(Theme.accent, 0.45)
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 12
+                anchors.leftMargin: 14
                 anchors.rightMargin: 4
-                spacing: 2
+                spacing: 0
 
                 Text {
                     Layout.fillWidth: true
                     text: qsTr("%n selected", "", root.pickedCount)
-                    color: Theme.text
-                    font.pixelSize: 12
+                    color: Theme.ink
+                    font.pixelSize: Theme.fontSmall
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
@@ -685,7 +748,7 @@ Item {
                     readonly property bool all: root.pickedCount === app.files.count
                     iconName: all ? "square" : "square-check"
                     iconSize: 15
-                    implicitWidth: 30; implicitHeight: 30
+                    implicitWidth: 32; implicitHeight: 32
                     ToolTip.visible: hovered
                     ToolTip.text: all ? qsTr("Clear the selection") : qsTr("Select all")
                     onClicked: all ? root.clearPicks() : root.pickAll()
@@ -693,7 +756,7 @@ Item {
                 StyledToolButton {
                     iconName: "download"
                     iconSize: 15
-                    implicitWidth: 30; implicitHeight: 30
+                    implicitWidth: 32; implicitHeight: 32
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Download to the desktop")
                     onClicked: {
@@ -704,7 +767,7 @@ Item {
                 StyledToolButton {
                     iconName: "save"
                     iconSize: 15
-                    implicitWidth: 30; implicitHeight: 30
+                    implicitWidth: 32; implicitHeight: 32
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Download to…")
                     onClicked: {
@@ -715,7 +778,7 @@ Item {
                 StyledToolButton {
                     iconName: "folder-open"
                     iconSize: 15
-                    implicitWidth: 30; implicitHeight: 30
+                    implicitWidth: 32; implicitHeight: 32
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Move to…")
                     onClicked: {
@@ -727,7 +790,7 @@ Item {
                     iconName: "trash"
                     iconSize: 15
                     danger: true
-                    implicitWidth: 30; implicitHeight: 30
+                    implicitWidth: 32; implicitHeight: 32
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Delete on the console")
                     onClicked: confirmDelete.openRows(root.pickedRows())
@@ -735,7 +798,7 @@ Item {
                 StyledToolButton {
                     iconName: "close"
                     iconSize: 15
-                    implicitWidth: 30; implicitHeight: 30
+                    implicitWidth: 32; implicitHeight: 32
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Clear the selection")
                     onClicked: root.clearPicks()
@@ -750,8 +813,8 @@ Item {
             StyledField {
                 id: newFolderName
                 Layout.fillWidth: true
-                implicitHeight: 34
-                font.pixelSize: 12
+                implicitHeight: 36
+                font.pixelSize: Theme.fontSmall
                 placeholderText: qsTr("New folder name")
                 onAccepted: if (text.trim().length > 0 && !app.ftpBusy) create()
                 function create() {
@@ -760,6 +823,7 @@ Item {
                 }
             }
             StyledButton {
+                implicitHeight: 36
                 text: qsTr("Create")
                 iconName: "folder-plus"
                 enabled: newFolderName.text.trim().length > 0 && !app.ftpBusy
@@ -821,7 +885,7 @@ Item {
         // Header with the name and size, so there is no doubt about which
         // file the menu is acting on.
         Rectangle {
-            implicitHeight: 56
+            implicitHeight: 60
             implicitWidth: rowMenu.width
             color: "transparent"
             RowLayout {
@@ -831,10 +895,19 @@ Item {
                 anchors.topMargin: 6
                 anchors.bottomMargin: 6
                 spacing: 12
-                Icon {
-                    name: rowMenu.targetIsDirectory ? "folder" : "file"
-                    size: 20
-                    color: rowMenu.targetIsDirectory ? Theme.accent : Theme.textSecondary
+                // The kind of thing in a small round seal.
+                Rectangle {
+                    implicitWidth: 34
+                    implicitHeight: 34
+                    radius: 17
+                    color: rowMenu.targetIsDirectory ? Theme.accentFill : Theme.controlFill
+                    border.color: Theme.glassEdge
+                    Icon {
+                        anchors.centerIn: parent
+                        name: rowMenu.targetIsDirectory ? "folder" : "file"
+                        size: 17
+                        color: rowMenu.targetIsDirectory ? Theme.accent : Theme.textSecondary
+                    }
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -842,15 +915,17 @@ Item {
                     Text {
                         Layout.fillWidth: true
                         text: rowMenu.targetName
-                        color: Theme.text
-                        font.pixelSize: 13
+                        color: Theme.ink
+                        font.family: Theme.fontDisplay
+                        font.pixelSize: 15
                         font.weight: Font.DemiBold
                         elide: Text.ElideMiddle
                     }
                     Text {
                         text: rowMenu.targetIsDirectory ? qsTr("folder") : rowMenu.targetSizeText
                         color: Theme.textSecondary
-                        font.pixelSize: 11
+                        font.family: rowMenu.targetIsDirectory ? Theme.fontSans : Theme.fontMono
+                        font.pixelSize: Theme.fontCaption
                     }
                 }
             }
@@ -1022,12 +1097,14 @@ Item {
         }
 
         header: DialogHeader {
+            eyebrow: qsTr("Console files")
             title: qsTr("Rename")
             dialog: renameDialog
         }
 
         contentItem: StyledField {
             id: nameInput
+            font.family: Theme.fontMono
             leftInset: Theme.dialogMargin
             rightInset: Theme.dialogMargin
             leftPadding: Theme.dialogMargin + 14
@@ -1110,6 +1187,7 @@ Item {
         }
 
         header: DialogHeader {
+            eyebrow: qsTr("Console files")
             title: !confirmDelete.single ? qsTr("Delete %n item(s) on the console?", "", confirmDelete.targets.length)
                  : confirmDelete.anyFolder ? qsTr("Delete the folder on the console?") : qsTr("Delete on the console?")
             dialog: confirmDelete

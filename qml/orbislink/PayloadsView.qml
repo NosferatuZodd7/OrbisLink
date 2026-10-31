@@ -20,8 +20,9 @@ Item {
 
     signal back()
 
-    // In the main area, framed as a panel with a way back; over Remote Play
-    // (SectionOverlay) the overlay is the frame, shows the name and closes it.
+    // In the main area (framed) the page sits on the sheet with its margins;
+    // over Remote Play (SectionOverlay) the overlay is the frame and closes it.
+    // back() stays for whoever shows it to listen to.
     property bool framed: true
 
     readonly property bool online: payloads.online
@@ -168,251 +169,413 @@ Item {
         }
     }
 
-    Rectangle {
-        anchors.fill: parent
-        anchors.leftMargin: root.framed ? Theme.gutter : 0
-        anchors.rightMargin: !root.framed ? 0 : window.sideShown ? 8 : Theme.gutter
-        anchors.topMargin: root.framed ? 4 : 0
-        anchors.bottomMargin: root.framed ? 4 : 0
-        radius: Theme.radius
-        color: root.framed ? Theme.panelFill : "transparent"
-        border.width: root.framed ? 1 : 0
-        border.color: Theme.glassEdge
-        clip: true
+    // A filter of the library: a round-ended pill, filled in the accent when
+    // it is the one in use (a chip button cannot say "chosen").
+    component FilterPill: Rectangle {
+        id: pill
+        property string text: ""
+        property string iconName: ""
+        property string count: ""
+        property bool chosen: false
+        signal clicked()
 
+        implicitWidth: pillRow.implicitWidth + 26
+        implicitHeight: 32
+        radius: height / 2
+        color: chosen ? Theme.accentFill : pillHover.hovered ? Theme.alpha(Theme.ink, 0.05) : "transparent"
+        border.width: activeFocus ? 2 : 1
+        border.color: activeFocus ? Theme.alpha(Theme.accent, 0.8)
+                    : chosen ? Theme.alpha(Theme.accent, 0.6) : Theme.glassEdge
+        Behavior on color { ColorAnimation { duration: Theme.fast } }
+
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: text
+        Keys.onSpacePressed: clicked()
+        Keys.onReturnPressed: clicked()
+
+        HoverHandler { id: pillHover; cursorShape: Qt.PointingHandCursor }
+        TapHandler { onTapped: pill.clicked() }
+
+        Row {
+            id: pillRow
+            anchors.centerIn: parent
+            spacing: 7
+            Icon {
+                visible: pill.iconName.length > 0
+                anchors.verticalCenter: parent.verticalCenter
+                name: pill.iconName
+                size: 13
+                color: pill.chosen ? Theme.accent : Theme.textSecondary
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: pill.text
+                color: pill.chosen ? Theme.ink : Theme.text
+                font.pixelSize: 12
+                font.weight: pill.chosen ? Font.DemiBold : Font.Medium
+            }
+            Text {
+                visible: pill.count.length > 0
+                anchors.verticalCenter: parent.verticalCenter
+                text: pill.count
+                color: Theme.textSecondary
+                font.family: Theme.fontMono
+                font.pixelSize: 11
+            }
+        }
+    }
+
+    // The head of a plate on this page: a small round seal with its icon,
+    // the name in the serif, a count, and the line under it (a path).
+    component SectionHead: RowLayout {
+        id: head
+        property string iconName: ""
+        property string title: ""
+        property string count: ""
+        property string path: ""
+        default property alias actions: headActions.data
+        Layout.fillWidth: true
+        spacing: 12
+        Rectangle {
+            Layout.alignment: Qt.AlignTop
+            implicitWidth: 36
+            implicitHeight: 36
+            radius: 18
+            color: Theme.alpha(Theme.ink, Theme.light ? 0.05 : 0.06)
+            border.width: 1
+            border.color: Theme.alpha(Theme.brass, 0.5)
+            Icon {
+                anchors.centerIn: parent
+                name: head.iconName
+                size: 16
+                color: Theme.ink
+            }
+        }
         ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: root.framed ? 24 : 18
-            spacing: 14
-
-            // ── header
+            Layout.fillWidth: true
+            spacing: 2
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 12
-                StyledToolButton {
-                    visible: root.framed
-                    iconName: "chevron-left"
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Back to the consoles")
-                    onClicked: root.back()
+                spacing: 8
+                Text {
+                    Layout.fillWidth: implicitWidth > width
+                    Layout.maximumWidth: implicitWidth
+                    elide: Text.ElideRight
+                    text: head.title
+                    color: Theme.ink
+                    font.family: Theme.fontDisplay
+                    font.pixelSize: Theme.fontCardTitle
+                    font.weight: Font.DemiBold
                 }
-                ColumnLayout {
-                    spacing: 2
-                    Text {
-                        visible: root.framed
-                        text: qsTr("Payloads")
-                        color: Theme.text
-                        font.pixelSize: Theme.fontTitle
-                        font.weight: Font.DemiBold
-                    }
-                    Text {
-                        text: payloads.busy && payloads.status.length > 0 ? payloads.status
-                            : root.ps5 ? qsTr("PS5 · etaHEN and the autoloader")
-                            : qsTr("PS4 · GoldHEN")
-                        color: Theme.textSecondary
-                        font.pixelSize: 12
-                    }
-                }
-                StyledButton {
-                    id: consoleChip
-                    chip: true
-                    iconName: "gamepad"
-                    text: payloads.targetName + (payloads.consoles.length > 1 ? "  ▾" : "")
-                    Layout.maximumWidth: 260
-                    enabled: !payloads.busy
-                    ToolTip.visible: hovered
-                    ToolTip.text: payloads.consoles.length > 1 ? qsTr("The console shown: click for another")
-                                                               : qsTr("The console shown")
-                    onClicked: if (payloads.consoles.length > 1) consoleMenu.popup(consoleChip, 0, consoleChip.height + 4)
-                }
-                Item { Layout.fillWidth: true }
-                StyledButton {
-                    iconName: "upload"
-                    text: qsTr("Send from this PC…")
-                    enabled: !payloads.busy && payloads.target.length > 0
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Run a payload from this PC on the console now, without copying it there")
-                    onClicked: pcPayloadDialog.open()
-                }
-                StyledToolButton {
-                    iconName: payloads.busy || (root.library && payloads.catalogLoading) ? "loader" : "refresh"
-                    enabled: root.library ? !payloads.catalogLoading : !payloads.busy
-                    ToolTip.visible: hovered
-                    ToolTip.text: root.library ? qsTr("Read the payload list again") : qsTr("Read the console again")
-                    onClicked: {
-                        root.probeConsoles()
-                        if (root.library)
-                            payloads.refreshCatalog()
-                        payloads.refresh()
-                    }
-                }
-            }
-
-            // ── on the console | the library (PS5)
-            RowLayout {
-                visible: root.ps5
-                Layout.fillWidth: true
-                spacing: 10
-                TabBar {
-                    id: pageTabs
-                    // Room for "Library (2 updates)" in any language.
-                    Layout.preferredWidth: 400
-                    currentIndex: root.tab
-                    onCurrentIndexChanged: root.tab = currentIndex
-                    padding: 4
-                    spacing: 4
-                    background: Rectangle {
-                        radius: 12
-                        color: Theme.controlFill
-                        border.width: 1
-                        border.color: Theme.glassEdge
-                    }
-                    StyledTab { text: qsTr("On the console") }
-                    StyledTab {
-                        readonly property int updates: root.countWhere(function (p) { return p.update })
-                        text: updates > 0 ? qsTr("Library (%n update(s))", "", updates) : qsTr("Library")
-                    }
-                }
-                StyledField {
-                    visible: root.library
-                    Layout.preferredWidth: 220
-                    placeholderText: qsTr("Search payloads")
-                    text: root.search
-                    onTextChanged: root.search = text
+                Tag {
+                    visible: head.count.length > 0
+                    text: head.count
+                    mono: true
                 }
                 Item { Layout.fillWidth: true }
             }
-
-            // ── no FTP: nothing to read
-            Rectangle {
-                visible: !root.online && !root.library
+            Text {
                 Layout.fillWidth: true
-                implicitHeight: offlineRow.implicitHeight + 28
-                radius: 16
-                color: Theme.alpha(Theme.warn, 0.10)
-                border.width: 1
-                border.color: Theme.alpha(Theme.warn, 0.35)
-                RowLayout {
-                    id: offlineRow
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.leftMargin: 18
-                    anchors.rightMargin: 18
-                    spacing: 14
-                    Icon { name: "warning"; size: 22; color: Theme.warn }
-                    Text {
+                visible: head.path.length > 0
+                elide: Text.ElideMiddle
+                text: head.path
+                color: Theme.textSecondary
+                font.pixelSize: 11
+                font.family: Theme.fontMono
+            }
+        }
+        RowLayout {
+            id: headActions
+            Layout.alignment: Qt.AlignTop
+            spacing: 6
+        }
+    }
+
+    // The page, straight on the sheet: no panel of its own (in the main
+    // area the sheet is the frame; over Remote Play the overlay is).
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.leftMargin: root.framed ? Theme.gutter : 18
+        anchors.rightMargin: root.framed ? Theme.gutter : 18
+        anchors.topMargin: root.framed ? 26 : 18
+        anchors.bottomMargin: root.framed ? 12 : 14
+        spacing: 16
+
+        // ── the page's head: which console, which jailbreak, and the two
+        // actions that do not depend on a folder
+        PageHeader {
+            id: pageHeader
+            visible: root.framed
+            eyebrow: qsTr("Console tools")
+            title: qsTr("Payloads")
+            subtitle: payloads.busy && payloads.status.length > 0 ? payloads.status
+                    : root.ps5 ? qsTr("PS5 · etaHEN and the autoloader")
+                    : qsTr("PS4 · GoldHEN")
+
+            // The page's actions sit here; over Remote Play, where the
+            // overlay's own header names the page, on the line below.
+            Item {
+                id: headerSlot
+                implicitWidth: childrenRect.width
+                implicitHeight: childrenRect.height
+            }
+        }
+        // Over Remote Play: what stands, in a line, and the same actions.
+        RowLayout {
+            visible: !root.framed
+            Layout.fillWidth: true
+            spacing: 12
+            Text {
+                Layout.fillWidth: true
+                elide: Text.ElideRight
+                text: pageHeader.subtitle
+                color: Theme.textSecondary
+                font.pixelSize: 12
+            }
+            Item {
+                id: overlaySlot
+                implicitWidth: childrenRect.width
+                implicitHeight: childrenRect.height
+            }
+        }
+        Row {
+            id: pageActions
+            parent: root.framed ? headerSlot : overlaySlot
+            spacing: 8
+
+            StyledButton {
+                anchors.verticalCenter: parent.verticalCenter
+                id: consoleChip
+                chip: true
+                iconName: "gamepad"
+                text: payloads.targetName + (payloads.consoles.length > 1 ? "  ▾" : "")
+                width: Math.min(implicitWidth, 220)
+                enabled: !payloads.busy
+                ToolTip.visible: hovered
+                ToolTip.text: payloads.consoles.length > 1 ? qsTr("The console shown: click for another")
+                                                           : qsTr("The console shown")
+                onClicked: if (payloads.consoles.length > 1) consoleMenu.popup(consoleChip, 0, consoleChip.height + 4)
+            }
+            StyledButton {
+                anchors.verticalCenter: parent.verticalCenter
+                iconName: "upload"
+                text: qsTr("Send from this PC…")
+                // The page's one solid button, except in the library, where
+                // an update waiting is what stands out.
+                primary: !root.library
+                enabled: !payloads.busy && payloads.target.length > 0
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Run a payload from this PC on the console now, without copying it there")
+                onClicked: pcPayloadDialog.open()
+            }
+            StyledToolButton {
+                anchors.verticalCenter: parent.verticalCenter
+                iconName: payloads.busy || (root.library && payloads.catalogLoading) ? "loader" : "refresh"
+                spinning: payloads.busy || (root.library && payloads.catalogLoading)
+                enabled: root.library ? !payloads.catalogLoading : !payloads.busy
+                ToolTip.visible: hovered
+                ToolTip.text: root.library ? qsTr("Read the payload list again") : qsTr("Read the console again")
+                Accessible.name: ToolTip.text
+                onClicked: {
+                    root.probeConsoles()
+                    if (root.library)
+                        payloads.refreshCatalog()
+                    payloads.refresh()
+                }
+            }
+        }
+
+        // ── on the console | the library (PS5): underline tabs on a hairline
+        RowLayout {
+            visible: root.ps5
+            Layout.fillWidth: true
+            Layout.topMargin: -4
+            spacing: 12
+            TabBar {
+                id: pageTabs
+                Layout.fillWidth: true
+                currentIndex: root.tab
+                onCurrentIndexChanged: root.tab = currentIndex
+                padding: 0
+                spacing: 6
+                background: Rectangle {
+                    y: parent.height - 1
+                    width: parent.width
+                    height: 1
+                    color: Theme.glassEdge
+                }
+                StyledTab {
+                    width: implicitWidth
+                    leftPadding: 14
+                    rightPadding: 14
+                    text: qsTr("On the console")
+                }
+                StyledTab {
+                    readonly property int updates: root.countWhere(function (p) { return p.update })
+                    width: implicitWidth
+                    leftPadding: 14
+                    rightPadding: 14
+                    text: updates > 0 ? qsTr("Library (%n update(s))", "", updates) : qsTr("Library")
+                }
+            }
+            StyledField {
+                visible: root.library
+                Layout.preferredWidth: 240
+                placeholderText: qsTr("Search payloads")
+                text: root.search
+                onTextChanged: root.search = text
+            }
+        }
+
+        // ── no FTP: nothing to read on the console, though a payload from
+        // this PC can still be sent
+        ColumnLayout {
+            visible: !root.online && !root.library
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 10
+            Item { Layout.fillHeight: true }
+            Image {
+                Layout.alignment: Qt.AlignHCenter
+                source: "qrc:/icons/planet.png"
+                sourceSize.width: 112
+                sourceSize.height: 112
+                fillMode: Image.PreserveAspectFit
+                opacity: Theme.light ? 0.35 : 0.45
+            }
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTr("No FTP to read the console with")
+                color: Theme.ink
+                font.family: Theme.fontDisplay
+                font.pixelSize: Theme.fontHeading
+                font.weight: Font.DemiBold
+            }
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.maximumWidth: 520
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                color: Theme.textSecondary
+                font.pixelSize: 13
+                text: qsTr("%1's FTP is not answering. Load the jailbreak (GoldHEN or etaHEN) with its "
+                           + "FTP server on, then read again. Payloads from this PC can still be sent.")
+                      .arg(payloads.targetName)
+            }
+            StyledButton {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.topMargin: 6
+                iconName: "refresh"
+                text: qsTr("Read the console again")
+                enabled: !payloads.busy
+                onClicked: { root.probeConsoles(); payloads.refresh() }
+            }
+            Item { Layout.fillHeight: true }
+        }
+
+        // ── the folders, the settings files and what the payloads said
+        Flickable {
+            id: body
+            visible: !root.library && root.online
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            contentWidth: width
+            contentHeight: sections.implicitHeight
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+            ColumnLayout {
+                id: sections
+                width: body.width - 14
+                spacing: 16
+
+                // Reading: the shape of the folders about to come.
+                Repeater {
+                    model: payloads.busy && payloads.folders.length === 0 ? 4 : 0
+                    SkeletonRow {
+                        required property int index
                         Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                        color: Theme.text
-                        font.pixelSize: 13
-                        text: qsTr("%1's FTP is not answering. Load the jailbreak (GoldHEN or etaHEN) with its "
-                                   + "FTP server on, then read again. Payloads from this PC can still be sent.")
-                              .arg(payloads.targetName)
+                        delay: index * 80
                     }
                 }
-            }
 
-            // ── the folders, the settings files and what the payloads said
-            Flickable {
-                id: body
-                visible: !root.library
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                contentWidth: width
-                contentHeight: sections.implicitHeight
-                clip: true
-                boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                // Each folder: a plate with its head, what switching on
+                // means there, and its files in a hairline list.
+                Repeater {
+                    model: root.online ? payloads.folders : []
 
-                ColumnLayout {
-                    id: sections
-                    width: body.width - 12
-                    spacing: 14
+                    Plate {
+                        id: folderCard
+                        required property var modelData
+                        Layout.fillWidth: true
+                        implicitHeight: folderColumn.implicitHeight + 36
 
-                    Repeater {
-                        model: root.online ? payloads.folders : []
+                        ColumnLayout {
+                            id: folderColumn
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: 18
+                            spacing: 10
 
-                        Rectangle {
-                            id: folderCard
-                            required property var modelData
-                            Layout.fillWidth: true
-                            implicitHeight: folderColumn.implicitHeight + 28
-                            radius: 14
-                            color: Theme.panelAltFill
-                            border.width: 1
-                            border.color: Theme.border
+                            SectionHead {
+                                iconName: root.folderIcon(folderCard.modelData.id)
+                                title: root.folderTitle(folderCard.modelData.id)
+                                count: folderCard.modelData.files.length > 0 ? String(folderCard.modelData.files.length) : ""
+                                path: folderCard.modelData.path
 
-                            ColumnLayout {
-                                id: folderColumn
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.top: parent.top
-                                anchors.margins: 14
-                                spacing: 8
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 10
-                                    Icon {
-                                        name: root.folderIcon(folderCard.modelData.id)
-                                        size: 18
-                                        color: Theme.accent
-                                    }
-                                    ColumnLayout {
-                                        Layout.fillWidth: true
-                                        spacing: 1
-                                        Text {
-                                            text: root.folderTitle(folderCard.modelData.id)
-                                                  + (folderCard.modelData.files.length > 0
-                                                     ? "  ·  " + folderCard.modelData.files.length : "")
-                                            color: Theme.text
-                                            font.pixelSize: 14
-                                            font.weight: Font.DemiBold
-                                        }
-                                        Text {
-                                            Layout.fillWidth: true
-                                            elide: Text.ElideRight
-                                            text: folderCard.modelData.path
-                                            color: Theme.textSecondary
-                                            font.pixelSize: 11
-                                            font.family: Theme.fontMono
-                                        }
-                                    }
-                                    StyledButton {
-                                        visible: folderCard.modelData.autoStart === "list" && folderCard.modelData.exists
-                                        iconName: "list-ordered"
-                                        text: qsTr("Order and waits…")
-                                        enabled: !payloads.busy
-                                        ToolTip.visible: hovered
-                                        ToolTip.text: qsTr("The order they start in, and how long to wait before each")
-                                        onClicked: {
-                                            orderDialog.files = folderCard.modelData.files
-                                            orderDialog.listTitle = root.folderTitle(folderCard.modelData.id)
-                                            orderDialog.pending = folderCard.modelData.configPath
-                                            payloads.loadText(folderCard.modelData.configPath)
-                                        }
-                                    }
-                                    StyledButton {
-                                        iconName: "plus"
-                                        text: qsTr("Add…")
-                                        enabled: !payloads.busy
-                                        ToolTip.visible: hovered
-                                        ToolTip.text: qsTr("Copy files from this PC into %1").arg(folderCard.modelData.path)
-                                        onClicked: {
-                                            addDialog.folderId = folderCard.modelData.id
-                                            addDialog.open()
-                                        }
+                                StyledButton {
+                                    visible: folderCard.modelData.autoStart === "list" && folderCard.modelData.exists
+                                    chip: true
+                                    iconName: "list-ordered"
+                                    text: qsTr("Order and waits…")
+                                    enabled: !payloads.busy
+                                    ToolTip.visible: hovered
+                                    ToolTip.text: qsTr("The order they start in, and how long to wait before each")
+                                    onClicked: {
+                                        orderDialog.files = folderCard.modelData.files
+                                        orderDialog.listTitle = root.folderTitle(folderCard.modelData.id)
+                                        orderDialog.pending = folderCard.modelData.configPath
+                                        payloads.loadText(folderCard.modelData.configPath)
                                     }
                                 }
-                                Text {
+                                StyledButton {
+                                    chip: true
+                                    iconName: "plus"
+                                    text: qsTr("Add…")
+                                    enabled: !payloads.busy
+                                    ToolTip.visible: hovered
+                                    ToolTip.text: qsTr("Copy files from this PC into %1").arg(folderCard.modelData.path)
+                                    onClicked: {
+                                        addDialog.folderId = folderCard.modelData.id
+                                        addDialog.open()
+                                    }
+                                }
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.leftMargin: 48
+                                wrapMode: Text.WordWrap
+                                color: Theme.textSecondary
+                                font.pixelSize: 12
+                                text: folderCard.modelData.exists
+                                      ? root.folderNote(folderCard.modelData.id)
+                                      : qsTr("Not on this console yet. Adding a file makes the folder.")
+                            }
+
+                            // The files, one per line under a hairline.
+                            ColumnLayout {
+                                visible: folderCard.modelData.files.length > 0
+                                Layout.fillWidth: true
+                                Layout.topMargin: 2
+                                spacing: 0
+                                Rectangle {
                                     Layout.fillWidth: true
-                                    wrapMode: Text.WordWrap
-                                    color: Theme.textSecondary
-                                    font.pixelSize: 12
-                                    text: folderCard.modelData.exists
-                                          ? root.folderNote(folderCard.modelData.id)
-                                          : qsTr("Not on this console yet. Adding a file makes the folder.")
+                                    implicitHeight: 1
+                                    color: Theme.glassEdge
                                 }
 
                                 Repeater {
@@ -421,21 +584,34 @@ Item {
                                     Rectangle {
                                         id: fileRow
                                         required property var modelData
+                                        required property int index
                                         // What it does: the payload list's words, what is
                                         // known of it, or what kind of file it is.
                                         readonly property string about: (modelData.description || "").length > 0
                                                                         ? modelData.description : (modelData.typeNote || "")
                                         Layout.fillWidth: true
-                                        implicitHeight: about.length > 0 ? 54 : 44
-                                        radius: 10
-                                        color: rowHover.hovered ? Theme.controlFill : "transparent"
+                                        implicitHeight: about.length > 0 ? 56 : 46
+                                        radius: Theme.radiusSmall
+                                        color: rowHover.hovered ? Theme.alpha(Theme.ink, 0.05) : "transparent"
+                                        Behavior on color { ColorAnimation { duration: Theme.fast } }
                                         HoverHandler { id: rowHover }
+
+                                        // The hairline under each but the last.
+                                        Rectangle {
+                                            visible: fileRow.index < folderCard.modelData.files.length - 1
+                                            anchors.left: parent.left
+                                            anchors.right: parent.right
+                                            anchors.bottom: parent.bottom
+                                            anchors.leftMargin: 60
+                                            height: 1
+                                            color: Theme.glassEdge
+                                        }
 
                                         RowLayout {
                                             anchors.fill: parent
-                                            anchors.leftMargin: 10
-                                            anchors.rightMargin: 6
-                                            spacing: 10
+                                            anchors.leftMargin: 8
+                                            anchors.rightMargin: 4
+                                            spacing: 12
 
                                             // Starts by itself, where the folder allows it;
                                             // the same width either way, so names line up.
@@ -447,6 +623,7 @@ Item {
                                                     visible: folderCard.modelData.autoStart !== "none"
                                                     checked: fileRow.modelData.autoStart
                                                     enabled: !payloads.busy
+                                                    Accessible.name: qsTr("Start %1 by itself").arg(fileRow.modelData.name)
                                                     ToolTip.visible: hovered
                                                     ToolTip.text: checked ? qsTr("Starts by itself: click to stop that")
                                                                           : qsTr("Click to start it by itself")
@@ -462,15 +639,34 @@ Item {
                                             }
                                             ColumnLayout {
                                                 Layout.fillWidth: true
-                                                spacing: 1
-                                                Text {
+                                                spacing: 2
+                                                RowLayout {
                                                     Layout.fillWidth: true
-                                                    elide: Text.ElideMiddle
-                                                    text: fileRow.modelData.name
-                                                          + (fileRow.modelData.version.length > 0
-                                                             ? "  ·  " + fileRow.modelData.version : "")
-                                                    color: Theme.text
-                                                    font.pixelSize: 13
+                                                    spacing: 8
+                                                    // A file's name: in the mono, as on the console.
+                                                    Text {
+                                                        Layout.fillWidth: implicitWidth > width
+                                                        Layout.maximumWidth: implicitWidth
+                                                        elide: Text.ElideMiddle
+                                                        text: fileRow.modelData.name
+                                                        color: fileRow.modelData.autoStart || folderCard.modelData.autoStart === "none"
+                                                               ? Theme.ink : Theme.text
+                                                        font.family: Theme.fontMono
+                                                        font.pixelSize: 12
+                                                        font.weight: Font.Medium
+                                                    }
+                                                    Tag {
+                                                        visible: fileRow.modelData.version.length > 0
+                                                        text: fileRow.modelData.version
+                                                        mono: true
+                                                    }
+                                                    Tag {
+                                                        visible: fileRow.modelData.critical
+                                                        text: qsTr("the jailbreak")
+                                                        tone: "brass"
+                                                        solid: true
+                                                    }
+                                                    Item { Layout.fillWidth: true }
                                                 }
                                                 Text {
                                                     id: aboutText
@@ -478,34 +674,20 @@ Item {
                                                     visible: fileRow.about.length > 0
                                                     elide: Text.ElideRight
                                                     text: fileRow.about
+                                                    color: Theme.textSecondary
                                                     // Only the kind of file it is: quieter.
-                                                    color: (fileRow.modelData.description || "").length > 0
-                                                           ? Theme.textSecondary : Theme.textMuted
+                                                    opacity: (fileRow.modelData.description || "").length > 0 ? 1 : 0.8
                                                     font.pixelSize: 11
                                                     ToolTip.visible: aboutHover.hovered && aboutText.truncated
                                                     ToolTip.text: fileRow.about
                                                     HoverHandler { id: aboutHover }
                                                 }
                                             }
-                                            Rectangle {
-                                                visible: fileRow.modelData.critical
-                                                implicitHeight: 22
-                                                implicitWidth: criticalText.implicitWidth + 16
-                                                radius: 11
-                                                color: Theme.henFill
-                                                Text {
-                                                    id: criticalText
-                                                    anchors.centerIn: parent
-                                                    text: qsTr("the jailbreak")
-                                                    color: Theme.textOnHen
-                                                    font.pixelSize: 11
-                                                    font.weight: Font.Bold
-                                                }
-                                            }
                                             Text {
                                                 text: root.sizeText(fileRow.modelData.size)
                                                 color: Theme.textSecondary
-                                                font.pixelSize: 12
+                                                font.family: Theme.fontMono
+                                                font.pixelSize: 11
                                             }
                                             StyledToolButton {
                                                 visible: fileRow.modelData.sendable
@@ -513,6 +695,7 @@ Item {
                                                 enabled: !payloads.busy
                                                 ToolTip.visible: hovered
                                                 ToolTip.text: qsTr("Run it now (port %1)").arg(fileRow.modelData.port)
+                                                Accessible.name: ToolTip.text
                                                 onClicked: payloads.sendFromConsole(fileRow.modelData.path, 0)
                                             }
                                             StyledToolButton {
@@ -520,6 +703,7 @@ Item {
                                                 enabled: !payloads.busy
                                                 ToolTip.visible: hovered
                                                 ToolTip.text: qsTr("Download to this PC")
+                                                Accessible.name: ToolTip.text
                                                 onClicked: payloads.download(fileRow.modelData.path)
                                             }
                                             StyledToolButton {
@@ -527,6 +711,7 @@ Item {
                                                 enabled: !payloads.busy
                                                 ToolTip.visible: hovered
                                                 ToolTip.text: qsTr("Rename")
+                                                Accessible.name: ToolTip.text
                                                 onClicked: renameDialog.ask(fileRow.modelData)
                                             }
                                             StyledToolButton {
@@ -535,6 +720,7 @@ Item {
                                                 enabled: !payloads.busy
                                                 ToolTip.visible: hovered
                                                 ToolTip.text: qsTr("Delete from the console…")
+                                                Accessible.name: ToolTip.text
                                                 onClicked: deleteDialog.ask(fileRow.modelData)
                                             }
                                         }
@@ -543,340 +729,397 @@ Item {
                             }
                         }
                     }
+                }
 
-                    // ── settings files
-                    Rectangle {
-                        visible: root.online && payloads.configs.length > 0
-                        Layout.fillWidth: true
-                        implicitHeight: configColumn.implicitHeight + 28
-                        radius: 14
-                        color: Theme.panelAltFill
-                        border.width: 1
-                        border.color: Theme.border
+                // ── settings files: plugins.ini, autoload.txt, config.ini…
+                Plate {
+                    visible: root.online && payloads.configs.length > 0
+                    Layout.fillWidth: true
+                    implicitHeight: configColumn.implicitHeight + 36
 
-                        ColumnLayout {
-                            id: configColumn
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.top: parent.top
-                            anchors.margins: 14
-                            spacing: 6
-                            RowLayout {
-                                spacing: 10
-                                Icon { name: "settings"; size: 18; color: Theme.accent }
-                                Text {
-                                    text: qsTr("Settings files")
-                                    color: Theme.text
-                                    font.pixelSize: 14
-                                    font.weight: Font.DemiBold
-                                }
-                            }
-                            Repeater {
-                                model: payloads.configs
-                                RowLayout {
-                                    id: configRow
-                                    required property var modelData
-                                    Layout.fillWidth: true
-                                    spacing: 10
-                                    Text {
-                                        Layout.fillWidth: true
-                                        elide: Text.ElideMiddle
-                                        text: configRow.modelData.path
-                                        color: configRow.modelData.exists ? Theme.text : Theme.textSecondary
-                                        font.pixelSize: 12
-                                        font.family: Theme.fontMono
-                                    }
-                                    Text {
-                                        visible: !configRow.modelData.exists
-                                        text: qsTr("not there yet")
-                                        color: Theme.textSecondary
-                                        font.pixelSize: 11
-                                    }
-                                    StyledButton {
-                                        iconName: "pencil"
-                                        text: qsTr("Edit")
-                                        enabled: !payloads.busy
-                                        onClicked: payloads.loadText(configRow.modelData.path)
-                                    }
-                                }
-                            }
+                    ColumnLayout {
+                        id: configColumn
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: 18
+                        spacing: 8
+                        SectionHead {
+                            iconName: "settings"
+                            title: qsTr("Settings files")
                         }
-                    }
-
-                    // ── what the payloads said
-                    Rectangle {
-                        visible: payloads.output.length > 0
-                        Layout.fillWidth: true
-                        implicitHeight: outputColumn.implicitHeight + 28
-                        radius: 14
-                        color: Theme.panelAltFill
-                        border.width: 1
-                        border.color: Theme.border
-
-                        ColumnLayout {
-                            id: outputColumn
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.top: parent.top
-                            anchors.margins: 14
-                            spacing: 6
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 1
+                            color: Theme.glassEdge
+                        }
+                        Repeater {
+                            model: payloads.configs
                             RowLayout {
+                                id: configRow
+                                required property var modelData
                                 Layout.fillWidth: true
+                                Layout.leftMargin: 8
                                 spacing: 10
-                                Icon { name: "terminal"; size: 18; color: Theme.accent }
+                                Icon {
+                                    name: "file"
+                                    size: 14
+                                    color: Theme.textSecondary
+                                }
                                 Text {
                                     Layout.fillWidth: true
-                                    text: qsTr("What the console answered")
-                                    color: Theme.text
-                                    font.pixelSize: 14
-                                    font.weight: Font.DemiBold
+                                    elide: Text.ElideMiddle
+                                    text: configRow.modelData.path
+                                    color: configRow.modelData.exists ? Theme.ink : Theme.textSecondary
+                                    font.pixelSize: 12
+                                    font.family: Theme.fontMono
+                                }
+                                Tag {
+                                    visible: !configRow.modelData.exists
+                                    text: qsTr("not there yet")
                                 }
                                 StyledButton {
                                     chip: true
-                                    text: qsTr("Clear")
-                                    onClicked: payloads.clearOutput()
+                                    iconName: "pencil"
+                                    text: qsTr("Edit")
+                                    enabled: !payloads.busy
+                                    onClicked: payloads.loadText(configRow.modelData.path)
                                 }
                             }
-                            Text {
+                        }
+                    }
+                }
+
+                // ── what the payloads said: a log, so a sunken well
+                Plate {
+                    visible: payloads.output.length > 0
+                    sunken: true
+                    Layout.fillWidth: true
+                    implicitHeight: outputColumn.implicitHeight + 32
+
+                    ColumnLayout {
+                        id: outputColumn
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: 16
+                        spacing: 8
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+                            Icon { name: "terminal"; size: 14; color: Theme.brass }
+                            Eyebrow {
                                 Layout.fillWidth: true
-                                wrapMode: Text.WrapAnywhere
-                                text: payloads.output.slice(-40).join("\n")
-                                color: Theme.text
-                                font.pixelSize: 12
-                                font.family: Theme.fontMono
+                                text: qsTr("What the console answered")
+                            }
+                            StyledButton {
+                                chip: true
+                                text: qsTr("Clear")
+                                onClicked: payloads.clearOutput()
                             }
                         }
-                    }
-
-                    Item { implicitHeight: 4 }
-                }
-            }
-
-            // ── the library (PS5)
-            ColumnLayout {
-                visible: root.library
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 10
-
-                Flow {
-                    visible: payloads.catalog.length > 0
-                    Layout.fillWidth: true
-                    spacing: 6
-                    StyledButton {
-                        chip: true
-                        primary: root.category === "all"
-                        text: qsTr("All") + "  " + payloads.catalog.length
-                        onClicked: root.category = "all"
-                    }
-                    Repeater {
-                        model: root.library ? root.categories() : []
-                        StyledButton {
-                            required property string modelData
-                            chip: true
-                            primary: root.category === modelData
-                            text: modelData
-                            onClicked: root.category = modelData
-                        }
-                    }
-                    StyledButton {
-                        readonly property int count: root.countWhere(function (p) { return p.installed })
-                        visible: count > 0
-                        chip: true
-                        iconName: "check"
-                        primary: root.category === "installed"
-                        text: qsTr("Installed", "filter: the payloads on the console") + "  " + count
-                        onClicked: root.category = "installed"
-                    }
-                    StyledButton {
-                        readonly property int count: root.countWhere(function (p) { return p.update })
-                        visible: count > 0
-                        chip: true
-                        iconName: "arrow-up"
-                        primary: root.category === "updates"
-                        text: qsTr("Updates") + "  " + count
-                        onClicked: root.category = "updates"
-                    }
-                }
-
-                // Could not read the list (perhaps showing last time's).
-                Rectangle {
-                    visible: payloads.catalogError.length > 0 && !payloads.catalogLoading
-                    Layout.fillWidth: true
-                    implicitHeight: catalogErrorRow.implicitHeight + 24
-                    radius: 14
-                    color: Theme.alpha(Theme.warn, 0.10)
-                    border.width: 1
-                    border.color: Theme.alpha(Theme.warn, 0.35)
-                    RowLayout {
-                        id: catalogErrorRow
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.leftMargin: 16
-                        anchors.rightMargin: 12
-                        spacing: 12
-                        Icon { name: "warning"; size: 20; color: Theme.warn }
-                        Text {
-                            Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
-                            color: Theme.text
-                            font.pixelSize: 12
-                            text: payloads.catalogError
-                                  + (payloads.catalogOffline ? " " + qsTr("Shown: the list from last time.") : "")
-                        }
-                        StyledButton {
-                            chip: true
-                            iconName: "refresh"
-                            text: qsTr("Try again")
-                            onClicked: payloads.refreshCatalog()
-                        }
-                    }
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    color: Theme.textSecondary
-                    font.pixelSize: 12
-                    text: payloads.catalogLoading && payloads.catalog.length === 0
-                          ? qsTr("Reading the payload list…")
-                          : !root.online
-                            ? qsTr("%1's FTP is not answering: installing needs it. ▶ runs a payload without it.")
-                              .arg(payloads.targetName)
-                            : qsTr("The payloads PLK's Payload Manager lists, each one checked against its "
-                                   + "SHA-256. ▶ runs one now; installing puts it in a folder on the console, "
-                                   + "in place of an older copy there.")
-                }
-
-                // What the last payload run said (all of it under "On the console").
-                Rectangle {
-                    visible: payloads.output.length > 0
-                    Layout.fillWidth: true
-                    Layout.rightMargin: 12
-                    implicitHeight: libraryOutput.implicitHeight + 20
-                    radius: 12
-                    color: Theme.panelAltFill
-                    border.width: 1
-                    border.color: Theme.border
-                    RowLayout {
-                        id: libraryOutput
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        anchors.leftMargin: 14
-                        anchors.rightMargin: 10
-                        spacing: 10
-                        Icon { name: "terminal"; size: 16; color: Theme.accent; Layout.alignment: Qt.AlignTop }
                         Text {
                             Layout.fillWidth: true
                             wrapMode: Text.WrapAnywhere
-                            maximumLineCount: 4
-                            elide: Text.ElideRight
-                            text: payloads.output.slice(-4).join("\n")
+                            text: payloads.output.slice(-40).join("\n")
                             color: Theme.text
                             font.pixelSize: 12
                             font.family: Theme.fontMono
-                        }
-                        StyledButton {
-                            chip: true
-                            text: qsTr("Clear")
-                            Layout.alignment: Qt.AlignTop
-                            onClicked: payloads.clearOutput()
+                            lineHeight: 1.15
                         }
                     }
                 }
 
+                Item { implicitHeight: 4 }
+            }
+        }
+
+        // ── the library (PS5)
+        ColumnLayout {
+            visible: root.library
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 12
+
+            Flow {
+                visible: payloads.catalog.length > 0
+                Layout.fillWidth: true
+                spacing: 6
+                FilterPill {
+                    chosen: root.category === "all"
+                    text: qsTr("All")
+                    count: String(payloads.catalog.length)
+                    onClicked: root.category = "all"
+                }
+                Repeater {
+                    model: root.library ? root.categories() : []
+                    FilterPill {
+                        required property string modelData
+                        chosen: root.category === modelData
+                        text: modelData
+                        onClicked: root.category = modelData
+                    }
+                }
+                FilterPill {
+                    readonly property int n: root.countWhere(function (p) { return p.installed })
+                    visible: n > 0
+                    iconName: "check"
+                    chosen: root.category === "installed"
+                    text: qsTr("Installed", "filter: the payloads on the console")
+                    count: String(n)
+                    onClicked: root.category = "installed"
+                }
+                FilterPill {
+                    readonly property int n: root.countWhere(function (p) { return p.update })
+                    visible: n > 0
+                    iconName: "arrow-up"
+                    chosen: root.category === "updates"
+                    text: qsTr("Updates")
+                    count: String(n)
+                    onClicked: root.category = "updates"
+                }
+            }
+
+            // Could not read the list (perhaps showing last time's).
+            Rectangle {
+                visible: payloads.catalogError.length > 0 && !payloads.catalogLoading
+                Layout.fillWidth: true
+                implicitHeight: catalogErrorRow.implicitHeight + 24
+                radius: Theme.radius
+                color: Theme.alpha(Theme.warn, 0.08)
+                border.width: 1
+                border.color: Theme.alpha(Theme.warn, 0.4)
+                RowLayout {
+                    id: catalogErrorRow
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 16
+                    anchors.rightMargin: 12
+                    spacing: 12
+                    Icon { name: "warning"; size: 18; color: Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: Theme.text
+                        font.pixelSize: 12
+                        text: payloads.catalogError
+                              + (payloads.catalogOffline ? " " + qsTr("Shown: the list from last time.") : "")
+                    }
+                    StyledButton {
+                        chip: true
+                        iconName: "refresh"
+                        text: qsTr("Try again")
+                        onClicked: payloads.refreshCatalog()
+                    }
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: Theme.textSecondary
+                font.pixelSize: 12
+                text: payloads.catalogLoading && payloads.catalog.length === 0
+                      ? qsTr("Reading the payload list…")
+                      : !root.online
+                        ? qsTr("%1's FTP is not answering: installing needs it. ▶ runs a payload without it.")
+                          .arg(payloads.targetName)
+                        : qsTr("The payloads PLK's Payload Manager lists, each one checked against its "
+                               + "SHA-256. ▶ runs one now; installing puts it in a folder on the console, "
+                               + "in place of an older copy there.")
+            }
+
+            // What the last payload run said (all of it under "On the console").
+            Plate {
+                visible: payloads.output.length > 0
+                sunken: true
+                Layout.fillWidth: true
+                Layout.rightMargin: 14
+                implicitHeight: libraryOutput.implicitHeight + 22
+                RowLayout {
+                    id: libraryOutput
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 14
+                    anchors.rightMargin: 10
+                    spacing: 10
+                    Icon { name: "terminal"; size: 14; color: Theme.brass; Layout.alignment: Qt.AlignTop; Layout.topMargin: 2 }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WrapAnywhere
+                        maximumLineCount: 4
+                        elide: Text.ElideRight
+                        text: payloads.output.slice(-4).join("\n")
+                        color: Theme.text
+                        font.pixelSize: 12
+                        font.family: Theme.fontMono
+                    }
+                    StyledButton {
+                        chip: true
+                        text: qsTr("Clear")
+                        Layout.alignment: Qt.AlignTop
+                        onClicked: payloads.clearOutput()
+                    }
+                }
+            }
+
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+
+                // Reading the list: the shape of the rows about to come.
+                Column {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.rightMargin: 14
+                    visible: payloads.catalogLoading && payloads.catalog.length === 0
+                    spacing: 6
+                    Repeater {
+                        model: parent.visible ? 5 : 0
+                        SkeletonRow {
+                            required property int index
+                            width: parent.width
+                            delay: index * 80
+                        }
+                    }
+                }
+
+                // The payloads: a hairline list, the name in the serif.
                 ListView {
                     id: libraryList
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
+                    anchors.fill: parent
                     clip: true
-                    spacing: 8
+                    spacing: 0
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                     model: root.library ? root.shownPayloads() : []
 
-                    Text {
+                    ColumnLayout {
                         visible: libraryList.count === 0 && payloads.catalog.length > 0
                         anchors.horizontalCenter: parent.horizontalCenter
-                        y: 24
-                        text: qsTr("No payload here.")
-                        color: Theme.textSecondary
-                        font.pixelSize: 13
+                        y: 32
+                        spacing: 8
+                        Sparkle {
+                            Layout.alignment: Qt.AlignHCenter
+                            size: 18
+                        }
+                        Text {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: qsTr("No payload here.")
+                            color: Theme.ink
+                            font.family: Theme.fontDisplay
+                            font.pixelSize: Theme.fontHeading
+                            font.weight: Font.DemiBold
+                        }
+                        StyledButton {
+                            Layout.alignment: Qt.AlignHCenter
+                            visible: root.category !== "all" || root.search.length > 0
+                            text: qsTr("Show all")
+                            onClicked: { root.category = "all"; root.search = "" }
+                        }
                     }
 
                     delegate: Rectangle {
                         id: payloadCard
                         required property var modelData
-                        width: libraryList.width - 12
-                        implicitHeight: payloadRow.implicitHeight + 24
-                        radius: 14
-                        color: Theme.panelAltFill
-                        border.width: 1
-                        border.color: modelData.update ? Theme.alpha(Theme.accent, 0.55) : Theme.border
+                        required property int index
+                        width: libraryList.width - 14
+                        implicitHeight: payloadRow.implicitHeight + 28
+                        radius: Theme.radiusSmall
+                        color: modelData.update ? Theme.alpha(Theme.accent, cardHover.hovered ? 0.12 : 0.08)
+                             : cardHover.hovered ? Theme.alpha(Theme.ink, 0.05) : "transparent"
+                        Behavior on color { ColorAnimation { duration: Theme.fast } }
+                        HoverHandler { id: cardHover }
+
+                        // The hairline between payloads.
+                        Rectangle {
+                            visible: payloadCard.index < libraryList.count - 1
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            anchors.leftMargin: 14
+                            anchors.rightMargin: 14
+                            height: 1
+                            color: Theme.glassEdge
+                        }
 
                         RowLayout {
                             id: payloadRow
                             anchors.left: parent.left
                             anchors.right: parent.right
-                            anchors.top: parent.top
-                            anchors.margins: 12
-                            anchors.leftMargin: 16
+                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.leftMargin: 14
+                            anchors.rightMargin: 8
                             spacing: 12
 
                             ColumnLayout {
                                 Layout.fillWidth: true
-                                spacing: 3
+                                spacing: 4
                                 RowLayout {
+                                    Layout.fillWidth: true
                                     spacing: 8
                                     Text {
+                                        Layout.fillWidth: implicitWidth > width
+                                        Layout.maximumWidth: implicitWidth
+                                        elide: Text.ElideRight
                                         text: payloadCard.modelData.name
-                                        color: Theme.text
-                                        font.pixelSize: 14
+                                        color: Theme.ink
+                                        font.family: Theme.fontDisplay
+                                        font.pixelSize: 17
                                         font.weight: Font.DemiBold
                                     }
-                                    Text {
+                                    Tag {
+                                        visible: payloadCard.modelData.version.length > 0
                                         text: payloadCard.modelData.version
-                                        color: Theme.textSecondary
-                                        font.pixelSize: 12
+                                        mono: true
                                     }
-                                    Rectangle {
+                                    Tag {
                                         visible: payloadCard.modelData.installed
-                                        implicitHeight: 20
-                                        implicitWidth: stateText.implicitWidth + 16
-                                        radius: 10
-                                        color: Theme.alpha(payloadCard.modelData.update ? Theme.accent : Theme.ok, 0.16)
-                                        Text {
-                                            id: stateText
-                                            anchors.centerIn: parent
-                                            text: payloadCard.modelData.update
-                                                  ? qsTr("Update: %1 → %2").arg(payloadCard.modelData.installedVersion)
-                                                    .arg(payloadCard.modelData.version)
-                                                  : qsTr("Installed", "a payload on the console")
-                                            color: payloadCard.modelData.update ? Theme.accent : Theme.ok
-                                            font.pixelSize: 11
-                                            font.weight: Font.DemiBold
-                                        }
+                                        tone: payloadCard.modelData.update ? "accent" : "ok"
+                                        iconName: payloadCard.modelData.update ? "arrow-up" : "check"
+                                        text: payloadCard.modelData.update
+                                              ? qsTr("Update: %1 → %2").arg(payloadCard.modelData.installedVersion)
+                                                .arg(payloadCard.modelData.version)
+                                              : qsTr("Installed", "a payload on the console")
                                     }
+                                    Item { Layout.fillWidth: true }
                                 }
                                 Text {
                                     Layout.fillWidth: true
                                     wrapMode: Text.WordWrap
                                     text: payloadCard.modelData.description
-                                    color: Theme.textSecondary
+                                    color: Theme.text
                                     font.pixelSize: 12
                                 }
-                                Text {
+                                RowLayout {
                                     Layout.fillWidth: true
-                                    wrapMode: Text.WordWrap
-                                    text: payloadCard.modelData.category
-                                          + (payloadCard.modelData.lastUpdate.length > 0
-                                             ? "  ·  " + payloadCard.modelData.lastUpdate : "")
-                                          + (payloadCard.modelData.installed
-                                             ? "  ·  " + qsTr("in %1").arg(root.copyLine(payloadCard.modelData)) : "")
-                                    color: Theme.textMuted
-                                    font.pixelSize: 11
+                                    spacing: 8
+                                    Text {
+                                        text: payloadCard.modelData.category
+                                        color: Theme.brass
+                                        font.pixelSize: Theme.fontEyebrow
+                                        font.weight: Font.Bold
+                                        font.letterSpacing: Theme.eyebrowSpacing
+                                        font.capitalization: Font.AllUppercase
+                                    }
+                                    Text {
+                                        visible: payloadCard.modelData.lastUpdate.length > 0
+                                        text: payloadCard.modelData.lastUpdate
+                                        color: Theme.textSecondary
+                                        font.family: Theme.fontMono
+                                        font.pixelSize: 11
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        visible: payloadCard.modelData.installed
+                                        elide: Text.ElideRight
+                                        text: qsTr("in %1").arg(root.copyLine(payloadCard.modelData))
+                                        color: Theme.textSecondary
+                                        font.pixelSize: 11
+                                    }
+                                    Item { Layout.fillWidth: true; visible: !payloadCard.modelData.installed }
                                 }
                             }
                             StyledToolButton {
@@ -884,6 +1127,7 @@ Item {
                                 iconName: "external-link"
                                 ToolTip.visible: hovered
                                 ToolTip.text: qsTr("Its page, at its author's")
+                                Accessible.name: ToolTip.text
                                 onClicked: Qt.openUrlExternally(payloadCard.modelData.source)
                             }
                             StyledToolButton {
@@ -893,6 +1137,7 @@ Item {
                                 ToolTip.visible: hovered
                                 ToolTip.text: qsTr("Run it now, without installing it (port %1)")
                                               .arg(payloadCard.modelData.port)
+                                Accessible.name: ToolTip.text
                                 onClicked: payloads.runFromCatalog(payloadCard.modelData.name)
                             }
                             StyledButton {

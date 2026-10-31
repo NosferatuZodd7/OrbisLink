@@ -285,18 +285,17 @@ Item {
             height: keyMap.unit - keyMap.slack
             radius: Math.round(keyMap.unit * 0.2)
 
-            // On the light theme the panel is white, like the dialog: the useful
-            // keys get an icy grey and a dark edge, otherwise the dimmed ones
-            // would be the ones standing out.
+            // The useful keys are printed: an ink wash and an inked edge, so
+            // they stand out from the dimmed ones on paper and at night.
             color: held ? Theme.alpha(Theme.accent, 0.42)
                  : chosenHere || hover ? Theme.accentFill
                  : !useful ? "transparent"
-                 : Theme.light ? "#EEF1F6"
+                 : Theme.light ? Theme.alpha(Theme.ink, 0.07)
                  : Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b, 0.9)
             border.width: chosenHere || held ? 2 : 1
             border.color: chosenHere || hover || held ? Theme.accent
-                        : !useful ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.10)
-                        : Theme.light ? Qt.rgba(0, 0, 0, 0.22)
+                        : !useful ? Theme.alpha(Theme.ink, 0.10)
+                        : Theme.light ? Theme.alpha(Theme.ink, 0.30)
                         : Theme.glassEdge
             scale: held ? 0.94 : hover || chosenHere ? 1.06 : 1.0
             z: hover || chosenHere || held ? 1 : 0
@@ -317,8 +316,7 @@ Item {
                 x: 5
                 y: 3
                 text: keyCap.keyLabel
-                color: keyCap.useful ? Theme.text
-                                  : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.28)
+                color: keyCap.useful ? Theme.ink : Theme.alpha(Theme.text, 0.28)
                 font.pixelSize: Math.max(8, Math.round(keyMap.unit * (keyCap.keyLabel.length > 1 ? 0.24 : 0.3)))
                 font.bold: keyCap.useful
             }
@@ -342,13 +340,14 @@ Item {
                     id: sign
                     anchors.centerIn: parent
                     text: keyCap.useful ? keyCap.binding.sign : ""
-                    color: parent.kind === "ps" ? "#FFFFFF"
+                    color: parent.kind === "ps" ? Theme.textOnAccent
                          : parent.kind === "symbol" ? keyCap.binding.tone
-                         : parent.kind === "notice" ? Theme.warn
+                         : parent.kind === "notice" ? (Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn)
                          : Theme.text
                     font.pixelSize: parent.kind === "symbol"
                                     ? Math.round(keyMap.unit * 0.36)
                                     : Math.max(7, Math.round(keyMap.unit * 0.22))
+                    font.family: parent.kind === "button" ? Theme.fontMono : Theme.fontSans
                     font.bold: true
                 }
             }

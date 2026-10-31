@@ -36,53 +36,69 @@ Dialog {
 
     background: Rectangle {
         color: Theme.dialogFill
-        border.color: Theme.border
+        border.color: Theme.glassEdge
         radius: Theme.radiusDialog
     }
 
-    header: Rectangle {
-        implicitHeight: Theme.dialogHeader
-        color: "transparent"
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Theme.dialogMargin
-            anchors.rightMargin: Theme.dialogMargin
-            spacing: 10
-            Icon {
-                name: dialog.kind === "ftp" ? "cloud-upload" : "package"
-                size: 18
-                color: Theme.warn
-            }
-            Text {
-                Layout.fillWidth: true
-                text: dialog.heading
-                color: Theme.text
-                font.pixelSize: 16
-                font.bold: true
-                elide: Text.ElideRight
-            }
-        }
-        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.border }
+    header: DialogHeader {
+        // What is not answering: the console's installer, or its FTP.
+        eyebrow: dialog.kind === "ftp" ? qsTr("FTP is not answering")
+                                       : qsTr("The installer is not answering")
+        title: dialog.heading
+        dialog: dialog
     }
 
     contentItem: Item {
-        implicitHeight: bodyText.implicitHeight + 2 * Theme.dialogMargin
-        Text {
-            id: bodyText
-            anchors.fill: parent
-            anchors.margins: Theme.dialogMargin
-            text: dialog.body
-            color: Theme.textSecondary
-            font.pixelSize: 13
-            lineHeight: 1.25
-            wrapMode: Text.WordWrap
+        implicitHeight: bodyRow.implicitHeight + Theme.dialogInner + Theme.dialogMargin
+        RowLayout {
+            id: bodyRow
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.topMargin: 6
+            anchors.leftMargin: Theme.dialogMargin
+            anchors.rightMargin: Theme.dialogMargin
+            spacing: 16
+
+            // The service, in a round seal tinted with the warning.
+            Rectangle {
+                Layout.alignment: Qt.AlignTop
+                implicitWidth: 44
+                implicitHeight: 44
+                radius: 22
+                color: Theme.alpha(Theme.warn, 0.12)
+                border.width: 1
+                border.color: Theme.alpha(Theme.warn, 0.45)
+                Icon {
+                    anchors.centerIn: parent
+                    name: dialog.kind === "ftp" ? "cloud-upload" : "package"
+                    size: 19
+                    color: Theme.light ? Qt.darker(Theme.warn, 1.35) : Theme.warn
+                }
+            }
+            Text {
+                id: bodyText
+                Layout.fillWidth: true
+                text: dialog.body
+                color: Theme.text
+                font.pixelSize: Theme.fontBody
+                lineHeight: 1.3
+                wrapMode: Text.WordWrap
+            }
         }
     }
 
-    footer: Rectangle {
+    footer: Item {
         implicitHeight: Theme.dialogFooter
-        color: "transparent"
-        Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.border }
+        Rectangle {
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: Theme.dialogMargin
+            anchors.rightMargin: Theme.dialogMargin
+            height: 1
+            color: Theme.glassEdge
+        }
         RowLayout {
             anchors.fill: parent
             anchors.margins: Theme.dialogInner

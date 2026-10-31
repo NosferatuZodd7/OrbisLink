@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// A placeholder row while something is loading: grey blocks where the badge,
-// the name, the details and the button will be, with a band of light
-// sweeping across.
+// A placeholder row while something is loading: faint ink blocks where the
+// picture, the name, the details and the button will be, on a light plate,
+// with a band of light sweeping across.
 import QtQuick
 
 Rectangle {
@@ -13,25 +13,27 @@ Rectangle {
     property int delay: 0
 
     implicitHeight: compact ? 34 : 60
-    radius: compact ? 8 : 14
-    color: compact ? "transparent" : Theme.panelAltFill
-    border.color: compact ? "transparent" : Theme.glassEdge
+    radius: compact ? 8 : Theme.radiusSmall + 2
+    color: compact ? "transparent" : Theme.alpha(Theme.ink, Theme.light ? 0.025 : 0.03)
+    border.width: compact ? 0 : 1
+    border.color: Theme.glassEdge
     clip: true
 
-    readonly property color block: Theme.light ? "#E4E9F0" : Qt.rgba(1, 1, 1, 0.07)
+    // The blocks: the ink, very faint, so they read on paper and at night.
+    readonly property color block: Theme.alpha(Theme.ink, Theme.light ? 0.08 : 0.07)
 
     Rectangle {
         visible: !row.compact
-        x: 12; anchors.verticalCenter: parent.verticalCenter; width: 46; height: 34; radius: 10; color: row.block
+        x: 12; anchors.verticalCenter: parent.verticalCenter; width: 40; height: 40; radius: 10; color: row.block
     }
-    Rectangle { visible: !row.compact; x: 70; y: 15; width: parent.width * 0.32; height: 12; radius: 6; color: row.block }
-    Rectangle { visible: !row.compact; x: 70; y: 35; width: parent.width * 0.22; height: 10; radius: 5; color: row.block }
+    Rectangle { visible: !row.compact; x: 66; y: 16; width: parent.width * 0.32; height: 12; radius: 6; color: row.block }
+    Rectangle { visible: !row.compact; x: 66; y: 35; width: parent.width * 0.2; height: 9; radius: 4.5; color: row.block }
     Rectangle {
         visible: !row.compact
         anchors.right: parent.right
         anchors.rightMargin: 12
         anchors.verticalCenter: parent.verticalCenter
-        width: 96; height: 36; radius: 12
+        width: 96; height: 28; radius: 14
         color: row.block
     }
     // Compact: the icon, the name, the size.
@@ -61,7 +63,7 @@ Rectangle {
         gradient: Gradient {
             orientation: Gradient.Horizontal
             GradientStop { position: 0.0; color: "transparent" }
-            GradientStop { position: 0.5; color: Theme.light ? Qt.rgba(1, 1, 1, 0.7) : Qt.rgba(1, 1, 1, 0.06) }
+            GradientStop { position: 0.5; color: Theme.light ? Qt.rgba(1, 1, 1, 0.55) : Qt.rgba(1, 1, 1, 0.05) }
             GradientStop { position: 1.0; color: "transparent" }
         }
         x: -width

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// A service in the top bar, in as little room as possible: its icon (or,
-// for FTP, the word in small bold letters) with a dot in the state's colour
-// at the corner. The dot breathes while the service is being checked; the
-// name and what it means are in the tooltip.
+// A service of the console in use, under its card in the navigation: a dot
+// in the state's colour, the name and the state in a word (listed), or —
+// with the navigation folded — the icon alone with the dot at its corner.
+// The dot breathes while the service is being checked; what it means and
+// what to do are in the card that opens on hover.
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -14,22 +15,72 @@ Item {
     property string hint: ""
     // Empty: the label itself is drawn, in small bold letters.
     property string iconName: ""
+    // A full-width line (dot, name, state) instead of the bare icon.
+    property bool listed: false
 
     readonly property color tone: Theme.stateColor(root.state_)
     readonly property bool up: root.state_ === "available"
 
-    implicitWidth: Math.max(34, glyph.width + 18)
-    implicitHeight: 32
+    implicitWidth: listed ? line.implicitWidth + 16 : Math.max(34, glyph.width + 18)
+    implicitHeight: listed ? 24 : 32
 
     Rectangle {
         anchors.fill: parent
-        radius: 10
+        radius: root.listed ? 8 : height / 2
         color: hoverHandler.hovered ? Theme.controlHover : "transparent"
         Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
     }
 
+    // Listed: the dot, the name, and the state on the right.
+    Item {
+        id: line
+        visible: root.listed
+        anchors.fill: parent
+        anchors.leftMargin: 8
+        anchors.rightMargin: 8
+        implicitWidth: lineDot.width + 8 + lineName.implicitWidth + 12 + lineState.implicitWidth
+        Rectangle {
+            id: lineDot
+            anchors.verticalCenter: parent.verticalCenter
+            width: 7
+            height: 7
+            radius: 3.5
+            color: root.tone
+            SequentialAnimation on opacity {
+                running: root.listed && root.state_ === "checking"
+                loops: Animation.Infinite
+                onStopped: lineDot.opacity = 1
+                NumberAnimation { to: 0.25; duration: 600; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 1.0; duration: 600; easing.type: Easing.InOutSine }
+            }
+        }
+        Text {
+            id: lineName
+            anchors.left: lineDot.right
+            anchors.leftMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.label
+            color: root.up ? Theme.text : Theme.textSecondary
+            font.pixelSize: 12
+            font.weight: Font.Medium
+        }
+        Text {
+            id: lineState
+            anchors.right: parent.right
+            anchors.left: lineName.right
+            anchors.leftMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            horizontalAlignment: Text.AlignRight
+            text: root.stateWord
+            color: root.up ? (Theme.light ? Qt.darker(root.tone, 1.3) : root.tone) : Theme.textSecondary
+            font.pixelSize: 11
+            elide: Text.ElideRight
+        }
+    }
+
     Item {
         id: glyph
+        visible: !root.listed
         anchors.centerIn: parent
         width: root.iconName.length > 0 ? 18 : word.implicitWidth
         height: 18
@@ -97,8 +148,8 @@ Item {
         id: tip
         visible: hoverHandler.hovered
         delay: 200
-        x: (root.width - width) / 2
-        y: root.height + 8
+        x: root.listed ? root.width + 12 : (root.width - width) / 2
+        y: root.listed ? (root.height - height) / 2 : root.height + 8
         margins: 12
         padding: 14
         topPadding: 12

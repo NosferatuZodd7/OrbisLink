@@ -6,6 +6,10 @@
 // found in a folder on this PC, as cards; a click opens one, the box in a
 // card's corner selects it, and with several selected a bar at the bottom
 // does the same to all of them.
+//
+// The page follows the shell's contract: no panel of its own, a PageHeader
+// (eyebrow, title in the serif, the counts, the page's actions), then the
+// two parts as underline tabs on a hairline, then the part shown.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -17,8 +21,8 @@ Item {
 
     signal back()
 
-    // In the main area, framed as a panel with a way back; over Remote Play
-    // (SectionOverlay) the overlay is the frame, shows the name and closes it.
+    // In the main area, on the sheet with the page's own margins; over
+    // Remote Play (SectionOverlay) the overlay is the frame and the margins.
     property bool framed: true
 
     // The "path" of each selected game.
@@ -57,370 +61,350 @@ Item {
         }
     }
 
-    Rectangle {
+    ColumnLayout {
         anchors.fill: parent
         anchors.leftMargin: root.framed ? Theme.gutter : 0
-        anchors.rightMargin: !root.framed ? 0 : window.sideShown ? 8 : Theme.gutter
-        anchors.topMargin: root.framed ? 4 : 0
-        anchors.bottomMargin: root.framed ? 4 : 0
-        radius: Theme.radius
-        color: root.framed ? Theme.panelFill : "transparent"
-        border.width: root.framed ? 1 : 0
-        border.color: Theme.glassEdge
-        clip: true
+        anchors.rightMargin: root.framed ? Theme.gutter : 0
+        anchors.topMargin: root.framed ? 26 : 0
+        anchors.bottomMargin: root.framed ? 12 : 0
+        spacing: 0
 
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: root.framed ? 24 : 18
-            spacing: 16
+        // ── the page's head: what it is, the counts, and its actions
+        // Over Remote Play the overlay has a page head of its own: this one
+        // keeps only its row of actions there, without eyebrow, title or rule.
+        PageHeader {
+            eyebrow: root.framed ? qsTr("Library") : ""
+            title: root.framed ? qsTr("Games") : ""
+            rule: root.framed
+            // The counts first, then what the part shown is for.
+            subtitle: !root.framed ? "" : root.tab === 0
+                      ? (shelf.level === "home" ? qsTr("%n place(s)", "", shelf.count)
+                         : shelf.loading ? qsTr("Reading…") : qsTr("%n item(s)", "", shelf.count))
+                        + "  ·  " + qsTr("Your games on the console and on this PC, place by place")
+                      : games.gamesFolder.length === 0 ? qsTr("Choose the folder where your disc images are.")
+                      : games.scanStatus + "  ·  " + qsTr("Optional: PS1/PS2 discs on this PC made into PS4 packages")
 
-            // ── header
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 12
-                StyledToolButton {
-                    visible: root.framed
-                    iconName: "chevron-left"
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Back to the consoles")
-                    onClicked: root.back()
-                }
-                ColumnLayout {
-                    spacing: 2
-                    Text {
-                        visible: root.framed
-                        text: qsTr("Games")
-                        color: Theme.text
-                        font.pixelSize: Theme.fontTitle
-                        font.weight: Font.DemiBold
-                    }
-                    Text {
-                        text: root.tab === 0
-                              ? (shelf.level === "home" ? qsTr("%n place(s)", "", shelf.count)
-                                 : shelf.loading ? qsTr("Reading…") : qsTr("%n item(s)", "", shelf.count))
-                              : games.gamesFolder.length === 0 ? qsTr("Choose the folder where your disc images are.")
-                              : games.scanStatus
-                        color: Theme.textSecondary
-                        font.pixelSize: 12
-                    }
-                }
-                Item { Layout.fillWidth: true }
-                // The games folder, as a chip that changes it.
-                StyledButton {
-                    visible: root.tab === 1 && games.gamesFolder.length > 0
-                    iconName: "folder-open"
-                    chip: true
-                    text: games.gamesFolder
-                    Layout.maximumWidth: 320
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Change the games folder")
-                    onClicked: gamesFolderDialog.open()
-                }
-                StyledToolButton {
-                    visible: root.tab === 1 && games.gamesFolder.length > 0
-                    iconName: "refresh"
-                    enabled: !games.scanning
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Look again")
-                    onClicked: games.rescan()
-                }
-            }
-
-            // ── all games | the PS1/PS2 converter, apart: converting is a
-            // choice, not a step
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 14
-                TabBar {
-                    id: placeTabs
-                    Layout.preferredWidth: games.available ? 380 : 190
-                    currentIndex: root.tab
-                    onCurrentIndexChanged: root.tab = currentIndex
-                    padding: 4
-                    spacing: 4
-                    background: Rectangle {
-                        radius: 12
-                        color: Theme.controlFill
-                        border.width: 1
-                        border.color: Theme.glassEdge
-                    }
-                    // Halves, or all of it where this build has no converter.
-                    readonly property real half: (availableWidth - spacing) / 2
-                    StyledTab {
-                        width: games.available ? placeTabs.half : placeTabs.availableWidth
-                        text: qsTr("All games")
-                    }
-                    StyledTab {
-                        visible: games.available
-                        width: games.available ? placeTabs.half : 0
-                        text: qsTr("PS1/PS2 converter")
-                    }
-                }
-                Text {
-                    Layout.fillWidth: true
-                    elide: Text.ElideRight
-                    color: Theme.textMuted
-                    font.pixelSize: 12
-                    text: root.tab === 0
-                          ? qsTr("Your games on the console and on this PC, place by place")
-                          : qsTr("Optional: PS1/PS2 discs on this PC made into PS4 packages")
-                }
-            }
-
-            // ── the emulator files: downloaded once, the first time they are
-            // needed (as easy-ps2-fpkg does), and nothing else to provide
-            Rectangle {
-                id: assetsStrip
-                readonly property string state_: games.assetsState
-                readonly property bool busy: state_ === "downloading" || state_ === "unpacking"
-                readonly property color tone: state_ === "error" ? Theme.error : Theme.accent
-                Layout.fillWidth: true
-                visible: root.tab === 1 && games.gamesFolder.length > 0 && state_ !== "ready"
-                radius: 14
-                color: Theme.alpha(tone, 0.08)
-                border.width: 1
-                border.color: Theme.alpha(tone, 0.30)
-                implicitHeight: assetsColumn.implicitHeight + 24
-                ColumnLayout {
-                    id: assetsColumn
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.leftMargin: 16
-                    anchors.rightMargin: 14
-                    spacing: 8
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 12
-                        Icon {
-                            name: assetsStrip.state_ === "error" ? "warning" : assetsStrip.busy ? "loader" : "download"
-                            spinning: assetsStrip.busy
-                            size: 18
-                            color: assetsStrip.tone
-                            Layout.alignment: Qt.AlignTop
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
-                            color: Theme.text
-                            font.pixelSize: 12
-                            text: assetsStrip.state_ === "downloading"
-                                  ? qsTr("Downloading the PS1/PS2 emulator files… %1%").arg(Math.floor(games.assetsPercent))
-                                  : assetsStrip.state_ === "unpacking"
-                                  ? qsTr("Unpacking the emulator files… %1%").arg(Math.floor(games.assetsPercent))
-                                  : assetsStrip.state_ === "error"
-                                  ? qsTr("The emulator files could not be downloaded: %1").arg(games.assetsMessage)
-                                  : qsTr("Nothing else is needed: the first conversion downloads the PS1/PS2 "
-                                         + "emulator files once (about 109 MB), like easy-ps2-fpkg.")
-                        }
-                        StyledButton {
-                            visible: !assetsStrip.busy
-                            text: assetsStrip.state_ === "error" ? qsTr("Try again") : qsTr("Download now")
-                            chip: true
-                            onClicked: games.downloadAssets()
-                        }
-                    }
-                    Rectangle {
-                        visible: assetsStrip.busy
-                        Layout.fillWidth: true
-                        height: 4
-                        radius: 2
-                        color: Theme.alpha(assetsStrip.tone, 0.18)
-                        Rectangle {
-                            width: parent.width * Math.max(0, Math.min(1, games.assetsPercent / 100))
-                            height: parent.height
-                            radius: parent.radius
-                            color: assetsStrip.tone
-                            Behavior on width { NumberAnimation { duration: 250 } }
-                        }
-                    }
-                }
-            }
-
-            // ── nothing chosen yet: centred in the page, both ways
-            Item {
-                visible: root.tab === 1 && games.gamesFolder.length === 0
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-
-                Column {
-                    anchors.centerIn: parent
-                    width: Math.min(520, parent.width - 32)
-                    spacing: 14
-                    Icon {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        name: "disc"
-                        size: 56
-                        color: Theme.alpha(Theme.accent, 0.8)
-                    }
-                    Text {
-                        width: parent.width
-                        horizontalAlignment: Text.AlignHCenter
-                        wrapMode: Text.WordWrap
-                        text: qsTr("Your PS1 and PS2 games, ready for the console")
-                        color: Theme.text
-                        font.pixelSize: 17
-                        font.weight: Font.DemiBold
-                    }
-                    Text {
-                        width: parent.width
-                        horizontalAlignment: Text.AlignHCenter
-                        wrapMode: Text.WordWrap
-                        text: qsTr("Choose the folder with your disc images (.iso, .bin/.cue, .img). The app "
-                                   + "finds which are PS1 and PS2 games, converts them into PS4 packages, "
-                                   + "sends them to the console over FTP and installs them.")
-                        color: Theme.textSecondary
-                        font.pixelSize: 13
-                    }
-                    Item { width: 1; height: 6 }
-                    StyledButton {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: qsTr("Choose games folder…")
-                        iconName: "folder-open"
-                        primary: true
-                        onClicked: gamesFolderDialog.open()
-                    }
-                }
-            }
-
-            // ── the console's library
-            ShelfView {
-                id: shelfView
+            // The library's own: read again, organise, add a place, manage.
+            StyledToolButton {
                 visible: root.tab === 0
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                onVisibleChanged: if (visible) forceActiveFocus()
+                iconName: shelf.loading ? "loader" : "refresh"
+                spinning: shelf.loading
+                enabled: !shelf.loading
+                Accessible.name: ToolTip.text
+                ToolTip.visible: hovered
+                ToolTip.text: shelf.level === "home" ? qsTr("Read every place again") : qsTr("Read this folder again")
+                onClicked: shelf.refresh()
             }
-            Binding { target: shelf; property: "active"; value: root.visible && root.tab === 0 }
+            // A folder of this PC: its packages renamed and put in order.
+            StyledToolButton {
+                visible: root.tab === 0 && shelf.canOrganize
+                iconName: "list-ordered"
+                Accessible.name: ToolTip.text
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Organise the packages in this folder")
+                onClicked: shelfView.organize()
+            }
+            StyledToolButton {
+                id: addPlaceButton
+                visible: root.tab === 0
+                iconName: "folder-plus"
+                Accessible.name: ToolTip.text
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Add a place to the library")
+                onClicked: shelfView.addPlace(addPlaceButton)
+            }
+            StyledButton {
+                visible: root.tab === 0
+                iconName: "sliders"
+                text: qsTr("Places")
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Manage the places")
+                onClicked: shelfView.managePlaces()
+            }
 
-            // ── the games: as many to a row as fit, as the library lays them out
-            Item {
+            // The converter's: the games folder, as a chip that changes it,
+            // and a look again.
+            StyledButton {
                 visible: root.tab === 1 && games.gamesFolder.length > 0
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+                iconName: "folder-open"
+                chip: true
+                text: games.gamesFolder
+                font.family: Theme.fontMono
+                Layout.maximumWidth: 300
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Change the games folder")
+                onClicked: gamesFolderDialog.open()
+            }
+            StyledToolButton {
+                visible: root.tab === 1 && games.gamesFolder.length > 0
+                iconName: games.scanning ? "loader" : "refresh"
+                spinning: games.scanning
+                enabled: !games.scanning
+                Accessible.name: ToolTip.text
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Look again")
+                onClicked: games.rescan()
+            }
+        }
 
-                Flickable {
-                    id: gamesScroll
-                    anchors.fill: parent
-                    // Room for the cards' glow and lift on hover.
-                    anchors.leftMargin: -14
-                    anchors.rightMargin: -14
-                    clip: true
-                    contentWidth: width
-                    contentHeight: gamesFlow.height + gamesFlow.y + (root.selected.length > 0 ? 90 : 16)
-                    boundsBehavior: Flickable.StopAtBounds
-                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+        // ── all games | the PS1/PS2 converter, apart: converting is a
+        // choice, not a step. Underline tabs on a hairline across the page.
+        TabBar {
+            id: placeTabs
+            Layout.fillWidth: true
+            Layout.topMargin: root.framed ? 14 : 4
+            currentIndex: root.tab
+            onCurrentIndexChanged: root.tab = currentIndex
+            padding: 0
+            spacing: 8
+            background: Rectangle {
+                y: parent.height - 1
+                width: parent.width
+                height: 1
+                color: Theme.glassEdge
+            }
+            StyledTab {
+                width: implicitWidth + 28
+                text: qsTr("All games")
+            }
+            StyledTab {
+                visible: games.available
+                width: games.available ? implicitWidth + 28 : 0
+                text: qsTr("PS1/PS2 converter")
+            }
+        }
 
-                    // The same cards as the library's, in the same grid.
-                    Grid {
-                        id: gamesFlow
-                        readonly property int cell: Theme.gameTile + Theme.gameTileGap
-                        readonly property int fits: Math.max(1, Math.floor((gamesScroll.width - 28) / cell))
-                        x: 14
-                        y: 14
-                        columns: fits
-
-                        Repeater {
-                            model: games.games
-                            Item {
-                                required property var modelData
-                                width: gamesFlow.cell
-                                height: Theme.gameTile + Theme.gameTileNames
-                                GameCard {
-                                    id: gameCard
-                                    anchors.horizontalCenter: parent.horizontalCenter
-                                    game: parent.modelData
-                                    checked: root.isSelected(parent.modelData.path)
-                                    progress: games.progress[parent.modelData.path] || null
-                                    onToggle: root.toggle(parent.modelData.path)
-                                    onOpen: gameDialog.begin([parent.modelData])
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Looking: the shape of the cards about to come.
-                Grid {
-                    id: discSkeletons
-                    visible: games.scanning && games.games.length === 0
-                    readonly property int cell: Theme.gameTile + Theme.gameTileGap
-                    readonly property int fits: Math.max(1, Math.floor(parent.width / cell))
-                    y: 14
-                    columns: fits
-                    Repeater {
-                        model: discSkeletons.visible ? discSkeletons.fits * 2 : 0
-                        Item {
-                            required property int index
-                            width: discSkeletons.cell
-                            height: Theme.gameTile + Theme.gameTileNames
-                            SkeletonTile {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                artSize: Theme.gameTile
-                                delay: (parent.index % discSkeletons.fits) * 90
-                            }
-                        }
-                    }
-                }
-
-                // Found nothing.
-                Column {
-                    anchors.centerIn: parent
-                    visible: !games.scanning && games.games.length === 0
+        // ── the emulator files: downloaded once, the first time they are
+        // needed (as easy-ps2-fpkg does), and nothing else to provide
+        Plate {
+            id: assetsStrip
+            readonly property string state_: games.assetsState
+            readonly property bool busy: state_ === "downloading" || state_ === "unpacking"
+            readonly property color tone: state_ === "error" ? Theme.error : Theme.accent
+            Layout.fillWidth: true
+            Layout.topMargin: 16
+            visible: root.tab === 1 && games.gamesFolder.length > 0 && state_ !== "ready"
+            radius: Theme.radiusSmall + 2
+            color: Theme.alpha(tone, Theme.light ? 0.06 : 0.08)
+            border.color: Theme.alpha(tone, 0.32)
+            implicitHeight: assetsColumn.implicitHeight + 24
+            ColumnLayout {
+                id: assetsColumn
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: 16
+                anchors.rightMargin: 12
+                spacing: 10
+                RowLayout {
+                    Layout.fillWidth: true
                     spacing: 12
                     Icon {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        name: "disc"
-                        size: 44
-                        color: Theme.alpha(Theme.textSecondary, 0.7)
+                        name: assetsStrip.state_ === "error" ? "warning" : assetsStrip.busy ? "loader" : "download"
+                        spinning: assetsStrip.busy
+                        size: 18
+                        color: Theme.light ? Qt.darker(assetsStrip.tone, 1.3) : assetsStrip.tone
                     }
                     Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: qsTr("No PS1 or PS2 discs in this folder.")
-                        color: Theme.textSecondary
-                        font.pixelSize: 13
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: Theme.text
+                        font.pixelSize: 12
+                        text: assetsStrip.state_ === "downloading"
+                              ? qsTr("Downloading the PS1/PS2 emulator files… %1%").arg(Math.floor(games.assetsPercent))
+                              : assetsStrip.state_ === "unpacking"
+                              ? qsTr("Unpacking the emulator files… %1%").arg(Math.floor(games.assetsPercent))
+                              : assetsStrip.state_ === "error"
+                              ? qsTr("The emulator files could not be downloaded: %1").arg(games.assetsMessage)
+                              : qsTr("Nothing else is needed: the first conversion downloads the PS1/PS2 "
+                                     + "emulator files once (about 109 MB), like easy-ps2-fpkg.")
+                    }
+                    StyledButton {
+                        visible: !assetsStrip.busy
+                        text: assetsStrip.state_ === "error" ? qsTr("Try again") : qsTr("Download now")
+                        iconName: assetsStrip.state_ === "error" ? "refresh" : "download"
+                        chip: true
+                        onClicked: games.downloadAssets()
+                    }
+                }
+                // How far along, as a hairline that fills.
+                Rectangle {
+                    visible: assetsStrip.busy
+                    Layout.fillWidth: true
+                    height: 3
+                    radius: 1.5
+                    color: Theme.alpha(assetsStrip.tone, 0.18)
+                    Rectangle {
+                        width: parent.width * Math.max(0, Math.min(1, games.assetsPercent / 100))
+                        height: parent.height
+                        radius: parent.radius
+                        color: assetsStrip.tone
+                        Behavior on width { NumberAnimation { duration: 250 } }
                     }
                 }
             }
         }
 
-        // ── with several selected, what to do with them
-        Rectangle {
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: root.selected.length > 0 && root.tab === 1 ? 20 : -height
-            Behavior on anchors.bottomMargin { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
-            width: Math.min(parent.width - 48, bar.implicitWidth + 32)
-            height: 60
-            radius: 18
-            color: Theme.menuFill
-            border.width: 1
-            border.color: Theme.glassEdge
-            RowLayout {
-                id: bar
-                anchors.fill: parent
-                anchors.leftMargin: 18
-                anchors.rightMargin: 12
-                spacing: 10
-                Text {
-                    text: qsTr("%n selected", "", root.selected.length)
-                    color: Theme.text
-                    font.pixelSize: 13
-                    font.weight: Font.DemiBold
-                }
-                StyledToolButton {
-                    iconName: "close"
-                    iconSize: 14
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Clear the selection")
-                    onClicked: root.selected = []
-                }
-                Item { Layout.fillWidth: true; implicitWidth: 12 }
+        // ── nothing chosen yet: the faint planet, what this is, one action
+        Item {
+            visible: root.tab === 1 && games.gamesFolder.length === 0
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+
+            ShelfTile.EmptyState {
+                anchors.centerIn: parent
+                width: Math.min(500, parent.width - 32)
+                heading: qsTr("Your PS1 and PS2 games, ready for the console")
+                line: qsTr("Choose the folder with your disc images (.iso, .bin/.cue, .img). The app "
+                           + "finds which are PS1 and PS2 games, converts them into PS4 packages, "
+                           + "sends them to the console over FTP and installs them.")
                 StyledButton {
-                    text: qsTr("Continue…")
-                    iconName: "package-plus"
+                    text: qsTr("Choose games folder…")
+                    iconName: "folder-open"
                     primary: true
-                    onClicked: gameDialog.begin(root.selectedGames())
+                    onClicked: gamesFolderDialog.open()
+                }
+            }
+        }
+
+        // ── the console's library
+        ShelfView {
+            id: shelfView
+            visible: root.tab === 0
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.topMargin: 14
+            onVisibleChanged: if (visible) forceActiveFocus()
+        }
+        Binding { target: shelf; property: "active"; value: root.visible && root.tab === 0 }
+
+        // ── the games: as many to a row as fit, as the library lays them out
+        Item {
+            visible: root.tab === 1 && games.gamesFolder.length > 0
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.topMargin: 6
+
+            Flickable {
+                id: gamesScroll
+                anchors.fill: parent
+                // Room for the cards' halo and lift on hover.
+                anchors.leftMargin: -14
+                anchors.rightMargin: -14
+                clip: true
+                contentWidth: width
+                contentHeight: gamesFlow.height + gamesFlow.y + (root.selected.length > 0 ? 90 : 16)
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+                // The same cards as the library's, in the same grid.
+                Grid {
+                    id: gamesFlow
+                    readonly property int cell: Theme.gameTile + Theme.gameTileGap
+                    readonly property int fits: Math.max(1, Math.floor((gamesScroll.width - 28) / cell))
+                    x: 14
+                    y: 16
+                    columns: fits
+
+                    Repeater {
+                        model: games.games
+                        Item {
+                            required property var modelData
+                            width: gamesFlow.cell
+                            height: Theme.gameTile + Theme.gameTileNames
+                            GameCard {
+                                id: gameCard
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                game: parent.modelData
+                                checked: root.isSelected(parent.modelData.path)
+                                progress: games.progress[parent.modelData.path] || null
+                                onToggle: root.toggle(parent.modelData.path)
+                                onOpen: gameDialog.begin([parent.modelData])
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Looking: the shape of the cards about to come.
+            Grid {
+                id: discSkeletons
+                visible: games.scanning && games.games.length === 0
+                readonly property int cell: Theme.gameTile + Theme.gameTileGap
+                readonly property int fits: Math.max(1, Math.floor(parent.width / cell))
+                y: 16
+                columns: fits
+                Repeater {
+                    model: discSkeletons.visible ? discSkeletons.fits * 2 : 0
+                    Item {
+                        required property int index
+                        width: discSkeletons.cell
+                        height: Theme.gameTile + Theme.gameTileNames
+                        SkeletonTile {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            artSize: Theme.gameTile
+                            delay: (parent.index % discSkeletons.fits) * 90
+                        }
+                    }
+                }
+            }
+
+            // Found nothing.
+            ShelfTile.EmptyState {
+                anchors.centerIn: parent
+                width: Math.min(440, parent.width - 32)
+                visible: !games.scanning && games.games.length === 0
+                heading: qsTr("No discs here")
+                line: qsTr("No PS1 or PS2 discs in this folder.")
+                StyledButton {
+                    text: qsTr("Change the games folder")
+                    iconName: "folder-open"
+                    primary: true
+                    onClicked: gamesFolderDialog.open()
+                }
+            }
+
+            // ── with several selected, what to do with them
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: root.selected.length > 0 && root.tab === 1 ? 8 : -height - 16
+                Behavior on anchors.bottomMargin { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
+                visible: anchors.bottomMargin > -height - 12
+                width: Math.min(parent.width - 16, bar.implicitWidth + 32)
+                height: 60
+                radius: 30
+                color: Theme.menuFill
+                border.width: 1
+                border.color: Theme.glassEdge
+                RowLayout {
+                    id: bar
+                    anchors.fill: parent
+                    anchors.leftMargin: 22
+                    anchors.rightMargin: 12
+                    spacing: 10
+                    Text {
+                        text: qsTr("%n selected", "", root.selected.length)
+                        color: Theme.ink
+                        font.family: Theme.fontDisplay
+                        font.pixelSize: 16
+                        font.weight: Font.DemiBold
+                    }
+                    StyledToolButton {
+                        iconName: "close"
+                        iconSize: 14
+                        Accessible.name: ToolTip.text
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr("Clear the selection")
+                        onClicked: root.selected = []
+                    }
+                    Item { Layout.fillWidth: true; implicitWidth: 12 }
+                    StyledButton {
+                        text: qsTr("Continue…")
+                        iconName: "package-plus"
+                        primary: true
+                        onClicked: gameDialog.begin(root.selectedGames())
+                    }
                 }
             }
         }

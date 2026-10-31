@@ -9,6 +9,10 @@
 // * Convert only: the package stays in the output folder (for consoles
 //   without a jailbreak, or to install later).
 // * Send disc file: the image as it is, over FTP.
+//
+// Laid out as the games page's other dialogs: an eyebrow and the title in
+// the serif, the cover large beside a ledger of facts (mono where they are
+// technical), the choices, and the actions in a footer under a hairline.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -97,86 +101,73 @@ Dialog {
         radius: Theme.radiusDialog
     }
 
-    header: DialogHeader {
+    header: ShelfTile.DialogHead {
+        eyebrow: !dialog.single ? qsTr("PS1/PS2 converter")
+               : dialog.game.platform === "ps2" ? qsTr("PS2 disc") : qsTr("PS1 disc")
         title: dialog.single ? dialog.game.title : qsTr("%n game(s) selected", "", dialog.items.length)
         dialog: dialog
     }
 
     contentItem: ColumnLayout {
-        spacing: 14
+        spacing: 16
 
-        // ── what it is
-        Rectangle {
+        // ── what it is: the cover, large, beside a ledger of its facts
+        RowLayout {
             visible: dialog.single
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
-            Layout.topMargin: 4
-            radius: 16
-            color: Theme.panelAltFill
-            border.width: 1
-            border.color: Theme.glassEdge
-            implicitHeight: Math.max(details.implicitHeight, dialogCover.height) + 28
+            spacing: 22
 
-            // The game's cover, from the collection by its serial.
-            CoverArt {
-                id: dialogCover
-                anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.leftMargin: 14
-                width: 88
-                height: 120
-                crop: true
-                radius: 8
-                readonly property var game: dialog.game || ({})
-                picture: dialog.single && shelf.coverRevision >= 0
-                         ? shelf.cover(game.platform || "", game.serial || "") : ""
-                placeholder: game.platform === "ps2" ? "dvd" : "cd"
-                label: game.platform === "ps2" ? "PS2" : "PS1"
+            // The game's cover, from the collection by its serial, on a
+            // soft shadow.
+            Item {
+                Layout.alignment: Qt.AlignTop
+                implicitWidth: 132
+                implicitHeight: 184
+                Rectangle {
+                    x: 2
+                    y: 7
+                    width: parent.width
+                    height: parent.height
+                    radius: 12
+                    color: Qt.rgba(0, 0, 0, Theme.light ? 0.10 : 0.35)
+                }
+                CoverArt {
+                    id: dialogCover
+                    anchors.fill: parent
+                    crop: true
+                    radius: 12
+                    readonly property var game: dialog.game || ({})
+                    picture: dialog.single && shelf.coverRevision >= 0
+                             ? shelf.cover(game.platform || "", game.serial || "") : ""
+                    placeholder: game.platform === "ps2" ? "dvd" : "cd"
+                    label: game.platform === "ps2" ? "PS2" : "PS1"
+                }
             }
 
-            GridLayout {
+            Column {
                 id: details
-                anchors.left: dialogCover.right
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.leftMargin: 16
-                anchors.rightMargin: 16
-                columns: 2
-                columnSpacing: 16
-                rowSpacing: 6
-
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignTop
                 Repeater {
                     model: dialog.single ? [
-                        [qsTr("Platform"), dialog.game.platform === "ps2" ? "PlayStation 2" : "PlayStation"],
-                        [qsTr("Serial"), dialog.game.serial.length > 0 ? dialog.game.serial : qsTr("not found")],
-                        [qsTr("Region"), dialog.game.region.length > 0 ? dialog.game.region : "—"],
-                        [qsTr("File"), dialog.game.fileName],
-                        [qsTr("Size"), dialog.game.sizeText + "  ·  ." + dialog.game.format],
-                        [qsTr("Folder"), dialog.game.folder]
+                        [qsTr("Platform"), dialog.game.platform === "ps2" ? "PlayStation 2" : "PlayStation", false],
+                        [qsTr("Serial"), dialog.game.serial.length > 0 ? dialog.game.serial : qsTr("not found"),
+                         dialog.game.serial.length > 0],
+                        [qsTr("Region"), dialog.game.region.length > 0 ? dialog.game.region : "—", false],
+                        [qsTr("File"), dialog.game.fileName, true],
+                        [qsTr("Size"), dialog.game.sizeText + "  ·  ." + dialog.game.format, true],
+                        [qsTr("Folder"), dialog.game.folder, true]
                     ] : []
-                    delegate: Item {
+                    delegate: ShelfTile.FactRow {
                         required property var modelData
                         required property int index
-                        Layout.columnSpan: 2
-                        Layout.fillWidth: true
-                        implicitHeight: Math.max(k.implicitHeight, v.implicitHeight)
-                        Text {
-                            id: k
-                            width: 90
-                            text: modelData[0]
-                            color: Theme.textSecondary
-                            font.pixelSize: 12
-                        }
-                        Text {
-                            id: v
-                            x: 106
-                            width: parent.width - 106
-                            text: modelData[1]
-                            color: Theme.text
-                            font.pixelSize: 12
-                            elide: Text.ElideMiddle
-                        }
+                        width: details.width
+                        label: modelData[0]
+                        value: modelData[1]
+                        mono: modelData[2]
+                        last: index === 5
                     }
                 }
             }
@@ -203,11 +194,9 @@ Dialog {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
-            spacing: 6
-            Text {
+            spacing: 8
+            Eyebrow {
                 text: qsTr("Name on the console")
-                color: Theme.textSecondary
-                font.pixelSize: 12
             }
             StyledField {
                 id: titleInput
@@ -224,7 +213,7 @@ Dialog {
             spacing: 10
             Icon {
                 name: "folder"
-                size: 16
+                size: 18
                 color: Theme.textSecondary
             }
             ColumnLayout {
@@ -238,8 +227,9 @@ Dialog {
                 Text {
                     Layout.fillWidth: true
                     text: dialog.hasOutput ? games.outputFolder : qsTr("no folder chosen yet")
-                    color: dialog.hasOutput ? Theme.text : Theme.warn
-                    font.pixelSize: 12
+                    color: !dialog.hasOutput ? (Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn) : Theme.text
+                    font.family: dialog.hasOutput ? Theme.fontMono : Theme.fontSans
+                    font.pixelSize: dialog.hasOutput ? 11 : 12
                     elide: Text.ElideMiddle
                 }
             }
@@ -256,8 +246,8 @@ Dialog {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
-            radius: 14
-            color: Theme.alpha(Theme.ok, 0.08)
+            radius: 12
+            color: Theme.alpha(Theme.ok, Theme.light ? 0.06 : 0.08)
             border.width: 1
             border.color: Theme.alpha(Theme.ok, 0.35)
             implicitHeight: existingColumn.implicitHeight + 24
@@ -272,7 +262,7 @@ Dialog {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 12
-                    Icon { name: "package"; size: 18; color: Theme.ok; Layout.alignment: Qt.AlignTop }
+                    Icon { name: "package"; size: 18; color: Theme.light ? Qt.darker(Theme.ok, 1.3) : Theme.ok; Layout.alignment: Qt.AlignTop }
                     Text {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
@@ -309,7 +299,7 @@ Dialog {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
-            radius: 14
+            radius: 12
             color: Theme.alpha(Theme.warn, 0.10)
             border.width: 1
             border.color: Theme.alpha(Theme.warn, 0.35)
@@ -322,7 +312,7 @@ Dialog {
                 anchors.leftMargin: 14
                 anchors.rightMargin: 14
                 spacing: 12
-                Icon { name: "warning"; size: 18; color: Theme.warn; Layout.alignment: Qt.AlignTop }
+                Icon { name: "warning"; size: 18; color: Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn; Layout.alignment: Qt.AlignTop }
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
@@ -340,7 +330,7 @@ Dialog {
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
             readonly property color tone: dialog.ftpUp ? Theme.hen : Theme.warn
-            radius: 14
+            radius: 12
             color: Theme.alpha(tone, 0.08)
             border.width: 1
             border.color: Theme.alpha(tone, 0.35)
@@ -463,6 +453,16 @@ Dialog {
 
     footer: Item {
         implicitHeight: Theme.dialogFooter
+        // A hairline between what it is and what to do with it.
+        Rectangle {
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: Theme.dialogMargin
+            anchors.rightMargin: Theme.dialogMargin
+            height: 1
+            color: Theme.glassEdge
+        }
         RowLayout {
             anchors.fill: parent
             anchors.margins: Theme.dialogInner

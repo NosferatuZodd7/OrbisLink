@@ -104,6 +104,8 @@ Last review: v1.1.0.
 | | |
 |---|---|
 | ✅ | Single window: stream in the middle, queue and FTP in the side panel |
+| 🟡 | The Celestial Archive look: Observatory (dark), glass and Archive (light, paper grain) themes in indigo, parchment and brass; serif titles (Fraunces), Figtree for the interface, technical values in JetBrains Mono; engraved rules and a painted sky; the window redesigned as an atlas laid open — navigation spine on the left (folds to icons when narrow), the page in the middle under a common head, transfers spine on the right — and every page, card and dialog redrawn in it; the new emblem as the app icon. Checked on every page with the fake consoles in both themes; not yet on Windows at other DPI scales |
+| ✅ | About OrbisLink (Settings, under Update check): emblem, version, channel, licence, the team's mark (by theme) and Claude, and the work it stands on |
 | ✅ | Buttons, fields and tabs in the app's style instead of Qt's grey |
 | ✅ | Service indicators (Remote Play, FTP, installer) with the reason when they are down; on a PS5 without a jailbreak they are grey and say what is needed |
 | ✅ | Automatic check of the IP address while typing |

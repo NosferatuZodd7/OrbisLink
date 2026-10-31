@@ -26,38 +26,18 @@ Dialog {
 
     background: Rectangle {
         color: Theme.dialogFill
-        border.color: Theme.border
+        border.color: Theme.glassEdge
         radius: Theme.radiusDialog
     }
 
-    header: Rectangle {
-        implicitHeight: Theme.dialogHeader
-        color: "transparent"
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Theme.dialogMargin
-            anchors.rightMargin: Theme.dialogMargin
-            spacing: 10
-            Text {
-                Layout.fillWidth: true
-                text: qsTr("Version %1 available").arg(app.updateVersion)
-                color: Theme.text
-                font.pixelSize: 16
-                font.bold: true
-                elide: Text.ElideRight
-            }
-            Text {
-                text: qsTr("you have %1").arg(app.version)
-                color: Theme.textMuted
-                font.pixelSize: 11
-            }
-        }
-        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.border }
+    header: DialogHeader {
+        eyebrow: qsTr("Update")
+        title: qsTr("Version %1 available").arg(app.updateVersion)
+        dialog: dialog
     }
 
-    footer: Rectangle {
+    footer: Item {
         implicitHeight: Theme.dialogFooter
-        color: "transparent"
         RowLayout {
             anchors.fill: parent
             anchors.margins: Theme.dialogInner
@@ -66,6 +46,7 @@ Dialog {
             spacing: 8
             StyledButton {
                 text: qsTr("View on GitHub")
+                iconName: "external-link"
                 enabled: app.updatePageUrl.length > 0
                 onClicked: app.openUpdatePage()
             }
@@ -77,6 +58,7 @@ Dialog {
             }
             StyledButton {
                 text: app.updateCanInstall ? qsTr("Install now") : qsTr("Open the page")
+                iconName: app.updateCanInstall ? "download" : "external-link"
                 primary: true
                 minimumWidth: 140
                 enabled: !dialog.downloading && !dialog.isReady
@@ -86,23 +68,50 @@ Dialog {
     }
 
     contentItem: ColumnLayout {
-        spacing: 10
+        spacing: 12
 
-        // What changed. The release body comes in markdown; it is shown as
-        // text, which is honest and does not fake formatting that is not there.
-        Rectangle {
+        // From which version to which: the one in use, then the new one.
+        RowLayout {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
-            Layout.topMargin: Theme.dialogInner
-            Layout.preferredHeight: 200
-            radius: 8
-            color: Theme.panelAltFill
-            border.color: Theme.border
+            spacing: 8
+            Text {
+                text: qsTr("you have %1").arg(app.version)
+                color: Theme.textSecondary
+                font.pixelSize: Theme.fontSmall
+            }
+            Icon {
+                name: "chevron-right"
+                size: 14
+                color: Theme.brass
+            }
+            Tag {
+                text: "v" + app.updateVersion
+                mono: true
+                tone: "accent"
+            }
+            Item { Layout.fillWidth: true }
+        }
+
+        // What changed. The release body comes in markdown; it is shown as
+        // text, which is honest and does not fake formatting that is not there.
+        Eyebrow {
+            Layout.leftMargin: Theme.dialogMargin + 4
+            Layout.topMargin: 4
+            text: qsTr("What changed")
+        }
+        Plate {
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.dialogMargin
+            Layout.rightMargin: Theme.dialogMargin
+            Layout.preferredHeight: 220
+            sunken: true
+            radius: Theme.radiusSmall + 2
 
             ScrollView {
                 anchors.fill: parent
-                anchors.margins: Theme.dialogInner
+                anchors.margins: 8
                 clip: true
                 TextArea {
                     text: app.updateNotes.length > 0 ? app.updateNotes
@@ -110,54 +119,69 @@ Dialog {
                     readOnly: true
                     wrapMode: Text.WordWrap
                     color: Theme.text
-                    font.pixelSize: 12
+                    font.pixelSize: 13
                     background: null
                     selectByMouse: true
+                    selectionColor: Theme.alpha(Theme.accent, 0.35)
                 }
             }
         }
 
-        // Progresso da descarga.
+        // The download's progress.
         ColumnLayout {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
-            spacing: 4
+            spacing: 6
             visible: dialog.downloading || dialog.isReady || app.updateState === "error"
 
             Text {
                 Layout.fillWidth: true
                 text: app.updateMessage
-                color: app.updateState === "error" ? Theme.error : Theme.textMuted
-                font.pixelSize: 11
+                color: app.updateState === "error" ? (Theme.light ? Qt.darker(Theme.error, 1.3) : Theme.error)
+                                                   : Theme.textSecondary
+                font.pixelSize: Theme.fontSmall
                 wrapMode: Text.WordWrap
             }
             Rectangle {
                 Layout.fillWidth: true
                 visible: dialog.downloading
-                height: 4
-                radius: 2
-                color: Theme.border
+                height: 6
+                radius: 3
+                color: Theme.controlFill
+                border.width: 1
+                border.color: Theme.glassEdge
                 Rectangle {
                     width: parent.width * app.updateProgress
                     height: parent.height
-                    radius: 2
+                    radius: 3
                     color: Theme.accent
+                    Behavior on width { NumberAnimation { duration: Theme.normal } }
                 }
             }
         }
 
-        Text {
+        RowLayout {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
-            Layout.bottomMargin: Theme.dialogInner
-            wrapMode: Text.WordWrap
-            color: Theme.textMuted
-            font.pixelSize: 11
+            Layout.bottomMargin: 4
             visible: app.updateCanInstall
-            text: qsTr("The installer opens and the app closes. Windows will ask for permission "
-                       + "— the installer writes to Program Files.")
+            spacing: 8
+            Icon {
+                Layout.alignment: Qt.AlignTop
+                name: "shield-check"
+                size: 15
+                color: Theme.brass
+            }
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: Theme.textSecondary
+                font.pixelSize: Theme.fontSmall
+                text: qsTr("The installer opens and the app closes. Windows will ask for permission "
+                           + "— the installer writes to Program Files.")
+            }
         }
     }
 }

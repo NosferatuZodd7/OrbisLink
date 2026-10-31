@@ -17,7 +17,7 @@ ComboBox {
 
     background: Rectangle {
         radius: Theme.radiusField
-        color: Theme.light ? "#FFFFFF" : (control.hovered ? Theme.controlHover : Theme.controlFill)
+        color: Theme.light ? "#FBF6EA" : (control.hovered ? Theme.controlHover : Theme.controlFill)
         border.width: 1
         border.color: control.activeFocus || control.popup.visible ? Theme.accent : Theme.glassEdge
     }

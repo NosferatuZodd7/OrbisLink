@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The three themes and the custom look as icons in the top bar, next to
-// the settings. One click switches right away and only one is lit: a plain
+// The three themes and the custom look as icons at the foot of the
+// navigation: in a row, or a column when it is folded. One click switches right away and only one is lit: a plain
 // theme sets the custom colours aside; the custom look brings back the
 // chosen saved look (or the colours set aside).
 import QtQuick
@@ -19,23 +19,29 @@ Rectangle {
         { name: "light", icon: "sun", tip: qsTr("Light theme") }
     ]
 
-    implicitWidth: line.implicitWidth + 8
-    implicitHeight: 36
-    radius: 11
+    // A column, for the folded navigation.
+    property bool vertical: false
+    // Each button's width when laid in a row (the row fills the given width).
+    readonly property real cell: vertical ? 30 : Math.max(30, (width - 8 - 3 * 2) / 4)
+
+    implicitWidth: vertical ? 38 : line.implicitWidth + 8
+    implicitHeight: vertical ? line.implicitHeight + 8 : 36
+    radius: vertical ? 19 : height / 2
     color: Theme.controlFill
     border.width: 1
     border.color: Theme.glassEdge
 
-    Row {
+    Grid {
         id: line
         anchors.centerIn: parent
+        columns: selector.vertical ? 1 : 4
         spacing: 2
 
         Repeater {
             model: selector.themes
 
             StyledToolButton {
-                width: 30
+                width: selector.cell
                 height: 28
                 iconName: modelData.icon
                 iconSize: 16
@@ -50,7 +56,7 @@ Rectangle {
         }
 
         StyledToolButton {
-            width: 30
+            width: selector.cell
             height: 28
             iconName: "sparkles"
             iconSize: 16

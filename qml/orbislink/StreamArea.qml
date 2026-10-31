@@ -56,24 +56,24 @@ Item {
         app.openFiles()
     }
 
-    // The video stage floats like everything else: margins, wide corners and
-    // a glass frame. In full screen all of that goes away — there the
-    // picture rules.
+    // Where things go. Without a picture this is a page like the others: it
+    // draws no panel of its own and keeps the sheet's margins. With one, the
+    // picture sits in a softly rounded frame; in full screen ("free") all of
+    // that goes away — there the picture rules.
     readonly property bool free: typeof window !== "undefined" && window
                                   && window.streamFullscreen
 
     Rectangle {
         id: videoStage
         anchors.fill: parent
-        anchors.leftMargin: root.free ? 0 : Theme.gutter
-        anchors.topMargin: root.free ? 0 : 4
-        anchors.bottomMargin: root.free ? 0 : 4
-        anchors.rightMargin: root.free ? 0 : window.sideShown ? 8 : Theme.gutter
-        radius: root.free ? 0 : Theme.radius
-        // Black whenever there is (or will be) a picture; idle, it follows the theme.
-        color: root.streaming ? "#000000" : Theme.stageIdle
-        Behavior on color { ColorAnimation { duration: Theme.normal } }
-        border.width: root.free ? 0 : 1
+        anchors.leftMargin: root.free ? 0 : root.streaming ? 16 : Theme.gutter
+        anchors.rightMargin: root.free ? 0 : root.streaming ? 16 : Theme.gutter
+        anchors.topMargin: root.free ? 0 : root.streaming ? 14 : 26
+        anchors.bottomMargin: root.free ? 0 : 12
+        radius: root.free || !root.streaming ? 0 : Theme.radius
+        // Black whenever there is a picture; idle, the sheet shows through.
+        color: root.streaming ? "#000000" : "transparent"
+        border.width: root.streaming && !root.free ? 1 : 0
         border.color: Theme.glassEdge
         clip: true
 
@@ -174,146 +174,201 @@ Item {
 
     // ───────────────────────────── the consoles, when there is no picture
     //
-    // The saved consoles side by side from the top left, and the card to add
-    // one more; they wrap onto more rows when the window is narrow. The one
-    // in use is the usual one; the others show their state and a click
-    // switches to them. Below, only the explanation the state calls for (the
-    // registration PIN, the reason for a failure, the game running).
+    // The app's dashboard: the page's head (what is true right now — how
+    // many consoles, the one in use with its jailbreak and firmware, once
+    // they said them, and what the queue is doing), then the saved consoles
+    // as plates in a grid that reflows with the window, and the plate to add
+    // one more. The one in use is the usual one; the others show their state
+    // and a click switches to them. At the foot, only the explanation the
+    // state calls for (the registration PIN, the reason for a failure, the
+    // game running).
     Flickable {
         id: cardScroll
         anchors.fill: videoStage
-        anchors.margins: 10
-        anchors.bottomMargin: helpRow.visible ? helpRow.height + 26 : 10
+        anchors.bottomMargin: helpRow.visible ? helpRow.height + 16 : 0
         visible: !root.streaming
         clip: true
         contentWidth: width
-        contentHeight: consoleRow.height + 2 * consoleRow.y
+        contentHeight: homeColumn.height + 12
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-        // Centred, as many to a row as fit; the room around them keeps the
-        // glow and the lift on hover inside the clip.
-        Flow {
-            id: consoleRow
-            readonly property int cell: 256 + spacing
-            readonly property int fits: Math.max(1, Math.floor((cardScroll.width - 28 + spacing) / cell))
-            readonly property int count: app.consoles.length + 1
-            x: Math.round((cardScroll.width - width) / 2)
-            y: 14
-            width: Math.min(fits, count) * cell - spacing
-            spacing: 16
+        Column {
+            id: homeColumn
+            width: cardScroll.width
+            spacing: 24
 
-            Repeater {
-                model: app.consoles
+            PageHeader {
+                id: overview
+                width: parent.width
 
-                ConsoleCard {
-                    readonly property var other: root.built && !modelData.active
-                                                 ? stream.consoleStates[modelData.address] : undefined
-                    current: modelData.active
-                    ftpAvailable: root.ftpOk(modelData)
-                    jailbreak: app.jailbreaks[modelData.address] || ""
-                    startMode: modelData.startMode
-                    available: root.built
-                    address: modelData.address
-                    name: modelData.active && root.built && stream.consoleName.length > 0
-                          ? stream.consoleName : modelData.name
-                    status: modelData.active ? root.consoleState
-                          : (other ? other.state : "unknown")
-                    registered: modelData.active ? root.registered : (other ? other.registered : false)
-                    // What the console said just now, if it answered; otherwise,
-                    // what was stored the last time it answered.
-                    kind: {
-                        var answered = modelData.active
-                            ? (root.consoleState === "ready" || root.consoleState === "standby")
-                            : (other !== undefined && other.state !== "offline"
-                               && other.state !== "unknown")
-                        if (!answered)
-                            return modelData.type
-                        var ps5 = modelData.active ? stream.consolePs5 : other.ps5
-                        return ps5 ? "ps5" : "ps4"
-                    }
-                    connecting: modelData.active && root.sessionState === "connecting"
-                    searching: modelData.active && root.built && stream.searching
-                    stage: modelData.active && root.built ? stream.connectStage : ""
-                    onConnect: root.connectConsole()
-                    onCancel: {
-                        if (stream.connectStage.length > 0)
-                            stream.cancelOneClick()
-                        else
-                            stream.stopStream()
-                    }
-                    onEdit: registerDialog.open()
-                    accounts: app.accounts
-                    account: root.built ? stream.savedAccountId : ""
-                    registeredAccounts: root.built ? stream.registeredAccounts : []
-                    // The choice is this console's from now on: the next
-                    // connection goes in with it, without asking.
-                    onChooseAccount: function (accountId) {
-                        stream.useAccount(accountId)
-                        app.rememberAccountId(accountId)
-                    }
-                    onManageAccounts: {
-                        settingsDialog.loadValues()
-                        settingsDialog.section = 1
-                        settingsDialog.open()
-                    }
-                    // Another console: it becomes the console in use and connects
-                    // right away, in the same click (see chooseAndConnect).
-                    onChoose: root.chooseAndConnect(modelData.address)
-                    onRemove: app.removeConsole(modelData.address)
-                    onOpenFtp: root.openFtp(modelData.address)
-                    spotlight: root.spotlightAddress.length > 0
-                               && root.spotlightAddress === modelData.address
+                readonly property string jailbreak: app.jailbreaks[app.consoleAddress] || ""
+                readonly property string henVersion: app.henVersions[app.consoleAddress] || ""
+                readonly property var facts: {
+                    if (app.consoles.length === 0)
+                        return [qsTr("Add the first console to begin.")]
+                    var list = [qsTr("%n console(s)", "", app.consoles.length)]
+                    if (app.consoleName.length > 0)
+                        list.push(qsTr("%1 in use").arg(app.consoleName))
+                    if (jailbreak.length > 0)
+                        list.push(henVersion.length > 0 ? jailbreak + " " + henVersion : jailbreak)
+                    if (app.consoleFirmware.length > 0)
+                        list.push(qsTr("firmware %1").arg(app.consoleFirmware))
+                    return list
+                }
+
+                eyebrow: qsTr("Observatory")
+                title: qsTr("Your consoles")
+                subtitle: facts.join("  ·  ")
+
+                // What the queue is doing, when it has something.
+                Tag {
+                    visible: app.queue.count > 0
+                    tone: "accent"
+                    iconName: "package"
+                    text: qsTr("%n in the queue", "", app.queue.count)
+                          + (app.queue.totalSpeedText.length > 0 ? "  ·  " + app.queue.totalSpeedText : "")
                 }
             }
 
-            AddConsoleCard {
-                onAdd: addConsoleDialog.open()
+            // As many plates to a row as fit at a comfortable width; they
+            // share the row out between them, up to a width past which a
+            // plate would only be emptier.
+            Flow {
+                id: consoleGrid
+                readonly property int minCell: 250
+                readonly property int maxCell: 400
+                readonly property int cols: Math.max(1, Math.floor((width + spacing) / (minCell + spacing)))
+                readonly property int cell: Math.min(maxCell,
+                                                     Math.floor((width - spacing * (cols - 1)) / cols))
+                readonly property int cellHeight: 240
+                width: parent.width
+                spacing: 16
+
+                Repeater {
+                    model: app.consoles
+
+                    ConsoleCard {
+                        readonly property var other: root.built && !modelData.active
+                                                     ? stream.consoleStates[modelData.address] : undefined
+                        width: consoleGrid.cell
+                        height: consoleGrid.cellHeight
+                        current: modelData.active
+                        ftpAvailable: root.ftpOk(modelData)
+                        jailbreak: app.jailbreaks[modelData.address] || ""
+                        startMode: modelData.startMode
+                        available: root.built
+                        address: modelData.address
+                        name: modelData.active && root.built && stream.consoleName.length > 0
+                              ? stream.consoleName : modelData.name
+                        status: modelData.active ? root.consoleState
+                              : (other ? other.state : "unknown")
+                        registered: modelData.active ? root.registered : (other ? other.registered : false)
+                        // What the console said just now, if it answered; otherwise,
+                        // what was stored the last time it answered.
+                        kind: {
+                            var answered = modelData.active
+                                ? (root.consoleState === "ready" || root.consoleState === "standby")
+                                : (other !== undefined && other.state !== "offline"
+                                   && other.state !== "unknown")
+                            if (!answered)
+                                return modelData.type
+                            var ps5 = modelData.active ? stream.consolePs5 : other.ps5
+                            return ps5 ? "ps5" : "ps4"
+                        }
+                        connecting: modelData.active && root.sessionState === "connecting"
+                        searching: modelData.active && root.built && stream.searching
+                        stage: modelData.active && root.built ? stream.connectStage : ""
+                        onConnect: root.connectConsole()
+                        onCancel: {
+                            if (stream.connectStage.length > 0)
+                                stream.cancelOneClick()
+                            else
+                                stream.stopStream()
+                        }
+                        onEdit: registerDialog.open()
+                        accounts: app.accounts
+                        account: root.built ? stream.savedAccountId : ""
+                        registeredAccounts: root.built ? stream.registeredAccounts : []
+                        // The choice is this console's from now on: the next
+                        // connection goes in with it, without asking.
+                        onChooseAccount: function (accountId) {
+                            stream.useAccount(accountId)
+                            app.rememberAccountId(accountId)
+                        }
+                        onManageAccounts: {
+                            settingsDialog.loadValues()
+                            settingsDialog.section = 1
+                            settingsDialog.open()
+                        }
+                        // Another console: it becomes the console in use and connects
+                        // right away, in the same click (see chooseAndConnect).
+                        onChoose: root.chooseAndConnect(modelData.address)
+                        onRemove: app.removeConsole(modelData.address)
+                        onOpenFtp: root.openFtp(modelData.address)
+                        spotlight: root.spotlightAddress.length > 0
+                                   && root.spotlightAddress === modelData.address
+                    }
+                }
+
+                AddConsoleCard {
+                    width: consoleGrid.cell
+                    height: consoleGrid.cellHeight
+                    onAdd: addConsoleDialog.open()
+                }
             }
         }
     }
 
-    Row {
+    // The note at the foot of the page: what the state calls for, in the
+    // page's quiet voice (the sheet's status line already rules it off).
+    Item {
         id: helpRow
         anchors.left: videoStage.left
+        anchors.right: videoStage.right
         anchors.bottom: videoStage.bottom
-        anchors.leftMargin: 26
-        anchors.bottomMargin: 22
-        spacing: 12
+        height: helpLine.height + 6
         visible: !root.streaming && helpText.text.length > 0
 
-        Icon {
-            anchors.verticalCenter: parent.verticalCenter
-            name: "info"
-            size: 20
-            color: Theme.onIdleStageMuted
-        }
-        Text {
-            id: helpText
-            anchors.verticalCenter: parent.verticalCenter
-            width: Math.min(implicitWidth, videoStage.width - 100)
-            wrapMode: Text.WordWrap
-            color: Theme.onIdleStageMuted
-            font.pixelSize: 12
-            lineHeight: 1.15
-            text: {
-                if (!root.built)
-                    return qsTr("This package was built without chiaki-ng. Everything else — "
-                                + "installing pkg files and FTP — still works.")
-                if (root.sessionState === "failed" && stream.sessionDetail.length > 0)
-                    return stream.sessionDetail
-                if (root.consoleState === "offline")
-                    return qsTr("Check the IP in the settings, and that the console is on the "
-                                + "same network.")
-                if (!root.registered && root.consoleState !== "unknown")
-                    return stream.consolePs5
-                        ? qsTr("On the PS5: Settings → System → Remote Play → Link Device. An "
-                               + "8-digit PIN appears.")
-                        : qsTr("On the console: Settings → Remote Play Connection Settings → Add "
-                               + "Device. An 8-digit PIN appears.")
-                if (stream.runningApp.length > 0)
-                    return qsTr("Running: %1").arg(stream.runningApp)
-                return ""
+        Row {
+            id: helpLine
+            y: 0
+            width: parent.width
+            spacing: 10
+
+            Icon {
+                anchors.verticalCenter: parent.verticalCenter
+                name: "info"
+                size: 16
+                color: Theme.brass
+            }
+            Text {
+                id: helpText
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - 26
+                wrapMode: Text.WordWrap
+                color: Theme.textSecondary
+                font.pixelSize: 12
+                lineHeight: 1.15
+                text: {
+                    if (!root.built)
+                        return qsTr("This package was built without chiaki-ng. Everything else — "
+                                    + "installing pkg files and FTP — still works.")
+                    if (root.sessionState === "failed" && stream.sessionDetail.length > 0)
+                        return stream.sessionDetail
+                    if (root.consoleState === "offline")
+                        return qsTr("Check the IP in the settings, and that the console is on the "
+                                    + "same network.")
+                    if (!root.registered && root.consoleState !== "unknown")
+                        return stream.consolePs5
+                            ? qsTr("On the PS5: Settings → System → Remote Play → Link Device. An "
+                                   + "8-digit PIN appears.")
+                            : qsTr("On the console: Settings → Remote Play Connection Settings → Add "
+                                   + "Device. An 8-digit PIN appears.")
+                    if (stream.runningApp.length > 0)
+                        return qsTr("Running: %1").arg(stream.runningApp)
+                    return ""
+                }
             }
         }
     }
@@ -358,7 +413,8 @@ Item {
         opacity: shown ? 1.0 : 0.0
         Behavior on opacity { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
         color: Theme.hudFill
-        radius: 16
+        // Round-ended, like the buttons on it.
+        radius: height / 2
         border.width: 1
         border.color: Theme.hudEdge
         implicitHeight: 52
@@ -369,7 +425,7 @@ Item {
         Text {
             id: frameInfo
             anchors.left: parent.left
-            anchors.leftMargin: 18
+            anchors.leftMargin: 22
             anchors.verticalCenter: parent.verticalCenter
             text: {
                 if (!root.built || stream.frameWidth <= 0)
@@ -380,7 +436,8 @@ Item {
                 return message
             }
             color: Theme.onStage
-            font.pixelSize: 14
+            font.family: Theme.fontMono
+            font.pixelSize: 13
             font.weight: Font.Medium
             HoverHandler { id: frameHover }
             ToolTip.visible: frameHover.hovered && text.length > 0
@@ -414,7 +471,7 @@ Item {
                 readonly property bool broken: audioStatus === "error" || audioStatus === "no-device"
                 implicitHeight: 36
                 implicitWidth: soundRow.implicitWidth + 24
-                radius: 10
+                radius: height / 2
                 color: soundArea.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.06)
                 border.width: 1
                 border.color: Theme.hudEdge
@@ -481,7 +538,7 @@ Item {
                 readonly property var modes: ["fit", "4:3", "fill"]
                 implicitHeight: 36
                 implicitWidth: aspectRow.implicitWidth + 24
-                radius: 10
+                radius: height / 2
                 color: aspectArea.pressed ? Qt.rgba(1, 1, 1, 0.18)
                      : aspectArea.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.06)
                 border.width: 1
@@ -501,6 +558,7 @@ Item {
                         text: app.streamAspect === "4:3" ? "4:3"
                             : app.streamAspect === "fill" ? qsTr("Fill") : "16:9"
                         color: Theme.onStage
+                        font.family: app.streamAspect === "fill" ? Theme.fontSans : Theme.fontMono
                         font.pixelSize: 12
                         font.weight: Font.Medium
                     }
@@ -577,6 +635,7 @@ Item {
         }
 
         header: DialogHeader {
+            eyebrow: qsTr("Remote Play")
             title: qsTr("Keyboard map")
             dialog: keysDialog
         }
@@ -683,14 +742,14 @@ Item {
                         // Fixed height for a few lines: the box must not jump in
                         // size every time the mouse moves from key to key.
                         height: 96
-                        radius: Theme.radiusSmall
+                        // A well in the dialog: sunken while it only explains,
+                        // in the accent once it says what the key does.
+                        radius: Theme.radius
                         readonly property bool full: keyboardMap.message.length > 0
                         color: full ? Theme.accentFill
-                             : Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b,
-                                       Theme.light ? 1.0 : 0.6)
+                             : Theme.light ? Theme.alpha(Theme.ink, 0.04) : Qt.rgba(0, 0, 0, 0.16)
                         border.width: 1
-                        border.color: full ? Theme.accent
-                                    : Theme.light ? Qt.rgba(0, 0, 0, 0.12) : Theme.glassEdge
+                        border.color: full ? Theme.alpha(Theme.accent, 0.7) : Theme.glassEdge
                         Behavior on color { ColorAnimation { duration: Theme.fast } }
 
                         Text {
@@ -700,9 +759,10 @@ Item {
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                             wrapMode: Text.WordWrap
-                            color: parent.full ? Theme.text : Theme.textSecondary
-                            font.pixelSize: parent.full ? 14 : 12
-                            font.bold: parent.full
+                            color: parent.full ? Theme.ink : Theme.textSecondary
+                            font.family: parent.full ? Theme.fontDisplay : Theme.fontSans
+                            font.pixelSize: parent.full ? 15 : 12
+                            font.weight: parent.full ? Font.DemiBold : Font.Normal
                             text: parent.full ? keyboardMap.message
                                 : keyboardMap.editing
                                   ? (root.built && stream.gamepadName.length > 0
@@ -857,6 +917,7 @@ Item {
         }
 
         header: DialogHeader {
+            eyebrow: qsTr("Remote Play")
             title: qsTr("Console PIN")
             dialog: loginPinDialog
         }

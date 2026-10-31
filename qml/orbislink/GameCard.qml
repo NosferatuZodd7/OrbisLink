@@ -32,7 +32,9 @@ ShelfTile {
     title: (game.title || "") + (game.disc > 0 ? qsTr(" (disc %1)").arg(game.disc) : "")
     subtitle: stage.length > 0 ? stageText : [game.serial, game.sizeText].filter(function (s) {
         return s && s.length > 0
-    }).join("  ·  ")
+    }).join(" · ")
+    // Serial and size are technical; the step under way is words.
+    subtitleMono: stage.length === 0
     // The tile's own click (ShelfTile's) covers the cover: on the round box,
     // or with Ctrl or Shift held, it picks; anywhere else it opens.
     function onBox(point) {
@@ -72,15 +74,17 @@ ShelfTile {
         anchors.fill: parent
         crop: true
         picture: card.cover
+        radius: card.artRadius
         placeholder: card.ps2 ? "dvd" : "cd"
-        label: card.ps2 ? "PS2" : "PS1"
+        // The platform is in the tag at the corner already.
+        label: ""
     }
 
     // Picked: the cover a shade of the accent colour, as in the library.
     Rectangle {
         anchors.fill: parent
         visible: card.checked
-        radius: 6
+        radius: card.artRadius
         color: Theme.alpha(Theme.accent, 0.22)
         border.width: 2
         border.color: Theme.accent
@@ -91,7 +95,7 @@ ShelfTile {
     Rectangle {
         anchors.fill: parent
         visible: card.stage.length > 0
-        radius: 6
+        radius: card.artRadius
         color: Qt.rgba(0, 0, 0, 0.55)
         StageLoader {
             id: stageLoader
@@ -122,26 +126,23 @@ ShelfTile {
         }
     }
 
-    // The platform, in the corner, as the library shows a file's kind.
+    // The platform, in the corner, as the library shows a file's kind, on a
+    // backing of the card's colour so it reads on any cover.
     Rectangle {
         visible: card.stage.length === 0
         anchors.left: parent.left
         anchors.bottom: parent.bottom
-        anchors.margins: 6
-        radius: 6
-        color: Theme.alpha(Theme.cardBottom, 0.88)
-        border.width: 1
-        border.color: Theme.cardEdge
-        implicitWidth: platformLabel.implicitWidth + 12
-        implicitHeight: 18
-        Text {
-            id: platformLabel
-            anchors.centerIn: parent
+        anchors.margins: 8
+        width: platformTag.implicitWidth
+        height: platformTag.implicitHeight
+        radius: height / 2
+        color: Theme.alpha(Theme.cardBottom, 0.94)
+        Tag {
+            id: platformTag
+            anchors.fill: parent
             text: card.ps2 ? "PS2" : "PS1"
-            color: card.ps2 ? Theme.accent : Theme.cardText
-            font.pixelSize: 10
-            font.weight: Font.DemiBold
-            font.letterSpacing: 0.6
+            tone: card.ps2 ? "accent" : "neutral"
+            mono: true
         }
     }
 
@@ -150,11 +151,13 @@ ShelfTile {
         visible: !card.game.convertible && card.stage.length === 0
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.margins: 6
+        anchors.margins: 8
         width: 22
         height: 22
         radius: 11
-        color: Theme.alpha(Theme.cardBottom, 0.88)
+        color: Theme.alpha(Theme.cardBottom, 0.94)
+        border.width: 1
+        border.color: Theme.alpha(Theme.warn, 0.5)
         Icon {
             anchors.centerIn: parent
             name: "warning"
@@ -172,8 +175,8 @@ ShelfTile {
     // The round box that picks it, above the card's own click.
     Rectangle {
         id: box
-        x: 6
-        y: 6
+        x: 8
+        y: 8
         width: 24
         height: 24
         radius: 12
