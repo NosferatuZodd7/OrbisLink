@@ -110,9 +110,11 @@ ColumnLayout {
             anchors.centerIn: parent
             width: parent.width - 48
             spacing: 8
-            Sparkle {
+            Icon {
                 Layout.alignment: Qt.AlignHCenter
-                size: 18
+                name: "id-card"
+                size: 26
+                color: Theme.alpha(Theme.textSecondary, 0.7)
             }
             Text {
                 Layout.alignment: Qt.AlignHCenter
@@ -120,7 +122,7 @@ ColumnLayout {
                 color: Theme.ink
                 font.family: Theme.fontDisplay
                 font.pixelSize: Theme.fontHeading
-                font.weight: Font.DemiBold
+                font.weight: Font.Bold
             }
             Text {
                 Layout.fillWidth: true
@@ -133,7 +135,7 @@ ColumnLayout {
         }
     }
 
-    // The saved IDs, one row each on a single plate.
+    // The saved IDs, one row each on a single quiet pane of glass.
     Plate {
         // Hidden too while its only row is being edited below. Told from the
         // data, not from the rows' height: a hidden plate's rows count as

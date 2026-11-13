@@ -173,6 +173,7 @@ ColumnLayout {
         radius: Theme.radiusSmall
         color: Theme.alpha(Theme.warn, 0.10)
         border.color: Theme.alpha(Theme.warn, 0.40)
+        sunken: true
         RowLayout {
             id: lockRow
             anchors.left: parent.left
@@ -200,8 +201,9 @@ ColumnLayout {
     Repeater {
         model: app.consoles
 
-        // One plate per console; the one in use is edged in the accent, and a
-        // console that answers on FTP (a jailbreak) takes the brass of its card.
+        // One quiet pane of glass per console. The one in use is a step
+        // brighter, with the champagne edge: the one thing this page is about.
+        // A jailbreak shows as its tag.
         delegate: Plate {
             id: row
             required property var modelData
@@ -213,9 +215,10 @@ ColumnLayout {
             Layout.fillWidth: true
             implicitHeight: content.implicitHeight + 32
             readonly property bool ftpHere: manager.ftpOk(modelData)
-            color: modelData.active ? Qt.tint(Theme.panelFill, Theme.alpha(Theme.accent, 0.07)) : Theme.panelFill
-            border.color: modelData.active ? (ftpHere ? Theme.alpha(Theme.henFill, 0.85) : Theme.alpha(Theme.accent, 0.8))
-                        : ftpHere ? Theme.alpha(Theme.henFill, 0.45) : Theme.glassEdge
+            ornate: modelData.active
+            hoverable: !modelData.active
+            color: modelData.active ? (Theme.light ? Qt.rgba(1, 1, 1, 0.80) : Qt.rgba(1, 1, 1, 0.09))
+                 : Theme.light ? Qt.rgba(1, 1, 1, 0.45) : Qt.rgba(1, 1, 1, hovered ? 0.07 : 0.045)
 
             ColumnLayout {
                 id: content
@@ -231,14 +234,14 @@ ColumnLayout {
                     spacing: 14
                     visible: !row.isEditing
 
-                    // The kind, in a round seal like the page's.
+                    // The kind, on a round disc of glass.
                     Rectangle {
                         implicitWidth: 46
                         implicitHeight: 46
                         radius: 23
-                        color: Theme.alpha(Theme.ink, Theme.light ? 0.05 : 0.07)
+                        color: Theme.controlFill
                         border.width: 1
-                        border.color: row.modelData.active ? Theme.alpha(Theme.brass, 0.6) : Theme.glassEdge
+                        border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Theme.glassEdge
                         Text {
                             anchors.centerIn: parent
                             text: row.kindText
@@ -258,7 +261,7 @@ ColumnLayout {
                                 text: row.modelData.name
                                 color: Theme.ink
                                 font.family: Theme.fontDisplay
-                                font.weight: Font.DemiBold
+                                font.weight: Font.Bold
                                 font.pixelSize: Theme.fontCardTitle
                                 elide: Text.ElideRight
                                 Layout.maximumWidth: 220

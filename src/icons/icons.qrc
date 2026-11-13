@@ -8,5 +8,8 @@
         <!-- The team's mark: dark ink for the light appearance, ivory for the dark. -->
         <file>team-ink.png</file>
         <file>team-ivory.png</file>
+        <!-- The room the glass floats in, painted out of focus (scripts/make-room.py). -->
+        <file>room-dark.jpg</file>
+        <file>room-light.jpg</file>
     </qresource>
 </RCC>

@@ -174,7 +174,7 @@ ShelfTile {
         radius: 12
         visible: card.checked || card.hover
         color: card.checked ? Theme.accent : card.overBox ? Theme.alpha(Theme.accent, 0.55)
-                                                          : Theme.alpha("#000000", 0.35)
+                                                          : Qt.rgba(0, 0, 0, 0.35)
         border.width: 2
         border.color: card.checked ? Theme.accent : "#FFFFFF"
         Icon {

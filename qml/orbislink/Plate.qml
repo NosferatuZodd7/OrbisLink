@@ -2,9 +2,11 @@
 //
 // A pane of glass: the one surface the interface is built of.
 //
-// Three weights (level):
-// * "primary"   — the window's floating panes (navigation, toolbar, the page,
-//                 the transfers): the most frosted, with a soft shadow.
+// Four weights (level):
+// * "window"    — the one large pane the whole application sits in, floating
+//                 over the room, with a soft shadow.
+// * "primary"   — a pane inside it (navigation, toolbar, the page, the
+//                 transfers): clearer glass with a luminous white edge.
 // * "secondary" — toolbars, menus, popovers and floating actions over a pane.
 // * "subtle"    — what sits inside a pane (a card, a group of settings, a
 //                 list): barely there, so glass is never stacked on glass.
@@ -30,20 +32,23 @@ Rectangle {
     property bool hoverable: false
     readonly property bool hovered: hoverable && hover.hovered
 
-    readonly property bool floating: level !== "subtle" && !sunken
+    readonly property bool floating: (level === "window" || level === "secondary") && !sunken
     readonly property real fillAlpha: sunken ? (Theme.light ? 0.30 : 0.22)
+                                     : level === "window" ? Theme.glassWindow
                                      : level === "primary" ? Theme.glassPrimary
                                      : level === "secondary" ? Theme.glassSecondary
                                      : Theme.light ? Theme.glassSubtle : Theme.glassSubtle + (hovered ? 0.04 : 0)
 
-    radius: level === "primary" ? Theme.radiusPane : Theme.radius
+    radius: level === "window" ? Theme.radiusWindow : level === "primary" ? Theme.radiusPane : Theme.radius
     color: sunken ? (Theme.light ? Qt.rgba(1, 1, 1, fillAlpha) : Qt.rgba(0, 0, 0, fillAlpha))
-         : level === "subtle" && !Theme.light ? Qt.rgba(1, 1, 1, fillAlpha)
+         : (level === "subtle" || level === "primary") && !Theme.light ? Qt.rgba(1, 1, 1, fillAlpha)
+         : level === "primary" ? Qt.rgba(1, 1, 1, fillAlpha)
          : Qt.rgba(Theme.panel.r, Theme.panel.g, Theme.panel.b, fillAlpha)
     border.width: 1
     border.color: plate.ornate ? Theme.alpha(Theme.brass, 0.70)
                 : plate.hovered ? (Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.16))
                 : plate.sunken ? Theme.glassEdge
+                : level === "primary" || level === "window" ? (Theme.light ? Qt.rgba(1, 1, 1, 0.85) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.12))
                 : Theme.light ? Qt.rgba(1, 1, 1, 0.80) : Theme.glassEdge
     Behavior on border.color { ColorAnimation { duration: Theme.fast } }
     Behavior on color { ColorAnimation { duration: Theme.fast } }

@@ -11,7 +11,7 @@
 // * Send disc file: the image as it is, over FTP.
 //
 // Laid out as the games page's other dialogs: an eyebrow and the title in
-// the serif, the cover large beside a ledger of facts (mono where they are
+// bold, the cover large beside a ledger of facts (mono where they are
 // technical), the choices, and the actions in a footer under a hairline.
 import QtQuick
 import QtQuick.Controls

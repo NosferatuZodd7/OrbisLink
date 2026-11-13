@@ -288,67 +288,59 @@ ColumnLayout {
         }
     }
 
-    Plate {
+    // Each piece of work on its own small pane of glass, two to a row.
+    GridLayout {
+        id: thanksGrid
         Layout.fillWidth: true
-        implicitHeight: thanksGrid.implicitHeight + 40
+        columns: 2
+        columnSpacing: 10
+        rowSpacing: 10
 
-        GridLayout {
-            id: thanksGrid
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: 20
-            columns: 2
-            columnSpacing: 28
-            rowSpacing: 14
+        Repeater {
+            model: [
+                { name: "chiaki-ng", what: qsTr("Remote Play · AGPL-3.0") },
+                { name: "Qt 6", what: qsTr("The interface · LGPL-3.0") },
+                { name: "LibOrbisPkg (maxton)", what: qsTr("The fake package builder, ported to C++ · LGPL-3.0") },
+                { name: "PS4 PKG Tool (pearlxcore)", what: qsTr("Package checks and organising · GPL-3.0") },
+                { name: "easy-ps2-fpkg · PS Classics fPKG Builder", what: qsTr("How PS1/PS2 packages are made") },
+                { name: "GoldHEN · etaHEN", what: qsTr("The consoles' homebrew enablers and their cheats") },
+                { name: "homebrew.page · PKG-Zone", what: qsTr("The homebrew stores") },
+                { name: "Figtree · JetBrains Mono", what: qsTr("Typefaces · SIL OFL 1.1") },
+                { name: "Lucide", what: qsTr("Icons · ISC") },
+                { name: "FFmpeg · SDL2 · libcurl · OpenSSL", what: qsTr("Video, controllers and the network") }
+            ]
+            delegate: Plate {
+                id: credit
+                required property var modelData
+                Layout.fillWidth: true
+                Layout.preferredWidth: 1
+                Layout.fillHeight: true
+                implicitHeight: creditColumn.implicitHeight + 28
+                radius: Theme.radiusSmall + 2
+                hoverable: true
 
-            Repeater {
-                model: [
-                    { name: "chiaki-ng", what: qsTr("Remote Play · AGPL-3.0") },
-                    { name: "Qt 6", what: qsTr("The interface · LGPL-3.0") },
-                    { name: "LibOrbisPkg (maxton)", what: qsTr("The fake package builder, ported to C++ · LGPL-3.0") },
-                    { name: "PS4 PKG Tool (pearlxcore)", what: qsTr("Package checks and organising · GPL-3.0") },
-                    { name: "easy-ps2-fpkg · PS Classics fPKG Builder", what: qsTr("How PS1/PS2 packages are made") },
-                    { name: "GoldHEN · etaHEN", what: qsTr("The consoles' homebrew enablers and their cheats") },
-                    { name: "homebrew.page · PKG-Zone", what: qsTr("The homebrew stores") },
-                    { name: "Figtree · JetBrains Mono", what: qsTr("Typefaces · SIL OFL 1.1") },
-                    { name: "Lucide", what: qsTr("Icons · ISC") },
-                    { name: "FFmpeg · SDL2 · libcurl · OpenSSL", what: qsTr("Video, controllers and the network") }
-                ]
-                delegate: RowLayout {
-                    id: credit
-                    required property var modelData
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 1
-                    Layout.alignment: Qt.AlignTop
-                    spacing: 10
-                    // A small champagne point before each name.
-                    Rectangle {
-                        Layout.alignment: Qt.AlignTop
-                        Layout.topMargin: 6
-                        Layout.preferredWidth: 5
-                        Layout.preferredHeight: 5
-                        radius: 2.5
-                        color: Theme.alpha(Theme.brass, 0.85)
-                    }
-                    ColumnLayout {
+                ColumnLayout {
+                    id: creditColumn
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: 16
+                    anchors.rightMargin: 16
+                    spacing: 2
+                    Text {
                         Layout.fillWidth: true
-                        spacing: 2
-                        Text {
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
-                            text: credit.modelData.name
-                            color: Theme.text
-                            font.pixelSize: 13
-                            font.weight: Font.DemiBold
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
-                            text: credit.modelData.what
-                            color: Theme.textSecondary
-                            font.pixelSize: Theme.fontSmall
-                        }
+                        elide: Text.ElideRight
+                        text: credit.modelData.name
+                        color: Theme.ink
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        text: credit.modelData.what
+                        color: Theme.textSecondary
+                        font.pixelSize: Theme.fontSmall
                     }
                 }
             }

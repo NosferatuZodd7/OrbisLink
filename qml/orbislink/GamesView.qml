@@ -243,6 +243,98 @@ Item {
             }
         }
 
+        // ── the stages a disc goes through, and how many are at each: ready,
+        // being converted, on the way to the console, installed
+        Flow {
+            id: stages
+            visible: root.tab === 1 && games.gamesFolder.length > 0 && games.games.length > 0
+            Layout.fillWidth: true
+            Layout.topMargin: 14
+            spacing: 8
+            readonly property var counts: {
+                var c = { ready: 0, converting: 0, sending: 0, done: 0, failed: 0 }
+                for (var i = 0; i < games.games.length; ++i) {
+                    var p = games.progress[games.games[i].path]
+                    var st = p ? p.stage : ""
+                    if (st === "") ++c.ready
+                    else if (st === "waiting" || st === "converting") ++c.converting
+                    else if (st === "converted" || st === "sending" || st === "sent" || st === "installing") ++c.sending
+                    else if (st === "installed") ++c.done
+                    else ++c.failed
+                }
+                return c
+            }
+            Repeater {
+                model: [
+                    { id: "ready", label: qsTr("Ready to convert"), tone: Theme.textSecondary },
+                    { id: "converting", label: qsTr("Converting"), tone: Theme.accent },
+                    { id: "sending", label: qsTr("On its way"), tone: Theme.accent },
+                    { id: "done", label: qsTr("Installed"), tone: Theme.ok },
+                    { id: "failed", label: qsTr("Failed"), tone: Theme.error }
+                ]
+                Rectangle {
+                    id: stageChip
+                    required property var modelData
+                    required property int index
+                    readonly property int n: stages.counts[modelData.id]
+                    // Failures only when there are some.
+                    visible: modelData.id !== "failed" || n > 0
+                    implicitWidth: stageRow.implicitWidth + 26
+                    implicitHeight: 32
+                    radius: height / 2
+                    color: n > 0 ? Theme.controlFill : "transparent"
+                    border.width: 1
+                    border.color: Theme.light ? Qt.rgba(1, 1, 1, n > 0 ? 0.9 : 0.5) : Theme.glassEdge
+                    opacity: n > 0 ? 1 : 0.6
+                    Row {
+                        id: stageRow
+                        anchors.centerIn: parent
+                        spacing: 8
+                        // The step's number, in a small disc of its colour.
+                        Rectangle {
+                            visible: stageChip.modelData.id !== "failed"
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 18
+                            height: 18
+                            radius: 9
+                            color: Theme.alpha(stageChip.modelData.tone, stageChip.n > 0 ? 0.22 : 0.10)
+                            border.width: 1
+                            border.color: Theme.alpha(stageChip.modelData.tone, 0.6)
+                            Text {
+                                anchors.centerIn: parent
+                                text: stageChip.index + 1
+                                color: Theme.light ? Qt.darker(stageChip.modelData.tone, 1.3) : stageChip.modelData.tone
+                                font.family: Theme.fontMono
+                                font.pixelSize: 10
+                                font.weight: Font.Bold
+                            }
+                        }
+                        Icon {
+                            visible: stageChip.modelData.id === "failed"
+                            anchors.verticalCenter: parent.verticalCenter
+                            name: "warning"
+                            size: 14
+                            color: Theme.light ? Qt.darker(Theme.error, 1.3) : Theme.error
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: stageChip.modelData.label
+                            color: stageChip.n > 0 ? Theme.ink : Theme.textSecondary
+                            font.pixelSize: 12
+                            font.weight: Font.Medium
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: stageChip.n
+                            color: Theme.textSecondary
+                            font.family: Theme.fontMono
+                            font.pixelSize: 11
+                        }
+                    }
+                }
+            }
+        }
+
         // ── nothing chosen yet: the faint orb, what this is, one action
         Item {
             visible: root.tab === 1 && games.gamesFolder.length === 0

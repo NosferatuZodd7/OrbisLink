@@ -4,8 +4,9 @@
 // homebrew store install, a console library move or payload run. Drawn as
 // the queue's other rows are: its picture with the step in its corner, the
 // name over a line of mono facts, a state tag, a thin bar, and the figures
-// with the round buttons that act on it. Under way it is lifted onto a light
-// plate; otherwise it is a row between hairlines.
+// with the round buttons that act on it. Under way it is a card of brighter
+// glass, lit from above; otherwise a row between hairlines that turns into a
+// glass pill under the mouse.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -48,14 +49,26 @@ Rectangle {
                                     : job.state === "done" ? "ok"
                                     : job.state === "cancelled" || card.waiting ? "neutral" : "accent"
 
-    radius: 12
-    color: card.highlighted ? Theme.panelFill
-         : hover.hovered ? Theme.alpha(Theme.ink, 0.05) : "transparent"
+    radius: 16
+    color: card.highlighted ? (Theme.light ? Qt.rgba(1, 1, 1, 0.86) : Qt.rgba(1, 1, 1, 0.09))
+         : hover.hovered ? Theme.controlFill : "transparent"
     border.width: card.highlighted ? 1 : 0
-    border.color: Theme.alpha(Theme.accent, 0.55)
+    border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.08)
     Behavior on color { ColorAnimation { duration: Theme.fast } }
     implicitHeight: column.implicitHeight + 24
     HoverHandler { id: hover }
+
+    // The light on the card while it is under way.
+    Rectangle {
+        visible: card.highlighted
+        anchors.fill: parent
+        anchors.margins: 1
+        radius: parent.radius - 1
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.5 : 0.07) }
+            GradientStop { position: 0.4; color: Qt.rgba(1, 1, 1, 0) }
+        }
+    }
 
     ColumnLayout {
         id: column
@@ -69,9 +82,9 @@ Rectangle {
             Layout.fillWidth: true
             spacing: 12
             Rectangle {
-                implicitWidth: Theme.gameIcon; implicitHeight: Theme.gameIcon; radius: 10
+                implicitWidth: Theme.gameIcon; implicitHeight: Theme.gameIcon; radius: 12
                 color: Theme.controlFill
-                border.color: Theme.glassEdge
+                border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Theme.glassEdge
                 CoverArt {
                     id: picture
                     anchors.fill: parent
@@ -93,7 +106,9 @@ Rectangle {
                     anchors.fill: badge
                     anchors.margins: -2
                     radius: width / 2
-                    color: Theme.sidebarFill
+                    color: Theme.menuFill
+                    border.width: 1
+                    border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
                 }
                 StageLoader {
                     id: badge
@@ -117,7 +132,7 @@ Rectangle {
                     text: card.job.name || ""
                     color: Theme.ink
                     font.pixelSize: Theme.fontBody
-                    font.weight: Font.DemiBold
+                    font.weight: Font.Bold
                     elide: Text.ElideRight
                 }
                 Text {
@@ -142,7 +157,8 @@ Rectangle {
             }
         }
 
-        // A thin bar: the job's colour, with a brass bead where it has got to.
+        // A thin bar: a recessed glass track, the job's colour, and a small
+        // lit bead where it has got to.
         Item {
             id: bar
             visible: card.showBar
@@ -154,7 +170,7 @@ Rectangle {
                 width: parent.width
                 height: 3
                 radius: 1.5
-                color: Theme.alpha(card.tone, 0.18)
+                color: Theme.light ? Qt.rgba(0, 0, 0, 0.08) : Qt.rgba(1, 1, 1, 0.09)
                 clip: true
                 Rectangle {
                     visible: card.measured || !card.working
@@ -187,7 +203,7 @@ Rectangle {
                 width: 6; height: 6; radius: 3
                 anchors.verticalCenter: parent.verticalCenter
                 x: Math.max(0, bar.width * bar.fraction - 3)
-                color: Theme.brass
+                color: "#FFFFFF"
                 Behavior on x { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
             }
         }

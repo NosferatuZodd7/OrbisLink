@@ -59,7 +59,7 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: width / 2
-            color: Theme.light ? Theme.mix("#FFFFFF", placeholder.tint, 0.16) : Theme.mix("#1E1E21", placeholder.tint, 0.12)
+            color: Theme.light ? Theme.mix(Qt.color("#FFFFFF"), placeholder.tint, 0.16) : Theme.mix(Qt.color("#1E1E21"), placeholder.tint, 0.12)
             border.width: 1
             border.color: Theme.alpha(placeholder.tint, Theme.light ? 0.55 : 0.45)
         }

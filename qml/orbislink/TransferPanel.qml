@@ -3,11 +3,12 @@
 // The installs panel: every job of the app as one list of cards — the
 // queue's packages, the PS1/PS2 conversions (one card each from the disc to
 // the console), the homebrew store's installs, the console library's jobs
-// and the copies to this PC. What is under way comes first, lifted onto a
-// light plate, then what waits its turn and what is over, as rows between
-// hairlines under brass labels; the footer adds them all up, read like an
-// instrument's dial (the percentage in the serif, the figures in mono).
-// It sits in the inspector spine, which draws the ground: no panel here.
+// and the copies to this PC. What is under way comes first, each job on a
+// card of brighter glass, then what waits its turn and what is over, as rows
+// between hairlines (a glass pill under the mouse) under champagne section
+// labels with their count. At the foot a glass readout adds them all up: the
+// percentage large and bold, the bar, the figures in mono and Pause.
+// It sits in the transfers pane, which draws the glass: no panel here.
 //
 // The list's rows only say which card goes where ({ key, kind, section,
 // head — the first of its section, which carries the section's title });
@@ -334,8 +335,8 @@ Item {
             store.clearFinishedJobs()
     }
 
-    // A thin bar as an instrument draws it: a faint track, the fill in the
-    // job's colour and, while it moves, a brass bead where it has got to.
+    // A thin bar: a recessed glass track, the fill in the job's colour and,
+    // while it moves, a small lit bead where it has got to.
     component ThinBar: Item {
         id: thin
         property real fraction: 0
@@ -349,7 +350,7 @@ Item {
             width: parent.width
             height: thin.thickness
             radius: height / 2
-            color: Theme.alpha(thin.tone, 0.18)
+            color: Theme.light ? Qt.rgba(0, 0, 0, 0.08) : Qt.rgba(1, 1, 1, 0.09)
             Rectangle {
                 width: parent.width * thin.clamped
                 height: parent.height
@@ -360,11 +361,16 @@ Item {
         }
         Rectangle {
             visible: thin.bead && thin.clamped > 0 && thin.clamped < 1
-            width: 6; height: 6; radius: 3
+            width: 12; height: 12; radius: 6
             anchors.verticalCenter: parent.verticalCenter
-            x: Math.max(0, thin.width * thin.clamped - 3)
-            color: Theme.brass
+            x: Math.max(0, thin.width * thin.clamped - 6)
+            color: Theme.alpha(thin.tone, 0.25)
             Behavior on x { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+            Rectangle {
+                anchors.centerIn: parent
+                width: 6; height: 6; radius: 3
+                color: "#FFFFFF"
+            }
         }
     }
 
@@ -378,9 +384,9 @@ Item {
         property bool waiting: false
         implicitWidth: Theme.gameIcon
         implicitHeight: Theme.gameIcon
-        radius: 10
+        radius: 12
         color: Theme.controlFill
-        border.color: Theme.glassEdge
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Theme.glassEdge
         CoverArt {
             id: thumbCover
             anchors.fill: parent
@@ -401,7 +407,9 @@ Item {
             anchors.fill: thumbStage
             anchors.margins: -2
             radius: width / 2
-            color: Theme.sidebarFill
+            color: Theme.menuFill
+            border.width: 1
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
         }
         StageLoader {
             id: thumbStage
@@ -417,6 +425,44 @@ Item {
         }
     }
 
+    // The glass behind a row: a card of brighter glass, lit from above, for
+    // a job under way; otherwise nothing but a glass pill under the mouse.
+    component RowGlass: Rectangle {
+        property bool lit: false
+        property bool hovered: false
+        radius: 16
+        color: lit ? (Theme.light ? Qt.rgba(1, 1, 1, 0.86) : Qt.rgba(1, 1, 1, 0.09))
+             : hovered ? Theme.controlFill : "transparent"
+        border.width: lit ? 1 : 0
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.08)
+        Behavior on color { ColorAnimation { duration: Theme.fast } }
+        Rectangle {
+            visible: parent.lit
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: parent.radius - 1
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.5 : 0.07) }
+                GradientStop { position: 0.4; color: Qt.rgba(1, 1, 1, 0) }
+            }
+        }
+        // The lit upper edge.
+        Rectangle {
+            visible: parent.lit
+            anchors.top: parent.top
+            anchors.topMargin: 1
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: parent.width - 2 * parent.radius
+            height: 1
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0) }
+                GradientStop { position: 0.5; color: Theme.glassStrokeTop }
+                GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0) }
+            }
+        }
+    }
+
     // The small round buttons of a row.
     component RowButton: StyledToolButton {
         property string hint: ""
@@ -427,6 +473,20 @@ Item {
         ToolTip.visible: hovered && hint.length > 0
         ToolTip.delay: 400
         ToolTip.text: hint
+    }
+
+    // Pause and Resume, one width for both labels so it never jumps.
+    component PauseButton: StyledButton {
+        id: pause
+        chip: true
+        minimumWidth: Math.max(pauseWidth.implicitWidth, resumeWidth.implicitWidth) + 14 + 8 + 24
+        iconName: app.queuePaused ? "play" : "pause"
+        text: app.queuePaused ? qsTr("Resume") : qsTr("Pause")
+        onClicked: app.queuePaused ? app.resumeQueue() : app.pauseQueue()
+        enabled: app.queue.count > 0
+        // The widest of the two labels sets the width.
+        Text { id: pauseWidth; visible: false; text: qsTr("Pause"); font: pause.font }
+        Text { id: resumeWidth; visible: false; text: qsTr("Resume"); font: pause.font }
     }
 
     // A figure of the readout: its name in small capitals, its value in mono.
@@ -454,23 +514,16 @@ Item {
         anchors.fill: parent
         spacing: 0
 
-        // Paused queue notice: a warm strip with a rule down its left edge.
-        Rectangle {
+        // Paused queue notice: a glass card with a faint amber wash.
+        Plate {
             Layout.fillWidth: true
             Layout.topMargin: 8
             Layout.bottomMargin: 4
             visible: app.queuePaused
-            radius: Theme.radiusSmall
-            color: Theme.alpha(Theme.warn, Theme.light ? 0.10 : 0.09)
-            border.color: Theme.alpha(Theme.warn, 0.35)
+            radius: 16
+            color: Theme.alpha(Theme.warn, Theme.light ? 0.12 : 0.10)
+            border.color: Theme.alpha(Theme.warn, 0.40)
             implicitHeight: pauseRow.implicitHeight + 24
-
-            Rectangle {
-                x: 0; y: 8
-                width: 3; height: parent.height - 16
-                radius: 1.5
-                color: Theme.warn
-            }
 
             RowLayout {
                 id: pauseRow
@@ -552,9 +605,9 @@ Item {
                             Behavior on opacity { NumberAnimation { duration: 220 } }
                             Component.onCompleted: opacity = 1
 
-                            // The first card of a section carries its label, as
-                            // an atlas labels its plates: under way, waiting,
-                            // finished (with the button that clears them).
+                            // The first card of a section carries its label:
+                            // under way, waiting, finished (with the button
+                            // that clears them).
                             Item {
                                 id: header
                                 visible: entry.head
@@ -587,19 +640,29 @@ Item {
                                         text: entry.section === "running" ? qsTr("Under way")
                                             : entry.section === "waiting" ? qsTr("Waiting") : qsTr("Finished")
                                     }
-                                    Text {
-                                        text: entry.section === "running" ? root.runningCount
-                                            : entry.section === "waiting" ? root.waitingCount : root.finishedCount
-                                        color: Theme.textSecondary
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: Theme.fontCaption
-                                    }
-                                    // The label's rule runs on to the edge.
+                                    // The count, on a small glass pill.
                                     Rectangle {
+                                        implicitWidth: Math.max(20, countText.implicitWidth + 12)
+                                        implicitHeight: 18
+                                        radius: 9
+                                        color: Theme.controlFill
+                                        border.width: 1
+                                        border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Theme.glassEdge
+                                        Text {
+                                            id: countText
+                                            anchors.centerIn: parent
+                                            text: entry.section === "running" ? root.runningCount
+                                                : entry.section === "waiting" ? root.waitingCount : root.finishedCount
+                                            color: Theme.text
+                                            font.family: Theme.fontMono
+                                            font.pixelSize: Theme.fontCaption
+                                            font.weight: Font.Medium
+                                        }
+                                    }
+                                    // The label's hairline runs on, fading, to the edge.
+                                    EngravedRule {
                                         Layout.fillWidth: true
                                         Layout.alignment: Qt.AlignVCenter
-                                        height: 1
-                                        color: Theme.glassEdge
                                     }
                                     StyledButton {
                                         visible: entry.section === "finished"
@@ -612,14 +675,15 @@ Item {
                             }
 
                             // Between two rows of a section: a hairline (none
-                            // around the lifted plates of the jobs under way).
+                            // around the glass cards of the jobs under way).
                             Rectangle {
                                 visible: !entry.head && !entry.lit
                                 y: header.visible ? header.height : 0
-                                x: 12
-                                width: parent.width - 24
+                                x: 14
+                                width: parent.width - 28
                                 height: 1
-                                color: Theme.glassEdge
+                                color: Theme.rule
+                                opacity: 0.7
                             }
 
                             Loader {
@@ -633,18 +697,14 @@ Item {
                             // A package of the queue.
                             Component {
                                 id: taskCard
-                                Rectangle {
+                                RowGlass {
                                     readonly property var r: entry.d.r || ({})
                                     readonly property string stateTone: r.state === "completed" ? "ok"
                                                                       : r.state === "error" ? "error"
                                                                       : r.state === "cancelled" || r.state === "pending" ? "neutral"
                                                                       : "accent"
-                                    radius: 12
-                                    color: entry.lit ? Theme.panelFill
-                                         : taskHover.hovered ? Theme.alpha(Theme.ink, 0.05) : "transparent"
-                                    border.width: entry.lit ? 1 : 0
-                                    border.color: Theme.alpha(Theme.accent, 0.55)
-                                    Behavior on color { ColorAnimation { duration: Theme.fast } }
+                                    lit: entry.lit
+                                    hovered: taskHover.hovered
                                     HoverHandler { id: taskHover }
                                     implicitHeight: taskColumn.implicitHeight + 24
 
@@ -676,7 +736,7 @@ Item {
                                                     text: r.title || ""
                                                     color: Theme.ink
                                                     font.pixelSize: Theme.fontBody
-                                                    font.weight: Font.DemiBold
+                                                    font.weight: Font.Bold
                                                     elide: Text.ElideRight
                                                 }
                                                 Text {
@@ -812,16 +872,12 @@ Item {
                             // each with its own bar.
                             Component {
                                 id: conversionCard
-                                Rectangle {
+                                RowGlass {
                                     readonly property var c: entry.d.c || ({})
                                     readonly property var j: entry.d.j || ({ steps: [], text: "", stage: "", speed: "", eta: "",
                                                                              message: "", taskId: "", finished: false })
-                                    radius: 12
-                                    color: entry.lit ? Theme.panelFill
-                                         : convHover.hovered ? Theme.alpha(Theme.ink, 0.05) : "transparent"
-                                    border.width: entry.lit ? 1 : 0
-                                    border.color: Theme.alpha(Theme.accent, 0.55)
-                                    Behavior on color { ColorAnimation { duration: Theme.fast } }
+                                    lit: entry.lit
+                                    hovered: convHover.hovered
                                     HoverHandler { id: convHover }
                                     implicitHeight: convColumn.implicitHeight + 24
 
@@ -853,7 +909,7 @@ Item {
                                                     text: c.title || ""
                                                     color: Theme.ink
                                                     font.pixelSize: Theme.fontBody
-                                                    font.weight: Font.DemiBold
+                                                    font.weight: Font.Bold
                                                     elide: Text.ElideRight
                                                 }
                                                 RowLayout {
@@ -1042,7 +1098,7 @@ Item {
                 }
             }
 
-            // Empty: the faint planet, a heading in the serif, one line.
+            // Empty: the orb on a disc of glass, a bold heading, one line.
             Item {
                 anchors.centerIn: parent
                 width: parent.width - 40
@@ -1053,18 +1109,34 @@ Item {
                     id: emptyColumn
                     width: parent.width
                     spacing: 8
-                    Image {
+                    Rectangle {
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.bottomMargin: 8
-                        source: "qrc:/icons/planet.png"
-                        sourceSize.width: 120
-                        sourceSize.height: 120
-                        width: 96
-                        height: 96
-                        Layout.preferredWidth: 96
-                        Layout.preferredHeight: 96
-                        fillMode: Image.PreserveAspectFit
-                        opacity: Theme.light ? 0.30 : 0.38
+                        Layout.bottomMargin: 10
+                        implicitWidth: 96
+                        implicitHeight: 96
+                        radius: 48
+                        color: Theme.controlFill
+                        border.width: 1
+                        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.04)
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.margins: 1
+                            radius: width / 2
+                            gradient: Gradient {
+                                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.6 : 0.10) }
+                                GradientStop { position: 0.6; color: Qt.rgba(1, 1, 1, 0) }
+                            }
+                        }
+                        Image {
+                            anchors.centerIn: parent
+                            source: "qrc:/icons/planet.png"
+                            sourceSize.width: 128
+                            sourceSize.height: 128
+                            width: 60
+                            height: 60
+                            fillMode: Image.PreserveAspectFit
+                            opacity: Theme.light ? 0.55 : 0.6
+                        }
                     }
                     Text {
                         Layout.fillWidth: true
@@ -1073,7 +1145,7 @@ Item {
                         color: Theme.ink
                         font.family: Theme.fontDisplay
                         font.pixelSize: Theme.fontHeading
-                        font.weight: Font.DemiBold
+                        font.weight: Font.Bold
                     }
                     Text {
                         Layout.fillWidth: true
@@ -1087,20 +1159,29 @@ Item {
             }
         }
 
-        // ── footer: the whole batch, as an instrument's readout ──
-        Rectangle {
+        // ── footer: the whole batch, on a glass readout card ──
+        Plate {
             Layout.fillWidth: true
-            Layout.preferredHeight: 1
-            color: Theme.rule
-        }
+            Layout.topMargin: 10
+            Layout.bottomMargin: 2
+            radius: Theme.radius
+            implicitHeight: readout.implicitHeight + 24
 
-        // How far the batch is, all of it: its percentage in the serif, the
-        // jobs to go and the time left beside it, a bar under them.
+        ColumnLayout {
+            id: readout
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 12
+            anchors.leftMargin: 16
+            anchors.rightMargin: 12
+            spacing: 4
+
+        // How far the batch is, all of it: its percentage large and bold,
+        // the jobs to go and the time left beside it, a bar under them.
         ColumnLayout {
             Layout.fillWidth: true
-            Layout.topMargin: 12
-            Layout.leftMargin: 2
-            Layout.rightMargin: 2
+            Layout.bottomMargin: 4
             visible: root.busy && root.batchTotal > 0
             spacing: 6
 
@@ -1113,7 +1194,8 @@ Item {
                     color: Theme.ink
                     font.family: Theme.fontDisplay
                     font.pixelSize: Theme.fontTitle
-                    font.weight: Font.DemiBold
+                    font.weight: Font.Bold
+                    font.letterSpacing: -0.5
                 }
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -1137,6 +1219,9 @@ Item {
                         elide: Text.ElideRight
                     }
                 }
+                // While the batch goes, Pause sits up here beside its
+                // percentage, leaving the figures below the whole width.
+                PauseButton { Layout.alignment: Qt.AlignVCenter }
             }
             ThinBar {
                 Layout.fillWidth: true
@@ -1153,45 +1238,37 @@ Item {
         // column that shortens its text instead of pushing the others.
         Item {
             Layout.fillWidth: true
-            implicitHeight: 58
+            implicitHeight: 44
 
-            StyledButton {
+            PauseButton {
                 id: pauseButton
+                visible: !(root.busy && root.batchTotal > 0)
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                anchors.verticalCenterOffset: 2
-                chip: true
-                minimumWidth: Math.max(pauseWidth.implicitWidth, resumeWidth.implicitWidth) + 14 + 8 + 24
-                iconName: app.queuePaused ? "play" : "pause"
-                text: app.queuePaused ? qsTr("Resume") : qsTr("Pause")
-                onClicked: app.queuePaused ? app.resumeQueue() : app.pauseQueue()
-                enabled: app.queue.count > 0
-                // The widest of the two labels sets the width.
-                Text { id: pauseWidth; visible: false; text: qsTr("Pause"); font: pauseButton.font }
-                Text { id: resumeWidth; visible: false; text: qsTr("Resume"); font: pauseButton.font }
             }
 
             Row {
                 anchors.left: parent.left
-                anchors.leftMargin: 2
-                anchors.right: pauseButton.left
-                anchors.rightMargin: 12
-                anchors.verticalCenter: pauseButton.verticalCenter
+                anchors.right: pauseButton.visible ? pauseButton.left : parent.right
+                anchors.rightMargin: pauseButton.visible ? 12 : 0
+                anchors.verticalCenter: parent.verticalCenter
                 spacing: 12
 
                 Figure {
-                    width: Math.min(80, (parent.width - parent.spacing) * 0.4)
+                    width: Math.min(96, (parent.width - parent.spacing) * 0.4)
                     label: qsTr("Speed")
                     value: root.speed >= 1 ? app.queue.bytesText(root.speed) + "/s" : "—"
                 }
                 Figure {
-                    width: parent.width - parent.spacing - Math.min(80, (parent.width - parent.spacing) * 0.4)
+                    width: parent.width - parent.spacing - Math.min(96, (parent.width - parent.spacing) * 0.4)
                     label: qsTr("Left")
                     value: !root.busy || root.batchTotal <= 0 ? "—"
                            : qsTr("%1 of %2").arg(app.queue.bytesText(Math.max(0, root.batchTotal - root.batchDone)))
                                              .arg(app.queue.bytesText(root.batchTotal))
                 }
             }
+        }
+        }
         }
     }
 

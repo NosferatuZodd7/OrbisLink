@@ -33,6 +33,22 @@ Item {
     property string search: ""
     property string category: "all"
 
+    // The console's payloads at a glance: the files in its folders, those
+    // that start by themselves, and the folders that are there.
+    readonly property var overview: {
+        var files = 0, auto = 0, folders = 0
+        var list = payloads.folders
+        for (var i = 0; i < list.length; ++i) {
+            if (list[i].exists)
+                ++folders
+            files += list[i].files.length
+            for (var j = 0; j < list[i].files.length; ++j)
+                if (list[i].files[j].autoStart === true)
+                    ++auto
+        }
+        return { files: files, auto: auto, folders: folders }
+    }
+
     // The folders a payload from the library can go to: those that take its
     // kind of file, plugins aside.
     function installFolders(fileName) {
@@ -182,10 +198,12 @@ Item {
         implicitWidth: pillRow.implicitWidth + 26
         implicitHeight: 32
         radius: height / 2
-        color: chosen ? Theme.accentFill : pillHover.hovered ? Theme.alpha(Theme.ink, 0.05) : "transparent"
+        color: chosen ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
+             : pillHover.hovered ? Theme.controlHover : Theme.controlFill
         border.width: activeFocus ? 2 : 1
         border.color: activeFocus ? Theme.alpha(Theme.accent, 0.8)
-                    : chosen ? Theme.alpha(Theme.accent, 0.6) : Theme.glassEdge
+                    : chosen ? (Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.14))
+                    : Theme.light ? Qt.rgba(1, 1, 1, 0.75) : Theme.glassEdge
         Behavior on color { ColorAnimation { duration: Theme.fast } }
 
         activeFocusOnTab: true
@@ -226,8 +244,8 @@ Item {
         }
     }
 
-    // The head of a plate on this page: a small round seal with its icon,
-    // the name in the serif, a count, and the line under it (a path).
+    // The head of a plate on this page: a small glass disc with its icon,
+    // the name in bold, a count, and the line under it (a path).
     component SectionHead: RowLayout {
         id: head
         property string iconName: ""
@@ -242,9 +260,9 @@ Item {
             implicitWidth: 36
             implicitHeight: 36
             radius: 18
-            color: Theme.alpha(Theme.ink, Theme.light ? 0.05 : 0.06)
+            color: Theme.controlFill
             border.width: 1
-            border.color: Theme.alpha(Theme.brass, 0.5)
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.10)
             Icon {
                 anchors.centerIn: parent
                 name: head.iconName
@@ -266,7 +284,8 @@ Item {
                     color: Theme.ink
                     font.family: Theme.fontDisplay
                     font.pixelSize: Theme.fontCardTitle
-                    font.weight: Font.DemiBold
+                    font.weight: Font.Bold
+                    font.letterSpacing: -0.2
                 }
                 Tag {
                     visible: head.count.length > 0
@@ -446,7 +465,7 @@ Item {
                 color: Theme.ink
                 font.family: Theme.fontDisplay
                 font.pixelSize: Theme.fontHeading
-                font.weight: Font.DemiBold
+                font.weight: Font.Bold
             }
             Text {
                 Layout.alignment: Qt.AlignHCenter
@@ -495,6 +514,66 @@ Item {
                         required property int index
                         Layout.fillWidth: true
                         delay: index * 80
+                    }
+                }
+
+                // At a glance: how many payloads the console holds, how many
+                // start by themselves, and in how many folders.
+                RowLayout {
+                    visible: payloads.folders.length > 0
+                    Layout.fillWidth: true
+                    spacing: 12
+                    Repeater {
+                        model: [
+                            { icon: "zap", label: qsTr("Payloads"), value: root.overview.files },
+                            { icon: "play", label: qsTr("Auto-start"), value: root.overview.auto },
+                            { icon: "folder", label: qsTr("Folders"), value: root.overview.folders }
+                        ]
+                        Plate {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            implicitHeight: 74
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 16
+                                anchors.rightMargin: 12
+                                spacing: 12
+                                Rectangle {
+                                    implicitWidth: 36
+                                    implicitHeight: 36
+                                    radius: 18
+                                    color: Theme.controlFill
+                                    border.width: 1
+                                    border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.10)
+                                    Icon {
+                                        anchors.centerIn: parent
+                                        name: modelData.icon
+                                        size: 16
+                                        color: Theme.ink
+                                    }
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 0
+                                    Text {
+                                        text: modelData.value
+                                        color: Theme.ink
+                                        font.family: Theme.fontDisplay
+                                        font.pixelSize: 22
+                                        font.weight: Font.Bold
+                                        font.letterSpacing: -0.3
+                                    }
+                                    Text {
+                                        Layout.fillWidth: true
+                                        elide: Text.ElideRight
+                                        text: modelData.label
+                                        color: Theme.textSecondary
+                                        font.pixelSize: 11
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -588,7 +667,7 @@ Item {
                                         Layout.fillWidth: true
                                         implicitHeight: about.length > 0 ? 56 : 46
                                         radius: Theme.radiusSmall
-                                        color: rowHover.hovered ? Theme.alpha(Theme.ink, 0.05) : "transparent"
+                                        color: rowHover.hovered ? Theme.controlFill : "transparent"
                                         Behavior on color { ColorAnimation { duration: Theme.fast } }
                                         HoverHandler { id: rowHover }
 
@@ -982,12 +1061,12 @@ Item {
                     }
                 }
 
-                // The payloads: a hairline list, the name in the serif.
+                // The payloads: a card of glass each, the name in bold.
                 ListView {
                     id: libraryList
                     anchors.fill: parent
                     clip: true
-                    spacing: 0
+                    spacing: 10
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                     model: root.library ? root.shownPayloads() : []
@@ -997,9 +1076,11 @@ Item {
                         anchors.horizontalCenter: parent.horizontalCenter
                         y: 32
                         spacing: 8
-                        Sparkle {
+                        Icon {
                             Layout.alignment: Qt.AlignHCenter
-                            size: 18
+                            name: "search"
+                            size: 22
+                            color: Theme.textSecondary
                         }
                         Text {
                             Layout.alignment: Qt.AlignHCenter
@@ -1007,7 +1088,7 @@ Item {
                             color: Theme.ink
                             font.family: Theme.fontDisplay
                             font.pixelSize: Theme.fontHeading
-                            font.weight: Font.DemiBold
+                            font.weight: Font.Bold
                         }
                         StyledButton {
                             Layout.alignment: Qt.AlignHCenter
@@ -1017,38 +1098,45 @@ Item {
                         }
                     }
 
-                    delegate: Rectangle {
+                    delegate: Plate {
                         id: payloadCard
                         required property var modelData
                         required property int index
                         width: libraryList.width - 14
-                        implicitHeight: payloadRow.implicitHeight + 28
-                        radius: Theme.radiusSmall
-                        color: modelData.update ? Theme.alpha(Theme.accent, cardHover.hovered ? 0.12 : 0.08)
-                             : cardHover.hovered ? Theme.alpha(Theme.ink, 0.05) : "transparent"
-                        Behavior on color { ColorAnimation { duration: Theme.fast } }
-                        HoverHandler { id: cardHover }
-
-                        // The hairline between payloads.
-                        Rectangle {
-                            visible: payloadCard.index < libraryList.count - 1
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            anchors.leftMargin: 14
-                            anchors.rightMargin: 14
-                            height: 1
-                            color: Theme.glassEdge
-                        }
+                        implicitHeight: payloadRow.implicitHeight + 32
+                        hoverable: true
+                        // An update waiting: the card's edge in the accent.
+                        border.color: modelData.update ? Theme.alpha(Theme.accent, hovered ? 0.75 : 0.5)
+                                    : hovered ? (Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.16))
+                                    : Theme.light ? Qt.rgba(1, 1, 1, 0.80) : Theme.glassEdge
 
                         RowLayout {
                             id: payloadRow
                             anchors.left: parent.left
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            anchors.leftMargin: 14
-                            anchors.rightMargin: 8
-                            spacing: 12
+                            anchors.leftMargin: 16
+                            anchors.rightMargin: 12
+                            spacing: 14
+
+                            // Its sign: a glass disc, the accent when it is on
+                            // the console.
+                            Rectangle {
+                                Layout.alignment: Qt.AlignTop
+                                implicitWidth: 40
+                                implicitHeight: 40
+                                radius: 20
+                                color: Theme.controlFill
+                                border.width: 1
+                                border.color: payloadCard.modelData.installed ? Theme.alpha(Theme.accent, 0.55)
+                                            : Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.10)
+                                Icon {
+                                    anchors.centerIn: parent
+                                    name: "zap"
+                                    size: 17
+                                    color: payloadCard.modelData.installed ? (Theme.light ? Qt.darker(Theme.accent, 1.3) : Theme.accent) : Theme.ink
+                                }
+                            }
 
                             ColumnLayout {
                                 Layout.fillWidth: true
@@ -1063,8 +1151,9 @@ Item {
                                         text: payloadCard.modelData.name
                                         color: Theme.ink
                                         font.family: Theme.fontDisplay
-                                        font.pixelSize: 17
-                                        font.weight: Font.DemiBold
+                                        font.pixelSize: 16
+                                        font.weight: Font.Bold
+                                        font.letterSpacing: -0.2
                                     }
                                     Tag {
                                         visible: payloadCard.modelData.version.length > 0

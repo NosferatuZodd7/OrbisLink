@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The three themes and the custom look as icons at the foot of the
-// navigation: in a row, or a column when it is folded. One click switches right away and only one is lit: a plain
+// The three appearances (Graphite, Ambient glass, Daylight) and the custom
+// look as icons on a glass track at the foot of the navigation: in a row, or
+// a column when it is folded. One click switches right away and only one is
+// lit, as a glass pill: a plain
 // theme sets the custom colours aside; the custom look brings back the
 // chosen saved look (or the colours set aside).
 import QtQuick
@@ -26,10 +28,11 @@ Rectangle {
 
     implicitWidth: vertical ? 38 : line.implicitWidth + 8
     implicitHeight: vertical ? line.implicitHeight + 8 : 36
+    // A recessed glass track; the chosen look is the glass pill on it.
     radius: vertical ? 19 : height / 2
-    color: Theme.controlFill
+    color: Theme.light ? Qt.rgba(1, 1, 1, 0.45) : Qt.rgba(0, 0, 0, 0.20)
     border.width: 1
-    border.color: Theme.glassEdge
+    border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.9) : Theme.glassEdge
 
     Grid {
         id: line

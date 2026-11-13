@@ -97,7 +97,7 @@ Item {
             var ctx = getContext("2d")
             controller.prepareContext(ctx)
             var k = controller.scaleFactor > 0 ? controller.scaleFactor : 1
-            // In the ink of the page, as the atlas's engravings are.
+            // A fine line drawing in the page's ink colour.
             var line = Theme.alpha(Theme.ink, Theme.light ? 0.85 : 0.8)
             var y0 = controller.shoulderHeight
             ctx.lineJoin = "round"

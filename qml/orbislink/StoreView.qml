@@ -184,8 +184,8 @@ Item {
         tone: platform === "ps4" ? "accent" : "neutral"
     }
 
-    // A filter: a round-ended pill, filled in the accent when it is the one
-    // in use (a chip button cannot say "chosen").
+    // A filter: a round-ended pill of glass, bright when it is the one in
+    // use (a chip button cannot say "chosen").
     component FilterPill: Rectangle {
         id: pill
         property string text: ""
@@ -198,10 +198,12 @@ Item {
         implicitWidth: pillRow.implicitWidth + 24
         implicitHeight: 32
         radius: height / 2
-        color: chosen ? Theme.accentFill : pillHover.hovered ? Theme.alpha(Theme.ink, 0.05) : "transparent"
+        color: chosen ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
+             : pillHover.hovered ? Theme.controlHover : Theme.controlFill
         border.width: activeFocus ? 2 : 1
         border.color: activeFocus ? Theme.alpha(Theme.accent, 0.8)
-                    : chosen ? Theme.alpha(Theme.accent, 0.6) : Theme.glassEdge
+                    : chosen ? (Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.14))
+                    : Theme.light ? Qt.rgba(1, 1, 1, 0.75) : Theme.glassEdge
         Behavior on color { ColorAnimation { duration: Theme.fast } }
 
         activeFocusOnTab: true
@@ -445,20 +447,15 @@ Item {
             }
         }
 
-        // ── the stores' catalog | the archives on this PC: underline tabs
-        // on a hairline (tabs that do not toggle: the filter says which)
-        Item {
-            Layout.fillWidth: true
-            implicitHeight: 38
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                height: 1
-                color: Theme.glassEdge
-            }
+        // ── the stores' catalog | the archives on this PC: a segmented row
+        // of tabs (tabs that do not toggle: the filter says which)
+        ShelfTile.TabTrack {
+            implicitWidth: storeTabs.implicitWidth + 6
+            implicitHeight: storeTabs.implicitHeight + 6
             Row {
-                spacing: 6
+                id: storeTabs
+                anchors.centerIn: parent
+                spacing: 2
                 StyledTab {
                     checkable: false
                     checked: root.filter !== "local"
@@ -564,33 +561,42 @@ Item {
                 anchors.rightMargin: -6
                 visible: root.filter !== "local"
                 clip: true
-                readonly property int columns: Math.max(1, Math.floor(width / 310))
+                readonly property int columns: Math.max(1, Math.floor((width - 10) / 214))
                 cellWidth: Math.floor((width - 10) / columns)
-                cellHeight: 132
+                cellHeight: 254
                 model: root.shown
                 boundsBehavior: Flickable.StopAtBounds
                 ScrollBar.vertical: ScrollBar { policy: grid.contentHeight > grid.height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded }
 
-                // An app: a plate with its icon, its name in the serif, who
-                // made it, the facts in the mono, and where it stands.
+                // An app, as a catalogue card: its icon large in a window of
+                // glass lit by its own colours, its name in bold, who made it,
+                // the facts in mono, then where it stands and the stores it
+                // comes from, each by its own tag.
                 delegate: Item {
                     id: cell
                     required property var modelData
                     width: grid.cellWidth
                     height: grid.cellHeight
                     readonly property bool busy: store.working === modelData.titleId
+                    readonly property string iconUrl: modelData.icon ? String(modelData.icon) : ""
+                    readonly property string state_: !modelData.available ? "soon"
+                        : modelData.update ? "update"
+                        : modelData.installed ? "installed"
+                        : !modelData.installable ? "other" : ""
 
                     Plate {
                         id: card
                         anchors.fill: parent
                         anchors.margins: 6
                         hoverable: true
-                        color: cell.modelData.update ? Theme.mix(Theme.panelFill, Theme.accentFill, 0.6) : Theme.panelFill
                         border.color: card.activeFocus ? Theme.alpha(Theme.accent, 0.85)
-                                    : card.hovered ? Theme.alpha(Theme.accent, 0.55)
-                                    : cell.modelData.update ? Theme.alpha(Theme.accent, 0.45) : Theme.glassEdge
+                                    : cell.modelData.update ? Theme.alpha(Theme.accent, card.hovered ? 0.7 : 0.45)
+                                    : card.hovered ? (Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.16))
+                                    : Theme.light ? Qt.rgba(1, 1, 1, 0.80) : Theme.glassEdge
                         border.width: card.activeFocus ? 2 : 1
                         opacity: cell.modelData.available ? 1.0 : 0.6
+                        scale: cardArea.pressed ? Theme.pressScale : 1
+                        Behavior on scale { NumberAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
 
                         activeFocusOnTab: true
                         Accessible.role: Accessible.Button
@@ -606,167 +612,211 @@ Item {
                             onClicked: detailDialog.ask(cell.modelData.titleId)
                         }
 
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 14
-                            spacing: 14
+                        // The window: the icon's own colours, softened (the
+                        // icon drawn tiny and stretched), under a pane of glass.
+                        Rectangle {
+                            id: window_
+                            x: 7
+                            y: 7
+                            width: parent.width - 14
+                            height: 100
+                            radius: Theme.radius - 6
+                            color: Theme.light ? Qt.rgba(1, 1, 1, 0.50) : Qt.rgba(0, 0, 0, 0.22)
+                            Image {
+                                anchors.fill: parent
+                                visible: cell.iconUrl.length > 0 && status === Image.Ready
+                                opacity: Theme.light ? 0.55 : 0.50
+                                asynchronous: true
+                                smooth: true
+                                source: cell.iconUrl.length > 0
+                                        ? "image://cover/12x5/1/crop/" + encodeURIComponent("#00000000") + "/" + encodeURIComponent(cell.iconUrl)
+                                        : ""
+                            }
+                            // The glass over it: lighter at the top.
                             Rectangle {
-                                Layout.alignment: Qt.AlignTop
-                                implicitWidth: 64
-                                implicitHeight: 64
-                                radius: 14
-                                color: Theme.controlFill
+                                anchors.fill: parent
+                                radius: parent.radius
                                 border.width: 1
-                                border.color: Theme.glassEdge
-                                clip: true
-                                Image {
-                                    id: appIcon
-                                    anchors.fill: parent
-                                    source: cell.modelData.icon
-                                    fillMode: Image.PreserveAspectCrop
-                                    asynchronous: true
-                                }
-                                Icon {
-                                    anchors.centerIn: parent
-                                    visible: appIcon.status !== Image.Ready
-                                    name: "package"
-                                    size: 24
-                                    color: Theme.textSecondary
+                                border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.9) : Theme.glassEdge
+                                gradient: Gradient {
+                                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.30 : 0.08) }
+                                    GradientStop { position: 1.0; color: Theme.light ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(0, 0, 0, 0.18) }
                                 }
                             }
-                            ColumnLayout {
+                            // The icon, lifted off the glass by a soft shadow.
+                            Rectangle {
+                                anchors.centerIn: appIcon
+                                anchors.verticalCenterOffset: 4
+                                width: appIcon.width
+                                height: appIcon.height
+                                radius: 16
+                                color: Qt.rgba(0, 0, 0, Theme.light ? 0.10 : 0.30)
+                            }
+                            CoverArt {
+                                id: appIcon
+                                anchors.centerIn: parent
+                                width: 68
+                                height: 68
+                                radius: 16
+                                crop: true
+                                picture: cell.iconUrl
+                                placeholder: "archive"
+                            }
+                            // The consoles it is for, in the corner.
+                            Row {
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                spacing: 4
+                                Repeater {
+                                    model: cell.modelData.platforms !== undefined ? cell.modelData.platforms : []
+                                    ShelfTile.CoverTag {
+                                        required property string modelData
+                                        text: modelData === "ps4" ? "PS4" : "PS5"
+                                        tone: modelData === "ps4" ? "accent" : "neutral"
+                                    }
+                                }
+                            }
+                            // Where it stands, in the other corner.
+                            ShelfTile.CoverTag {
+                                visible: cell.state_.length > 0 && cell.state_ !== "other" && !cell.busy
+                                anchors.left: parent.left
+                                anchors.top: parent.top
+                                anchors.margins: 8
+                                tone: cell.state_ === "update" ? "accent" : cell.state_ === "installed" ? "ok" : "neutral"
+                                iconName: cell.state_ === "update" ? "arrow-up" : cell.state_ === "installed" ? "check" : ""
+                                text: cell.state_ === "soon" ? qsTr("Coming soon")
+                                    : cell.state_ === "update" ? qsTr("Update")
+                                    : qsTr("Installed", "one app")
+                            }
+                        }
+
+                        ColumnLayout {
+                            anchors.top: window_.bottom
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            anchors.leftMargin: 14
+                            anchors.rightMargin: 14
+                            anchors.topMargin: 12
+                            anchors.bottomMargin: 12
+                            spacing: 3
+                            Text {
                                 Layout.fillWidth: true
-                                Layout.alignment: Qt.AlignTop
-                                spacing: 3
-                                // Its name, and the consoles it is for.
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 4
-                                    Text {
-                                        Layout.fillWidth: true
-                                        elide: Text.ElideRight
-                                        text: cell.modelData.name
-                                        color: Theme.ink
-                                        font.family: Theme.fontDisplay
-                                        font.pixelSize: 17
-                                        font.weight: Font.DemiBold
-                                    }
-                                    Repeater {
-                                        model: cell.modelData.platforms !== undefined ? cell.modelData.platforms : []
-                                        PlatformTag {
-                                            required property string modelData
-                                            platform: modelData
-                                        }
-                                    }
-                                }
+                                elide: Text.ElideRight
+                                maximumLineCount: 2
+                                wrapMode: Text.Wrap
+                                lineHeight: 1.05
+                                text: cell.modelData.name
+                                color: Theme.ink
+                                font.family: Theme.fontDisplay
+                                font.pixelSize: 15
+                                font.weight: Font.Bold
+                                font.letterSpacing: -0.2
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                visible: text.length > 0
+                                elide: Text.ElideRight
+                                text: cell.modelData.author || ""
+                                color: Theme.textSecondary
+                                font.pixelSize: 12
+                            }
+                            // The facts: version, size, downloads — in the mono.
+                            Row {
+                                visible: !cell.busy
+                                Layout.fillWidth: true
+                                Layout.topMargin: 2
+                                spacing: 10
+                                clip: true
                                 Text {
-                                    Layout.fillWidth: true
                                     visible: text.length > 0
+                                    width: Math.min(implicitWidth, 90)
                                     elide: Text.ElideRight
-                                    text: cell.modelData.author || ""
-                                    color: Theme.textSecondary
-                                    font.pixelSize: 12
+                                    text: cell.modelData.version || ""
+                                    color: Theme.text
+                                    font.family: Theme.fontMono
+                                    font.pixelSize: 11
                                 }
-                                // The facts: version, size, downloads — in the mono.
-                                Row {
-                                    visible: !cell.busy
-                                    Layout.fillWidth: true
-                                    spacing: 10
-                                    Text {
-                                        visible: text.length > 0
-                                        width: Math.min(implicitWidth, 110)
-                                        elide: Text.ElideRight
-                                        text: cell.modelData.version || ""
-                                        color: Theme.text
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: 11
-                                    }
-                                    Text {
-                                        visible: text.length > 0
-                                        text: cell.modelData.size || ""
-                                        color: Theme.textSecondary
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: 11
-                                    }
-                                    // How many times it was downloaded, as its store counts.
-                                    Row {
-                                        visible: cell.modelData.downloads !== undefined && cell.modelData.downloads >= 0
-                                        spacing: 3
-                                        Icon {
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            name: "download"
-                                            size: 11
-                                            color: Theme.textSecondary
-                                        }
-                                        Text {
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            text: cell.modelData.downloads !== undefined ? root.shortCount(cell.modelData.downloads) : ""
-                                            color: Theme.textSecondary
-                                            font.family: Theme.fontMono
-                                            font.pixelSize: 11
-                                        }
-                                        HoverHandler { id: countHover }
-                                        ToolTip.visible: countHover.hovered
-                                        ToolTip.text: qsTr("Downloaded %1 times, as %2 counts")
-                                                      .arg(Number(cell.modelData.downloads).toLocaleString(Qt.locale(), "f", 0))
-                                                      .arg(cell.modelData.stores.join(", "))
-                                    }
-                                }
-                                Item { Layout.fillHeight: true }
-                                // Where it stands, and the stores it is in.
-                                RowLayout {
-                                    visible: !cell.busy
-                                    Layout.fillWidth: true
-                                    spacing: 6
-                                    Tag {
-                                        readonly property string state: !cell.modelData.available ? "soon"
-                                            : cell.modelData.update ? "update"
-                                            : cell.modelData.installed ? "installed"
-                                            : !cell.modelData.installable ? "other" : ""
-                                        visible: state.length > 0
-                                        Layout.maximumWidth: 150
-                                        tone: state === "update" ? "accent" : state === "installed" ? "ok" : "neutral"
-                                        solid: state === "update"
-                                        iconName: state === "update" ? "arrow-up" : state === "installed" ? "check" : ""
-                                        text: state === "soon" ? qsTr("Coming soon")
-                                            : state === "update" ? qsTr("Update")
-                                            : state === "installed" ? qsTr("Installed", "one app")
-                                            : root.briefNote(cell.modelData)
-                                    }
-                                    Text {
-                                        Layout.fillWidth: true
-                                        elide: Text.ElideRight
-                                        text: cell.modelData.stores.join(" · ")
-                                        color: Theme.textSecondary
-                                        font.pixelSize: 10
-                                        font.weight: Font.Medium
-                                        font.letterSpacing: 0.4
-                                    }
-                                }
-                                Rectangle {
-                                    visible: cell.busy
-                                    Layout.fillWidth: true
-                                    height: 3
-                                    radius: 1.5
-                                    color: Theme.alpha(Theme.accent, 0.18)
-                                    Rectangle {
-                                        width: parent.width * Math.max(0.03, Math.min(1, store.progress))
-                                        height: parent.height
-                                        radius: parent.radius
-                                        color: Theme.accent
-                                        Behavior on width { NumberAnimation { duration: 200 } }
-                                    }
-                                }
-                                // How far, and how fast; the stage when there is nothing to count.
                                 Text {
-                                    visible: cell.busy
-                                    Layout.fillWidth: true
-                                    elide: Text.ElideRight
-                                    text: root.progressLine().length > 0 ? root.progressLine() : root.stageText(store.stage)
+                                    visible: text.length > 0
+                                    text: cell.modelData.size || ""
                                     color: Theme.textSecondary
                                     font.family: Theme.fontMono
                                     font.pixelSize: 11
                                 }
+                                // How many times it was downloaded, as its store counts.
+                                Row {
+                                    visible: cell.modelData.downloads !== undefined && cell.modelData.downloads >= 0
+                                    spacing: 3
+                                    Icon {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        name: "download"
+                                        size: 11
+                                        color: Theme.textSecondary
+                                    }
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: cell.modelData.downloads !== undefined ? root.shortCount(cell.modelData.downloads) : ""
+                                        color: Theme.textSecondary
+                                        font.family: Theme.fontMono
+                                        font.pixelSize: 11
+                                    }
+                                    HoverHandler { id: countHover }
+                                    ToolTip.visible: countHover.hovered
+                                    ToolTip.text: qsTr("Downloaded %1 times, as %2 counts")
+                                                  .arg(Number(cell.modelData.downloads).toLocaleString(Qt.locale(), "f", 0))
+                                                  .arg(cell.modelData.stores.join(", "))
+                                }
+                            }
+                            Item { Layout.fillHeight: true }
+                            // Why it cannot be installed from here, when it cannot.
+                            Text {
+                                visible: cell.state_ === "other" && !cell.busy
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                                text: root.briefNote(cell.modelData)
+                                color: Theme.textSecondary
+                                font.pixelSize: 11
+                            }
+                            // The stores it comes from: a tag each.
+                            Flow {
+                                visible: !cell.busy
+                                Layout.fillWidth: true
+                                spacing: 4
+                                Repeater {
+                                    model: cell.modelData.stores
+                                    Tag {
+                                        required property string modelData
+                                        implicitHeight: 20
+                                        iconName: "store"
+                                        text: modelData
+                                    }
+                                }
+                            }
+                            Rectangle {
+                                visible: cell.busy
+                                Layout.fillWidth: true
+                                height: 3
+                                radius: 1.5
+                                color: Theme.alpha(Theme.accent, 0.18)
+                                Rectangle {
+                                    width: parent.width * Math.max(0.03, Math.min(1, store.progress))
+                                    height: parent.height
+                                    radius: parent.radius
+                                    color: Theme.accent
+                                    Behavior on width { NumberAnimation { duration: 200 } }
+                                }
+                            }
+                            // How far, and how fast; the stage when there is nothing to count.
+                            Text {
+                                visible: cell.busy
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                                text: root.progressLine().length > 0 ? root.progressLine() : root.stageText(store.stage)
+                                color: Theme.textSecondary
+                                font.family: Theme.fontMono
+                                font.pixelSize: 11
                             }
                         }
                     }
@@ -874,7 +924,7 @@ Item {
                                     color: Theme.ink
                                     font.family: Theme.fontDisplay
                                     font.pixelSize: 16
-                                    font.weight: Font.DemiBold
+                                    font.weight: Font.Bold
                                     elide: Text.ElideRight
                                 }
                                 Text {
@@ -938,7 +988,7 @@ Item {
                 }
             }
 
-            // Empty: the faint planet, what is (not) here, and the way on.
+            // Empty: the faint orb, what is (not) here, and the way on.
             ColumnLayout {
                 anchors.centerIn: parent
                 width: Math.min(parent.width - 32, 460)
@@ -966,7 +1016,7 @@ Item {
                     color: Theme.ink
                     font.family: Theme.fontDisplay
                     font.pixelSize: root.filter === "local" || store.error.length > 0 ? 17 : Theme.fontHeading
-                    font.weight: Font.DemiBold
+                    font.weight: Font.Bold
                 }
                 StyledButton {
                     Layout.alignment: Qt.AlignHCenter
@@ -1007,6 +1057,13 @@ Item {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
+                // Two lines at most, so the catalogue keeps the room; the
+                // whole of it under the mouse.
+                maximumLineCount: 2
+                elide: Text.ElideRight
+                HoverHandler { id: storeNoteHover }
+                ToolTip.visible: storeNoteHover.hovered && truncated
+                ToolTip.text: text
                 color: Theme.textSecondary
                 font.pixelSize: 11
                 text: root.filter === "local"

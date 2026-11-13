@@ -352,8 +352,8 @@ Item {
         selected = ({})
     }
 
-    // An owner to show the saves of: a round-ended pill, filled in the
-    // accent when it is the one shown (a chip button cannot say "chosen").
+    // An owner to show the saves of: a round-ended pill of glass, bright
+    // when it is the one shown (a chip button cannot say "chosen").
     component OwnerPill: Rectangle {
         id: pill
         property string text: ""
@@ -366,10 +366,12 @@ Item {
         implicitWidth: pillRow.implicitWidth + 26
         implicitHeight: 32
         radius: height / 2
-        color: chosen ? Theme.accentFill : pillHover.hovered ? Theme.alpha(Theme.ink, 0.05) : "transparent"
+        color: chosen ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
+             : pillHover.hovered ? Theme.controlHover : Theme.controlFill
         border.width: activeFocus ? 2 : 1
         border.color: activeFocus ? Theme.alpha(Theme.accent, 0.8)
-                    : chosen ? Theme.alpha(Theme.accent, 0.6) : Theme.glassEdge
+                    : chosen ? (Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.14))
+                    : Theme.light ? Qt.rgba(1, 1, 1, 0.75) : Theme.glassEdge
         Behavior on color { ColorAnimation { duration: Theme.fast } }
 
         activeFocusOnTab: true
@@ -414,20 +416,23 @@ Item {
         }
     }
 
-    // One of the hero's two figures: where, in small capitals, over how many.
+    // One of the hero's figures: where, in small capitals, over how many.
     component Figure: ColumnLayout {
+        id: figure
         property string label: ""
         property int value: 0
-        spacing: 0
+        property color tone: Theme.ink
+        spacing: 2
         Eyebrow {
-            text: parent.label
+            text: figure.label
         }
         Text {
-            text: parent.value
-            color: Theme.ink
+            text: figure.value
+            color: Theme.light && figure.tone !== Theme.ink ? Qt.darker(figure.tone, 1.3) : figure.tone
             font.family: Theme.fontDisplay
-            font.pixelSize: Theme.fontTitle
-            font.weight: Font.DemiBold
+            font.pixelSize: 24
+            font.weight: Font.Bold
+            font.letterSpacing: -0.3
         }
     }
 
@@ -511,43 +516,36 @@ Item {
         // ── the one thing most people come for: the console against the PC,
         // and the button that brings them level. With saves selected, what
         // to do with those instead.
+        // The page's one ornate plate: the state of the backups in a
+        // sentence with its actions, and under it the figures and how much
+        // of the console is backed up.
         Plate {
             id: hero
             ornate: true
             Layout.fillWidth: true
-            implicitHeight: heroRow.implicitHeight + 36
-            color: root.selectedCount > 0 && !saves.busy ? Theme.accentFill : Theme.panelFill
-            Behavior on color { ColorAnimation { duration: Theme.fast } }
+            implicitHeight: heroColumn.implicitHeight + 32
 
-            RowLayout {
-                id: heroRow
+            readonly property int onConsole: root.counts.all - root.counts.vault - root.counts.usb
+            readonly property int onPc: root.counts.same + root.counts.changed + root.counts.older + root.counts.vault
+            readonly property int unsaved: root.counts.changed + root.counts.console
+            // How much of what the console holds has a copy on the PC.
+            readonly property real coverage: onConsole > 0 ? Math.max(0, Math.min(1, (onConsole - unsaved) / onConsole)) : 0
+
+            ColumnLayout {
+                id: heroColumn
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                anchors.leftMargin: 24
+                anchors.leftMargin: 22
                 anchors.rightMargin: 18
+                spacing: 12
+
+            RowLayout {
+                id: heroRow
+                Layout.fillWidth: true
                 spacing: 18
 
-                // The two figures, the console's and the PC's.
-                RowLayout {
-                    visible: root.selectedCount === 0 || saves.busy
-                    spacing: 14
-                    Figure {
-                        label: qsTr("On the console")
-                        value: root.counts.all - root.counts.vault - root.counts.usb
-                    }
-                    Sparkle {
-                        Layout.alignment: Qt.AlignBottom
-                        Layout.bottomMargin: 12
-                        size: 12
-                        color: Theme.brass
-                    }
-                    Figure {
-                        label: qsTr("On this PC")
-                        value: root.counts.same + root.counts.changed + root.counts.older + root.counts.vault
-                    }
-                }
-                // With some selected: how many, in the serif.
+                // With some selected: how many, in bold.
                 ColumnLayout {
                     visible: root.selectedCount > 0 && !saves.busy
                     Layout.fillWidth: true
@@ -561,18 +559,9 @@ Item {
                         color: Theme.ink
                         font.family: Theme.fontDisplay
                         font.pixelSize: Theme.fontHeading
-                        font.weight: Font.DemiBold
+                        font.weight: Font.Bold
                     }
                 }
-                Rectangle {
-                    visible: root.selectedCount === 0 || saves.busy
-                    Layout.fillHeight: true
-                    Layout.topMargin: 4
-                    Layout.bottomMargin: 4
-                    implicitWidth: 1
-                    color: Theme.glassEdge
-                }
-
                 StyledButton {
                     visible: root.selectedCount > 0 && !saves.busy
                     iconName: "download"
@@ -635,12 +624,17 @@ Item {
                     // wrap to it instead of asking for more.
                     Layout.preferredWidth: 1
                     spacing: 4
+                    Eyebrow {
+                        text: qsTr("Backup status")
+                    }
                     Text {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         color: Theme.ink
-                        font.pixelSize: 14
-                        font.weight: Font.DemiBold
+                        font.family: Theme.fontDisplay
+                        font.pixelSize: 15
+                        font.weight: Font.Bold
+                        font.letterSpacing: -0.2
                         text: !root.online ? qsTr("%1's FTP is not answering: this is what the PC holds.").arg(saves.sourceName)
                             : saves.busy ? saves.status
                             : root.counts.changed + root.counts.console > 0
@@ -743,6 +737,77 @@ Item {
                         }
                     }
                 }
+            }
+
+            // The figures: on the console, on this PC, without a backup, and
+            // how much of the console is backed up, as a bar that fills.
+            Rectangle {
+                visible: root.selectedCount === 0 || saves.busy
+                Layout.fillWidth: true
+                implicitHeight: 1
+                color: Theme.alpha(Theme.brass, 0.25)
+            }
+            RowLayout {
+                visible: root.selectedCount === 0 || saves.busy
+                Layout.fillWidth: true
+                spacing: 18
+                Figure {
+                    label: qsTr("On the console")
+                    value: hero.onConsole
+                }
+                Rectangle { Layout.fillHeight: true; implicitWidth: 1; color: Theme.glassEdge }
+                Figure {
+                    label: qsTr("On this PC")
+                    value: hero.onPc
+                }
+                Rectangle { Layout.fillHeight: true; implicitWidth: 1; color: Theme.glassEdge }
+                Figure {
+                    label: qsTr("Without a backup")
+                    value: hero.unsaved
+                    tone: hero.unsaved > 0 && root.online ? Theme.warn : Theme.ink
+                }
+                ColumnLayout {
+                    visible: root.online && hero.onConsole > 0
+                    Layout.alignment: Qt.AlignBottom | Qt.AlignRight
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 110
+                    Layout.maximumWidth: 200
+                    Layout.bottomMargin: 6
+                    spacing: 8
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Text {
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            text: qsTr("Backed up")
+                            color: Theme.textSecondary
+                            font.pixelSize: 12
+                        }
+                        Text {
+                            text: Math.round(hero.coverage * 100) + "%"
+                            color: Theme.ink
+                            font.family: Theme.fontMono
+                            font.pixelSize: 12
+                            font.weight: Font.DemiBold
+                        }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 6
+                        radius: 3
+                        color: Theme.light ? Qt.rgba(0, 0, 0, 0.07) : Qt.rgba(1, 1, 1, 0.08)
+                        Rectangle {
+                            width: Math.max(height, parent.width * hero.coverage)
+                            visible: hero.coverage > 0
+                            height: parent.height
+                            radius: parent.radius
+                            color: hero.coverage >= 1 ? Theme.ok : Theme.accent
+                            Behavior on width { NumberAnimation { duration: Theme.slow; easing.type: Theme.easeOut } }
+                        }
+                    }
+                }
+            }
             }
         }
 
@@ -847,8 +912,8 @@ Item {
             }
         }
 
-        // ── the saves, by game: a hairline list, each game a heading over
-        // its saves
+        // ── the saves, by game: a card of glass for each game, its heading
+        // over its saves
         Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -868,15 +933,58 @@ Item {
                     required property var modelData
                     required property int index
                     readonly property bool header: modelData.header === true
+                    // The last save of its game: the game's card ends here.
+                    readonly property bool last: index + 1 >= root.rows.length || root.rows[index + 1].header === true
+                    // Room between one game's card and the next.
+                    readonly property int gap: header && index > 0 ? 14 : 0
                     width: list.width - 14
-                    height: header ? (index === 0 ? 56 : 68) : 58
+                    height: header ? 62 + gap : last ? 66 : 58
 
+                    // The game's card: a pane of glass behind its heading and
+                    // its saves, drawn a piece per row (rounded at the top on
+                    // the heading, at the bottom on the last save).
+                    Item {
+                        anchors.fill: parent
+                        anchors.topMargin: entry.gap
+                        clip: true
+                        Rectangle {
+                            width: parent.width
+                            y: entry.header ? 0 : -Theme.radius * 2
+                            height: parent.height + (entry.header ? 0 : Theme.radius * 2) + (entry.last ? 0 : Theme.radius * 2)
+                            radius: Theme.radius
+                            color: Theme.light ? Qt.rgba(1, 1, 1, Theme.glassSubtle) : Qt.rgba(1, 1, 1, Theme.glassSubtle)
+                            border.width: 1
+                            border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.80) : Theme.glassEdge
+                        }
+                        // The light along the top of the card.
+                        Rectangle {
+                            visible: entry.header
+                            anchors.top: parent.top
+                            anchors.topMargin: 1
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            width: parent.width - Theme.radius * 1.6
+                            height: 1
+                            gradient: Gradient {
+                                orientation: Gradient.Horizontal
+                                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0) }
+                                GradientStop { position: 0.5; color: Theme.glassStrokeTop }
+                                GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0) }
+                            }
+                        }
+                    }
+
+                    // A save is a pill inside the game's card; the last one
+                    // keeps the card's bottom padding below it.
                     Loader {
                         anchors.fill: parent
+                        anchors.leftMargin: entry.header ? 0 : 6
+                        anchors.rightMargin: entry.header ? 0 : 6
+                        anchors.bottomMargin: !entry.header && entry.last ? 8 : 0
                         sourceComponent: entry.header ? gameHeader : saveRow
                     }
 
-                    // A game: its picture, its name in the serif and its ID.
+                    // A game: its picture, its name in bold and its ID, at the
+                    // head of its card.
                     Component {
                         id: gameHeader
                         Item {
@@ -884,7 +992,9 @@ Item {
                                 anchors.left: parent.left
                                 anchors.right: parent.right
                                 anchors.bottom: parent.bottom
-                                anchors.bottomMargin: 6
+                                anchors.leftMargin: 12
+                                anchors.rightMargin: 12
+                                anchors.bottomMargin: 8
                                 spacing: 12
                                 Rectangle {
                                     implicitWidth: 40
@@ -918,7 +1028,8 @@ Item {
                                     color: Theme.ink
                                     font.family: Theme.fontDisplay
                                     font.pixelSize: Theme.fontCardTitle
-                                    font.weight: Font.DemiBold
+                                    font.weight: Font.Bold
+                                    font.letterSpacing: -0.2
                                 }
                                 Tag {
                                     text: entry.modelData.titleId
@@ -951,10 +1062,11 @@ Item {
                             readonly property var modelData: entry.modelData
                             readonly property bool picked: root.isSelected(modelData.key)
                             radius: Theme.radiusSmall
-                            color: picked ? Theme.accentFill
-                                 : rowArea.containsMouse ? Theme.alpha(Theme.ink, 0.05) : "transparent"
+                            color: picked ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
+                                 : rowArea.containsMouse ? Theme.controlFill : "transparent"
                             border.width: activeFocus ? 2 : picked ? 1 : 0
-                            border.color: activeFocus ? Theme.alpha(Theme.accent, 0.8) : Theme.alpha(Theme.accent, 0.5)
+                            border.color: activeFocus ? Theme.alpha(Theme.accent, 0.8)
+                                        : Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.14)
                             Behavior on color { ColorAnimation { duration: Theme.fast } }
 
                             activeFocusOnTab: true
@@ -966,7 +1078,7 @@ Item {
 
                             // The hairline between saves.
                             Rectangle {
-                                visible: !row.picked
+                                visible: !row.picked && !entry.last
                                 anchors.left: parent.left
                                 anchors.right: parent.right
                                 anchors.bottom: parent.bottom
@@ -1137,7 +1249,7 @@ Item {
                 }
             }
 
-            // Empty: the faint planet, what is (not) here, and the way on.
+            // Empty: the faint orb, what is (not) here, and the way on.
             ColumnLayout {
                 anchors.centerIn: parent
                 width: Math.min(parent.width - 32, 440)
@@ -1161,7 +1273,7 @@ Item {
                     color: Theme.ink
                     font.family: Theme.fontDisplay
                     font.pixelSize: Theme.fontHeading
-                    font.weight: Font.DemiBold
+                    font.weight: Font.Bold
                 }
                 Text {
                     Layout.fillWidth: true
@@ -1212,10 +1324,18 @@ Item {
                 color: Theme.textSecondary
             }
             Text {
+                id: vaultNote
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
+                // Two lines at most, so the list keeps the room; the whole
+                // of it under the mouse.
+                maximumLineCount: 2
+                elide: Text.ElideRight
                 color: Theme.textSecondary
                 font.pixelSize: 11
+                HoverHandler { id: noteHover }
+                ToolTip.visible: noteHover.hovered && truncated
+                ToolTip.text: text
                 text: qsTr("Saves are kept on the PC as the PS4 copies them to a USB drive: PS4/SAVEDATA/<PSID>/<game>. "
                            + "A save only goes to a console user with its PSID, on this console or another — a PS4 "
                            + "game's save works on a PS5 too.")

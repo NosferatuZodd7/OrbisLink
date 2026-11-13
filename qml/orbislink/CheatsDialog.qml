@@ -4,8 +4,8 @@
 // files GoldHEN's and etaHEN's lists have for it, with the cheats in each,
 // sent to the console or taken off it; and on a PS4 the game patches of
 // illusion0001's archive, each with its switch for GoldHEN. Laid out as the
-// games page's other dialogs: the game as the eyebrow, the title in the
-// serif, its facts as tags, the lists in a sunken well.
+// games page's other dialogs: the game as the eyebrow, the title in
+// bold, its facts as tags, the lists in a sunken well.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -256,7 +256,7 @@ Dialog {
                                 color: Theme.ink
                                 font.family: Theme.fontDisplay
                                 font.pixelSize: 15
-                                font.weight: Font.DemiBold
+                                font.weight: Font.Bold
                             }
                             Tag {
                                 text: fileCard.modelData.exact ? qsTr("the version installed")

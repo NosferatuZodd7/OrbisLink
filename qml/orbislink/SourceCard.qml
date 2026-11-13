@@ -43,7 +43,7 @@ ShelfTile {
         anchors.fill: parent
         radius: card.artRadius
         border.width: 1
-        border.color: Theme.cardEdge
+        border.color: "transparent"
         gradient: Gradient {
             GradientStop { position: 0.0; color: Theme.cardTop }
             GradientStop { position: 1.0; color: card.isConsole ? Theme.cardActiveBottom : Theme.cardBottom }

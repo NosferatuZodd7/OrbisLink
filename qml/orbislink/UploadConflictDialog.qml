@@ -109,8 +109,7 @@ Dialog {
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
             Layout.topMargin: 4
-            sunken: true
-            radius: 14
+            radius: Theme.radius
             implicitHeight: fileColumn.implicitHeight + 28
 
             ColumnLayout {
@@ -164,7 +163,7 @@ Dialog {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 1
-                    color: Theme.glassEdge
+                    color: Theme.rule
                 }
 
                 RowLayout {
@@ -185,7 +184,7 @@ Dialog {
                     Rectangle {
                         implicitWidth: 1
                         implicitHeight: 30
-                        color: Theme.glassEdge
+                        color: Theme.rule
                     }
                     Column {
                         Layout.fillWidth: true

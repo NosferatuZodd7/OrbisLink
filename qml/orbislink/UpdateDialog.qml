@@ -79,31 +79,64 @@ Dialog {
         }
     }
 
+    // One version on a quiet pane of glass: what it is in small capitals,
+    // the number in the mono. The new one is lit.
+    component VersionTile: Plate {
+        id: tile
+        property string label: ""
+        property string version: ""
+        property bool fresh: false
+        Layout.fillWidth: true
+        Layout.preferredWidth: 1
+        Layout.preferredHeight: 62
+        color: fresh ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.12))
+                     : Theme.light ? Qt.rgba(1, 1, 1, 0.40) : Qt.rgba(1, 1, 1, 0.04)
+        Column {
+            anchors.left: parent.left
+            anchors.leftMargin: 16
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 3
+            Eyebrow {
+                text: tile.label
+                color: tile.fresh ? Theme.brass : Theme.textSecondary
+            }
+            Text {
+                text: "v" + tile.version
+                color: tile.fresh ? (Theme.light ? Qt.darker(Theme.accent, 1.2) : Theme.accent) : Theme.text
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontCardTitle
+                font.weight: Font.DemiBold
+            }
+        }
+    }
+
     contentItem: ColumnLayout {
         spacing: 12
 
-        // From which version to which: the one in use, then the new one.
+        // From which version to which: the orb, then the one in use and the
+        // new one on two quiet panes of glass, the new one lit.
         RowLayout {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
-            spacing: 8
-            Text {
-                text: qsTr("you have %1").arg(app.version)
-                color: Theme.textSecondary
-                font.pixelSize: Theme.fontSmall
+            spacing: 12
+            Image {
+                Layout.preferredWidth: 56
+                Layout.preferredHeight: 56
+                Layout.rightMargin: 6
+                source: "qrc:/icons/mark.png"
+                sourceSize.width: 112
+                sourceSize.height: 112
+                smooth: true
+                mipmap: true
             }
+            VersionTile { label: qsTr("In use"); version: app.version }
             Icon {
                 name: "chevron-right"
-                size: 14
+                size: 16
                 color: Theme.textSecondary
             }
-            Tag {
-                text: "v" + app.updateVersion
-                mono: true
-                tone: "accent"
-            }
-            Item { Layout.fillWidth: true }
+            VersionTile { label: qsTr("New"); version: app.updateVersion; fresh: true }
         }
 
         // What changed. The release body comes in markdown; it is shown as

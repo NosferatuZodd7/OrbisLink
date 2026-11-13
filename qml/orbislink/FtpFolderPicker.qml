@@ -233,9 +233,9 @@ Dialog {
                         implicitHeight: 32
                         padding: 0
                         background: Rectangle {
-                            radius: 8
-                            color: picker.norm(picker.selected) === parent.target ? Theme.accentFill
-                                 : parent.hovered ? Theme.alpha(Theme.ink, 0.05) : "transparent"
+                            radius: height / 2
+                            color: picker.norm(picker.selected) === parent.target ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
+                                 : parent.hovered ? Theme.controlFill : "transparent"
                         }
                         contentItem: RowLayout {
                             spacing: 8
@@ -263,15 +263,15 @@ Dialog {
             Rectangle {
                 Layout.fillHeight: true
                 implicitWidth: 1
-                color: Theme.glassEdge
+                color: Theme.rule
             }
 
-            // ── the tree, in a well
+            // ── the tree, in a well of glass
             Plate {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 sunken: true
-                radius: 14
+                radius: Theme.radius
                 clip: true
 
                 ListView {
@@ -300,9 +300,9 @@ Dialog {
                         enabled: !blocked
                         opacity: blocked ? 0.4 : 1.0
                         background: Rectangle {
-                            radius: 8
-                            color: node.current ? Theme.accentFill
-                                 : node.hovered ? Theme.alpha(Theme.ink, 0.05)
+                            radius: 10
+                            color: node.current ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
+                                 : node.hovered ? Theme.controlFill
                                  : "transparent"
                             border.width: node.current ? 1 : 0
                             border.color: Theme.alpha(Theme.accent, 0.6)
@@ -430,10 +430,11 @@ Dialog {
         width: 320
         padding: 14
         modal: false
-        background: Rectangle {
+        background: Plate {
+            level: "secondary"
+            radius: 16
             color: Theme.menuFill
-            border.color: Theme.glassEdge
-            radius: 14
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
         }
         function create() {
             var name = newFolderName.text.trim()

@@ -55,7 +55,7 @@ ColumnLayout {
     Rectangle {
         Layout.fillWidth: true
         visible: field.text.trim().length > 0
-        color: Theme.light ? Theme.alpha(Theme.ink, 0.04) : Qt.rgba(0, 0, 0, 0.16)
+        color: Theme.light ? Qt.rgba(1, 1, 1, 0.40) : Qt.rgba(0, 0, 0, 0.20)
         border.color: root.ok ? Theme.glassEdge
                               : Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.5)
         border.width: 1

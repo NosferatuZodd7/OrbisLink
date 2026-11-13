@@ -2,9 +2,9 @@
 //
 // The installs panel folded away while jobs go on: a narrow column with the
 // whole batch's progress on top and, under it, each job under way or
-// waiting — its picture with the same ring as its card, moving as the card
-// does. A click opens the panel again; once nothing is left to do, the
-// column goes. The spine it sits in draws the ground, so it draws none.
+// waiting — its picture on a small glass tile with the same ring as its card,
+// moving as the card does. A click opens the panel again; once nothing is
+// left to do, the column goes. The pane it sits in draws the glass.
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -40,13 +40,21 @@ Item {
         anchors.topMargin: 16
         spacing: 14
 
-        // The batch: how far it is, in a ring with a brass bead at its end.
+        // The batch: how far it is, in a ring on a glass disc, with a lit
+        // bead at its end.
         Item {
             anchors.horizontalCenter: parent.horizontalCenter
             width: 48
             height: 48
             readonly property real fraction: rail.panel ? rail.panel.fraction : 0
             onFractionChanged: total.requestPaint()
+            Rectangle {
+                anchors.fill: parent
+                radius: width / 2
+                color: Theme.controlFill
+                border.width: 1
+                border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+            }
             Canvas {
                 id: total
                 anchors.fill: parent
@@ -61,7 +69,7 @@ Item {
                     var cx = width / 2, cy = height / 2
                     ctx.lineWidth = 3
                     ctx.lineCap = "round"
-                    ctx.strokeStyle = Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.18)
+                    ctx.strokeStyle = Theme.light ? Qt.rgba(0, 0, 0, 0.08) : Qt.rgba(1, 1, 1, 0.10)
                     ctx.beginPath()
                     ctx.arc(cx, cy, r, 0, 2 * Math.PI)
                     ctx.stroke()
@@ -74,7 +82,7 @@ Item {
                     ctx.arc(cx, cy, r, -Math.PI / 2, end)
                     ctx.stroke()
                     if (f < 1) {
-                        ctx.fillStyle = Theme.brass
+                        ctx.fillStyle = "#FFFFFF"
                         ctx.beginPath()
                         ctx.arc(cx + r * Math.cos(end), cy + r * Math.sin(end), 3, 0, 2 * Math.PI)
                         ctx.fill()
@@ -91,10 +99,11 @@ Item {
             }
         }
 
-        Sparkle {
+        // A short fading hairline between the batch and its jobs.
+        EngravedRule {
             anchors.horizontalCenter: parent.horizontalCenter
-            size: 10
-            color: Theme.brass
+            width: 36
+            implicitHeight: 6
         }
 
         Repeater {
@@ -116,15 +125,15 @@ Item {
                     anchors.margins: -4
                     radius: 14
                     visible: slot.lit
-                    color: "transparent"
+                    color: Theme.light ? Qt.rgba(1, 1, 1, 0.6) : Qt.rgba(1, 1, 1, 0.07)
                     border.width: 1
-                    border.color: Theme.alpha(Theme.accent, 0.6)
+                    border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, 0.22)
                 }
                 Rectangle {
                     anchors.fill: parent
-                    radius: 10
+                    radius: 12
                     color: Theme.controlFill
-                    border.color: Theme.glassEdge
+                    border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Theme.glassEdge
                     opacity: slot.lit ? 1.0 : 0.7
                     CoverArt {
                         id: cover
@@ -147,7 +156,7 @@ Item {
                     anchors.fill: badge
                     anchors.margins: -2
                     radius: width / 2
-                    color: Theme.sidebarFill
+                    color: Theme.menuFill
                 }
                 StageLoader {
                     id: badge

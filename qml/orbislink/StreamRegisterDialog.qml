@@ -118,13 +118,24 @@ Dialog {
         spacing: 16
 
         // Step by step, because this always fails for the same reasons: an
-        // expired PIN or a swapped Account ID. Numbered as an atlas numbers
-        // its plates, with no box around them (the dialog is the box).
-        ColumnLayout {
+        // expired PIN or a swapped Account ID. Numbered steps on a quiet
+        // glass card, so they read as one set of instructions.
+        Plate {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
             Layout.topMargin: 6
+            implicitHeight: stepsColumn.implicitHeight + 28
+            radius: Theme.radius
+
+        ColumnLayout {
+            id: stepsColumn
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 14
+            anchors.leftMargin: 16
+            anchors.rightMargin: 16
             spacing: 10
 
             Repeater {
@@ -149,22 +160,22 @@ Dialog {
                     visible: modelData.text.length > 0
                     Layout.fillWidth: true
                     spacing: 12
-                    // The step's numeral in a small brass ring.
+                    // The step's numeral on a small glass disc.
                     Rectangle {
                         Layout.alignment: Qt.AlignTop
                         implicitWidth: 24
                         implicitHeight: 24
                         radius: 12
-                        color: "transparent"
+                        color: Theme.controlFill
                         border.width: 1
-                        border.color: Theme.alpha(Theme.brass, 0.7)
+                        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.06)
                         Text {
                             anchors.centerIn: parent
                             text: index + 1
-                            color: Theme.brass
-                            font.family: Theme.fontDisplay
-                            font.pixelSize: 13
-                            font.weight: Font.DemiBold
+                            color: Theme.ink
+                            font.family: Theme.fontMono
+                            font.pixelSize: 12
+                            font.weight: Font.Bold
                         }
                     }
                     Text {
@@ -180,13 +191,8 @@ Dialog {
             }
         }
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.leftMargin: Theme.dialogMargin
-            Layout.rightMargin: Theme.dialogMargin
-            implicitHeight: 1
-            color: Theme.glassEdge
         }
+
 
         // The fields, each under its own small-caps label.
         ColumnLayout {

@@ -153,11 +153,19 @@ ApplicationWindow {
     // The background the glass takes its light from.
     GlassBackground { anchors.fill: parent }
 
-    // The room: panes of glass floating over the background, with a little
-    // air between them and around them. In full screen only the picture.
+    // The window of glass the whole application sits in, floating over the
+    // room; inside it, its panes. In full screen only the picture.
+    Plate {
+        id: glassWindow
+        level: "window"
+        anchors.fill: parent
+        anchors.margins: window.streamFullscreen ? 0 : 16
+        visible: !window.streamFullscreen
+    }
+
     RowLayout {
         anchors.fill: parent
-        anchors.margins: window.streamFullscreen ? 0 : Theme.paneGap
+        anchors.margins: window.streamFullscreen ? 0 : 16 + 14
         spacing: window.streamFullscreen ? 0 : Theme.paneGap
 
         // ───────────────────────────── the navigation
@@ -213,7 +221,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     // In full screen the picture has the whole window.
-                    color: window.streamFullscreen ? "transparent" : Qt.rgba(Theme.panel.r, Theme.panel.g, Theme.panel.b, fillAlpha)
+                    color: window.streamFullscreen ? "transparent" : Qt.rgba(1, 1, 1, fillAlpha)
                     border.width: window.streamFullscreen ? 0 : 1
                     radius: window.streamFullscreen ? 0 : Theme.radiusPane
 

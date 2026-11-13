@@ -43,7 +43,8 @@ QtObject {
     property color brass: "#D8C3A0"
 
     // ── Glass: how much of the room shows through each weight of pane.
-    property real glassPrimary: 0.58
+    property real glassWindow: 0.38
+    property real glassPrimary: 0.07
     property real glassSecondary: 0.66
     property real glassSubtle: 0.06
     // The luminous edge: brightest along the top, where the light falls.
@@ -111,7 +112,8 @@ QtObject {
     // Glass has generous, continuous corners; what is pressed — buttons,
     // tags, chips — is round-ended. Never so round it looks like a toy.
     property int radius: 18          // cards and plates
-    readonly property int radiusPane: 26  // the floating panes of the window
+    readonly property int radiusWindow: 34 // the one pane the application sits in
+    readonly property int radiusPane: 24  // the panes inside it
     property int radiusControl: 18   // buttons: half their height
     property int radiusSmall: 12     // rows and the containers of chips
     readonly property int radiusField: 12
@@ -294,10 +296,11 @@ QtObject {
             panel = "#FFFFFF"
             panelAlt = "#FFFFFF"
             panelOpacity = 0.52
-            glassPrimary = 0.56
-            glassSecondary = 0.72
+            glassWindow = 0.30
+            glassPrimary = 0.34
+            glassSecondary = 0.80
             glassSubtle = 0.45
-            dialogOpacity = 0.90
+            dialogOpacity = 0.96
             glassHighlight = 0.0
             glassBorder = 0.0
             text = "#1C1B19"
@@ -328,10 +331,11 @@ QtObject {
             panel = "#2C2B30"
             panelAlt = "#38373D"
             panelOpacity = 0.40
-            glassPrimary = 0.42
-            glassSecondary = 0.55
+            glassWindow = 0.22
+            glassPrimary = 0.07
+            glassSecondary = 0.62
             glassSubtle = 0.08
-            dialogOpacity = 0.86
+            dialogOpacity = 0.93
             glassHighlight = 0.10
             glassBorder = 0.18
             text = "#F6F3EE"
@@ -362,10 +366,11 @@ QtObject {
             panel = "#28282C"
             panelAlt = "#323237"
             panelOpacity = 0.58
-            glassPrimary = 0.60
-            glassSecondary = 0.70
+            glassWindow = 0.30
+            glassPrimary = 0.06
+            glassSecondary = 0.78
             glassSubtle = 0.06
-            dialogOpacity = 0.92
+            dialogOpacity = 0.96
             glassHighlight = 0.07
             glassBorder = 0.14
             text = "#F4F1EA"

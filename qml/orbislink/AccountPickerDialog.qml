@@ -122,14 +122,16 @@ Dialog {
                 Layout.fillWidth: true
                 Layout.leftMargin: Theme.dialogMargin
                 Layout.rightMargin: Theme.dialogMargin
-                // A light plate per account: an ink wash on hover, the
-                // accent when picked.
+                // A glass row per account: faint glass, brighter under the
+                // mouse, and a bright glass pill with an accent edge when picked.
                 implicitHeight: 60
-                radius: Theme.radiusSmall + 2
-                color: picked ? Theme.accentFill
-                     : rowArea.containsMouse ? Theme.alpha(Theme.ink, 0.05) : "transparent"
+                radius: Theme.radius
+                color: picked ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
+                     : rowArea.containsMouse ? Theme.controlHover
+                     : (Theme.light ? Qt.rgba(1, 1, 1, 0.40) : Qt.rgba(1, 1, 1, 0.04))
                 border.width: 1
-                border.color: picked ? Theme.alpha(Theme.accent, 0.6) : Theme.glassEdge
+                border.color: picked ? Theme.alpha(Theme.accent, 0.65)
+                            : Theme.light ? Qt.rgba(1, 1, 1, 0.9) : Theme.glassEdge
                 Behavior on color { ColorAnimation { duration: Theme.fast } }
 
                 MouseArea {
@@ -159,7 +161,7 @@ Dialog {
                         radius: 9
                         color: "transparent"
                         border.width: 2
-                        border.color: row.picked ? Theme.accent : Theme.alpha(Theme.ink, 0.4)
+                        border.color: row.picked ? Theme.accent : Theme.alpha(Theme.ink, 0.3)
                         Rectangle {
                             anchors.centerIn: parent
                             width: 8
@@ -178,7 +180,7 @@ Dialog {
                             color: Theme.ink
                             font.family: Theme.fontDisplay
                             font.pixelSize: 15
-                            font.weight: Font.DemiBold
+                            font.weight: Font.Bold
                             elide: Text.ElideRight
                         }
                         Row {

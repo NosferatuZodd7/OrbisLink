@@ -75,30 +75,32 @@ Item {
     opacity: active ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: 140 } }
 
-    // The whole window dims; the picture keeps going underneath.
+    // The whole window dims a little; the picture keeps going underneath.
     Rectangle {
         anchors.fill: parent
-        color: Theme.light ? Qt.rgba(32 / 255, 43 / 255, 50 / 255, 0.55) : Qt.rgba(4 / 255, 10 / 255, 18 / 255, 0.78)
+        color: Theme.light ? Qt.rgba(40 / 255, 36 / 255, 30 / 255, 0.30) : Qt.rgba(0, 0, 0, 0.55)
     }
 
-    // The sheet: a single ornate plate (brass double edge), since for the
-    // moment of a drop it is the only thing on screen that matters.
+    // The sheet: a card of floating glass that rises into place, holding
+    // the two big glass targets.
     Plate {
         id: sheet
+        level: "secondary"
         anchors.centerIn: parent
+        anchors.verticalCenterOffset: root.active ? 0 : 8
+        Behavior on anchors.verticalCenterOffset { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
         width: Math.min(parent.width - 80, 760)
-        height: Math.min(parent.height - 80, 460)
-        radius: Theme.radiusDialog + 6
-        ornate: true
-        color: Theme.dialogFill
-        scale: root.active ? 1.0 : 0.96
-        Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        height: Math.min(parent.height - 80, 440)
+        radius: Theme.radiusPane + 6
+        // Nearly opaque: what is under it must not compete with the targets.
+        color: Qt.rgba(Theme.panel.r, Theme.panel.g, Theme.panel.b, Theme.light ? 0.95 : 0.93)
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.08)
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 32
-            anchors.topMargin: 28
-            spacing: 6
+            anchors.margins: 24
+            anchors.topMargin: 26
+            spacing: 4
 
             Eyebrow {
                 Layout.alignment: Qt.AlignHCenter
@@ -112,16 +114,11 @@ Item {
                 color: Theme.ink
                 font.pixelSize: Theme.fontTitle
                 font.family: Theme.fontDisplay
-                font.weight: Font.DemiBold
+                font.weight: Font.Bold
+                font.letterSpacing: -0.4
             }
 
-            EngravedRule {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: 220
-                Layout.topMargin: 4
-                Layout.bottomMargin: 14
-                star: true
-            }
+            Item { Layout.preferredHeight: 16 }
 
             RowLayout {
                 Layout.fillWidth: true

@@ -113,7 +113,7 @@ Item {
             radius: 3.5
             color: root.tone
             border.width: 1.5
-            border.color: Theme.panel
+            border.color: Theme.menuFill
             // A soft ring when it is up, like the other lit things.
             Rectangle {
                 anchors.centerIn: parent
@@ -156,11 +156,15 @@ Item {
         bottomPadding: 12
         width: Math.min(380, Math.max(titleRow.implicitWidth, hintText.implicitWidth) + leftPadding + rightPadding)
 
-        background: Rectangle {
-            color: Theme.dialogFill
-            radius: 14
-            border.width: 1
-            border.color: Theme.border
+        // A small card of floating glass.
+        background: Plate {
+            level: "secondary"
+            radius: 16
+            color: Theme.menuFill
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+        }
+        enter: Transition {
+            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.fast; easing.type: Theme.easeOut }
         }
 
         contentItem: Column {
@@ -178,14 +182,14 @@ Item {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.label
-                    color: Theme.text
+                    color: Theme.ink
                     font.pixelSize: 13
-                    font.weight: Font.DemiBold
+                    font.weight: Font.Bold
                 }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.stateWord
-                    color: root.tone
+                    color: Theme.light ? Qt.darker(root.tone, 1.3) : root.tone
                     font.pixelSize: 12
                     font.weight: Font.Medium
                 }

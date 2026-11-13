@@ -21,6 +21,13 @@ Dialog {
 
     property bool followTail: true
     property string filter: ""
+    // How many warnings and errors the lines on screen hold, for the strip
+    // of figures at the top.
+    property int warnCount: 0
+    property int errorCount: 0
+
+    function isError(level) { return level === "ERRO" || level === "ERROR" }
+    function isWarning(level) { return level === "AVISO" || level === "WARNING" }
 
     // A nearly opaque modal: with the panels' transparency, what is behind
     // would show through the box, and a box asking for a decision must not
@@ -57,6 +64,8 @@ Dialog {
 
     function load() {
         lines.clear()
+        warnCount = 0
+        errorCount = 0
         var recent = app.recentLog(1000)
         for (var i = 0; i < recent.length; ++i)
             append(recent[i])
@@ -72,8 +81,14 @@ Dialog {
         if (openAt > 0 && closeAt > openAt)
             level = line.substring(openAt + 1, closeAt)
         lines.append({ "message": line, "level": level })
-        while (lines.count > 2000)
+        if (isError(level)) errorCount++
+        else if (isWarning(level)) warnCount++
+        while (lines.count > 2000) {
+            var gone = lines.get(0).level
+            if (isError(gone)) errorCount--
+            else if (isWarning(gone)) warnCount--
             lines.remove(0)
+        }
     }
 
     onOpened: load()
@@ -146,60 +161,120 @@ Dialog {
         }
     }
 
+    // A figure of the log on a quiet pane of glass, as the dashboard shows
+    // its own: the number large, what it counts in small capitals. A click
+    // shows only those lines (a second click shows everything again).
+    component StatTile: Plate {
+        id: tile
+        property string label: ""
+        property int value: 0
+        property color tone: Theme.ink
+        property string filterKey: ""
+        readonly property bool chosen: filterKey.length > 0 && dialog.filter === filterKey
+        Layout.fillWidth: true
+        Layout.preferredHeight: 64
+        hoverable: filterKey.length > 0
+        color: chosen ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
+                      : Theme.light ? Qt.rgba(1, 1, 1, 0.45) : Qt.rgba(1, 1, 1, hovered ? 0.07 : 0.045)
+        Accessible.role: filterKey.length > 0 ? Accessible.Button : Accessible.StaticText
+        Accessible.name: label + ": " + value
+        ColumnLayout {
+            anchors.left: parent.left
+            anchors.leftMargin: 18
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 2
+            Eyebrow { text: tile.label; color: Theme.textSecondary }
+            Text {
+                text: tile.value
+                color: tile.value > 0 ? (Theme.light ? Qt.darker(tile.tone, 1.3) : tile.tone) : Theme.ink
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontHeading
+                font.weight: Font.DemiBold
+            }
+        }
+        MouseArea {
+            anchors.fill: parent
+            enabled: tile.filterKey.length > 0
+            cursorShape: Qt.PointingHandCursor
+            onClicked: dialog.filter = tile.chosen ? "" : tile.filterKey
+        }
+    }
+
     contentItem: ColumnLayout {
         spacing: 12
 
-        // The tools over the log: what to show on the left, how the log runs
-        // on the right.
+        // The figures: lines, warnings, errors; and how the log runs.
         RowLayout {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
             Layout.topMargin: 4
-            spacing: 8
-            StyledField {
-                id: filterField
-                Layout.fillWidth: true
-                Layout.maximumWidth: 360
-                leftPadding: 38
-                placeholderText: qsTr("filter (e.g. Remote Play, FAILED, FTP)")
-                text: dialog.filter
-                onTextChanged: dialog.filter = text
-                Icon {
-                    anchors.left: parent.left
-                    anchors.leftMargin: 14
-                    anchors.verticalCenter: parent.verticalCenter
-                    name: "search"
-                    size: 15
-                    color: Theme.textSecondary
+            spacing: 10
+            StatTile { label: qsTr("Lines"); value: lines.count }
+            StatTile { label: qsTr("Warnings"); value: dialog.warnCount; tone: Theme.warn; filterKey: "WARNING" }
+            StatTile { label: qsTr("Errors"); value: dialog.errorCount; tone: Theme.error; filterKey: "ERROR" }
+        }
+
+        // The tools over the log, on a glass bar: what to show on the left,
+        // how the log runs on the right.
+        Plate {
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.dialogMargin
+            Layout.rightMargin: Theme.dialogMargin
+            Layout.preferredHeight: toolRow.implicitHeight + 12
+            radius: height / 2
+            color: Theme.light ? Qt.rgba(1, 1, 1, 0.45) : Qt.rgba(1, 1, 1, 0.045)
+
+            RowLayout {
+                id: toolRow
+                anchors.fill: parent
+                anchors.leftMargin: 6
+                anchors.rightMargin: 16
+                spacing: 8
+                StyledField {
+                    id: filterField
+                    Layout.fillWidth: true
+                    Layout.maximumWidth: 360
+                    leftPadding: 38
+                    placeholderText: qsTr("filter (e.g. Remote Play, FAILED, FTP)")
+                    text: dialog.filter
+                    onTextChanged: dialog.filter = text
+                    Icon {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "search"
+                        size: 15
+                        color: Theme.textSecondary
+                    }
                 }
-            }
-            StyledButton {
-                chip: true
-                iconName: "alert"
-                text: qsTr("Errors only")
-                primary: dialog.filter === "ERROR"
-                onClicked: dialog.filter = dialog.filter === "ERROR" ? "" : "ERROR"
-            }
-            StyledButton {
-                chip: true
-                text: qsTr("Clear filter")
-                enabled: dialog.filter.length > 0
-                onClicked: dialog.filter = ""
-            }
-            Item { Layout.fillWidth: true }
-            StyledCheck {
-                Layout.fillWidth: false
-                text: qsTr("Remote Play detail")
-                checked: app.streamVerbose()
-                onCheckedChanged: app.setStreamVerbose(checked)
-            }
-            Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: Theme.glassEdge }
-            StyledCheck {
-                Layout.fillWidth: false
-                text: qsTr("Follow the tail")
-                checked: dialog.followTail
-                onCheckedChanged: dialog.followTail = checked
+                StyledButton {
+                    chip: true
+                    iconName: "alert"
+                    text: qsTr("Errors only")
+                    primary: dialog.filter === "ERROR"
+                    onClicked: dialog.filter = dialog.filter === "ERROR" ? "" : "ERROR"
+                }
+                StyledButton {
+                    chip: true
+                    text: qsTr("Clear filter")
+                    enabled: dialog.filter.length > 0
+                    onClicked: dialog.filter = ""
+                }
+                Item { Layout.fillWidth: true }
+                StyledCheck {
+                    Layout.fillWidth: false
+                    text: qsTr("Remote Play detail")
+                    checked: app.streamVerbose()
+                    onCheckedChanged: app.setStreamVerbose(checked)
+                }
+                Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 20; color: Theme.glassEdge }
+                StyledCheck {
+                    Layout.fillWidth: false
+                    text: qsTr("Follow the tail")
+                    checked: dialog.followTail
+                    onCheckedChanged: dialog.followTail = checked
+                }
             }
         }
 

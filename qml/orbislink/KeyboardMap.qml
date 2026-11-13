@@ -285,18 +285,18 @@ Item {
             height: keyMap.unit - keyMap.slack
             radius: Math.round(keyMap.unit * 0.2)
 
-            // The useful keys are printed: an ink wash and an inked edge, so
-            // they stand out from the dimmed ones on paper and at night.
+            // The useful keys are small tiles of glass with a lit edge, so
+            // they stand out from the dimmed ones in both appearances.
             color: held ? Theme.alpha(Theme.accent, 0.42)
                  : chosenHere || hover ? Theme.accentFill
                  : !useful ? "transparent"
-                 : Theme.light ? Theme.alpha(Theme.ink, 0.07)
-                 : Qt.rgba(Theme.panelAlt.r, Theme.panelAlt.g, Theme.panelAlt.b, 0.9)
+                 : Theme.light ? Qt.rgba(1, 1, 1, 0.85)
+                 : Qt.rgba(1, 1, 1, 0.09)
             border.width: chosenHere || held ? 2 : 1
             border.color: chosenHere || hover || held ? Theme.accent
                         : !useful ? Theme.alpha(Theme.ink, 0.10)
-                        : Theme.light ? Theme.alpha(Theme.ink, 0.30)
-                        : Theme.glassEdge
+                        : Theme.light ? Theme.alpha(Theme.ink, 0.18)
+                        : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.08)
             scale: held ? 0.94 : hover || chosenHere ? 1.06 : 1.0
             z: hover || chosenHere || held ? 1 : 0
             Behavior on scale { NumberAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }

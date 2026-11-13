@@ -1,4 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// The console's files, in the transfers pane: a glass address pill (up, the
+// path, refresh), the pinned folders as glass chips, the folder's contents
+// in a well of glass — each row an icon tile, the name, the size, More and
+// the bin, a brighter glass pill when picked — then the folder's count and
+// size, and a composer pill to make a new folder. Picking rows swaps the
+// composer for a floating glass bar of what can be done with them all.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -149,55 +156,89 @@ Item {
         anchors.topMargin: 12
         spacing: 10
 
-        // Where the list is: the path in mono, with up and refresh as round
-        // buttons on either side of it.
-        RowLayout {
+        // Where the list is: one glass address pill, with up on its left,
+        // the path in mono and refresh on its right.
+        Rectangle {
+            id: addressPill
             Layout.fillWidth: true
-            spacing: 4
+            implicitHeight: 40
+            radius: height / 2
+            color: Theme.light ? Qt.rgba(1, 1, 1, pathField.activeFocus ? 0.92 : 0.66)
+                               : Qt.rgba(0, 0, 0, pathField.activeFocus ? 0.30 : 0.20)
+            border.width: 1
+            border.color: pathField.activeFocus ? Theme.accent
+                        : Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Theme.glassEdge
+            Behavior on border.color { ColorAnimation { duration: Theme.fast } }
+            // The focus glow, around it.
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: -3
+                radius: height / 2
+                z: -1
+                visible: pathField.activeFocus
+                color: "transparent"
+                border.width: 3
+                border.color: Theme.alpha(Theme.accent, 0.20)
+            }
 
-            StyledToolButton {
-                iconName: "arrow-up"
-                iconSize: 16
-                implicitWidth: 34
-                implicitHeight: 34
-                onClicked: app.ftpUp()
-                enabled: !app.ftpBusy
-                Accessible.name: qsTr("Up one folder")
-                ToolTip.visible: hovered
-                ToolTip.delay: 400
-                ToolTip.text: qsTr("Up one folder")
-            }
-            StyledField {
-                id: pathField
-                Layout.fillWidth: true
-                implicitHeight: 34
-                leftPadding: 12
-                rightPadding: 12
-                text: app.ftpPath
-                font.family: Theme.fontMono
-                font.pixelSize: Theme.fontSmall
-                Accessible.name: qsTr("Folder on the console")
-                onAccepted: app.ftpNavigate(text)
-            }
-            // While the folder is being read, its icon turns: the rows stay
-            // where they are, with nothing over them.
-            StyledToolButton {
-                iconName: "refresh"
-                iconSize: 16
-                implicitWidth: 34
-                implicitHeight: 34
-                spinning: app.ftpBusy
-                onClicked: app.ftpRefresh()
-                enabled: !app.ftpBusy
-                Accessible.name: qsTr("Refresh")
-                ToolTip.visible: hovered
-                ToolTip.delay: 400
-                ToolTip.text: qsTr("Refresh")
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 4
+                anchors.rightMargin: 4
+                spacing: 2
+
+                StyledToolButton {
+                    iconName: "arrow-up"
+                    iconSize: 16
+                    implicitWidth: 32
+                    implicitHeight: 32
+                    onClicked: app.ftpUp()
+                    enabled: !app.ftpBusy
+                    Accessible.name: qsTr("Up one folder")
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: qsTr("Up one folder")
+                }
+                Rectangle {
+                    implicitWidth: 1
+                    implicitHeight: 18
+                    color: Theme.rule
+                }
+                StyledField {
+                    id: pathField
+                    Layout.fillWidth: true
+                    implicitHeight: 34
+                    leftPadding: 10
+                    rightPadding: 8
+                    text: app.ftpPath
+                    font.family: Theme.fontMono
+                    font.pixelSize: Theme.fontSmall
+                    // The pill is its frame.
+                    background: Item { }
+                    Accessible.name: qsTr("Folder on the console")
+                    onAccepted: app.ftpNavigate(text)
+                }
+                // While the folder is being read, its icon turns: the rows
+                // stay where they are, with nothing over them.
+                StyledToolButton {
+                    iconName: "refresh"
+                    iconSize: 16
+                    implicitWidth: 32
+                    implicitHeight: 32
+                    spinning: app.ftpBusy
+                    onClicked: app.ftpRefresh()
+                    enabled: !app.ftpBusy
+                    Accessible.name: qsTr("Refresh")
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: qsTr("Refresh")
+                }
             }
         }
 
-        // Pinned folders, as round tags under their label: a click opens
-        // one, its ✕ unpins it; the last tag pins the folder that is open.
+        // Pinned folders, as glass chips under their label: a click opens
+        // one (the folder open is the brighter chip), its ✕ unpins it; the
+        // last chip pins the folder that is open.
         Eyebrow {
             Layout.topMargin: 2
             text: qsTr("Pinned")
@@ -215,11 +256,12 @@ Item {
                     implicitWidth: tagRow.implicitWidth + 18
                     implicitHeight: 28
                     radius: height / 2
-                    color: here ? Theme.accentFill
-                         : tagHover.hovered ? Theme.alpha(Theme.ink, 0.07) : "transparent"
+                    color: here ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
+                         : tagHover.hovered ? Theme.controlHover : Theme.controlFill
                     border.width: 1
-                    border.color: here ? Theme.alpha(Theme.accent, 0.6)
-                                : tagHover.hovered ? Theme.alpha(Theme.ink, 0.35) : Theme.glassEdge
+                    border.color: here ? Theme.alpha(Theme.accent, 0.55)
+                                : Theme.light ? Qt.rgba(1, 1, 1, tagHover.hovered ? 1 : 0.85)
+                                : Qt.rgba(1, 1, 1, Theme.glassBorder + (tagHover.hovered ? 0.12 : 0))
                     Behavior on color { ColorAnimation { duration: Theme.fast } }
 
                     HoverHandler { id: tagHover; cursorShape: Qt.PointingHandCursor }
@@ -234,7 +276,8 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             name: tag.modelData.indexOf("/mnt/") === 0 ? "hard-drive" : "folder"
                             size: 12
-                            color: tag.here ? Theme.accent : Theme.textSecondary
+                            color: tag.here ? (Theme.light ? Qt.darker(Theme.accent, 1.3) : Theme.accent)
+                                            : Theme.textSecondary
                         }
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
@@ -277,14 +320,14 @@ Item {
             }
         }
 
-        // The folder's contents: a well one step below the spine, its rows
-        // between hairlines.
+        // The folder's contents: a well of glass one step below the pane,
+        // its rows between hairlines.
         Plate {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.topMargin: 2
             sunken: true
-            radius: 14
+            radius: Theme.radius
 
             ListView {
                 id: files
@@ -303,7 +346,7 @@ Item {
                     // Being deleted: the row says so where it is.
                     readonly property bool deleting: app.ftpDeleting.indexOf(model.path) >= 0
                     readonly property bool picked: root.picked[model.path] === true
-                    height: 36
+                    height: 40
                     opacity: deleting ? 0.55 : 1.0
                     Behavior on opacity { NumberAnimation { duration: Theme.fast } }
                     // The Basic style pads 12px all round, which in a 34px row
@@ -314,12 +357,13 @@ Item {
                     leftPadding: 8
                     rightPadding: 6
 
-                    // The row under the mouse lights up, a picked one stays lit;
-                    // an upload draws its progress along the bottom.
+                    // The row under the mouse becomes a glass pill, a picked one
+                    // a brighter pill; an upload draws its progress along the
+                    // bottom.
                     background: Rectangle {
-                        radius: 8
-                        color: row.picked ? Theme.accentFill
-                             : row.hovered ? Theme.alpha(Theme.ink, 0.05) : "transparent"
+                        radius: 12
+                        color: row.picked ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
+                             : row.hovered ? Theme.controlFill : "transparent"
                         border.width: row.picked ? 1 : 0
                         border.color: Theme.alpha(Theme.accent, 0.45)
                         Behavior on color { ColorAnimation { duration: Theme.fast } }
@@ -329,10 +373,11 @@ Item {
                             anchors.left: parent.left
                             anchors.right: parent.right
                             anchors.bottom: parent.bottom
-                            anchors.leftMargin: 8
-                            anchors.rightMargin: 8
+                            anchors.leftMargin: 12
+                            anchors.rightMargin: 12
                             height: 1
-                            color: Theme.glassEdge
+                            color: Theme.rule
+                            opacity: row.hovered ? 0 : 0.6
                         }
                         Rectangle {
                             visible: row.arriving
@@ -383,47 +428,65 @@ Item {
                     contentItem: RowLayout {
                         spacing: 8
 
-                        // The round mark that picks the row: under the mouse,
-                        // and on every row while some are picked.
-                        Rectangle {
-                            Layout.preferredWidth: 18
-                            Layout.preferredHeight: 18
-                            radius: 9
-                            opacity: root.picking || row.hovered ? 1.0 : 0.0
-                            Behavior on opacity { NumberAnimation { duration: Theme.fast } }
-                            color: row.picked ? Theme.accent : "transparent"
-                            border.width: 1.5
-                            border.color: row.picked ? Theme.accent : Theme.alpha(Theme.textSecondary, 0.7)
-                            Icon {
-                                anchors.centerIn: parent
-                                visible: row.picked
-                                name: "check"
-                                size: 11
-                                strokeWidth: 3
-                                color: "#FFFFFF"
-                            }
-                            HoverHandler { cursorShape: Qt.PointingHandCursor }
-                            TapHandler { onTapped: root.togglePick(index, model.path) }
-                        }
-
                         Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
 
                             RowLayout {
                                 anchors.fill: parent
-                                spacing: 8
-                                Icon {
-                                    name: model.isDirectory ? "folder" : (row.localUrl.length > 0 ? "download" : "file")
-                                    size: 15
-                                    color: model.isDirectory ? Theme.accent : Theme.textSecondary
+                                spacing: 10
+                                // The kind of thing on a small glass tile. Under the
+                                // mouse, and on every row while some are picked,
+                                // the tile turns into the round mark that picks
+                                // the row (a click on it picks; see dragArea).
+                                Item {
+                                    id: kindTile
+                                    readonly property bool marking: root.picking || row.hovered
+                                    implicitWidth: 26
+                                    implicitHeight: 26
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        radius: 8
+                                        color: model.isDirectory ? Theme.accentFill : Theme.controlFill
+                                        border.width: 1
+                                        border.color: model.isDirectory ? Theme.alpha(Theme.accent, 0.35)
+                                                    : Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Theme.glassEdge
+                                        opacity: kindTile.marking ? 0 : 1
+                                        Behavior on opacity { NumberAnimation { duration: Theme.fast } }
+                                        Icon {
+                                            anchors.centerIn: parent
+                                            name: model.isDirectory ? "folder" : (row.localUrl.length > 0 ? "download" : "file")
+                                            size: 14
+                                            color: model.isDirectory ? (Theme.light ? Qt.darker(Theme.accent, 1.3) : Theme.accent)
+                                                                     : Theme.textSecondary
+                                        }
+                                    }
+                                    Rectangle {
+                                        anchors.centerIn: parent
+                                        width: 20
+                                        height: 20
+                                        radius: 10
+                                        opacity: kindTile.marking ? 1 : 0
+                                        Behavior on opacity { NumberAnimation { duration: Theme.fast } }
+                                        color: row.picked ? Theme.accent : (Theme.light ? Qt.rgba(1, 1, 1, 0.9) : Qt.rgba(1, 1, 1, 0.06))
+                                        border.width: 1.5
+                                        border.color: row.picked ? Theme.accent : Theme.alpha(Theme.textSecondary, 0.7)
+                                        Icon {
+                                            anchors.centerIn: parent
+                                            visible: row.picked
+                                            name: "check"
+                                            size: 11
+                                            strokeWidth: 3
+                                            color: "#FFFFFF"
+                                        }
+                                    }
                                 }
                                 Text {
                                     Layout.fillWidth: true
                                     text: model.name
                                     color: model.isDirectory ? Theme.ink : Theme.text
                                     font.pixelSize: Theme.fontSmall + 1
-                                    font.weight: model.isDirectory ? Font.Medium : Font.Normal
+                                    font.weight: model.isDirectory ? Font.DemiBold : Font.Medium
                                     elide: Text.ElideMiddle
                                 }
                             }
@@ -452,6 +515,11 @@ Item {
                                     if (dragged)
                                         return
                                     if (mouse.button === Qt.LeftButton) {
+                                        // On the round mark: pick the row.
+                                        if (mouse.x <= 30 && (row.hovered || root.picking)) {
+                                            root.togglePick(index, model.path)
+                                            return
+                                        }
                                         if (mouse.modifiers & Qt.ShiftModifier) {
                                             root.pickRange(index)
                                             return
@@ -515,7 +583,7 @@ Item {
                                 Rectangle {
                                     anchors.fill: parent
                                     anchors.margins: -4
-                                    radius: 8
+                                    radius: 12
                                     visible: parent.containsDrag
                                     color: Theme.alpha(Theme.accent, 0.12)
                                     border.width: 1
@@ -573,16 +641,26 @@ Item {
                     }
                 }
 
-                // Nothing here: a small star and one quiet line.
+                // Nothing here: an empty folder on a glass disc, one quiet line.
                 Column {
                     anchors.centerIn: parent
                     width: parent.width - 32
                     visible: files.count === 0 && !app.ftpBusy
-                    spacing: 10
-                    Sparkle {
+                    spacing: 12
+                    Rectangle {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        size: 16
-                        opacity: 0.7
+                        width: 52
+                        height: 52
+                        radius: 26
+                        color: Theme.controlFill
+                        border.width: 1
+                        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.04)
+                        Icon {
+                            anchors.centerIn: parent
+                            name: "folder-open"
+                            size: 22
+                            color: Theme.textSecondary
+                        }
                     }
                     Text {
                         width: parent.width
@@ -612,18 +690,18 @@ Item {
                 }
             }
 
-            // A word that something went to the queue, for a moment.
-            Rectangle {
+            // A word that something went to the queue, for a moment: a small
+            // pill of floating glass.
+            Plate {
                 id: notice
+                level: "secondary"
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: 10
-                width: Math.min(parent.width - 24, noticeText.implicitWidth + 28)
-                height: 30
-                radius: 15
+                anchors.bottomMargin: 12
+                width: Math.min(parent.width - 24, noticeText.implicitWidth + 32)
+                height: 32
+                radius: 16
                 color: Theme.menuFill
-                border.width: 1
-                border.color: Theme.alpha(Theme.accent, 0.5)
                 opacity: 0
                 visible: opacity > 0
                 Behavior on opacity { NumberAnimation { duration: Theme.normal } }
@@ -653,6 +731,8 @@ Item {
         // console's server says.
         Text {
             Layout.fillWidth: true
+            Layout.leftMargin: 6
+            Layout.rightMargin: 6
             readonly property var space: app.ftpSpace
             visible: files.count > 0
             text: {
@@ -692,7 +772,7 @@ Item {
                 Layout.fillWidth: true
                 height: 3
                 radius: 1.5
-                color: Theme.alpha(Theme.accent, 0.18)
+                color: Theme.light ? Qt.rgba(0, 0, 0, 0.08) : Qt.rgba(1, 1, 1, 0.09)
                 Rectangle {
                     width: parent.width * Math.max(0, Math.min(1, app.downloadProgress))
                     height: parent.height
@@ -719,15 +799,16 @@ Item {
             }
         }
 
-        // What can be done with the rows picked, all at once: in place of the
-        // new folder's field, so the rows never move under the mouse.
-        Rectangle {
+        // What can be done with the rows picked, all at once: a floating
+        // glass bar in place of the new folder's composer, so the rows never
+        // move under the mouse.
+        Plate {
             Layout.fillWidth: true
             visible: root.picking
-            implicitHeight: 40
+            level: "secondary"
+            implicitHeight: 42
             radius: height / 2
-            color: Theme.accentFill
-            border.width: 1
+            color: Theme.menuFill
             border.color: Theme.alpha(Theme.accent, 0.45)
 
             RowLayout {
@@ -806,28 +887,52 @@ Item {
             }
         }
 
-        RowLayout {
+        // A new folder: one glass composer pill — the name on the left,
+        // Create on the right, which becomes the solid button once there is
+        // a name to make.
+        Rectangle {
             Layout.fillWidth: true
             visible: !root.picking
-            spacing: 6
-            StyledField {
-                id: newFolderName
-                Layout.fillWidth: true
-                implicitHeight: 36
-                font.pixelSize: Theme.fontSmall
-                placeholderText: qsTr("New folder name")
-                onAccepted: if (text.trim().length > 0 && !app.ftpBusy) create()
-                function create() {
-                    app.ftpMakeDirectory(text.trim())
-                    text = ""
+            implicitHeight: 42
+            radius: height / 2
+            color: Theme.light ? Qt.rgba(1, 1, 1, newFolderName.activeFocus ? 0.92 : 0.66)
+                               : Qt.rgba(0, 0, 0, newFolderName.activeFocus ? 0.30 : 0.20)
+            border.width: 1
+            border.color: newFolderName.activeFocus ? Theme.accent
+                        : Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Theme.glassEdge
+            Behavior on border.color { ColorAnimation { duration: Theme.fast } }
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 14
+                anchors.rightMargin: 4
+                spacing: 6
+                Icon {
+                    name: "folder-plus"
+                    size: 15
+                    color: Theme.textSecondary
                 }
-            }
-            StyledButton {
-                implicitHeight: 36
-                text: qsTr("Create")
-                iconName: "folder-plus"
-                enabled: newFolderName.text.trim().length > 0 && !app.ftpBusy
-                onClicked: newFolderName.create()
+                StyledField {
+                    id: newFolderName
+                    Layout.fillWidth: true
+                    implicitHeight: 34
+                    leftPadding: 4
+                    font.pixelSize: Theme.fontSmall
+                    placeholderText: qsTr("New folder name")
+                    background: Item { }
+                    onAccepted: if (text.trim().length > 0 && !app.ftpBusy) create()
+                    function create() {
+                        app.ftpMakeDirectory(text.trim())
+                        text = ""
+                    }
+                }
+                StyledButton {
+                    implicitHeight: 34
+                    text: qsTr("Create")
+                    primary: enabled
+                    enabled: newFolderName.text.trim().length > 0 && !app.ftpBusy
+                    onClicked: newFolderName.create()
+                }
             }
         }
     }
@@ -860,26 +965,13 @@ Item {
         topPadding: 8
         bottomPadding: 8
 
-        background: Rectangle {
+        // Floating glass, with its soft shadow and lit upper edge.
+        background: Plate {
             implicitWidth: 300
+            level: "secondary"
+            radius: 16
             color: Theme.menuFill
-            border.color: Theme.glassEdge
-            border.width: 1
-            radius: 14
-
-            // A soft shadow, so the menu reads as floating over the list.
-            Repeater {
-                model: 3
-                Rectangle {
-                    anchors.fill: parent
-                    anchors.margins: -(index + 1) * 3
-                    radius: parent.radius + (index + 1) * 3
-                    color: "transparent"
-                    border.width: 3
-                    border.color: Qt.rgba(0, 0, 0, Theme.light ? 0.04 - index * 0.012 : 0.16 - index * 0.05)
-                    z: -1
-                }
-            }
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
         }
 
         // Header with the name and size, so there is no doubt about which
@@ -895,13 +987,13 @@ Item {
                 anchors.topMargin: 6
                 anchors.bottomMargin: 6
                 spacing: 12
-                // The kind of thing in a small round seal.
+                // The kind of thing on a small glass tile.
                 Rectangle {
-                    implicitWidth: 34
-                    implicitHeight: 34
-                    radius: 17
+                    implicitWidth: 36
+                    implicitHeight: 36
+                    radius: 11
                     color: rowMenu.targetIsDirectory ? Theme.accentFill : Theme.controlFill
-                    border.color: Theme.glassEdge
+                    border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
                     Icon {
                         anchors.centerIn: parent
                         name: rowMenu.targetIsDirectory ? "folder" : "file"
@@ -918,7 +1010,7 @@ Item {
                         color: Theme.ink
                         font.family: Theme.fontDisplay
                         font.pixelSize: 15
-                        font.weight: Font.DemiBold
+                        font.weight: Font.Bold
                         elide: Text.ElideMiddle
                     }
                     Text {
@@ -937,7 +1029,7 @@ Item {
             padding: 6
             leftPadding: 16
             rightPadding: 16
-            contentItem: Rectangle { implicitHeight: 1; color: Theme.glassEdge }
+            contentItem: Rectangle { implicitHeight: 1; color: Theme.rule }
         }
 
         StyledMenuItem {
@@ -1011,7 +1103,7 @@ Item {
             padding: 6
             leftPadding: 16
             rightPadding: 16
-            contentItem: Rectangle { implicitHeight: 1; color: Theme.glassEdge }
+            contentItem: Rectangle { implicitHeight: 1; color: Theme.rule }
         }
 
         StyledMenuItem {
