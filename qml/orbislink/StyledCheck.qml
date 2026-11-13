@@ -27,8 +27,8 @@ CheckBox {
         x: control.width - width - control.rightPadding
         y: (control.height - height) / 2
         radius: height / 2
-        color: control.checked ? Theme.accent
-             : Theme.light ? "#D6C7A2" : Qt.rgba(243 / 255, 232 / 255, 204 / 255, 0.16)
+        color: control.checked ? Theme.ok
+             : Theme.light ? Qt.rgba(30 / 255, 28 / 255, 24 / 255, 0.14) : Qt.rgba(1, 1, 1, 0.14)
         Behavior on color { ColorAnimation { duration: Theme.fast } }
 
         Rectangle {
@@ -37,7 +37,9 @@ CheckBox {
             radius: 9
             y: 3
             x: control.checked ? parent.width - width - 3 : 3
-            color: "#FBF6EA"
+            color: "#FFFFFF"
+            border.width: 1
+            border.color: Qt.rgba(0, 0, 0, 0.08)
             Behavior on x { NumberAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
         }
     }

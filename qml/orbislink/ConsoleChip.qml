@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The console everything goes to, at the top of the navigation: its name,
-// its address and firmware, its jailbreak in brass, and its three services
-// in a word each. A click opens the consoles page; the arrows look for
-// the services again.
+// The console everything goes to, at the left of the toolbar: a pill with
+// its kind, its name, its address and firmware, and its jailbreak in
+// champagne. A click opens the list of saved consoles to switch to another
+// (and a way to the consoles page); the state is in the ring round the
+// kind — accent when it answers, champagne with a jailbreak, faded when it
+// does not.
 //
-// * It answers: a ring in the accent around its seal — in brass, with the
-//   jailbreak's name, when it has one (GoldHEN, etaHEN, HEN).
-// * It does not answer: the card faded. A click looks for it again.
+// * compact (a narrow window): the kind and the name only.
 // * No console saved: an invitation to add one.
-// * compact (the navigation folded): the seal alone, the rest on hover.
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
@@ -44,8 +43,8 @@ Item {
         return "PS"
     }
 
-    implicitWidth: compact ? 48 : 200
-    implicitHeight: compact ? 48 : card.implicitHeight
+    implicitWidth: pill.implicitWidth
+    implicitHeight: 40
 
     readonly property string tip: (!chip.hasConsole ? qsTr("No console saved yet. Click to add one.")
         : !chip.connected
@@ -59,198 +58,156 @@ Item {
         + (chip.jailbreak.length > 0 && chip.henVersion.length === 0
            ? "\n" + qsTr("%1 does not say its version over the network.").arg(chip.jailbreak) : "")
 
-    function activate() {
-        if (chip.connected || !chip.hasConsole)
-            chip.showConsoles()
-        else
-            app.checkServicesNow()
-    }
+    Rectangle {
+        id: pill
+        anchors.fill: parent
+        implicitWidth: row.implicitWidth + 12 + 16
+        radius: height / 2
+        color: mouse.pressed ? Theme.controlHover : mouse.containsMouse ? Theme.controlHover : Theme.controlFill
+        border.width: 1
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Qt.rgba(1, 1, 1, mouse.containsMouse ? Theme.glassBorder + 0.10 : Theme.glassBorder)
+        Behavior on color { ColorAnimation { duration: Theme.fast } }
+        opacity: chip.connected || !chip.hasConsole ? 1.0 : 0.7
 
-    // The seal: the console's kind inside a ring in the state's colour.
-    component Seal: Rectangle {
-        id: seal
-        property real size: 40
-        width: size
-        height: size
-        radius: size / 2
-        color: Theme.alpha(chip.tone, chip.connected ? (Theme.light ? 0.16 : 0.18) : 0.06)
-        border.width: 1.5
-        border.color: chip.connected ? chip.tone : Theme.glassEdge
-        Text {
-            anchors.centerIn: parent
-            text: chip.kind
-            color: chip.connected ? Theme.ink : Theme.textSecondary
-            font.family: Theme.fontDisplay
-            font.pixelSize: seal.size * 0.34
-            font.weight: Font.DemiBold
-        }
-        // It breathes while the console answers.
         Rectangle {
             anchors.fill: parent
-            anchors.margins: -4
-            radius: width / 2
-            color: "transparent"
-            border.width: 2
-            border.color: Theme.alpha(chip.tone, 0.45)
-            visible: chip.connected
-            opacity: 0.3
-            SequentialAnimation on opacity {
-                running: chip.connected && chip.visible
-                loops: Animation.Infinite
-                NumberAnimation { to: 1.0; duration: 1600; easing.type: Easing.InOutSine }
-                NumberAnimation { to: 0.3; duration: 1600; easing.type: Easing.InOutSine }
+            anchors.margins: 1
+            radius: height / 2
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.6 : 0.08) }
+                GradientStop { position: 0.6; color: Qt.rgba(1, 1, 1, 0) }
             }
         }
-    }
 
-    // ── Folded: the seal alone.
-    Seal {
-        visible: chip.compact
-        anchors.centerIn: parent
-        size: 40
-        opacity: chip.connected || !chip.hasConsole ? 1.0 : 0.6
-        HoverHandler { id: sealHover; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: chip.activate() }
-        ToolTip.visible: sealHover.hovered
-        ToolTip.delay: 300
-        ToolTip.text: chip.tip
-    }
-
-    // ── Open: the card.
-    Plate {
-        id: card
-        visible: !chip.compact
-        anchors.left: parent.left
-        anchors.right: parent.right
-        implicitHeight: body.implicitHeight + 24
-        radius: 14
-        color: hover.hovered ? Theme.alpha(Theme.panel, 1.0) : Theme.panelFill
-        ornate: chip.gold && chip.connected
-
-        // Under the card's contents, so its own button keeps its clicks.
-        MouseArea {
-            id: hover
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            readonly property bool hovered: containsMouse
-            onClicked: chip.activate()
-        }
-        ToolTip.visible: hover.hovered && !services.containsHover
-        ToolTip.delay: 500
-        ToolTip.text: chip.tip
-
-        ColumnLayout {
-            id: body
+        RowLayout {
+            id: row
             anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: 12
+            anchors.leftMargin: 4
+            anchors.verticalCenter: parent.verticalCenter
             spacing: 10
 
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 10
-                opacity: chip.connected || !chip.hasConsole ? 1.0 : 0.65
-
-                Seal { size: 38 }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 1
-                    Text {
-                        Layout.fillWidth: true
-                        text: chip.hasConsole ? app.consoleName : qsTr("No console yet")
-                        color: Theme.text
-                        font.pixelSize: 14
-                        font.weight: Font.DemiBold
-                        elide: Text.ElideRight
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        text: !chip.hasConsole ? qsTr("Add one to begin")
-                            : app.consoleAddress + (chip.firmware.length > 0 ? " · " + chip.firmware : "")
-                        color: Theme.textSecondary
-                        font.family: chip.hasConsole ? Theme.fontMono : Theme.fontSans
-                        font.pixelSize: 11
-                        elide: Text.ElideRight
+            // The seal: the console's kind inside a ring in the state's colour.
+            Rectangle {
+                Layout.preferredWidth: 32
+                Layout.preferredHeight: 32
+                radius: 16
+                color: Theme.alpha(chip.tone, chip.connected ? 0.20 : 0.06)
+                border.width: 1.5
+                border.color: chip.connected ? chip.tone : Theme.glassEdge
+                Text {
+                    anchors.centerIn: parent
+                    text: chip.kind
+                    color: Theme.ink
+                    font.pixelSize: 10
+                    font.weight: Font.Bold
+                }
+                // It breathes while the console answers.
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: -3
+                    radius: width / 2
+                    color: "transparent"
+                    border.width: 2
+                    border.color: Theme.alpha(chip.tone, 0.45)
+                    visible: chip.connected
+                    opacity: 0.3
+                    SequentialAnimation on opacity {
+                        running: chip.connected && chip.visible
+                        loops: Animation.Infinite
+                        NumberAnimation { to: 1.0; duration: 1600; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 0.3; duration: 1600; easing.type: Easing.InOutSine }
                     }
                 }
+            }
 
+            ColumnLayout {
+                spacing: 0
+                Text {
+                    text: chip.hasConsole ? app.consoleName : qsTr("No console yet")
+                    color: Theme.ink
+                    font.pixelSize: 13
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                    Layout.maximumWidth: 200
+                }
+                Text {
+                    visible: !chip.compact
+                    text: !chip.hasConsole ? qsTr("Add one to begin")
+                        : chip.checking ? qsTr("looking…")
+                        : !chip.connected ? qsTr("not connected")
+                        : app.consoleAddress + (chip.firmware.length > 0 ? " · " + chip.firmware : "")
+                    color: Theme.textSecondary
+                    font.family: chip.hasConsole && chip.connected ? Theme.fontMono : Theme.fontSans
+                    font.pixelSize: 10
+                }
             }
 
             Tag {
-                visible: chip.jailbreak.length > 0 || (chip.hasConsole && !chip.connected)
-                text: chip.jailbreak.length > 0 ? chip.henLabel
-                    : chip.checking ? qsTr("looking…") : qsTr("not connected")
-                tone: chip.jailbreak.length > 0 ? "brass" : chip.checking ? "warn" : "neutral"
-                solid: chip.jailbreak.length > 0
-                iconName: chip.jailbreak.length > 0 ? "unlock" : ""
+                visible: chip.jailbreak.length > 0 && !chip.compact
+                text: chip.henLabel
+                tone: "brass"
+                iconName: "unlock"
             }
 
-            // The three services, a word each, under a hairline with the
-            // button that looks for them again.
-            RowLayout {
-                Layout.fillWidth: true
-                visible: chip.hasConsole
-                spacing: 6
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 1
-                    color: Theme.glassEdge
-                }
-                StyledToolButton {
-                    Layout.preferredWidth: 26
-                    Layout.preferredHeight: 26
-                    iconName: chip.checking ? "loader" : "refresh"
-                    spinning: chip.checking
-                    iconSize: 13
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Check the services now")
-                    onClicked: app.checkServicesNow()
-                }
+            Icon {
+                name: "chevron-down"
+                size: 14
+                color: Theme.textSecondary
             }
-            Column {
-                id: services
-                visible: chip.hasConsole
-                Layout.fillWidth: true
-                Layout.leftMargin: -8
-                Layout.rightMargin: -8
-                spacing: 0
-                readonly property bool containsHover: rp.hovered || ftp.hovered || inst.hovered
-                ServiceIndicator {
-                    id: rp
-                    readonly property bool hovered: hoverArea.hovered
-                    HoverHandler { id: hoverArea }
-                    width: parent.width
-                    listed: true
-                    label: qsTr("Remote Play")
-                    iconName: "gamepad"
-                    state_: app.remotePlayState
-                    hint: app.remotePlayHint
-                }
-                ServiceIndicator {
-                    id: ftp
-                    readonly property bool hovered: ftpHover.hovered
-                    HoverHandler { id: ftpHover }
-                    width: parent.width
-                    listed: true
-                    label: qsTr("FTP")
-                    state_: app.ftpState
-                    hint: app.ftpHint
-                }
-                ServiceIndicator {
-                    id: inst
-                    readonly property bool hovered: instHover.hovered
-                    HoverHandler { id: instHover }
-                    width: parent.width
-                    listed: true
-                    label: qsTr("Installer")
-                    iconName: "package"
-                    state_: app.installerState
-                    hint: app.installerHint
-                }
+        }
+    }
+
+    MouseArea {
+        id: mouse
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onClicked: {
+            if (!chip.hasConsole)
+                chip.showConsoles()
+            else
+                picker.popup(0, chip.height + 6)
+        }
+    }
+    ToolTip.visible: mouse.containsMouse && !picker.visible
+    ToolTip.delay: 600
+    ToolTip.text: chip.tip
+
+    // The saved consoles: pick another to make it the one in use.
+    Menu {
+        id: picker
+        topPadding: 6
+        bottomPadding: 6
+        background: Rectangle {
+            implicitWidth: 280
+            color: Theme.menuFill
+            radius: 16
+            border.width: 1
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+        }
+
+        Repeater {
+            model: app.consoles
+            delegate: StyledMenuItem {
+                required property var modelData
+                text: modelData.name + "  ·  " + modelData.address
+                iconName: modelData.active ? "check" : (modelData.type === "ps5" ? "monitor" : "gamepad")
+                enabled: !(chip.streaming && !modelData.active)
+                onTriggered: if (!modelData.active) app.selectConsole(modelData.address)
             }
+        }
+        MenuSeparator {
+            contentItem: Rectangle { implicitHeight: 1; color: Theme.glassEdge }
+        }
+        StyledMenuItem {
+            text: qsTr("Check the services now")
+            iconName: "refresh"
+            onTriggered: app.checkServicesNow()
+        }
+        StyledMenuItem {
+            text: qsTr("Show the consoles")
+            iconName: "monitor"
+            onTriggered: chip.showConsoles()
         }
     }
 }

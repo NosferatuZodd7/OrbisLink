@@ -1,22 +1,21 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The window background: a plate of the Celestial Archive.
+// The window background: the room the glass floats in.
 //
-// On the light theme, aged paper: a warm vignette and a faint grain, as on a
-// printed sheet. On the dark ones, the observatory's night: a few still stars
-// and soft halos. On both, engraved orbits drawn in thin ink in one corner —
-// the ringed planet's paths, never competing with what is on top.
-//
-// The halos are not only decoration: a translucent surface (the glass theme)
-// reads as glass only when what is behind it varies.
+// A soft, out-of-focus environment — a few broad pools of warm light
+// (champagne, amber) and one cool one, over a graphite or stone gradient,
+// darkened a little towards the edges. It is what makes the panes read as
+// glass: a translucent surface only looks like glass when what is behind it
+// varies. It never carries detail of its own, so it never competes with what
+// is on top.
 //
 // Everything is painted on a Canvas, once, and again only when the window or
 // the theme changes (QML's RadialGradient lives in Qt5Compat, which is not
-// guaranteed).
+// guaranteed). Painted already blurred: there is no live blur to pay for.
 import QtQuick
 
 Item {
-    id: backdrop
+    id: room
 
     Rectangle {
         anchors.fill: parent
@@ -27,109 +26,55 @@ Item {
     }
 
     Canvas {
-        id: plate
+        id: light
         anchors.fill: parent
         renderStrategy: Canvas.Cooperative
 
-        readonly property color toneA: Theme.accent
-        readonly property color inkTone: Theme.light ? Theme.ink : Theme.text
         readonly property string themeName: Theme.name
-        onToneAChanged: requestPaint()
-        onInkToneChanged: requestPaint()
+        readonly property color warm: Theme.brass
+        readonly property color cool: Theme.accent
         onThemeNameChanged: requestPaint()
+        onWarmChanged: requestPaint()
+        onCoolChanged: requestPaint()
         onWidthChanged: requestPaint()
         onHeightChanged: requestPaint()
 
-        function halo(ctx, x, y, radius, tone, force) {
+        // A pool of light: a radial gradient fading to nothing.
+        function pool(ctx, x, y, radius, colour, strength) {
             var g = ctx.createRadialGradient(x, y, 0, x, y, radius)
-            g.addColorStop(0, Qt.rgba(tone.r, tone.g, tone.b, force))
-            g.addColorStop(0.55, Qt.rgba(tone.r, tone.g, tone.b, force * 0.35))
-            g.addColorStop(1, Qt.rgba(tone.r, tone.g, tone.b, 0))
+            g.addColorStop(0.0, Qt.rgba(colour.r, colour.g, colour.b, strength))
+            g.addColorStop(0.45, Qt.rgba(colour.r, colour.g, colour.b, strength * 0.45))
+            g.addColorStop(1.0, Qt.rgba(colour.r, colour.g, colour.b, 0))
             ctx.fillStyle = g
             ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2)
-        }
-
-        // The same sky every time: a small seeded generator, not Math.random.
-        function seeded(seed) {
-            var s = seed
-            return function () {
-                s = (s * 16807) % 2147483647
-                return (s - 1) / 2147483646
-            }
-        }
-
-        // A four-pointed star, as engraved on the logo.
-        function sparkle(ctx, x, y, size) {
-            ctx.beginPath()
-            ctx.moveTo(x, y - size)
-            ctx.quadraticCurveTo(x, y, x + size, y)
-            ctx.quadraticCurveTo(x, y, x, y + size)
-            ctx.quadraticCurveTo(x, y, x - size, y)
-            ctx.quadraticCurveTo(x, y, x, y - size)
-            ctx.fill()
         }
 
         onPaint: {
             var ctx = getContext("2d")
             ctx.reset()
-            var r = Math.max(width, height)
-            var ink = inkTone
+            var w = width, h = height
+            var big = Math.max(w, h)
+            var dayLight = Theme.light
+            var amber = Qt.color("#E0A458")
+            var white = Qt.color("#FFFFFF")
+            // Strength: light enough to read as a room, never as a picture.
+            var k = dayLight ? 0.65 : Theme.glass ? 0.42 : 0.30
 
-            if (Theme.light) {
-                // The sheet's edges, a little darker than its middle.
-                halo(ctx, width * 0.5, height * 0.45, r * 0.75, Qt.rgba(1, 0.98, 0.92, 1), 0.35)
-                halo(ctx, width * 0.05, height * 0.98, r * 0.40, Qt.rgba(0.55, 0.42, 0.22, 1), 0.10)
-                halo(ctx, width * 0.98, height * 0.02, r * 0.35, Qt.rgba(0.55, 0.42, 0.22, 1), 0.07)
-            } else if (Theme.glass) {
-                halo(ctx, width * 0.15, height * 0.15, r * 0.60, toneA, 0.40)
-                halo(ctx, width * 0.85, height * 0.25, r * 0.45, Qt.rgba(0.26, 0.44, 0.54, 1), 0.35)
-                halo(ctx, width * 0.55, height * 0.95, r * 0.55, Qt.rgba(0.70, 0.54, 0.29, 1), 0.14)
-                halo(ctx, width * 0.95, height * 0.90, r * 0.35, toneA, 0.28)
-            } else {
-                halo(ctx, width * 0.18, height * 0.08, r * 0.60, toneA, 0.10)
-                halo(ctx, width * 0.85, height * 0.90, r * 0.45, Qt.rgba(0.70, 0.54, 0.29, 1), 0.05)
-            }
+            // Warm light from the upper left, as from a window.
+            pool(ctx, w * 0.12, h * 0.05, big * 0.62, dayLight ? white : light.warm, k)
+            // An amber lamp low on the right.
+            pool(ctx, w * 0.92, h * 0.88, big * 0.48, amber, k * (dayLight ? 0.30 : 0.75))
+            // A cool reflection across the middle.
+            pool(ctx, w * 0.62, h * 0.30, big * 0.40, light.cool, k * (dayLight ? 0.25 : 0.55))
+            // A soft glow under where the content sits.
+            pool(ctx, w * 0.45, h * 0.70, big * 0.55, dayLight ? white : light.warm, k * 0.45)
 
-            // Engraved orbits, around a planet just off the bottom right.
-            var cx = width * 0.96, cy = height * 1.02
-            ctx.save()
-            ctx.translate(cx, cy)
-            ctx.rotate(-0.32)
-            ctx.strokeStyle = Qt.rgba(ink.r, ink.g, ink.b, Theme.light ? 0.10 : 0.06)
-            for (var i = 0; i < 4; ++i) {
-                var a = r * (0.30 + i * 0.075), b = a * 0.32
-                ctx.lineWidth = i === 1 ? 1.6 : 0.8
-                ctx.beginPath()
-                ctx.ellipse(-a, -b, a * 2, b * 2)
-                ctx.stroke()
-            }
-            ctx.restore()
-
-            // A few stars: dots, and here and there an engraved sparkle.
-            var rand = seeded(17)
-            var count = Math.round(width * height / (Theme.light ? 52000 : 26000))
-            for (var s = 0; s < count; ++s) {
-                var x = rand() * width, y = rand() * height
-                var big = rand() > 0.93
-                ctx.fillStyle = Qt.rgba(ink.r, ink.g, ink.b, (Theme.light ? 0.10 : 0.16) + rand() * 0.10)
-                if (big) {
-                    sparkle(ctx, x, y, 4 + rand() * 4)
-                } else {
-                    ctx.beginPath()
-                    ctx.arc(x, y, 0.6 + rand() * 1.0, 0, Math.PI * 2)
-                    ctx.fill()
-                }
-            }
+            // Darker towards the edges: the eye stays in the middle.
+            var v = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, big * 0.78)
+            v.addColorStop(0, "rgba(0,0,0,0)")
+            v.addColorStop(1, dayLight ? "rgba(60,50,40,0.10)" : "rgba(0,0,0,0.38)")
+            ctx.fillStyle = v
+            ctx.fillRect(0, 0, w, h)
         }
-    }
-
-    // The paper's grain, tiled; only the light theme is paper.
-    Image {
-        anchors.fill: parent
-        visible: Theme.light
-        source: "qrc:/icons/grain.png"
-        fillMode: Image.Tile
-        opacity: 0.55
-        smooth: false
     }
 }

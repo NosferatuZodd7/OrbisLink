@@ -81,20 +81,12 @@ ShelfTile {
     }
 
     // How many things it holds, in the corner.
-    Rectangle {
+    ShelfTile.CoverTag {
         visible: card.count > 0
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.margins: 8
-        width: countTag.implicitWidth
-        height: countTag.implicitHeight
-        radius: height / 2
-        color: Theme.alpha(Theme.cardBottom, 0.94)
-        Tag {
-            id: countTag
-            anchors.fill: parent
-            text: card.count
-            mono: true
-        }
+        text: card.count
+        mono: true
     }
 }

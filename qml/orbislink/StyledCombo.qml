@@ -17,9 +17,11 @@ ComboBox {
 
     background: Rectangle {
         radius: Theme.radiusField
-        color: Theme.light ? "#FBF6EA" : (control.hovered ? Theme.controlHover : Theme.controlFill)
+        color: Theme.light ? Qt.rgba(1, 1, 1, control.hovered ? 0.92 : 0.70)
+                           : Qt.rgba(1, 1, 1, control.hovered ? 0.12 : 0.07)
         border.width: 1
-        border.color: control.activeFocus || control.popup.visible ? Theme.accent : Theme.glassEdge
+        border.color: control.activeFocus || control.popup.visible ? Theme.accent
+                    : Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Theme.glassEdge
     }
     contentItem: Text {
         leftPadding: 14
@@ -52,8 +54,8 @@ ComboBox {
             verticalAlignment: Text.AlignVCenter
         }
         background: Rectangle {
-            radius: 8
-            color: row.highlighted ? Theme.accentFill : "transparent"
+            radius: 10
+            color: row.highlighted ? Theme.controlHover : "transparent"
         }
         highlighted: control.highlightedIndex === index
     }
@@ -63,9 +65,9 @@ ComboBox {
         implicitHeight: Math.min(contentItem.implicitHeight + 8, 320)
         padding: 4
         background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.glassEdge
-            radius: Theme.radiusField
+            color: Theme.menuFill
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+            radius: 14
         }
         contentItem: ListView {
             clip: true

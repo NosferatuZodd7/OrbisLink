@@ -61,8 +61,8 @@ Item {
         onPaint: {
             var ctx = getContext("2d")
             ctx.reset()
-            // A fine engraved line, as the atlas draws its rings: the
-            // track faint, the part done in the step's colour.
+            // A fine ring: the track faint, the part done in the step's
+            // colour.
             var r = width / 2 - 2.5
             ctx.lineWidth = Math.max(2, Math.round(width / 16))
             ctx.lineCap = "round"

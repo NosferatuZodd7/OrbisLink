@@ -431,11 +431,9 @@ The copyright notices of chiaki-ng and the other libraries stay where they
 are — they belong to other people and the licence requires keeping them.
 
 The interface is set in [Figtree](https://github.com/erikdkennedy/figtree), by Erik
-Kennedy, its titles in [Fraunces](https://github.com/undercasetype/Fraunces), by
-Undercase Type (static instances of the variable font), and its technical values in
-[JetBrains Mono](https://github.com/JetBrains/JetBrainsMono), all three under the SIL
-Open Font License 1.1 (see [`third-party/figtree`](third-party/figtree),
-[`third-party/fraunces`](third-party/fraunces) and
+Kennedy, and its technical values in
+[JetBrains Mono](https://github.com/JetBrains/JetBrainsMono), both under the SIL
+Open Font License 1.1 (see [`third-party/figtree`](third-party/figtree) and
 [`third-party/jetbrains-mono`](third-party/jetbrains-mono)), and
 its icons come from [Lucide](https://lucide.dev/), under the ISC licence (see
 [`third-party/lucide`](third-party/lucide); `scripts/generate-icons.py` turns them into

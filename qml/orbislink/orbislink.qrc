@@ -70,6 +70,8 @@
         <file alias="Plate.qml">Plate.qml</file>
         <file alias="Tag.qml">Tag.qml</file>
         <file alias="SideNav.qml">SideNav.qml</file>
+        <file alias="LogoButton.qml">LogoButton.qml</file>
+        <file alias="TopBar.qml">TopBar.qml</file>
         <file alias="HudButton.qml">HudButton.qml</file>
         <file alias="Icons.js">Icons.js</file>
         <file alias="GlassBackground.qml">GlassBackground.qml</file>

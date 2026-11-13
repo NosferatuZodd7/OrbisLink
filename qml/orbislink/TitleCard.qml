@@ -57,14 +57,14 @@ ShelfTile {
         label: what === card.kindTag ? "" : what
     }
 
-    // Picked: the cover a shade of the accent colour.
+    // Picked: a veil of bright glass over the cover.
     Rectangle {
         anchors.fill: parent
         visible: card.picking && card.checked
         radius: card.artRadius
-        color: Theme.alpha(Theme.accent, 0.22)
+        color: Qt.rgba(1, 1, 1, Theme.light ? 0.30 : 0.12)
         border.width: 2
-        border.color: Theme.accent
+        border.color: Qt.rgba(1, 1, 1, Theme.light ? 1 : 0.85)
     }
     Rectangle {
         visible: card.picking
@@ -88,8 +88,7 @@ ShelfTile {
     }
 
     // What it is and what state it is in, as tags along the cover's foot.
-    // Each sits on a backing of the card's own colour so it reads on any
-    // picture.
+    // Each sits on a chip of frosted glass so it reads on any picture.
     Row {
         anchors.left: parent.left
         anchors.right: parent.right
@@ -103,20 +102,12 @@ ShelfTile {
                 card.info.installed === true ? { text: card.updated ? qsTr("Updated") : qsTr("Installed"), tone: "ok",
                                                  icon: "check", mono: false } : null
             ].filter(function (t) { return t !== null })
-            Rectangle {
+            ShelfTile.CoverTag {
                 required property var modelData
-                width: coverTag.implicitWidth
-                height: coverTag.implicitHeight
-                radius: height / 2
-                color: Theme.alpha(Theme.cardBottom, 0.94)
-                Tag {
-                    id: coverTag
-                    anchors.fill: parent
-                    text: parent.modelData.text
-                    tone: parent.modelData.tone
-                    mono: parent.modelData.mono
-                    iconName: parent.modelData.icon
-                }
+                text: modelData.text
+                tone: modelData.tone
+                mono: modelData.mono
+                iconName: modelData.icon
             }
         }
     }

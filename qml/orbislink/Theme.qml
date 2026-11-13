@@ -2,20 +2,20 @@
 //
 // The application's colours, shapes, type and motion, in one place.
 //
-// The Celestial Archive: an astronomical atlas printed in a woodblock
-// workshop. Deep indigo ink on aged paper, one restrained brass for what is
-// chosen or jailbroken, and colour only where it says something (a state).
-// Three themes share the same shapes:
-//   Light ("light") — the Archive: indigo ink on parchment, a faint grain.
-//   Dark  ("dark")  — the Observatory: midnight navy, warm ivory text.
-//   Glass ("glass") — the Observatory with translucent surfaces over a sky.
+// Liquid Glass: a spatial interface brought to the desktop. Frosted glass
+// floats over a soft, blurred environment of warm light; champagne marks what
+// is chosen, a restrained cool blue what is active or technical, and colour
+// otherwise only says a state. Three appearances share the same shapes:
+//   Dark  ("dark")  — Graphite: smoked glass over a dim, warm room.
+//   Glass ("glass") — Ambient: the same, clearer glass, more light through it.
+//   Light ("light") — Daylight: white frosted glass over warm stone.
 //
-// The window is an atlas laid open: a spine on the left with where to go
-// (SideNav), the sky in the middle with the page, and a second spine on the
-// right with what is being sent (the inspector). Headings use a soft
-// old-style serif (Fraunces), everything that is worked with a friendly
-// sans (Figtree), and what is copied or compared — addresses, ports, sizes,
-// versions — a monospace.
+// The window is a room: the navigation floats on the left, the toolbar on
+// top, the page in the middle and the transfers on the right — each a pane of
+// glass. Glass comes in three weights (Plate.level): primary for the panes,
+// secondary for toolbars, menus and popovers, subtle for what sits inside a
+// pane. One modern sans (Figtree) for everything; a monospace for what is
+// copied or compared — addresses, ports, sizes, versions.
 //
 // It is a singleton and not a .js because themes switch at runtime:
 // changing these properties redraws everything bound to them.
@@ -34,22 +34,29 @@ QtObject {
     property color background: "#10283D"
     property color backgroundDeep: "#0B1D2D"
 
-    // ── The spines: the navigation on the left, the inspector on the right.
-    // Solid, a shade off the sky, so the page in the middle reads as the
-    // open sheet.
-    property color sidebar: "#0C2134"
-    readonly property color sidebarFill: glass ? Qt.rgba(sidebar.r, sidebar.g, sidebar.b, 0.78) : sidebar
-    // A plate's eyebrow — the small capitals over a title — in brass, on
-    // every theme; a chosen jailbreak colour does not move it.
-    property color brass: "#C9A15C"
+    // ── The floating panes: navigation, toolbar, transfers. Primary glass.
+    property color sidebar: "#26262A"
+    readonly property color sidebarFill: Qt.rgba(sidebar.r, sidebar.g, sidebar.b, glassPrimary)
+    // Champagne: what is chosen, the small capitals over a title. A chosen
+    // jailbreak colour does not move it. (Named brass for the components
+    // that already use it.)
+    property color brass: "#D8C3A0"
+
+    // ── Glass: how much of the room shows through each weight of pane.
+    property real glassPrimary: 0.58
+    property real glassSecondary: 0.66
+    property real glassSubtle: 0.06
+    // The luminous edge: brightest along the top, where the light falls.
+    readonly property color glassStrokeTop: light ? Qt.rgba(1, 1, 1, 0.95) : Qt.rgba(1, 1, 1, glassBorder + 0.12)
+    readonly property color glassStrokeBottom: light ? Qt.rgba(1, 1, 1, 0.45) : Qt.rgba(1, 1, 1, glassBorder * 0.45)
 
     // ── Surfaces
     // "panel" is the base colour of the plates, menus and dialogs;
     // "panelAlt" is one step up (rows, fields, cards inside a panel). What
     // gets drawn is panelFill, which already carries the theme's transparency.
-    property color panel: "#132F47"
-    property color panelAlt: "#183A55"
-    property real panelOpacity: 1.0
+    property color panel: "#2A2A2E"
+    property color panelAlt: "#333338"
+    property real panelOpacity: 0.58
     // The faint light at the top of each surface.
     property real glassHighlight: 0.03
     // Strength of the 1px frame around surfaces (on the dark themes it is
@@ -85,38 +92,42 @@ QtObject {
     // Set when the person chose their own jailbreak colour.
     property bool henCustom: false
     // The badge's fill: the brass on every theme — or the colour chosen.
-    readonly property color henFill: light && !henCustom ? "#B28A4A" : hen
+    readonly property color henFill: hen
     // Ink for headings: indigo on paper, ivory at night.
     property color ink: "#F3E8CC"
 
     // ── Lines
     // The frame of every surface: ivory at low opacity on the dark themes, an
     // indigo hairline on the light one.
-    readonly property color glassEdge: light ? Qt.rgba(23 / 255, 59 / 255, 92 / 255, 0.24)
-                                             : Qt.rgba(243 / 255, 232 / 255, 204 / 255, glassBorder)
+    readonly property color glassEdge: light ? Qt.rgba(30 / 255, 28 / 255, 24 / 255, 0.12)
+                                             : Qt.rgba(1, 1, 1, glassBorder)
     readonly property color border: glassEdge
     // An engraved rule: a little stronger than a border, for the dividers
     // that carry a page's structure.
-    readonly property color rule: light ? Qt.rgba(23 / 255, 59 / 255, 92 / 255, 0.38)
-                                        : Qt.rgba(243 / 255, 232 / 255, 204 / 255, 0.22)
+    readonly property color rule: light ? Qt.rgba(30 / 255, 28 / 255, 24 / 255, 0.16)
+                                        : Qt.rgba(1, 1, 1, 0.16)
 
     // ── Shape
-    // Plates have soft corners; what is pressed — buttons, tags, chips — is
-    // round-ended, so it never reads as a plate.
-    property int radius: 16          // plates and cards
-    property int radiusControl: 19   // buttons: half their height
-    property int radiusSmall: 10     // rows and the containers of chips
-    readonly property int radiusField: 10
-    readonly property int radiusDialog: 18
+    // Glass has generous, continuous corners; what is pressed — buttons,
+    // tags, chips — is round-ended. Never so round it looks like a toy.
+    property int radius: 18          // cards and plates
+    readonly property int radiusPane: 26  // the floating panes of the window
+    property int radiusControl: 18   // buttons: half their height
+    property int radiusSmall: 12     // rows and the containers of chips
+    readonly property int radiusField: 12
+    readonly property int radiusDialog: 24
     property int spacing: 16
-    property int gutter: 28
+    property int gutter: 24
     property int padding: 20
-    readonly property int controlHeight: 38
-    readonly property int fieldHeight: 40
+    readonly property int controlHeight: 36
+    readonly property int fieldHeight: 38
     // The spines' widths, and the navigation folded down to its icons.
-    readonly property int sideNavWidth: 236
-    readonly property int sideNavCompact: 72
-    readonly property int inspectorWidth: 356
+    readonly property int sideNavWidth: 232
+    readonly property int sideNavCompact: 76
+    readonly property int inspectorWidth: 360
+    // Room between the panes and around them, and the toolbar's height.
+    readonly property int paneGap: 12
+    readonly property int toolbarHeight: 56
 
     // ── Game pictures: the same sizes on every page
     // A game's card in a grid (the library, the PS1/PS2 converter).
@@ -139,13 +150,13 @@ QtObject {
     readonly property int dialogFooter: 76
 
     // ── Type
-    // The sans (Figtree, the application's own font), the serif of the
-    // titles (Fraunces, soft) and the monospace of technical values.
+    // One sans for everything (Figtree, the application's own font): titles
+    // are the same family, heavier. The monospace is for technical values.
     readonly property string fontSans: "Figtree"
-    readonly property string fontDisplay: "Fraunces"
+    readonly property string fontDisplay: "Figtree"
     readonly property string fontMono: "JetBrains Mono"
-    readonly property int fontHero: 38       // the About plate, the empty pages
-    readonly property int fontTitle: 30      // a page's title
+    readonly property int fontHero: 36       // the About plate, the empty pages
+    readonly property int fontTitle: 28      // a page's title
     readonly property int fontHeading: 20    // a section inside a page, a dialog's title
     readonly property int fontCardTitle: 18
     readonly property int fontBody: 14
@@ -153,13 +164,13 @@ QtObject {
     readonly property int fontCaption: 11
     // The eyebrow: small capitals, spaced, over a title.
     readonly property int fontEyebrow: 10
-    readonly property real eyebrowSpacing: 1.8
+    readonly property real eyebrowSpacing: 1.4
 
     // ── Motion
     // Everything that moves uses these numbers.
-    readonly property int fast: 150
-    readonly property int normal: 220
-    readonly property int slow: 320
+    readonly property int fast: 160
+    readonly property int normal: 260
+    readonly property int slow: 380
     readonly property int easeOut: Easing.OutCubic
     readonly property int easeSpring: Easing.OutBack
     readonly property real hoverScale: 1.02
@@ -167,11 +178,11 @@ QtObject {
 
     // ── Over the video
     // The picture is always dark, whatever the theme, so text over it is light.
-    readonly property color onStage: "#F3E8CC"
-    readonly property color onStageMuted: Qt.rgba(243 / 255, 232 / 255, 204 / 255, 0.70)
+    readonly property color onStage: "#F6F3EE"
+    readonly property color onStageMuted: Qt.rgba(246 / 255, 243 / 255, 238 / 255, 0.70)
     // The glass of the bar and notices floating over the picture.
-    readonly property color hudFill: Qt.rgba(16 / 255, 40 / 255, 61 / 255, 0.80)
-    readonly property color hudEdge: Qt.rgba(243 / 255, 232 / 255, 204 / 255, 0.14)
+    readonly property color hudFill: Qt.rgba(28 / 255, 28 / 255, 32 / 255, 0.62)
+    readonly property color hudEdge: Qt.rgba(1, 1, 1, 0.20)
 
     // ── The stage, with no picture
     property color stageIdle: "#0D2234"
@@ -188,8 +199,7 @@ QtObject {
     property color cardHenActiveBottom: "#463F25"
     readonly property color cardText: text
     readonly property color cardTextMuted: textSecondary
-    readonly property color cardEdge: light ? Qt.rgba(23 / 255, 59 / 255, 92 / 255, 0.22)
-                                            : Qt.rgba(243 / 255, 232 / 255, 204 / 255, 0.12)
+    readonly property color cardEdge: glassEdge
     readonly property color cardBlue: accent
     readonly property color cardGlow: accent
     readonly property color cardAmber: warn
@@ -199,21 +209,21 @@ QtObject {
     // ── The colours the surfaces actually use
     readonly property color panelFill: Qt.rgba(panel.r, panel.g, panel.b, panelOpacity)
     readonly property color panelAltFill: Qt.rgba(panelAlt.r, panelAlt.g, panelAlt.b,
-                                                  Math.min(1, panelOpacity + 0.1))
+                                                  Math.min(1, panelOpacity + 0.12))
     readonly property color glassSheen: Qt.rgba(1, 1, 1, glassHighlight)
     readonly property color accentFill: Qt.rgba(accent.r, accent.g, accent.b, accentSoftOpacity)
-    readonly property color shadow: Qt.rgba(0, 0, 0, light ? 0.10 : 0.45)
+    readonly property color shadow: Qt.rgba(0, 0, 0, light ? 0.10 : 0.35)
     readonly property color dialogFill: Qt.rgba(panel.r, panel.g, panel.b, dialogOpacity)
     // Menus float over lists of text: always fully opaque, a step above the
     // panels so they read as on top.
-    readonly property color menuFill: light ? "#F7EFDB" : glass ? "#1A3D5A" : "#1A3D59"
+    readonly property color menuFill: light ? "#F8F6F2" : "#2C2C31"
     // Behind a modal: says the rest of the application is waiting.
-    readonly property color scrim: light ? Qt.rgba(32 / 255, 43 / 255, 50 / 255, 0.30) : Qt.rgba(0, 0, 0, 0.55)
+    readonly property color scrim: light ? Qt.rgba(40 / 255, 36 / 255, 30 / 255, 0.22) : Qt.rgba(0, 0, 0, 0.45)
     // A control's own fill (secondary buttons, fields, segmented controls).
-    readonly property color controlFill: light ? Qt.rgba(23 / 255, 59 / 255, 92 / 255, 0.06)
-                                               : Qt.rgba(243 / 255, 232 / 255, 204 / 255, glass ? 0.08 : 0.05)
-    readonly property color controlHover: light ? Qt.rgba(23 / 255, 59 / 255, 92 / 255, 0.11)
-                                                : Qt.rgba(243 / 255, 232 / 255, 204 / 255, glass ? 0.13 : 0.09)
+    readonly property color controlFill: light ? Qt.rgba(1, 1, 1, 0.55)
+                                               : Qt.rgba(1, 1, 1, glass ? 0.09 : 0.07)
+    readonly property color controlHover: light ? Qt.rgba(1, 1, 1, 0.85)
+                                                : Qt.rgba(1, 1, 1, glass ? 0.15 : 0.12)
 
     // The same colour at another opacity, which is needed everywhere.
     function alpha(c, a) {
@@ -278,98 +288,107 @@ QtObject {
     function applyBase(which) {
         name = which === "glass" || which === "light" ? which : "dark"
         if (name === "light") {
-            // The Archive: indigo ink on aged paper.
-            background = "#E9DCBB"
-            backgroundDeep = "#E1D1AC"
-            panel = "#F3E8CC"
-            panelAlt = "#EEE1C1"
-            panelOpacity = 1.0
-            dialogOpacity = 1.0
+            // Daylight: white frosted glass over warm stone.
+            background = "#E7E2DA"
+            backgroundDeep = "#D6CFC4"
+            panel = "#FFFFFF"
+            panelAlt = "#FFFFFF"
+            panelOpacity = 0.52
+            glassPrimary = 0.56
+            glassSecondary = 0.72
+            glassSubtle = 0.45
+            dialogOpacity = 0.90
             glassHighlight = 0.0
             glassBorder = 0.0
-            text = "#202B32"
-            ink = "#173B5C"
-            textMuted = "#5C6A6E"
+            text = "#1C1B19"
+            ink = "#141310"
+            textMuted = "#66625B"
             textMutedOpacity = 1.0
-            textOnAccent = "#F3E8CC"
-            accent = "#173B5C"
-            accentHover = "#24507A"
-            accentSoft = "#426F89"
-            accentSoftOpacity = 0.12
-            ok = "#557A5B"
-            warn = "#B07A35"
-            error = "#A84D46"
-            stageIdle = "#EFE3C5"
-            sidebar = "#E2CFA6"
-            brass = "#8E6C33"
-            cardTop = "#F5EBD2"
-            cardBottom = "#EDDFBD"
-            cardActiveBottom = "#DCDDCB"
-            hen = "#8E6C33"
-            cardHenBottom = "#EBD9AE"
-            cardHenActiveBottom = "#E3CC94"
+            textOnAccent = "#FFFFFF"
+            accent = "#4A7AA3"
+            accentHover = "#3C6A92"
+            accentSoft = "#4A7AA3"
+            accentSoftOpacity = 0.14
+            ok = "#3F8459"
+            warn = "#A8711F"
+            error = "#B04339"
+            stageIdle = "#E2DCD3"
+            sidebar = "#FFFFFF"
+            brass = "#8A6E45"
+            cardTop = Qt.rgba(1, 1, 1, 0.62)
+            cardBottom = Qt.rgba(1, 1, 1, 0.48)
+            cardActiveBottom = Qt.rgba(220 / 255, 232 / 255, 242 / 255, 0.70)
+            hen = "#9C7442"
+            cardHenBottom = Qt.rgba(242 / 255, 228 / 255, 204 / 255, 0.70)
+            cardHenActiveBottom = Qt.rgba(236 / 255, 216 / 255, 180 / 255, 0.78)
         } else if (name === "glass") {
-            // The Observatory under an open sky: translucent navy surfaces.
-            background = "#0E2438"
-            backgroundDeep = "#071624"
-            panel = "#16344F"
-            panelAlt = "#1D4160"
-            panelOpacity = 0.60
-            dialogOpacity = 0.95
-            glassHighlight = 0.08
-            glassBorder = 0.16
-            text = "#F5ECD4"
-            ink = "#F5ECD4"
-            textMuted = "#ADBAB8"
+            // Ambient: clearer glass, more of the room through it.
+            background = "#17161A"
+            backgroundDeep = "#0D0D10"
+            panel = "#2C2B30"
+            panelAlt = "#38373D"
+            panelOpacity = 0.40
+            glassPrimary = 0.42
+            glassSecondary = 0.55
+            glassSubtle = 0.08
+            dialogOpacity = 0.86
+            glassHighlight = 0.10
+            glassBorder = 0.18
+            text = "#F6F3EE"
+            ink = "#FBF9F5"
+            textMuted = "#B3AEA6"
             textMutedOpacity = 1.0
-            textOnAccent = "#0E2233"
-            accent = "#7FADB0"
-            accentHover = "#96BFC1"
-            accentSoft = "#7FADB0"
-            accentSoftOpacity = 0.22
-            ok = "#86A98B"
-            warn = "#D9A55E"
-            error = "#C86A62"
-            stageIdle = Qt.rgba(8 / 255, 22 / 255, 36 / 255, 0.45)
-            sidebar = "#0A1B2B"
-            brass = "#D1A963"
-            cardTop = Qt.rgba(32 / 255, 64 / 255, 92 / 255, 0.58)
-            cardBottom = Qt.rgba(20 / 255, 44 / 255, 66 / 255, 0.58)
-            cardActiveBottom = Qt.rgba(36 / 255, 86 / 255, 110 / 255, 0.66)
-            hen = "#D1A963"
-            cardHenBottom = Qt.rgba(92 / 255, 76 / 255, 40 / 255, 0.52)
-            cardHenActiveBottom = Qt.rgba(118 / 255, 96 / 255, 46 / 255, 0.62)
+            textOnAccent = "#11161B"
+            accent = "#A9C6E0"
+            accentHover = "#BDD4E9"
+            accentSoft = "#A9C6E0"
+            accentSoftOpacity = 0.18
+            ok = "#93CDA7"
+            warn = "#E6BC74"
+            error = "#EA9086"
+            stageIdle = Qt.rgba(14 / 255, 14 / 255, 16 / 255, 0.40)
+            sidebar = "#2A292E"
+            brass = "#DCC8A6"
+            cardTop = Qt.rgba(1, 1, 1, 0.10)
+            cardBottom = Qt.rgba(1, 1, 1, 0.05)
+            cardActiveBottom = Qt.rgba(169 / 255, 198 / 255, 224 / 255, 0.16)
+            hen = "#CFAA78"
+            cardHenBottom = Qt.rgba(207 / 255, 170 / 255, 120 / 255, 0.14)
+            cardHenActiveBottom = Qt.rgba(207 / 255, 170 / 255, 120 / 255, 0.22)
         } else {
-            // The Observatory: midnight navy, ivory text.
-            background = "#10283D"
-            backgroundDeep = "#0B1D2D"
-            panel = "#132F47"
-            panelAlt = "#183A55"
-            panelOpacity = 1.0
-            dialogOpacity = 0.98
-            glassHighlight = 0.03
-            glassBorder = 0.12
-            text = "#F3E8CC"
-            ink = "#F3E8CC"
-            textMuted = "#A7B3B1"
+            // Graphite: smoked glass over a dim, warm room.
+            background = "#141416"
+            backgroundDeep = "#0B0B0D"
+            panel = "#28282C"
+            panelAlt = "#323237"
+            panelOpacity = 0.58
+            glassPrimary = 0.60
+            glassSecondary = 0.70
+            glassSubtle = 0.06
+            dialogOpacity = 0.92
+            glassHighlight = 0.07
+            glassBorder = 0.14
+            text = "#F4F1EA"
+            ink = "#FAF8F4"
+            textMuted = "#A9A49C"
             textMutedOpacity = 1.0
-            textOnAccent = "#0E2233"
-            accent = "#6C9DA0"
-            accentHover = "#82B0B2"
-            accentSoft = "#6C9DA0"
+            textOnAccent = "#10151A"
+            accent = "#9EBCD8"
+            accentHover = "#B3CBE2"
+            accentSoft = "#9EBCD8"
             accentSoftOpacity = 0.16
-            ok = "#7FA184"
-            warn = "#D49C52"
-            error = "#C0625A"
-            stageIdle = "#0D2234"
-            sidebar = "#0B1F31"
-            brass = "#C9A15C"
-            cardTop = "#17344F"
-            cardBottom = "#122C43"
-            cardActiveBottom = "#1D4A66"
-            hen = "#C9A15C"
-            cardHenBottom = "#32301F"
-            cardHenActiveBottom = "#463F25"
+            ok = "#8CC7A1"
+            warn = "#E2B66E"
+            error = "#E58A80"
+            stageIdle = "#101012"
+            sidebar = "#252529"
+            brass = "#D8C3A0"
+            cardTop = Qt.rgba(1, 1, 1, 0.08)
+            cardBottom = Qt.rgba(1, 1, 1, 0.04)
+            cardActiveBottom = Qt.rgba(158 / 255, 188 / 255, 216 / 255, 0.14)
+            hen = "#C9A473"
+            cardHenBottom = Qt.rgba(201 / 255, 164 / 255, 115 / 255, 0.12)
+            cardHenActiveBottom = Qt.rgba(201 / 255, 164 / 255, 115 / 255, 0.20)
         }
     }
 

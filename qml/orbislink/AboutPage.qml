@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// About OrbisLink: the app's plate (its emblem, version and channel, where
+// About OrbisLink: the app itself (the orb, its version and channel, where
 // its source is), who made it — the team's mark and Claude, side by side —
 // and the work it stands on, with each licence.
 //
-// The team's mark follows the theme: indigo ink on paper, ivory at night.
-// Claude is credited in words: Anthropic's logo is theirs to place.
+// The team's mark follows the appearance: ink on Daylight, ivory on
+// Graphite. Claude is credited in words: Anthropic's logo is theirs to place.
 import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
@@ -24,46 +24,65 @@ ColumnLayout {
     readonly property string repositoryUrl: repository.length > 0 ? "https://github.com/" + repository : ""
     readonly property bool testing: settings.updateChannel === "testing"
 
-    // ── The hero: emblem, name, version, where it lives. Not on a plate: it
-    // is the page's title, and the plate below is kept for the makers.
+    // ── The hero: the orb, the name, the version, where it lives. Not on a
+    // pane: it is the page's title, and the one ornate pane below is kept for
+    // the makers.
     Item {
         Layout.fillWidth: true
         implicitHeight: hero.implicitHeight + 8
-
-        // The planet, faint, behind the right side of the hero.
-        Image {
-            anchors.right: parent.right
-            anchors.rightMargin: 24
-            anchors.verticalCenter: parent.verticalCenter
-            width: 230
-            height: 230
-            source: "qrc:/icons/planet.png"
-            sourceSize.width: 512
-            sourceSize.height: 512
-            opacity: Theme.light ? 0.14 : 0.10
-            smooth: true
-            mipmap: true
-        }
 
         RowLayout {
             id: hero
             anchors.left: parent.left
             anchors.right: parent.right
-            // Room on the right for the settings dialog's round ✕.
+            // Room on the right for the settings dialog's round close button.
             anchors.rightMargin: 40
             anchors.top: parent.top
             spacing: 26
 
-            Image {
+            // The orb, floating in a soft halo of its own light.
+            Item {
                 Layout.alignment: Qt.AlignTop
-                Layout.topMargin: 6
-                Layout.preferredWidth: 108
-                Layout.preferredHeight: 108
-                source: "qrc:/icons/mark.png"
-                sourceSize.width: 216
-                sourceSize.height: 216
-                smooth: true
-                mipmap: true
+                Layout.preferredWidth: 132
+                Layout.preferredHeight: 132
+
+                Canvas {
+                    id: halo
+                    anchors.centerIn: parent
+                    width: 220
+                    height: 220
+                    // Repainted when the appearance changes: the halo is
+                    // warmer and brighter on Graphite, softer on Daylight.
+                    readonly property bool lit: Theme.light
+                    onLitChanged: requestPaint()
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        ctx.reset()
+                        var r = width / 2
+                        var g = ctx.createRadialGradient(r, r, 0, r, r, r)
+                        if (Theme.light) {
+                            g.addColorStop(0.0, "rgba(255, 255, 255, 0.85)")
+                            g.addColorStop(0.35, "rgba(255, 244, 226, 0.45)")
+                            g.addColorStop(1.0, "rgba(255, 244, 226, 0)")
+                        } else {
+                            g.addColorStop(0.0, "rgba(216, 195, 160, 0.30)")
+                            g.addColorStop(0.40, "rgba(216, 195, 160, 0.10)")
+                            g.addColorStop(1.0, "rgba(216, 195, 160, 0)")
+                        }
+                        ctx.fillStyle = g
+                        ctx.fillRect(0, 0, width, height)
+                    }
+                }
+                Image {
+                    anchors.centerIn: parent
+                    width: 112
+                    height: 112
+                    source: "qrc:/icons/planet.png"
+                    sourceSize.width: 224
+                    sourceSize.height: 224
+                    smooth: true
+                    mipmap: true
+                }
             }
 
             ColumnLayout {
@@ -76,7 +95,8 @@ ColumnLayout {
                     color: Theme.ink
                     font.family: Theme.fontDisplay
                     font.pixelSize: Theme.fontHero
-                    font.weight: Font.DemiBold
+                    font.weight: Font.Bold
+                    font.letterSpacing: -0.6
                 }
                 Text {
                     Layout.fillWidth: true
@@ -140,29 +160,43 @@ ColumnLayout {
     EngravedRule { Layout.fillWidth: true; Layout.topMargin: 4 }
 
     // ── Who made it: the team's mark and Claude, side by side, centred on
-    // the page's one ornate plate.
+    // the page's one ornate pane.
     Plate {
         Layout.fillWidth: true
         Layout.topMargin: 4
         ornate: true
         implicitHeight: makersColumn.implicitHeight + 56
-        color: Theme.light ? Qt.tint(Theme.panelFill, Theme.alpha(Theme.henFill, 0.06))
-                           : Qt.tint(Theme.panelFill, Theme.alpha(Theme.henFill, 0.05))
+        // A breath of champagne in the glass.
+        color: Theme.light ? Qt.rgba(1, 1, 1, 0.55) : Theme.alpha(Theme.brass, 0.05)
 
         ColumnLayout {
             id: makersColumn
             anchors.centerIn: parent
             spacing: 16
 
-            // "Made by" between two short brass rules, as a plate's caption.
+            // "Made by" between two short champagne hairlines that fade outwards.
             RowLayout {
                 Layout.alignment: Qt.AlignHCenter
                 spacing: 12
-                Rectangle { Layout.preferredWidth: 40; Layout.preferredHeight: 1; color: Theme.alpha(Theme.brass, 0.6) }
-                Sparkle { size: 8 }
+                Rectangle {
+                    Layout.preferredWidth: 48
+                    Layout.preferredHeight: 1
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0.0; color: Theme.alpha(Theme.brass, 0) }
+                        GradientStop { position: 1.0; color: Theme.alpha(Theme.brass, 0.7) }
+                    }
+                }
                 Eyebrow { text: qsTr("Made by") }
-                Sparkle { size: 8 }
-                Rectangle { Layout.preferredWidth: 40; Layout.preferredHeight: 1; color: Theme.alpha(Theme.brass, 0.6) }
+                Rectangle {
+                    Layout.preferredWidth: 48
+                    Layout.preferredHeight: 1
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0.0; color: Theme.alpha(Theme.brass, 0.7) }
+                        GradientStop { position: 1.0; color: Theme.alpha(Theme.brass, 0) }
+                    }
+                }
             }
 
             RowLayout {
@@ -197,7 +231,8 @@ ColumnLayout {
                     text: "×"
                     color: Theme.brass
                     font.family: Theme.fontDisplay
-                    font.pixelSize: 44
+                    font.pixelSize: 36
+                    font.weight: Font.Light
                 }
 
                 // Claude, in words: Anthropic's logo is theirs to place.
@@ -215,8 +250,9 @@ ColumnLayout {
                                 text: "Claude"
                                 color: Theme.ink
                                 font.family: Theme.fontDisplay
-                                font.pixelSize: 50
-                                font.weight: Font.DemiBold
+                                font.pixelSize: 48
+                                font.weight: Font.Bold
+                                font.letterSpacing: -1
                             }
                             Eyebrow {
                                 anchors.horizontalCenter: parent.horizontalCenter
@@ -247,7 +283,8 @@ ColumnLayout {
             color: Theme.ink
             font.family: Theme.fontDisplay
             font.pixelSize: Theme.fontHeading
-            font.weight: Font.DemiBold
+            font.weight: Font.Bold
+            font.letterSpacing: -0.2
         }
     }
 
@@ -274,7 +311,7 @@ ColumnLayout {
                     { name: "easy-ps2-fpkg · PS Classics fPKG Builder", what: qsTr("How PS1/PS2 packages are made") },
                     { name: "GoldHEN · etaHEN", what: qsTr("The consoles' homebrew enablers and their cheats") },
                     { name: "homebrew.page · PKG-Zone", what: qsTr("The homebrew stores") },
-                    { name: "Figtree · Fraunces · JetBrains Mono", what: qsTr("Typefaces · SIL OFL 1.1") },
+                    { name: "Figtree · JetBrains Mono", what: qsTr("Typefaces · SIL OFL 1.1") },
                     { name: "Lucide", what: qsTr("Icons · ISC") },
                     { name: "FFmpeg · SDL2 · libcurl · OpenSSL", what: qsTr("Video, controllers and the network") }
                 ]
@@ -285,11 +322,14 @@ ColumnLayout {
                     Layout.preferredWidth: 1
                     Layout.alignment: Qt.AlignTop
                     spacing: 10
-                    Sparkle {
+                    // A small champagne point before each name.
+                    Rectangle {
                         Layout.alignment: Qt.AlignTop
-                        Layout.topMargin: 4
-                        size: 8
-                        color: Theme.alpha(Theme.brass, 0.8)
+                        Layout.topMargin: 6
+                        Layout.preferredWidth: 5
+                        Layout.preferredHeight: 5
+                        radius: 2.5
+                        color: Theme.alpha(Theme.brass, 0.85)
                     }
                     ColumnLayout {
                         Layout.fillWidth: true
@@ -315,7 +355,7 @@ ColumnLayout {
         }
     }
 
-    // The licence, last, as the colophon of a book.
+    // The licence, last, quietly centred.
     Text {
         Layout.fillWidth: true
         Layout.topMargin: 4

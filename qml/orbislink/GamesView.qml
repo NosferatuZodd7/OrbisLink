@@ -8,8 +8,8 @@
 // does the same to all of them.
 //
 // The page follows the shell's contract: no panel of its own, a PageHeader
-// (eyebrow, title in the serif, the counts, the page's actions), then the
-// two parts as underline tabs on a hairline, then the part shown.
+// (eyebrow, bold title, the counts, the page's actions), then the two parts
+// as a segmented row of tabs, then the part shown.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -65,7 +65,7 @@ Item {
         anchors.fill: parent
         anchors.leftMargin: root.framed ? Theme.gutter : 0
         anchors.rightMargin: root.framed ? Theme.gutter : 0
-        anchors.topMargin: root.framed ? 26 : 0
+        anchors.topMargin: root.framed ? 22 : 0
         anchors.bottomMargin: root.framed ? 12 : 0
         spacing: 0
 
@@ -148,28 +148,26 @@ Item {
         }
 
         // ── all games | the PS1/PS2 converter, apart: converting is a
-        // choice, not a step. Underline tabs on a hairline across the page.
+        // choice, not a step. A segmented row of tabs.
         TabBar {
             id: placeTabs
-            Layout.fillWidth: true
+            Layout.fillWidth: false
             Layout.topMargin: root.framed ? 14 : 4
             currentIndex: root.tab
             onCurrentIndexChanged: root.tab = currentIndex
-            padding: 0
-            spacing: 8
-            background: Rectangle {
-                y: parent.height - 1
-                width: parent.width
-                height: 1
-                color: Theme.glassEdge
-            }
+            padding: 3
+            spacing: 2
+            background: ShelfTile.TabTrack {}
             StyledTab {
-                width: implicitWidth + 28
+                leftPadding: 20
+                rightPadding: 20
                 text: qsTr("All games")
             }
             StyledTab {
                 visible: games.available
-                width: games.available ? implicitWidth + 28 : 0
+                leftPadding: 20
+                rightPadding: 20
+                width: games.available ? implicitWidth : 0
                 text: qsTr("PS1/PS2 converter")
             }
         }
@@ -245,7 +243,7 @@ Item {
             }
         }
 
-        // ── nothing chosen yet: the faint planet, what this is, one action
+        // ── nothing chosen yet: the faint orb, what this is, one action
         Item {
             visible: root.tab === 1 && games.gamesFolder.length === 0
             Layout.fillWidth: true
@@ -364,8 +362,10 @@ Item {
                 }
             }
 
-            // ── with several selected, what to do with them
-            Rectangle {
+            // ── with several selected, what to do with them: on glass
+            // floating over the cards
+            Plate {
+                level: "secondary"
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
                 anchors.bottomMargin: root.selected.length > 0 && root.tab === 1 ? 8 : -height - 16
@@ -374,9 +374,6 @@ Item {
                 width: Math.min(parent.width - 16, bar.implicitWidth + 32)
                 height: 60
                 radius: 30
-                color: Theme.menuFill
-                border.width: 1
-                border.color: Theme.glassEdge
                 RowLayout {
                     id: bar
                     anchors.fill: parent
@@ -388,7 +385,7 @@ Item {
                         color: Theme.ink
                         font.family: Theme.fontDisplay
                         font.pixelSize: 16
-                        font.weight: Font.DemiBold
+                        font.weight: Font.Bold
                     }
                     StyledToolButton {
                         iconName: "close"

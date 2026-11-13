@@ -298,7 +298,7 @@ Item {
         anchors.fill: parent
         anchors.leftMargin: root.framed ? Theme.gutter : 18
         anchors.rightMargin: root.framed ? Theme.gutter : 18
-        anchors.topMargin: root.framed ? 26 : 18
+        anchors.topMargin: root.framed ? 22 : 18
         anchors.bottomMargin: root.framed ? 12 : 14
         spacing: 16
 
@@ -386,7 +386,7 @@ Item {
             }
         }
 
-        // ── on the console | the library (PS5): underline tabs on a hairline
+        // ── on the console | the library (PS5): a segmented row of tabs
         RowLayout {
             visible: root.ps5
             Layout.fillWidth: true
@@ -394,17 +394,12 @@ Item {
             spacing: 12
             TabBar {
                 id: pageTabs
-                Layout.fillWidth: true
+                Layout.fillWidth: false
                 currentIndex: root.tab
                 onCurrentIndexChanged: root.tab = currentIndex
-                padding: 0
-                spacing: 6
-                background: Rectangle {
-                    y: parent.height - 1
-                    width: parent.width
-                    height: 1
-                    color: Theme.glassEdge
-                }
+                padding: 3
+                spacing: 2
+                background: ShelfTile.TabTrack {}
                 StyledTab {
                     width: implicitWidth
                     leftPadding: 14
@@ -419,6 +414,7 @@ Item {
                     text: updates > 0 ? qsTr("Library (%n update(s))", "", updates) : qsTr("Library")
                 }
             }
+            Item { Layout.fillWidth: true }
             StyledField {
                 visible: root.library
                 Layout.preferredWidth: 240
@@ -1178,13 +1174,7 @@ Item {
         }
         topPadding: 8
         bottomPadding: 8
-        background: Rectangle {
-            implicitWidth: 320
-            color: Theme.menuFill
-            border.color: Theme.glassEdge
-            border.width: 1
-            radius: 14
-        }
+        background: ShelfTile.MenuGlass { implicitWidth: 320 }
         Instantiator {
             model: installMenu.choices
             delegate: StyledMenuItem {
@@ -1212,13 +1202,7 @@ Item {
         id: addStepMenu
         topPadding: 8
         bottomPadding: 8
-        background: Rectangle {
-            implicitWidth: 280
-            color: Theme.menuFill
-            border.color: Theme.glassEdge
-            border.width: 1
-            radius: 14
-        }
+        background: ShelfTile.MenuGlass { implicitWidth: 280 }
         Instantiator {
             model: orderDialog.unlisted
             delegate: StyledMenuItem {
@@ -1241,13 +1225,7 @@ Item {
         id: consoleMenu
         topPadding: 8
         bottomPadding: 8
-        background: Rectangle {
-            implicitWidth: 280
-            color: Theme.menuFill
-            border.color: Theme.glassEdge
-            border.width: 1
-            radius: 14
-        }
+        background: ShelfTile.MenuGlass { implicitWidth: 280 }
         Instantiator {
             model: payloads.consoles
             delegate: StyledMenuItem {
@@ -1302,11 +1280,7 @@ Item {
         modal: true
         padding: 0
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         header: DialogHeader {
             title: qsTr("Run a payload from this PC")
             dialog: pcPayloadDialog
@@ -1393,11 +1367,7 @@ Item {
         modal: true
         padding: 0
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         header: DialogHeader {
             title: qsTr("Rename %1").arg(renameDialog.name)
             dialog: renameDialog
@@ -1454,11 +1424,7 @@ Item {
         modal: true
         padding: 0
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         header: DialogHeader {
             title: qsTr("Delete %1 from the console?").arg(deleteDialog.file.name)
             dialog: deleteDialog
@@ -1536,11 +1502,7 @@ Item {
         modal: true
         padding: 0
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         header: DialogHeader {
             title: editor.path
             dialog: editor
@@ -1645,11 +1607,7 @@ Item {
         modal: true
         padding: 0
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         header: DialogHeader {
             title: qsTr("%1: order and waits").arg(orderDialog.listTitle)
             dialog: orderDialog

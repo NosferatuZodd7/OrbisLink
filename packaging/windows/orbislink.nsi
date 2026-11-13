@@ -123,7 +123,6 @@ Section "OrbisLink (required)" SEC_CORE
   File "${SOURCE_DIR}\orbislink-cli.exe"
   File "${SOURCE_DIR}\LICENSE.txt"
   File "${SOURCE_DIR}\LICENSE-Figtree.txt"
-  File "${SOURCE_DIR}\LICENSE-Fraunces.txt"
   File "${SOURCE_DIR}\LICENSE-JetBrainsMono.txt"
   File "${SOURCE_DIR}\LICENSE-Lucide.txt"
   File "${SOURCE_DIR}\LICENSE-LibOrbisPkg.txt"
@@ -276,7 +275,7 @@ Section "Uninstall"
 
   Delete "$INSTDIR\orbislink-cli.exe"
   Delete "$INSTDIR\LICENSE.txt"
-  ; Inter's licence: the font of versions up to 1.3.
+  ; Earlier versions' font licences.
   Delete "$INSTDIR\LICENSE-Inter.txt"
   Delete "$INSTDIR\LICENSE-Figtree.txt"
   Delete "$INSTDIR\LICENSE-Fraunces.txt"

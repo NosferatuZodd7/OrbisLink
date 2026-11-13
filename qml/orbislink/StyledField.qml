@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Text field: a quiet fill with a thin border; on focus the border turns to
-// the accent with a soft glow around it.
+// Text field: a well pressed into the glass; on focus its edge turns to the
+// accent with a soft glow around it.
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -32,9 +32,9 @@ TextField {
         Rectangle {
             anchors.fill: parent
             radius: Theme.radiusField
-            color: Theme.light ? "#FBF6EA" : Theme.controlFill
+            color: Theme.light ? Qt.rgba(1, 1, 1, field.activeFocus ? 0.92 : 0.70) : Qt.rgba(0, 0, 0, field.activeFocus ? 0.30 : 0.22)
             border.width: 1
-            border.color: field.activeFocus ? Theme.accent : Theme.glassEdge
+            border.color: field.activeFocus ? Theme.accent : Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Theme.glassEdge
             Behavior on border.color { ColorAnimation { duration: Theme.fast } }
         }
     }

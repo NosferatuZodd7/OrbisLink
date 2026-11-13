@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// A saved console, as a plate of the atlas you click.
+// A saved console, as a card of glass you click.
 //
 // Two ways in, one button each at the foot of the plate:
 //
@@ -15,9 +15,11 @@
 // use), either makes it the console in use first; the ✕ in its corner
 // removes it from the list.
 //
-// The console in use gets the ornate plate (the brass double edge): it is
-// the one thing on the page the rest is about. A console with a jailbreak
-// is printed on warmer, brass-tinted paper, so it is told apart at a glance.
+// The console in use is a brighter pane with a ring of glass around it and
+// the champagne edge (the page's one ornate thing): it is what the rest of
+// the page is about. The others are barely-there glass that brightens under
+// the mouse. A console with a jailbreak carries a faint warm wash at its foot
+// and the bronze tag, so it is told apart at a glance.
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -51,7 +53,7 @@ Item {
     readonly property bool prefersFtp: startMode === "ftp" && ftpAvailable
     // Which homebrew enabler it runs ("GoldHEN", "etaHEN", "HEN"), once known.
     property string jailbreak: ""
-    // The card's colour: brass when the console has a jailbreak (its FTP
+    // The card's colour: bronze when the console has a jailbreak (its FTP
     // answers), the accent otherwise.
     readonly property color tone: ftpAvailable ? Theme.hen : Theme.accent
 
@@ -138,7 +140,7 @@ Item {
                                        : mood === "standby" ? Theme.warn
                                        : mood === "offline" || mood === "remove" ? Theme.error
                                        : Theme.textSecondary
-    // As text: on paper the tones need a darker shade to be read.
+    // As text: on Daylight the tones need a darker shade to be read.
     readonly property color statusInk: Theme.light ? Qt.darker(statusColor, 1.35)
                                                    : Qt.lighter(statusColor, 1.2)
 
@@ -208,8 +210,8 @@ Item {
     Rectangle {
         id: spotlightRing
         anchors.fill: plate
-        anchors.margins: -6
-        radius: plate.radius + 6
+        anchors.margins: -7
+        radius: plate.radius + 7
         color: "transparent"
         border.width: 2
         border.color: Theme.accent
@@ -229,28 +231,55 @@ Item {
         }
     }
 
-    // A soft shadow under the plate, a hint of the lift on hover.
+    // A soft shadow that only appears as the card lifts under the mouse
+    // (glass inside a pane does not float until it is touched).
     Rectangle {
         anchors.fill: plate
-        anchors.topMargin: card.hover ? 6 : 3
-        anchors.bottomMargin: card.hover ? -6 : -3
-        radius: plate.radius
-        color: Qt.rgba(0, 0, 0, Theme.light ? 0.06 : 0.22)
-        Behavior on anchors.topMargin { NumberAnimation { duration: Theme.normal } }
+        anchors.topMargin: 10
+        anchors.bottomMargin: -10
+        anchors.leftMargin: 8
+        anchors.rightMargin: 8
+        radius: plate.radius + 4
+        color: Qt.rgba(0, 0, 0, Theme.light ? 0.07 : 0.24)
+        opacity: card.hover || card.lead ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
+    }
+
+    // The console in use: a ring of brighter glass a few pixels out, as if
+    // the card sat in a lit setting.
+    readonly property bool lead: card.current && card.available
+    Rectangle {
+        visible: card.lead
+        anchors.fill: plate
+        anchors.margins: -5
+        radius: plate.radius + 5
+        color: Theme.light ? Qt.rgba(1, 1, 1, 0.32) : Qt.rgba(1, 1, 1, 0.035)
+        border.width: 1
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Qt.rgba(1, 1, 1, 0.16)
     }
 
     Plate {
         id: plate
         anchors.fill: parent
-        ornate: card.current && card.available
-        // Brass-tinted paper for a console with a jailbreak.
-        color: card.ftpAvailable
-               ? Theme.mix(Theme.panelFill, Theme.hen, Theme.light ? 0.13 : 0.10)
-               : Theme.panelFill
-        border.color: plate.ornate ? Theme.alpha(Theme.brass, 0.7)
-                    : card.hover ? Theme.alpha(card.tone, 0.6)
-                    : card.ftpAvailable ? Theme.alpha(Theme.hen, 0.4)
-                    : Theme.glassEdge
+        hoverable: true
+        ornate: card.lead
+        // Brighter glass for the console in use; the others barely there,
+        // a touch brighter under the mouse.
+        color: card.lead ? (Theme.light ? Qt.rgba(1, 1, 1, 0.74) : Qt.rgba(1, 1, 1, 0.10))
+             : card.hover ? (Theme.light ? Qt.rgba(1, 1, 1, 0.66) : Qt.rgba(1, 1, 1, 0.085))
+             : (Theme.light ? Qt.rgba(1, 1, 1, 0.48) : Qt.rgba(1, 1, 1, 0.055))
+
+        // A faint warm wash rising from the foot: this console has a jailbreak.
+        Rectangle {
+            visible: card.ftpAvailable
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: Math.max(0, parent.radius - 1)
+            gradient: Gradient {
+                GradientStop { position: 0.45; color: Theme.alpha(Theme.hen, 0) }
+                GradientStop { position: 1.0; color: Theme.alpha(Theme.hen, Theme.light ? 0.12 : 0.09) }
+            }
+        }
     }
 
     MouseArea {
@@ -267,7 +296,7 @@ Item {
 
     readonly property int pad: 20
 
-    // ── Head: PS4/PS5 in the serif, large; on the right the account (on the
+    // ── Head: PS4/PS5 large and bold; on the right the account (on the
     // console in use) and the registration button, or the ✕ on the others.
     Text {
         id: kindLabel
@@ -276,9 +305,9 @@ Item {
         text: card.known ? card.kind.toUpperCase() : qsTr("Console")
         color: Theme.ink
         font.family: Theme.fontDisplay
-        font.pixelSize: card.known ? 36 : 26
-        font.weight: Font.DemiBold
-        font.letterSpacing: 0.5
+        font.pixelSize: card.known ? 34 : 26
+        font.weight: Font.Bold
+        font.letterSpacing: -0.6
     }
 
     StyledToolButton {
@@ -331,11 +360,10 @@ Item {
         width: Math.max(0, Math.min(chrome + Math.ceil(labelMetrics.advanceWidth),
                                     cornerButton.x - 6 - kindLabel.x - kindLabel.implicitWidth - 12))
         radius: height / 2
-        color: chipArea.containsMouse || accountMenu.visible ? Theme.alpha(Theme.ink, 0.08)
-                                                             : Theme.controlFill
+        color: chipArea.containsMouse || accountMenu.visible ? Theme.controlHover : Theme.controlFill
         border.width: 1
-        border.color: chipArea.containsMouse || accountMenu.visible ? Theme.alpha(card.tone, 0.55)
-                                                                    : Theme.glassEdge
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, chipArea.containsMouse || accountMenu.visible ? 1 : 0.85)
+                    : Qt.rgba(1, 1, 1, Theme.glassBorder + (chipArea.containsMouse || accountMenu.visible ? 0.14 : 0.02))
         Behavior on color { ColorAnimation { duration: Theme.fast } }
 
         Row {
@@ -392,9 +420,9 @@ Item {
             background: Rectangle {
                 implicitWidth: 280
                 color: Theme.menuFill
-                border.color: Theme.glassEdge
+                border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
                 border.width: 1
-                radius: 14
+                radius: 16
             }
 
             Instantiator {
@@ -415,7 +443,7 @@ Item {
                 padding: 6
                 leftPadding: 16
                 rightPadding: 16
-                contentItem: Rectangle { implicitHeight: 1; color: Theme.glassEdge }
+                contentItem: Rectangle { implicitHeight: 1; color: Theme.rule }
             }
             StyledMenuItem {
                 iconName: "users"
@@ -425,7 +453,7 @@ Item {
         }
     }
 
-    // ── The name in the serif, the address in mono, then the tags.
+    // ── The name in bold, the address in mono, then the tags.
     Column {
         id: identity
         x: card.pad
@@ -464,7 +492,7 @@ Item {
             tone: "ok"
             iconName: "check"
         }
-        // The jailbreak, in solid brass: the first fact the eye finds.
+        // The jailbreak, in solid bronze: the first fact the eye finds.
         Tag {
             visible: card.ftpAvailable
             text: card.jailbreak.length > 0 ? card.jailbreak : "HEN"
@@ -483,16 +511,14 @@ Item {
         }
     }
 
-    // ── Foot: a hairline, the state in one line, and the two ways in.
-    Rectangle {
+    // ── Foot: a fading hairline, the state in one line, and the two ways in.
+    EngravedRule {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: stateLine.top
-        anchors.leftMargin: card.pad
-        anchors.rightMargin: card.pad
-        anchors.bottomMargin: 12
-        height: 1
-        color: Theme.glassEdge
+        anchors.leftMargin: card.pad - 6
+        anchors.rightMargin: card.pad - 6
+        anchors.bottomMargin: 5
     }
 
     Row {

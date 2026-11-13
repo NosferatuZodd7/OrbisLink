@@ -74,11 +74,7 @@ Dialog {
 
     Overlay.modal: Rectangle { color: Theme.scrim }
 
-    background: Rectangle {
-        color: Theme.dialogFill
-        border.color: Theme.border
-        radius: Theme.radiusDialog
-    }
+    background: ShelfTile.DialogGlass {}
 
     header: ShelfTile.DialogHead {
         eyebrow: dialog.folderName

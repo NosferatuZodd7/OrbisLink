@@ -27,10 +27,22 @@ Dialog {
     // be a window.
     Overlay.modal: Rectangle { color: Theme.scrim }
 
-    background: Rectangle {
-        color: Theme.dialogFill
-        border.color: Theme.glassEdge
+    // A large sheet of glass floating over the window: nearly opaque, lit
+    // along its upper edge, with a sheen from the top and a soft shadow.
+    background: Plate {
+        level: "secondary"
         radius: Theme.radiusDialog
+        color: Theme.dialogFill
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+    }
+
+    // It fades in and settles, without bouncing.
+    enter: Transition {
+        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+        NumberAnimation { property: "scale"; from: 0.98; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+    }
+    exit: Transition {
+        NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.fast; easing.type: Theme.easeOut }
     }
 
     // On paper the state colours are too light to read as text: a shade darker.
@@ -191,7 +203,7 @@ Dialog {
             }
         }
 
-        // The log itself, in a well one step below the dialog.
+        // The log itself, in a well one step below the sheet, in the mono.
         Plate {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -199,12 +211,12 @@ Dialog {
             Layout.rightMargin: Theme.dialogMargin
             Layout.bottomMargin: 4
             sunken: true
-            radius: Theme.radiusSmall + 2
+            radius: Theme.radius
 
             ListView {
                 id: items
                 anchors.fill: parent
-                anchors.margins: 14
+                anchors.margins: 16
                 anchors.rightMargin: 6
                 clip: true
                 model: lines
@@ -225,14 +237,16 @@ Dialog {
                 }
             }
 
-            // Empty: the star and one line, as every empty place in the app.
+            // Empty: a faint icon and one line.
             Column {
                 anchors.centerIn: parent
                 visible: lines.count === 0
                 spacing: 10
-                Sparkle {
+                Icon {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    size: 16
+                    name: "file"
+                    size: 22
+                    color: Theme.alpha(Theme.textSecondary, 0.6)
                 }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter

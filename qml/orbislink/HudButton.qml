@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// An icon button of the bar floating over the picture: round-ended, like the
-// app's other buttons. The picture is always dark, so it is light whatever
-// the theme.
+// An icon button of the glass pill floating over the picture: a small disc of
+// clear glass that brightens under the mouse. The picture is always dark, so
+// it is light whatever the theme.
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -30,8 +30,21 @@ Rectangle {
          : area.containsMouse ? Qt.rgba(1, 1, 1, 0.12)
          : Qt.rgba(1, 1, 1, 0.06)
     border.width: 1
-    border.color: Theme.hudEdge
+    border.color: area.containsMouse ? Qt.rgba(1, 1, 1, 0.34) : Theme.hudEdge
     Behavior on color { ColorAnimation { duration: Theme.fast } }
+    scale: area.pressed ? Theme.pressScale : 1.0
+    Behavior on scale { NumberAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
+
+    // The light on the disc, from the top.
+    Rectangle {
+        anchors.fill: parent
+        anchors.margins: 1
+        radius: height / 2
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, button.lit ? 0.18 : 0.10) }
+            GradientStop { position: 0.6; color: Qt.rgba(1, 1, 1, 0) }
+        }
+    }
 
     Row {
         anchors.centerIn: parent

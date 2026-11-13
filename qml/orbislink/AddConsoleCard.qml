@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The plate next to the consoles for adding one more to the list: no fill,
-// a dashed outline — an empty place on the atlas page, waiting for a console.
+// The place next to the consoles for adding one more to the list: no glass
+// yet, only a fine dashed outline — an empty slot waiting for a console —
+// that fills with faint glass under the mouse.
 import QtQuick
 
 Item {
@@ -25,11 +26,12 @@ Item {
         Behavior on y { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
     }
 
-    // A soft ink wash with the mouse over it, as the lists have.
+    // Faint glass with the mouse over it, as the console cards have.
     Rectangle {
         anchors.fill: parent
         radius: Theme.radius
-        color: area.containsMouse ? Theme.alpha(Theme.ink, 0.05) : "transparent"
+        color: area.containsMouse ? (Theme.light ? Qt.rgba(1, 1, 1, 0.42) : Qt.rgba(1, 1, 1, 0.045))
+                                  : "transparent"
         Behavior on color { ColorAnimation { duration: Theme.fast } }
     }
 
@@ -38,8 +40,8 @@ Item {
     Canvas {
         id: outline
         anchors.fill: parent
-        readonly property color tone: area.containsMouse ? Theme.alpha(Theme.accent, 0.9)
-                                                         : Theme.alpha(Theme.ink, Theme.light ? 0.32 : 0.28)
+        readonly property color tone: area.containsMouse ? Theme.alpha(Theme.accent, 0.85)
+                                                         : Theme.alpha(Theme.ink, Theme.light ? 0.24 : 0.22)
         onToneChanged: requestPaint()
         onWidthChanged: requestPaint()
         onHeightChanged: requestPaint()
@@ -72,7 +74,7 @@ Item {
             arc(m + r, m + r, Math.PI, 3 * Math.PI / 2)
 
             ctx.strokeStyle = tone
-            ctx.lineWidth = 1.2
+            ctx.lineWidth = 1
             ctx.lineCap = "round"
             var dash = 6, space = 6, period = dash + space
             ctx.beginPath()
@@ -91,8 +93,7 @@ Item {
         width: card.width - 40
         spacing: 10
 
-        // The seal: a plus inside a brass ring, a star where the ring is
-        // engraved — the atlas's mark for "a place for one more".
+        // A round glass button with a plus, lit with the accent under the mouse.
         Item {
             anchors.horizontalCenter: parent.horizontalCenter
             width: 56
@@ -100,22 +101,27 @@ Item {
             Rectangle {
                 anchors.fill: parent
                 radius: width / 2
-                color: area.containsMouse ? Theme.accentFill : Theme.alpha(Theme.ink, 0.04)
+                color: area.containsMouse ? Theme.controlHover : Theme.controlFill
                 border.width: 1
-                border.color: Theme.alpha(Theme.brass, area.containsMouse ? 0.8 : 0.5)
+                border.color: area.containsMouse ? Theme.alpha(Theme.accent, 0.7)
+                            : Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.04)
                 Behavior on color { ColorAnimation { duration: Theme.fast } }
+                // The light on the disc, from the top.
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: 1
+                    radius: width / 2
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.55 : 0.10) }
+                        GradientStop { position: 0.6; color: Qt.rgba(1, 1, 1, 0) }
+                    }
+                }
             }
             Icon {
                 anchors.centerIn: parent
                 name: "plus"
                 size: 24
-                color: area.containsMouse ? Theme.accent : Theme.ink
-            }
-            Sparkle {
-                x: parent.width - width * 0.75
-                y: -size * 0.25
-                size: 12
-                color: Theme.brass
+                color: area.containsMouse ? (Theme.light ? Qt.darker(Theme.accent, 1.3) : Theme.accent) : Theme.ink
             }
         }
 
@@ -127,7 +133,7 @@ Item {
             color: area.containsMouse ? (Theme.light ? Qt.darker(Theme.accent, 1.3) : Theme.accent) : Theme.ink
             font.family: Theme.fontDisplay
             font.pixelSize: Theme.fontCardTitle
-            font.weight: Font.DemiBold
+            font.weight: Font.Bold
         }
         Text {
             width: parent.width

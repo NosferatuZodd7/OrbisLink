@@ -142,13 +142,25 @@ Dialog {
     // be a window.
     Overlay.modal: Rectangle { color: Theme.scrim }
 
-    background: Rectangle {
-        color: Theme.dialogFill
-        border.color: Theme.glassEdge
+    // A large sheet of glass floating over the window: nearly opaque, lit
+    // along its upper edge, with a sheen from the top and a soft shadow.
+    background: Plate {
+        level: "secondary"
         radius: Theme.radiusDialog
+        color: Theme.dialogFill
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
     }
 
-    // The names of the three steps, under the stars of the progress.
+    // It fades in and settles, without bouncing.
+    enter: Transition {
+        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+        NumberAnimation { property: "scale"; from: 0.98; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+    }
+    exit: Transition {
+        NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.fast; easing.type: Theme.easeOut }
+    }
+
+    // The names of the three steps, beside their marks in the progress.
     readonly property var stepNames: [qsTr("The console"), qsTr("On the console"), qsTr("Remote Play")]
 
     header: Item {
@@ -186,14 +198,16 @@ Dialog {
                         color: Theme.ink
                         font.pixelSize: 24
                         font.family: Theme.fontDisplay
-                        font.weight: Font.DemiBold
+                        font.weight: Font.Bold
+                        font.letterSpacing: -0.3
                         elide: Text.ElideRight
                     }
                 }
             }
 
-            // The way through: a star for each step, joined by a hairline;
-            // the steps done and the one open in brass, those ahead faint.
+            // The way through: a glass disc for each step, joined by a
+            // hairline. The open step's disc is the bright glass pill, the
+            // steps done show a check, those ahead are faint.
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 0
@@ -202,31 +216,64 @@ Dialog {
                     delegate: RowLayout {
                         id: stepMark
                         required property int index
-                        readonly property bool reached: index <= wizard.step
+                        readonly property bool done: index < wizard.step
                         readonly property bool current: index === wizard.step
                         Layout.fillWidth: index < wizard.steps - 1
                         spacing: 10
 
-                        Item {
-                            implicitWidth: 22
-                            implicitHeight: 22
+                        Rectangle {
+                            implicitWidth: 28
+                            implicitHeight: 28
+                            radius: 14
+                            color: stepMark.current ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.16))
+                                 : stepMark.done ? Theme.controlFill
+                                 : "transparent"
+                            border.width: 1
+                            border.color: stepMark.current ? (Theme.light ? Qt.rgba(1, 1, 1, 1)
+                                                                          : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.14))
+                                        : stepMark.done ? (Theme.light ? Qt.rgba(1, 1, 1, 0.9) : Theme.glassEdge)
+                                        : Theme.rule
+                            Behavior on color { ColorAnimation { duration: Theme.normal } }
+                            // The light on the lit disc.
                             Rectangle {
+                                visible: stepMark.current
                                 anchors.fill: parent
-                                radius: 11
-                                color: stepMark.current ? Theme.alpha(Theme.brass, 0.16) : "transparent"
-                                border.width: 1
-                                border.color: stepMark.reached ? Theme.alpha(Theme.brass, 0.7) : Theme.glassEdge
-                                Behavior on color { ColorAnimation { duration: Theme.normal } }
+                                anchors.margins: 1
+                                radius: width / 2
+                                gradient: Gradient {
+                                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.6 : 0.14) }
+                                    GradientStop { position: 0.6; color: Qt.rgba(1, 1, 1, 0) }
+                                }
                             }
-                            Sparkle {
+                            // The current step glows faintly in the accent.
+                            Rectangle {
+                                visible: stepMark.current
+                                anchors.fill: parent
+                                anchors.margins: -3
+                                radius: width / 2
+                                color: "transparent"
+                                border.width: 2
+                                border.color: Theme.alpha(Theme.accent, 0.35)
+                            }
+                            Icon {
                                 anchors.centerIn: parent
-                                size: stepMark.current ? 12 : 9
-                                color: stepMark.reached ? Theme.brass : Theme.alpha(Theme.textSecondary, 0.5)
+                                visible: stepMark.done
+                                name: "check"
+                                size: 14
+                                color: Theme.ink
+                            }
+                            Text {
+                                anchors.centerIn: parent
+                                visible: !stepMark.done
+                                text: stepMark.index + 1
+                                color: stepMark.current ? Theme.ink : Theme.textSecondary
+                                font.pixelSize: Theme.fontSmall
+                                font.weight: Font.Bold
                             }
                         }
                         Text {
                             text: wizard.stepNames[stepMark.index]
-                            color: stepMark.current ? Theme.ink : stepMark.reached ? Theme.text : Theme.textSecondary
+                            color: stepMark.current ? Theme.ink : stepMark.done ? Theme.text : Theme.textSecondary
                             font.pixelSize: Theme.fontSmall
                             font.weight: stepMark.current ? Font.Bold : Font.Medium
                         }
@@ -236,7 +283,8 @@ Dialog {
                             Layout.leftMargin: 4
                             Layout.rightMargin: 14
                             Layout.preferredHeight: 1
-                            color: stepMark.index < wizard.step ? Theme.alpha(Theme.brass, 0.6) : Theme.glassEdge
+                            color: stepMark.done ? Theme.alpha(Theme.ink, 0.35) : Theme.rule
+                            Behavior on color { ColorAnimation { duration: Theme.normal } }
                         }
                     }
                 }
@@ -281,7 +329,7 @@ Dialog {
         }
     }
 
-    // The head of a step: which one it is and, in the serif, what it is about.
+    // The head of a step: which one it is and, in bold, what it is about.
     component StepHead: ColumnLayout {
         id: stepHead
         property int number: 1
@@ -298,7 +346,8 @@ Dialog {
             color: Theme.ink
             font.family: Theme.fontDisplay
             font.pixelSize: Theme.fontHeading
-            font.weight: Font.DemiBold
+            font.weight: Font.Bold
+            font.letterSpacing: -0.2
             wrapMode: Text.WordWrap
         }
     }
@@ -466,15 +515,22 @@ Dialog {
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 14
-                                // The numeral in the serif, as the atlas numbers its plates.
-                                Text {
-                                    Layout.preferredWidth: 22
-                                    text: ["I", "II", "III"][thing.index]
-                                    color: Theme.brass
-                                    font.family: Theme.fontDisplay
-                                    font.pixelSize: 17
-                                    font.weight: Font.DemiBold
-                                    horizontalAlignment: Text.AlignHCenter
+                                // Its number, on a small disc of glass.
+                                Rectangle {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    implicitWidth: 26
+                                    implicitHeight: 26
+                                    radius: 13
+                                    color: Theme.controlFill
+                                    border.width: 1
+                                    border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.9) : Theme.glassEdge
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: thing.index + 1
+                                        color: Theme.ink
+                                        font.pixelSize: Theme.fontSmall
+                                        font.weight: Font.Bold
+                                    }
                                 }
                                 Text {
                                     Layout.fillWidth: true

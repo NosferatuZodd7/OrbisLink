@@ -135,13 +135,13 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             name: "monitor"
             size: 34
-            color: "#d0d4dc"
+            color: Theme.onStageMuted
         }
         Text {
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
-            color: "#ffffff"
+            color: Theme.onStage
             font.pixelSize: 15
             font.weight: Font.DemiBold
             text: qsTr("The console is not streaming this screen")
@@ -150,7 +150,7 @@ Item {
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
-            color: "#b8bdc8"
+            color: Theme.onStageMuted
             font.pixelSize: 12
             lineHeight: 1.2
             text: qsTr("Video apps such as YouTube or Netflix are not sent over Remote Play. "
@@ -177,7 +177,7 @@ Item {
     // The app's dashboard: the page's head (what is true right now — how
     // many consoles, the one in use with its jailbreak and firmware, once
     // they said them, and what the queue is doing), then the saved consoles
-    // as plates in a grid that reflows with the window, and the plate to add
+    // as glass cards in a grid that reflows with the window, and the place to add
     // one more. The one in use is the usual one; the others show their state
     // and a click switches to them. At the foot, only the explanation the
     // state calls for (the registration PIN, the reason for a failure, the
@@ -196,7 +196,7 @@ Item {
         Column {
             id: homeColumn
             width: cardScroll.width
-            spacing: 24
+            spacing: 22
 
             PageHeader {
                 id: overview
@@ -217,7 +217,7 @@ Item {
                     return list
                 }
 
-                eyebrow: qsTr("Observatory")
+                eyebrow: qsTr("Dashboard")
                 title: qsTr("Your consoles")
                 subtitle: facts.join("  ·  ")
 
@@ -231,9 +231,9 @@ Item {
                 }
             }
 
-            // As many plates to a row as fit at a comfortable width; they
+            // As many cards to a row as fit at a comfortable width; they
             // share the row out between them, up to a width past which a
-            // plate would only be emptier.
+            // card would only be emptier.
             Flow {
                 id: consoleGrid
                 readonly property int minCell: 250
@@ -242,8 +242,10 @@ Item {
                 readonly property int cell: Math.min(maxCell,
                                                      Math.floor((width - spacing * (cols - 1)) / cols))
                 readonly property int cellHeight: 240
-                width: parent.width
-                spacing: 16
+                // Room for the ring of glass around the console in use.
+                x: 6
+                width: parent.width - 12
+                spacing: 20
 
                 Repeater {
                     model: app.consoles
@@ -321,7 +323,7 @@ Item {
     }
 
     // The note at the foot of the page: what the state calls for, in the
-    // page's quiet voice (the sheet's status line already rules it off).
+    // page's quiet voice (the pane's status line already rules it off).
     Item {
         id: helpRow
         anchors.left: videoStage.left
@@ -340,7 +342,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 name: "info"
                 size: 16
-                color: Theme.brass
+                color: Theme.light ? Qt.darker(Theme.accent, 1.3) : Theme.accent
             }
             Text {
                 id: helpText
@@ -375,15 +377,21 @@ Item {
 
     // ───────────────────────────── bar during the stream
     //
-    // Floats over the top of the picture, in glass, and fades in when the
-    // mouse moves instead of jumping onto the screen. In full screen it stays
-    // out of the picture and only comes back when the mouse nears the top.
+    // A pill of dark glass floating over the top of the picture, only as wide
+    // as what is on it, so the game stays the thing on screen. It fades in
+    // and settles when the mouse moves instead of jumping onto the screen. In
+    // full screen it stays out of the picture and only comes back when the
+    // mouse nears the top. The picture is always dark, so the pill is the
+    // same dark glass whatever the theme.
     Rectangle {
         id: streamToolbar
         anchors.top: videoStage.top
-        anchors.left: videoStage.left
-        anchors.right: videoStage.right
-        anchors.margins: 14
+        anchors.topMargin: 16 + (shown ? 0 : -8)
+        Behavior on anchors.topMargin { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
+        anchors.horizontalCenter: videoStage.horizontalCenter
+        width: Math.min(videoStage.width - 28,
+                        (frameInfo.text.length > 0 ? 22 + frameInfo.implicitWidth + 16 + 1 + 6 : 10)
+                        + streamRow.implicitWidth + 10)
         readonly property bool wanted: root.streaming
             && (toolbarHover.hovered
                 || (window.streamFullscreen
@@ -417,7 +425,51 @@ Item {
         radius: height / 2
         border.width: 1
         border.color: Theme.hudEdge
-        implicitHeight: 52
+        implicitHeight: 54
+
+        // Its shadow on the picture, soft and close.
+        Rectangle {
+            z: -1
+            anchors.fill: parent
+            anchors.topMargin: 8
+            anchors.bottomMargin: -10
+            anchors.leftMargin: 10
+            anchors.rightMargin: 10
+            radius: height / 2
+            color: Qt.rgba(0, 0, 0, 0.28)
+        }
+        // The light on the glass: a sheen from the top and a lit upper edge.
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: height / 2
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.12) }
+                GradientStop { position: 0.55; color: Qt.rgba(1, 1, 1, 0) }
+            }
+        }
+        Rectangle {
+            anchors.top: parent.top
+            anchors.topMargin: 1
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: parent.width - parent.height
+            height: 1
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0) }
+                GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, 0.42) }
+                GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0) }
+            }
+        }
+        // Between the readout and the controls.
+        Rectangle {
+            visible: frameInfo.text.length > 0
+            x: frameInfo.x + frameInfo.implicitWidth + 16
+            anchors.verticalCenter: parent.verticalCenter
+            width: 1
+            height: 22
+            color: Theme.hudEdge
+        }
 
         // What is really arriving: the picture size and the counted fps.
         // Not what was asked in the settings — the console may send less
@@ -435,9 +487,9 @@ Item {
                     message += qsTr(" · %1 fps").arg(stream.measuredFps)
                 return message
             }
-            color: Theme.onStage
+            color: Theme.onStageMuted
             font.family: Theme.fontMono
-            font.pixelSize: 13
+            font.pixelSize: 12
             font.weight: Font.Medium
             HoverHandler { id: frameHover }
             ToolTip.visible: frameHover.hovered && text.length > 0
@@ -628,10 +680,20 @@ Item {
 
         Overlay.modal: Rectangle { color: Theme.scrim }
 
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
+        // A sheet of glass floating over the window, lit along its upper edge;
+        // it fades in and settles, without bouncing.
+        background: Plate {
+            level: "secondary"
             radius: Theme.radiusDialog
+            color: Theme.dialogFill
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+        }
+        enter: Transition {
+            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+            NumberAnimation { property: "scale"; from: 0.98; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+        }
+        exit: Transition {
+            NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.fast; easing.type: Theme.easeOut }
         }
 
         header: DialogHeader {
@@ -747,9 +809,9 @@ Item {
                         radius: Theme.radius
                         readonly property bool full: keyboardMap.message.length > 0
                         color: full ? Theme.accentFill
-                             : Theme.light ? Theme.alpha(Theme.ink, 0.04) : Qt.rgba(0, 0, 0, 0.16)
+                             : Theme.light ? Qt.rgba(1, 1, 1, 0.40) : Qt.rgba(0, 0, 0, 0.20)
                         border.width: 1
-                        border.color: full ? Theme.alpha(Theme.accent, 0.7) : Theme.glassEdge
+                        border.color: full ? Theme.alpha(Theme.accent, 0.6) : Theme.glassEdge
                         Behavior on color { ColorAnimation { duration: Theme.fast } }
 
                         Text {
@@ -762,7 +824,7 @@ Item {
                             color: parent.full ? Theme.ink : Theme.textSecondary
                             font.family: parent.full ? Theme.fontDisplay : Theme.fontSans
                             font.pixelSize: parent.full ? 15 : 12
-                            font.weight: parent.full ? Font.DemiBold : Font.Normal
+                            font.weight: parent.full ? Font.Bold : Font.Normal
                             text: parent.full ? keyboardMap.message
                                 : keyboardMap.editing
                                   ? (root.built && stream.gamepadName.length > 0
@@ -910,10 +972,20 @@ Item {
 
         Overlay.modal: Rectangle { color: Theme.scrim }
 
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
+        // A sheet of glass floating over the window, lit along its upper edge;
+        // it fades in and settles, without bouncing.
+        background: Plate {
+            level: "secondary"
             radius: Theme.radiusDialog
+            color: Theme.dialogFill
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+        }
+        enter: Transition {
+            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+            NumberAnimation { property: "scale"; from: 0.98; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+        }
+        exit: Transition {
+            NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.fast; easing.type: Theme.easeOut }
         }
 
         header: DialogHeader {

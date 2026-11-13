@@ -3,10 +3,10 @@
 // A place on the shelf's home: the console's library, a drive, a folder of
 // this PC. Like a folder, it shows the covers of the first games in it, with
 // the sign of what it is in the fourth corner; a tag says where it is
-// (console, USB, PC, folder) and whether it answers, a brass star marks a
-// favourite, and a place that is not there now (a drive taken out, the
-// console off) is shown faded. The console's own places carry a second,
-// brass hairline inside the edge, as the atlas marks what is singled out.
+// (console, USB, PC, folder) and whether it answers, a champagne star marks
+// a favourite, and a place that is not there now (a drive taken out, the
+// console off) is shown faded. The console's own places are a shade cooler,
+// so they read apart from this PC's.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -43,19 +43,10 @@ ShelfTile {
         anchors.fill: parent
         radius: card.artRadius
         border.width: 1
-        border.color: card.isConsole ? Theme.alpha(Theme.brass, 0.55) : Theme.cardEdge
+        border.color: Theme.cardEdge
         gradient: Gradient {
             GradientStop { position: 0.0; color: Theme.cardTop }
             GradientStop { position: 1.0; color: card.isConsole ? Theme.cardActiveBottom : Theme.cardBottom }
-        }
-        Rectangle {
-            visible: card.isConsole
-            anchors.fill: parent
-            anchors.margins: 4
-            radius: card.artRadius - 3
-            color: "transparent"
-            border.width: 1
-            border.color: Theme.alpha(Theme.brass, 0.22)
         }
     }
 
@@ -100,8 +91,7 @@ ShelfTile {
         }
     }
 
-    // No covers yet: the sign alone, in a ring, with a brass star over it
-    // for the console's own.
+    // No covers yet: the sign alone, in a ring of glass.
     Item {
         visible: card.previews.length === 0
         anchors.fill: parent
@@ -112,17 +102,9 @@ ShelfTile {
             width: parent.width * 0.42
             height: width
             radius: width / 2
-            color: Theme.alpha(Theme.ink, 0.04)
+            color: Theme.controlFill
             border.width: 1
-            border.color: Theme.alpha(card.isConsole ? Theme.brass : Theme.ink, card.isConsole ? 0.5 : 0.18)
-            Rectangle {
-                anchors.fill: parent
-                anchors.margins: 4
-                radius: width / 2
-                color: "transparent"
-                border.width: 1
-                border.color: Theme.alpha(card.isConsole ? Theme.brass : Theme.ink, 0.12)
-            }
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.10)
             Icon {
                 anchors.centerIn: parent
                 name: card.sign
@@ -134,21 +116,13 @@ ShelfTile {
     }
 
     // Where it is, and a dot that says whether it answers.
-    Rectangle {
+    ShelfTile.CoverTag {
         anchors.left: parent.left
         anchors.bottom: parent.bottom
         anchors.margins: 10
-        width: whereTag.implicitWidth
-        height: whereTag.implicitHeight
-        radius: height / 2
-        color: Theme.alpha(Theme.cardBottom, 0.94)
-        Tag {
-            id: whereTag
-            anchors.fill: parent
-            text: card.badge
-            tone: card.available ? "ok" : "neutral"
-            iconName: card.available ? "check" : "close"
-        }
+        text: card.badge
+        tone: card.available ? "ok" : "neutral"
+        iconName: card.available ? "check" : "close"
     }
 
     Icon {

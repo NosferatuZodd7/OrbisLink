@@ -24,10 +24,22 @@ Dialog {
     // be a window.
     Overlay.modal: Rectangle { color: Theme.scrim }
 
-    background: Rectangle {
-        color: Theme.dialogFill
-        border.color: Theme.glassEdge
+    // A large sheet of glass floating over the window: nearly opaque, lit
+    // along its upper edge, with a sheen from the top and a soft shadow.
+    background: Plate {
+        level: "secondary"
         radius: Theme.radiusDialog
+        color: Theme.dialogFill
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+    }
+
+    // It fades in and settles, without bouncing.
+    enter: Transition {
+        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+        NumberAnimation { property: "scale"; from: 0.98; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+    }
+    exit: Transition {
+        NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.fast; easing.type: Theme.easeOut }
     }
 
     header: DialogHeader {
@@ -84,7 +96,7 @@ Dialog {
             Icon {
                 name: "chevron-right"
                 size: 14
-                color: Theme.brass
+                color: Theme.textSecondary
             }
             Tag {
                 text: "v" + app.updateVersion
@@ -107,11 +119,11 @@ Dialog {
             Layout.rightMargin: Theme.dialogMargin
             Layout.preferredHeight: 220
             sunken: true
-            radius: Theme.radiusSmall + 2
+            radius: Theme.radius
 
             ScrollView {
                 anchors.fill: parent
-                anchors.margins: 8
+                anchors.margins: 10
                 clip: true
                 TextArea {
                     text: app.updateNotes.length > 0 ? app.updateNotes
@@ -143,20 +155,19 @@ Dialog {
                 font.pixelSize: Theme.fontSmall
                 wrapMode: Text.WordWrap
             }
+            // A slim glass track, the progress in the accent sliding along it.
             Rectangle {
                 Layout.fillWidth: true
                 visible: dialog.downloading
                 height: 6
                 radius: 3
-                color: Theme.controlFill
-                border.width: 1
-                border.color: Theme.glassEdge
+                color: Theme.light ? Qt.rgba(0, 0, 0, 0.06) : Qt.rgba(1, 1, 1, 0.08)
                 Rectangle {
                     width: parent.width * app.updateProgress
                     height: parent.height
                     radius: 3
                     color: Theme.accent
-                    Behavior on width { NumberAnimation { duration: Theme.normal } }
+                    Behavior on width { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
                 }
             }
         }
@@ -172,7 +183,7 @@ Dialog {
                 Layout.alignment: Qt.AlignTop
                 name: "shield-check"
                 size: 15
-                color: Theme.brass
+                color: Theme.light ? Qt.darker(Theme.ok, 1.3) : Theme.ok
             }
             Text {
                 Layout.fillWidth: true

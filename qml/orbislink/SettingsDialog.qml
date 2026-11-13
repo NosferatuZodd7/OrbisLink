@@ -1,4 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// The settings: a large sheet of glass with its own navigation on the left
+// (the sections, then the update check and About) and the open section on
+// the right, each setting on a quiet glass group with what it is on the
+// left and its control on the right.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -20,10 +25,22 @@ Dialog {
     // be a window.
     Overlay.modal: Rectangle { color: Theme.scrim }
 
-    background: Rectangle {
-        color: Theme.dialogFill
-        border.color: Theme.glassEdge
+    // A large sheet of glass floating over the window: nearly opaque, lit
+    // along its upper edge, with a sheen from the top and a soft shadow.
+    background: Plate {
+        level: "secondary"
         radius: Theme.radiusDialog
+        color: Theme.dialogFill
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+    }
+
+    // It fades in and settles, without bouncing.
+    enter: Transition {
+        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+        NumberAnimation { property: "scale"; from: 0.98; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+    }
+    exit: Transition {
+        NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.fast; easing.type: Theme.easeOut }
     }
 
     // The section shown on the right: 0 Consoles, 1 Account IDs, 2 Console in
@@ -243,8 +260,8 @@ Dialog {
 
     // ── The pieces every page is made of.
 
-    // One page of the settings: its head (eyebrow, title in the serif, what
-    // the page is for) and its plates, scrolling on its own.
+    // One page of the settings: its head (eyebrow, bold title, what the page
+    // is for) and its groups, scrolling on its own.
     component SettingsPage: ScrollView {
         id: page
         property string eyebrow: ""
@@ -270,7 +287,7 @@ Dialog {
 
             PageHeader {
                 visible: page.title.length > 0
-                // Room on the right for the dialog's round ✕.
+                // Room on the right for the dialog's round close button.
                 Layout.rightMargin: 40
                 Layout.bottomMargin: 8
                 eyebrow: page.eyebrow
@@ -280,7 +297,7 @@ Dialog {
         }
     }
 
-    // A few related settings on one plate, a hairline between each.
+    // A few related settings on one quiet pane of glass, a hairline between each.
     component SettingsGroup: Plate {
         default property alias content: groupColumn.data
         Layout.fillWidth: true
@@ -297,7 +314,7 @@ Dialog {
         }
     }
 
-    // The label over a plate, in brass small capitals.
+    // The label over a group, in champagne small capitals.
     component GroupTitle: Eyebrow {
         Layout.fillWidth: true
         Layout.topMargin: 12
@@ -306,7 +323,7 @@ Dialog {
 
     // One setting: what it is and what it does on the left, its control on
     // the right. The hairline above it is left out on the first row, which
-    // sits at the top of its plate.
+    // sits at the top of its group.
     component SettingRow: Item {
         id: setting
         property string label: ""
@@ -403,7 +420,8 @@ Dialog {
         }
     }
 
-    // A label in the rail: an ink wash and the brass star when it is open.
+    // One entry of the sidebar, as in the window's navigation: the open one
+    // sits on a pill of brighter glass, the others brighten under the mouse.
     component RailItem: Item {
         id: railItem
         property string iconName: ""
@@ -413,23 +431,34 @@ Dialog {
         signal clicked()
 
         width: parent ? parent.width : 0
-        implicitHeight: 38
+        implicitHeight: 40
         Accessible.role: Accessible.Button
         Accessible.name: text
 
         Rectangle {
             anchors.fill: parent
-            radius: 10
-            color: railItem.selected ? Theme.alpha(Theme.ink, Theme.light ? 0.09 : 0.08)
-                 : railMouse.containsMouse ? Theme.alpha(Theme.ink, Theme.light ? 0.05 : 0.045)
+            radius: height / 2
+            color: railItem.selected ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
+                 : railMouse.containsMouse ? (Theme.light ? Qt.rgba(1, 1, 1, 0.50) : Qt.rgba(1, 1, 1, 0.06))
                  : "transparent"
             border.width: railItem.selected ? 1 : 0
-            border.color: Theme.alpha(Theme.ink, Theme.light ? 0.12 : 0.10)
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.06)
             Behavior on color { ColorAnimation { duration: Theme.fast } }
+            // The sheen on the lit pill.
+            Rectangle {
+                visible: railItem.selected
+                anchors.fill: parent
+                anchors.margins: 1
+                radius: height / 2
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.6 : 0.12) }
+                    GradientStop { position: 0.6; color: Qt.rgba(1, 1, 1, 0) }
+                }
+            }
         }
         Icon {
             id: railGlyph
-            x: 12
+            x: 14
             anchors.verticalCenter: parent.verticalCenter
             name: railItem.iconName
             size: 18
@@ -440,23 +469,14 @@ Dialog {
         Text {
             anchors.left: railGlyph.right
             anchors.leftMargin: 12
-            anchors.right: railStar.left
-            anchors.rightMargin: 6
+            anchors.right: parent.right
+            anchors.rightMargin: 12
             anchors.verticalCenter: parent.verticalCenter
             text: railItem.text
             color: railItem.selected ? Theme.ink : Theme.text
             font.pixelSize: Theme.fontBody
-            font.weight: railItem.selected ? Font.Bold : Font.Medium
+            font.weight: railItem.selected ? Font.DemiBold : Font.Medium
             elide: Text.ElideRight
-        }
-        Sparkle {
-            id: railStar
-            anchors.right: parent.right
-            anchors.rightMargin: 12
-            anchors.verticalCenter: parent.verticalCenter
-            size: 9
-            opacity: railItem.selected ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: Theme.fast } }
         }
         MouseArea {
             id: railMouse
@@ -477,30 +497,26 @@ Dialog {
     contentItem: RowLayout {
         spacing: 0
 
-        // ── The rail: the index of the settings, on the left.
-        Item {
+        // ── The sidebar: the sections of the settings, on a pane of glass
+        // inset in the sheet, on the left.
+        Plate {
             Layout.fillHeight: true
             Layout.preferredWidth: 248
-            // The rail's wash keeps the dialog's rounded corners on the left
-            // and a straight edge against the pages.
-            clip: true
-
-            Rectangle {
-                width: parent.width + Theme.radiusDialog
-                height: parent.height
-                radius: Theme.radiusDialog
-                color: Theme.light ? Theme.alpha(Theme.ink, 0.04) : Qt.rgba(0, 0, 0, 0.16)
-            }
+            Layout.topMargin: 10
+            Layout.bottomMargin: 10
+            Layout.leftMargin: 10
+            radius: Theme.radiusDialog - 8
+            color: Theme.light ? Qt.rgba(1, 1, 1, 0.42) : Qt.rgba(1, 1, 1, 0.045)
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.topMargin: 26
-                anchors.bottomMargin: 18
-                anchors.leftMargin: 16
-                anchors.rightMargin: 16
+                anchors.topMargin: 20
+                anchors.bottomMargin: 12
+                anchors.leftMargin: 10
+                anchors.rightMargin: 10
                 spacing: 0
 
-                // The dialog's own head, at the top of its index.
+                // The dialog's own head, at the top of the sidebar.
                 ColumnLayout {
                     Layout.fillWidth: true
                     Layout.leftMargin: 10
@@ -512,7 +528,8 @@ Dialog {
                         color: Theme.ink
                         font.pixelSize: 26
                         font.family: Theme.fontDisplay
-                        font.weight: Font.DemiBold
+                        font.weight: Font.Bold
+                        font.letterSpacing: -0.3
                     }
                 }
 
@@ -545,6 +562,8 @@ Dialog {
 
                 EngravedRule {
                     Layout.fillWidth: true
+                    Layout.leftMargin: 8
+                    Layout.rightMargin: 8
                     Layout.bottomMargin: 8
                     star: false
                 }
@@ -592,8 +611,6 @@ Dialog {
                 }
             }
         }
-
-        Rectangle { Layout.fillHeight: true; Layout.preferredWidth: 1; color: Theme.glassEdge }
 
         // ── The open section, on the right, and the dialog's actions under it.
         ColumnLayout {
@@ -1239,8 +1256,8 @@ Dialog {
                     }
                 }
 
-                // The dialog's ✕, over the top right of every page.
-                StyledToolButton {
+                // The dialog's round close button, over the top right of every page.
+                DialogHeader.GlassDisc {
                     anchors.top: parent.top
                     anchors.right: parent.right
                     anchors.topMargin: 22
@@ -1255,7 +1272,7 @@ Dialog {
             }
 
             // ── The actions: the wizard on the left, cancel and save on the right.
-            Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.glassEdge }
+            EngravedRule { Layout.fillWidth: true; Layout.leftMargin: 28; Layout.rightMargin: 28; star: false }
             RowLayout {
                 Layout.fillWidth: true
                 Layout.preferredHeight: Theme.dialogFooter

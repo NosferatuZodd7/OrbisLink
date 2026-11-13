@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The head of every page: an eyebrow in brass, the title in the serif, a line
-// of what it is for, and the page's own actions on the right — then an
-// engraved rule. Children go on the right, in the order given.
+// The head of every page: an eyebrow in champagne, the title, a line of
+// what it is for, and the page's own actions on the right — then a fading
+// hairline. Children go on the right, in the order given.
 //
 //   PageHeader {
 //       eyebrow: qsTr("Library"); title: qsTr("Games")
@@ -31,28 +31,29 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: 16
 
-        // The seal: the page's icon inside a ring, like a plate's stamp.
+        // The page's icon in a small disc of glass.
         Rectangle {
             visible: header.iconName.length > 0
             Layout.alignment: Qt.AlignVCenter
-            implicitWidth: 52
-            implicitHeight: 52
-            radius: 26
-            color: Theme.alpha(Theme.ink, Theme.light ? 0.06 : 0.07)
+            implicitWidth: 48
+            implicitHeight: 48
+            radius: 24
+            color: Theme.controlFill
             border.width: 1
-            border.color: Theme.alpha(Theme.brass, 0.55)
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.9) : Theme.glassEdge
             Rectangle {
                 anchors.fill: parent
-                anchors.margins: 4
+                anchors.margins: 1
                 radius: width / 2
-                color: "transparent"
-                border.width: 1
-                border.color: Theme.alpha(Theme.brass, 0.22)
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.5 : 0.10) }
+                    GradientStop { position: 0.6; color: Qt.rgba(1, 1, 1, 0) }
+                }
             }
             Icon {
                 anchors.centerIn: parent
                 name: header.iconName
-                size: 22
+                size: 21
                 color: Theme.ink
             }
         }
@@ -71,7 +72,8 @@ ColumnLayout {
                 color: Theme.ink
                 font.family: Theme.fontDisplay
                 font.pixelSize: Theme.fontTitle
-                font.weight: Font.DemiBold
+                font.weight: Font.Bold
+                font.letterSpacing: -0.4
                 elide: Text.ElideRight
             }
             Text {

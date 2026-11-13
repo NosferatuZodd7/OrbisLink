@@ -49,12 +49,22 @@ FocusScope {
 
         Rectangle {
             anchors.fill: parent
-            radius: Theme.radius
+            radius: Theme.radiusPane
             // Solid: how much of the picture shows through is the slider's alone.
             color: Qt.rgba(Theme.panel.r, Theme.panel.g, Theme.panel.b, 1)
             border.width: 1
-            border.color: Theme.glassEdge
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
             opacity: overlay.shownOpacity
+            // The light on the glass, as on every pane.
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: 1
+                radius: Math.max(0, parent.radius - 1)
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.38 : 0.05) }
+                    GradientStop { position: 0.3; color: Qt.rgba(1, 1, 1, 0) }
+                }
+            }
         }
 
         // Clicks on the panel stay on it (the picture under it is not touched).
@@ -78,30 +88,21 @@ FocusScope {
     }
 
     // The bar: what is open, how see-through, and the way out — the page's
-    // head, as PageHeader draws it elsewhere: a seal with the page's icon,
-    // the brass eyebrow ("Over Remote Play") and the title in the serif.
-    Rectangle {
+    // head, as PageHeader draws it elsewhere: a glass disc with the page's
+    // icon, the champagne eyebrow ("Over Remote Play") and the title in bold,
+    // on a pill of floating glass.
+    Plate {
         id: bar
+        level: "secondary"
         anchors.top: parent.top
         anchors.topMargin: 14
         anchors.horizontalCenter: panel.horizontalCenter
         width: panel.width
         height: 60
-        radius: Theme.radius
+        radius: height / 2
         color: Theme.menuFill
-        border.width: 1
-        border.color: Theme.alpha(Theme.brass, 0.5)
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.06)
         opacity: overlay.barOpacity
-
-        // The brass hairline inside the edge, as on an ornate plate.
-        Rectangle {
-            anchors.fill: parent
-            anchors.margins: 4
-            radius: parent.radius - 4
-            color: "transparent"
-            border.width: 1
-            border.color: Theme.alpha(Theme.brass, 0.2)
-        }
 
         MouseArea {
             anchors.fill: parent
@@ -110,18 +111,18 @@ FocusScope {
         RowLayout {
             anchors.fill: parent
             anchors.leftMargin: 12
-            anchors.rightMargin: 12
+            anchors.rightMargin: 14
             spacing: 12
 
-            // The seal.
+            // The page's icon on a glass disc.
             Rectangle {
                 visible: overlay.iconName.length > 0
-                implicitWidth: 36
-                implicitHeight: 36
-                radius: 18
-                color: Theme.alpha(Theme.ink, Theme.light ? 0.06 : 0.07)
+                implicitWidth: 38
+                implicitHeight: 38
+                radius: 19
+                color: Theme.controlFill
                 border.width: 1
-                border.color: Theme.alpha(Theme.brass, 0.55)
+                border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.06)
                 Icon {
                     anchors.centerIn: parent
                     name: overlay.iconName
@@ -142,14 +143,15 @@ FocusScope {
                     color: Theme.ink
                     font.family: Theme.fontDisplay
                     font.pixelSize: Theme.fontHeading
-                    font.weight: Font.DemiBold
+                    font.weight: Font.Bold
+                    font.letterSpacing: -0.2
                     elide: Text.ElideRight
                 }
             }
             Rectangle {
                 implicitWidth: 1
                 implicitHeight: 28
-                color: Theme.glassEdge
+                color: Theme.rule
                 visible: bar.width > 520
             }
             Icon {
@@ -174,25 +176,28 @@ FocusScope {
                     x: opacitySlider.leftPadding
                     y: opacitySlider.topPadding + opacitySlider.availableHeight / 2 - height / 2
                     width: opacitySlider.availableWidth
-                    height: 2
-                    radius: 1
-                    color: Theme.alpha(Theme.ink, 0.2)
+                    height: 4
+                    radius: 2
+                    color: Theme.light ? Qt.rgba(0, 0, 0, 0.10) : Qt.rgba(1, 1, 1, 0.14)
                     Rectangle {
                         width: opacitySlider.visualPosition * parent.width
                         height: parent.height
-                        radius: 1
+                        radius: 2
                         color: Theme.accent
                     }
                 }
                 handle: Rectangle {
                     x: opacitySlider.leftPadding + opacitySlider.visualPosition * (opacitySlider.availableWidth - width)
                     y: opacitySlider.topPadding + opacitySlider.availableHeight / 2 - height / 2
-                    width: 16
-                    height: 16
-                    radius: 8
-                    color: Theme.menuFill
-                    border.width: 2
-                    border.color: Theme.accent
+                    width: 20
+                    height: 20
+                    radius: 10
+                    // A glass bead, white and lit, as the switches' knobs are.
+                    color: "#FBFAF7"
+                    border.width: 1
+                    border.color: Theme.light ? Qt.rgba(0, 0, 0, 0.12) : Qt.rgba(1, 1, 1, 0.6)
+                    scale: opacitySlider.pressed ? 1.08 : 1
+                    Behavior on scale { NumberAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
                 }
                 HoverHandler { cursorShape: Qt.PointingHandCursor }
             }

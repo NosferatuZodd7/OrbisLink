@@ -59,11 +59,7 @@ Dialog {
 
     Overlay.modal: Rectangle { color: Theme.scrim }
 
-    background: Rectangle {
-        color: Theme.dialogFill
-        border.color: Theme.border
-        radius: Theme.radiusDialog
-    }
+    background: ShelfTile.DialogGlass {}
 
     header: ShelfTile.DialogHead {
         // The game it is for, over what this is.
@@ -115,25 +111,22 @@ Dialog {
 
         TabBar {
             visible: cheats.patchesSupported
-            Layout.fillWidth: true
+            Layout.fillWidth: false
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
             currentIndex: dialog.tab
             onCurrentIndexChanged: dialog.tab = currentIndex
-            padding: 0
-            spacing: 8
-            background: Rectangle {
-                y: parent.height - 1
-                width: parent.width
-                height: 1
-                color: Theme.glassEdge
-            }
+            padding: 3
+            spacing: 2
+            background: ShelfTile.TabTrack {}
             StyledTab {
-                width: implicitWidth + 28
+                leftPadding: 20
+                rightPadding: 20
                 text: cheats.cheats.length > 0 ? qsTr("Cheats (%1)").arg(cheats.cheats.length) : qsTr("Cheats")
             }
             StyledTab {
-                width: implicitWidth + 28
+                leftPadding: 20
+                rightPadding: 20
                 text: cheats.patches.length > 0 ? qsTr("Patches (%1)").arg(cheats.patches.length) : qsTr("Patches")
             }
         }

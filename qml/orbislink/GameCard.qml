@@ -80,14 +80,14 @@ ShelfTile {
         label: ""
     }
 
-    // Picked: the cover a shade of the accent colour, as in the library.
+    // Picked: a veil of bright glass over the cover, as in the library.
     Rectangle {
         anchors.fill: parent
         visible: card.checked
         radius: card.artRadius
-        color: Theme.alpha(Theme.accent, 0.22)
+        color: Qt.rgba(1, 1, 1, Theme.light ? 0.30 : 0.12)
         border.width: 2
-        border.color: Theme.accent
+        border.color: Qt.rgba(1, 1, 1, Theme.light ? 1 : 0.85)
     }
 
     // On its way: the cover dimmed, the step's loader over it, and a bar
@@ -127,23 +127,15 @@ ShelfTile {
     }
 
     // The platform, in the corner, as the library shows a file's kind, on a
-    // backing of the card's colour so it reads on any cover.
-    Rectangle {
+    // chip of frosted glass so it reads on any cover.
+    ShelfTile.CoverTag {
         visible: card.stage.length === 0
         anchors.left: parent.left
         anchors.bottom: parent.bottom
         anchors.margins: 8
-        width: platformTag.implicitWidth
-        height: platformTag.implicitHeight
-        radius: height / 2
-        color: Theme.alpha(Theme.cardBottom, 0.94)
-        Tag {
-            id: platformTag
-            anchors.fill: parent
-            text: card.ps2 ? "PS2" : "PS1"
-            tone: card.ps2 ? "accent" : "neutral"
-            mono: true
-        }
+        text: card.ps2 ? "PS2" : "PS1"
+        tone: card.ps2 ? "accent" : "neutral"
+        mono: true
     }
 
     // No emulator for it yet: it can be sent, not converted.
@@ -155,14 +147,14 @@ ShelfTile {
         width: 22
         height: 22
         radius: 11
-        color: Theme.alpha(Theme.cardBottom, 0.94)
+        color: Theme.light ? Qt.rgba(1, 1, 1, 0.90) : Qt.rgba(22 / 255, 22 / 255, 24 / 255, 0.82)
         border.width: 1
         border.color: Theme.alpha(Theme.warn, 0.5)
         Icon {
             anchors.centerIn: parent
             name: "warning"
             size: 13
-            color: Theme.warn
+            color: Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn
         }
         HoverHandler { id: warnHover }
         ToolTip.visible: warnHover.hovered

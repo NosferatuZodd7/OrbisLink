@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // What every card on the games page's shelf has in common: a square picture
-// on top (what goes in it is the card's) with soft corners and a hairline
-// edge, the name under it and a line of technical facts in mono. Picked out,
-// it lifts a little and an accent ring with a soft halo goes round the
-// picture, as on the console's own home screen; a card can also keep a quiet
-// halo of its own (green: installed on the console).
+// on top (what goes in it is the card's) with soft corners, set in a thin
+// frame of glass lit along its top, the name under it and a line of
+// technical facts in mono. Under the mouse the frame brightens; picked out,
+// the card lifts a little, its frame turns to bright glass and a fine accent
+// ring goes round it, as a focus ring does. A card can also keep a quiet
+// ring of its own (green: installed on the console).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -28,6 +29,8 @@ Item {
     property bool subtitleMono: true
     // The corner radius of the picture, which the cards' own art follows.
     readonly property int artRadius: 10
+    // The glass frame's width around the picture.
+    readonly property int framePadding: 5
     // The square on top.
     default property alias content: holder.data
 
@@ -41,10 +44,10 @@ Item {
     property point clickPoint: Qt.point(-1, -1)
 
     width: artSize
-    height: artSize + 10 + names.implicitHeight
+    height: artSize + 12 + names.implicitHeight
     z: selected ? 2 : hover ? 1 : 0
     opacity: dimmed ? 0.55 : 1.0
-    scale: area.pressed ? Theme.pressScale : selected ? 1.05 : hover ? 1.025 : 1.0
+    scale: area.pressed ? Theme.pressScale : selected ? 1.04 : hover ? 1.02 : 1.0
     transformOrigin: Item.Top
     Behavior on scale { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
 
@@ -52,33 +55,46 @@ Item {
     Accessible.name: tile.title
     Accessible.description: tile.subtitle
 
-    // A soft shadow under the picture, so the shelf reads as plates laid on
-    // the page rather than holes cut in it.
+    // A soft shadow under the frame, so the shelf reads as panes of glass
+    // laid on the page rather than holes cut in it.
     Rectangle {
-        x: holder.x
-        y: holder.y + (tile.hover || tile.selected ? 6 : 3)
-        width: holder.width
-        height: holder.height
-        radius: tile.artRadius
+        x: frame.x + 2
+        y: frame.y + (tile.hover || tile.selected ? 7 : 4)
+        width: frame.width - 4
+        height: frame.height
+        radius: frame.radius
         color: Qt.rgba(0, 0, 0, Theme.light ? (tile.hover || tile.selected ? 0.10 : 0.06)
-                                            : (tile.hover || tile.selected ? 0.34 : 0.22))
+                                            : (tile.hover || tile.selected ? 0.32 : 0.20))
         Behavior on y { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
     }
 
-    // The soft halo around the one picked (or one with a glow of its own).
-    Repeater {
-        model: 3
+    // The glass frame: a thin pane around the picture, brighter under the
+    // mouse and brightest when picked.
+    Rectangle {
+        id: frame
+        anchors.fill: holder
+        anchors.margins: -tile.framePadding
+        radius: tile.artRadius + tile.framePadding
+        color: tile.selected ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
+             : tile.hover ? Theme.controlHover : Theme.controlFill
+        border.width: 1
+        border.color: tile.selected || tile.hover ? (Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.16))
+                    : Theme.light ? Qt.rgba(1, 1, 1, 0.85) : Theme.glassEdge
+        Behavior on color { ColorAnimation { duration: Theme.cardEase } }
+        Behavior on border.color { ColorAnimation { duration: Theme.cardEase } }
+        // The light along its upper edge.
         Rectangle {
-            required property int index
-            anchors.fill: holder
-            anchors.margins: -(index + 2) * 2
-            radius: tile.artRadius + (index + 2) * 2
-            color: "transparent"
-            border.width: 2
-            border.color: tile.selected ? Theme.alpha(Theme.accent, (Theme.light ? 0.14 : 0.22) - index * 0.06)
-                        : tile.glowing ? Theme.alpha(tile.glow, (Theme.light ? 0.16 : 0.24) - index * 0.07)
-                        : "transparent"
-            Behavior on border.color { ColorAnimation { duration: Theme.cardEase } }
+            anchors.top: parent.top
+            anchors.topMargin: 1
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: parent.width - parent.radius * 1.6
+            height: 1
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0) }
+                GradientStop { position: 0.5; color: Theme.glassStrokeTop }
+                GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0) }
+            }
         }
     }
 
@@ -88,23 +104,23 @@ Item {
         height: tile.artSize
     }
 
-    // The ring: the accent when picked, a wash of it on hover, the glow's
-    // own colour when it has one.
+    // The ring outside the frame: the accent when picked (the keys' focus),
+    // the glow's own colour when it has one.
     Rectangle {
-        anchors.fill: holder
+        anchors.fill: frame
         anchors.margins: -3
-        radius: tile.artRadius + 3
+        radius: frame.radius + 3
         color: "transparent"
         border.width: tile.selected ? 2 : 1.5
-        border.color: tile.selected ? Theme.accent : tile.hover ? Theme.alpha(Theme.accent, 0.5)
-                    : tile.glowing ? Theme.alpha(tile.glow, 0.7) : "transparent"
+        border.color: tile.selected ? Theme.alpha(Theme.accent, 0.85)
+                    : tile.glowing ? Theme.alpha(tile.glow, tile.hover ? 0.75 : 0.55) : "transparent"
         Behavior on border.color { ColorAnimation { duration: Theme.cardEase } }
     }
 
     Column {
         id: names
         anchors.top: holder.bottom
-        anchors.topMargin: 10
+        anchors.topMargin: 12
         width: tile.artSize
         spacing: 3
         Text {
@@ -143,10 +159,12 @@ Item {
 
     // ── shared pieces of the games page, kept here because every file of
     // the page already depends on this one (and it on none of them):
-    // ShelfTile.EmptyState, ShelfTile.DialogHead and ShelfTile.FactRow.
+    // ShelfTile.EmptyState, ShelfTile.DialogHead, ShelfTile.FactRow, and the
+    // glass of the pages' dialogs, menus, tab tracks and cover tags
+    // (ShelfTile.DialogGlass, MenuGlass, TabTrack, CoverTag).
 
-    // An empty state, as the atlas leaves a plate blank: the faint planet, a
-    // heading in the serif, one line of why, and the way on (children).
+    // An empty state: the app's orb, faint, a bold heading, one line of why,
+    // and the way on (children).
     component EmptyState: ColumnLayout {
         id: empty
         property string heading: ""
@@ -159,7 +177,7 @@ Item {
             sourceSize.width: 104
             sourceSize.height: 104
             fillMode: Image.PreserveAspectFit
-            opacity: Theme.light ? 0.35 : 0.45
+            opacity: Theme.light ? 0.30 : 0.40
         }
         Text {
             Layout.fillWidth: true
@@ -170,7 +188,8 @@ Item {
             color: Theme.ink
             font.family: Theme.fontDisplay
             font.pixelSize: Theme.fontHeading
-            font.weight: Font.DemiBold
+            font.weight: Font.Bold
+            font.letterSpacing: -0.2
         }
         Text {
             Layout.fillWidth: true
@@ -189,8 +208,8 @@ Item {
         }
     }
 
-    // The head of the games page's dialogs: a brass eyebrow (what kind of
-    // thing it is), the title in the serif, an optional ‹ back and the ✕.
+    // The head of the games page's dialogs: a champagne eyebrow (what kind
+    // of thing it is), the title in bold, an optional ‹ back and the ✕.
     component DialogHead: Item {
         id: head
         property string eyebrow: ""
@@ -232,8 +251,9 @@ Item {
                 text: head.title
                 color: Theme.ink
                 font.family: Theme.fontDisplay
-                font.pixelSize: 24
-                font.weight: Font.DemiBold
+                font.pixelSize: 22
+                font.weight: Font.Bold
+                font.letterSpacing: -0.3
                 elide: Text.ElideRight
             }
         }
@@ -289,6 +309,71 @@ Item {
             anchors.bottom: parent.bottom
             height: 1
             color: Theme.glassEdge
+        }
+    }
+
+    // The glass of a dialog: the dialog fill, a fine edge, and the light
+    // falling on its top.
+    component DialogGlass: Rectangle {
+        color: Theme.dialogFill
+        radius: Theme.radiusDialog
+        border.width: 1
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: parent.radius - 1
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.40 : 0.06) }
+                GradientStop { position: 0.22; color: Qt.rgba(1, 1, 1, 0) }
+            }
+        }
+        Rectangle {
+            anchors.top: parent.top
+            anchors.topMargin: 1
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: parent.width - parent.radius * 2
+            height: 1
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0) }
+                GradientStop { position: 0.5; color: Theme.glassStrokeTop }
+                GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0) }
+            }
+        }
+    }
+
+    // The glass of a menu.
+    component MenuGlass: Rectangle {
+        color: Theme.menuFill
+        radius: 16
+        border.width: 1
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+    }
+
+    // The track a row of tabs sits in (give the TabBar padding: 3): the
+    // chosen tab's glass pill slides along it, as a segmented control.
+    component TabTrack: Rectangle {
+        radius: height / 2
+        color: Theme.light ? Qt.rgba(1, 1, 1, 0.45) : Qt.rgba(0, 0, 0, 0.20)
+        border.width: 1
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.9) : Theme.glassEdge
+    }
+
+    // A tag on a cover: on a chip of frosted glass of its own, so it reads
+    // over any picture.
+    component CoverTag: Rectangle {
+        property alias text: coverTagInner.text
+        property alias tone: coverTagInner.tone
+        property alias mono: coverTagInner.mono
+        property alias iconName: coverTagInner.iconName
+        implicitWidth: coverTagInner.implicitWidth
+        implicitHeight: coverTagInner.implicitHeight
+        radius: height / 2
+        color: Theme.light ? Qt.rgba(1, 1, 1, 0.90) : Qt.rgba(22 / 255, 22 / 255, 24 / 255, 0.82)
+        Tag {
+            id: coverTagInner
+            anchors.fill: parent
         }
     }
 }

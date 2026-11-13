@@ -351,7 +351,8 @@ FocusScope {
                     color: Theme.ink
                     font.pixelSize: Theme.fontHeading
                     font.family: Theme.fontDisplay
-                    font.weight: Font.DemiBold
+                    font.weight: Font.Bold
+                    font.letterSpacing: -0.2
                     elide: Text.ElideRight
                 }
             }
@@ -366,99 +367,107 @@ FocusScope {
         }
 
         // ── what is shown: only games or everything, the filter, the order,
-        // the search — one toolbar
-        RowLayout {
+        // the search — one toolbar, a bar of glass
+        Plate {
             Layout.fillWidth: true
-            spacing: 8
+            implicitHeight: 46
+            radius: height / 2
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 6
+                anchors.rightMargin: 6
+                spacing: 8
 
-            // Only what holds games (and the folders on the way to them), or
-            // everything the places hold: a two-way switch, round-ended.
-            Rectangle {
-                id: scope
-                implicitWidth: scopeRow.implicitWidth + 6
-                implicitHeight: 32
-                radius: height / 2
-                color: "transparent"
-                border.width: 1
-                border.color: Theme.alpha(Theme.ink, Theme.light ? 0.26 : 0.2)
-                Row {
-                    id: scopeRow
-                    anchors.centerIn: parent
-                    spacing: 2
-                    Repeater {
-                        model: [[true, qsTr("Only games")], [false, qsTr("Everything")]]
-                        AbstractButton {
-                            id: scopeButton
-                            required property var modelData
-                            readonly property bool on: shelf.onlyGames === modelData[0]
-                            implicitWidth: scopeLabel.implicitWidth + 26
-                            implicitHeight: 26
-                            text: modelData[1]
-                            checkable: false
-                            Accessible.role: Accessible.RadioButton
-                            Accessible.checked: on
-                            onClicked: shelf.onlyGames = modelData[0]
-                            HoverHandler { cursorShape: Qt.PointingHandCursor }
-                            background: Rectangle {
-                                radius: height / 2
-                                color: scopeButton.on ? Theme.accentFill
-                                     : scopeButton.hovered ? Theme.alpha(Theme.ink, 0.05) : "transparent"
-                                border.width: scopeButton.visualFocus ? 2 : 0
-                                border.color: Theme.alpha(Theme.accent, 0.55)
-                                Behavior on color { ColorAnimation { duration: Theme.fast } }
-                            }
-                            contentItem: Text {
-                                id: scopeLabel
-                                text: scopeButton.text
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                                color: scopeButton.on ? Theme.ink : Theme.textSecondary
-                                font.pixelSize: 12
-                                font.weight: scopeButton.on ? Font.DemiBold : Font.Medium
+                // Only what holds games (and the folders on the way to them), or
+                // everything the places hold: a two-way segmented switch.
+                Rectangle {
+                    id: scope
+                    implicitWidth: scopeRow.implicitWidth + 6
+                    implicitHeight: 34
+                    radius: height / 2
+                    color: Theme.light ? Qt.rgba(1, 1, 1, 0.45) : Qt.rgba(0, 0, 0, 0.20)
+                    border.width: 1
+                    border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.9) : Theme.glassEdge
+                    Row {
+                        id: scopeRow
+                        anchors.centerIn: parent
+                        spacing: 2
+                        Repeater {
+                            model: [[true, qsTr("Only games")], [false, qsTr("Everything")]]
+                            AbstractButton {
+                                id: scopeButton
+                                required property var modelData
+                                readonly property bool on: shelf.onlyGames === modelData[0]
+                                implicitWidth: scopeLabel.implicitWidth + 26
+                                implicitHeight: 28
+                                text: modelData[1]
+                                checkable: false
+                                Accessible.role: Accessible.RadioButton
+                                Accessible.checked: on
+                                onClicked: shelf.onlyGames = modelData[0]
+                                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                background: Rectangle {
+                                    radius: height / 2
+                                    color: scopeButton.on ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.13))
+                                         : scopeButton.hovered ? Theme.controlFill : "transparent"
+                                    border.width: scopeButton.visualFocus ? 2 : scopeButton.on ? 1 : 0
+                                    border.color: scopeButton.visualFocus ? Theme.alpha(Theme.accent, 0.55)
+                                                : Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.06)
+                                    Behavior on color { ColorAnimation { duration: Theme.fast } }
+                                }
+                                contentItem: Text {
+                                    id: scopeLabel
+                                    text: scopeButton.text
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    color: scopeButton.on ? Theme.ink : Theme.textSecondary
+                                    font.pixelSize: 12
+                                    font.weight: scopeButton.on ? Font.DemiBold : Font.Medium
+                                }
                             }
                         }
                     }
                 }
-            }
-            Item { Layout.fillWidth: true }
-            StyledButton {
-                visible: !view.home
-                chip: true
-                iconName: "filter"
-                text: shelf.filter === "games" ? qsTr("Games") : shelf.filter === "pkg" ? qsTr("PKG files")
-                    : shelf.filter === "folders" ? qsTr("Folders") : shelf.filter === "other" ? qsTr("Other")
-                    : qsTr("Filter")
-                onClicked: filterMenu.popup(this, 0, height + 4)
-            }
-            StyledButton {
-                visible: !view.home
-                chip: true
-                iconName: "arrow-up-down"
-                text: shelf.sort === "name" ? qsTr("Name") : shelf.sort === "date" ? qsTr("Date") : qsTr("Type")
-                onClicked: sortMenu.popup(this, 0, height + 4)
-            }
-            StyledField {
-                id: search
-                Layout.preferredWidth: 240
-                Layout.minimumWidth: 140
-                Layout.preferredHeight: 34
-                leftPadding: 34
-                placeholderText: view.home || shelf.level === "search" ? qsTr("Search every place") : qsTr("Search here")
-                text: shelf.query
-                onTextEdited: shelf.query = text
-                Keys.onEscapePressed: {
-                    text = ""
-                    shelf.query = ""
-                    list.forceActiveFocus()
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    visible: !view.home
+                    chip: true
+                    iconName: "filter"
+                    text: shelf.filter === "games" ? qsTr("Games") : shelf.filter === "pkg" ? qsTr("PKG files")
+                        : shelf.filter === "folders" ? qsTr("Folders") : shelf.filter === "other" ? qsTr("Other")
+                        : qsTr("Filter")
+                    onClicked: filterMenu.popup(this, 0, height + 4)
                 }
-                Keys.onDownPressed: list.forceActiveFocus()
-                Icon {
-                    anchors.left: parent.left
-                    anchors.leftMargin: 12
-                    anchors.verticalCenter: parent.verticalCenter
-                    name: "search"
-                    size: 15
-                    color: Theme.textSecondary
+                StyledButton {
+                    visible: !view.home
+                    chip: true
+                    iconName: "arrow-up-down"
+                    text: shelf.sort === "name" ? qsTr("Name") : shelf.sort === "date" ? qsTr("Date") : qsTr("Type")
+                    onClicked: sortMenu.popup(this, 0, height + 4)
+                }
+                StyledField {
+                    id: search
+                    Layout.preferredWidth: 240
+                    Layout.minimumWidth: 140
+                    Layout.preferredHeight: 34
+                    leftPadding: 34
+                    placeholderText: view.home || shelf.level === "search" ? qsTr("Search every place") : qsTr("Search here")
+                    text: shelf.query
+                    onTextEdited: shelf.query = text
+                    Keys.onEscapePressed: {
+                        text = ""
+                        shelf.query = ""
+                        list.forceActiveFocus()
+                    }
+                    Keys.onDownPressed: list.forceActiveFocus()
+                    Icon {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "search"
+                        size: 15
+                        color: Theme.textSecondary
+                    }
                 }
             }
         }
@@ -533,7 +542,7 @@ FocusScope {
                     width: list.width
                     height: header.length > 0 ? 40 : view.cellHeight
 
-                    // A section's heading: its name in brass capitals, how
+                    // A section's heading: its name in champagne capitals, how
                     // many in mono, then a hairline to the edge.
                     RowLayout {
                         visible: row.header.length > 0
@@ -605,9 +614,11 @@ FocusScope {
                 }
             }
 
-            // ── what to do with the games picked, floating over the cards
-            Rectangle {
+            // ── what to do with the games picked, on glass floating over the
+            // cards
+            Plate {
                 id: pickBar
+                level: "secondary"
                 visible: view.picking
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.bottom: parent.bottom
@@ -615,9 +626,6 @@ FocusScope {
                 width: Math.min(parent.width - 16, pickRow.implicitWidth + 32)
                 height: 58
                 radius: 29
-                color: Theme.menuFill
-                border.width: 1
-                border.color: Theme.glassEdge
                 z: 5
                 readonly property int count: view.pickedKeys.length
                 RowLayout {
@@ -633,7 +641,7 @@ FocusScope {
                         color: pickBar.count === 0 ? Theme.textSecondary : Theme.ink
                         font.family: pickBar.count === 0 ? Theme.fontSans : Theme.fontDisplay
                         font.pixelSize: pickBar.count === 0 ? 13 : 16
-                        font.weight: pickBar.count === 0 ? Font.Normal : Font.DemiBold
+                        font.weight: pickBar.count === 0 ? Font.Normal : Font.Bold
                         elide: Text.ElideRight
                     }
                     StyledButton {
@@ -759,13 +767,7 @@ FocusScope {
         id: filterMenu
         topPadding: 8
         bottomPadding: 8
-        background: Rectangle {
-            implicitWidth: 220
-            color: Theme.menuFill
-            border.color: Theme.glassEdge
-            border.width: 1
-            radius: 14
-        }
+        background: ShelfTile.MenuGlass { implicitWidth: 220 }
         Instantiator {
             model: [["all", qsTr("All")], ["games", qsTr("Games found")], ["pkg", qsTr("PKG files")],
                     ["folders", qsTr("Folders")], ["other", qsTr("Other supported files")]]
@@ -783,13 +785,7 @@ FocusScope {
         id: sortMenu
         topPadding: 8
         bottomPadding: 8
-        background: Rectangle {
-            implicitWidth: 220
-            color: Theme.menuFill
-            border.color: Theme.glassEdge
-            border.width: 1
-            radius: 14
-        }
+        background: ShelfTile.MenuGlass { implicitWidth: 220 }
         Instantiator {
             model: [["type", qsTr("By type (in sections)")], ["name", qsTr("By name")], ["date", qsTr("Newest first")]]
             delegate: StyledMenuItem {
@@ -812,13 +808,7 @@ FocusScope {
                     return true
             return false
         }
-        background: Rectangle {
-            implicitWidth: 300
-            color: Theme.menuFill
-            border.color: Theme.glassEdge
-            border.width: 1
-            radius: 14
-        }
+        background: ShelfTile.MenuGlass { implicitWidth: 300 }
         StyledMenuItem {
             text: qsTr("A folder of this PC…")
             iconName: "folder-open"
@@ -898,11 +888,7 @@ FocusScope {
         modal: true
         padding: 0
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         onOpened: {
             consolePath.text = "/data/"
             consolePath.forceActiveFocus()
@@ -1022,11 +1008,7 @@ FocusScope {
         modal: true
         padding: 0
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         header: ShelfTile.DialogHead {
             eyebrow: view.kindText(details.card)
             title: details.card.title || ""
@@ -1208,13 +1190,7 @@ FocusScope {
             id: moreMenu
             topPadding: 8
             bottomPadding: 8
-            background: Rectangle {
-                implicitWidth: 260
-                color: Theme.menuFill
-                border.color: Theme.glassEdge
-                border.width: 1
-                radius: 14
-            }
+            background: ShelfTile.MenuGlass { implicitWidth: 260 }
             Instantiator {
                 model: details.moreActions
                 delegate: StyledMenuItem {
@@ -1252,11 +1228,7 @@ FocusScope {
         modal: true
         padding: 0
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         header: ShelfTile.DialogHead {
             eyebrow: qsTr("Library")
             title: qsTr("Delete %1 from the console?").arg(removal.card.name)
@@ -1330,11 +1302,7 @@ FocusScope {
         modal: true
         padding: 0
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         header: ShelfTile.DialogHead {
             eyebrow: qsTr("Library")
             title: qsTr("Delete %n file(s) from the console?", "", bulkRemoval.keys.length)
@@ -1427,11 +1395,7 @@ FocusScope {
         modal: true
         padding: 0
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         header: ShelfTile.DialogHead {
             eyebrow: uninstallDialog.card.titleId || qsTr("Library")
             title: uninstallDialog.updateOnly ? qsTr("Uninstall the update of %1?").arg(uninstallDialog.card.title)
@@ -1520,11 +1484,7 @@ FocusScope {
         modal: true
         padding: 0
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         header: ShelfTile.DialogHead {
             eyebrow: qsTr("Library")
             title: qsTr("Copy to this PC")
@@ -1717,11 +1677,7 @@ FocusScope {
         modal: true
         padding: 0
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         header: ShelfTile.DialogHead {
             eyebrow: qsTr("Library")
             title: qsTr("Places in the library")

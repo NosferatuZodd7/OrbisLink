@@ -34,8 +34,8 @@ Popup {
         picked(color)
     }
 
-    readonly property var suggestions: ["#173B5C", "#426F89", "#6C9DA0", "#B28A4A", "#C18B43", "#A84D46",
-                                        "#65866A", "#10283D", "#202B32", "#E5D3AE", "#F3E8CC", "#7C5CFF"]
+    readonly property var suggestions: ["#9EBCD8", "#4A7AA3", "#D8C3A0", "#C9A473", "#9C7442", "#E2B66E",
+                                        "#8CC7A1", "#E58A80", "#28282C", "#141416", "#E7E2DA", "#F4F1EA"]
 
     width: 272
     padding: 16
@@ -46,11 +46,21 @@ Popup {
     focus: true
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
+    // A floating glass popover, as the menus are.
     background: Rectangle {
         color: Theme.menuFill
-        radius: Theme.radius
+        radius: 16
         border.width: 1
-        border.color: Theme.glassEdge
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: parent.radius - 1
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.5 : 0.05) }
+                GradientStop { position: 0.3; color: Qt.rgba(1, 1, 1, 0) }
+            }
+        }
     }
 
     contentItem: ColumnLayout {
@@ -178,7 +188,8 @@ Popup {
             }
         }
 
-        // Suggestions: the atlas's own inks first, then a few to go further.
+        // Suggestions: the appearances' own tones — cool blue, champagne and
+        // bronze, the states, graphite and ivory.
         Eyebrow {
             Layout.topMargin: 2
             text: qsTr("Suggestions")

@@ -30,7 +30,6 @@ cp "$BUILD/orbislink-cli" "$STAGE/"
 strip "$STAGE/orbislink-cli" 2>/dev/null || true
 cp "$REPO/LICENSE" "$STAGE/"
 cp "$REPO/third-party/figtree/LICENSE.txt" "$STAGE/LICENSE-Figtree.txt"
-cp "$REPO/third-party/fraunces/LICENSE.txt" "$STAGE/LICENSE-Fraunces.txt"
 cp "$REPO/third-party/jetbrains-mono/LICENSE.txt" "$STAGE/LICENSE-JetBrainsMono.txt"
 cp "$REPO/third-party/lucide/LICENSE" "$STAGE/LICENSE-Lucide.txt"
 cp "$REPO/third-party/liborbispkg/LICENSE" "$STAGE/LICENSE-LibOrbisPkg.txt"

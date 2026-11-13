@@ -235,7 +235,6 @@ if(ORBISLINK_BUILD_GUI)
 			qml/orbislink/orbislink.qrc
 			src/icons/icons.qrc
 			third-party/figtree/fonts.qrc
-			third-party/fraunces/fonts.qrc
 			third-party/jetbrains-mono/fonts.qrc
 			translations/translations.qrc
 			$<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/icons/orbislink.rc>

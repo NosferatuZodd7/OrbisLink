@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The navigation: the left spine of the window. From the top, the emblem;
-// the console in use with its services; the pages; the transfers; and at
-// the foot the themes, the log and the settings.
+// The navigation: a pane of glass floating on the left. From the top, the
+// emblem (the way home); the pages; the transfers and the log; and at the
+// foot the appearances and the settings. The console in use is in the
+// toolbar, not here.
 //
 // Folded (a narrow window, or by choice) it keeps only the icons, each with
 // its name on hover. Nothing is lost: every page and tool is one click away
@@ -11,8 +12,9 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
-Rectangle {
+Plate {
     id: nav
+    level: "primary"
 
     property bool compact: false
     // The queue's count and whether the transfers' panel is open (Main.qml).
@@ -30,18 +32,8 @@ Rectangle {
     // The page lit: the one open over the picture, or in the main area.
     readonly property string current: window.overSection.length > 0 ? window.overSection : window.view
 
-    color: Theme.sidebarFill
-
-    // The hairline against the sky.
-    Rectangle {
-        anchors.right: parent.right
-        width: 1
-        height: parent.height
-        color: Theme.glassEdge
-    }
-
-    // One page or tool. Lit: an ink wash, its name in bold and the brass
-    // star beside it.
+    // One page or tool. Lit: a pill of brighter glass behind it, as a lens
+    // over what is chosen.
     component NavItem: Item {
         id: item
         property string iconName: ""
@@ -53,23 +45,34 @@ Rectangle {
         signal clicked()
 
         Layout.fillWidth: true
-        implicitHeight: 38
+        implicitHeight: 40
         Accessible.role: Accessible.Button
         Accessible.name: text
 
         Rectangle {
             anchors.fill: parent
-            radius: 10
-            color: item.selected ? Theme.alpha(Theme.ink, Theme.light ? 0.09 : 0.08)
-                 : mouse.containsMouse ? Theme.alpha(Theme.ink, Theme.light ? 0.05 : 0.045) : "transparent"
+            radius: height / 2
+            color: item.selected ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
+                 : mouse.containsMouse ? (Theme.light ? Qt.rgba(1, 1, 1, 0.50) : Qt.rgba(1, 1, 1, 0.06)) : "transparent"
             border.width: item.selected ? 1 : 0
-            border.color: Theme.alpha(Theme.ink, Theme.light ? 0.12 : 0.10)
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.06)
             Behavior on color { ColorAnimation { duration: Theme.fast } }
+            // The sheen on the lit pill.
+            Rectangle {
+                visible: item.selected
+                anchors.fill: parent
+                anchors.margins: 1
+                radius: height / 2
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.6 : 0.12) }
+                    GradientStop { position: 0.6; color: Qt.rgba(1, 1, 1, 0) }
+                }
+            }
         }
 
         Icon {
             id: glyph
-            x: nav.compact ? (parent.width - width) / 2 : 12
+            x: nav.compact ? (parent.width - width) / 2 : 14
             anchors.verticalCenter: parent.verticalCenter
             name: item.iconName
             size: 18
@@ -85,7 +88,7 @@ Rectangle {
             text: item.text
             color: item.selected ? Theme.ink : Theme.text
             font.pixelSize: 14
-            font.weight: item.selected ? Font.Bold : Font.Medium
+            font.weight: item.selected ? Font.DemiBold : Font.Medium
             elide: Text.ElideRight
         }
         Row {
@@ -101,20 +104,15 @@ Rectangle {
                 width: Math.max(20, count.implicitWidth + 10)
                 height: 18
                 radius: 9
-                color: Theme.accent
+                color: Theme.light ? "#1E1D1B" : Qt.rgba(1, 1, 1, 0.9)
                 Text {
                     id: count
                     anchors.centerIn: parent
                     text: item.badge
-                    color: Theme.textOnAccent
+                    color: Theme.light ? "#FFFFFF" : "#16161A"
                     font.pixelSize: 11
                     font.weight: Font.Bold
                 }
-            }
-            Sparkle {
-                visible: item.selected
-                anchors.verticalCenter: parent.verticalCenter
-                size: 9
             }
         }
         // Folded: the count at the icon's corner; a live dot for Remote Play.
@@ -169,33 +167,29 @@ Rectangle {
         anchors.fill: parent
         anchors.topMargin: 18
         anchors.bottomMargin: 14
-        anchors.leftMargin: nav.compact ? 12 : 16
-        anchors.rightMargin: nav.compact ? 13 : 17
+        anchors.leftMargin: nav.compact ? 12 : 14
+        anchors.rightMargin: nav.compact ? 12 : 14
         spacing: 0
 
-        // ── The emblem.
+        // ── The emblem: the way home.
         RowLayout {
             Layout.fillWidth: true
-            Layout.bottomMargin: 20
-            spacing: 10
-            Image {
+            Layout.bottomMargin: 22
+            Layout.leftMargin: nav.compact ? 0 : 4
+            spacing: 12
+            LogoButton {
                 Layout.alignment: nav.compact ? Qt.AlignHCenter : Qt.AlignLeft
-                Layout.preferredWidth: 36
-                Layout.preferredHeight: 36
-                source: "qrc:/icons/mark.png"
-                sourceSize.width: 72
-                sourceSize.height: 72
-                smooth: true
-                mipmap: true
+                size: 40
+                onClicked: window.showHome()
             }
             Text {
                 visible: !nav.compact
                 Layout.fillWidth: true
                 text: "OrbisLink"
                 color: Theme.ink
-                font.family: Theme.fontDisplay
-                font.pixelSize: 23
-                font.weight: Font.DemiBold
+                font.pixelSize: 20
+                font.weight: Font.Bold
+                font.letterSpacing: -0.3
                 elide: Text.ElideRight
             }
         }
@@ -211,32 +205,11 @@ Rectangle {
             ColumnLayout {
                 id: middle
                 width: parent.width
-                spacing: 2
-
-                // ── The console in use.
-                Eyebrow {
-                    visible: !nav.compact
-                    Layout.leftMargin: 4
-                    Layout.bottomMargin: 8
-                    text: qsTr("Console")
-                }
-                ConsoleChip {
-                    Layout.fillWidth: !nav.compact
-                    Layout.alignment: Qt.AlignHCenter
-                    Layout.bottomMargin: 22
-                    compact: nav.compact
-                    onShowConsoles: window.showHome()
-                }
+                spacing: 4
 
                 // ── The pages.
-                Eyebrow {
-                    visible: !nav.compact
-                    Layout.leftMargin: 4
-                    Layout.bottomMargin: 6
-                    text: qsTr("Pages")
-                }
                 NavItem {
-                    iconName: nav.live ? "play" : "monitor"
+                    iconName: nav.live ? "play" : "home"
                     text: nav.live ? qsTr("Remote Play") : qsTr("Consoles")
                     hint: nav.live ? qsTr("The session is still running") : qsTr("Every console, and Remote Play")
                     selected: nav.current === "home"
@@ -275,12 +248,10 @@ Rectangle {
                 }
 
                 // ── The transfers.
-                Rectangle {
+                EngravedRule {
                     Layout.fillWidth: true
-                    Layout.topMargin: 12
-                    Layout.bottomMargin: 12
-                    implicitHeight: 1
-                    color: Theme.glassEdge
+                    Layout.topMargin: 6
+                    Layout.bottomMargin: 6
                 }
                 NavItem {
                     iconName: "panel"

@@ -277,7 +277,7 @@ Item {
         anchors.fill: parent
         anchors.leftMargin: root.framed ? Theme.gutter : 18
         anchors.rightMargin: root.framed ? Theme.gutter : 18
-        anchors.topMargin: root.framed ? 26 : 18
+        anchors.topMargin: root.framed ? 22 : 18
         anchors.bottomMargin: root.framed ? 12 : 14
         spacing: 14
 
@@ -1095,11 +1095,7 @@ Item {
         }
 
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         header: DialogHeader {
             title: detailDialog.listed.name !== undefined ? detailDialog.listed.name : ""
             dialog: detailDialog
@@ -1529,13 +1525,7 @@ Item {
         id: targetMenu
         topPadding: 8
         bottomPadding: 8
-        background: Rectangle {
-            implicitWidth: 260
-            color: Theme.menuFill
-            border.color: Theme.glassEdge
-            border.width: 1
-            radius: 14
-        }
+        background: ShelfTile.MenuGlass { implicitWidth: 260 }
         Instantiator {
             model: store.consoles
             delegate: StyledMenuItem {
@@ -1566,11 +1556,7 @@ Item {
         modal: true
         padding: 0
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         header: DialogHeader {
             title: qsTr("Install %1 from which store?").arg(sourceDialog.app.name !== undefined ? sourceDialog.app.name : "")
             dialog: sourceDialog
@@ -1676,11 +1662,7 @@ Item {
         modal: true
         padding: 0
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         onOpened: {
             message = ""
             newStoreField.text = ""
@@ -1910,11 +1892,7 @@ Item {
         modal: true
         padding: 0
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         onOpened: addressField.forceActiveFocus()
         header: DialogHeader {
             title: qsTr("The catalog's address")

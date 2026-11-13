@@ -437,7 +437,7 @@ Item {
         anchors.fill: parent
         anchors.leftMargin: root.framed ? Theme.gutter : 18
         anchors.rightMargin: root.framed ? Theme.gutter : 18
-        anchors.topMargin: root.framed ? 26 : 18
+        anchors.topMargin: root.framed ? 22 : 18
         anchors.bottomMargin: root.framed ? 12 : 14
         spacing: 16
 
@@ -801,23 +801,18 @@ Item {
             }
         }
 
-        // ── filters as underline tabs on a hairline, and the selection
+        // ── filters as a segmented row of tabs, and the selection
         RowLayout {
             Layout.fillWidth: true
             spacing: 12
             TabBar {
                 id: filterTabs
                 readonly property var ids: ["all", "console", "changed", "vault"]
-                Layout.fillWidth: true
-                padding: 0
-                spacing: 4
+                Layout.fillWidth: false
+                padding: 3
+                spacing: 2
                 currentIndex: Math.max(0, ids.indexOf(root.filter))
-                background: Rectangle {
-                    y: parent.height - 1
-                    width: parent.width
-                    height: 1
-                    color: Theme.glassEdge
-                }
+                background: ShelfTile.TabTrack {}
                 Repeater {
                     model: [
                         { id: "all", label: qsTr("All"), n: root.counts.all },
@@ -835,6 +830,7 @@ Item {
                     }
                 }
             }
+            Item { Layout.fillWidth: true }
             // Everything shown, even with some selected already; once it
             // all is, nothing at all.
             StyledButton {
@@ -1272,11 +1268,7 @@ Item {
         readonly property int lastCopies: root.countWhere(function (s) { return s.inVault && !s.onConsole })
 
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         header: DialogHeader {
             title: qsTr("Delete %n save(s) from the PC?", "", confirmDelete.inVault)
             dialog: confirmDelete
@@ -1423,11 +1415,7 @@ Item {
         }
 
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         header: DialogHeader {
             title: qsTr("Send %n save(s) to %1?", "", confirmSend.keys.length).arg(confirmSend.name)
             dialog: confirmSend
@@ -1636,13 +1624,7 @@ Item {
         id: sourceMenu
         topPadding: 8
         bottomPadding: 8
-        background: Rectangle {
-            implicitWidth: 280
-            color: Theme.menuFill
-            border.color: Theme.glassEdge
-            border.width: 1
-            radius: 14
-        }
+        background: ShelfTile.MenuGlass { implicitWidth: 280 }
         Instantiator {
             model: saves.consoles
             delegate: StyledMenuItem {
@@ -1663,13 +1645,7 @@ Item {
         id: targetMenu
         topPadding: 8
         bottomPadding: 8
-        background: Rectangle {
-            implicitWidth: 280
-            color: Theme.menuFill
-            border.color: Theme.glassEdge
-            border.width: 1
-            radius: 14
-        }
+        background: ShelfTile.MenuGlass { implicitWidth: 280 }
         Instantiator {
             model: root.targets
             delegate: StyledMenuItem {
@@ -1702,11 +1678,7 @@ Item {
         }
 
         Overlay.modal: Rectangle { color: Theme.scrim }
-        background: Rectangle {
-            color: Theme.dialogFill
-            border.color: Theme.border
-            radius: Theme.radiusDialog
-        }
+        background: ShelfTile.DialogGlass {}
         header: DialogHeader {
             title: linkDialog.user ? qsTr("Console user %1").arg(linkDialog.user.consoleName !== undefined
                                                                  && linkDialog.user.consoleName.length > 0

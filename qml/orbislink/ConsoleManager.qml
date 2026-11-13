@@ -149,7 +149,7 @@ ColumnLayout {
     }
 
     PageHeader {
-        // Room on the right for the settings dialog's round ✕.
+        // Room on the right for the settings dialog's round close button.
         Layout.rightMargin: 40
         Layout.bottomMargin: 8
         eyebrow: qsTr("Network")

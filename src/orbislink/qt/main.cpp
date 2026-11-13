@@ -136,10 +136,7 @@ int main(int argc, char **argv)
 	// system instead of taking whatever font each one has.
 	for(const char *weight : {"Regular", "Medium", "SemiBold", "Bold"})
 		QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/Figtree-%1.ttf").arg(QLatin1String(weight)));
-	// Headings use the serif, technical values (addresses, ports, sizes,
-	// paths) the monospace.
-	for(const char *weight : {"Regular", "SemiBold"})
-		QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/Fraunces-%1.ttf").arg(QLatin1String(weight)));
+	// Technical values (addresses, ports, sizes, paths) use the monospace.
 	for(const char *weight : {"Regular", "Medium"})
 		QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/JetBrainsMono-%1.ttf").arg(QLatin1String(weight)));
 	{

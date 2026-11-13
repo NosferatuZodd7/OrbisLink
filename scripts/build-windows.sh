@@ -95,7 +95,6 @@ cp "$REPO/src/icons/orbisDDM.ico" "$STAGE/orbislink.ico"
 sed 's/$/\r/' "$REPO/LICENSE" > "$STAGE/LICENSE.txt"
 # The fonts and the icons built into the interface carry their own licences.
 sed 's/$/\r/' "$REPO/third-party/figtree/LICENSE.txt" > "$STAGE/LICENSE-Figtree.txt"
-sed 's/$/\r/' "$REPO/third-party/fraunces/LICENSE.txt" > "$STAGE/LICENSE-Fraunces.txt"
 sed 's/$/\r/' "$REPO/third-party/jetbrains-mono/LICENSE.txt" > "$STAGE/LICENSE-JetBrainsMono.txt"
 sed 's/$/\r/' "$REPO/third-party/lucide/LICENSE" > "$STAGE/LICENSE-Lucide.txt"
 sed 's/$/\r/' "$REPO/third-party/liborbispkg/LICENSE" > "$STAGE/LICENSE-LibOrbisPkg.txt"
