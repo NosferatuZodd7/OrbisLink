@@ -32,7 +32,9 @@ ShelfTile {
     title: (game.title || "") + (game.disc > 0 ? qsTr(" (disc %1)").arg(game.disc) : "")
     subtitle: stage.length > 0 ? stageText : [game.serial, game.sizeText].filter(function (s) {
         return s && s.length > 0
-    }).join("  ·  ")
+    }).join(" · ")
+    // Serial and size are technical; the step under way is words.
+    subtitleMono: stage.length === 0
     // The tile's own click (ShelfTile's) covers the cover: on the round box,
     // or with Ctrl or Shift held, it picks; anywhere else it opens.
     function onBox(point) {
@@ -72,18 +74,20 @@ ShelfTile {
         anchors.fill: parent
         crop: true
         picture: card.cover
+        radius: card.artRadius
         placeholder: card.ps2 ? "dvd" : "cd"
-        label: card.ps2 ? "PS2" : "PS1"
+        // The platform is in the tag at the corner already.
+        label: ""
     }
 
-    // Picked: the cover a shade of the accent colour, as in the library.
+    // Picked: a veil of bright glass over the cover, as in the library.
     Rectangle {
         anchors.fill: parent
         visible: card.checked
-        radius: 6
-        color: Theme.alpha(Theme.accent, 0.22)
+        radius: card.artRadius
+        color: Qt.rgba(1, 1, 1, Theme.light ? 0.30 : 0.12)
         border.width: 2
-        border.color: Theme.accent
+        border.color: Qt.rgba(1, 1, 1, Theme.light ? 1 : 0.85)
     }
 
     // On its way: the cover dimmed, the step's loader over it, and a bar
@@ -91,7 +95,7 @@ ShelfTile {
     Rectangle {
         anchors.fill: parent
         visible: card.stage.length > 0
-        radius: 6
+        radius: card.artRadius
         color: Qt.rgba(0, 0, 0, 0.55)
         StageLoader {
             id: stageLoader
@@ -122,27 +126,16 @@ ShelfTile {
         }
     }
 
-    // The platform, in the corner, as the library shows a file's kind.
-    Rectangle {
+    // The platform, in the corner, as the library shows a file's kind, on a
+    // chip of frosted glass so it reads on any cover.
+    ShelfTile.CoverTag {
         visible: card.stage.length === 0
         anchors.left: parent.left
         anchors.bottom: parent.bottom
-        anchors.margins: 6
-        radius: 6
-        color: Theme.alpha(Theme.cardBottom, 0.88)
-        border.width: 1
-        border.color: Theme.cardEdge
-        implicitWidth: platformLabel.implicitWidth + 12
-        implicitHeight: 18
-        Text {
-            id: platformLabel
-            anchors.centerIn: parent
-            text: card.ps2 ? "PS2" : "PS1"
-            color: card.ps2 ? Theme.accent : Theme.cardText
-            font.pixelSize: 10
-            font.weight: Font.DemiBold
-            font.letterSpacing: 0.6
-        }
+        anchors.margins: 8
+        text: card.ps2 ? "PS2" : "PS1"
+        tone: card.ps2 ? "accent" : "neutral"
+        mono: true
     }
 
     // No emulator for it yet: it can be sent, not converted.
@@ -150,16 +143,18 @@ ShelfTile {
         visible: !card.game.convertible && card.stage.length === 0
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.margins: 6
+        anchors.margins: 8
         width: 22
         height: 22
         radius: 11
-        color: Theme.alpha(Theme.cardBottom, 0.88)
+        color: Theme.light ? Qt.rgba(1, 1, 1, 0.90) : Qt.rgba(22 / 255, 22 / 255, 24 / 255, 0.82)
+        border.width: 1
+        border.color: Theme.alpha(Theme.warn, 0.5)
         Icon {
             anchors.centerIn: parent
             name: "warning"
             size: 13
-            color: Theme.warn
+            color: Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn
         }
         HoverHandler { id: warnHover }
         ToolTip.visible: warnHover.hovered
@@ -172,14 +167,14 @@ ShelfTile {
     // The round box that picks it, above the card's own click.
     Rectangle {
         id: box
-        x: 6
-        y: 6
+        x: 8
+        y: 8
         width: 24
         height: 24
         radius: 12
         visible: card.checked || card.hover
         color: card.checked ? Theme.accent : card.overBox ? Theme.alpha(Theme.accent, 0.55)
-                                                          : Theme.alpha("#000000", 0.35)
+                                                          : Qt.rgba(0, 0, 0, 0.35)
         border.width: 2
         border.color: card.checked ? Theme.accent : "#FFFFFF"
         Icon {

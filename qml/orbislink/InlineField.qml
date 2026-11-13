@@ -29,7 +29,7 @@ TextField {
 
     background: Rectangle {
         radius: 8
-        color: field.activeFocus ? (Theme.light ? "#FFFFFF" : Theme.controlFill)
+        color: field.activeFocus ? (Theme.light ? "#FBF6EA" : Theme.controlFill)
              : hover.hovered ? Theme.alpha(Theme.text, 0.05) : "transparent"
         border.width: field.activeFocus ? 1 : 0
         border.color: Theme.accent

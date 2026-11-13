@@ -101,6 +101,15 @@ class AppController : public QObject
 	// saved look it is, if it is one.
 	Q_PROPERTY(bool customLook READ customLook NOTIFY themeColorsChanged)
 	Q_PROPERTY(QString activePreset READ activePreset NOTIFY themeColorsChanged)
+	// A picture of one's own behind the glass: the blurred version the
+	// window shows (a file URL; empty: the room the app comes with), how out
+	// of focus it is, whether the colours come from it, what it is made of
+	// ({ average, primary, secondary }), and the light moving over it.
+	Q_PROPERTY(QString backgroundUrl READ backgroundUrl NOTIFY backgroundChanged)
+	Q_PROPERTY(int backgroundBlur READ backgroundBlur NOTIFY backgroundChanged)
+	Q_PROPERTY(bool backgroundPalette READ backgroundPalette NOTIFY backgroundChanged)
+	Q_PROPERTY(QVariantMap backgroundTones READ backgroundTones NOTIFY backgroundChanged)
+	Q_PROPERTY(bool backgroundMotion READ backgroundMotion NOTIFY backgroundChanged)
 	Q_PROPERTY(orbislink::QueueModel *queue READ queue CONSTANT)
 	Q_PROPERTY(orbislink::FtpModel *files READ files CONSTANT)
 	Q_PROPERTY(QString version READ version CONSTANT)
@@ -193,6 +202,19 @@ public:
 	Q_INVOKABLE void applyThemePreset(const QString &name);
 	Q_INVOKABLE void deleteThemePreset(const QString &name);
 	bool customLook() const { return !settings_.themeColors.empty(); }
+	QString backgroundUrl() const;
+	int backgroundBlur() const { return settings_.backgroundBlur; }
+	bool backgroundPalette() const { return settings_.backgroundPalette; }
+	QVariantMap backgroundTones() const;
+	bool backgroundMotion() const { return settings_.backgroundMotion; }
+	// The picture chosen (a file URL or path) goes behind the glass. False,
+	// with a notice, when it cannot be read.
+	Q_INVOKABLE bool chooseBackground(const QString &file);
+	// Back to the room the app comes with.
+	Q_INVOKABLE void clearBackground();
+	Q_INVOKABLE void setBackgroundBlur(int strength);
+	Q_INVOKABLE void setBackgroundPalette(bool fromPicture);
+	Q_INVOKABLE void setBackgroundMotion(bool moving);
 	QString activePreset() const { return QString::fromStdString(settings_.activePreset); }
 	// The "custom" button: the chosen saved look, or the colours set aside.
 	// False when there is none yet (the Personalisation page should open).
@@ -374,6 +396,11 @@ public:
 		const QString &startMode = QString());
 	// Chooses what a click on the console's card starts: "remoteplay" or "ftp".
 	Q_INVOKABLE void setConsoleStartMode(const QString &address, const QString &startMode);
+	// The console's own Remote Play PIN: 8 digits (the pairing PIN it shows,
+	// filled in when registering), 4 (the passcode it asks for when
+	// connecting), or empty for none (then the account's is used). Returns
+	// false, with the reason in the status bar, when it is neither.
+	Q_INVOKABLE bool setConsolePin(const QString &address, const QString &pin);
 	// Opens the file browser on the console in use: the panel shows the
 	// files, in the upload folder, freshly listed.
 	Q_INVOKABLE void openFiles();
@@ -421,6 +448,7 @@ signals:
 	void streamAspectChanged();
 	void themeColorsChanged();
 	void themePresetsChanged();
+	void backgroundChanged();
 	void settingsChanged();
 	// A new log line, already masked. The diagnostics window connects to
 	// this to show what happens in real time.
@@ -468,6 +496,10 @@ signals:
 
 private:
 	void rebuildBackends();
+	// Makes (once) the blurred version of the chosen picture for the blur
+	// in use, and forgets the others.
+	void prepareBackdrop();
+	QString backdropPath_;
 	// Says why a click did nothing, instead of swallowing it silently.
 	// Returns false when the operation cannot go ahead.
 	bool ftpReady(const QString &operation);

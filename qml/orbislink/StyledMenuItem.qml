@@ -49,7 +49,7 @@ MenuItem {
         anchors.rightMargin: 6
         radius: 10
         color: !control.highlighted ? "transparent"
-             : control.danger ? Theme.alpha(Theme.error, 0.14) : Theme.accentFill
+             : control.danger ? Theme.alpha(Theme.error, 0.16) : Theme.controlHover
         Behavior on color { ColorAnimation { duration: Theme.fast } }
     }
 }

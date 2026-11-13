@@ -3,8 +3,12 @@
 // The installs panel: every job of the app as one list of cards — the
 // queue's packages, the PS1/PS2 conversions (one card each from the disc to
 // the console), the homebrew store's installs, the console library's jobs
-// and the copies to this PC. What is under way comes first, lit, then what
-// waits its turn, then what is over; the footer adds them all up.
+// and the copies to this PC. What is under way comes first, each job on a
+// card of brighter glass, then what waits its turn and what is over, as rows
+// between hairlines (a glass pill under the mouse) under champagne section
+// labels with their count. At the foot a glass readout adds them all up: the
+// percentage large and bold, the bar, the figures in mono and Pause.
+// It sits in the transfers pane, which draws the glass: no panel here.
 //
 // The list's rows only say which card goes where ({ key, kind, section,
 // head — the first of its section, which carries the section's title });
@@ -331,31 +335,209 @@ Item {
             store.clearFinishedJobs()
     }
 
+    // A thin bar: a recessed glass track, the fill in the job's colour and,
+    // while it moves, a small lit bead where it has got to.
+    component ThinBar: Item {
+        id: thin
+        property real fraction: 0
+        property color tone: Theme.accent
+        property bool bead: false
+        property int thickness: 3
+        implicitHeight: 6
+        readonly property real clamped: Math.max(0, Math.min(1, fraction))
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            width: parent.width
+            height: thin.thickness
+            radius: height / 2
+            color: Theme.light ? Qt.rgba(0, 0, 0, 0.08) : Qt.rgba(1, 1, 1, 0.09)
+            Rectangle {
+                width: parent.width * thin.clamped
+                height: parent.height
+                radius: parent.radius
+                color: thin.tone
+                Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+            }
+        }
+        Rectangle {
+            visible: thin.bead && thin.clamped > 0 && thin.clamped < 1
+            width: 12; height: 12; radius: 6
+            anchors.verticalCenter: parent.verticalCenter
+            x: Math.max(0, thin.width * thin.clamped - 6)
+            color: Theme.alpha(thin.tone, 0.25)
+            Behavior on x { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+            Rectangle {
+                anchors.centerIn: parent
+                width: 6; height: 6; radius: 3
+                color: "#FFFFFF"
+            }
+        }
+    }
+
+    // A queue row's picture: the cover (or an icon standing in) with the
+    // step under way in its corner, in a ring that matches the rail's.
+    component Thumb: Rectangle {
+        property string picture: ""
+        property string icon: "package"
+        property string stage: ""
+        property real percent: 0
+        property bool waiting: false
+        implicitWidth: Theme.gameIcon
+        implicitHeight: Theme.gameIcon
+        radius: 12
+        color: Theme.controlFill
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Theme.glassEdge
+        CoverArt {
+            id: thumbCover
+            anchors.fill: parent
+            visible: ready
+            crop: true
+            edge: false
+            radius: parent.radius
+            picture: parent.picture
+        }
+        Icon {
+            anchors.centerIn: parent
+            visible: !thumbCover.ready
+            name: parent.icon
+            size: 20
+            color: Theme.textSecondary
+        }
+        Rectangle {
+            anchors.fill: thumbStage
+            anchors.margins: -2
+            radius: width / 2
+            color: Theme.menuFill
+            border.width: 1
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+        }
+        StageLoader {
+            id: thumbStage
+            stage: parent.stage
+            percent: parent.percent
+            waiting: parent.waiting
+            width: 22
+            height: 22
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.rightMargin: -5
+            anchors.bottomMargin: -5
+        }
+    }
+
+    // The glass behind a row: a card of brighter glass, lit from above, for
+    // a job under way; otherwise nothing but a glass pill under the mouse.
+    component RowGlass: Rectangle {
+        property bool lit: false
+        property bool hovered: false
+        radius: 16
+        color: lit ? (Theme.light ? Qt.rgba(1, 1, 1, 0.86) : Qt.rgba(1, 1, 1, 0.09))
+             : hovered ? Theme.controlFill : "transparent"
+        border.width: lit ? 1 : 0
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.08)
+        Behavior on color { ColorAnimation { duration: Theme.fast } }
+        Rectangle {
+            visible: parent.lit
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: parent.radius - 1
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.5 : 0.07) }
+                GradientStop { position: 0.4; color: Qt.rgba(1, 1, 1, 0) }
+            }
+        }
+        // The lit upper edge.
+        Rectangle {
+            visible: parent.lit
+            anchors.top: parent.top
+            anchors.topMargin: 1
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: parent.width - 2 * parent.radius
+            height: 1
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0) }
+                GradientStop { position: 0.5; color: Theme.glassStrokeTop }
+                GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0) }
+            }
+        }
+    }
+
+    // The small round buttons of a row.
+    component RowButton: StyledToolButton {
+        property string hint: ""
+        iconSize: 15
+        implicitWidth: 32
+        implicitHeight: 32
+        Accessible.name: hint
+        ToolTip.visible: hovered && hint.length > 0
+        ToolTip.delay: 400
+        ToolTip.text: hint
+    }
+
+    // Pause and Resume, one width for both labels so it never jumps.
+    component PauseButton: StyledButton {
+        id: pause
+        chip: true
+        minimumWidth: Math.max(pauseWidth.implicitWidth, resumeWidth.implicitWidth) + 14 + 8 + 24
+        iconName: app.queuePaused ? "play" : "pause"
+        text: app.queuePaused ? qsTr("Resume") : qsTr("Pause")
+        onClicked: app.queuePaused ? app.resumeQueue() : app.pauseQueue()
+        enabled: app.queue.count > 0
+        // The widest of the two labels sets the width.
+        Text { id: pauseWidth; visible: false; text: qsTr("Pause"); font: pause.font }
+        Text { id: resumeWidth; visible: false; text: qsTr("Resume"); font: pause.font }
+    }
+
+    // A figure of the readout: its name in small capitals, its value in mono.
+    component Figure: Column {
+        property alias label: figureLabel.text
+        property alias value: figureValue.text
+        spacing: 3
+        Eyebrow {
+            id: figureLabel
+            width: parent.width
+            color: Theme.textSecondary
+        }
+        Text {
+            id: figureValue
+            width: parent.width
+            color: Theme.ink
+            font.family: Theme.fontMono
+            font.pixelSize: Theme.fontSmall
+            font.weight: Font.Medium
+            elide: Text.ElideRight
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
 
-        // Paused queue notice.
-        Rectangle {
+        // Paused queue notice: a glass card with a faint amber wash.
+        Plate {
             Layout.fillWidth: true
-            Layout.bottomMargin: 8
+            Layout.topMargin: 8
+            Layout.bottomMargin: 4
             visible: app.queuePaused
-            radius: Theme.radiusSmall
-            color: Theme.alpha(Theme.warn, 0.12)
-            border.color: Theme.alpha(Theme.warn, 0.4)
-            implicitHeight: pauseRow.implicitHeight + 18
+            radius: 16
+            color: Theme.alpha(Theme.warn, Theme.light ? 0.12 : 0.10)
+            border.color: Theme.alpha(Theme.warn, 0.40)
+            implicitHeight: pauseRow.implicitHeight + 24
 
             RowLayout {
                 id: pauseRow
                 anchors.fill: parent
-                anchors.margins: 9
-                spacing: 8
+                anchors.margins: 12
+                anchors.leftMargin: 14
+                spacing: 10
 
                 Icon {
+                    Layout.alignment: Qt.AlignTop
                     name: app.waitingForInstaller ? "refresh" : "pause"
                     spinning: app.waitingForInstaller
                     size: 16
-                    color: Theme.warn
+                    color: Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn
                 }
                 Text {
                     Layout.fillWidth: true
@@ -370,9 +552,12 @@ Item {
                                    + "install starts by itself.")
                     color: Theme.text
                     wrapMode: Text.WordWrap
-                    font.pixelSize: 12
+                    font.pixelSize: Theme.fontSmall
+                    lineHeight: 1.15
                 }
                 StyledButton {
+                    Layout.alignment: Qt.AlignVCenter
+                    chip: true
                     text: app.waitingForInstaller ? qsTr("Try now") : qsTr("Resume")
                     onClicked: app.resumeQueue()
                 }
@@ -388,7 +573,7 @@ Item {
                 anchors.fill: parent
                 clip: true
                 contentWidth: width
-                contentHeight: column.implicitHeight + 10
+                contentHeight: column.implicitHeight + 12
                 boundsBehavior: Flickable.StopAtBounds
                 ScrollBar.vertical: ScrollBar { }
 
@@ -396,11 +581,8 @@ Item {
                 // place — a card that moves slides there.
                 Column {
                     id: column
-                    // Room for the lit cards' halo.
-                    x: 4
-                    y: 3
-                    width: list.width - 8
-                    spacing: 10
+                    width: list.width
+                    spacing: 0
                     move: Transition { NumberAnimation { properties: "y"; duration: 260; easing.type: Easing.OutCubic } }
 
                     Repeater {
@@ -408,6 +590,7 @@ Item {
 
                         delegate: Item {
                             id: entry
+                            required property int index
                             required property string key
                             required property string kind
                             required property string section
@@ -416,18 +599,20 @@ Item {
                             readonly property bool lit: section === "running"
                             width: column.width
                             height: (head ? header.height : 0) + (body.item ? body.item.implicitHeight : 0)
+                                    + (lit ? 6 : 0)
                             // A new card fades in.
                             opacity: 0
                             Behavior on opacity { NumberAnimation { duration: 220 } }
                             Component.onCompleted: opacity = 1
 
-                            // The first card of a section carries its title: under way,
-                            // waiting, finished (with the button that clears them).
+                            // The first card of a section carries its label:
+                            // under way, waiting, finished (with the button
+                            // that clears them).
                             Item {
                                 id: header
                                 visible: entry.head
                                 width: parent.width
-                                height: 34
+                                height: entry.index === 0 ? 36 : 48
 
                                 RowLayout {
                                     anchors.left: parent.left
@@ -439,11 +624,11 @@ Item {
 
                                     // Under way: a dot that breathes.
                                     Rectangle {
-                                        width: 7
-                                        height: 7
-                                        radius: 3.5
-                                        color: entry.lit ? Theme.accent
-                                             : entry.section === "waiting" ? Theme.textSecondary : Theme.ok
+                                        visible: entry.lit
+                                        width: 6
+                                        height: 6
+                                        radius: 3
+                                        color: Theme.accent
                                         SequentialAnimation on opacity {
                                             running: entry.lit && entry.head && entry.visible
                                             loops: Animation.Infinite
@@ -451,42 +636,54 @@ Item {
                                             NumberAnimation { from: 0.3; to: 1; duration: 800; easing.type: Easing.InOutSine }
                                         }
                                     }
-                                    Text {
-                                        text: (entry.section === "running" ? qsTr("Under way")
-                                              : entry.section === "waiting" ? qsTr("Waiting") : qsTr("Finished")).toUpperCase()
-                                        color: entry.lit ? Theme.accent : Theme.textSecondary
-                                        font.pixelSize: 11
-                                        font.weight: Font.DemiBold
-                                        font.letterSpacing: 0.8
+                                    Eyebrow {
+                                        text: entry.section === "running" ? qsTr("Under way")
+                                            : entry.section === "waiting" ? qsTr("Waiting") : qsTr("Finished")
                                     }
-                                    Text {
-                                        text: entry.section === "running" ? root.runningCount
-                                            : entry.section === "waiting" ? root.waitingCount : root.finishedCount
-                                        color: Theme.textMuted
-                                        font.pixelSize: 11
+                                    // The count, on a small glass pill.
+                                    Rectangle {
+                                        implicitWidth: Math.max(20, countText.implicitWidth + 12)
+                                        implicitHeight: 18
+                                        radius: 9
+                                        color: Theme.controlFill
+                                        border.width: 1
+                                        border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Theme.glassEdge
+                                        Text {
+                                            id: countText
+                                            anchors.centerIn: parent
+                                            text: entry.section === "running" ? root.runningCount
+                                                : entry.section === "waiting" ? root.waitingCount : root.finishedCount
+                                            color: Theme.text
+                                            font.family: Theme.fontMono
+                                            font.pixelSize: Theme.fontCaption
+                                            font.weight: Font.Medium
+                                        }
                                     }
-                                    Item { Layout.fillWidth: true }
+                                    // The label's hairline runs on, fading, to the edge.
+                                    EngravedRule {
+                                        Layout.fillWidth: true
+                                        Layout.alignment: Qt.AlignVCenter
+                                    }
                                     StyledButton {
                                         visible: entry.section === "finished"
                                         chip: true
+                                        iconName: "check-check"
                                         text: qsTr("Clear finished")
                                         onClicked: root.clearFinished()
                                     }
                                 }
                             }
 
-                            // Under way: a soft halo around the card.
-                            Repeater {
-                                model: entry.lit ? 2 : 0
-                                Rectangle {
-                                    required property int index
-                                    anchors.fill: body
-                                    anchors.margins: -(index + 1) * 2
-                                    radius: 16 + (index + 1) * 2
-                                    color: "transparent"
-                                    border.width: 2
-                                    border.color: Theme.alpha(Theme.accent, index === 0 ? 0.22 : 0.09)
-                                }
+                            // Between two rows of a section: a hairline (none
+                            // around the glass cards of the jobs under way).
+                            Rectangle {
+                                visible: !entry.head && !entry.lit
+                                y: header.visible ? header.height : 0
+                                x: 14
+                                width: parent.width - 28
+                                height: 1
+                                color: Theme.rule
+                                opacity: 0.7
                             }
 
                             Loader {
@@ -500,15 +697,14 @@ Item {
                             // A package of the queue.
                             Component {
                                 id: taskCard
-                                Rectangle {
+                                RowGlass {
                                     readonly property var r: entry.d.r || ({})
-                                    radius: 16
-                                    color: taskHover.hovered ? Qt.lighter(Theme.panelAltFill, Theme.light ? 1.0 : 1.15)
-                                                             : Theme.panelAltFill
-                                    border.width: 1
-                                    border.color: entry.lit ? Theme.alpha(Theme.accent, 0.7)
-                                                : taskHover.hovered ? Theme.alpha(Theme.accent, 0.35) : Theme.border
-                                    Behavior on color { ColorAnimation { duration: Theme.fast } }
+                                    readonly property string stateTone: r.state === "completed" ? "ok"
+                                                                      : r.state === "error" ? "error"
+                                                                      : r.state === "cancelled" || r.state === "pending" ? "neutral"
+                                                                      : "accent"
+                                    lit: entry.lit
+                                    hovered: taskHover.hovered
                                     HoverHandler { id: taskHover }
                                     implicitHeight: taskColumn.implicitHeight + 24
 
@@ -522,56 +718,25 @@ Item {
 
                                         RowLayout {
                                             Layout.fillWidth: true
-                                            spacing: 10
+                                            spacing: 12
 
-                                            Rectangle {
-                                                width: Theme.gameIcon; height: Theme.gameIcon; radius: 8
-                                                color: Theme.controlFill
-                                                border.color: Theme.border
-                                                CoverArt {
-                                                    anchors.fill: parent
-                                                    visible: ready
-                                                    crop: true
-                                                    edge: false
-                                                    radius: parent.radius
-                                                    picture: r.iconSource ? r.iconSource : ""
-                                                }
-                                                Icon {
-                                                    anchors.centerIn: parent
-                                                    visible: !r.iconSource
-                                                    name: "package"
-                                                    size: 22
-                                                    color: Theme.textSecondary
-                                                }
-                                                Rectangle {
-                                                    anchors.fill: taskStage
-                                                    anchors.margins: -2
-                                                    radius: width / 2
-                                                    color: Theme.panelFill
-                                                }
-                                                StageLoader {
-                                                    id: taskStage
-                                                    stage: entry.d.thumb ? entry.d.thumb.stage : ""
-                                                    percent: r.percent || 0
-                                                    waiting: r.state === "pending" || r.state === "validating"
-                                                    width: 22
-                                                    height: 22
-                                                    anchors.right: parent.right
-                                                    anchors.bottom: parent.bottom
-                                                    anchors.rightMargin: -5
-                                                    anchors.bottomMargin: -5
-                                                }
+                                            Thumb {
+                                                picture: r.iconSource ? r.iconSource : ""
+                                                icon: "package"
+                                                stage: entry.d.thumb ? entry.d.thumb.stage : ""
+                                                percent: r.percent || 0
+                                                waiting: r.state === "pending" || r.state === "validating"
                                             }
 
                                             ColumnLayout {
                                                 Layout.fillWidth: true
-                                                spacing: 2
+                                                spacing: 3
                                                 Text {
                                                     Layout.fillWidth: true
                                                     text: r.title || ""
-                                                    color: Theme.text
-                                                    font.pixelSize: 14
-                                                    font.weight: Font.DemiBold
+                                                    color: Theme.ink
+                                                    font.pixelSize: Theme.fontBody
+                                                    font.weight: Font.Bold
                                                     elide: Text.ElideRight
                                                 }
                                                 Text {
@@ -579,125 +744,122 @@ Item {
                                                     text: [r.titleId, r.category, r.sizeText,
                                                            r.firmware ? qsTr("FW %1").arg(r.firmware) : ""].filter(function (part) {
                                                         return part && part.length > 0
-                                                    }).join("  ·  ")
-                                                    color: Theme.textMuted
-                                                    font.pixelSize: 11
+                                                    }).join(" · ")
+                                                    color: Theme.textSecondary
+                                                    font.family: Theme.fontMono
+                                                    font.pixelSize: Theme.fontCaption
                                                     elide: Text.ElideRight
-                                                }
-                                                // An official package, or a firmware above the PS4's.
-                                                RowLayout {
-                                                    Layout.fillWidth: true
-                                                    visible: !!r.warning
-                                                    spacing: 5
-                                                    Icon {
-                                                        Layout.alignment: Qt.AlignTop
-                                                        Layout.topMargin: 1
-                                                        name: "warning"
-                                                        size: 12
-                                                        color: Theme.warn
-                                                    }
-                                                    Text {
-                                                        Layout.fillWidth: true
-                                                        text: r.warning ? r.warning : ""
-                                                        color: Theme.warn
-                                                        font.pixelSize: 11
-                                                        wrapMode: Text.WordWrap
-                                                    }
                                                 }
                                             }
 
-                                            Rectangle {
-                                                radius: 11
-                                                color: Theme.alpha(Theme.taskColor(r.state || ""), 0.12)
-                                                border.color: Theme.alpha(Theme.taskColor(r.state || ""), 0.35)
-                                                implicitWidth: stateText.implicitWidth + 18
-                                                implicitHeight: 22
-                                                Text {
-                                                    id: stateText
-                                                    anchors.centerIn: parent
-                                                    text: r.stateLabel || ""
-                                                    color: Theme.taskColor(r.state || "")
-                                                    font.pixelSize: 11
-                                                    font.weight: Font.Medium
-                                                }
+                                        }
+
+                                        // An official package, or a firmware above the PS4's.
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            visible: !!r.warning
+                                            spacing: 6
+                                            Icon {
+                                                Layout.alignment: Qt.AlignTop
+                                                Layout.topMargin: 1
+                                                name: "warning"
+                                                size: 12
+                                                color: Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: r.warning ? r.warning : ""
+                                                color: Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn
+                                                font.pixelSize: Theme.fontCaption
+                                                wrapMode: Text.WordWrap
                                             }
                                         }
 
-                                        Rectangle {
+                                        ThinBar {
                                             Layout.fillWidth: true
-                                            height: 8
-                                            radius: 4
-                                            color: Theme.controlFill
-                                            Rectangle {
-                                                width: parent.width * Math.max(0, Math.min(1, (r.percent || 0) / 100))
-                                                height: parent.height
-                                                radius: 4
-                                                color: Theme.taskColor(r.state || "")
-                                                Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-                                            }
+                                            fraction: (r.percent || 0) / 100
+                                            tone: Theme.taskColor(r.state || "")
+                                            bead: r.active === true
                                         }
 
                                         RowLayout {
                                             Layout.fillWidth: true
-                                            spacing: 10
+                                            spacing: 8
 
+                                            // The state leads the figures, so the
+                                            // name and its facts keep the full width.
+                                            Tag {
+                                                text: r.stateLabel || ""
+                                                tone: stateTone
+                                            }
                                             Text {
                                                 text: (r.percent || 0).toFixed(1) + "%"
-                                                color: Theme.textMuted
-                                                font.pixelSize: 11
+                                                color: Theme.text
+                                                font.family: Theme.fontMono
+                                                font.pixelSize: Theme.fontCaption
                                             }
                                             Text {
-                                                text: "↓ " + (r.speedText || "")
-                                                color: Theme.textMuted
-                                                font.pixelSize: 11
-                                                visible: r.active === true
+                                                visible: r.active === true && (r.speedText || "").length > 0
+                                                text: r.speedText || ""
+                                                color: Theme.textSecondary
+                                                font.family: Theme.fontMono
+                                                font.pixelSize: Theme.fontCaption
+                                            }
+                                            // The time left, after a small clock: the
+                                            // row is narrow, a word would not fit.
+                                            Icon {
+                                                visible: r.active === true && (r.etaText || "").length > 0
+                                                name: "history"
+                                                size: 12
+                                                color: Theme.textSecondary
                                             }
                                             Text {
-                                                text: "⏱ " + (r.etaText || "")
-                                                color: Theme.textMuted
-                                                font.pixelSize: 11
+                                                Layout.fillWidth: true
+                                                Layout.leftMargin: -4
                                                 visible: r.active === true
+                                                text: r.etaText || ""
+                                                color: Theme.textSecondary
+                                                font.family: Theme.fontMono
+                                                font.pixelSize: Theme.fontCaption
+                                                elide: Text.ElideRight
                                             }
-                                            Item { Layout.fillWidth: true }
+                                            Item { Layout.fillWidth: r.active !== true }
 
-                                            StyledToolButton {
+                                            RowButton {
                                                 iconName: "arrow-up"
-                                                iconSize: 14
-                                                implicitWidth: 28; implicitHeight: 28
+                                                hint: qsTr("Move up")
                                                 onClicked: app.moveTaskUp(r.taskId)
                                                 visible: r.state === "pending" && (r.canMoveUp || r.canMoveDown)
                                                 enabled: r.canMoveUp === true
                                             }
-                                            StyledToolButton {
+                                            RowButton {
                                                 iconName: "arrow-down"
-                                                iconSize: 14
-                                                implicitWidth: 28; implicitHeight: 28
+                                                hint: qsTr("Move down")
                                                 onClicked: app.moveTaskDown(r.taskId)
                                                 visible: r.state === "pending" && (r.canMoveUp || r.canMoveDown)
                                                 enabled: r.canMoveDown === true
                                             }
-                                            StyledToolButton {
+                                            RowButton {
                                                 iconName: "rotate-ccw"
-                                                iconSize: 14
-                                                implicitWidth: 28; implicitHeight: 28
+                                                hint: qsTr("Try again")
                                                 onClicked: app.retryTask(r.taskId)
                                                 visible: r.state === "error" || r.state === "cancelled"
                                             }
-                                            StyledToolButton {
+                                            RowButton {
+                                                readonly property bool stops: r.state === "pending" || r.active === true
                                                 iconName: "close"
-                                                iconSize: 14
-                                                implicitWidth: 28; implicitHeight: 28
-                                                onClicked: r.state === "pending" || r.active
-                                                           ? app.cancelTask(r.taskId)
-                                                           : app.removeTask(r.taskId)
+                                                danger: r.active === true
+                                                hint: stops ? qsTr("Cancel") : qsTr("Remove")
+                                                onClicked: stops ? app.cancelTask(r.taskId) : app.removeTask(r.taskId)
                                             }
                                         }
 
                                         Text {
                                             Layout.fillWidth: true
                                             text: r.message || ""
-                                            color: r.state === "error" ? Theme.error : Theme.textMuted
-                                            font.pixelSize: 11
+                                            color: r.state === "error" ? (Theme.light ? Qt.darker(Theme.error, 1.3) : Theme.error)
+                                                                       : Theme.textSecondary
+                                            font.pixelSize: Theme.fontCaption
                                             wrapMode: Text.WordWrap
                                             visible: (r.message || "").length > 0
                                         }
@@ -710,15 +872,13 @@ Item {
                             // each with its own bar.
                             Component {
                                 id: conversionCard
-                                Rectangle {
+                                RowGlass {
                                     readonly property var c: entry.d.c || ({})
                                     readonly property var j: entry.d.j || ({ steps: [], text: "", stage: "", speed: "", eta: "",
                                                                              message: "", taskId: "", finished: false })
-                                    radius: 16
-                                    color: Theme.alpha(loader.tone, Theme.light ? 0.06 : 0.08)
-                                    border.width: 1
-                                    border.color: Theme.alpha(loader.tone, entry.lit ? 0.75 : 0.45)
-                                    Behavior on border.color { ColorAnimation { duration: Theme.normal } }
+                                    lit: entry.lit
+                                    hovered: convHover.hovered
+                                    HoverHandler { id: convHover }
                                     implicitHeight: convColumn.implicitHeight + 24
 
                                     ColumnLayout {
@@ -731,98 +891,68 @@ Item {
 
                                         RowLayout {
                                             Layout.fillWidth: true
-                                            spacing: 10
-                                            // The game's cover, with the step under way in its corner.
-                                            Item {
-                                                implicitWidth: Theme.gameIcon
-                                                implicitHeight: Theme.gameIcon
-                                                CoverArt {
-                                                    id: convCover
-                                                    anchors.fill: parent
-                                                    visible: ready
-                                                    crop: true
-                                                    radius: 8
-                                                    picture: entry.d.thumb ? entry.d.thumb.picture : ""
-                                                }
-                                                // No cover: the disc stands in, the step beside it.
-                                                Rectangle {
-                                                    anchors.fill: parent
-                                                    visible: !convCover.ready
-                                                    radius: 8
-                                                    color: Theme.controlFill
-                                                    border.color: Theme.border
-                                                    Icon {
-                                                        anchors.centerIn: parent
-                                                        name: c.kind === "pack" ? "package" : "disc"
-                                                        size: 22
-                                                        color: Theme.textSecondary
-                                                    }
-                                                }
-                                                Rectangle {
-                                                    anchors.fill: loader
-                                                    anchors.margins: -2
-                                                    radius: width / 2
-                                                    color: Theme.panelFill
-                                                }
-                                                // One size whether the cover is there or not: it
-                                                // does not jump while a cover loads.
-                                                StageLoader {
-                                                    id: loader
-                                                    stage: j.stage || ""
-                                                    percent: j.percent || 0
-                                                    waiting: j.waiting === true
-                                                    width: 22
-                                                    height: 22
-                                                    anchors.right: parent.right
-                                                    anchors.bottom: parent.bottom
-                                                    anchors.rightMargin: -5
-                                                    anchors.bottomMargin: -5
-                                                }
+                                            spacing: 12
+                                            // The game's cover, with the step under way in its
+                                            // corner; one size whether the cover is there or not.
+                                            Thumb {
+                                                picture: entry.d.thumb ? entry.d.thumb.picture : ""
+                                                icon: c.kind === "pack" ? "package" : "disc"
+                                                stage: j.stage || ""
+                                                percent: j.percent || 0
+                                                waiting: j.waiting === true
                                             }
                                             ColumnLayout {
                                                 Layout.fillWidth: true
-                                                spacing: 2
+                                                spacing: 3
                                                 Text {
                                                     Layout.fillWidth: true
                                                     text: c.title || ""
-                                                    color: Theme.text
-                                                    font.pixelSize: 14
-                                                    font.weight: Font.DemiBold
+                                                    color: Theme.ink
+                                                    font.pixelSize: Theme.fontBody
+                                                    font.weight: Font.Bold
                                                     elide: Text.ElideRight
                                                 }
-                                                Text {
+                                                RowLayout {
                                                     Layout.fillWidth: true
-                                                    text: (c.platform === "ps2" ? "PS2" : c.platform === "ps1" ? "PS1" : "PS4")
-                                                          + "  ·  " + (j.text || "")
-                                                    color: j.stage === "error" ? Theme.error : Theme.textSecondary
-                                                    font.pixelSize: 11
-                                                    elide: Text.ElideRight
+                                                    spacing: 6
+                                                    Text {
+                                                        text: c.platform === "ps2" ? "PS2" : c.platform === "ps1" ? "PS1" : "PS4"
+                                                        color: Theme.textSecondary
+                                                        font.family: Theme.fontMono
+                                                        font.pixelSize: Theme.fontCaption
+                                                    }
+                                                    Text {
+                                                        Layout.fillWidth: true
+                                                        text: j.text || ""
+                                                        color: j.stage === "error"
+                                                               ? (Theme.light ? Qt.darker(Theme.error, 1.3) : Theme.error)
+                                                               : Theme.textSecondary
+                                                        font.pixelSize: Theme.fontCaption
+                                                        elide: Text.ElideRight
+                                                    }
                                                 }
                                             }
-                                            StyledToolButton {
+                                            RowButton {
+                                                Layout.alignment: Qt.AlignTop
                                                 // The conversion itself again, or the send or install that failed.
                                                 readonly property bool again: c.state === "error" || c.state === "cancelled"
                                                 visible: again || (j.stage === "error" && (j.taskId || "").length > 0)
                                                 iconName: "rotate-ccw"
-                                                iconSize: 15
-                                                ToolTip.visible: hovered
-                                                ToolTip.text: qsTr("Try again")
+                                                hint: qsTr("Try again")
                                                 onClicked: again ? games.retryConversion(c.id) : app.retryTask(j.taskId)
                                             }
-                                            StyledToolButton {
+                                            RowButton {
+                                                Layout.alignment: Qt.AlignTop
                                                 visible: c.state === "done"
                                                 iconName: "folder-open"
-                                                iconSize: 15
-                                                ToolTip.visible: hovered
-                                                ToolTip.text: qsTr("Open the folder")
+                                                hint: qsTr("Open the folder")
                                                 onClicked: games.openOutputFolder()
                                             }
-                                            StyledToolButton {
+                                            RowButton {
+                                                Layout.alignment: Qt.AlignTop
                                                 iconName: "close"
-                                                iconSize: 15
                                                 danger: !j.finished
-                                                ToolTip.visible: hovered
-                                                ToolTip.text: j.finished ? qsTr("Remove") : qsTr("Cancel")
+                                                hint: j.finished ? qsTr("Remove") : qsTr("Cancel")
                                                 onClicked: {
                                                     if (c.state === "waiting" || c.state === "converting")
                                                         games.cancelConversion(c.id)
@@ -837,7 +967,7 @@ Item {
                                         // The steps, side by side: convert, send, install.
                                         RowLayout {
                                             Layout.fillWidth: true
-                                            spacing: 6
+                                            spacing: 8
                                             Repeater {
                                                 model: j.steps ? j.steps.length : 0
                                                 ColumnLayout {
@@ -848,27 +978,20 @@ Item {
                                                     Layout.fillWidth: true
                                                     Layout.preferredWidth: 1
                                                     spacing: 4
-                                                    Rectangle {
+                                                    ThinBar {
                                                         Layout.fillWidth: true
-                                                        height: 6
-                                                        radius: 3
-                                                        color: Theme.alpha(step.tone, 0.16)
-                                                        Rectangle {
-                                                            width: parent.width * Math.max(0, Math.min(1, step.percent / 100))
-                                                            height: parent.height
-                                                            radius: parent.radius
-                                                            color: step.tone
-                                                            Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
-                                                        }
+                                                        fraction: step.percent / 100
+                                                        tone: step.tone
+                                                        bead: step.current
                                                     }
                                                     Text {
                                                         Layout.fillWidth: true
                                                         // The step under way says how far it is.
                                                         text: step.current && step.percent > 0 && step.percent < 100
-                                                              ? step.label + "  ·  " + Math.floor(step.percent) + "%"
+                                                              ? step.label + " · " + Math.floor(step.percent) + "%"
                                                               : step.label
-                                                        color: step.current ? Theme.text : Theme.textMuted
-                                                        font.pixelSize: 10
+                                                        color: step.current ? Theme.ink : Theme.textSecondary
+                                                        font.pixelSize: Theme.fontEyebrow
                                                         font.weight: step.current ? Font.DemiBold : Font.Normal
                                                         elide: Text.ElideRight
                                                     }
@@ -884,25 +1007,27 @@ Item {
                                             Icon {
                                                 name: j.speedIcon || "cpu"
                                                 size: 12
-                                                color: Theme.textMuted
+                                                color: Theme.textSecondary
                                             }
                                             Text {
                                                 text: j.speed || ""
-                                                color: Theme.textSecondary
-                                                font.pixelSize: 11
+                                                color: Theme.text
+                                                font.family: Theme.fontMono
+                                                font.pixelSize: Theme.fontCaption
                                             }
                                             Item { Layout.fillWidth: true }
                                             Icon {
                                                 visible: (j.eta || "").length > 0
                                                 name: "history"
                                                 size: 12
-                                                color: Theme.textMuted
+                                                color: Theme.textSecondary
                                             }
                                             Text {
                                                 visible: (j.eta || "").length > 0
                                                 text: qsTr("%1 left").arg(j.eta || "")
                                                 color: Theme.textSecondary
-                                                font.pixelSize: 11
+                                                font.family: Theme.fontMono
+                                                font.pixelSize: Theme.fontCaption
                                             }
                                         }
 
@@ -910,18 +1035,18 @@ Item {
                                             visible: (j.message || "").length > 0
                                             Layout.fillWidth: true
                                             text: j.message || ""
-                                            color: Theme.error
+                                            color: Theme.light ? Qt.darker(Theme.error, 1.3) : Theme.error
                                             wrapMode: Text.WordWrap
-                                            font.pixelSize: 11
+                                            font.pixelSize: Theme.fontCaption
                                         }
                                         // What became of the package made.
                                         Text {
                                             visible: (c.note || "").length > 0
                                             Layout.fillWidth: true
                                             text: c.note || ""
-                                            color: Theme.textMuted
+                                            color: Theme.textSecondary
                                             wrapMode: Text.WordWrap
-                                            font.pixelSize: 11
+                                            font.pixelSize: Theme.fontCaption
                                         }
                                     }
                                 }
@@ -943,7 +1068,7 @@ Item {
                                     stateText: fromStore
                                                ? (job.state === "done"
                                                   ? (job.kind === "remove" ? qsTr("Removed")
-                                                     : job.kind === "download" ? qsTr("In the queue") : qsTr("Installed"))
+                                                     : job.kind === "download" ? qsTr("Downloaded") : qsTr("Installed"))
                                                   : job.state === "error" ? qsTr("Failed")
                                                   : job.state === "cancelled" ? qsTr("Cancelled")
                                                   : job.kind === "remove" ? qsTr("Removing")
@@ -973,7 +1098,7 @@ Item {
                 }
             }
 
-            // Empty
+            // Empty: the orb on a disc of glass, a bold heading, one line.
             Item {
                 anchors.centerIn: parent
                 width: parent.width - 40
@@ -983,22 +1108,44 @@ Item {
                 ColumnLayout {
                     id: emptyColumn
                     width: parent.width
-                    spacing: 10
-                    Icon {
+                    spacing: 8
+                    Rectangle {
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.bottomMargin: 8
-                        name: "download"
-                        size: 36
-                        strokeWidth: 1.5
-                        color: Theme.textSecondary
+                        Layout.bottomMargin: 10
+                        implicitWidth: 96
+                        implicitHeight: 96
+                        radius: 48
+                        color: Theme.controlFill
+                        border.width: 1
+                        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.04)
+                        Rectangle {
+                            anchors.fill: parent
+                            anchors.margins: 1
+                            radius: width / 2
+                            gradient: Gradient {
+                                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.6 : 0.10) }
+                                GradientStop { position: 0.6; color: Qt.rgba(1, 1, 1, 0) }
+                            }
+                        }
+                        Image {
+                            anchors.centerIn: parent
+                            source: "qrc:/icons/planet.png"
+                            sourceSize.width: 128
+                            sourceSize.height: 128
+                            width: 60
+                            height: 60
+                            fillMode: Image.PreserveAspectFit
+                            opacity: Theme.light ? 0.55 : 0.6
+                        }
                     }
                     Text {
                         Layout.fillWidth: true
                         horizontalAlignment: Text.AlignHCenter
                         text: qsTr("The queue is empty")
-                        color: Theme.text
-                        font.pixelSize: 15
-                        font.weight: Font.DemiBold
+                        color: Theme.ink
+                        font.family: Theme.fontDisplay
+                        font.pixelSize: Theme.fontHeading
+                        font.weight: Font.Bold
                     }
                     Text {
                         Layout.fillWidth: true
@@ -1006,70 +1153,83 @@ Item {
                         wrapMode: Text.WordWrap
                         text: qsTr("Drag .pkg files onto the window.")
                         color: Theme.textSecondary
-                        font.pixelSize: 12
+                        font.pixelSize: Theme.fontSmall
                     }
                 }
             }
         }
 
-        // ── footer: the whole batch ──
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 1
-            color: Theme.border
-        }
-
-        // How far the batch is, all of it: a bar, its percentage and the
-        // time left.
-        ColumnLayout {
+        // ── footer: the whole batch, on a glass readout card ──
+        Plate {
             Layout.fillWidth: true
             Layout.topMargin: 10
-            Layout.leftMargin: 4
-            Layout.rightMargin: 4
+            Layout.bottomMargin: 2
+            radius: Theme.radius
+            implicitHeight: readout.implicitHeight + 24
+
+        ColumnLayout {
+            id: readout
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: 12
+            anchors.leftMargin: 16
+            anchors.rightMargin: 12
+            spacing: 4
+
+        // How far the batch is, all of it: its percentage large and bold,
+        // the jobs to go and the time left beside it, a bar under them.
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.bottomMargin: 4
             visible: root.busy && root.batchTotal > 0
             spacing: 6
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: 10
                 Text {
+                    Layout.alignment: Qt.AlignBaseline
                     text: Math.floor(root.fraction * 100) + "%"
-                    color: Theme.text
-                    font.pixelSize: 13
-                    font.weight: Font.DemiBold
+                    color: Theme.ink
+                    font.family: Theme.fontDisplay
+                    font.pixelSize: Theme.fontTitle
+                    font.weight: Font.Bold
+                    font.letterSpacing: -0.5
                 }
-                Text {
+                ColumnLayout {
                     Layout.fillWidth: true
-                    text: qsTr("%n job(s) to go", "", root.runningCount + root.waitingCount)
-                    color: Theme.textMuted
-                    font.pixelSize: 11
-                    elide: Text.ElideRight
+                    Layout.alignment: Qt.AlignVCenter
+                    spacing: 2
+                    Text {
+                        Layout.fillWidth: true
+                        text: qsTr("%n job(s) to go", "", root.runningCount + root.waitingCount)
+                        color: Theme.text
+                        font.pixelSize: Theme.fontSmall
+                        font.weight: Font.Medium
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: root.secondsLeft > 0 ? qsTr("about %1 left").arg(app.queue.durationText(root.secondsLeft))
+                                                   : qsTr("working out the time…")
+                        color: Theme.textSecondary
+                        font.family: Theme.fontMono
+                        font.pixelSize: Theme.fontCaption
+                        elide: Text.ElideRight
+                    }
                 }
-                Icon {
-                    visible: root.secondsLeft > 0
-                    name: "history"
-                    size: 12
-                    color: Theme.textMuted
-                }
-                Text {
-                    text: root.secondsLeft > 0 ? qsTr("about %1 left").arg(app.queue.durationText(root.secondsLeft))
-                                               : qsTr("working out the time…")
-                    color: Theme.textSecondary
-                    font.pixelSize: 11
-                }
+                // While the batch goes, Pause sits up here beside its
+                // percentage, leaving the figures below the whole width.
+                PauseButton { Layout.alignment: Qt.AlignVCenter }
             }
-            Rectangle {
+            ThinBar {
                 Layout.fillWidth: true
-                height: 6
-                radius: 3
-                color: Theme.alpha(Theme.accent, 0.16)
-                Rectangle {
-                    width: parent.width * root.fraction
-                    height: parent.height
-                    radius: parent.radius
-                    color: Theme.accent
-                    Behavior on width { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
-                }
+                fraction: root.fraction
+                tone: Theme.accent
+                bead: true
+                thickness: 4
+                implicitHeight: 8
             }
         }
 
@@ -1078,67 +1238,37 @@ Item {
         // column that shortens its text instead of pushing the others.
         Item {
             Layout.fillWidth: true
-            implicitHeight: 54
+            implicitHeight: 44
 
-            StyledButton {
+            PauseButton {
                 id: pauseButton
+                visible: !(root.busy && root.batchTotal > 0)
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                anchors.verticalCenterOffset: 3
-                chip: true
-                minimumWidth: Math.max(pauseWidth.implicitWidth, resumeWidth.implicitWidth) + 14 + 8 + 24
-                iconName: app.queuePaused ? "play" : "pause"
-                text: app.queuePaused ? qsTr("Resume") : qsTr("Pause")
-                onClicked: app.queuePaused ? app.resumeQueue() : app.pauseQueue()
-                enabled: app.queue.count > 0
-                // The widest of the two labels sets the width.
-                Text { id: pauseWidth; visible: false; text: qsTr("Pause"); font: pauseButton.font }
-                Text { id: resumeWidth; visible: false; text: qsTr("Resume"); font: pauseButton.font }
             }
 
             Row {
                 anchors.left: parent.left
-                anchors.leftMargin: 4
-                anchors.right: pauseButton.left
-                anchors.rightMargin: 12
-                anchors.verticalCenter: pauseButton.verticalCenter
+                anchors.right: pauseButton.visible ? pauseButton.left : parent.right
+                anchors.rightMargin: pauseButton.visible ? 12 : 0
+                anchors.verticalCenter: parent.verticalCenter
                 spacing: 12
 
-                component Figure: Column {
-                    property alias label: figureLabel.text
-                    property alias value: figureValue.text
-                    spacing: 1
-                    Text {
-                        id: figureLabel
-                        width: parent.width
-                        color: Theme.textMuted
-                        font.pixelSize: 10
-                        font.weight: Font.Medium
-                        elide: Text.ElideRight
-                    }
-                    Text {
-                        id: figureValue
-                        width: parent.width
-                        color: Theme.text
-                        font.pixelSize: 12
-                        font.weight: Font.DemiBold
-                        elide: Text.ElideRight
-                    }
-                }
-
                 Figure {
-                    width: Math.min(84, (parent.width - parent.spacing) * 0.4)
+                    width: Math.min(96, (parent.width - parent.spacing) * 0.4)
                     label: qsTr("Speed")
                     value: root.speed >= 1 ? app.queue.bytesText(root.speed) + "/s" : "—"
                 }
                 Figure {
-                    width: parent.width - parent.spacing - Math.min(84, (parent.width - parent.spacing) * 0.4)
+                    width: parent.width - parent.spacing - Math.min(96, (parent.width - parent.spacing) * 0.4)
                     label: qsTr("Left")
                     value: !root.busy || root.batchTotal <= 0 ? "—"
                            : qsTr("%1 of %2").arg(app.queue.bytesText(Math.max(0, root.batchTotal - root.batchDone)))
                                              .arg(app.queue.bytesText(root.batchTotal))
                 }
             }
+        }
+        }
         }
     }
 

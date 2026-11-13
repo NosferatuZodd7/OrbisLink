@@ -6,7 +6,7 @@ A desktop app that brings together, in one window, **Remote Play** for a PS4
 or PS5, **installing .pkg files by drag and drop**, and an **FTP client** for
 the console.
 
-> **Status:** stable **v1.3.0**. Remote Play works on real PS4 and PS5
+> **Status:** stable **v1.4.0**. Remote Play works on real PS4 and PS5
 > consoles (discovery, registration, 1080p/60 video, sound, microphone,
 > controller and keyboard). Installing pkg files and FTP need a PS4 with
 > GoldHEN, or a PS5 with a jailbreak that provides them (etaHEN). Besides
@@ -18,7 +18,7 @@ the console.
 
 ## What works, and what is in development
 
-There are two versions: the **stable** one (v1.3.0, this branch) and the
+There are two versions: the **stable** one (v1.4.0, this branch) and the
 **beta** (test builds from the `beta` branch, `vX.Y.Z-dev.N`), where new work
 lands first. The app is made for the PS4 and the PS5 alike. To try the beta:
 **Settings → Updates → Testing (branch builds)**, or a pre-release from the
@@ -31,11 +31,13 @@ Releases page.
 | 🚧 | Not working yet, or still being built |
 | — | Does not apply to that console |
 
-### Stable (v1.3.0)
+### Stable (v1.4.0)
 
 | Feature | PS4 | PS5 |
 |---|---|---|
 | Remote Play: discovery, registration, 1080p/60 video, sound, controller, keyboard as a controller | ✅ | ✅ |
+| Remote Play on a console that never answers discovery: registration opens all the same, and a registered console is connected to directly | ✅ | 🧪 |
+| The console's Remote Play PINs asked for where they are needed: the 8-digit one when registering, the 4-digit passcode while connecting (then kept for that console) | ✅ | 🧪 |
 | Microphone | 🧪 | ✅ (in a voice party) |
 | Waking the console from rest mode with one click | 🧪 | 🧪 |
 | Remote Play: several PSN accounts, each with its own PIN, picked on the console's card; no crash when the console is showing a video app | 🧪 | 🧪 |
@@ -66,11 +68,14 @@ Releases page.
 | **Save vault**: every save backed up to this PC, sent back when the console loses it, or taken to another console of the same PSN account (PS4 ↔ PS5); saves the PS4 copied to a USB drive (on the console or plugged into the PC) are found too; all of a game's saves, or all shown, picked in one click | 🧪 | 🧪 |
 | **Payloads**: what the console keeps in its payload and plugin folders, each with what it does — add, rename, delete, start at boot, run now, edit the settings files; the community's PS5 payload list | 🧪 | 🧪 |
 | Several consoles, keyboard map, themes and colours, updates | ✅ | ✅ |
+| New look: the app as panes of frosted glass over an out-of-focus room, in a dark, a glass and a light theme, chosen at the foot of the navigation or in Personalisation | ✅ | ✅ |
+| A picture of your own behind the glass, blurred as you like, with its colours taken for the theme or the theme's own; slow water light moving behind the glass | ✅ | ✅ |
+| Installing a package the console already has: says to delete it on the console first, instead of pointing at a Downloads entry that is not there | ✅ | 🧪 |
 | Minimal top bar; hovering FTP or the installer shows a card with its state and what to do | ✅ | ✅ |
 
 ### New in the beta
 
-Nothing yet: what was in the beta is the stable v1.3.0 above. New work
+Nothing yet: what was in the beta is the stable v1.4.0 above. New work
 lands in the beta first, and shows here.
 
 Everything still missing, and why, is in
@@ -78,7 +83,7 @@ Everything still missing, and why, is in
 
 ## The interface
 
-The screenshots show v1.3.0 with a PS4 (GoldHEN) and a PS5 (etaHEN) side
+The screenshots show v1.4.0 with a PS4 (GoldHEN) and a PS5 (etaHEN) side
 by side.
 
 ![Remote Play](docs/images/06-remote-play.png)
@@ -456,6 +461,7 @@ hundred euros a year, which is not justified for a project that is not sold.
 ### Manual test checklist on real consoles
 
 - [x] Remote Play discovery and registration (PS4 and PS5)
+- [x] Remote Play registration and connection on a PS4 that does not answer discovery
 - [x] Microphone in a PS5 party
 - [x] PS2 disc converted, sent and installed on a PS4 (Remote Package Installer)
 - [x] FTP on a jailbroken PS5: browse, upload, move folders
@@ -486,8 +492,11 @@ is why this repository exists.
 The copyright notices of chiaki-ng and the other libraries stay where they
 are — they belong to other people and the licence requires keeping them.
 
-The interface is set in [Inter](https://rsms.me/inter/), by Rasmus Andersson,
-under the SIL Open Font License 1.1 (see [`third-party/inter`](third-party/inter)), and
+The interface is set in [Figtree](https://github.com/erikdkennedy/figtree), by Erik
+Kennedy, and its technical values in
+[JetBrains Mono](https://github.com/JetBrains/JetBrainsMono), both under the SIL
+Open Font License 1.1 (see [`third-party/figtree`](third-party/figtree) and
+[`third-party/jetbrains-mono`](third-party/jetbrains-mono)), and
 its icons come from [Lucide](https://lucide.dev/), under the ISC licence (see
 [`third-party/lucide`](third-party/lucide); `scripts/generate-icons.py` turns them into
 `qml/orbislink/Icons.js`).

@@ -7,6 +7,11 @@ on:
   # To request the Windows jobs by hand when they are needed and there is
   # no open pull request.
   workflow_dispatch:
+  # On the 1st of each month, on main (the default branch, where scheduled
+  # runs go): the Windows job builds the month's vcpkg libraries there, where
+  # every branch's builds can restore them.
+  schedule:
+    - cron: "23 3 1 * *"
 
 # Consecutive pushes on the same branch cancel the previous run, which no
 # longer matters; on main and on pull requests nothing is cancelled.
@@ -25,6 +30,10 @@ jobs:
           submodules: recursive
       - name: Install dependencies
         run: |
+          # A slow or stuck package mirror once held this step for an hour:
+          # apt gives up on a connection silent for 30 s and tries again.
+          echo 'Acquire::Retries "5"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30";' \
+            | sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build libcurl4-openssl-dev \
             libopus-dev libjson-c-dev libminiupnpc-dev libevent-dev libssl-dev \
@@ -67,6 +76,10 @@ jobs:
           submodules: recursive
       - name: Install dependencies
         run: |
+          # A slow or stuck package mirror once held this step for an hour:
+          # apt gives up on a connection silent for 30 s and tries again.
+          echo 'Acquire::Retries "5"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30";' \
+            | sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build libcurl4-openssl-dev xvfb \
             libopus-dev libjson-c-dev libminiupnpc-dev libevent-dev libssl-dev \
@@ -93,6 +106,10 @@ jobs:
   windows-gui:
     name: Windows x64 — graphical interface (Qt 6 + MSVC)
     runs-on: windows-latest
+    env:
+      # The vcpkg libraries, the same in ci.yml and release.yml: the cache
+      # key is made from them.
+      VCPKG_PORTS: curl opus json-c miniupnpc libevent openssl sdl2 protobuf pkgconf
     # Windows runners count double in Actions minutes, and these three jobs
     # consume almost all of it. In a private repository that exhausts the
     # monthly quota in a few days of work — and when it runs out, everything
@@ -125,27 +142,38 @@ jobs:
       # actions/cache only saves when the job passes, and a failing job
       # would force rebuilding OpenSSL and SDL2 — twenty minutes — on every
       # attempt.
+      # The libraries are built once a month and kept. The key is the month
+      # and the list — the same in ci.yml and release.yml, so every build of
+      # the month restores them, on any branch when the cache was made on main
+      # (ci.yml's run on the 1st makes it there). A new month builds them
+      # again with that day's vcpkg, so OpenSSL's and curl's fixes come in.
+      - name: vcpkg cache key
+        id: vcpkg-key
+        run: |
+          $month = (Get-Date).ToUniversalTime().ToString("yyyy-MM")
+          $ports = $env:VCPKG_PORTS -replace ' ', '-'
+          "key=vcpkg-x64-windows-$month-$ports-v4" >> $env:GITHUB_OUTPUT
       - name: Restore the vcpkg cache
         id: cache-vcpkg
         uses: actions/cache/restore@v4
         with:
           path: C:\vcpkg\installed
-          key: vcpkg-x64-windows-chiaki-deps-v2
+          key: ${{ steps.vcpkg-key.outputs.key }}
       - name: Install dependencies (vcpkg)
         run: |
           # curl is OrbisLink's; the rest is what chiaki-lib needs.
           # FFmpeg does not come from here: building it in vcpkg takes over twenty
           # minutes on every run.
-          & "${env:VCPKG_INSTALLATION_ROOT}\vcpkg.exe" install `
-            curl:x64-windows opus:x64-windows json-c:x64-windows `
-            miniupnpc:x64-windows libevent:x64-windows openssl:x64-windows sdl2:x64-windows `
-            protobuf:x64-windows pkgconf:x64-windows
+          $ports = $env:VCPKG_PORTS.Split(' ') | ForEach-Object { "$($_):x64-windows" }
+          & "${env:VCPKG_INSTALLATION_ROOT}\vcpkg.exe" install @ports
       - name: Save the vcpkg cache
-        if: always() && steps.cache-vcpkg.outputs.cache-hit != 'true'
+        # Right after vcpkg and only when it finished: a later failure does not
+        # lose the libraries, and a half-built set is never kept for the month.
+        if: steps.cache-vcpkg.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: C:\vcpkg\installed
-          key: vcpkg-x64-windows-chiaki-deps-v2
+          key: ${{ steps.vcpkg-key.outputs.key }}
       - name: Install FFmpeg (prebuilt LGPL build)
         run: |
           # LGPL and not GPL: that is what can be distributed with the rest
@@ -423,8 +451,14 @@ jobs:
           path: gui-payload
       - name: Install tools
         run: |
+          # A slow or stuck package mirror once held this step for an hour:
+          # apt gives up on a connection silent for 30 s and tries again.
+          echo 'Acquire::Retries "5"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30";' \
+            | sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
           sudo apt-get update
-          sudo apt-get install -y mingw-w64 nsis cmake ninja-build zip
+          # Only the 64-bit compilers (the builds are x86_64-w64-mingw32): half
+          # of what mingw-w64 brings, which also has the 32-bit ones.
+          sudo apt-get install -y gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 nsis cmake ninja-build zip
       - name: libcurl cache for mingw
         uses: actions/cache@v4
         with:

@@ -148,8 +148,9 @@ back to "Pending"; automatic pause when the services go down.
 
 ### 5.7 UI
 
-Single window with the stream in the middle, a top bar with the three
-indicators, a side panel (Queue / Files), a DropOverlay with the two zones
+Single window with a navigation spine on the left (the console in use with
+its three indicators, the pages, the tools), the stream and pages in the
+middle, a transfers spine on the right (Queue / Files), a DropOverlay with the two zones
 ("Install directly" and "Upload over FTP"), a TransferPanel with icon, title,
 type, progress, speed and ETA, the FtpBrowser and the settings. English, with
 Portuguese through Qt's translation system.

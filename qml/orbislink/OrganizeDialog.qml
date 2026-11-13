@@ -3,7 +3,8 @@
 // The packages of a folder of this PC put in order, as PS4 PKG Tool does:
 // each renamed from what it says about itself, numbered in the order they
 // install, a folder per game. What would change is shown first; nothing is
-// renamed until "Organise".
+// renamed until "Organise". File names are shown in mono, as the paths
+// they are.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
@@ -73,13 +74,10 @@ Dialog {
 
     Overlay.modal: Rectangle { color: Theme.scrim }
 
-    background: Rectangle {
-        color: Theme.dialogFill
-        border.color: Theme.border
-        radius: Theme.radiusDialog
-    }
+    background: ShelfTile.DialogGlass {}
 
-    header: DialogHeader {
+    header: ShelfTile.DialogHead {
+        eyebrow: dialog.folderName
         title: qsTr("Organise packages")
         dialog: dialog
     }
@@ -106,10 +104,8 @@ Dialog {
             columns: 2
             columnSpacing: 10
             rowSpacing: 8
-            Text {
+            Eyebrow {
                 text: qsTr("Name")
-                color: Theme.text
-                font.pixelSize: 13
             }
             StyledCombo {
                 id: presetCombo
@@ -129,6 +125,8 @@ Dialog {
             StyledField {
                 id: patternField
                 Layout.fillWidth: true
+                font.family: Theme.fontMono
+                font.pixelSize: 12
                 text: dialog.pattern
                 onTextEdited: {
                     dialog.pattern = text
@@ -141,9 +139,9 @@ Dialog {
             Text {
                 Layout.fillWidth: true
                 text: "{TITLE}  {TITLE_ID}  {VERSION}  {CATEGORY}  {REGION}  {CONTENT_ID}  {FIRMWARE}  {TYPE}"
-                color: Theme.textMuted
-                font.pixelSize: 11
-                font.family: "monospace"
+                color: Theme.textSecondary
+                font.pixelSize: 10
+                font.family: Theme.fontMono
                 wrapMode: Text.WrapAnywhere
             }
         }
@@ -170,8 +168,8 @@ Dialog {
             Layout.fillHeight: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
-            radius: 12
-            color: Theme.panelAltFill
+            radius: Theme.radiusSmall + 2
+            color: Theme.light ? Theme.alpha(Theme.ink, 0.04) : Qt.rgba(0, 0, 0, 0.16)
             border.width: 1
             border.color: Theme.glassEdge
             clip: true
@@ -179,28 +177,40 @@ Dialog {
             ListView {
                 id: stepList
                 anchors.fill: parent
-                anchors.margins: 6
+                anchors.margins: 4
                 model: dialog.steps
-                spacing: 2
+                spacing: 0
                 ScrollBar.vertical: ScrollBar {}
                 delegate: Item {
                     id: stepRow
                     required property var modelData
+                    required property int index
                     width: stepList.width - 8
-                    height: stepColumn.implicitHeight + 10
+                    height: stepColumn.implicitHeight + 16
+                    // A hairline between packages.
+                    Rectangle {
+                        visible: stepRow.index < stepList.count - 1
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.leftMargin: 10
+                        anchors.bottom: parent.bottom
+                        height: 1
+                        color: Theme.glassEdge
+                    }
                     ColumnLayout {
                         id: stepColumn
                         anchors.left: parent.left
                         anchors.right: parent.right
-                        anchors.leftMargin: 8
-                        anchors.rightMargin: 8
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 1
+                        spacing: 3
                         Text {
                             Layout.fillWidth: true
                             text: stepRow.modelData.from
                             color: stepRow.modelData.changes ? Theme.textSecondary : Theme.textMuted
-                            font.pixelSize: 11
+                            font.family: Theme.fontMono
+                            font.pixelSize: 10
                             elide: Text.ElideMiddle
                         }
                         Text {
@@ -209,9 +219,11 @@ Dialog {
                                   ? qsTr("The same package as %1 — left as it is").arg(stepRow.modelData.sameAs)
                                   : stepRow.modelData.changes ? "→ " + stepRow.modelData.to
                                   : qsTr("Already named this way")
-                            color: stepRow.modelData.duplicate ? Theme.warn
-                                   : stepRow.modelData.changes ? Theme.text : Theme.textMuted
-                            font.pixelSize: 12
+                            color: stepRow.modelData.duplicate ? (Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn)
+                                   : stepRow.modelData.changes ? Theme.ink : Theme.textMuted
+                            font.family: stepRow.modelData.changes && !stepRow.modelData.duplicate
+                                         ? Theme.fontMono : Theme.fontSans
+                            font.pixelSize: stepRow.modelData.changes && !stepRow.modelData.duplicate ? 11 : 12
                             font.weight: stepRow.modelData.changes ? Font.Medium : Font.Normal
                             elide: Text.ElideMiddle
                         }
@@ -246,7 +258,15 @@ Dialog {
     footer: Rectangle {
         implicitHeight: Theme.dialogFooter
         color: "transparent"
-        Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Theme.border }
+        Rectangle {
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: Theme.dialogMargin
+            anchors.rightMargin: Theme.dialogMargin
+            height: 1
+            color: Theme.glassEdge
+        }
         RowLayout {
             anchors.fill: parent
             anchors.margins: Theme.dialogInner

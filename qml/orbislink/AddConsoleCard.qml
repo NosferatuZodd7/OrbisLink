@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// The card next to the consoles for adding one more to the list: no fill,
-// with a dashed border — an empty spot waiting for a console.
+// The place next to the consoles for adding one more to the list: no glass
+// yet, only a fine dashed outline — an empty slot waiting for a console —
+// that fills with faint glass under the mouse.
 import QtQuick
 
 Item {
@@ -9,40 +10,29 @@ Item {
 
     signal add()
 
-    // A square, the size of a console card.
-    implicitWidth: 256
-    implicitHeight: 256
+    // The page sets the size, the same as a console plate's.
+    implicitWidth: 280
+    implicitHeight: 240
 
-    // The same motion as the console cards: lifts with the mouse over it,
-    // sinks when pressed.
-    scale: area.pressed ? Theme.pressScale : area.containsMouse ? 1.02 : 1.0
-    Behavior on scale { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
+    Accessible.role: Accessible.Button
+    Accessible.name: qsTr("Add console")
+
+    // The same motion as the console plates: a small lift with the mouse
+    // over it, sinking when pressed.
+    scale: area.pressed ? 0.99 : 1.0
+    Behavior on scale { NumberAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
     transform: Translate {
-        y: area.containsMouse && !area.pressed ? -6 : 0
-        Behavior on y { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
+        y: area.containsMouse && !area.pressed ? -3 : 0
+        Behavior on y { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
     }
 
+    // Faint glass with the mouse over it, as the console cards have.
     Rectangle {
         anchors.fill: parent
         radius: Theme.radius
-        color: area.containsMouse ? Theme.alpha(Theme.accent, Theme.light ? 0.10 : 0.14)
-                                  : Theme.alpha(Theme.panel, Theme.light ? 0.5 : 0.25)
-        Behavior on color { ColorAnimation { duration: Theme.cardEase } }
-    }
-
-    // A soft glow around it with the mouse over it, like the console cards.
-    Repeater {
-        model: 3
-        Rectangle {
-            anchors.fill: parent
-            anchors.margins: -(index + 1) * 3
-            radius: Theme.radius + (index + 1) * 3
-            color: "transparent"
-            border.width: 3
-            border.color: Theme.alpha(Theme.accent, 0.16 - index * 0.045)
-            opacity: area.containsMouse ? 1 : 0
-            Behavior on opacity { NumberAnimation { duration: Theme.cardEase } }
-        }
+        color: area.containsMouse ? (Theme.light ? Qt.rgba(1, 1, 1, 0.42) : Qt.rgba(1, 1, 1, 0.045))
+                                  : "transparent"
+        Behavior on color { ColorAnimation { duration: Theme.fast } }
     }
 
     // The dashed border, drawn dash by dash along the rounded outline
@@ -50,16 +40,15 @@ Item {
     Canvas {
         id: outline
         anchors.fill: parent
-        readonly property color tone: area.containsMouse
-            ? Theme.cardGlow
-            : Theme.alpha(Theme.cardTextMuted, 0.55)
+        readonly property color tone: area.containsMouse ? Theme.alpha(Theme.accent, 0.85)
+                                                         : Theme.alpha(Theme.ink, Theme.light ? 0.24 : 0.22)
         onToneChanged: requestPaint()
         onWidthChanged: requestPaint()
         onHeightChanged: requestPaint()
         onPaint: {
             var ctx = getContext("2d")
             ctx.reset()
-            var m = 1.5, w = width - 2 * m, h = height - 2 * m
+            var m = 1, w = width - 2 * m, h = height - 2 * m
             var r = Math.min(Theme.radius, w / 2, h / 2)
             // The outline as a sequence of points, every 1 px.
             var dots = []
@@ -85,9 +74,9 @@ Item {
             arc(m + r, m + r, Math.PI, 3 * Math.PI / 2)
 
             ctx.strokeStyle = tone
-            ctx.lineWidth = 1.5
+            ctx.lineWidth = 1
             ctx.lineCap = "round"
-            var dash = 7, space = 6, period = dash + space
+            var dash = 6, space = 6, period = dash + space
             ctx.beginPath()
             for (var j = 0; j + 1 < dots.length; ++j) {
                 if (j % period < dash) {
@@ -101,25 +90,58 @@ Item {
 
     Column {
         anchors.centerIn: parent
-        spacing: 14
+        width: card.width - 40
+        spacing: 10
 
-        Icon {
+        // A round glass button with a plus, lit with the accent under the mouse.
+        Item {
             anchors.horizontalCenter: parent.horizontalCenter
-            name: "plus-circle"
-            size: 48
-            strokeWidth: 1.4
-            color: area.containsMouse ? Theme.accent : Theme.text
+            width: 56
+            height: 56
+            Rectangle {
+                anchors.fill: parent
+                radius: width / 2
+                color: area.containsMouse ? Theme.controlHover : Theme.controlFill
+                border.width: 1
+                border.color: area.containsMouse ? Theme.alpha(Theme.accent, 0.7)
+                            : Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.04)
+                Behavior on color { ColorAnimation { duration: Theme.fast } }
+                // The light on the disc, from the top.
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: 1
+                    radius: width / 2
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.55 : 0.10) }
+                        GradientStop { position: 0.6; color: Qt.rgba(1, 1, 1, 0) }
+                    }
+                }
+            }
+            Icon {
+                anchors.centerIn: parent
+                name: "plus"
+                size: 24
+                color: area.containsMouse ? (Theme.light ? Qt.darker(Theme.accent, 1.3) : Theme.accent) : Theme.ink
+            }
         }
 
         Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: card.width - 32
+            width: parent.width
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
             text: qsTr("Add console")
-            color: area.containsMouse ? Theme.accent : Theme.text
-            font.pixelSize: 15
-            font.weight: Font.DemiBold
+            color: area.containsMouse ? (Theme.light ? Qt.darker(Theme.accent, 1.3) : Theme.accent) : Theme.ink
+            font.family: Theme.fontDisplay
+            font.pixelSize: Theme.fontCardTitle
+            font.weight: Font.Bold
+        }
+        Text {
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            text: qsTr("A PS4 or a PS5 on this network")
+            color: Theme.textSecondary
+            font.pixelSize: 12
         }
     }
 

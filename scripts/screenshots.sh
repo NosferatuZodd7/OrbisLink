@@ -190,6 +190,7 @@ shot 01-queue.png --screenshot-delay 8000 \
 shot 02-drop-overlay.png --screenshot-delay 2500 --demo-overlay
 shot 03-ftp-browser.png --screenshot-delay 3500 --demo-tab 1
 shot 04-settings.png --screenshot-delay 2500 --demo-settings
+shot 19-about.png --screenshot-delay 2500 --demo-settings-section 6
 shot 05-file-menu.png --screenshot-delay 4000 --demo-tab 1 --demo-menu
 shot 06-remote-play.png --screenshot-delay 3500
 shot 07-register-console.png --screenshot-delay 3500 --demo-register

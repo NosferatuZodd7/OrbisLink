@@ -93,8 +93,9 @@ cp "$WORK/orbislink/orbislink-cli.exe" "$STAGE/"
 cp "$REPO/src/icons/orbisDDM.ico" "$STAGE/orbislink.ico"
 # Text files in CRLF, so they open properly in Notepad.
 sed 's/$/\r/' "$REPO/LICENSE" > "$STAGE/LICENSE.txt"
-# The font and the icons built into the interface carry their own licences.
-sed 's/$/\r/' "$REPO/third-party/inter/LICENSE.txt" > "$STAGE/LICENSE-Inter.txt"
+# The fonts and the icons built into the interface carry their own licences.
+sed 's/$/\r/' "$REPO/third-party/figtree/LICENSE.txt" > "$STAGE/LICENSE-Figtree.txt"
+sed 's/$/\r/' "$REPO/third-party/jetbrains-mono/LICENSE.txt" > "$STAGE/LICENSE-JetBrainsMono.txt"
 sed 's/$/\r/' "$REPO/third-party/lucide/LICENSE" > "$STAGE/LICENSE-Lucide.txt"
 sed 's/$/\r/' "$REPO/third-party/liborbispkg/LICENSE" > "$STAGE/LICENSE-LibOrbisPkg.txt"
 # The project address comes from outside (ORBISLINK_REPO_URL); in CI it is the

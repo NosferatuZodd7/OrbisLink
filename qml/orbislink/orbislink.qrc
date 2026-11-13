@@ -62,6 +62,16 @@
         <file alias="SkeletonTile.qml">SkeletonTile.qml</file>
         <file alias="Spinner.qml">Spinner.qml</file>
         <file alias="DialogHeader.qml">DialogHeader.qml</file>
+        <file alias="EngravedRule.qml">EngravedRule.qml</file>
+        <file alias="AboutPage.qml">AboutPage.qml</file>
+        <file alias="Sparkle.qml">Sparkle.qml</file>
+        <file alias="Eyebrow.qml">Eyebrow.qml</file>
+        <file alias="PageHeader.qml">PageHeader.qml</file>
+        <file alias="Plate.qml">Plate.qml</file>
+        <file alias="Tag.qml">Tag.qml</file>
+        <file alias="SideNav.qml">SideNav.qml</file>
+        <file alias="LogoButton.qml">LogoButton.qml</file>
+        <file alias="TopBar.qml">TopBar.qml</file>
         <file alias="HudButton.qml">HudButton.qml</file>
         <file alias="Icons.js">Icons.js</file>
         <file alias="GlassBackground.qml">GlassBackground.qml</file>

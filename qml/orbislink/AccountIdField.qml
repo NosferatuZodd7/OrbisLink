@@ -40,6 +40,7 @@ ColumnLayout {
         id: field
         Layout.fillWidth: true
         placeholderText: qsTr("hexadecimal, decimal or base64")
+        font.family: Theme.fontMono
         onTextChanged: {
             // A new ID always starts with the normal reading: keeping the
             // switch on from a previous attempt would be a silent
@@ -49,12 +50,12 @@ ColumnLayout {
         }
     }
 
-    // The conversion box. It only appears once something is typed: a help
-    // panel that is permanently empty is noise.
+    // The conversion box, a well under the field. It only appears once
+    // something is typed: a help panel that is permanently empty is noise.
     Rectangle {
         Layout.fillWidth: true
         visible: field.text.trim().length > 0
-        color: Theme.panelAltFill
+        color: Theme.light ? Qt.rgba(1, 1, 1, 0.40) : Qt.rgba(0, 0, 0, 0.20)
         border.color: root.ok ? Theme.glassEdge
                               : Qt.rgba(Theme.error.r, Theme.error.g, Theme.error.b, 0.5)
         border.width: 1
@@ -82,7 +83,7 @@ ColumnLayout {
                 font.pixelSize: 11
             }
 
-            Text {
+            Eyebrow {
                 Layout.fillWidth: true
                 visible: root.ok
                 text: {
@@ -90,8 +91,6 @@ ColumnLayout {
                     if (root.forms.format === "decimal") return qsTr("Read as decimal")
                     return qsTr("Read as hexadecimal")
                 }
-                color: Theme.textSecondary
-                font.pixelSize: 11
             }
 
             Repeater {
@@ -118,10 +117,11 @@ ColumnLayout {
                         text: modelData.value
                         readOnly: true
                         selectByMouse: true
-                        color: modelData.highlight ? Theme.accent : Theme.text
+                        color: modelData.highlight
+                               ? (Theme.light ? Qt.darker(Theme.accent, 1.3) : Theme.accent) : Theme.text
                         font.pixelSize: 12
-                        font.family: "monospace"
-                        font.bold: modelData.highlight
+                        font.family: Theme.fontMono
+                        font.weight: modelData.highlight ? Font.DemiBold : Font.Normal
                     }
                 }
             }
@@ -155,8 +155,9 @@ ColumnLayout {
                            + "match what the console shows.")
                     : qsTr("Only turn this on if the lines above do not match what you saw on "
                            + "the console. What you typed is not changed.")
-                color: inverse.checked ? Theme.warn : Theme.textSecondary
-                font.pixelSize: 10
+                color: inverse.checked ? (Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn)
+                                       : Theme.textSecondary
+                font.pixelSize: 11
             }
         }
     }

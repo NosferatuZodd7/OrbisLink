@@ -3,6 +3,7 @@
 
 #include "orbislink/library/console_library.h"
 
+#include "orbislink/qt/backdrop.h"
 #include "orbislink/qt/diagnostics.h"
 #ifdef ORBISLINK_HAS_STREAM
 #include "orbislink/qt/translate_message.h"
@@ -71,6 +72,7 @@ AppController::AppController(QObject *parent)
 	SettingsStore::ensureDirectory(SettingsStore::defaultDirectory());
 	qInfo("Startup: reading settings");
 	store_.load(&settings_);
+	prepareBackdrop();
 	qInfo("Startup: working out the log path");
 	const std::string coreLogPath = SettingsStore::defaultLogPath();
 	qInfo("Startup: core log at %s", coreLogPath.c_str());
@@ -290,6 +292,7 @@ QVariantList AppController::consoles() const
 		input[QStringLiteral("startMode")] = console.startMode == "ftp"
 			? QStringLiteral("ftp") : QStringLiteral("remoteplay");
 		input[QStringLiteral("accountId")] = QString::fromStdString(console.accountId);
+		input[QStringLiteral("remotePlayPin")] = QString::fromStdString(console.remotePlayPin);
 		QString accountLabel;
 		for(const SavedAccount &account : settings_.accounts)
 			if(account.accountId == console.accountId)
@@ -546,6 +549,32 @@ void AppController::setConsoleStartMode(const QString &address, const QString &s
 		emit settingsChanged();
 		return;
 	}
+}
+
+bool AppController::setConsolePin(const QString &address, const QString &pin)
+{
+	const std::string trimmedAddress = address.trimmed().toStdString();
+	const std::string digits = trim(pin.toStdString());
+	if(!digits.empty() && ((digits.size() != 4 && digits.size() != 8)
+							  || digits.find_first_not_of("0123456789") != std::string::npos))
+	{
+		setStatusMessage(tr("The console's Remote Play PIN is 8 digits (the one it shows to register this "
+			"PC) or 4 (the passcode it asks for when connecting)."));
+		return false;
+	}
+	for(ConsoleEntry &console : settings_.consoles)
+	{
+		if(console.address != trimmedAddress)
+			continue;
+		if(console.remotePlayPin != digits)
+		{
+			console.remotePlayPin = digits;
+			store_.save(settings_);
+			emit settingsChanged();
+		}
+		return true;
+	}
+	return false;
 }
 
 // GoldHEN keeps /data/GoldHEN and etaHEN /data/etaHEN; anything else with
@@ -992,6 +1021,148 @@ void AppController::setThemeColor(const QString &key, const QString &color)
 	settings_.activePreset.clear();
 	store_.save(settings_);
 	emit themeColorsChanged();
+}
+
+namespace {
+
+QString backdropFolder()
+{
+	return QDir(QString::fromStdString(SettingsStore::defaultDirectory())).filePath(QStringLiteral("backgrounds"));
+}
+
+} // namespace
+
+void AppController::prepareBackdrop()
+{
+	backdropPath_.clear();
+	if(settings_.backgroundImage.empty())
+		return;
+	const QFileInfo source(QString::fromStdString(settings_.backgroundImage));
+	if(!source.exists())
+	{
+		logWarning("The background picture is gone (" + settings_.backgroundImage + "); back to the room.");
+		settings_.backgroundImage.clear();
+		settings_.backgroundTones.clear();
+		return;
+	}
+	QDir folder = source.dir();
+	const QString name = source.completeBaseName() + QStringLiteral("-blur%1.jpg").arg(settings_.backgroundBlur);
+	const QString made = folder.filePath(name);
+	if(!QFileInfo::exists(made))
+	{
+		const QImage picture = backdrop::load(source.filePath());
+		if(picture.isNull() || !backdrop::blurred(picture, settings_.backgroundBlur).save(made, "JPG", 90))
+		{
+			logWarning("Could not prepare the background picture.");
+			return;
+		}
+	}
+	// Only the version in use is kept.
+	const QStringList others = folder.entryList({ source.completeBaseName() + QStringLiteral("-blur*.jpg") }, QDir::Files);
+	for(const QString &other : others)
+		if(other != name)
+			folder.remove(other);
+	backdropPath_ = made;
+}
+
+QString AppController::backgroundUrl() const
+{
+	return backdropPath_.isEmpty() ? QString() : QUrl::fromLocalFile(backdropPath_).toString();
+}
+
+QVariantMap AppController::backgroundTones() const
+{
+	QVariantMap map;
+	if(backdropPath_.isEmpty())
+		return map;
+	for(const auto &pair : settings_.backgroundTones)
+		map.insert(QString::fromStdString(pair.first), QString::fromStdString(pair.second));
+	return map;
+}
+
+bool AppController::chooseBackground(const QString &file)
+{
+	const QUrl url(file);
+	const QString path = url.isLocalFile() ? url.toLocalFile() : file;
+	const QImage picture = backdrop::load(path);
+	if(picture.isNull())
+	{
+		emit notify(tr("Background"), tr("That file could not be read as a picture."), true);
+		return false;
+	}
+	// A copy of its own: the original may move or be deleted.
+	const QDir folder(backdropFolder());
+	folder.mkpath(QStringLiteral("."));
+	const QString copy = folder.filePath(QStringLiteral("picture-%1.jpg").arg(QDateTime::currentMSecsSinceEpoch()));
+	if(!picture.save(copy, "JPG", 92))
+	{
+		emit notify(tr("Background"), tr("The picture could not be saved in the data folder."), true);
+		return false;
+	}
+	const std::string previous = settings_.backgroundImage;
+	const backdrop::Tones tones = backdrop::analyse(picture);
+	settings_.backgroundImage = copy.toStdString();
+	settings_.backgroundTones.clear();
+	if(tones.average.isValid())
+		settings_.backgroundTones["average"] = tones.average.name(QColor::HexRgb).toUpper().toStdString();
+	if(tones.primary.isValid())
+		settings_.backgroundTones["primary"] = tones.primary.name(QColor::HexRgb).toUpper().toStdString();
+	if(tones.secondary.isValid())
+		settings_.backgroundTones["secondary"] = tones.secondary.name(QColor::HexRgb).toUpper().toStdString();
+	prepareBackdrop();
+	// The picture chosen before, and what was made from it, go.
+	if(!previous.empty() && previous != settings_.backgroundImage)
+	{
+		const QFileInfo old(QString::fromStdString(previous));
+		for(const QString &made : old.dir().entryList({ old.completeBaseName() + QStringLiteral("*") }, QDir::Files))
+			old.dir().remove(made);
+	}
+	store_.save(settings_);
+	emit backgroundChanged();
+	return true;
+}
+
+void AppController::clearBackground()
+{
+	if(settings_.backgroundImage.empty())
+		return;
+	const QFileInfo old(QString::fromStdString(settings_.backgroundImage));
+	for(const QString &made : old.dir().entryList({ old.completeBaseName() + QStringLiteral("*") }, QDir::Files))
+		old.dir().remove(made);
+	settings_.backgroundImage.clear();
+	settings_.backgroundTones.clear();
+	backdropPath_.clear();
+	store_.save(settings_);
+	emit backgroundChanged();
+}
+
+void AppController::setBackgroundBlur(int strength)
+{
+	strength = std::clamp(strength, 0, 100);
+	if(strength == settings_.backgroundBlur)
+		return;
+	settings_.backgroundBlur = strength;
+	prepareBackdrop();
+	store_.save(settings_);
+	emit backgroundChanged();
+}
+
+void AppController::setBackgroundPalette(bool fromPicture)
+{
+	if(fromPicture == settings_.backgroundPalette)
+		return;
+	settings_.backgroundPalette = fromPicture;
+	store_.save(settings_);
+	emit backgroundChanged();
+}
+
+void AppController::setBackgroundMotion(bool moving)
+{
+	if(moving == settings_.backgroundMotion)
+		return;
+	settings_.backgroundMotion = moving;
+	store_.save(settings_);
+	emit backgroundChanged();
 }
 
 void AppController::resetThemeColors()

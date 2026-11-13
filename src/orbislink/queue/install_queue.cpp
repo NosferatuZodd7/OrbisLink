@@ -948,7 +948,22 @@ InstallerResult InstallQueue::startInstall(const QueueTask &task, const std::str
 			install = deps_.installer->installDirect({ uri }, handle);
 		}
 		else
-			logWarning("The console has a task for " + task.contentId + " that could not be found to remove.");
+		{
+			// No task in the downloads: the console refuses because the
+			// package is already installed. It does not install an
+			// application over itself, so a reinstall needs it deleted first.
+			bool exists = false;
+			if(!task.titleId.empty() && deps_.installer->isExists(task.titleId, &exists, nullptr).ok && exists)
+			{
+				logWarning(task.titleId + " is already installed and the console will not install it over itself.");
+				install.message = std::string(QT_TRANSLATE_NOOP("Messages", "This package is already "
+					"installed on the console, and the console will not install it over itself (BGFT "
+					"TASK_DUPLICATED). To reinstall it, delete it on the console first, then install again."))
+					+ " (" + formatErrorCode(kBgftTaskDuplicated) + ")";
+			}
+			else
+				logWarning("The console has a task for " + task.contentId + " that could not be found to remove.");
+		}
 	}
 	return install;
 }

@@ -47,6 +47,10 @@ struct ConsoleEntry
 	// and the installer alongside) or "ftp" (only the file browser, as an
 	// alternative to FileZilla). Empty means "remoteplay".
 	std::string startMode;
+	// This console's own Remote Play PIN: eight digits are the pairing PIN
+	// it shows, filled in when registering this PC; four are the passcode it
+	// asks for while connecting. Empty: the account's own PIN, if it has one.
+	std::string remotePlayPin;
 };
 
 // A place on the games page's shelf: a folder of this PC (a drive's root
@@ -87,7 +91,8 @@ struct SavedAccount
 	std::string accountId;
 	// This account's Remote Play PIN, only ever used for this account: four
 	// digits are its passcode, answered when the console asks for it while
-	// connecting; eight are the pairing PIN, filled in when registering it.
+	// connecting (unless the console has its own, ConsoleEntry); eight are
+	// the pairing PIN, filled in when registering it.
 	std::string remotePlayPin;
 };
 
@@ -159,6 +164,16 @@ struct Settings
 	std::string activePreset;
 	std::map<std::string, std::string> lastCustomColors;
 	std::string lastCustomTheme;
+	// A picture of one's own behind the glass: the copy kept in the data
+	// folder (empty: the room the app comes with), how out of focus it is
+	// shown (0..100), whether the colours are taken from it, and what it is
+	// made of (average, primary, secondary → "#RRGGBB").
+	std::string backgroundImage;
+	int backgroundBlur = 60;
+	bool backgroundPalette = true;
+	std::map<std::string, std::string> backgroundTones;
+	// Light moving slowly over the background, as through water.
+	bool backgroundMotion = true;
 	std::string language = "en";    // "en" or "pt_PT"
 	bool debugLogging = false;
 	// "Updates over the internet". On by default: with a public repository
@@ -175,6 +190,10 @@ struct Settings
 	// "stable" only sees final releases; "testing" also sees the
 	// prereleases that CI publishes for every build.
 	std::string updateChannel = "stable";
+	// With 1.4.0 the stable channel became everyone's default once: a
+	// "testing" saved by an older version goes back to "stable" the first
+	// time this one reads it (the file then carries "stable_channel_defaulted").
+	// Choosing "testing" again afterwards stays.
 	// The first-run wizard only appears once; after that it is opened
 	// from the settings.
 	bool firstRunDone = false;

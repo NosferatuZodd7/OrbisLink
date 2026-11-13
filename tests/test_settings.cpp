@@ -39,6 +39,21 @@ ORBISLINK_TEST(settings_round_trip)
 	CHECK(restored.keepConvertedPackages);
 }
 
+ORBISLINK_TEST(stable_becomes_the_channel_once_then_a_choice_stays)
+{
+	// Saved by a version before 1.4.0: "testing" goes back to "stable".
+	bool ok = false;
+	const Settings older = Settings::fromJson(R"({"update_channel":"testing"})", &ok);
+	CHECK(ok);
+	CHECK_EQ(older.updateChannel, std::string("stable"));
+	// Chosen again afterwards: it stays.
+	Settings chosen = older;
+	chosen.updateChannel = "testing";
+	const Settings again = Settings::fromJson(chosen.toJson(), &ok);
+	CHECK(ok);
+	CHECK_EQ(again.updateChannel, std::string("testing"));
+}
+
 ORBISLINK_TEST(defaults_follow_the_specification)
 {
 	const Settings settings;
@@ -311,6 +326,35 @@ ORBISLINK_TEST(each_account_keeps_its_own_remote_play_pin)
 	const std::string redacted = redactSensitive(settings.toJson());
 	CHECK(redacted.find("87654321") == std::string::npos);
 	CHECK(redacted.find("\"1234\"") == std::string::npos);
+}
+
+// Each console keeps its own Remote Play passcode: saved with it, read back,
+// left out when it has none, and never in a diagnostics report.
+ORBISLINK_TEST(each_console_keeps_its_own_remote_play_pin)
+{
+	Settings settings;
+	ConsoleEntry living;
+	living.name = "Living room PS4";
+	living.address = "192.0.2.10";
+	living.remotePlayPin = "2468";
+	ConsoleEntry bedroom;
+	bedroom.name = "Bedroom PS5";
+	bedroom.address = "192.0.2.11";
+	settings.consoleAddress = living.address;
+	settings.consoles = { living, bedroom };
+
+	const std::string json = settings.toJson();
+	Settings reloaded = Settings::fromJson(json);
+	CHECK_EQ(reloaded.consoles.size(), size_t(2));
+	CHECK_EQ(reloaded.consoles[0].remotePlayPin, std::string("2468"));
+	CHECK(reloaded.consoles[1].remotePlayPin.empty());
+
+	reloaded.consoles[1].remotePlayPin = "13572468";
+	const Settings again = Settings::fromJson(reloaded.toJson());
+	CHECK_EQ(again.consoles[0].remotePlayPin, std::string("2468"));
+	CHECK_EQ(again.consoles[1].remotePlayPin, std::string("13572468"));
+
+	CHECK(redactSensitive(json).find("2468") == std::string::npos);
 }
 
 ORBISLINK_TEST(theme_colours_presets_and_pad_map_round_trip)

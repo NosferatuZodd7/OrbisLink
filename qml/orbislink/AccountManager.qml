@@ -13,7 +13,7 @@ import QtQuick.Layouts
 
 ColumnLayout {
     id: manager
-    spacing: 8
+    spacing: 10
 
     readonly property bool hasStream: typeof stream !== "undefined" && stream !== null
     readonly property var registrations: hasStream ? stream.registrations : []
@@ -72,15 +72,12 @@ ColumnLayout {
         onTriggered: manager.confirming = ""
     }
 
-    RowLayout {
-        Layout.fillWidth: true
-        Text {
-            Layout.fillWidth: true
-            text: qsTr("Account IDs (PSID)")
-            color: Theme.text
-            font.pixelSize: Theme.fontTitle
-            font.weight: Font.DemiBold
-        }
+    PageHeader {
+        // Room on the right for the settings dialog's round close button.
+        Layout.rightMargin: 40
+        Layout.bottomMargin: 8
+        eyebrow: qsTr("PlayStation Network")
+        title: qsTr("Account IDs (PSID)")
         StyledButton {
             text: qsTr("Add Account ID…")
             primary: true
@@ -93,109 +90,182 @@ ColumnLayout {
 
     Text {
         Layout.fillWidth: true
+        Layout.bottomMargin: 4
         text: qsTr("The PSN Account IDs saved on this PC. Each one registers on a console by "
                    + "itself and has its own Remote Play PIN; with two or more, connecting asks "
                    + "which one to use.")
-        color: Theme.textMuted
-        font.pixelSize: 11
+        color: Theme.textSecondary
+        font.pixelSize: 13
         wrapMode: Text.WordWrap
     }
 
-    Text {
+    // Nothing saved yet: the empty state, with the one action it needs.
+    Plate {
         visible: app.accounts.length === 0 && manager.editing === ""
+        sunken: true
         Layout.fillWidth: true
-        text: qsTr("No Account ID saved yet.")
-        color: Theme.textMuted
-        font.pixelSize: 12
+        implicitHeight: emptyColumn.implicitHeight + 48
+        ColumnLayout {
+            id: emptyColumn
+            anchors.centerIn: parent
+            width: parent.width - 48
+            spacing: 8
+            Icon {
+                Layout.alignment: Qt.AlignHCenter
+                name: "id-card"
+                size: 26
+                color: Theme.alpha(Theme.textSecondary, 0.7)
+            }
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTr("No Account ID saved yet.")
+                color: Theme.ink
+                font.family: Theme.fontDisplay
+                font.pixelSize: Theme.fontHeading
+                font.weight: Font.Bold
+            }
+            Text {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                text: qsTr("Remote Play needs one to register this PC on a console.")
+                color: Theme.textSecondary
+                font.pixelSize: Theme.fontSmall
+            }
+        }
     }
 
-    Repeater {
-        model: app.accounts
+    // The saved IDs, one row each on a single quiet pane of glass.
+    Plate {
+        // Hidden too while its only row is being edited below. Told from the
+        // data, not from the rows' height: a hidden plate's rows count as
+        // hidden too, and it would never show again.
+        visible: app.accounts.length > 0
+                 && !(app.accounts.length === 1 && manager.editing === app.accounts[0].accountId)
+        Layout.fillWidth: true
+        implicitHeight: accountColumn.implicitHeight + 8
 
-        delegate: Rectangle {
-            id: row
-            required property var modelData
-            Layout.fillWidth: true
-            visible: manager.editing !== modelData.accountId
-            implicitHeight: visible ? 58 : 0
-            readonly property var registeredOn: manager.registeredOn(modelData.accountId)
-            radius: Theme.radiusSmall
-            color: Theme.panelAltFill
-            border.color: Theme.border
+        ColumnLayout {
+            id: accountColumn
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.topMargin: 4
+            anchors.leftMargin: 18
+            anchors.rightMargin: 14
+            spacing: 0
 
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 12
-                anchors.rightMargin: 12
-                spacing: 10
+            Repeater {
+                model: app.accounts
 
-                ColumnLayout {
+                delegate: Item {
+                    id: row
+                    required property var modelData
                     Layout.fillWidth: true
-                    spacing: 2
-                    Text {
-                        text: row.modelData.label
-                        color: Theme.text
-                        font.bold: true
-                        font.pixelSize: 13
-                        elide: Text.ElideRight
-                        Layout.fillWidth: true
+                    visible: manager.editing !== modelData.accountId
+                    implicitHeight: visible ? 64 : 0
+                    readonly property var registeredOn: manager.registeredOn(modelData.accountId)
+
+                    Rectangle {
+                        visible: row.y > 1
+                        width: parent.width
+                        height: 1
+                        color: Theme.glassEdge
                     }
-                    Text {
-                        text: manager.shown(row.modelData.accountId) + "  ·  "
-                              + (row.registeredOn.length > 0
-                                 ? qsTr("registered on %1").arg(row.registeredOn.join(", "))
-                                 : qsTr("not registered on any console yet"))
-                              + "  ·  "
-                              + (row.modelData.remotePlayPin.length > 0 ? qsTr("PIN saved")
-                                                                        : qsTr("no PIN saved"))
-                        color: Theme.textMuted
-                        font.pixelSize: 11
-                        elide: Text.ElideRight
-                        Layout.fillWidth: true
+
+                    RowLayout {
+                        anchors.fill: parent
+                        spacing: 12
+
+                        Icon {
+                            name: "user"
+                            size: 18
+                            color: Theme.textSecondary
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 3
+                            Text {
+                                text: row.modelData.label
+                                color: Theme.ink
+                                font.weight: Font.DemiBold
+                                font.pixelSize: Theme.fontBody
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+                                Text {
+                                    text: manager.shown(row.modelData.accountId)
+                                    color: Theme.text
+                                    font.family: Theme.fontMono
+                                    font.pixelSize: Theme.fontCaption
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: "·  " + (row.registeredOn.length > 0
+                                             ? qsTr("registered on %1").arg(row.registeredOn.join(", "))
+                                             : qsTr("not registered on any console yet"))
+                                    color: Theme.textSecondary
+                                    font.pixelSize: Theme.fontCaption
+                                    elide: Text.ElideRight
+                                }
+                            }
+                        }
+                        Tag {
+                            tone: row.modelData.remotePlayPin.length > 0 ? "ok" : "neutral"
+                            text: row.modelData.remotePlayPin.length > 0 ? qsTr("PIN saved") : qsTr("no PIN saved")
+                        }
+                        StyledButton {
+                            text: qsTr("Edit")
+                            chip: true
+                            enabled: manager.editing === ""
+                            onClicked: manager.startEdit(row.modelData.accountId, row.modelData.label,
+                                                         row.modelData.accountId, row.modelData.remotePlayPin)
+                        }
+                        StyledButton {
+                            danger: true
+                            chip: true
+                            text: manager.confirming === row.modelData.accountId ? qsTr("Confirm?") : qsTr("Remove")
+                            ToolTip.visible: hovered
+                            ToolTip.text: qsTr("Removes it from the list. Consoles that used it are left "
+                                               + "without one; registrations already made stay.")
+                            onClicked: manager.confirmRemove(row.modelData.accountId)
+                        }
                     }
-                }
-                StyledButton {
-                    text: qsTr("Edit")
-                    minimumWidth: 64
-                    enabled: manager.editing === ""
-                    onClicked: manager.startEdit(row.modelData.accountId, row.modelData.label,
-                                                 row.modelData.accountId, row.modelData.remotePlayPin)
-                }
-                StyledButton {
-                    danger: true
-                    text: manager.confirming === row.modelData.accountId ? qsTr("Confirm?") : qsTr("Remove")
-                    minimumWidth: 70
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Removes it from the list. Consoles that used it are left "
-                                       + "without one; registrations already made stay.")
-                    onClicked: manager.confirmRemove(row.modelData.accountId)
                 }
             }
         }
     }
 
     // Adding or editing: a name and the ID in any form.
-    Rectangle {
+    Plate {
         Layout.fillWidth: true
+        Layout.topMargin: 4
         visible: manager.editing !== ""
-        implicitHeight: editForm.implicitHeight + 24
-        radius: Theme.radiusSmall
-        color: Theme.panelAltFill
-        border.color: Theme.accent
+        implicitHeight: editForm.implicitHeight + 40
+        border.color: Theme.alpha(Theme.accent, 0.7)
 
         GridLayout {
             id: editForm
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            anchors.margins: 12
+            anchors.margins: 20
             columns: 2
             columnSpacing: 12
             rowSpacing: 8
 
+            Eyebrow {
+                Layout.columnSpan: 2
+                Layout.bottomMargin: 4
+                text: manager.editing === "+" ? qsTr("New Account ID") : qsTr("Edit Account ID")
+            }
+
             // The username, so the ID can be told apart at a glance: the ID
             // itself is just a long number.
-            Text { text: qsTr("Username"); color: Theme.textMuted; font.pixelSize: 12 }
+            Text { text: qsTr("Username"); color: Theme.textSecondary; font.pixelSize: Theme.fontSmall; Layout.preferredWidth: 120 }
             StyledField {
                 id: labelEdit
                 Layout.fillWidth: true
@@ -204,8 +274,8 @@ ColumnLayout {
 
             Text {
                 text: qsTr("Account ID")
-                color: Theme.textMuted
-                font.pixelSize: 12
+                color: Theme.textSecondary
+                font.pixelSize: Theme.fontSmall
                 Layout.alignment: Qt.AlignTop
                 Layout.topMargin: 8
             }
@@ -217,8 +287,8 @@ ColumnLayout {
             // This account's own PIN: never used for another account.
             Text {
                 text: qsTr("Remote Play PIN")
-                color: Theme.textMuted
-                font.pixelSize: 12
+                color: Theme.textSecondary
+                font.pixelSize: Theme.fontSmall
                 Layout.alignment: Qt.AlignTop
                 Layout.topMargin: 8
             }
@@ -228,6 +298,7 @@ ColumnLayout {
                 StyledField {
                     id: pinEdit
                     Layout.fillWidth: true
+                    font.family: Theme.fontMono
                     placeholderText: qsTr("Optional — 4 or 8 digits")
                     maximumLength: 8
                     echoMode: activeFocus ? TextInput.Normal : TextInput.Password
@@ -238,11 +309,12 @@ ColumnLayout {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     color: pinEdit.text.length > 0 && pinEdit.text.length !== 4 && pinEdit.text.length !== 8
-                           ? Theme.error : Theme.textMuted
-                    font.pixelSize: 11
+                           ? Theme.error : Theme.textSecondary
+                    font.pixelSize: Theme.fontCaption
                     text: qsTr("4 digits: the account's passcode, sent when the console asks for it "
-                               + "while connecting. 8 digits: the pairing PIN, filled in when this "
-                               + "account registers (the console shows a new one each time).")
+                               + "while connecting — unless that console has its own PIN (Consoles → "
+                               + "Edit). 8 digits: the pairing PIN, filled in when this account registers "
+                               + "(the console shows a new one each time).")
                 }
             }
 

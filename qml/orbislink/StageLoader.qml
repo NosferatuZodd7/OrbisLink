@@ -61,8 +61,10 @@ Item {
         onPaint: {
             var ctx = getContext("2d")
             ctx.reset()
-            var r = width / 2 - 3
-            ctx.lineWidth = 3
+            // A fine ring: the track faint, the part done in the step's
+            // colour.
+            var r = width / 2 - 2.5
+            ctx.lineWidth = Math.max(2, Math.round(width / 16))
             ctx.lineCap = "round"
             ctx.strokeStyle = Qt.rgba(loader.tone.r, loader.tone.g, loader.tone.b, loader.standing ? 0.32 : 0.18)
             ctx.beginPath()
@@ -91,7 +93,7 @@ Item {
             : "package"
         // In step with the ring, at any size.
         size: Math.max(10, Math.round(loader.width * 0.45))
-        strokeWidth: 2
+        strokeWidth: 1.9
         color: loader.tone
     }
 

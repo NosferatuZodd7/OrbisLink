@@ -8,8 +8,9 @@ ApplicationWindow {
     id: window
     width: 1280
     height: 800
-    // The top bar fits from here, at its most compact.
-    minimumWidth: 880
+    // The navigation folded, the transfers open and a page between them fit
+    // from here.
+    minimumWidth: 900
     minimumHeight: 560
     visible: true
     color: Theme.background
@@ -24,8 +25,7 @@ ApplicationWindow {
     readonly property bool installerAbsent: app.installerState === "unavailable"
                                             || app.installerState === "not-applicable"
     readonly property bool panelAllowed: !(ftpAbsent && installerAbsent) || app.queue.count > 0
-    // Whether the side panel is on screen; without it the page takes the
-    // window's right gutter, so it lines up with the top bar.
+    // Whether the transfers' spine is on screen.
     readonly property bool panelShown: panelVisible && panelAllowed && !streamFullscreen
     // The panel closed while jobs go on: a narrow column with them instead,
     // until they are done.
@@ -39,7 +39,7 @@ ApplicationWindow {
                           : typeof demoGames !== "undefined" && demoGames ? "games" : "home"
     readonly property string panelLockReason: qsTr("This console only offers Remote Play: it has "
         + "neither FTP nor the remote installer running (a jailbreak adds them).")
-    // Full screen for the stream: hides the top bar and the side panel,
+    // Full screen for the stream: hides the navigation and the transfers,
     // and the window takes up the whole screen.
     property bool streamFullscreen: false
 
@@ -59,16 +59,6 @@ ApplicationWindow {
             sectionOverlay.forceActiveFocus()
         else
             streamArea.focusPicture()
-    }
-    // A page's button: over the picture while it plays, in the main area
-    // otherwise; the same button again closes it.
-    function openSection(name) {
-        if (streamOnScreen) {
-            overSection = overSection === name ? "" : name
-            return
-        }
-        overSection = ""
-        view = view === name ? "home" : name
     }
     // A page, open (over the picture while it plays), whatever was before.
     function showSection(name) {
@@ -103,6 +93,34 @@ ApplicationWindow {
         return ""
     }
 
+    // The navigation: open (wide, with names) or folded to its icons. Left
+    // to itself it folds when the window is narrow; a click on its foot
+    // decides instead, until the app closes.
+    property var navChoice: undefined
+    readonly property bool navCompact: navChoice !== undefined ? navChoice : width < 1140
+
+    // A page from the navigation: over the picture while it plays (the same
+    // page again closes it), in the main area otherwise.
+    function goTo(name) {
+        if (streamOnScreen) {
+            overSection = overSection === name ? "" : name
+            return
+        }
+        overSection = ""
+        view = name
+    }
+    // The consoles — or, while Remote Play plays, the picture alone.
+    function showHome() {
+        overSection = ""
+        view = "home"
+    }
+    function togglePanel() {
+        if (window.panelAllowed)
+            window.panelVisible = !window.panelVisible
+        else
+            toast.show(window.panelLockReason, false)
+    }
+
     function setStreamFullscreen(isActive) {
         if (streamFullscreen === isActive)
             return
@@ -113,12 +131,7 @@ ApplicationWindow {
     // F9 shows and hides the side panel.
     Shortcut {
         sequence: "F9"
-        onActivated: {
-            if (window.panelAllowed)
-                window.panelVisible = !window.panelVisible
-            else
-                toast.show(window.panelLockReason, false)
-        }
+        onActivated: window.togglePanel()
     }
     Shortcut {
         sequence: "Ctrl+,"
@@ -140,339 +153,246 @@ ApplicationWindow {
     // The background the glass takes its light from.
     GlassBackground { anchors.fill: parent }
 
-    ColumnLayout {
+    // The window of glass the whole application sits in, floating over the
+    // room; inside it, its panes. In full screen only the picture.
+    Plate {
+        id: glassWindow
+        level: "window"
         anchors.fill: parent
-        spacing: 0
+        anchors.margins: window.streamFullscreen ? 0 : 16
+        visible: !window.streamFullscreen
+    }
 
-        // ───────────────────────────── top bar
-        Item {
-            Layout.fillWidth: true
-            // In full screen only the picture matters.
+    RowLayout {
+        anchors.fill: parent
+        anchors.margins: window.streamFullscreen ? 0 : 16 + 14
+        spacing: window.streamFullscreen ? 0 : Theme.paneGap
+
+        // ───────────────────────────── the navigation
+        SideNav {
+            id: sideNav
             visible: !window.streamFullscreen
-            implicitHeight: visible ? 84 : 0
-
-            // A floating bar: it does not touch the window edges.
-            Rectangle {
-                id: topBar
-                anchors.fill: parent
-                anchors.leftMargin: Theme.gutter
-                anchors.rightMargin: Theme.gutter
-                anchors.topMargin: 14
-                anchors.bottomMargin: 8
-                radius: 18
-                color: Theme.panelFill
-                border.width: 1
-                border.color: Theme.glassEdge
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: parent.radius
-                    visible: Theme.glassHighlight > 0
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: Theme.glassSheen }
-                        GradientStop { position: 1.0; color: "transparent" }
-                    }
-                }
+            Layout.fillHeight: true
+            Layout.preferredWidth: visible ? (compact ? Theme.sideNavCompact : Theme.sideNavWidth) : 0
+            compact: window.navCompact
+            transfers: transferPanel.cardCount
+            transfersOpen: window.panelShown
+            transfersAllowed: window.panelAllowed
+            onFoldToggled: window.navChoice = !window.navCompact
+            onTransfersToggled: window.togglePanel()
+            onLogRequested: diagnosticsDialog.open()
+            onSettingsRequested: { settingsDialog.loadValues(); settingsDialog.open() }
+            onCustomThemeRequested: {
+                settingsDialog.loadValues()
+                settingsDialog.section = 4
+                settingsDialog.open()
             }
-
-            RowLayout {
-                id: barRow
-                anchors.fill: topBar
-                anchors.leftMargin: 14
-                anchors.rightMargin: 12
-                spacing: 10
-
-                // A narrow window drops the console's name and address on the
-                // left (the console chip still shows it); they come back only
-                // with room to spare, so it never flickers.
-                property bool tight: false
-                function fit() {
-                    if (!tight && implicitWidth > width + 0.5)
-                        tight = true
-                    else if (tight && implicitWidth + consoleInfo.implicitWidth + spacing + 18 <= width)
-                        tight = false
-                }
-                onWidthChanged: Qt.callLater(fit)
-                onImplicitWidthChanged: Qt.callLater(fit)
-                Component.onCompleted: Qt.callLater(fit)
-
-                // The app's symbol as the console's avatar: its own colours on
-                // a quiet disc, big enough to read.
-                Rectangle {
-                    Layout.alignment: Qt.AlignVCenter
-                    implicitWidth: 38
-                    implicitHeight: 38
-                    radius: 19
-                    color: Theme.controlFill
-                    border.width: 1
-                    border.color: Theme.glassEdge
-                    Image {
-                        anchors.centerIn: parent
-                        source: "qrc:/icons/mark.png"
-                        sourceSize.width: 64
-                        sourceSize.height: 64
-                        width: 32
-                        height: 32
-                        smooth: true
-                        mipmap: true
-                    }
-                }
-
-                ColumnLayout {
-                    id: consoleInfo
-                    visible: !barRow.tight
-                    spacing: 1
-                    Layout.leftMargin: 2
-                    Text {
-                        text: app.consoleName
-                        color: Theme.text
-                        font.pixelSize: 15
-                        font.weight: Font.DemiBold
-                    }
-                    Text {
-                        text: app.consoleAddress.length > 0 ? app.consoleAddress
-                                                            : qsTr("no address set")
-                        color: Theme.textSecondary
-                        font.pixelSize: 12
-                    }
-                }
-
-                Item { Layout.fillWidth: true }
-
-                // ── What is: the console everything goes to, and its services.
-                ConsoleChip {
-                    onShowConsoles: window.view = "home"
-                }
-                BarGroup {
-                    ServiceIndicator {
-                        label: qsTr("Remote Play")
-                        iconName: "gamepad"
-                        state_: app.remotePlayState
-                        hint: app.remotePlayHint
-                    }
-                    ServiceIndicator {
-                        label: qsTr("FTP")
-                        state_: app.ftpState
-                        hint: app.ftpHint
-                    }
-                    ServiceIndicator {
-                        label: qsTr("Installer")
-                        iconName: "package"
-                        state_: app.installerState
-                        hint: app.installerHint
-                    }
-                }
-
-                BarDivider {}
-
-                // ── Where to go: the pages, as icons.
-                BarGroup {
-                    // Away from a Remote Play session that is still running: one
-                    // click goes back to the picture.
-                    StyledToolButton {
-                        readonly property bool live: typeof stream !== "undefined" && stream !== null
-                                                     && stream.streaming
-                        visible: live && window.view !== "home"
-                        iconName: "play"
-                        active: true
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("Back to Remote Play") + " — " + qsTr("The session is still running")
-                        onClicked: window.view = "home"
-                    }
-                    StyledToolButton {
-                        iconName: "disc"
-                        active: window.view === "games" || window.overSection === "games"
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("Games") + " — "
-                                      + (window.overSection === "games" ? qsTr("Close") : window.view === "games" ? qsTr("Back to the consoles")
-                                         : games.available
-                                         ? qsTr("Every game and app in the console's library, and the PS1/PS2 converter")
-                                         : qsTr("Every game and app in the console's library"))
-                        onClicked: window.openSection("games")
-                    }
-                    StyledToolButton {
-                        visible: typeof store !== "undefined" && store !== null
-                        iconName: "store"
-                        active: window.view === "store" || window.overSection === "store"
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("Homebrew store") + " — "
-                                      + (window.overSection === "store" ? qsTr("Close") : window.view === "store" ? qsTr("Back to the consoles")
-                                         : qsTr("Find PS5 homebrew apps and install them on the console"))
-                        onClicked: window.openSection("store")
-                    }
-                    StyledToolButton {
-                        iconName: "archive"
-                        active: window.view === "saves" || window.overSection === "saves"
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("Save vault") + " — "
-                                      + (window.overSection === "saves" ? qsTr("Close") : window.view === "saves" ? qsTr("Back to the consoles")
-                                         : qsTr("Back up the console's saves on this PC"))
-                        onClicked: window.openSection("saves")
-                    }
-                    StyledToolButton {
-                        iconName: "zap"
-                        active: window.view === "payloads" || window.overSection === "payloads"
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr("Payloads") + " — "
-                                      + (window.overSection === "payloads" ? qsTr("Close") : window.view === "payloads" ? qsTr("Back to the consoles")
-                                         : qsTr("See and manage the console's payloads and plugins, and run one now"))
-                        onClicked: window.openSection("payloads")
-                    }
-                }
-
-                BarDivider {}
-
-                // ── Tools.
-                StyledToolButton {
-                    iconName: "refresh"
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Check the services now")
-                    onClicked: app.checkServicesNow()
-                }
-                StyledToolButton {
-                    iconName: "panel"
-                    active: window.panelVisible && window.panelAllowed
-                    opacity: window.panelAllowed ? 1.0 : 0.4
-                    ToolTip.visible: hovered
-                    ToolTip.text: window.panelAllowed ? qsTr("Side panel (F9)") : window.panelLockReason
-                    onClicked: {
-                        if (window.panelAllowed)
-                            window.panelVisible = !window.panelVisible
-                        else
-                            toast.show(window.panelLockReason, false)
-                    }
-                }
-                StyledToolButton {
-                    iconName: "log"
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Log and diagnostics (Ctrl+L)")
-                    onClicked: diagnosticsDialog.open()
-                }
-                ThemeSwitcher {
-                    onCustomRequested: {
-                        settingsDialog.loadValues()
-                        settingsDialog.section = 4
-                        settingsDialog.open()
-                    }
-                }
-                StyledToolButton {
-                    iconName: "settings"
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Settings (Ctrl+,)")
-                    onClicked: { settingsDialog.loadValues(); settingsDialog.open() }
-                }
+            Behavior on Layout.preferredWidth {
+                NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut }
             }
         }
 
-        // ───────────────────────────── body
-        RowLayout {
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 0
+            spacing: Theme.paneGap
 
-            // Each page's place in the main area (the pages themselves are
-            // further down: over Remote Play they move into the overlay).
-            Item {
-                id: gamesSlot
-                visible: window.view === "games"
+            // ───────────────────────────── the toolbar
+            TopBar {
+                visible: !window.streamFullscreen
                 Layout.fillWidth: true
-                Layout.fillHeight: true
-            }
-            Item {
-                id: savesSlot
-                visible: window.view === "saves"
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-            }
-            Item {
-                id: payloadsSlot
-                visible: window.view === "payloads"
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-            }
-            Item {
-                id: storeSlot
-                visible: window.view === "store"
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+                Layout.preferredHeight: Theme.toolbarHeight
+                transfers: transferPanel.cardCount
+                transfersOpen: window.panelShown
+                transfersAllowed: window.panelAllowed
+                onTransfersToggled: window.togglePanel()
+                onLogRequested: diagnosticsDialog.open()
             }
 
-            Item {
-                visible: window.view !== "games" && window.view !== "saves" && window.view !== "store"
-                         && window.view !== "payloads"
+            RowLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                spacing: Theme.paneGap
 
-                StreamArea {
-                    id: streamArea
-                    anchors.fill: parent
-                    // Back to the home page: whatever was open on top of the
-                    // cards gets out of the way of the console just registered.
-                    onRegisteredHere: {
-                        settingsDialog.close()
-                        firstRunWizard.close()
-                    }
-                }
-
-                // A page over the picture, while Remote Play plays.
-                SectionOverlay {
-                    id: sectionOverlay
-                    anchors.fill: parent
-                    section: window.overSection
-                    title: window.sectionTitle(window.overSection)
-                    iconName: window.sectionIcon(window.overSection)
-                    onClosed: window.overSection = ""
-                }
-            }
-
-            Item {
-                Layout.fillHeight: true
-                Layout.preferredWidth: 380
-                visible: window.panelShown
-
-                Rectangle {
-                    anchors.fill: parent
-                    anchors.rightMargin: Theme.gutter
-                    anchors.topMargin: 4
-                    anchors.bottomMargin: 4
-                    anchors.leftMargin: 8
-                    radius: Theme.radius
-                    color: Theme.panelFill
-                    border.width: 1
-                    border.color: Theme.glassEdge
-                    clip: true
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: parent.radius
-                        visible: Theme.glassHighlight > 0
-                        gradient: Gradient {
-                            GradientStop { position: 0.0; color: Theme.glassSheen }
-                            GradientStop { position: 0.4; color: "transparent" }
-                        }
-                    }
+                // ───────────────────────────── the page
+                Plate {
+                    id: sheet
+                    level: "primary"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    // In full screen the picture has the whole window.
+                    color: window.streamFullscreen ? "transparent" : Qt.rgba(1, 1, 1, fillAlpha)
+                    border.width: window.streamFullscreen ? 0 : 1
+                    radius: window.streamFullscreen ? 0 : Theme.radiusPane
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 14
-                        spacing: 12
+                        spacing: 0
 
-                        // Queue and files as a segmented control.
-                        // Without FTP on the console there is only the queue: no tabs.
-                        // With nothing in the queue there is only the file list:
-                        // the queue's tab comes back with its first job.
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+
+                            // Each page's place (the pages themselves are further
+                            // down: over Remote Play they move into the overlay).
+                            Item {
+                                id: gamesSlot
+                                anchors.fill: parent
+                                visible: window.view === "games"
+                            }
+                            Item {
+                                id: savesSlot
+                                anchors.fill: parent
+                                visible: window.view === "saves"
+                            }
+                            Item {
+                                id: payloadsSlot
+                                anchors.fill: parent
+                                visible: window.view === "payloads"
+                            }
+                            Item {
+                                id: storeSlot
+                                anchors.fill: parent
+                                visible: window.view === "store"
+                            }
+
+                            Item {
+                                anchors.fill: parent
+                                visible: window.view !== "games" && window.view !== "saves" && window.view !== "store"
+                                         && window.view !== "payloads"
+
+                                StreamArea {
+                                    id: streamArea
+                                    anchors.fill: parent
+                                    // Back to the home page: whatever was open on top of
+                                    // the cards gets out of the way of the console just
+                                    // registered.
+                                    onRegisteredHere: {
+                                        settingsDialog.close()
+                                        firstRunWizard.close()
+                                    }
+                                }
+
+                                // A page over the picture, while Remote Play plays.
+                                SectionOverlay {
+                                    id: sectionOverlay
+                                    anchors.fill: parent
+                                    section: window.overSection
+                                    title: window.sectionTitle(window.overSection)
+                                    iconName: window.sectionIcon(window.overSection)
+                                    onClosed: window.overSection = ""
+                                }
+                            }
+                        }
+
+                        // ── The status line, at the foot of the page.
+                        Item {
+                            Layout.fillWidth: true
+                            visible: !window.streamFullscreen
+                            implicitHeight: visible ? 34 : 0
+
+                            EngravedRule {
+                                anchors.top: parent.top
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.leftMargin: Theme.gutter
+                                anchors.rightMargin: Theme.gutter
+                                height: 1
+                            }
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: Theme.gutter
+                                anchors.rightMargin: Theme.gutter
+                                spacing: 14
+
+                                Icon {
+                                    visible: app.statusMessage.length > 0
+                                    name: "check-circle"
+                                    size: 13
+                                    color: Theme.ok
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: app.statusMessage
+                                    color: Theme.textSecondary
+                                    font.pixelSize: 12
+                                    elide: Text.ElideRight
+                                }
+                                Text {
+                                    text: qsTr("Local HTTP: %1").arg(app.httpServerAddress)
+                                    color: Theme.alpha(Theme.textSecondary, 0.85)
+                                    font.pixelSize: 11
+                                    font.family: Theme.fontMono
+                                }
+                                Text {
+                                    text: "v" + app.version
+                                    color: Theme.alpha(Theme.textSecondary, 0.7)
+                                    font.pixelSize: 11
+                                    font.family: Theme.fontMono
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ───────────────────────────── the transfers
+                // The queue and the console's files, in their own pane.
+                Plate {
+                    level: "primary"
+                    Layout.fillHeight: true
+                    Layout.preferredWidth: Theme.inspectorWidth
+                    visible: window.panelShown
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 16
+                        anchors.rightMargin: 14
+                        anchors.topMargin: 16
+                        anchors.bottomMargin: 14
+                        spacing: 10
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 1
+                                Eyebrow { text: qsTr("Transfers") }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: app.consoleName
+                                    color: Theme.ink
+                                    font.pixelSize: 17
+                                    font.weight: Font.Bold
+                                    elide: Text.ElideRight
+                                }
+                            }
+                            StyledToolButton {
+                                iconName: "close"
+                                iconSize: 15
+                                ToolTip.visible: hovered
+                                ToolTip.text: qsTr("Hide the transfers (F9)")
+                                onClicked: window.panelVisible = false
+                            }
+                        }
+
+                        // Queue and files as a segmented control. Without FTP on
+                        // the console there is only the queue: no tabs. With
+                        // nothing in the queue there is only the file list: the
+                        // queue's tab comes back with its first job.
                         TabBar {
                             id: tabs
                             visible: !window.ftpAbsent && transferPanel.cardCount > 0
                             Layout.fillWidth: true
                             currentIndex: demoTab
-                            padding: 4
-                            spacing: 4
+                            padding: 3
+                            spacing: 2
                             background: Rectangle {
-                                radius: 12
-                                color: Theme.controlFill
+                                radius: height / 2
+                                color: Theme.light ? Theme.lightTrack : Qt.rgba(0, 0, 0, 0.20)
                                 border.width: 1
-                                border.color: Theme.glassEdge
+                                border.color: Theme.light ? Theme.lightHairline : Theme.glassEdge
                             }
 
                             StyledTab {
@@ -492,60 +412,21 @@ ApplicationWindow {
                         }
                     }
                 }
-            }
 
-            Item {
-                Layout.fillHeight: true
-                // The column itself is 64 wide, with the panel's margins.
-                Layout.preferredWidth: 64 + 8 + Theme.gutter
-                visible: window.railShown
+                // The transfers closed while jobs go on: a narrow pane with
+                // them instead, until they are done.
+                Plate {
+                    level: "primary"
+                    Layout.fillHeight: true
+                    Layout.preferredWidth: 72
+                    visible: window.railShown
 
-                QueueRail {
-                    anchors.fill: parent
-                    anchors.rightMargin: Theme.gutter
-                    anchors.topMargin: 4
-                    anchors.bottomMargin: 4
-                    anchors.leftMargin: 8
-                    panel: transferPanel
-                    onOpenRequested: window.panelVisible = true
-                }
-            }
-        }
-
-        // ───────────────────────────── status line
-        Item {
-            Layout.fillWidth: true
-            visible: !window.streamFullscreen
-            implicitHeight: visible ? 40 : 0
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Theme.gutter + 6
-                anchors.rightMargin: Theme.gutter + 6
-                spacing: 16
-
-                Icon {
-                    visible: app.statusMessage.length > 0
-                    name: "check-circle"
-                    size: 14
-                    color: Theme.ok
-                }
-                Text {
-                    Layout.fillWidth: true
-                    text: app.statusMessage
-                    color: Theme.textSecondary
-                    font.pixelSize: 12
-                    elide: Text.ElideRight
-                }
-                Text {
-                    text: qsTr("Local HTTP: %1").arg(app.httpServerAddress)
-                    color: Theme.textSecondary
-                    font.pixelSize: 12
-                }
-                Text {
-                    text: "v" + app.version
-                    color: Theme.alpha(Theme.textSecondary, 0.7)
-                    font.pixelSize: 12
+                    QueueRail {
+                        anchors.fill: parent
+                        anchors.margins: 4
+                        panel: transferPanel
+                        onOpenRequested: window.panelVisible = true
+                    }
                 }
             }
         }
@@ -677,28 +558,6 @@ ApplicationWindow {
         onTriggered: { app.loadDemoUpdate(); updateDialog.open() }
     }
 
-    // A few things of the top bar together, on one soft surface.
-    component BarGroup: Rectangle {
-        default property alias content: groupRow.data
-        implicitWidth: groupRow.implicitWidth + 6
-        implicitHeight: 40
-        radius: 13
-        color: Theme.controlFill
-        border.width: 1
-        border.color: Theme.glassEdge
-        Row {
-            id: groupRow
-            anchors.centerIn: parent
-            spacing: 1
-        }
-    }
-    // Between what is (the console and its services) and what can be done.
-    component BarDivider: Rectangle {
-        implicitWidth: 1
-        implicitHeight: 22
-        color: Theme.glassEdge
-    }
-
     // The theme comes from the settings and changes in real time.
     function applyTheme() {
         if (typeof demoTheme !== "undefined" && demoTheme.length > 0) {
@@ -707,7 +566,15 @@ ApplicationWindow {
             return
         }
         var values = app.settingsMap()
-        Theme.apply(values.theme, app.themeColors)
+        // A picture of one's own gives its colours first (when asked to);
+        // the colours changed by hand go on top of them.
+        var colours = {}
+        if (app.backgroundUrl.length > 0 && app.backgroundPalette)
+            colours = Theme.paletteFrom(values.theme, app.backgroundTones)
+        var own = app.themeColors
+        for (var key in own)
+            colours[key] = own[key]
+        Theme.apply(values.theme, colours)
         applySystemFrame()
     }
 
@@ -730,6 +597,7 @@ ApplicationWindow {
         target: app
         function onSettingsChanged() { window.applyTheme() }
         function onThemeColorsChanged() { window.applyTheme() }
+        function onBackgroundChanged() { window.applyTheme() }
     }
 
     Component.onCompleted: {
@@ -740,6 +608,8 @@ ApplicationWindow {
         }
         if (typeof demoSettings !== "undefined" && demoSettings) {
             settingsDialog.loadValues()
+            if (typeof demoSettingsSection !== "undefined")
+                settingsDialog.section = demoSettingsSection
             settingsDialog.open()
             return
         }
@@ -762,17 +632,17 @@ ApplicationWindow {
     }
 
     // Every other tooltip of the app (the attached ToolTip, one instance
-    // shared by all) in the app's look: a dark rounded card with wrapped
+    // shared by all) in the app's look: a small pane of glass with wrapped
     // text, not the Basic style's plain box across the window.
     Item {
         id: tooltipLook
         Component {
             id: tooltipBackground
             Rectangle {
-                color: Theme.dialogFill
-                radius: 10
+                color: Theme.menuFill
+                radius: 12
                 border.width: 1
-                border.color: Theme.border
+                border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
             }
         }
         Component {

@@ -5,6 +5,7 @@
 
 #include "orbislink/qt/translate_message.h"
 #include "orbislink/stream/account_id.h"
+#include "orbislink/stream/stream_trace.h"
 #include "orbislink/common/util.h"
 
 #include <QDateTime>
@@ -20,6 +21,7 @@
 #include <set>
 #include <map>
 
+#include <chiaki/common.h>
 #include <chiaki/controller.h>
 
 namespace orbislink {
@@ -291,9 +293,13 @@ void StreamController::applySettings(const Settings &settings)
 	// Registrations made before each account had its own belong to the
 	// account the console registered with (the one stored with it).
 	consoleHostIds_.clear();
+	consolePins_.clear();
+	consoleTypes_.clear();
 	for(const ConsoleEntry &console : settings.consoles)
 	{
 		consoleHostIds_[console.address] = console.hostId;
+		consoleTypes_[console.address] = console.type;
+		consolePins_[console.address] = console.remotePlayPin;
 		if(!console.hostId.empty() && !console.accountId.empty())
 			store_.adopt(console.hostId, console.accountId);
 	}
@@ -409,7 +415,22 @@ void StreamController::loadCredentials()
 	// The chosen account's own registration on this console, never
 	// another account's. With no account at all, the console's as before.
 	const std::string account = accountId_.toStdString();
-	credentials_ = account.empty() ? store_.load(host_.id) : store_.load(host_.id, account);
+	// A console that does not answer discovery (some PS4s never do) is
+	// still found by the host-id its registration stored.
+	std::string hostId = host_.id;
+	if(hostId.empty())
+	{
+		const auto known = consoleHostIds_.find(address_.toStdString());
+		if(known != consoleHostIds_.end())
+			hostId = known->second;
+	}
+	credentials_ = account.empty() ? store_.load(hostId) : store_.load(hostId, account);
+}
+
+bool StreamController::expectedPs5() const
+{
+	const auto known = consoleTypes_.find(address_.toStdString());
+	return known != consoleTypes_.end() && known->second == "ps5";
 }
 
 QString StreamController::accountName() const
@@ -457,13 +478,18 @@ void StreamController::useAccount(const QString &accountId)
 
 void StreamController::answerLoginPin(bool incorrect)
 {
-	// Only this account's PIN, and only once: a PIN the console refused is
-	// not sent again, and another account's is never tried.
-	const QString pin = accountPin(accountId_);
+	// The console's own passcode, or else this account's — and only once: a
+	// PIN the console refused is not sent again, and another account's is
+	// never tried.
+	const auto own = consolePins_.find(address_.toStdString());
+	const bool consoleHasPin = own != consolePins_.end() && own->second.size() == 4;
+	const QString pin = consoleHasPin ? QString::fromStdString(own->second) : accountPin(accountId_);
 	if(!incorrect && !loginPinSent_ && pin.length() == 4)
 	{
 		loginPinSent_ = true;
-		logInfo("Remote Play: the console asked for the account's PIN; sending the one saved for this account.");
+		logInfo(consoleHasPin
+			? "Remote Play: the console asked for its PIN; sending the one saved for this console."
+			: "Remote Play: the console asked for the account's PIN; sending the one saved for this account.");
 		session_->setLoginPin(pin.toStdString());
 		return;
 	}
@@ -743,18 +769,33 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 				[this, info, pinCopy, accountCopy]() {
 					registering_ = false;
 					applyHost(info);
-					if(!info.found)
+					if(info.found)
 					{
-						emit notify(tr("Registration"),
-							tr("The console did not answer. Check the IP, and that it is on (not in rest mode)."),
-							true);
+						registerWith(pinCopy, accountCopy, info.target, info.ps5);
 						return;
 					}
-					registerConsole(pinCopy, accountCopy);
+					// Some PS4s never answer discovery and still register
+					// and stream: registration has its own search, which
+					// the console answers while it shows the PIN. It goes
+					// ahead as the kind of console saved, on the system
+					// version every console with a PIN to show has.
+					const bool ps5 = expectedPs5();
+					const int target = ps5 ? static_cast<int>(CHIAKI_TARGET_PS5_1)
+										   : static_cast<int>(CHIAKI_TARGET_PS4_10);
+					const std::string note = std::string("Remote Play: the console did not answer discovery; "
+						"registering it as a ") + (ps5 ? "PS5" : "PS4") + " all the same.";
+					StreamTrace::instance().note(note);
+					logInfo(note);
+					registerWith(pinCopy, accountCopy, target, ps5);
 				});
 		}).detach();
 		return;
 	}
+	registerWith(pin, accountIdBase64, host_.target, host_.ps5);
+}
+
+void StreamController::registerWith(const QString &pin, const QString &accountIdBase64, int target, bool ps5)
+{
 
 	// What comes in here may be hexadecimal, decimal or already base64: it
 	// is converted here, so no path in the interface can send the console
@@ -770,8 +811,8 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 	request.address = address_.toStdString();
 	request.accountIdBase64 = account.base64;
 	request.pin = pin.trimmed().toUInt();
-	request.target = host_.target;
-	request.ps5 = host_.ps5;
+	request.target = target;
+	request.ps5 = ps5;
 
 	if(request.target == 0)
 	{
@@ -800,6 +841,15 @@ void StreamController::registerConsole(const QString &pin, const QString &accoun
 						stored.accountId = accountToSave.toStdString();
 						credentials_ = stored;
 						store_.save(stored);
+						// The console told its host-id while registering:
+						// kept, so its registration is found again even if
+						// it never answers discovery.
+						if(!stored.hostId.empty())
+						{
+							consoleHostIds_[address_.toStdString()] = stored.hostId;
+							consoleTypes_[address_.toStdString()] = stored.ps5 ? "ps5" : "ps4";
+							emit consoleIdentified(address_, stored.ps5, QString::fromStdString(stored.hostId));
+						}
 						// Stored only after the console accepts it: a wrong
 						// ID does not get in the way of the next attempt.
 						if(!accountToSave.isEmpty())
@@ -990,10 +1040,18 @@ void StreamController::oneClickDecide(const HostInfo &info)
 	if(!info.found)
 	{
 		setConnectStage(QString());
-		emit notify(tr("Connect"),
-			tr("The console at %1 did not respond. Check that it is on (or in rest mode), on the same "
-				"network, with Remote Play enabled.").arg(address_),
-			true);
+		// No answer to discovery is not the end: some PS4s never answer it
+		// and still register and stream. Unregistered: registration opens,
+		// as it does for a console that answers. Registered: the connection
+		// is tried directly, and it says itself if the console is not there.
+		if(!credentials_.valid)
+		{
+			logInfo("Remote Play: no answer to discovery; opening registration all the same.");
+			emit registrationNeeded();
+			return;
+		}
+		logInfo("Remote Play: no answer to discovery; connecting directly with the stored registration.");
+		startStream();
 		return;
 	}
 	if(!credentials_.valid)

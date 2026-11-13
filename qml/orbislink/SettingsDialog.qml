@@ -1,8 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// The settings: a large sheet of glass with its own navigation on the left
+// (the sections, then the update check and About) and the open section on
+// the right, each setting on a quiet glass group with what it is on the
+// left and its control on the right.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import QtQuick.Dialogs
 
 Dialog {
     id: dialog
@@ -11,8 +17,8 @@ Dialog {
     modal: true
     parent: Overlay.overlay
     anchors.centerIn: parent
-    width: Math.min(parent ? parent.width - 60 : 920, 920)
-    height: Math.min(parent ? parent.height - 60 : 660, 680)
+    width: Math.min(parent ? parent.width - 60 : 980, 980)
+    height: Math.min(parent ? parent.height - 60 : 700, 720)
     padding: 0
 
     // A nearly opaque modal: with the panels' transparency, what is behind
@@ -20,14 +26,26 @@ Dialog {
     // be a window.
     Overlay.modal: Rectangle { color: Theme.scrim }
 
-    background: Rectangle {
-        color: Theme.dialogFill
-        border.color: Theme.border
+    // A large sheet of glass floating over the window: nearly opaque, lit
+    // along its upper edge, with a sheen from the top and a soft shadow.
+    background: Plate {
+        level: "secondary"
         radius: Theme.radiusDialog
+        color: Theme.dialogFill
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+    }
+
+    // It fades in and settles, without bouncing.
+    enter: Transition {
+        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+        NumberAnimation { property: "scale"; from: 0.98; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+    }
+    exit: Transition {
+        NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.fast; easing.type: Theme.easeOut }
     }
 
     // The section shown on the right: 0 Consoles, 1 Account IDs, 2 Console in
-    // use, 3 Remote Play, 4 General.
+    // use, 3 Remote Play, 4 Personalisation, 5 General, 6 About.
     property int section: 0
 
     // While a Remote Play session runs, the IP of the console in use stays as
@@ -241,259 +259,366 @@ Dialog {
         app.checkForUpdatesNow(false)
     }
 
-    header: Item {
-        implicitHeight: Theme.dialogHeader
-        Row {
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.left: parent.left
-            anchors.leftMargin: 24
-            spacing: 12
-            Icon {
-                anchors.verticalCenter: parent.verticalCenter
-                name: "settings"
-                size: 20
-                color: Theme.accent
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: qsTr("Settings")
-                color: Theme.text
-                font.pixelSize: 17
-                font.weight: Font.DemiBold
-            }
-        }
-        StyledToolButton {
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.right: parent.right
-            anchors.rightMargin: 16
-            iconName: "close"
-            ToolTip.visible: hovered
-            ToolTip.text: qsTr("Close")
-            onClicked: dialog.close()
-        }
-        Rectangle {
-            anchors.bottom: parent.bottom
-            width: parent.width
-            height: 1
-            color: Theme.border
-        }
-    }
+    // ── The pieces every page is made of.
 
-    footer: Item {
-        implicitHeight: Theme.dialogFooter
-        Rectangle {
-            anchors.top: parent.top
-            width: parent.width
-            height: 1
-            color: Theme.border
-        }
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: Theme.dialogInner
-            anchors.leftMargin: 24
-            anchors.rightMargin: 24
-            spacing: 10
-            StyledButton {
-                text: qsTr("Setup wizard…")
-                iconName: "sparkles"
-                minimumWidth: 130
-                ToolTip.visible: hovered
-                ToolTip.text: qsTr("See the three first-run steps again")
-                onClicked: dialog.openWizard()
-            }
-            Item { Layout.fillWidth: true }
-            StyledButton {
-                text: qsTr("Cancel")
-                minimumWidth: 110
-                onClicked: dialog.close()
-            }
-            StyledButton {
-                text: qsTr("Save")
-                minimumWidth: 110
-                primary: true
-                onClicked: dialog.save()
-            }
-        }
-    }
-
-    // One page of the settings: its title and its content, scrolling on its own.
+    // One page of the settings: its head (eyebrow, bold title, what the page
+    // is for) and its groups, scrolling on its own.
     component SettingsPage: ScrollView {
         id: page
+        property string eyebrow: ""
         property string title: ""
+        property string subtitle: ""
         default property alias content: pageColumn.data
         clip: true
         contentWidth: availableWidth
         // Told outright, top and bottom margins included: worked out on its
         // own, the height could come out short and the end of a page would
         // be out of reach.
-        contentHeight: pageColumn.implicitHeight + 44
+        contentHeight: pageColumn.implicitHeight + 56
         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-        // In sight whenever there is more below, not only while scrolling.
-        ScrollBar.vertical.policy: contentHeight > height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
+        // A slim glass rail, inside the dialog's rounded shape: it starts
+        // under the round close button and stops short of the bottom corner,
+        // instead of running into both. In sight whenever there is more
+        // below, not only while scrolling.
+        ScrollBar.vertical: ScrollBar {
+            id: rail
+            parent: page
+            x: page.width - width - 8
+            y: 76
+            height: Math.max(0, page.height - 76 - 24)
+            policy: page.contentHeight > page.height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
+            padding: 0
+            contentItem: Rectangle {
+                implicitWidth: rail.hovered || rail.pressed ? 6 : 4
+                radius: width / 2
+                // Nothing to scroll: no rail.
+                opacity: rail.size < 1.0 && (rail.policy === ScrollBar.AlwaysOn || rail.active) ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: Theme.fast } }
+                color: Theme.alpha(Theme.ink, rail.pressed ? 0.45 : rail.hovered ? 0.32 : 0.20)
+                Behavior on implicitWidth { NumberAnimation { duration: Theme.fast } }
+            }
+            background: Item {}
+        }
 
         ColumnLayout {
             id: pageColumn
-            x: 28
-            y: 22
-            width: page.availableWidth - 56
-            spacing: 14
+            x: 36
+            y: 28
+            width: page.availableWidth - 72
+            spacing: 12
 
-            Text {
+            PageHeader {
                 visible: page.title.length > 0
-                text: page.title
-                color: Theme.text
-                font.pixelSize: Theme.fontTitle
-                font.weight: Font.DemiBold
-                Layout.bottomMargin: 4
+                // Room on the right for the dialog's round close button.
+                Layout.rightMargin: 40
+                Layout.bottomMargin: 8
+                eyebrow: page.eyebrow
+                title: page.title
+                subtitle: page.subtitle
             }
         }
     }
 
-    // A few related settings together, on a surface of their own.
-    component SettingsGroup: Rectangle {
+    // A few related settings on one quiet pane of glass, a hairline between each.
+    component SettingsGroup: Plate {
         default property alias content: groupColumn.data
         Layout.fillWidth: true
-        implicitHeight: groupColumn.implicitHeight + 32
-        radius: 16
-        color: Theme.panelAltFill
-        border.width: 1
-        border.color: Theme.glassEdge
+        implicitHeight: groupColumn.implicitHeight + 8
         ColumnLayout {
             id: groupColumn
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            anchors.margins: 16
-            spacing: 12
+            anchors.topMargin: 4
+            anchors.leftMargin: 20
+            anchors.rightMargin: 20
+            spacing: 0
         }
     }
 
-    // A small title over a group.
-    component GroupTitle: Text {
-        color: Theme.textSecondary
-        font.pixelSize: 12
-        font.weight: Font.DemiBold
-        Layout.topMargin: 8
+    // The label over a group, in champagne small capitals.
+    component GroupTitle: Eyebrow {
+        Layout.fillWidth: true
+        Layout.topMargin: 12
+        Layout.leftMargin: 4
+    }
+
+    // One setting: what it is and what it does on the left, its control on
+    // the right. The hairline above it is left out on the first row, which
+    // sits at the top of its group.
+    component SettingRow: Item {
+        id: setting
+        property string label: ""
+        property string description: ""
+        property color labelColor: Theme.text
+        // The control's column; 0 lets it take what it needs.
+        property int controlWidth: 280
+        // Indented under the setting it depends on.
+        property int indent: 0
+        // A click on the words does what a click on the control does.
+        signal labelClicked()
+        property bool labelClickable: false
+        default property alias control: slot.data
+
+        Layout.fillWidth: true
+        implicitHeight: Math.max(words.implicitHeight, slot.implicitHeight) + 28
+
+        Rectangle {
+            visible: setting.y > 1
+            width: parent.width
+            height: 1
+            color: Theme.glassEdge
+        }
+
+        RowLayout {
+            id: settingLayout
+            anchors.fill: parent
+            anchors.topMargin: 14
+            anchors.bottomMargin: 14
+            anchors.leftMargin: setting.indent
+            spacing: 24
+
+            ColumnLayout {
+                id: words
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignVCenter
+                spacing: 3
+                Text {
+                    Layout.fillWidth: true
+                    visible: text.length > 0
+                    text: setting.label
+                    color: setting.enabled ? setting.labelColor : Theme.textSecondary
+                    font.pixelSize: Theme.fontBody
+                    font.weight: Font.Medium
+                    wrapMode: Text.WordWrap
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: text.length > 0
+                    text: setting.description
+                    color: Theme.textSecondary
+                    font.pixelSize: Theme.fontSmall
+                    lineHeight: 1.15
+                    wrapMode: Text.WordWrap
+                }
+            }
+
+            RowLayout {
+                id: slot
+                Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                // A layout fills by default when a child does: told not to,
+                // so every control's column keeps its width and they line up.
+                Layout.fillWidth: false
+                Layout.preferredWidth: setting.controlWidth > 0 ? setting.controlWidth : -1
+                spacing: 8
+            }
+        }
+
+        // Over the words only: the control takes its own clicks.
+        MouseArea {
+            x: settingLayout.x + words.x
+            y: settingLayout.y + words.y
+            width: words.width
+            height: words.height
+            visible: setting.labelClickable
+            enabled: setting.enabled
+            cursorShape: Qt.PointingHandCursor
+            onClicked: setting.labelClicked()
+        }
+    }
+
+    // An on/off setting: the words on the left, the switch on the right.
+    component SwitchRow: SettingRow {
+        id: switchRow
+        property alias checked: toggle.checked
+        controlWidth: 0
+        labelClickable: true
+        onLabelClicked: toggle.toggle()
+        StyledCheck {
+            id: toggle
+            Layout.fillWidth: false
+            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+            Accessible.name: switchRow.label
+        }
+    }
+
+    // One entry of the sidebar, as in the window's navigation: the open one
+    // sits on a pill of brighter glass, the others brighten under the mouse.
+    component RailItem: Item {
+        id: railItem
+        property string iconName: ""
+        property string text: ""
+        property bool selected: false
+        property bool spinning: false
+        signal clicked()
+
+        width: parent ? parent.width : 0
+        implicitHeight: 40
+        Accessible.role: Accessible.Button
+        Accessible.name: text
+
+        Rectangle {
+            anchors.fill: parent
+            radius: height / 2
+            color: railItem.selected ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
+                 : railMouse.containsMouse ? (Theme.light ? Qt.rgba(1, 1, 1, 0.50) : Qt.rgba(1, 1, 1, 0.06))
+                 : "transparent"
+            border.width: railItem.selected ? 1 : 0
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.06)
+            Behavior on color { ColorAnimation { duration: Theme.fast } }
+            // The sheen on the lit pill.
+            Rectangle {
+                visible: railItem.selected
+                anchors.fill: parent
+                anchors.margins: 1
+                radius: height / 2
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.6 : 0.12) }
+                    GradientStop { position: 0.6; color: Qt.rgba(1, 1, 1, 0) }
+                }
+            }
+        }
+        Icon {
+            id: railGlyph
+            x: 14
+            anchors.verticalCenter: parent.verticalCenter
+            name: railItem.iconName
+            size: 18
+            spinning: railItem.spinning
+            color: railItem.selected || railItem.spinning ? Theme.ink
+                 : railMouse.containsMouse ? Theme.text : Theme.textSecondary
+        }
+        Text {
+            anchors.left: railGlyph.right
+            anchors.leftMargin: 12
+            anchors.right: parent.right
+            anchors.rightMargin: 12
+            anchors.verticalCenter: parent.verticalCenter
+            text: railItem.text
+            color: railItem.selected ? Theme.ink : Theme.text
+            font.pixelSize: Theme.fontBody
+            font.weight: railItem.selected ? Font.DemiBold : Font.Medium
+            elide: Text.ElideRight
+        }
+        MouseArea {
+            id: railMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: railItem.clicked()
+        }
+    }
+
+    // A field for a number or an address: in the mono, as every technical
+    // value in the app.
+    component MonoField: StyledField {
+        font.family: Theme.fontMono
+        font.pixelSize: 13
     }
 
     contentItem: RowLayout {
         spacing: 0
 
-        // ── The sections, on the left.
-        Rectangle {
+        // ── The sidebar: the sections of the settings, on a pane of glass
+        // inset in the sheet, on the left.
+        Plate {
             Layout.fillHeight: true
-            Layout.preferredWidth: 230
-            color: Theme.light ? "#F6F8FB" : Qt.rgba(0, 0, 0, 0.14)
+            Layout.preferredWidth: 248
+            Layout.topMargin: 10
+            Layout.bottomMargin: 10
+            Layout.leftMargin: 10
+            radius: Theme.radiusDialog - 8
+            color: Theme.light ? Qt.rgba(1, 1, 1, 0.42) : Qt.rgba(1, 1, 1, 0.045)
 
-            Column {
+            ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 4
+                anchors.topMargin: 20
+                anchors.bottomMargin: 12
+                anchors.leftMargin: 10
+                anchors.rightMargin: 10
+                spacing: 0
 
-                Repeater {
-                    model: [
-                        { icon: "monitor", label: qsTr("Consoles") },
-                        { icon: "id-card", label: qsTr("Account IDs (PSID)") },
-                        { icon: "server", label: qsTr("Console in use") },
-                        { icon: "cast", label: qsTr("Remote Play") },
-                        { icon: "sparkles", label: qsTr("Personalisation") },
-                        { icon: "sliders", label: qsTr("General") }
-                    ]
+                // The dialog's own head, at the top of the sidebar.
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 10
+                    Layout.bottomMargin: 18
+                    spacing: 2
+                    Eyebrow { text: qsTr("Preferences") }
+                    Text {
+                        text: qsTr("Settings")
+                        color: Theme.ink
+                        font.pixelSize: 26
+                        font.family: Theme.fontDisplay
+                        font.weight: Font.Bold
+                        font.letterSpacing: -0.3
+                    }
+                }
 
-                    delegate: Rectangle {
-                        id: navItem
-                        required property var modelData
-                        required property int index
-                        readonly property bool selected: dialog.section === index
-                        width: parent.width
-                        height: 42
-                        radius: 12
-                        color: selected ? Theme.accentFill
-                             : navArea.containsMouse ? Theme.controlFill : "transparent"
-                        Behavior on color { ColorAnimation { duration: Theme.fast } }
+                Column {
+                    Layout.fillWidth: true
+                    spacing: 2
 
-                        Row {
-                            anchors.left: parent.left
-                            anchors.leftMargin: 12
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 12
-                            Icon {
-                                anchors.verticalCenter: parent.verticalCenter
-                                name: navItem.modelData.icon
-                                size: 18
-                                color: navItem.selected ? Theme.accent : Theme.textSecondary
-                            }
-                            Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: navItem.modelData.label
-                                color: navItem.selected ? Theme.accent : Theme.text
-                                font.pixelSize: 13
-                                font.weight: navItem.selected ? Font.DemiBold : Font.Medium
-                            }
-                        }
-                        MouseArea {
-                            id: navArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: dialog.section = navItem.index
+                    Repeater {
+                        model: [
+                            { icon: "monitor", label: qsTr("Consoles") },
+                            { icon: "id-card", label: qsTr("Account IDs (PSID)") },
+                            { icon: "server", label: qsTr("Console in use") },
+                            { icon: "cast", label: qsTr("Remote Play") },
+                            { icon: "sparkles", label: qsTr("Personalisation") },
+                            { icon: "sliders", label: qsTr("General") }
+                        ]
+
+                        delegate: RailItem {
+                            required property var modelData
+                            required property int index
+                            iconName: modelData.icon
+                            text: modelData.label
+                            selected: dialog.section === index
+                            onClicked: dialog.section = index
                         }
                     }
                 }
-            }
 
-            // Not a section: looks for a new version straight away, on the
-            // repository and channel set under General, and says how it went.
-            Column {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.margins: 14
-                spacing: 6
+                Item { Layout.fillHeight: true }
 
-                Rectangle { width: parent.width; height: 1; color: Theme.border }
+                EngravedRule {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 8
+                    Layout.rightMargin: 8
+                    Layout.bottomMargin: 8
+                    star: false
+                }
 
-                Rectangle {
-                    id: updateItem
-                    readonly property bool busy: app.updateState === "checking"
-                                                 || app.updateState === "downloading"
-                    width: parent.width
-                    height: 42
-                    radius: 12
-                    color: updateArea.containsMouse && !busy ? Theme.controlFill : "transparent"
-                    Behavior on color { ColorAnimation { duration: Theme.fast } }
+                Column {
+                    Layout.fillWidth: true
+                    spacing: 2
 
-                    Row {
-                        anchors.left: parent.left
-                        anchors.leftMargin: 12
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: 12
-                        Icon {
-                            anchors.verticalCenter: parent.verticalCenter
-                            name: "refresh"
-                            size: 18
-                            spinning: updateItem.busy
-                            color: updateItem.busy ? Theme.accent : Theme.textSecondary
-                        }
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: qsTr("Update check")
-                            color: Theme.text
-                            font.pixelSize: 13
-                            font.weight: Font.Medium
-                        }
-                    }
-                    MouseArea {
-                        id: updateArea
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: updateItem.busy ? Qt.ArrowCursor : Qt.PointingHandCursor
+                    // Not a section: looks for a new version straight away, on
+                    // the repository and channel set under General, and says
+                    // how it went.
+                    RailItem {
+                        readonly property bool busy: app.updateState === "checking"
+                                                     || app.updateState === "downloading"
+                        iconName: "refresh"
+                        text: qsTr("Update check")
+                        spinning: busy
                         onClicked: dialog.checkUpdatesNow()
+                    }
+
+                    // About OrbisLink: a section of its own, opened here like
+                    // the others.
+                    RailItem {
+                        iconName: "info"
+                        text: qsTr("About OrbisLink")
+                        selected: dialog.section === 6
+                        onClicked: dialog.section = 6
                     }
                 }
 
                 Text {
-                    width: parent.width
+                    Layout.fillWidth: true
+                    Layout.topMargin: 6
                     leftPadding: 12
                     rightPadding: 4
                     visible: app.updateMessage.length > 0
@@ -501,680 +626,957 @@ Dialog {
                     maximumLineCount: 3
                     elide: Text.ElideRight
                     text: app.updateMessage
-                    color: app.updateState === "error" ? Theme.error
-                         : app.updateState === "available" ? Theme.ok
+                    color: app.updateState === "error" ? (Theme.light ? Qt.darker(Theme.error, 1.3) : Theme.error)
+                         : app.updateState === "available" ? (Theme.light ? Qt.darker(Theme.ok, 1.3) : Theme.ok)
                          : Theme.textSecondary
-                    font.pixelSize: 11
+                    font.pixelSize: Theme.fontCaption
                 }
             }
         }
 
-        Rectangle { Layout.fillHeight: true; Layout.preferredWidth: 1; color: Theme.border }
-
-        // ── The section's content, on the right.
-        StackLayout {
+        // ── The open section, on the right, and the dialog's actions under it.
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            currentIndex: dialog.section
+            spacing: 0
 
-            SettingsPage {
-                ConsoleManager { Layout.fillWidth: true }
-                Item { Layout.preferredHeight: 8 }
-            }
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
 
-            SettingsPage {
-                AccountManager { Layout.fillWidth: true }
-                Item { Layout.preferredHeight: 8 }
-            }
+                StackLayout {
+                    anchors.fill: parent
+                    currentIndex: dialog.section
 
-            SettingsPage {
-                title: qsTr("Console in use")
-
-                SettingsGroup {
-                    GridLayout {
-                        Layout.fillWidth: true
-                        columns: 2
-                        columnSpacing: 12
-                        rowSpacing: 8
-
-                        Text { text: qsTr("Name"); color: Theme.textMuted; font.pixelSize: 12; Layout.preferredWidth: 120 }
-                        StyledField { id: nameField; Layout.fillWidth: true }
-
-                        Text { text: qsTr("IP address"); color: Theme.textMuted; font.pixelSize: 12; Layout.preferredWidth: 120 }
-                        StyledField {
-                            id: addressField
-                            Layout.fillWidth: true
-                            enabled: !dialog.sessionActive
-                            ToolTip.visible: dialog.sessionActive && addressHover.hovered
-                            ToolTip.text: qsTr("End the Remote Play session first: it is running on "
-                                               + "the console in use.")
-                            HoverHandler { id: addressHover }
-                            placeholderText: "192.168.1.42"
-                            onTextChanged: dialog.scheduleProbe()
-                        }
-
-                        Text {
-                            // The port is the console in use's: a PS5 with etaHEN uses another.
-                            text: dialog.consoleIsPs5 ? qsTr("FTP port (PS5)") : qsTr("FTP port")
-                            color: Theme.textMuted
-                            font.pixelSize: 12
-                        }
-                        StyledField {
-                            id: ftpPortField
-                            Layout.fillWidth: true
-                            onTextChanged: dialog.scheduleProbe()
-                        }
-
-                        Text { text: qsTr("Installer port"); color: Theme.textMuted; font.pixelSize: 12; Layout.preferredWidth: 120 }
-                        StyledField {
-                            id: installerPortField
-                            Layout.fillWidth: true
-                            onTextChanged: dialog.scheduleProbe()
-                        }
+                    SettingsPage {
+                        ConsoleManager { Layout.fillWidth: true }
                     }
 
-                    // Result of the automatic check, with no button at all.
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
+                    SettingsPage {
+                        AccountManager { Layout.fillWidth: true }
+                    }
 
-                        Item {
-                            implicitWidth: 12
-                            implicitHeight: 12
-                            Rectangle {
-                                id: probeDot
-                                anchors.centerIn: parent
-                                width: 8
-                                height: 8
-                                radius: 4
-                                color: dialog.probeColor
-                                SequentialAnimation on opacity {
-                                    running: dialog.probeState === "checking"
-                                    loops: Animation.Infinite
-                                    alwaysRunToEnd: true
-                                    NumberAnimation { to: 0.25; duration: 480; easing.type: Easing.InOutQuad }
-                                    NumberAnimation { to: 1.0; duration: 480; easing.type: Easing.InOutQuad }
-                                }
-                                onVisibleChanged: if (!visible) opacity = 1.0
+                    SettingsPage {
+                        eyebrow: qsTr("Connection")
+                        title: qsTr("Console in use")
+                        subtitle: qsTr("Where it is on the network, how packages reach it and the PC's "
+                                       + "own HTTP server.")
+
+                        GroupTitle { text: qsTr("Address") }
+                        SettingsGroup {
+                            SettingRow {
+                                label: qsTr("Name")
+                                StyledField { id: nameField; Layout.fillWidth: true }
                             }
-                            Rectangle {
-                                anchors.centerIn: parent
-                                width: 12
-                                height: 12
-                                radius: 6
-                                color: "transparent"
-                                border.width: 1
-                                border.color: dialog.probeColor
-                                opacity: dialog.probeState === "ok" ? 0.45 : 0.0
-                                Behavior on opacity { NumberAnimation { duration: 180 } }
-                            }
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: dialog.probeText
-                            color: dialog.probeState === "idle" ? Theme.textMuted : dialog.probeColor
-                            font.pixelSize: 11
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    // FTP was found, but on another port than the one typed.
-                    RowLayout {
-                        Layout.fillWidth: true
-                        visible: dialog.probeOtherFtpPort > 0
-                        spacing: 10
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: qsTr("FTP answers on port %1, not on %2.")
-                                .arg(dialog.probeOtherFtpPort).arg(dialog.typedFtpPort())
-                            color: Theme.textSecondary
-                            font.pixelSize: 11
-                            wrapMode: Text.WordWrap
-                        }
-                        StyledButton {
-                            chip: true
-                            text: qsTr("Use port %1").arg(dialog.probeOtherFtpPort)
-                            onClicked: ftpPortField.text = String(dialog.probeOtherFtpPort)
-                        }
-                    }
-                }
-
-                GroupTitle { text: qsTr("Installation") }
-                SettingsGroup {
-                    GridLayout {
-                        Layout.fillWidth: true
-                        columns: 2
-                        columnSpacing: 12
-                        rowSpacing: 8
-
-                        Text { text: qsTr("Default mode"); color: Theme.textMuted; font.pixelSize: 12; Layout.preferredWidth: 120 }
-                        StyledCombo {
-                            id: modeBox
-                            Layout.fillWidth: true
-                            model: [qsTr("Direct install"), qsTr("FTP upload")]
-                        }
-
-                        Text { text: qsTr("FTP folder"); color: Theme.textMuted; font.pixelSize: 12; Layout.preferredWidth: 120 }
-                        StyledField { id: uploadDirField; Layout.fillWidth: true }
-                    }
-
-                    StyledCheck {
-                        id: existsBox
-                        Layout.fillWidth: true
-                        text: qsTr("Check whether the title is already on the console before installing")
-                    }
-
-                    StyledCheck {
-                        id: installAfterBox
-                        Layout.fillWidth: true
-                        text: qsTr("Also install after sending over FTP")
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                        color: Theme.textMuted
-                        font.pixelSize: 11
-                        text: qsTr("The file stays on the console and is installed right away from the "
-                                   + "PC — the remote installer only knows how to download over HTTP.")
-                    }
-                    StyledCheck {
-                        id: deleteAfterBox
-                        Layout.fillWidth: true
-                        Layout.leftMargin: 20
-                        enabled: installAfterBox.checked
-                        text: qsTr("And delete the console copy once installed")
-                    }
-
-                    StyledCheck {
-                        id: keepConvertedBox
-                        Layout.fillWidth: true
-                        text: qsTr("Keep the packages the converter makes once they are on the console")
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                        color: Theme.textMuted
-                        font.pixelSize: 11
-                        text: qsTr("Off, a package made from a PS1/PS2 disc or an app folder is deleted from "
-                                   + "the output folder once the console has it — installed, or sent when it "
-                                   + "is not installed. Packages of your own are never touched.")
-                    }
-                }
-
-                GroupTitle { text: qsTr("Local HTTP server") }
-                SettingsGroup {
-                    GridLayout {
-                        Layout.fillWidth: true
-                        columns: 2
-                        columnSpacing: 12
-                        rowSpacing: 8
-                        Text { text: qsTr("Port"); color: Theme.textMuted; font.pixelSize: 12; Layout.preferredWidth: 120 }
-                        StyledField { id: httpPortField; Layout.fillWidth: true }
-                    }
-
-                    StyledCheck {
-                        id: restrictBox
-                        Layout.fillWidth: true
-                        text: qsTr("Only accept requests from the console's IP")
-                    }
-                }
-                Item { Layout.preferredHeight: 8 }
-            }
-
-            SettingsPage {
-                title: qsTr("Remote Play")
-
-                SettingsGroup {
-                    GridLayout {
-                        Layout.fillWidth: true
-                        columns: 2
-                        columnSpacing: 12
-                        rowSpacing: 8
-
-                        Text { text: qsTr("Quality"); color: Theme.textMuted; font.pixelSize: 12; Layout.preferredWidth: 120 }
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-                            StyledCombo {
-                                id: resolutionBox
-                                Layout.fillWidth: true
-                                // 1080p only exists on PS4 Pro and PS5. On a regular
-                                // PS4 the request is lowered to 720p by the console
-                                // itself, and the label says so instead of leaving
-                                // the person thinking the setting does nothing.
-                                model: [qsTr("1080p — PS4 Pro and PS5 only"), qsTr("720p — balanced"),
-                                        qsTr("540p"), qsTr("360p — weak network")]
-                            }
-                            StyledCombo {
-                                id: fpsBox
-                                implicitWidth: 110
-                                model: ["60 fps", "30 fps"]
-                            }
-                        }
-
-                        Item {}
-                        Text {
-                            Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
-                            text: qsTr("These three only take effect from the next connection: the video "
-                                       + "profile is agreed with the console when the session starts. "
-                                       + "During the stream, the bar at the bottom shows what is actually "
-                                       + "arriving.")
-                            color: Theme.textSecondary
-                            font.pixelSize: 10
-                        }
-
-                        Text { text: qsTr("Bitrate"); color: Theme.textMuted; font.pixelSize: 12; Layout.preferredWidth: 120 }
-                        StyledField {
-                            id: bitrateField
-                            Layout.fillWidth: true
-                            placeholderText: qsTr("automatic (kbps)")
-                            inputMethodHints: Qt.ImhDigitsOnly
-                            validator: RegularExpressionValidator { regularExpression: /[0-9]{0,6}/ }
-                        }
-
-                    }
-
-                    // The Account ID is chosen per console, from the saved ones.
-                    Text {
-                        Layout.fillWidth: true
-                        text: qsTr("The Account ID each console registers with is chosen in Consoles (Edit), "
-                                   + "from the ones saved in Account IDs.")
-                        color: Theme.textMuted
-                        font.pixelSize: 11
-                        wrapMode: Text.WordWrap
-                    }
-
-                    StyledCheck {
-                        id: hardwareBox
-                        text: qsTr("Decode video on the graphics card (falls back to the processor if it "
-                                   + "cannot)")
-                    }
-                    StyledCheck {
-                        id: fullscreenBox
-                        text: qsTr("Full screen on connect")
-                    }
-                    StyledCheck {
-                        id: rumbleBox
-                        text: qsTr("Controller rumble")
-                    }
-                    StyledCheck {
-                        id: touchpadBox
-                        text: qsTr("Mouse acts as the touchpad while streaming")
-                    }
-                }
-                Item { Layout.preferredHeight: 8 }
-            }
-
-            SettingsPage {
-                id: lookPage
-                title: qsTr("Personalisation")
-
-                // The colours one can change; everything else is made from them.
-                readonly property var colourKeys: [
-                    { key: "accent", label: qsTr("Accent"),
-                      hint: qsTr("Buttons, selection, links and the console in use") },
-                    { key: "hen", label: qsTr("Jailbreak"),
-                      hint: qsTr("GoldHEN, etaHEN, HEN: the console chip, badges and cards") },
-                    { key: "ok", label: qsTr("Available"),
-                      hint: qsTr("Services that answer, finished tasks") },
-                    { key: "warn", label: qsTr("Checking"),
-                      hint: qsTr("Services being checked, warnings") },
-                    { key: "error", label: qsTr("Error"),
-                      hint: qsTr("Errors, services that do not answer") },
-                    { key: "background", label: qsTr("Window background"), hint: "" },
-                    { key: "panel", label: qsTr("Panels"),
-                      hint: qsTr("Top bar, side panel, dialogs and cards") },
-                    { key: "text", label: qsTr("Text"), hint: "" }
-                ]
-
-                // While dragging in the picker the colour changes on screen at
-                // once; it is written to the settings a moment after it stops.
-                property string pendingKey: ""
-                property string pendingColour: ""
-                Timer {
-                    id: commitColour
-                    interval: 80
-                    onTriggered: app.setThemeColor(lookPage.pendingKey, lookPage.pendingColour)
-                }
-
-                ColorPicker {
-                    id: colourPicker
-                    property string key: ""
-                    onPicked: (value) => {
-                        lookPage.pendingKey = key
-                        lookPage.pendingColour = value.toString()
-                        commitColour.restart()
-                    }
-                }
-
-                GroupTitle { text: qsTr("Colours") }
-                SettingsGroup {
-                    Repeater {
-                        model: lookPage.colourKeys
-                        RowLayout {
-                            id: colourRow
-                            required property var modelData
-                            readonly property bool changed: app.themeColors[modelData.key] !== undefined
-                            Layout.fillWidth: true
-                            spacing: 12
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                Text {
+                            SettingRow {
+                                label: qsTr("IP address")
+                                MonoField {
+                                    id: addressField
                                     Layout.fillWidth: true
-                                    text: colourRow.modelData.label
-                                    color: Theme.text
-                                    font.pixelSize: 13
-                                    font.weight: Font.Medium
+                                    enabled: !dialog.sessionActive
+                                    ToolTip.visible: dialog.sessionActive && addressHover.hovered
+                                    ToolTip.text: qsTr("End the Remote Play session first: it is running on "
+                                                       + "the console in use.")
+                                    HoverHandler { id: addressHover }
+                                    placeholderText: "192.168.1.42"
+                                    onTextChanged: dialog.scheduleProbe()
                                 }
-                                Text {
-                                    visible: text.length > 0
+                            }
+                            SettingRow {
+                                // The port is the console in use's: a PS5 with etaHEN uses another.
+                                label: dialog.consoleIsPs5 ? qsTr("FTP port (PS5)") : qsTr("FTP port")
+                                controlWidth: 140
+                                MonoField {
+                                    id: ftpPortField
                                     Layout.fillWidth: true
-                                    text: colourRow.modelData.hint
-                                    color: Theme.textMuted
-                                    font.pixelSize: 11
-                                    elide: Text.ElideRight
+                                    onTextChanged: dialog.scheduleProbe()
                                 }
                             }
-                            StyledToolButton {
-                                visible: colourRow.changed
-                                iconName: "rotate-ccw"
-                                iconSize: 15
-                                ToolTip.visible: hovered
-                                ToolTip.text: qsTr("Back to the theme's colour")
-                                onClicked: app.setThemeColor(colourRow.modelData.key, "")
+                            SettingRow {
+                                label: qsTr("Installer port")
+                                controlWidth: 140
+                                MonoField {
+                                    id: installerPortField
+                                    Layout.fillWidth: true
+                                    onTextChanged: dialog.scheduleProbe()
+                                }
                             }
-                            // The swatch: the colour in use and its code; a click opens the picker.
-                            Rectangle {
-                                id: swatch
-                                Layout.preferredWidth: 118
-                                Layout.preferredHeight: 34
-                                radius: 10
-                                color: Theme.controlFill
-                                border.width: 1
-                                border.color: swatchArea.containsMouse ? Theme.alpha(Theme.accent, 0.6)
-                                                                       : Theme.glassEdge
-                                readonly property color shown: Theme[colourRow.modelData.key]
-                                Row {
+
+                            // Result of the automatic check, with no button at all.
+                            Item {
+                                id: probeRow
+                                Layout.fillWidth: true
+                                implicitHeight: probeColumn.implicitHeight + 28
+                                Rectangle { width: parent.width; height: 1; color: Theme.glassEdge }
+
+                                ColumnLayout {
+                                    id: probeColumn
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
                                     anchors.verticalCenter: parent.verticalCenter
-                                    x: 6
-                                    spacing: 8
-                                    Rectangle {
-                                        width: 22
-                                        height: 22
-                                        radius: 7
-                                        color: swatch.shown
-                                        border.width: 1
-                                        border.color: Qt.rgba(0.5, 0.5, 0.5, 0.4)
-                                    }
-                                    Text {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: Qt.rgba(swatch.shown.r, swatch.shown.g, swatch.shown.b, 1)
-                                              .toString().toUpperCase()
-                                        color: Theme.text
-                                        font.family: Theme.fontMono
-                                        font.pixelSize: 12
-                                    }
-                                }
-                                MouseArea {
-                                    id: swatchArea
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        colourPicker.key = colourRow.modelData.key
-                                        colourPicker.load(Qt.rgba(swatch.shown.r, swatch.shown.g,
-                                                                  swatch.shown.b, 1))
-                                        colourPicker.parent = swatch
-                                        colourPicker.x = swatch.width - colourPicker.width
-                                        // Below the colour, or above it when the window
-                                        // has no room left below.
-                                        var below = swatch.mapToItem(null, 0, swatch.height).y
-                                        var room = (swatch.Window.height || 0) - below
-                                        colourPicker.y = room > colourPicker.implicitHeight + 16
-                                                       ? swatch.height + 6
-                                                       : -colourPicker.implicitHeight - 6
-                                        colourPicker.open()
-                                    }
-                                }
-                            }
-                        }
-                    }
+                                    spacing: 10
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 10
-                        Text {
-                            Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
-                            color: Theme.textMuted
-                            font.pixelSize: 11
-                            text: qsTr("The colours go on top of the theme picked in the top bar "
-                                       + "(dark, glass or light) and change at once.")
-                        }
-                        StyledButton {
-                            text: qsTr("Theme's colours")
-                            chip: true
-                            iconName: "rotate-ccw"
-                            enabled: Object.keys(app.themeColors).length > 0
-                            onClicked: app.resetThemeColors()
-                        }
-                    }
-                }
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 10
 
-                GroupTitle { text: qsTr("Saved looks") }
-                SettingsGroup {
-                    Text {
-                        visible: app.themePresets.length === 0
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                        color: Theme.textMuted
-                        font.pixelSize: 12
-                        text: qsTr("None yet. Give the look in use a name below to keep it.")
-                    }
+                                        Item {
+                                            implicitWidth: 14
+                                            implicitHeight: 14
+                                            Rectangle {
+                                                anchors.centerIn: parent
+                                                width: 8
+                                                height: 8
+                                                radius: 4
+                                                color: dialog.probeColor
+                                                SequentialAnimation on opacity {
+                                                    running: dialog.probeState === "checking"
+                                                    loops: Animation.Infinite
+                                                    alwaysRunToEnd: true
+                                                    NumberAnimation { to: 0.25; duration: 480; easing.type: Easing.InOutQuad }
+                                                    NumberAnimation { to: 1.0; duration: 480; easing.type: Easing.InOutQuad }
+                                                }
+                                                onVisibleChanged: if (!visible) opacity = 1.0
+                                            }
+                                            Rectangle {
+                                                anchors.centerIn: parent
+                                                width: 14
+                                                height: 14
+                                                radius: 7
+                                                color: "transparent"
+                                                border.width: 1
+                                                border.color: dialog.probeColor
+                                                opacity: dialog.probeState === "ok" ? 0.45 : 0.0
+                                                Behavior on opacity { NumberAnimation { duration: 180 } }
+                                            }
+                                        }
 
-                    Repeater {
-                        model: app.themePresets
-                        RowLayout {
-                            id: presetRow
-                            required property var modelData
-                            Layout.fillWidth: true
-                            spacing: 12
-                            // Its colours at a glance (the theme's own where it kept none).
-                            Row {
-                                spacing: 3
-                                Repeater {
-                                    model: ["accent", "hen", "background", "panel"]
-                                    Rectangle {
-                                        required property string modelData
-                                        width: 14
-                                        height: 26
-                                        radius: 4
-                                        color: presetRow.modelData.colors[modelData] || Theme.controlFill
-                                        border.width: 1
-                                        border.color: Theme.glassEdge
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: dialog.probeText
+                                            color: dialog.probeState === "idle" ? Theme.textSecondary
+                                                 : Theme.light ? Qt.darker(dialog.probeColor, 1.3)
+                                                 : dialog.probeColor
+                                            font.pixelSize: Theme.fontSmall
+                                            wrapMode: Text.WordWrap
+                                        }
+                                    }
+
+                                    // FTP was found, but on another port than the one typed.
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        Layout.leftMargin: 24
+                                        visible: dialog.probeOtherFtpPort > 0
+                                        spacing: 10
+
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: qsTr("FTP answers on port %1, not on %2.")
+                                                .arg(dialog.probeOtherFtpPort).arg(dialog.typedFtpPort())
+                                            color: Theme.textSecondary
+                                            font.pixelSize: Theme.fontSmall
+                                            wrapMode: Text.WordWrap
+                                        }
+                                        StyledButton {
+                                            chip: true
+                                            text: qsTr("Use port %1").arg(dialog.probeOtherFtpPort)
+                                            onClicked: ftpPortField.text = String(dialog.probeOtherFtpPort)
+                                        }
                                     }
                                 }
                             }
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 1
-                                Text {
+                        }
+
+                        GroupTitle { text: qsTr("Installation") }
+                        SettingsGroup {
+                            SettingRow {
+                                label: qsTr("Default mode")
+                                StyledCombo {
+                                    id: modeBox
                                     Layout.fillWidth: true
-                                    text: presetRow.modelData.name
-                                    color: Theme.text
-                                    font.pixelSize: 13
-                                    font.weight: Font.Medium
-                                    elide: Text.ElideRight
+                                    model: [qsTr("Direct install"), qsTr("FTP upload")]
+                                }
+                            }
+                            SettingRow {
+                                label: qsTr("FTP folder")
+                                MonoField { id: uploadDirField; Layout.fillWidth: true }
+                            }
+                            SwitchRow {
+                                id: existsBox
+                                label: qsTr("Check whether the title is already on the console before installing")
+                            }
+                            SwitchRow {
+                                id: installAfterBox
+                                label: qsTr("Also install after sending over FTP")
+                                description: qsTr("The file stays on the console and is installed right away from the "
+                                                  + "PC — the remote installer only knows how to download over HTTP.")
+                            }
+                            SwitchRow {
+                                id: deleteAfterBox
+                                indent: 20
+                                enabled: installAfterBox.checked
+                                label: qsTr("And delete the console copy once installed")
+                            }
+                            SwitchRow {
+                                id: keepConvertedBox
+                                label: qsTr("Keep the packages the converter makes once they are on the console")
+                                description: qsTr("Off, a package made from a PS1/PS2 disc or an app folder is deleted from "
+                                                  + "the output folder once the console has it — installed, or sent when it "
+                                                  + "is not installed. Packages of your own are never touched.")
+                            }
+                        }
+
+                        GroupTitle { text: qsTr("Local HTTP server") }
+                        SettingsGroup {
+                            SettingRow {
+                                label: qsTr("Port")
+                                controlWidth: 140
+                                MonoField { id: httpPortField; Layout.fillWidth: true }
+                            }
+                            SwitchRow {
+                                id: restrictBox
+                                label: qsTr("Only accept requests from the console's IP")
+                            }
+                        }
+                    }
+
+                    SettingsPage {
+                        eyebrow: qsTr("Streaming")
+                        title: qsTr("Remote Play")
+                        subtitle: qsTr("The picture, the controller and the window while a console streams.")
+
+                        GroupTitle { text: qsTr("Picture") }
+                        SettingsGroup {
+                            SettingRow {
+                                label: qsTr("Quality")
+                                description: qsTr("These three only take effect from the next connection: the video "
+                                                  + "profile is agreed with the console when the session starts. "
+                                                  + "During the stream, the bar at the bottom shows what is actually "
+                                                  + "arriving.")
+                                controlWidth: 360
+                                StyledCombo {
+                                    id: resolutionBox
+                                    Layout.fillWidth: true
+                                    // 1080p only exists on PS4 Pro and PS5. On a regular
+                                    // PS4 the request is lowered to 720p by the console
+                                    // itself, and the label says so instead of leaving
+                                    // the person thinking the setting does nothing.
+                                    model: [qsTr("1080p — PS4 Pro and PS5 only"), qsTr("720p — balanced"),
+                                            qsTr("540p"), qsTr("360p — weak network")]
+                                }
+                                StyledCombo {
+                                    id: fpsBox
+                                    Layout.preferredWidth: 116
+                                    model: ["60 fps", "30 fps"]
+                                }
+                            }
+                            SettingRow {
+                                label: qsTr("Bitrate")
+                                controlWidth: 200
+                                MonoField {
+                                    id: bitrateField
+                                    Layout.fillWidth: true
+                                    placeholderText: qsTr("automatic (kbps)")
+                                    inputMethodHints: Qt.ImhDigitsOnly
+                                    validator: RegularExpressionValidator { regularExpression: /[0-9]{0,6}/ }
+                                }
+                            }
+                            SwitchRow {
+                                id: hardwareBox
+                                label: qsTr("Decode video on the graphics card (falls back to the processor if it "
+                                            + "cannot)")
+                            }
+                        }
+
+                        GroupTitle { text: qsTr("Session") }
+                        SettingsGroup {
+                            SwitchRow {
+                                id: fullscreenBox
+                                label: qsTr("Full screen on connect")
+                            }
+                            SwitchRow {
+                                id: rumbleBox
+                                label: qsTr("Controller rumble")
+                            }
+                            SwitchRow {
+                                id: touchpadBox
+                                label: qsTr("Mouse acts as the touchpad while streaming")
+                            }
+                        }
+
+                        // The Account ID is chosen per console, from the saved ones.
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Layout.topMargin: 4
+                            Layout.leftMargin: 4
+                            spacing: 10
+                            Icon {
+                                Layout.alignment: Qt.AlignTop
+                                name: "id-card"
+                                size: 16
+                                color: Theme.brass
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: qsTr("The Account ID each console registers with is chosen in Consoles (Edit), "
+                                           + "from the ones saved in Account IDs.")
+                                color: Theme.textSecondary
+                                font.pixelSize: Theme.fontSmall
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+                    }
+
+                    SettingsPage {
+                        id: lookPage
+                        eyebrow: qsTr("Appearance")
+                        title: qsTr("Personalisation")
+                        subtitle: qsTr("The theme, what is behind the glass, and the colours on top. Everything "
+                                       + "changes at once; a look can be saved to come back to.")
+
+                        // The colours one can change; everything else is made from them.
+                        readonly property var colourKeys: [
+                            { key: "accent", label: qsTr("Accent"),
+                              hint: qsTr("Buttons, selection, links and the console in use") },
+                            { key: "hen", label: qsTr("Jailbreak"),
+                              hint: qsTr("GoldHEN, etaHEN, HEN: the console chip, badges and cards") },
+                            { key: "ok", label: qsTr("Available"),
+                              hint: qsTr("Services that answer, finished tasks") },
+                            { key: "warn", label: qsTr("Checking"),
+                              hint: qsTr("Services being checked, warnings") },
+                            { key: "error", label: qsTr("Error"),
+                              hint: qsTr("Errors, services that do not answer") },
+                            { key: "background", label: qsTr("Window background"), hint: "" },
+                            { key: "panel", label: qsTr("Panels"),
+                              hint: qsTr("The navigation, the side panels, dialogs and plates") },
+                            { key: "text", label: qsTr("Text"), hint: "" }
+                        ]
+
+                        // While dragging in the picker the colour changes on screen at
+                        // once; it is written to the settings a moment after it stops.
+                        property string pendingKey: ""
+                        property string pendingColour: ""
+                        Timer {
+                            id: commitColour
+                            interval: 80
+                            onTriggered: app.setThemeColor(lookPage.pendingKey, lookPage.pendingColour)
+                        }
+
+                        ColorPicker {
+                            id: colourPicker
+                            property string key: ""
+                            onPicked: (value) => {
+                                lookPage.pendingKey = key
+                                lookPage.pendingColour = value.toString()
+                                commitColour.restart()
+                            }
+                        }
+
+                        // ── The appearance: the same choice as at the foot of the
+                        // navigation, with a small picture of each.
+                        GroupTitle { text: qsTr("Theme") }
+                        SettingsGroup {
+                            GridLayout {
+                                Layout.fillWidth: true
+                                Layout.topMargin: 16
+                                Layout.bottomMargin: 16
+                                columns: width > 560 ? 4 : 2
+                                columnSpacing: 12
+                                rowSpacing: 12
+                                Repeater {
+                                    // Each appearance's own colours (artwork: these do
+                                    // not follow the theme in use, they show the others).
+                                    model: [
+                                        { name: "dark", label: qsTr("Dark"), icon: "moon",
+                                          bg: "#141416", pane: "#28282C", ink: "#F4F1EA", tint: "#9EBCD8" },
+                                        { name: "glass", label: qsTr("Glass"), icon: "contrast",
+                                          bg: "#17161A", pane: "#38373D", ink: "#FBF9F5", tint: "#A9C6E0" },
+                                        { name: "light", label: qsTr("Light"), icon: "sun",
+                                          bg: "#E7E2DA", pane: "#FFFFFF", ink: "#1C1B19", tint: "#4A7AA3" },
+                                        { name: "custom", label: qsTr("Custom"), icon: "sparkles",
+                                          bg: "", pane: "", ink: "", tint: "" }
+                                    ]
+                                    delegate: Rectangle {
+                                        id: themeCard
+                                        required property var modelData
+                                        readonly property bool custom: modelData.name === "custom"
+                                        readonly property bool chosen: custom ? app.customLook
+                                                                       : Theme.name === modelData.name && !app.customLook
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 112
+                                        radius: 16
+                                        color: chosen ? (Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Qt.rgba(1, 1, 1, 0.12))
+                                             : themeArea.containsMouse ? Theme.controlHover : Theme.controlFill
+                                        border.width: chosen ? 2 : 1
+                                        border.color: chosen ? Theme.accent
+                                                    : Theme.light ? Theme.lightHairline : Theme.glassEdge
+                                        Behavior on color { ColorAnimation { duration: Theme.fast } }
+                                        Accessible.role: Accessible.RadioButton
+                                        Accessible.name: modelData.label
+                                        Accessible.checked: chosen
+
+                                        // A small window of that appearance: its room,
+                                        // a pane, a line of text and its accent.
+                                        Rectangle {
+                                            id: thumb
+                                            anchors.left: parent.left
+                                            anchors.right: parent.right
+                                            anchors.top: parent.top
+                                            anchors.margins: 8
+                                            height: 64
+                                            radius: 10
+                                            clip: true
+                                            color: themeCard.custom ? Theme.background : themeCard.modelData.bg
+                                            border.width: 1
+                                            border.color: Theme.light ? Theme.lightHairline : Theme.glassEdge
+                                            Rectangle {
+                                                x: 8; y: 8
+                                                width: parent.width * 0.30
+                                                height: parent.height - 16
+                                                radius: 6
+                                                color: themeCard.custom ? Theme.panel : themeCard.modelData.pane
+                                                opacity: 0.9
+                                            }
+                                            Rectangle {
+                                                x: parent.width * 0.30 + 16; y: 12
+                                                width: parent.width * 0.42
+                                                height: 6
+                                                radius: 3
+                                                color: themeCard.custom ? Theme.ink : themeCard.modelData.ink
+                                                opacity: 0.85
+                                            }
+                                            Rectangle {
+                                                x: parent.width * 0.30 + 16; y: 24
+                                                width: parent.width * 0.28
+                                                height: 4
+                                                radius: 2
+                                                color: themeCard.custom ? Theme.ink : themeCard.modelData.ink
+                                                opacity: 0.4
+                                            }
+                                            Rectangle {
+                                                x: parent.width * 0.30 + 16
+                                                y: parent.height - 22
+                                                width: 34
+                                                height: 12
+                                                radius: 6
+                                                color: themeCard.custom ? Theme.accent : themeCard.modelData.tint
+                                            }
+                                        }
+                                        Row {
+                                            anchors.left: parent.left
+                                            anchors.leftMargin: 12
+                                            anchors.bottom: parent.bottom
+                                            anchors.bottomMargin: 10
+                                            spacing: 7
+                                            Icon {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                name: themeCard.modelData.icon
+                                                size: 14
+                                                color: themeCard.chosen ? Theme.accent : Theme.textSecondary
+                                            }
+                                            Text {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                text: themeCard.modelData.label
+                                                color: Theme.text
+                                                font.pixelSize: Theme.fontSmall
+                                                font.weight: themeCard.chosen ? Font.DemiBold : Font.Normal
+                                            }
+                                        }
+                                        MouseArea {
+                                            id: themeArea
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            // A plain appearance sets the custom colours
+                                            // aside; the custom look brings them back (the
+                                            // colours below are where one is made).
+                                            onClicked: {
+                                                if (themeCard.custom)
+                                                    app.applyCustomLook()
+                                                else
+                                                    app.setTheme(themeCard.modelData.name)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // ── Behind the glass: the room, or a picture of one's own.
+                        GroupTitle { text: qsTr("Background") }
+                        SettingsGroup {
+                            SettingRow {
+                                readonly property bool custom: app.backgroundUrl.length > 0
+                                label: qsTr("Picture")
+                                description: custom
+                                             ? qsTr("Yours, out of focus behind the glass.")
+                                             : qsTr("The room the app comes with. Choose a picture of your own to "
+                                                    + "put behind the glass.")
+                                controlWidth: 0
+
+                                // What is behind the glass now, in small.
+                                Rectangle {
+                                    Layout.preferredWidth: 92
+                                    Layout.preferredHeight: 56
+                                    radius: 12
+                                    color: Theme.controlFill
+                                    border.width: 1
+                                    border.color: Theme.glassEdge
+                                    Image {
+                                        anchors.fill: parent
+                                        anchors.margins: 3
+                                        source: app.backgroundUrl.length > 0 ? app.backgroundUrl
+                                              : Theme.light ? "qrc:/icons/room-light.jpg" : "qrc:/icons/room-dark.jpg"
+                                        sourceSize.width: 184
+                                        fillMode: Image.PreserveAspectCrop
+                                        asynchronous: true
+                                        smooth: true
+                                    }
+                                }
+                                StyledButton {
+                                    text: qsTr("Choose…")
+                                    iconName: "image"
+                                    onClicked: backgroundDialog.open()
+                                }
+                                StyledToolButton {
+                                    visible: app.backgroundUrl.length > 0
+                                    iconName: "rotate-ccw"
+                                    iconSize: 15
+                                    Accessible.name: qsTr("Back to the room")
+                                    ToolTip.visible: hovered
+                                    ToolTip.text: qsTr("Back to the room")
+                                    onClicked: app.clearBackground()
+                                }
+                            }
+                            SwitchRow {
+                                visible: app.backgroundUrl.length > 0
+                                label: qsTr("Colours from the picture")
+                                description: qsTr("On: the background, the panes, the accent and the champagne take "
+                                                  + "the picture's colours, in the light or dark of the theme in use. "
+                                                  + "Off: the picture stays, with the theme's own colours.")
+                                checked: app.backgroundPalette
+                                onCheckedChanged: app.setBackgroundPalette(checked)
+                            }
+                            SettingRow {
+                                id: blurRow
+                                visible: app.backgroundUrl.length > 0
+                                label: qsTr("Blur")
+                                description: qsTr("How out of focus the picture is. The glass reads best over a "
+                                                  + "picture that is well blurred.")
+                                controlWidth: 220
+                                Slider {
+                                    id: blurSlider
+                                    Layout.fillWidth: true
+                                    from: 0
+                                    to: 100
+                                    stepSize: 5
+                                    value: app.backgroundBlur
+                                    onPressedChanged: if (!pressed) app.setBackgroundBlur(value)
+                                    Accessible.name: blurRow.label
+                                    background: Rectangle {
+                                        x: blurSlider.leftPadding
+                                        y: blurSlider.topPadding + blurSlider.availableHeight / 2 - height / 2
+                                        width: blurSlider.availableWidth
+                                        height: 4
+                                        radius: 2
+                                        color: Theme.light ? Qt.rgba(0, 0, 0, 0.10) : Qt.rgba(1, 1, 1, 0.14)
+                                        Rectangle {
+                                            width: blurSlider.visualPosition * parent.width
+                                            height: parent.height
+                                            radius: 2
+                                            color: Theme.accent
+                                        }
+                                    }
+                                    handle: Rectangle {
+                                        x: blurSlider.leftPadding + blurSlider.visualPosition
+                                           * (blurSlider.availableWidth - width)
+                                        y: blurSlider.topPadding + blurSlider.availableHeight / 2 - height / 2
+                                        width: 20
+                                        height: 20
+                                        radius: 10
+                                        color: "#FBFAF7"
+                                        border.width: 1
+                                        border.color: Theme.light ? Qt.rgba(0, 0, 0, 0.12) : Qt.rgba(1, 1, 1, 0.6)
+                                        scale: blurSlider.pressed ? 1.08 : 1
+                                        Behavior on scale { NumberAnimation { duration: Theme.fast } }
+                                    }
                                 }
                                 Text {
-                                    text: presetRow.modelData.theme === "light" ? qsTr("Light theme")
-                                        : presetRow.modelData.theme === "glass" ? qsTr("Glass theme")
-                                        : qsTr("Dark theme")
-                                    color: Theme.textMuted
-                                    font.pixelSize: 11
+                                    Layout.preferredWidth: 34
+                                    horizontalAlignment: Text.AlignRight
+                                    text: Math.round(blurSlider.value) + "%"
+                                    color: Theme.textSecondary
+                                    font.family: Theme.fontMono
+                                    font.pixelSize: Theme.fontSmall
                                 }
+                            }
+                            SwitchRow {
+                                label: qsTr("Water light")
+                                description: qsTr("Light moves slowly over the background, as through water — only "
+                                                  + "behind the glass. It rests while Remote Play streams and while "
+                                                  + "the window is in the background.")
+                                checked: app.backgroundMotion
+                                onCheckedChanged: app.setBackgroundMotion(checked)
+                            }
+                        }
+
+                        FileDialog {
+                            id: backgroundDialog
+                            title: qsTr("Picture for the background")
+                            fileMode: FileDialog.OpenFile
+                            nameFilters: [qsTr("Pictures (*.jpg *.jpeg *.png *.webp *.bmp)"), qsTr("All files (*)")]
+                            onAccepted: app.chooseBackground(selectedFile.toString())
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Layout.topMargin: 12
+                            spacing: 10
+                            Eyebrow {
+                                Layout.fillWidth: true
+                                Layout.leftMargin: 4
+                                text: qsTr("Colours")
                             }
                             StyledButton {
-                                readonly property bool inUse: app.customLook
-                                                              && app.activePreset === presetRow.modelData.name
-                                text: inUse ? qsTr("In use") : qsTr("Apply")
+                                text: qsTr("Theme's colours")
                                 chip: true
-                                primary: inUse
-                                enabled: !inUse
-                                onClicked: app.applyThemePreset(presetRow.modelData.name)
-                            }
-                            StyledToolButton {
-                                iconName: "trash"
-                                iconSize: 15
-                                danger: true
+                                iconName: "rotate-ccw"
+                                enabled: Object.keys(app.themeColors).length > 0
                                 ToolTip.visible: hovered
-                                ToolTip.text: qsTr("Delete this look")
-                                onClicked: app.deleteThemePreset(presetRow.modelData.name)
+                                ToolTip.text: qsTr("Every colour back to the theme's own")
+                                onClicked: app.resetThemeColors()
+                            }
+                        }
+                        SettingsGroup {
+                            Repeater {
+                                model: lookPage.colourKeys
+                                SettingRow {
+                                    id: colourRow
+                                    required property var modelData
+                                    readonly property bool changed: app.themeColors[modelData.key] !== undefined
+                                    label: modelData.label
+                                    description: modelData.hint
+                                    controlWidth: 0
+
+                                    StyledToolButton {
+                                        opacity: colourRow.changed ? 1 : 0
+                                        enabled: colourRow.changed
+                                        iconName: "rotate-ccw"
+                                        iconSize: 15
+                                        Accessible.name: qsTr("Back to the theme's colour")
+                                        ToolTip.visible: hovered
+                                        ToolTip.text: qsTr("Back to the theme's colour")
+                                        onClicked: app.setThemeColor(colourRow.modelData.key, "")
+                                    }
+                                    // The swatch: the colour in use and its code; a click opens the picker.
+                                    Rectangle {
+                                        id: swatch
+                                        Layout.preferredWidth: 124
+                                        Layout.preferredHeight: 36
+                                        radius: height / 2
+                                        color: Theme.controlFill
+                                        border.width: 1
+                                        border.color: swatchArea.containsMouse ? Theme.alpha(Theme.accent, 0.6)
+                                                                               : Theme.glassEdge
+                                        readonly property color shown: Theme[colourRow.modelData.key]
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: colourRow.modelData.label
+                                        Row {
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            x: 6
+                                            spacing: 9
+                                            Rectangle {
+                                                width: 24
+                                                height: 24
+                                                radius: 12
+                                                color: swatch.shown
+                                                border.width: 1
+                                                border.color: Theme.alpha(Theme.ink, 0.25)
+                                            }
+                                            Text {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                text: Qt.rgba(swatch.shown.r, swatch.shown.g, swatch.shown.b, 1)
+                                                      .toString().toUpperCase()
+                                                color: Theme.text
+                                                font.family: Theme.fontMono
+                                                font.pixelSize: Theme.fontSmall
+                                            }
+                                        }
+                                        MouseArea {
+                                            id: swatchArea
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                colourPicker.key = colourRow.modelData.key
+                                                colourPicker.load(Qt.rgba(swatch.shown.r, swatch.shown.g,
+                                                                          swatch.shown.b, 1))
+                                                colourPicker.parent = swatch
+                                                colourPicker.x = swatch.width - colourPicker.width
+                                                // Below the colour, or above it when the window
+                                                // has no room left below.
+                                                var below = swatch.mapToItem(null, 0, swatch.height).y
+                                                var room = (swatch.Window.height || 0) - below
+                                                colourPicker.y = room > colourPicker.implicitHeight + 16
+                                                               ? swatch.height + 6
+                                                               : -colourPicker.implicitHeight - 6
+                                                colourPicker.open()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        GroupTitle { text: qsTr("Saved looks") }
+                        SettingsGroup {
+                            Text {
+                                visible: app.themePresets.length === 0
+                                Layout.fillWidth: true
+                                Layout.topMargin: 14
+                                Layout.bottomMargin: 6
+                                wrapMode: Text.WordWrap
+                                color: Theme.textSecondary
+                                font.pixelSize: Theme.fontSmall
+                                text: qsTr("None yet. Give the look in use a name below to keep it.")
+                            }
+
+                            Repeater {
+                                model: app.themePresets
+                                Item {
+                                    id: presetRow
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    implicitHeight: 62
+                                    Rectangle {
+                                        visible: presetRow.y > 1
+                                        width: parent.width
+                                        height: 1
+                                        color: Theme.glassEdge
+                                    }
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        spacing: 14
+                                        // Its colours at a glance (the theme's own where it kept none).
+                                        Row {
+                                            spacing: -6
+                                            Repeater {
+                                                model: ["accent", "hen", "background", "panel"]
+                                                Rectangle {
+                                                    required property string modelData
+                                                    width: 24
+                                                    height: 24
+                                                    radius: 12
+                                                    color: presetRow.modelData.colors[modelData] || Theme.controlFill
+                                                    border.width: 2
+                                                    border.color: Theme.panelFill
+                                                }
+                                            }
+                                        }
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 1
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: presetRow.modelData.name
+                                                color: Theme.text
+                                                font.pixelSize: Theme.fontBody
+                                                font.weight: Font.Medium
+                                                elide: Text.ElideRight
+                                            }
+                                            Text {
+                                                text: presetRow.modelData.theme === "light" ? qsTr("Light theme")
+                                                    : presetRow.modelData.theme === "glass" ? qsTr("Glass theme")
+                                                    : qsTr("Dark theme")
+                                                color: Theme.textSecondary
+                                                font.pixelSize: Theme.fontSmall
+                                            }
+                                        }
+                                        StyledButton {
+                                            readonly property bool inUse: app.customLook
+                                                                          && app.activePreset === presetRow.modelData.name
+                                            text: inUse ? qsTr("In use") : qsTr("Apply")
+                                            chip: true
+                                            primary: inUse
+                                            enabled: !inUse
+                                            onClicked: app.applyThemePreset(presetRow.modelData.name)
+                                        }
+                                        StyledToolButton {
+                                            iconName: "trash"
+                                            iconSize: 15
+                                            danger: true
+                                            Accessible.name: qsTr("Delete this look")
+                                            ToolTip.visible: hovered
+                                            ToolTip.text: qsTr("Delete this look")
+                                            onClicked: app.deleteThemePreset(presetRow.modelData.name)
+                                        }
+                                    }
+                                }
+                            }
+
+                            Item {
+                                Layout.fillWidth: true
+                                implicitHeight: saveLookRow.implicitHeight + 28
+                                Rectangle { width: parent.width; height: 1; color: Theme.glassEdge }
+                                RowLayout {
+                                    id: saveLookRow
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 8
+                                    StyledField {
+                                        id: presetName
+                                        Layout.fillWidth: true
+                                        placeholderText: qsTr("Name of the look in use")
+                                        onAccepted: saveLook.clicked()
+                                    }
+                                    StyledButton {
+                                        id: saveLook
+                                        text: qsTr("Save look")
+                                        iconName: "save"
+                                        enabled: presetName.text.trim().length > 0
+                                        onClicked: {
+                                            app.saveThemePreset(presetName.text)
+                                            presetName.text = ""
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-                        StyledField {
-                            id: presetName
-                            Layout.fillWidth: true
-                            placeholderText: qsTr("Name of the look in use")
-                            onAccepted: saveLook.clicked()
+                    SettingsPage {
+                        eyebrow: qsTr("Application")
+                        title: qsTr("General")
+                        subtitle: qsTr("The language, how new versions are found, and the options for "
+                                       + "those who know what they do.")
+
+                        GroupTitle { text: qsTr("Language") }
+                        SettingsGroup {
+                            SettingRow {
+                                label: qsTr("Language")
+                                description: qsTr("Changes the next time the app opens. The theme is picked at "
+                                                  + "the foot of the navigation.")
+                                controlWidth: 220
+                                StyledCombo {
+                                    id: languageBox
+                                    Layout.fillWidth: true
+                                    model: ["English", "Português"]
+                                }
+                            }
                         }
-                        StyledButton {
-                            id: saveLook
-                            text: qsTr("Save look")
-                            iconName: "save"
-                            enabled: presetName.text.trim().length > 0
-                            onClicked: {
-                                app.saveThemePreset(presetName.text)
-                                presetName.text = ""
+
+                        GroupTitle { text: qsTr("Updates") }
+                        SettingsGroup {
+                            SwitchRow {
+                                id: updatesBox
+                                label: qsTr("Updates over the internet")
+                                description: checked
+                                      ? qsTr("On start, looks for a new version in the repository below and asks "
+                                             + "before installing. Nothing is installed without your click.")
+                                      : qsTr("Off: the app does not go online looking for versions. \"Check now\" "
+                                             + "still works.")
+                            }
+                            SettingRow {
+                                label: qsTr("Repository")
+                                description: qsTr("Releases are read from the GitHub API and the repository has to be "
+                                                  + "public. \"Check now\" saves the settings first.")
+                                MonoField {
+                                    id: updateRepoField
+                                    Layout.fillWidth: true
+                                    placeholderText: "owner/name"
+                                }
+                            }
+                            SettingRow {
+                                label: qsTr("Channel")
+                                StyledCombo {
+                                    id: updateChannelBox
+                                    Layout.fillWidth: true
+                                    model: [qsTr("Stable"), qsTr("Testing (branch builds)")]
+                                }
+                            }
+                            SettingRow {
+                                label: app.updateMessage.length > 0 ? app.updateMessage : qsTr("Look for a new version now")
+                                labelColor: app.updateState === "error"
+                                            ? (Theme.light ? Qt.darker(Theme.error, 1.3) : Theme.error)
+                                          : app.updateState === "available"
+                                            ? (Theme.light ? Qt.darker(Theme.ok, 1.3) : Theme.ok)
+                                          : Theme.text
+                                controlWidth: 0
+                                StyledButton {
+                                    text: qsTr("Check now")
+                                    iconName: "refresh"
+                                    enabled: app.updateState !== "checking"
+                                             && app.updateState !== "downloading"
+                                    onClicked: dialog.checkUpdatesNow()
+                                }
+                            }
+                        }
+
+                        GroupTitle { text: qsTr("Advanced") }
+                        SettingsGroup {
+                            SwitchRow {
+                                id: advancedBox
+                                labelColor: Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn
+                                label: qsTr("Advanced mode: allows writing to the FTP system areas")
+                            }
+                            SwitchRow {
+                                id: debugBox
+                                label: qsTr("Verbose log (debug)")
                             }
                         }
                     }
+
+                    SettingsPage {
+                        AboutPage {
+                            onCheckUpdates: dialog.checkUpdatesNow()
+                        }
+                    }
                 }
-                Item { Layout.preferredHeight: 8 }
+
+                // The dialog's round close button, over the top right of every page.
+                DialogHeader.GlassDisc {
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    anchors.topMargin: 22
+                    anchors.rightMargin: 22
+                    z: 2
+                    iconName: "close"
+                    Accessible.name: qsTr("Close")
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Close")
+                    onClicked: dialog.close()
+                }
             }
 
-            SettingsPage {
-                title: qsTr("General")
-
-                GroupTitle { text: qsTr("Appearance") }
-                SettingsGroup {
-                    GridLayout {
-                        Layout.fillWidth: true
-                        columns: 2
-                        columnSpacing: 12
-                        rowSpacing: 8
-                        Text { text: qsTr("Language"); color: Theme.textMuted; font.pixelSize: 12; Layout.preferredWidth: 120 }
-                        StyledCombo {
-                            id: languageBox
-                            Layout.fillWidth: true
-                            model: ["English", "Português"]
-                        }
-                    }
-
-                    Text {
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                        color: Theme.textMuted
-                        font.pixelSize: 11
-                        text: qsTr("The language changes the next time the app opens. The theme is "
-                                   + "picked with the icons in the top bar, next to settings.")
-                    }
+            // ── The actions: the wizard on the left, cancel and save on the right.
+            EngravedRule { Layout.fillWidth: true; Layout.leftMargin: 28; Layout.rightMargin: 28; star: false }
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Theme.dialogFooter
+                Layout.leftMargin: 28
+                Layout.rightMargin: 28
+                spacing: 10
+                StyledButton {
+                    text: qsTr("Setup wizard…")
+                    iconName: "sparkles"
+                    minimumWidth: 130
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("See the three first-run steps again")
+                    onClicked: dialog.openWizard()
                 }
-
-                GroupTitle { text: qsTr("Updates") }
-                SettingsGroup {
-                    StyledCheck {
-                        id: updatesBox
-                        Layout.fillWidth: true
-                        text: qsTr("Updates over the internet")
-                    }
-
-                    Text {
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                        color: Theme.textMuted
-                        font.pixelSize: 11
-                        text: updatesBox.checked
-                              ? qsTr("On start, looks for a new version in the repository below and asks "
-                                     + "before installing. Nothing is installed without your click.")
-                              : qsTr("Off: the app does not go online looking for versions. \"Check now\" "
-                                     + "still works.")
-                    }
-
-                    GridLayout {
-                        Layout.fillWidth: true
-                        columns: 2
-                        columnSpacing: 12
-                        rowSpacing: 8
-                        Text { text: qsTr("Repository"); color: Theme.textMuted; font.pixelSize: 12; Layout.preferredWidth: 120 }
-                        StyledField {
-                            id: updateRepoField
-                            Layout.fillWidth: true
-                            placeholderText: "owner/name"
-                        }
-                        Text { text: qsTr("Channel"); color: Theme.textMuted; font.pixelSize: 12; Layout.preferredWidth: 120 }
-                        StyledCombo {
-                            id: updateChannelBox
-                            Layout.fillWidth: true
-                            model: [qsTr("Stable"), qsTr("Testing (branch builds)")]
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-                        StyledButton {
-                            text: qsTr("Check now")
-                            enabled: app.updateState !== "checking"
-                                     && app.updateState !== "downloading"
-                            onClicked: dialog.checkUpdatesNow()
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
-                            text: app.updateMessage
-                            color: app.updateState === "error" ? Theme.error
-                                 : app.updateState === "available" ? Theme.ok
-                                 : Theme.textMuted
-                            font.pixelSize: 11
-                        }
-                    }
-
-                    Text {
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                        color: Theme.textMuted
-                        font.pixelSize: 11
-                        text: qsTr("Releases are read from the GitHub API and the repository has to be "
-                                   + "public. \"Check now\" saves the settings first.")
-                    }
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("Cancel")
+                    minimumWidth: 110
+                    onClicked: dialog.close()
                 }
-
-                GroupTitle { text: qsTr("Advanced") }
-                SettingsGroup {
-                    StyledCheck {
-                        id: advancedBox
-                        Layout.fillWidth: true
-                        labelColor: Theme.warn
-                        text: qsTr("Advanced mode: allows writing to the FTP system areas")
-                    }
-
-                    StyledCheck {
-                        id: debugBox
-                        Layout.fillWidth: true
-                        text: qsTr("Verbose log (debug)")
-                    }
+                StyledButton {
+                    text: qsTr("Save")
+                    minimumWidth: 110
+                    primary: true
+                    onClicked: dialog.save()
                 }
-                Item { Layout.preferredHeight: 8 }
             }
         }
     }

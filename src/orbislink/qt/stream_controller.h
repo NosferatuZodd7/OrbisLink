@@ -103,7 +103,9 @@ public:
 	QString consoleState() const { return consoleState_; }
 	bool searching() const { return searching_; }
 	QString consoleName() const { return consoleName_; }
-	bool consolePs5() const { return host_.ps5; }
+	// What discovery said; while the console has not answered, what the
+	// saved console says it is (a console never seen counts as a PS4).
+	bool consolePs5() const { return host_.found ? host_.ps5 : expectedPs5(); }
 	QString hostId() const { return QString::fromStdString(host_.id); }
 	QVariantList registrations() const;
 	QString runningApp() const { return runningApp_; }
@@ -232,6 +234,9 @@ signals:
 	// The console accepted this PC: the registration dialog closes and the
 	// window goes back to the console's card.
 	void registrationSucceeded();
+	// Registration told who the console is (its kind and host-id), also
+	// when discovery never got an answer from it.
+	void consoleIdentified(const QString &address, bool ps5, const QString &hostId);
 	void consoleChanged();
 	void registrationChanged();
 	void sessionChanged();
@@ -260,6 +265,8 @@ signals:
 private:
 	void applyHost(const HostInfo &info);
 	void loadCredentials();
+	bool expectedPs5() const;
+	void registerWith(const QString &pin, const QString &accountIdBase64, int target, bool ps5);
 	// The console asked for the account PIN: the account's own saved one
 	// goes once, otherwise the user is asked.
 	void answerLoginPin(bool incorrect);
@@ -333,9 +340,13 @@ private:
 	// Saved accounts: base64 → name and PIN, from the settings.
 	std::map<std::string, std::string> accountNames_;
 	std::map<std::string, std::string> accountPins_;
+	// Each console's own passcode, by address (empty: none of its own).
+	std::map<std::string, std::string> consolePins_;
 	// The host-id each saved console last reported, by address: which
 	// accounts are registered on a console is known before it answers.
 	std::map<std::string, std::string> consoleHostIds_;
+	// "ps4" / "ps5" for each saved console (empty: never answered).
+	std::map<std::string, std::string> consoleTypes_;
 	// The saved account's PIN was already sent in this session.
 	bool loginPinSent_ = false;
 	bool searching_ = false;

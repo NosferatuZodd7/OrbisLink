@@ -75,6 +75,7 @@ Last review: v1.1.0.
 |---|---|
 | ✅ | `chiaki-lib` building without changing a line of the submodule |
 | ✅ | Console discovery (987/UDP on the PS4, 9302/UDP on the PS5): state, name, version, running game |
+| 🟡 | A console that does not answer discovery: registration opens all the same (as the kind of console saved) and a registered one is connected to directly; the host-id from registration finds it again. Checked in the code paths, not yet on the PS4 that never answers |
 | 🟡 | The network search: every interface's broadcast address, three rounds, every address of a small private network one by one, and the ports of a jailbroken console (2121, 1337, 12800) for one with Remote Play off; checked against the fake console and in the tests, not yet on the network that missed a real PS4 |
 | ✅ | Several consoles: each in its own box on the stage, with its state; "Add console" scans the network or takes an IP |
 | ✅ | One click connects: checks the console, wakes it if in rest mode, waits until it is ready and connects — or opens the registration |
@@ -104,6 +105,8 @@ Last review: v1.1.0.
 | | |
 |---|---|
 | ✅ | Single window: stream in the middle, queue and FTP in the side panel |
+| 🟡 | The Liquid Glass look: Graphite (dark), Ambient (glass) and Daylight (light) appearances — frosted panes over a soft, warm, out-of-focus room, champagne for what is chosen, a cool accent for what is active; Figtree throughout, technical values in JetBrains Mono; the window as floating panes (navigation with the orb as the way home, toolbar with the console selector, the page, the transfers) and every page, card and dialog redrawn in it; the new orb as the app icon. Checked with the fake consoles in both appearances; not yet on Windows at other DPI scales |
+| ✅ | About OrbisLink (Settings, under Update check): emblem, version, channel, licence, the team's mark (by theme) and Claude, and the work it stands on |
 | ✅ | Buttons, fields and tabs in the app's style instead of Qt's grey |
 | ✅ | Service indicators (Remote Play, FTP, installer) with the reason when they are down; on a PS5 without a jailbreak they are grey and say what is needed |
 | ✅ | Automatic check of the IP address while typing |
@@ -118,6 +121,8 @@ Last review: v1.1.0.
 | 🟡 | Real blur of what is behind (needs QtQuick.Effects, Qt 6.5+; built here with 6.4, so the effect is layered) |
 | ✅ | The title bar asks Windows for its own translucent material (acrylic in the "glass" theme, mica in the others) and, where there is none, the theme colour or the dark bar. The diagnostics say which one was used |
 | 🟡 | Whole window translucent with the system material behind the content — means painting the window transparent, which can come out black with software rendering |
+| ✅ | A picture of one's own behind the glass (a blurred copy kept in the data folder, blur 0–100%), with the colours taken from it or the theme's own |
+| ✅ | Water light: two sheets of a caustic pattern drifting slowly behind the glass; rests during Remote Play and with the window in the background |
 | ✅ | First-run wizard (3 steps, with a live console check); can be reopened from the settings |
 | ✅ | System notifications when a long job ends with the window in the background: Windows (`Shell_NotifyIconW`), Linux (org.freedesktop.Notifications over D-Bus), macOS (osascript); elsewhere the window flashes |
 | ✅ | Live log window (Ctrl+L), with a filter and Remote Play detail |

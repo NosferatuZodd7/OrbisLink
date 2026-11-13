@@ -88,6 +88,16 @@ if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET Qt6::Sql)
 	add_test(NAME test_save_database COMMAND test_save_database)
 endif()
 
+# A picture of one's own behind the glass: its colours and its blur.
+if(ORBISLINK_BUILD_GUI AND Qt6_FOUND)
+	add_executable(test_backdrop
+		test_backdrop.cpp
+		${CMAKE_SOURCE_DIR}/src/orbislink/qt/backdrop.cpp)
+	target_link_libraries(test_backdrop PRIVATE orbislink_core Qt6::Core Qt6::Gui)
+	target_include_directories(test_backdrop PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+	add_test(NAME test_backdrop COMMAND test_backdrop)
+endif()
+
 # Keyboard as controller: the key swap rules live on the Qt side
 # (the codes are Qt::Key) and use chiaki's buttons.
 if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET orbislink_stream)

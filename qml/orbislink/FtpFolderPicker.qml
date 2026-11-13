@@ -169,13 +169,24 @@ Dialog {
 
     Overlay.modal: Rectangle { color: Theme.scrim }
 
-    background: Rectangle {
-        color: Theme.dialogFill
-        border.color: Theme.border
+    // A sheet of glass floating over the window, lit along its upper edge;
+    // it fades in and settles, without bouncing.
+    background: Plate {
+        level: "secondary"
         radius: Theme.radiusDialog
+        color: Theme.dialogFill
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+    }
+    enter: Transition {
+        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+        NumberAnimation { property: "scale"; from: 0.98; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+    }
+    exit: Transition {
+        NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.fast; easing.type: Theme.easeOut }
     }
 
     header: DialogHeader {
+        eyebrow: qsTr("Console files")
         title: qsTr("Move to…")
         dialog: picker
     }
@@ -189,7 +200,7 @@ Dialog {
             Layout.rightMargin: Theme.dialogMargin
             text: qsTr("Where should %1 go?").arg(picker.movingName)
             color: Theme.textSecondary
-            font.pixelSize: 12
+            font.pixelSize: 13
             elide: Text.ElideMiddle
         }
 
@@ -207,12 +218,11 @@ Dialog {
                 Layout.maximumWidth: 170
                 Layout.fillHeight: true
                 spacing: 2
-                Text {
+                Eyebrow {
                     text: qsTr("Quick access")
-                    color: Theme.textMuted
-                    font.pixelSize: 11
-                    font.weight: Font.DemiBold
-                    Layout.bottomMargin: 4
+                    Layout.leftMargin: 4
+                    Layout.topMargin: 4
+                    Layout.bottomMargin: 6
                 }
                 Repeater {
                     model: app.ftpShortcuts
@@ -223,8 +233,8 @@ Dialog {
                         implicitHeight: 32
                         padding: 0
                         background: Rectangle {
-                            radius: 8
-                            color: picker.norm(picker.selected) === parent.target ? Theme.accentFill
+                            radius: height / 2
+                            color: picker.norm(picker.selected) === parent.target ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
                                  : parent.hovered ? Theme.controlFill : "transparent"
                         }
                         contentItem: RowLayout {
@@ -239,7 +249,8 @@ Dialog {
                                 Layout.fillWidth: true
                                 text: modelData
                                 color: Theme.text
-                                font.pixelSize: 12
+                                font.family: Theme.fontMono
+                                font.pixelSize: Theme.fontCaption
                                 elide: Text.ElideRight
                             }
                         }
@@ -252,21 +263,21 @@ Dialog {
             Rectangle {
                 Layout.fillHeight: true
                 implicitWidth: 1
-                color: Theme.glassEdge
+                color: Theme.rule
             }
 
-            // ── the tree
-            Rectangle {
+            // ── the tree, in a well of glass
+            Plate {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                radius: 12
-                color: Theme.controlFill
+                sunken: true
+                radius: Theme.radius
                 clip: true
 
                 ListView {
                     id: tree
                     anchors.fill: parent
-                    anchors.margins: 6
+                    anchors.margins: 8
                     model: rows
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: ScrollBar { }
@@ -289,9 +300,9 @@ Dialog {
                         enabled: !blocked
                         opacity: blocked ? 0.4 : 1.0
                         background: Rectangle {
-                            radius: 8
-                            color: node.current ? Theme.accentFill
-                                 : node.hovered ? Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.05)
+                            radius: 10
+                            color: node.current ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
+                                 : node.hovered ? Theme.controlFill
                                  : "transparent"
                             border.width: node.current ? 1 : 0
                             border.color: Theme.alpha(Theme.accent, 0.6)
@@ -333,8 +344,8 @@ Dialog {
                             Text {
                                 Layout.fillWidth: true
                                 text: node.error.length > 0 ? node.name + "  —  " + node.error : node.name
-                                color: node.error.length > 0 ? Theme.error : Theme.text
-                                font.pixelSize: 12
+                                color: node.error.length > 0 ? Theme.error : node.current ? Theme.ink : Theme.text
+                                font.pixelSize: Theme.fontSmall + 1
                                 font.weight: node.current ? Font.DemiBold : Font.Normal
                                 elide: Text.ElideRight
                             }
@@ -346,21 +357,26 @@ Dialog {
             }
         }
 
-        // ── where it goes
+        // ── where it goes: the path in mono, under its label
         RowLayout {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.dialogMargin
             Layout.rightMargin: Theme.dialogMargin
             spacing: 10
-            Icon { name: "folder-open"; size: 16; color: Theme.textSecondary }
+            Eyebrow {
+                text: qsTr("Destination")
+                color: Theme.textSecondary
+            }
+            Icon { name: "folder-open"; size: 15; color: picker.canMove ? Theme.accent : Theme.warn }
             Text {
                 Layout.fillWidth: true
                 text: picker.canMove ? picker.selected
                     : picker.excluded(picker.norm(picker.selected))
                       ? qsTr("%1 — a folder cannot go inside itself").arg(picker.selected)
                       : qsTr("%1 — it is already here").arg(picker.selected)
-                color: picker.canMove ? Theme.text : Theme.warn
-                font.pixelSize: 12
+                color: picker.canMove ? Theme.ink : (Theme.light ? Qt.darker(Theme.warn, 1.3) : Theme.warn)
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSmall
                 elide: Text.ElideMiddle
             }
         }
@@ -414,10 +430,11 @@ Dialog {
         width: 320
         padding: 14
         modal: false
-        background: Rectangle {
+        background: Plate {
+            level: "secondary"
+            radius: 16
             color: Theme.menuFill
-            border.color: Theme.glassEdge
-            radius: 14
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
         }
         function create() {
             var name = newFolderName.text.trim()
@@ -430,7 +447,7 @@ Dialog {
             Text {
                 text: qsTr("New folder in %1").arg(picker.norm(picker.selected))
                 color: Theme.textSecondary
-                font.pixelSize: 11
+                font.pixelSize: Theme.fontCaption
                 elide: Text.ElideMiddle
                 Layout.fillWidth: true
             }

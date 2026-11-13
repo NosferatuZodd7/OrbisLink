@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 cmake_minimum_required(VERSION 3.16)
-project(OrbisLink VERSION 1.3.0 LANGUAGES C CXX)
+project(OrbisLink VERSION 1.4.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -210,6 +210,7 @@ if(ORBISLINK_BUILD_GUI)
 		qt_add_executable(orbislink-gui
 			src/orbislink/qt/main.cpp
 			src/orbislink/qt/app_controller.cpp
+			src/orbislink/qt/backdrop.cpp
 			src/orbislink/qt/cheats_controller.cpp
 			src/orbislink/qt/cover_provider.cpp
 			src/orbislink/qt/games_controller.cpp
@@ -234,7 +235,8 @@ if(ORBISLINK_BUILD_GUI)
 			$<$<BOOL:${ORBISLINK_ENABLE_STREAM}>:${CMAKE_CURRENT_SOURCE_DIR}/src/orbislink/qt/video_bridge.cpp>
 			qml/orbislink/orbislink.qrc
 			src/icons/icons.qrc
-			third-party/inter/fonts.qrc
+			third-party/figtree/fonts.qrc
+			third-party/jetbrains-mono/fonts.qrc
 			translations/translations.qrc
 			$<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/src/icons/orbislink.rc>
 		)

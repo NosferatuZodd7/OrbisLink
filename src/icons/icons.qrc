@@ -3,5 +3,14 @@
     <qresource prefix="/icons">
         <file alias="logo.png">logoorbis.png</file>
         <file alias="mark.png">orbisDDM.png</file>
+        <!-- The emblem's orb, large, for the empty pages and About. -->
+        <file>planet.png</file>
+        <!-- The team's mark: dark ink for the light appearance, ivory for the dark. -->
+        <file>team-ink.png</file>
+        <file>team-ivory.png</file>
+        <!-- The room the glass floats in, painted out of focus (scripts/make-room.py). -->
+        <file>caustics.png</file>
+        <file>room-dark.jpg</file>
+        <file>room-light.jpg</file>
     </qresource>
 </RCC>

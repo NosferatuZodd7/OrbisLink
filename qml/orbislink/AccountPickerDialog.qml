@@ -25,10 +25,20 @@ Dialog {
 
     Overlay.modal: Rectangle { color: Theme.scrim }
 
-    background: Rectangle {
-        color: Theme.dialogFill
-        border.color: Theme.border
+    // A sheet of glass floating over the window, lit along its upper edge;
+    // it fades in and settles, without bouncing.
+    background: Plate {
+        level: "secondary"
         radius: Theme.radiusDialog
+        color: Theme.dialogFill
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+    }
+    enter: Transition {
+        NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+        NumberAnimation { property: "scale"; from: 0.98; to: 1; duration: Theme.normal; easing.type: Theme.easeOut }
+    }
+    exit: Transition {
+        NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Theme.fast; easing.type: Theme.easeOut }
     }
 
     // The account offered first: the one this console used last, else the
@@ -53,6 +63,7 @@ Dialog {
     }
 
     header: DialogHeader {
+        eyebrow: qsTr("Remote Play")
         title: qsTr("Which account?")
         dialog: dialog
     }
@@ -111,11 +122,16 @@ Dialog {
                 Layout.fillWidth: true
                 Layout.leftMargin: Theme.dialogMargin
                 Layout.rightMargin: Theme.dialogMargin
-                implicitHeight: 58
-                radius: 12
-                color: picked ? Theme.accentFill : rowArea.containsMouse ? Theme.controlHover : Theme.panelAltFill
+                // A glass row per account: faint glass, brighter under the
+                // mouse, and a bright glass pill with an accent edge when picked.
+                implicitHeight: 60
+                radius: Theme.radius
+                color: picked ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
+                     : rowArea.containsMouse ? Theme.controlHover
+                     : (Theme.light ? Qt.rgba(1, 1, 1, 0.40) : Qt.rgba(1, 1, 1, 0.04))
                 border.width: 1
-                border.color: picked ? Theme.alpha(Theme.accent, 0.6) : Theme.border
+                border.color: picked ? Theme.alpha(Theme.accent, 0.65)
+                            : Theme.light ? Qt.rgba(1, 1, 1, 0.9) : Theme.glassEdge
                 Behavior on color { ColorAnimation { duration: Theme.fast } }
 
                 MouseArea {
@@ -123,6 +139,8 @@ Dialog {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
+                    Accessible.role: Accessible.RadioButton
+                    Accessible.name: row.modelData.label
                     onClicked: dialog.selected = row.modelData.accountId
                     onDoubleClicked: {
                         dialog.selected = row.modelData.accountId
@@ -143,7 +161,7 @@ Dialog {
                         radius: 9
                         color: "transparent"
                         border.width: 2
-                        border.color: row.picked ? Theme.accent : Theme.textMuted
+                        border.color: row.picked ? Theme.accent : Theme.alpha(Theme.ink, 0.3)
                         Rectangle {
                             anchors.centerIn: parent
                             width: 8
@@ -159,37 +177,38 @@ Dialog {
                         Text {
                             Layout.fillWidth: true
                             text: row.modelData.label
-                            color: Theme.text
-                            font.pixelSize: 13
-                            font.weight: Font.DemiBold
+                            color: Theme.ink
+                            font.family: Theme.fontDisplay
+                            font.pixelSize: 15
+                            font.weight: Font.Bold
                             elide: Text.ElideRight
                         }
-                        Text {
+                        Row {
                             Layout.fillWidth: true
-                            text: dialog.shown(row.modelData.accountId) + "  ·  "
-                                  + (row.modelData.remotePlayPin.length > 0 ? qsTr("PIN saved")
-                                                                            : qsTr("no PIN saved"))
-                            color: Theme.textMuted
-                            font.pixelSize: 11
-                            elide: Text.ElideRight
+                            spacing: 0
+                            Text {
+                                id: idText
+                                width: Math.min(implicitWidth, parent.width - pinText.implicitWidth)
+                                text: dialog.shown(row.modelData.accountId)
+                                color: Theme.textSecondary
+                                font.family: Theme.fontMono
+                                font.pixelSize: 11
+                                elide: Text.ElideRight
+                            }
+                            Text {
+                                id: pinText
+                                text: "  ·  " + (row.modelData.remotePlayPin.length > 0 ? qsTr("PIN saved")
+                                                                                      : qsTr("no PIN saved"))
+                                color: Theme.textSecondary
+                                font.pixelSize: 11
+                            }
                         }
                     }
                     // Registered here, or registration comes first.
-                    Rectangle {
-                        implicitHeight: 22
-                        implicitWidth: stateText.implicitWidth + 16
-                        radius: 11
-                        color: Theme.alpha(row.registeredHere ? Theme.ok : Theme.warn, 0.14)
-                        border.width: 1
-                        border.color: Theme.alpha(row.registeredHere ? Theme.ok : Theme.warn, 0.4)
-                        Text {
-                            id: stateText
-                            anchors.centerIn: parent
-                            text: row.registeredHere ? qsTr("Registered here") : qsTr("Needs registering")
-                            color: row.registeredHere ? Theme.ok : Theme.warn
-                            font.pixelSize: 11
-                            font.weight: Font.Medium
-                        }
+                    Tag {
+                        text: row.registeredHere ? qsTr("Registered here") : qsTr("Needs registering")
+                        tone: row.registeredHere ? "ok" : "warn"
+                        iconName: row.registeredHere ? "check" : "link"
                     }
                 }
             }
@@ -201,7 +220,7 @@ Dialog {
             Layout.rightMargin: Theme.dialogMargin
             Layout.bottomMargin: Theme.dialogInner
             wrapMode: Text.WordWrap
-            color: Theme.textMuted
+            color: Theme.textSecondary
             font.pixelSize: 11
             text: qsTr("An account not registered on this console yet is registered first, with the "
                        + "PIN the console shows in Remote Play Connection Settings → Add Device.")

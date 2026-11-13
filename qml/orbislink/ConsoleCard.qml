@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// A saved console, in a card you click.
+// A saved console, as a card of glass you click.
 //
-// Two ways in, one button each at the bottom:
+// Two ways in, one button each at the foot of the plate:
 //
 // * Remote Play: the app asks the console how it is, wakes it if it is in
 //   rest mode, waits for it to be ready and connects — or opens registration,
@@ -10,10 +10,16 @@
 //   button cancels. FTP and the installer work alongside.
 // * FTP: only the file browser, as an alternative to FileZilla.
 //
-// A click anywhere else on the card starts the console's preferred one
+// A click anywhere else on the plate starts the console's preferred one
 // (chosen when adding or editing it). On another console (not the one in
 // use), either makes it the console in use first; the ✕ in its corner
 // removes it from the list.
+//
+// The console in use is a brighter pane with a ring of glass around it and
+// the champagne edge (the page's one ornate thing): it is what the rest of
+// the page is about. The others are barely-there glass that brightens under
+// the mouse. A console with a jailbreak carries a faint warm wash at its foot
+// and the bronze tag, so it is told apart at a glance.
 import QtQuick
 import QtQuick.Controls.Basic
 
@@ -47,8 +53,8 @@ Item {
     readonly property bool prefersFtp: startMode === "ftp" && ftpAvailable
     // Which homebrew enabler it runs ("GoldHEN", "etaHEN", "HEN"), once known.
     property string jailbreak: ""
-    // The card's colour: gold when the console has a jailbreak (its FTP
-    // answers), blue otherwise.
+    // The card's colour: bronze when the console has a jailbreak (its FTP
+    // answers), the accent otherwise.
     readonly property color tone: ftpAvailable ? Theme.hen : Theme.accent
 
     // The saved accounts ([{ label, accountId }]), the one Remote Play uses
@@ -129,11 +135,14 @@ Item {
         return "ready"
     }
 
-    readonly property color statusColor: mood === "ready" || mood === "unregistered" ? Theme.accent
-                                       : mood === "busy" ? Theme.accent
+    readonly property color statusColor: mood === "ready" ? Theme.ok
+                                       : mood === "unregistered" || mood === "busy" ? Theme.accent
                                        : mood === "standby" ? Theme.warn
                                        : mood === "offline" || mood === "remove" ? Theme.error
                                        : Theme.textSecondary
+    // As text: on Daylight the tones need a darker shade to be read.
+    readonly property color statusInk: Theme.light ? Qt.darker(statusColor, 1.35)
+                                                   : Qt.lighter(statusColor, 1.2)
 
     readonly property string stateIcon: mood === "ready" ? "play"
                                       : mood === "busy" ? "loader"
@@ -178,48 +187,33 @@ Item {
         }
     }
 
-    // A square, like every card.
-    implicitWidth: 256
-    implicitHeight: 256
+    // The page sets the width (its grid reflows with the window); this is
+    // the plate's natural size.
+    implicitWidth: 280
+    implicitHeight: 240
 
     readonly property bool hover: area.containsMouse && actionName.length > 0 && actionName !== "cancel"
                                   && !clickLocked
 
     opacity: !available || (status === "offline" && !area.containsMouse) ? 0.85 : 1.0
-    Behavior on opacity { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
+    Behavior on opacity { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
 
-    // With the mouse over it, it lifts; when pressed, it sinks a little.
-    scale: area.pressed && hover ? Theme.pressScale : 1.0
-    Behavior on scale { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
+    // With the mouse over it, it lifts a little; when pressed, it sinks.
+    scale: area.pressed && hover ? 0.99 : 1.0
+    Behavior on scale { NumberAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
     transform: Translate {
-        y: card.hover && !area.pressed ? -5 : 0
-        Behavior on y { NumberAnimation { duration: Theme.cardEase; easing.type: Easing.OutCubic } }
-    }
-
-    // ── A soft glow in the accent around the console in use; a faint
-    // shadow under the others.
-    Repeater {
-        model: 3
-        Rectangle {
-            anchors.fill: body
-            anchors.margins: -(index + 1) * 3
-            radius: body.radius + (index + 1) * 3
-            color: "transparent"
-            border.width: 3
-            border.color: card.current && card.available
-                ? Theme.alpha(card.tone, (Theme.light ? 0.10 : 0.14) - index * 0.04)
-                : Qt.rgba(0, 0, 0, Theme.light ? 0.025 - index * 0.008 : 0.10 - index * 0.03)
-        }
+        y: card.hover && !area.pressed ? -3 : 0
+        Behavior on y { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
     }
 
     // ── The spotlight: an accent ring that breathes a few times.
     Rectangle {
         id: spotlightRing
-        anchors.fill: body
-        anchors.margins: -8
-        radius: body.radius + 8
+        anchors.fill: plate
+        anchors.margins: -7
+        radius: plate.radius + 7
         color: "transparent"
-        border.width: 3
+        border.width: 2
         border.color: Theme.accent
         opacity: 0
         SequentialAnimation {
@@ -237,37 +231,53 @@ Item {
         }
     }
 
+    // A soft shadow that only appears as the card lifts under the mouse
+    // (glass inside a pane does not float until it is touched).
     Rectangle {
-        id: body
-        anchors.fill: parent
-        radius: Theme.radius
-        border.width: card.current && card.available ? 2 : 1
-        border.color: card.current && card.available ? card.tone
-                    : card.hover ? Theme.alpha(card.tone, 0.6)
-                    : card.ftpAvailable ? Theme.alpha(Theme.hen, 0.55)
-                    : Theme.cardEdge
-        Behavior on border.color { ColorAnimation { duration: Theme.cardEase } }
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: Theme.cardTop }
-            GradientStop {
-                position: 1.0
-                color: card.ftpAvailable
-                       ? (card.current ? Theme.cardHenActiveBottom : Theme.cardHenBottom)
-                       : (card.current && card.available ? Theme.cardActiveBottom : Theme.cardBottom)
-            }
-        }
+        anchors.fill: plate
+        anchors.topMargin: 10
+        anchors.bottomMargin: -10
+        anchors.leftMargin: 8
+        anchors.rightMargin: 8
+        radius: plate.radius + 4
+        color: Qt.rgba(0, 0, 0, Theme.light ? 0.07 : 0.24)
+        opacity: card.hover || card.lead ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
+    }
 
-        // A faint light along the top edge.
+    // The console in use: a ring of brighter glass a few pixels out, as if
+    // the card sat in a lit setting.
+    readonly property bool lead: card.current && card.available
+    Rectangle {
+        visible: card.lead
+        anchors.fill: plate
+        anchors.margins: -5
+        radius: plate.radius + 5
+        color: Theme.light ? Qt.rgba(1, 1, 1, 0.32) : Qt.rgba(1, 1, 1, 0.035)
+        border.width: 1
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Qt.rgba(1, 1, 1, 0.16)
+    }
+
+    Plate {
+        id: plate
+        anchors.fill: parent
+        hoverable: true
+        ornate: card.lead
+        // Brighter glass for the console in use; the others barely there,
+        // a touch brighter under the mouse.
+        color: card.lead ? (Theme.light ? Qt.rgba(1, 1, 1, 0.74) : Qt.rgba(1, 1, 1, 0.10))
+             : card.hover ? (Theme.light ? Qt.rgba(1, 1, 1, 0.66) : Qt.rgba(1, 1, 1, 0.085))
+             : (Theme.light ? Qt.rgba(1, 1, 1, 0.48) : Qt.rgba(1, 1, 1, 0.055))
+
+        // A faint warm wash rising from the foot: this console has a jailbreak.
         Rectangle {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: parent.border.width
-            height: 70
-            radius: parent.radius
+            visible: card.ftpAvailable
+            anchors.fill: parent
+            anchors.margins: 1
+            radius: Math.max(0, parent.radius - 1)
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.0 : 0.05) }
-                GradientStop { position: 1.0; color: "transparent" }
+                GradientStop { position: 0.45; color: Theme.alpha(Theme.hen, 0) }
+                GradientStop { position: 1.0; color: Theme.alpha(Theme.hen, Theme.light ? 0.12 : 0.09) }
             }
         }
     }
@@ -280,130 +290,51 @@ Item {
                      ? Qt.PointingHandCursor : Qt.ArrowCursor
         // The card itself only starts things; cancelling is the button's.
         onClicked: if (card.actionName !== "cancel") card.runAction(card.actionName)
+        Accessible.role: Accessible.Button
+        Accessible.name: (card.name.length > 0 ? card.name : qsTr("Console")) + " — " + card.statusText
     }
 
-    // ── Top: the state dot and the badge on the left; on the right the
-    // registration (on the console in use) or the ✕ (on the others).
-    Row {
-        x: 20
-        y: 20
-        height: 28
-        spacing: 10
+    readonly property int pad: 20
 
-        Rectangle {
-            anchors.verticalCenter: parent.verticalCenter
-            width: 10; height: 10; radius: 5
-            color: card.statusColor
-            Rectangle {
-                anchors.centerIn: parent
-                width: 18; height: 18; radius: 9
-                color: "transparent"
-                border.width: 4
-                border.color: Theme.alpha(card.statusColor, 0.22)
-            }
-            SequentialAnimation on opacity {
-                running: card.checking
-                loops: Animation.Infinite
-                onStopped: parent.opacity = 1
-                NumberAnimation { to: 0.3; duration: 550 }
-                NumberAnimation { to: 1.0; duration: 550 }
-            }
-        }
-
-        // "In use" on the console in use, "Registered" on the others that are.
-        Rectangle {
-            readonly property bool inUse: card.current && card.available
-            visible: inUse || card.registered
-            anchors.verticalCenter: parent.verticalCenter
-            height: 24
-            width: badge.implicitWidth + 20
-            radius: 12
-            color: inUse ? Theme.alpha(Theme.ok, 0.14) : Theme.controlFill
-            border.width: 1
-            border.color: inUse ? Theme.alpha(Theme.ok, 0.30) : Theme.glassEdge
-            Row {
-                id: badge
-                anchors.centerIn: parent
-                spacing: 6
-                Rectangle {
-                    visible: parent.parent.inUse
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 6; height: 6; radius: 3
-                    color: Theme.ok
-                }
-                Icon {
-                    visible: !parent.parent.inUse
-                    anchors.verticalCenter: parent.verticalCenter
-                    name: "link"
-                    size: 12
-                    color: Theme.textSecondary
-                }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: parent.parent.inUse ? qsTr("In use") : qsTr("Registered")
-                    color: parent.parent.inUse ? Theme.ok : Theme.textSecondary
-                    font.pixelSize: 11
-                    font.weight: Font.Medium
-                }
-            }
-        }
-
-        // The jailbreak, in solid gold: the first thing the eye finds.
-        Rectangle {
-            visible: card.ftpAvailable
-            anchors.verticalCenter: parent.verticalCenter
-            height: 24
-            width: henRow.implicitWidth + 18
-            radius: 12
-            color: Theme.henFill
-            Row {
-                id: henRow
-                anchors.centerIn: parent
-                spacing: 5
-                Icon {
-                    anchors.verticalCenter: parent.verticalCenter
-                    name: "unlock"
-                    size: 12
-                    strokeWidth: 2.2
-                    color: Theme.textOnHen
-                }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: card.jailbreak.length > 0 ? card.jailbreak : "HEN"
-                    color: Theme.textOnHen
-                    font.pixelSize: 11
-                    font.weight: Font.Bold
-                }
-            }
-            HoverHandler { id: henHover }
-            ToolTip.visible: henHover.hovered
-            ToolTip.text: qsTr("This console has a jailbreak: its FTP server answers, so files and "
-                               + "packages can be sent to it.")
-        }
+    // ── Head: PS4/PS5 large and bold; on the right the account (on the
+    // console in use) and the registration button, or the ✕ on the others.
+    Text {
+        id: kindLabel
+        x: card.pad
+        y: 16
+        text: card.known ? card.kind.toUpperCase() : qsTr("Console")
+        color: Theme.ink
+        font.family: Theme.fontDisplay
+        font.pixelSize: card.known ? 34 : 26
+        font.weight: Font.Bold
+        font.letterSpacing: -0.6
     }
 
     StyledToolButton {
-        x: parent.width - width - 12
-        y: 14
+        id: cornerButton
+        x: parent.width - width - 14
+        y: 16
         width: 32
         height: 32
         visible: card.available && card.current
         iconName: "link"
         iconSize: 16
+        Accessible.name: ToolTip.text
         ToolTip.visible: hovered
         ToolTip.text: card.registered ? qsTr("Register this PC again")
                                       : qsTr("Register this PC on the console")
         onClicked: card.edit()
     }
     StyledToolButton {
-        x: parent.width - width - 12
-        y: 14
+        x: parent.width - width - 14
+        y: 16
         width: 32
         height: 32
         visible: !card.current
         danger: card.confirmRemoval
         iconName: "close"
         iconSize: 16
+        Accessible.name: ToolTip.text
         ToolTip.visible: hovered
         ToolTip.text: qsTr("Remove this console from the list")
         onClicked: {
@@ -414,66 +345,31 @@ Item {
         }
     }
 
-    // ── Middle: PS4/PS5 in large type, the name and the IP.
-    Column {
-        id: kindColumn
-        x: 22
-        y: 56
-        width: parent.width - 44
-        spacing: 6
-
-        Text {
-            id: kindLabel
-            text: card.known ? card.kind.toUpperCase() : qsTr("Console")
-            color: Theme.cardText
-            font.pixelSize: card.known ? 38 : 28
-            font.weight: Font.Bold
-            font.letterSpacing: -0.5
-        }
-        Item { width: 1; height: 2 }
-        Text {
-            width: parent.width
-            elide: Text.ElideRight
-            text: card.name.length > 0 ? card.name : qsTr("Console")
-            color: Theme.cardText
-            font.pixelSize: Theme.fontCardTitle
-            font.weight: Font.DemiBold
-        }
-        Text {
-            visible: card.address.length > 0
-            text: card.address
-            color: Theme.cardTextMuted
-            font.pixelSize: 13
-        }
-    }
-
-    // The account Remote Play goes in with, on the console in use: top
-    // right, level with PS4/PS5, under the registration button. A click
-    // opens the list.
+    // The account Remote Play goes in with, on the console in use: level
+    // with PS4/PS5, beside the registration button. A click opens the list.
     Rectangle {
         id: accountChip
-        anchors.right: parent.right
-        anchors.rightMargin: 16
-        y: kindColumn.y + (kindLabel.height - height) / 2
+        anchors.right: cornerButton.left
+        anchors.rightMargin: 6
+        anchors.verticalCenter: cornerButton.verticalCenter
         visible: card.showsAccount
-        height: 24
+        height: 26
         // Measured apart: the label's width must not depend on the
         // chip's, which depends on the label.
-        readonly property real chrome: 9 + 12 + 10 + 2 * accountRow.spacing + 9
-        width: Math.min(chrome + Math.ceil(labelMetrics.advanceWidth),
-                        parent.width - kindColumn.x - kindLabel.implicitWidth - 12 - anchors.rightMargin)
-        radius: 12
-        color: chipArea.containsMouse || accountMenu.visible ? Theme.alpha(card.tone, 0.16)
-                                                             : Theme.controlFill
+        readonly property real chrome: 10 + 12 + 10 + 2 * accountRow.spacing + 10
+        width: Math.max(0, Math.min(chrome + Math.ceil(labelMetrics.advanceWidth),
+                                    cornerButton.x - 6 - kindLabel.x - kindLabel.implicitWidth - 12))
+        radius: height / 2
+        color: chipArea.containsMouse || accountMenu.visible ? Theme.controlHover : Theme.controlFill
         border.width: 1
-        border.color: chipArea.containsMouse || accountMenu.visible ? Theme.alpha(card.tone, 0.45)
-                                                                    : Theme.glassEdge
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, chipArea.containsMouse || accountMenu.visible ? 1 : 0.85)
+                    : Qt.rgba(1, 1, 1, Theme.glassBorder + (chipArea.containsMouse || accountMenu.visible ? 0.14 : 0.02))
         Behavior on color { ColorAnimation { duration: Theme.fast } }
 
         Row {
             id: accountRow
             anchors.verticalCenter: parent.verticalCenter
-            x: 9
+            x: 10
             spacing: 5
             Icon {
                 anchors.verticalCenter: parent.verticalCenter
@@ -483,10 +379,10 @@ Item {
             }
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                width: accountChip.width - accountChip.chrome
+                width: Math.max(0, accountChip.width - accountChip.chrome)
                 elide: Text.ElideRight
                 text: card.accountLabel
-                color: Theme.cardText
+                color: Theme.text
                 font.pixelSize: 11
                 font.weight: Font.Medium
             }
@@ -511,6 +407,8 @@ Item {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: accountMenu.popup(accountChip, 0, accountChip.height + 4)
+            Accessible.role: Accessible.ButtonMenu
+            Accessible.name: card.accountLabel
         }
         ToolTip.visible: chipArea.containsMouse && !accountMenu.visible
         ToolTip.text: qsTr("The account (PSID) Remote Play uses on this console")
@@ -522,9 +420,9 @@ Item {
             background: Rectangle {
                 implicitWidth: 280
                 color: Theme.menuFill
-                border.color: Theme.glassEdge
+                border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
                 border.width: 1
-                radius: 14
+                radius: 16
             }
 
             Instantiator {
@@ -545,7 +443,7 @@ Item {
                 padding: 6
                 leftPadding: 16
                 rightPadding: 16
-                contentItem: Rectangle { implicitHeight: 1; color: Theme.glassEdge }
+                contentItem: Rectangle { implicitHeight: 1; color: Theme.rule }
             }
             StyledMenuItem {
                 iconName: "users"
@@ -555,30 +453,105 @@ Item {
         }
     }
 
-    // ── Bottom: the state in one line, and the two ways in.
+    // ── The name in bold, the address in mono, then the tags.
+    Column {
+        id: identity
+        x: card.pad
+        y: kindLabel.y + kindLabel.height - 2
+        width: parent.width - 2 * card.pad
+        spacing: 2
+
+        Text {
+            width: parent.width
+            elide: Text.ElideRight
+            text: card.name.length > 0 ? card.name : qsTr("Console")
+            color: Theme.ink
+            font.pixelSize: Theme.fontCardTitle
+            font.family: Theme.fontDisplay
+            font.weight: Font.DemiBold
+        }
+        Text {
+            visible: card.address.length > 0
+            text: card.address
+            color: Theme.textSecondary
+            font.pixelSize: 12
+            font.family: Theme.fontMono
+        }
+    }
+
+    Flow {
+        id: tags
+        x: card.pad
+        y: identity.y + identity.height + 10
+        width: parent.width - 2 * card.pad
+        spacing: 6
+
+        Tag {
+            visible: card.current && card.available
+            text: qsTr("In use")
+            tone: "ok"
+            iconName: "check"
+        }
+        // The jailbreak, in solid bronze: the first fact the eye finds.
+        Tag {
+            visible: card.ftpAvailable
+            text: card.jailbreak.length > 0 ? card.jailbreak : "HEN"
+            tone: "brass"
+            solid: true
+            iconName: "unlock"
+            HoverHandler { id: henHover }
+            ToolTip.visible: henHover.hovered
+            ToolTip.text: qsTr("This console has a jailbreak: its FTP server answers, so files and "
+                               + "packages can be sent to it.")
+        }
+        Tag {
+            visible: card.registered
+            text: qsTr("Registered")
+            iconName: "link"
+        }
+    }
+
+    // ── Foot: a fading hairline, the state in one line, and the two ways in.
+    EngravedRule {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: stateLine.top
+        anchors.leftMargin: card.pad - 6
+        anchors.rightMargin: card.pad - 6
+        anchors.bottomMargin: 5
+    }
+
     Row {
         id: stateLine
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: buttons.top
-        anchors.leftMargin: 20
-        anchors.rightMargin: 16
-        anchors.bottomMargin: 12
+        anchors.leftMargin: card.pad
+        anchors.rightMargin: card.pad
+        anchors.bottomMargin: 14
         spacing: 8
+        // The state's sign, pulsing while the console is being asked.
         Icon {
             id: stateGlyph
             anchors.verticalCenter: parent.verticalCenter
             name: card.stateIcon
-            size: 15
+            size: 14
             spinning: card.mood === "busy"
-            color: Theme.light ? card.statusColor : Qt.lighter(card.statusColor, 1.25)
+            color: card.statusInk
+            SequentialAnimation on opacity {
+                running: card.checking && card.mood !== "busy"
+                loops: Animation.Infinite
+                onStopped: stateGlyph.opacity = 1
+                NumberAnimation { to: 0.35; duration: 550 }
+                NumberAnimation { to: 1.0; duration: 550 }
+            }
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width - stateGlyph.width - parent.spacing
             elide: Text.ElideRight
             text: card.statusText
-            color: Theme.light ? Qt.darker(card.statusColor, 1.2) : Qt.lighter(card.statusColor, 1.35)
+            color: card.statusInk
             font.pixelSize: 12
             font.weight: Font.DemiBold
         }
@@ -589,9 +562,13 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.margins: 16
+        anchors.leftMargin: card.pad - 4
+        anchors.rightMargin: card.pad - 4
+        anchors.bottomMargin: 18
         spacing: 8
         readonly property real half: (width - spacing) / 2
+        // Room enough for an icon beside the words.
+        readonly property bool roomy: !card.ftpAvailable || half >= 140
 
         // Remote Play: connects (or wakes, or registers); on the console
         // being connected, cancels.
@@ -602,8 +579,7 @@ Item {
             rightPadding: 10
             readonly property bool cancelling: card.current && card.busy
             text: cancelling ? qsTr("Cancel") : qsTr("Remote Play")
-            // Side by side with FTP there is no room for the icon.
-            iconName: card.ftpAvailable ? "" : cancelling ? "loader" : "play"
+            iconName: !buttons.roomy ? "" : cancelling ? "loader" : "play"
             primary: !card.prefersFtp
             enabled: card.available && (cancelling ? card.cancelReady : !card.clickLocked)
             ToolTip.visible: hovered && !card.available
@@ -618,6 +594,7 @@ Item {
             leftPadding: 10
             rightPadding: 10
             text: qsTr("FTP")
+            iconName: buttons.roomy ? "folder-open" : ""
             primary: card.prefersFtp
             enabled: !card.clickLocked
             ToolTip.visible: hovered

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Drag-and-drop overlay: two zones, one per mode, on a glass card over the
-// dimmed window.
+// Drag-and-drop overlay: two zones, one per mode, on an ornate plate over
+// the dimmed window.
 // The stream keeps running underneath — nothing is paused.
 //
 // There is no DropArea here. One DropArea per zone does not work: the
@@ -75,54 +75,50 @@ Item {
     opacity: active ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: 140 } }
 
-    // The whole window dims; the picture keeps going underneath.
+    // The whole window dims a little; the picture keeps going underneath.
     Rectangle {
         anchors.fill: parent
-        color: Qt.rgba(4 / 255, 8 / 255, 14 / 255, 0.78)
+        color: Theme.light ? Qt.rgba(40 / 255, 36 / 255, 30 / 255, 0.30) : Qt.rgba(0, 0, 0, 0.55)
     }
 
-    Rectangle {
+    // The sheet: a card of floating glass that rises into place, holding
+    // the two big glass targets.
+    Plate {
         id: sheet
+        level: "secondary"
         anchors.centerIn: parent
+        anchors.verticalCenterOffset: root.active ? 0 : 8
+        Behavior on anchors.verticalCenterOffset { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
         width: Math.min(parent.width - 80, 760)
         height: Math.min(parent.height - 80, 440)
-        radius: 26
-        color: Qt.rgba(22 / 255, 34 / 255, 54 / 255, 0.92)
-        border.width: 1
-        border.color: Qt.rgba(1, 1, 1, 0.14)
-        scale: root.active ? 1.0 : 0.96
-        Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-
-        Rectangle {
-            anchors.fill: parent
-            radius: parent.radius
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.07) }
-                GradientStop { position: 0.5; color: "transparent" }
-            }
-        }
+        radius: Theme.radiusPane + 6
+        // Nearly opaque: what is under it must not compete with the targets.
+        color: Qt.rgba(Theme.panel.r, Theme.panel.g, Theme.panel.b, Theme.light ? 0.95 : 0.93)
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.08)
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 28
-            spacing: 16
+            anchors.margins: 24
+            anchors.topMargin: 26
+            spacing: 4
 
-            Icon {
+            Eyebrow {
                 Layout.alignment: Qt.AlignHCenter
-                name: "package"
-                size: 40
-                strokeWidth: 1.5
-                color: Theme.onStage
+                text: qsTr("Files to the console")
             }
 
             Text {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
                 text: qsTr("Drop to…")
-                color: Theme.onStage
-                font.pixelSize: 22
-                font.weight: Font.DemiBold
+                color: Theme.ink
+                font.pixelSize: Theme.fontTitle
+                font.family: Theme.fontDisplay
+                font.weight: Font.Bold
+                font.letterSpacing: -0.4
             }
+
+            Item { Layout.preferredHeight: 16 }
 
             RowLayout {
                 Layout.fillWidth: true
@@ -158,11 +154,12 @@ Item {
 
             Text {
                 Layout.fillWidth: true
+                Layout.topMargin: 10
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
                 text: qsTr("Takes several files and folders (it looks for .pkg inside)")
-                color: Theme.onStageMuted
-                font.pixelSize: 12
+                color: Theme.textSecondary
+                font.pixelSize: Theme.fontSmall
             }
         }
     }

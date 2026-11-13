@@ -15,12 +15,13 @@ ShelfTile {
 
     title: info.title || info.name || ""
     subtitle: count < 0 ? "" : qsTr("%n item(s)", "", count)
+    subtitleMono: false
 
     Rectangle {
         anchors.fill: parent
-        radius: 6
+        radius: card.artRadius
         border.width: 1
-        border.color: Theme.cardEdge
+        border.color: "transparent"
         gradient: Gradient {
             GradientStop { position: 0.0; color: Theme.cardTop }
             GradientStop { position: 1.0; color: Theme.cardBottom }
@@ -31,7 +32,7 @@ ShelfTile {
     Grid {
         visible: card.previews.length > 0
         anchors.fill: parent
-        anchors.margins: 8
+        anchors.margins: 10
         columns: 2
         spacing: 6
         readonly property real cell: (width - spacing) / 2
@@ -47,13 +48,15 @@ ShelfTile {
                     visible: parent.index < 3 && parent.index < card.previews.length
                     picture: visible ? (card.previews[parent.index].picture || "") : ""
                     placeholder: visible ? (card.previews[parent.index].placeholder || "bd") : "bd"
-                    radius: 4
+                    radius: 6
                 }
                 Rectangle {
                     anchors.fill: parent
                     visible: parent.index < 3 && parent.index >= card.previews.length
-                    radius: 4
-                    color: Theme.alpha(Theme.text, 0.04)
+                    radius: 6
+                    color: Theme.alpha(Theme.ink, 0.04)
+                    border.width: 1
+                    border.color: Theme.alpha(Theme.ink, 0.06)
                 }
                 Item {
                     anchors.fill: parent
@@ -61,9 +64,9 @@ ShelfTile {
                     Icon {
                         anchors.centerIn: parent
                         name: "folder"
-                        size: parent.width * 0.62
+                        size: parent.width * 0.56
                         strokeWidth: 1.5
-                        color: Theme.alpha(Theme.text, 0.85)
+                        color: Theme.alpha(Theme.ink, 0.8)
                     }
                 }
             }
@@ -74,26 +77,16 @@ ShelfTile {
         anchors.fill: parent
         visible: card.previews.length === 0
         variant: "folder"
+        radius: card.artRadius
     }
 
-    Rectangle {
+    // How many things it holds, in the corner.
+    ShelfTile.CoverTag {
         visible: card.count > 0
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: 6
-        radius: 9
-        color: Theme.alpha(Theme.cardBottom, 0.9)
-        border.width: 1
-        border.color: Theme.cardEdge
-        implicitWidth: Math.max(18, countLabel.implicitWidth + 10)
-        implicitHeight: 18
-        Text {
-            id: countLabel
-            anchors.centerIn: parent
-            text: card.count
-            color: Theme.cardText
-            font.pixelSize: 10
-            font.weight: Font.DemiBold
-        }
+        anchors.margins: 8
+        text: card.count
+        mono: true
     }
 }

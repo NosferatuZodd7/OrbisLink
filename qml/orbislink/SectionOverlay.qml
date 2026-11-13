@@ -41,7 +41,7 @@ FocusScope {
         id: panel
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: bar.bottom
-        anchors.topMargin: 10
+        anchors.topMargin: 8
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 16
         width: Math.min(parent.width - 32, Math.max(Math.min(720, parent.width - 32), parent.width * 0.74))
@@ -49,12 +49,22 @@ FocusScope {
 
         Rectangle {
             anchors.fill: parent
-            radius: Theme.radius
+            radius: Theme.radiusPane
             // Solid: how much of the picture shows through is the slider's alone.
             color: Qt.rgba(Theme.panel.r, Theme.panel.g, Theme.panel.b, 1)
             border.width: 1
-            border.color: Theme.glassEdge
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
             opacity: overlay.shownOpacity
+            // The light on the glass, as on every pane.
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: 1
+                radius: Math.max(0, parent.radius - 1)
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.38 : 0.05) }
+                    GradientStop { position: 0.3; color: Qt.rgba(1, 1, 1, 0) }
+                }
+            }
         }
 
         // Clicks on the panel stay on it (the picture under it is not touched).
@@ -67,24 +77,31 @@ FocusScope {
         Item {
             id: holder
             anchors.fill: parent
+            // The page draws no panel of its own over the picture (margins 0
+            // there): the room around it on this plate is given here.
+            anchors.margins: 20
+            anchors.topMargin: 16
             opacity: overlay.contentOpacity
             // As one picture, so what overlaps inside does not show through itself.
             layer.enabled: opacity < 1
         }
     }
 
-    // The bar: what is open, how see-through, and the way out.
-    Rectangle {
+    // The bar: what is open, how see-through, and the way out — the page's
+    // head, as PageHeader draws it elsewhere: a glass disc with the page's
+    // icon, the champagne eyebrow ("Over Remote Play") and the title in bold,
+    // on a pill of floating glass.
+    Plate {
         id: bar
+        level: "secondary"
         anchors.top: parent.top
         anchors.topMargin: 14
         anchors.horizontalCenter: panel.horizontalCenter
         width: panel.width
-        height: 46
-        radius: 23
+        height: 60
+        radius: height / 2
         color: Theme.menuFill
-        border.width: 1
-        border.color: Theme.alpha(Theme.accent, 0.45)
+        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.06)
         opacity: overlay.barOpacity
 
         MouseArea {
@@ -93,34 +110,49 @@ FocusScope {
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 16
-            anchors.rightMargin: 8
-            spacing: 10
-            Icon {
+            anchors.leftMargin: 12
+            anchors.rightMargin: 14
+            spacing: 12
+
+            // The page's icon on a glass disc.
+            Rectangle {
                 visible: overlay.iconName.length > 0
-                name: overlay.iconName
-                size: 16
-                color: Theme.accent
+                implicitWidth: 38
+                implicitHeight: 38
+                radius: 19
+                color: Theme.controlFill
+                border.width: 1
+                border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.06)
+                Icon {
+                    anchors.centerIn: parent
+                    name: overlay.iconName
+                    size: 17
+                    color: Theme.ink
+                }
             }
-            Text {
+            ColumnLayout {
                 Layout.fillWidth: true
-                text: overlay.title
-                color: Theme.text
-                font.pixelSize: 14
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
-            }
-            Text {
-                text: qsTr("Over Remote Play")
-                color: Theme.textSecondary
-                font.pixelSize: 12
-                visible: bar.width > 620
+                spacing: 0
+                Eyebrow {
+                    Layout.fillWidth: true
+                    text: qsTr("Over Remote Play")
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: overlay.title
+                    color: Theme.ink
+                    font.family: Theme.fontDisplay
+                    font.pixelSize: Theme.fontHeading
+                    font.weight: Font.Bold
+                    font.letterSpacing: -0.2
+                    elide: Text.ElideRight
+                }
             }
             Rectangle {
-                width: 1
-                height: 20
-                color: Theme.glassEdge
-                visible: bar.width > 620
+                implicitWidth: 1
+                implicitHeight: 28
+                color: Theme.rule
+                visible: bar.width > 520
             }
             Icon {
                 name: "contrast"
@@ -136,6 +168,7 @@ FocusScope {
                 value: app.overlayOpacity
                 onMoved: overlay.shownOpacity = value
                 onPressedChanged: if (!pressed) app.setOverlayOpacity(value)
+                Accessible.name: ToolTip.text
                 ToolTip.visible: hovered || pressed
                 ToolTip.text: qsTr("How opaque this page is over the picture")
 
@@ -145,7 +178,7 @@ FocusScope {
                     width: opacitySlider.availableWidth
                     height: 4
                     radius: 2
-                    color: Theme.alpha(Theme.text, 0.18)
+                    color: Theme.light ? Qt.rgba(0, 0, 0, 0.10) : Qt.rgba(1, 1, 1, 0.14)
                     Rectangle {
                         width: opacitySlider.visualPosition * parent.width
                         height: parent.height
@@ -156,12 +189,15 @@ FocusScope {
                 handle: Rectangle {
                     x: opacitySlider.leftPadding + opacitySlider.visualPosition * (opacitySlider.availableWidth - width)
                     y: opacitySlider.topPadding + opacitySlider.availableHeight / 2 - height / 2
-                    width: 16
-                    height: 16
-                    radius: 8
-                    color: "#FFFFFF"
-                    border.width: 2
-                    border.color: Theme.accent
+                    width: 20
+                    height: 20
+                    radius: 10
+                    // A glass bead, white and lit, as the switches' knobs are.
+                    color: "#FBFAF7"
+                    border.width: 1
+                    border.color: Theme.light ? Qt.rgba(0, 0, 0, 0.12) : Qt.rgba(1, 1, 1, 0.6)
+                    scale: opacitySlider.pressed ? 1.08 : 1
+                    Behavior on scale { NumberAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
                 }
                 HoverHandler { cursorShape: Qt.PointingHandCursor }
             }
@@ -174,6 +210,7 @@ FocusScope {
             }
             StyledToolButton {
                 iconName: "close"
+                Accessible.name: ToolTip.text
                 ToolTip.visible: hovered
                 ToolTip.text: qsTr("Close (Esc) — back to the picture")
                 onClicked: overlay.closed()
