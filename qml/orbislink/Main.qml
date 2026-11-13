@@ -566,7 +566,15 @@ ApplicationWindow {
             return
         }
         var values = app.settingsMap()
-        Theme.apply(values.theme, app.themeColors)
+        // A picture of one's own gives its colours first (when asked to);
+        // the colours changed by hand go on top of them.
+        var colours = {}
+        if (app.backgroundUrl.length > 0 && app.backgroundPalette)
+            colours = Theme.paletteFrom(values.theme, app.backgroundTones)
+        var own = app.themeColors
+        for (var key in own)
+            colours[key] = own[key]
+        Theme.apply(values.theme, colours)
         applySystemFrame()
     }
 
@@ -589,6 +597,7 @@ ApplicationWindow {
         target: app
         function onSettingsChanged() { window.applyTheme() }
         function onThemeColorsChanged() { window.applyTheme() }
+        function onBackgroundChanged() { window.applyTheme() }
     }
 
     Component.onCompleted: {

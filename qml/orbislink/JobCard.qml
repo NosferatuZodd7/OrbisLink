@@ -242,15 +242,9 @@ Rectangle {
                 elide: Text.ElideRight
                 visible: card.working
             }
-            // What came of it, beside the button that clears the card.
-            Text {
+            Item {
                 Layout.fillWidth: true
                 visible: !card.working
-                text: card.job.message || ""
-                color: card.job.state === "error" ? (Theme.light ? Qt.darker(Theme.error, 1.3) : Theme.error)
-                                                  : Theme.textSecondary
-                font.pixelSize: Theme.fontCaption
-                wrapMode: Text.WordWrap
             }
             StyledToolButton {
                 Layout.alignment: Qt.AlignTop
@@ -286,6 +280,18 @@ Rectangle {
                 ToolTip.text: card.working ? qsTr("Cancel") : qsTr("Remove")
                 onClicked: card.working ? card.cancelClicked() : card.removeClicked()
             }
+        }
+
+        // What came of it, on its own line under the state: the pane is
+        // narrow, and beside the tag and the buttons it had a sliver.
+        Text {
+            Layout.fillWidth: true
+            visible: !card.working && (card.job.message || "").length > 0
+            text: card.job.message || ""
+            color: card.job.state === "error" ? (Theme.light ? Qt.darker(Theme.error, 1.3) : Theme.error)
+                                              : Theme.textSecondary
+            font.pixelSize: Theme.fontCaption
+            wrapMode: Text.WordWrap
         }
     }
 }

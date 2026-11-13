@@ -388,6 +388,10 @@ int main(int argc, char **argv)
 	// Stream notifications appear in the same bar as the others.
 	QObject::connect(stream.get(), &StreamController::notify, controller.get(),
 		&AppController::notify);
+	// A console registered without ever answering discovery: its kind and
+	// host-id are kept, so its registration is found again.
+	QObject::connect(stream.get(), &StreamController::consoleIdentified, controller.get(),
+		&AppController::rememberConsoleType);
 	// The Account ID the console accepted is kept in the settings.
 	QObject::connect(stream.get(), &StreamController::accountIdAccepted, controller.get(),
 		&AppController::rememberAccountId);

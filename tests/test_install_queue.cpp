@@ -511,6 +511,46 @@ ORBISLINK_TEST(says_what_to_do_when_the_left_task_cannot_be_found)
 	server.stop();
 }
 
+ORBISLINK_TEST(a_duplicate_of_an_installed_package_says_to_delete_it_first)
+{
+	PkgFile game("duplicated3-game.pkg", gameOptions("CUSA00017", "Installed Already"));
+
+	LocalHttpServer server;
+	LocalHttpServer::Config config;
+	config.bindAddress = "127.0.0.1";
+	config.port = 0;
+	config.autoSelectPort = false;
+	CHECK(server.start(config, nullptr));
+
+	FakeInstaller installer;
+	installer.duplicatedTimes.store(5);
+	installer.alreadyInstalled.store(true);
+
+	InstallQueue::Dependencies deps;
+	deps.httpServer = &server;
+	deps.installer = &installer;
+	Settings settings;
+	settings.checkAlreadyInstalled = true;
+
+	InstallQueue queue(deps, settings, fastTuning());
+	const std::string id = queue.enqueueOne(game.path, TransferMode::DirectInstall);
+	queue.start();
+	CHECK(waitFor([&]() {
+		QueueTask task;
+		return queue.task(id, &task) && task.isTerminal();
+	}));
+	queue.stop();
+
+	QueueTask task;
+	CHECK(queue.task(id, &task));
+	CHECK(task.state == TaskState::Error);
+	CHECK_EQ(task.errorCode, kBgftTaskDuplicated);
+	CHECK(task.message.find("already installed") != std::string::npos);
+	CHECK(task.message.find("0x80990015") != std::string::npos);
+	CHECK_EQ(installer.unregisterCalls.load(), 0);
+	server.stop();
+}
+
 ORBISLINK_TEST(an_install_without_progress_is_followed_by_what_the_pc_serves)
 {
 	PkgFile game("served-game.pkg", gameOptions("CUSA00016", "Served Game"));

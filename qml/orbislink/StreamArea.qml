@@ -964,6 +964,14 @@ Item {
     Dialog {
         id: loginPinDialog
         property bool incorrect: false
+        // A 4-digit passcode is this console's from now on: the next
+        // connection sends it by itself, without this dialog.
+        function send(pin) {
+            stream.sendLoginPin(pin)
+            if (/^[0-9]{4}$/.test(pin))
+                app.setConsolePin(app.consoleAddress, pin)
+            close()
+        }
         parent: Overlay.overlay
         anchors.centerIn: parent
         width: 420
@@ -1014,10 +1022,7 @@ Item {
                     minimumWidth: 110
                     primary: true
                     enabled: loginPinField.text.length > 0
-                    onClicked: {
-                        stream.sendLoginPin(loginPinField.text)
-                        loginPinDialog.close()
-                    }
+                    onClicked: loginPinDialog.send(loginPinField.text)
                 }
             }
         }
@@ -1031,10 +1036,8 @@ Item {
                 Layout.topMargin: Theme.dialogInner
                 wrapMode: Text.WordWrap
                 text: loginPinDialog.incorrect
-                      ? (root.built && stream.accountPin(stream.savedAccountId).length === 4
-                         ? qsTr("The console refused that PIN. If the one saved for this account changed, "
-                                + "correct it in Settings → Account IDs.")
-                         : qsTr("That PIN was wrong. Try again."))
+                      ? qsTr("The console refused that PIN. Type the right one: it replaces the one saved "
+                             + "for this console.")
                       : root.built && stream.accountName.length > 0
                         ? qsTr("The console is asking for the login PIN of %1.").arg(stream.accountName)
                         : qsTr("The console is asking for the account's login PIN.")
@@ -1049,12 +1052,7 @@ Item {
                 Layout.bottomMargin: Theme.dialogInner
                 echoMode: TextInput.Password
                 inputMethodHints: Qt.ImhDigitsOnly
-                onAccepted: {
-                    if (text.length > 0) {
-                        stream.sendLoginPin(text)
-                        loginPinDialog.close()
-                    }
-                }
+                onAccepted: if (text.length > 0) loginPinDialog.send(text)
             }
         }
     }

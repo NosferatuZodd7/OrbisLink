@@ -146,12 +146,22 @@ when the console has none of the saved accounts yet, and two or more are
 saved, connecting first asks which one; with one, that one is used. Each account has its own registration on each
 console and its own Remote Play PIN — a session never uses another
 account's. An account not registered on the console yet goes to
-registration first, with the 8-digit PIN filled in: the one saved for
-the console (Settings → Consoles → Edit → Remote Play PIN), or else the
-account's. When the console asks for the passcode while connecting, the
+registration first, with the 8-digit PIN filled in when the account has
+one saved. When the console asks for the passcode while connecting, the
 console's own 4-digit PIN is sent once — or, when the console has none, the
 one saved for the account; if there is neither, or the console refuses it,
-the PIN is asked for.
+the PIN is asked for, and the one typed is kept as that console's from then
+on. There is no PIN to set when editing a console: each one is asked for
+where it is needed.
+
+**A console that does not answer discovery.** Some PS4s never answer the
+Remote Play search and still register and stream. When the console does not
+answer, connecting does not stop there: an unregistered console opens
+registration all the same (registration has its own search, which the
+console answers while it shows the PIN), registering it as the kind of
+console saved; a registered one is connected to directly, and the session
+says itself if the console is not there. The registration keeps the
+console's host-id, so it is found again without discovery.
 
 **Add console**: name, IP and type; it is probed straight away. Its
 **On the network** list searches as it opens (and with **Search again**): the
@@ -882,7 +892,7 @@ only if its SHA-256 matches the list.
 | Account IDs (PSID) | PSN accounts for Remote Play: name, Account ID and its own **Remote Play PIN** (optional: 4 digits, the account's passcode, sent when the console asks for it; 8 digits, the pairing PIN, filled in when the account registers — the console shows a new one each time). Each row says which consoles the account is registered on. Editing one account's PIN never changes another's. |
 | Console in use | Which console; FTP port, user, upload folder, connections, advanced mode (protected system folders); installer port and install options; local HTTP server. While the address is typed the console is checked; when FTP answers on another port than the typed one, a line says which, with **Use port N**. |
 | Remote Play | Resolution, frame rate, bitrate, hardware decoding, rumble, touchpad from the mouse, full screen on connect. |
-| Personalisation | The app's colours, on top of the theme picked at the foot of the navigation: accent, jailbreak (GoldHEN gold), available, checking, error, window background, panels, text. A click on a colour opens a picker (square, hue strip, hex code, suggestions); ↺ puts the theme's colour back. **Saved looks**: give the theme and colours in use a name to keep them; **Apply** brings one back (it is then the one ✨ in the navigation brings), 🗑 deletes it. Changes show at once. |
+| Personalisation | **Background**: the room the app comes with, or a **picture** of one's own (**Choose…**; ↺ goes back to the room). The app keeps a copy of it, shown out of focus behind the glass (**Blur**, 0–100%). **Colours from the picture**: the background, the panes, the accent, the champagne and the jailbreak colour are taken from the picture, in the light or dark of the theme in use; off, the picture stays with the theme's own colours. Colours changed by hand go on top either way. **Water light**: light moves slowly over the background, as through water — only behind the glass; it rests while Remote Play streams and while the window is in the background. Then the app's colours, on top of the theme picked at the foot of the navigation: accent, jailbreak (GoldHEN gold), available, checking, error, window background, panels, text. A click on a colour opens a picker (square, hue strip, hex code, suggestions); ↺ puts the theme's colour back. **Saved looks**: give the theme and colours in use a name to keep them; **Apply** brings one back (it is then the one ✨ in the navigation brings), 🗑 deletes it. Changes show at once. |
 | General | Language, theme, updates (channel: stable or testing), advanced options. |
 
 Under the sections, **Update check** looks for a new version now, and

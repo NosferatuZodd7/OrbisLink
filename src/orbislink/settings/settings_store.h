@@ -164,6 +164,16 @@ struct Settings
 	std::string activePreset;
 	std::map<std::string, std::string> lastCustomColors;
 	std::string lastCustomTheme;
+	// A picture of one's own behind the glass: the copy kept in the data
+	// folder (empty: the room the app comes with), how out of focus it is
+	// shown (0..100), whether the colours are taken from it, and what it is
+	// made of (average, primary, secondary → "#RRGGBB").
+	std::string backgroundImage;
+	int backgroundBlur = 60;
+	bool backgroundPalette = true;
+	std::map<std::string, std::string> backgroundTones;
+	// Light moving slowly over the background, as through water.
+	bool backgroundMotion = true;
 	std::string language = "en";    // "en" or "pt_PT"
 	bool debugLogging = false;
 	// "Updates over the internet". On by default: with a public repository

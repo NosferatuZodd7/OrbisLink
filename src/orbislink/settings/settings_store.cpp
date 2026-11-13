@@ -159,6 +159,14 @@ std::string Settings::toJson() const
 		lastColors.set(pair.first, Json::fromString(pair.second));
 	root.set("theme_last_custom", lastColors);
 	root.set("theme_last_custom_base", Json::fromString(lastCustomTheme));
+	root.set("background_image", Json::fromString(backgroundImage));
+	root.set("background_blur", Json::fromInt(backgroundBlur));
+	root.set("background_palette", Json::fromBool(backgroundPalette));
+	Json tones = Json::makeObject();
+	for(const auto &pair : backgroundTones)
+		tones.set(pair.first, Json::fromString(pair.second));
+	root.set("background_tones", tones);
+	root.set("background_motion", Json::fromBool(backgroundMotion));
 	root.set("language", Json::fromString(language));
 	root.set("debug_logging", Json::fromBool(debugLogging));
 	root.set("check_for_updates", Json::fromBool(checkForUpdates));
@@ -330,6 +338,11 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.themeColors = readColors(root["theme_colors"]);
 	settings.lastCustomColors = readColors(root["theme_last_custom"]);
 	settings.lastCustomTheme = root["theme_last_custom_base"].toString();
+	settings.backgroundImage = root["background_image"].toString();
+	settings.backgroundBlur = std::clamp(static_cast<int>(root["background_blur"].toInt(settings.backgroundBlur)), 0, 100);
+	settings.backgroundPalette = root["background_palette"].toBool(settings.backgroundPalette);
+	settings.backgroundTones = readColors(root["background_tones"]);
+	settings.backgroundMotion = root["background_motion"].toBool(settings.backgroundMotion);
 	settings.activePreset = root["theme_active_preset"].toString();
 	if(root["theme_presets"].isArray())
 	{

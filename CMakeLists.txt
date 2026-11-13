@@ -210,6 +210,7 @@ if(ORBISLINK_BUILD_GUI)
 		qt_add_executable(orbislink-gui
 			src/orbislink/qt/main.cpp
 			src/orbislink/qt/app_controller.cpp
+			src/orbislink/qt/backdrop.cpp
 			src/orbislink/qt/cheats_controller.cpp
 			src/orbislink/qt/cover_provider.cpp
 			src/orbislink/qt/games_controller.cpp

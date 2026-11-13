@@ -282,9 +282,46 @@ QtObject {
             cardHenActiveBottom = withAlpha(mix(cardBottom, Qt.color(custom.hen), light ? 0.3 : 0.32),
                                             cardHenActiveBottom.a)
         }
+        if (custom.brass) brass = custom.brass
         if (custom.ok) ok = custom.ok
         if (custom.warn) warn = custom.warn
         if (custom.error) error = custom.error
+    }
+
+    // The colours a picture of one's own gives the theme (Settings →
+    // Personalisation): its overall colour tints the background and the
+    // panes, its main hue becomes the accent, a second one the champagne and
+    // the jailbreak's colour. Lightness stays the appearance's, so Daylight
+    // stays light and Graphite dark whatever the picture; text keeps its own
+    // colours for the contrast. `tones` is { average, primary, secondary }.
+    function paletteFrom(which, tones) {
+        var out = {}
+        if (!tones || !tones.average)
+            return out
+        var day = which === "light"
+        function hueOf(c) { return c.hslHue < 0 ? 0 : c.hslHue }
+        function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
+        function hex(c) { return Qt.rgba(c.r, c.g, c.b, 1).toString().toUpperCase() }
+        var avg = Qt.color(tones.average)
+        var h = hueOf(avg)
+        var s = avg.hslHue < 0 ? 0 : avg.hslSaturation
+        out.background = hex(day ? Qt.hsla(h, Math.min(s, 0.30), 0.87, 1)
+                                 : Qt.hsla(h, Math.min(s, 0.32), which === "glass" ? 0.10 : 0.08, 1))
+        out.panel = hex(day ? Qt.hsla(h, Math.min(s, 0.45), 0.985, 1)
+                            : Qt.hsla(h, Math.min(s, 0.16), 0.17, 1))
+        if (tones.primary) {
+            var p = Qt.color(tones.primary)
+            out.accent = hex(day ? Qt.hsla(hueOf(p), clamp(p.hslSaturation, 0.40, 0.70), 0.40, 1)
+                                 : Qt.hsla(hueOf(p), clamp(p.hslSaturation, 0.35, 0.65), 0.72, 1))
+        }
+        if (tones.secondary) {
+            var q = Qt.color(tones.secondary)
+            out.brass = hex(day ? Qt.hsla(hueOf(q), clamp(q.hslSaturation * 0.6, 0.20, 0.45), 0.36, 1)
+                                : Qt.hsla(hueOf(q), clamp(q.hslSaturation * 0.6, 0.20, 0.45), 0.76, 1))
+            out.hen = hex(day ? Qt.hsla(hueOf(q), clamp(q.hslSaturation, 0.35, 0.60), 0.40, 1)
+                              : Qt.hsla(hueOf(q), clamp(q.hslSaturation, 0.35, 0.60), 0.64, 1))
+        }
+        return out
     }
 
     function applyBase(which) {

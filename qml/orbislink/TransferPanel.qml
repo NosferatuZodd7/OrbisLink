@@ -1068,7 +1068,7 @@ Item {
                                     stateText: fromStore
                                                ? (job.state === "done"
                                                   ? (job.kind === "remove" ? qsTr("Removed")
-                                                     : job.kind === "download" ? qsTr("In the queue") : qsTr("Installed"))
+                                                     : job.kind === "download" ? qsTr("Downloaded") : qsTr("Installed"))
                                                   : job.state === "error" ? qsTr("Failed")
                                                   : job.state === "cancelled" ? qsTr("Cancelled")
                                                   : job.kind === "remove" ? qsTr("Removing")

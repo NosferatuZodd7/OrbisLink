@@ -8,6 +8,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
+import QtQuick.Dialogs
 
 Dialog {
     id: dialog
@@ -909,8 +910,8 @@ Dialog {
                         id: lookPage
                         eyebrow: qsTr("Appearance")
                         title: qsTr("Personalisation")
-                        subtitle: qsTr("The colours go on top of the theme in use and change at once; a look "
-                                       + "can be saved to come back to.")
+                        subtitle: qsTr("What is behind the glass, and the colours on top of the theme in use. "
+                                       + "Everything changes at once; a look can be saved to come back to.")
 
                         // The colours one can change; everything else is made from them.
                         readonly property var colourKeys: [
@@ -948,6 +949,132 @@ Dialog {
                                 lookPage.pendingColour = value.toString()
                                 commitColour.restart()
                             }
+                        }
+
+                        // ── Behind the glass: the room, or a picture of one's own.
+                        GroupTitle { text: qsTr("Background") }
+                        SettingsGroup {
+                            SettingRow {
+                                readonly property bool custom: app.backgroundUrl.length > 0
+                                label: qsTr("Picture")
+                                description: custom
+                                             ? qsTr("Yours, out of focus behind the glass.")
+                                             : qsTr("The room the app comes with. Choose a picture of your own to "
+                                                    + "put behind the glass.")
+                                controlWidth: 0
+
+                                // What is behind the glass now, in small.
+                                Rectangle {
+                                    Layout.preferredWidth: 92
+                                    Layout.preferredHeight: 56
+                                    radius: 12
+                                    color: Theme.controlFill
+                                    border.width: 1
+                                    border.color: Theme.glassEdge
+                                    Image {
+                                        anchors.fill: parent
+                                        anchors.margins: 3
+                                        source: app.backgroundUrl.length > 0 ? app.backgroundUrl
+                                              : Theme.light ? "qrc:/icons/room-light.jpg" : "qrc:/icons/room-dark.jpg"
+                                        sourceSize.width: 184
+                                        fillMode: Image.PreserveAspectCrop
+                                        asynchronous: true
+                                        smooth: true
+                                    }
+                                }
+                                StyledButton {
+                                    text: qsTr("Choose…")
+                                    iconName: "image"
+                                    onClicked: backgroundDialog.open()
+                                }
+                                StyledToolButton {
+                                    visible: app.backgroundUrl.length > 0
+                                    iconName: "rotate-ccw"
+                                    iconSize: 15
+                                    Accessible.name: qsTr("Back to the room")
+                                    ToolTip.visible: hovered
+                                    ToolTip.text: qsTr("Back to the room")
+                                    onClicked: app.clearBackground()
+                                }
+                            }
+                            SwitchRow {
+                                visible: app.backgroundUrl.length > 0
+                                label: qsTr("Colours from the picture")
+                                description: qsTr("On: the background, the panes, the accent and the champagne take "
+                                                  + "the picture's colours, in the light or dark of the theme in use. "
+                                                  + "Off: the picture stays, with the theme's own colours.")
+                                checked: app.backgroundPalette
+                                onCheckedChanged: app.setBackgroundPalette(checked)
+                            }
+                            SettingRow {
+                                id: blurRow
+                                visible: app.backgroundUrl.length > 0
+                                label: qsTr("Blur")
+                                description: qsTr("How out of focus the picture is. The glass reads best over a "
+                                                  + "picture that is well blurred.")
+                                controlWidth: 220
+                                Slider {
+                                    id: blurSlider
+                                    Layout.fillWidth: true
+                                    from: 0
+                                    to: 100
+                                    stepSize: 5
+                                    value: app.backgroundBlur
+                                    onPressedChanged: if (!pressed) app.setBackgroundBlur(value)
+                                    Accessible.name: blurRow.label
+                                    background: Rectangle {
+                                        x: blurSlider.leftPadding
+                                        y: blurSlider.topPadding + blurSlider.availableHeight / 2 - height / 2
+                                        width: blurSlider.availableWidth
+                                        height: 4
+                                        radius: 2
+                                        color: Theme.light ? Qt.rgba(0, 0, 0, 0.10) : Qt.rgba(1, 1, 1, 0.14)
+                                        Rectangle {
+                                            width: blurSlider.visualPosition * parent.width
+                                            height: parent.height
+                                            radius: 2
+                                            color: Theme.accent
+                                        }
+                                    }
+                                    handle: Rectangle {
+                                        x: blurSlider.leftPadding + blurSlider.visualPosition
+                                           * (blurSlider.availableWidth - width)
+                                        y: blurSlider.topPadding + blurSlider.availableHeight / 2 - height / 2
+                                        width: 20
+                                        height: 20
+                                        radius: 10
+                                        color: "#FBFAF7"
+                                        border.width: 1
+                                        border.color: Theme.light ? Qt.rgba(0, 0, 0, 0.12) : Qt.rgba(1, 1, 1, 0.6)
+                                        scale: blurSlider.pressed ? 1.08 : 1
+                                        Behavior on scale { NumberAnimation { duration: Theme.fast } }
+                                    }
+                                }
+                                Text {
+                                    Layout.preferredWidth: 34
+                                    horizontalAlignment: Text.AlignRight
+                                    text: Math.round(blurSlider.value) + "%"
+                                    color: Theme.textSecondary
+                                    font.family: Theme.fontMono
+                                    font.pixelSize: Theme.fontSmall
+                                }
+                            }
+                            SwitchRow {
+                                label: qsTr("Water light")
+                                description: qsTr("Light moves slowly over the background, as through water — only "
+                                                  + "behind the glass. It rests while Remote Play streams and while "
+                                                  + "the window is in the background.")
+                                checked: app.backgroundMotion
+                                onCheckedChanged: app.setBackgroundMotion(checked)
+                            }
+                        }
+
+                        FileDialog {
+                            id: backgroundDialog
+                            title: qsTr("Picture for the background")
+                            fileMode: FileDialog.OpenFile
+                            nameFilters: [qsTr("Pictures (*.jpg *.jpeg *.png *.webp *.bmp)"), qsTr("All files (*)")]
+                            onAccepted: app.chooseBackground(selectedFile.toString())
                         }
 
                         RowLayout {
