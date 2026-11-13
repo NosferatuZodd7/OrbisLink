@@ -190,6 +190,10 @@ struct Settings
 	// "stable" only sees final releases; "testing" also sees the
 	// prereleases that CI publishes for every build.
 	std::string updateChannel = "stable";
+	// With 1.4.0 the stable channel became everyone's default once: a
+	// "testing" saved by an older version goes back to "stable" the first
+	// time this one reads it (the file then carries "stable_channel_defaulted").
+	// Choosing "testing" again afterwards stays.
 	// The first-run wizard only appears once; after that it is opened
 	// from the settings.
 	bool firstRunDone = false;

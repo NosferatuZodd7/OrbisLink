@@ -17,11 +17,11 @@ ComboBox {
 
     background: Rectangle {
         radius: Theme.radiusField
-        color: Theme.light ? Qt.rgba(1, 1, 1, control.hovered ? 0.92 : 0.70)
+        color: Theme.light ? (control.hovered ? Qt.rgba(1, 1, 1, 0.95) : Theme.lightWell)
                            : Qt.rgba(1, 1, 1, control.hovered ? 0.12 : 0.07)
         border.width: 1
         border.color: control.activeFocus || control.popup.visible ? Theme.accent
-                    : Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Theme.glassEdge
+                    : Theme.light ? Theme.lightHairline : Theme.glassEdge
     }
     contentItem: Text {
         leftPadding: 14

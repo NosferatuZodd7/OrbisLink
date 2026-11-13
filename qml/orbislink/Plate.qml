@@ -46,10 +46,11 @@ Rectangle {
          : Qt.rgba(Theme.panel.r, Theme.panel.g, Theme.panel.b, fillAlpha)
     border.width: 1
     border.color: plate.ornate ? Theme.alpha(Theme.brass, 0.70)
-                : plate.hovered ? (Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.16))
+                : plate.hovered ? (Theme.light ? Theme.lightHairlineStrong : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.16))
                 : plate.sunken ? Theme.glassEdge
                 : level === "primary" || level === "window" ? (Theme.light ? Qt.rgba(1, 1, 1, 0.85) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.12))
-                : Theme.light ? Qt.rgba(1, 1, 1, 0.80) : Theme.glassEdge
+                // On Daylight a white edge would vanish on a white dialog.
+                : Theme.light ? Theme.lightHairline : Theme.glassEdge
     Behavior on border.color { ColorAnimation { duration: Theme.fast } }
     Behavior on color { ColorAnimation { duration: Theme.fast } }
 

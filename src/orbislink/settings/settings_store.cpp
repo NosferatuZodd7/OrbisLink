@@ -213,6 +213,7 @@ std::string Settings::toJson() const
 	root.set("update_repository", Json::fromString(updateRepository));
 	root.set("update_repository_default", Json::fromString(ORBISLINK_REPOSITORY_STRING));
 	root.set("update_channel", Json::fromString(updateChannel));
+	root.set("stable_channel_defaulted", Json::fromBool(true));
 	return root.dump();
 }
 
@@ -464,6 +465,8 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	if(settings.updateChannel == "testes")
 		settings.updateChannel = "testing";
 	if(settings.updateChannel != "stable" && settings.updateChannel != "testing")
+		settings.updateChannel = "stable";
+	if(!root["stable_channel_defaulted"].toBool(false))
 		settings.updateChannel = "stable";
 	if(ok)
 		*ok = true;

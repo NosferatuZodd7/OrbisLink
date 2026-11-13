@@ -637,7 +637,7 @@ Item {
                                 anchors.fill: parent
                                 radius: parent.radius
                                 border.width: 1
-                                border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.9) : Theme.glassEdge
+                                border.color: Theme.light ? Theme.lightHairline : Theme.glassEdge
                                 gradient: Gradient {
                                     GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, Theme.light ? 0.30 : 0.08) }
                                     GradientStop { position: 1.0; color: Theme.light ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(0, 0, 0, 0.18) }

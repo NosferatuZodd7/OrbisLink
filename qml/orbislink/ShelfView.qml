@@ -385,9 +385,9 @@ FocusScope {
                     implicitWidth: scopeRow.implicitWidth + 6
                     implicitHeight: 34
                     radius: height / 2
-                    color: Theme.light ? Qt.rgba(1, 1, 1, 0.45) : Qt.rgba(0, 0, 0, 0.20)
+                    color: Theme.light ? Theme.lightTrack : Qt.rgba(0, 0, 0, 0.20)
                     border.width: 1
-                    border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.9) : Theme.glassEdge
+                    border.color: Theme.light ? Theme.lightHairline : Theme.glassEdge
                     Row {
                         id: scopeRow
                         anchors.centerIn: parent

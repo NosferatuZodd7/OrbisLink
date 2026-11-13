@@ -30,9 +30,9 @@ Rectangle {
     implicitHeight: vertical ? line.implicitHeight + 8 : 36
     // A recessed glass track; the chosen look is the glass pill on it.
     radius: vertical ? 19 : height / 2
-    color: Theme.light ? Qt.rgba(1, 1, 1, 0.45) : Qt.rgba(0, 0, 0, 0.20)
+    color: Theme.light ? Theme.lightTrack : Qt.rgba(0, 0, 0, 0.20)
     border.width: 1
-    border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.9) : Theme.glassEdge
+    border.color: Theme.light ? Theme.lightHairline : Theme.glassEdge
 
     Grid {
         id: line

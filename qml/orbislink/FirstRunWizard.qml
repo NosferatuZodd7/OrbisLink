@@ -523,7 +523,7 @@ Dialog {
                                     radius: 13
                                     color: Theme.controlFill
                                     border.width: 1
-                                    border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.9) : Theme.glassEdge
+                                    border.color: Theme.light ? Theme.lightHairline : Theme.glassEdge
                                     Text {
                                         anchors.centerIn: parent
                                         text: thing.index + 1

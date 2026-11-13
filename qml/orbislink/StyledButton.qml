@@ -84,7 +84,7 @@ Button {
         color: button.backgroundColor
         border.width: button.primary || button.solid ? 0 : 1
         border.color: button.danger ? Theme.alpha(Theme.error, button.hovered ? 0.55 : 0.32)
-                    : Theme.light ? Qt.rgba(1, 1, 1, button.hovered ? 1.0 : 0.85)
+                    : Theme.light ? (button.hovered ? Theme.lightHairlineStrong : Theme.lightHairline)
                     : Qt.rgba(1, 1, 1, button.hovered ? Theme.glassBorder + 0.12 : Theme.glassBorder)
         Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
         Behavior on border.color { ColorAnimation { duration: Theme.fast } }

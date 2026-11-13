@@ -40,7 +40,7 @@ ColumnLayout {
             radius: 24
             color: Theme.controlFill
             border.width: 1
-            border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.9) : Theme.glassEdge
+            border.color: Theme.light ? Theme.lightHairline : Theme.glassEdge
             Rectangle {
                 anchors.fill: parent
                 anchors.margins: 1

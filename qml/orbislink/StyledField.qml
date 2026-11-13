@@ -32,9 +32,9 @@ TextField {
         Rectangle {
             anchors.fill: parent
             radius: Theme.radiusField
-            color: Theme.light ? Qt.rgba(1, 1, 1, field.activeFocus ? 0.92 : 0.70) : Qt.rgba(0, 0, 0, field.activeFocus ? 0.30 : 0.22)
+            color: Theme.light ? (field.activeFocus ? Qt.rgba(1, 1, 1, 0.95) : Theme.lightWell) : Qt.rgba(0, 0, 0, field.activeFocus ? 0.30 : 0.22)
             border.width: 1
-            border.color: field.activeFocus ? Theme.accent : Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Theme.glassEdge
+            border.color: field.activeFocus ? Theme.accent : Theme.light ? Theme.lightHairline : Theme.glassEdge
             Behavior on border.color { ColorAnimation { duration: Theme.fast } }
         }
     }

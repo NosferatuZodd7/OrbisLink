@@ -276,8 +276,29 @@ Dialog {
         // be out of reach.
         contentHeight: pageColumn.implicitHeight + 56
         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-        // In sight whenever there is more below, not only while scrolling.
-        ScrollBar.vertical.policy: contentHeight > height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
+        // A slim glass rail, inside the dialog's rounded shape: it starts
+        // under the round close button and stops short of the bottom corner,
+        // instead of running into both. In sight whenever there is more
+        // below, not only while scrolling.
+        ScrollBar.vertical: ScrollBar {
+            id: rail
+            parent: page
+            x: page.width - width - 8
+            y: 76
+            height: Math.max(0, page.height - 76 - 24)
+            policy: page.contentHeight > page.height ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
+            padding: 0
+            contentItem: Rectangle {
+                implicitWidth: rail.hovered || rail.pressed ? 6 : 4
+                radius: width / 2
+                // Nothing to scroll: no rail.
+                opacity: rail.size < 1.0 && (rail.policy === ScrollBar.AlwaysOn || rail.active) ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: Theme.fast } }
+                color: Theme.alpha(Theme.ink, rail.pressed ? 0.45 : rail.hovered ? 0.32 : 0.20)
+                Behavior on implicitWidth { NumberAnimation { duration: Theme.fast } }
+            }
+            background: Item {}
+        }
 
         ColumnLayout {
             id: pageColumn
@@ -910,8 +931,8 @@ Dialog {
                         id: lookPage
                         eyebrow: qsTr("Appearance")
                         title: qsTr("Personalisation")
-                        subtitle: qsTr("What is behind the glass, and the colours on top of the theme in use. "
-                                       + "Everything changes at once; a look can be saved to come back to.")
+                        subtitle: qsTr("The theme, what is behind the glass, and the colours on top. Everything "
+                                       + "changes at once; a look can be saved to come back to.")
 
                         // The colours one can change; everything else is made from them.
                         readonly property var colourKeys: [
@@ -948,6 +969,136 @@ Dialog {
                                 lookPage.pendingKey = key
                                 lookPage.pendingColour = value.toString()
                                 commitColour.restart()
+                            }
+                        }
+
+                        // ── The appearance: the same choice as at the foot of the
+                        // navigation, with a small picture of each.
+                        GroupTitle { text: qsTr("Theme") }
+                        SettingsGroup {
+                            GridLayout {
+                                Layout.fillWidth: true
+                                Layout.topMargin: 16
+                                Layout.bottomMargin: 16
+                                columns: width > 560 ? 4 : 2
+                                columnSpacing: 12
+                                rowSpacing: 12
+                                Repeater {
+                                    // Each appearance's own colours (artwork: these do
+                                    // not follow the theme in use, they show the others).
+                                    model: [
+                                        { name: "dark", label: qsTr("Dark"), icon: "moon",
+                                          bg: "#141416", pane: "#28282C", ink: "#F4F1EA", tint: "#9EBCD8" },
+                                        { name: "glass", label: qsTr("Glass"), icon: "contrast",
+                                          bg: "#17161A", pane: "#38373D", ink: "#FBF9F5", tint: "#A9C6E0" },
+                                        { name: "light", label: qsTr("Light"), icon: "sun",
+                                          bg: "#E7E2DA", pane: "#FFFFFF", ink: "#1C1B19", tint: "#4A7AA3" },
+                                        { name: "custom", label: qsTr("Custom"), icon: "sparkles",
+                                          bg: "", pane: "", ink: "", tint: "" }
+                                    ]
+                                    delegate: Rectangle {
+                                        id: themeCard
+                                        required property var modelData
+                                        readonly property bool custom: modelData.name === "custom"
+                                        readonly property bool chosen: custom ? app.customLook
+                                                                       : Theme.name === modelData.name && !app.customLook
+                                        Layout.fillWidth: true
+                                        Layout.preferredHeight: 112
+                                        radius: 16
+                                        color: chosen ? (Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Qt.rgba(1, 1, 1, 0.12))
+                                             : themeArea.containsMouse ? Theme.controlHover : Theme.controlFill
+                                        border.width: chosen ? 2 : 1
+                                        border.color: chosen ? Theme.accent
+                                                    : Theme.light ? Theme.lightHairline : Theme.glassEdge
+                                        Behavior on color { ColorAnimation { duration: Theme.fast } }
+                                        Accessible.role: Accessible.RadioButton
+                                        Accessible.name: modelData.label
+                                        Accessible.checked: chosen
+
+                                        // A small window of that appearance: its room,
+                                        // a pane, a line of text and its accent.
+                                        Rectangle {
+                                            id: thumb
+                                            anchors.left: parent.left
+                                            anchors.right: parent.right
+                                            anchors.top: parent.top
+                                            anchors.margins: 8
+                                            height: 64
+                                            radius: 10
+                                            clip: true
+                                            color: themeCard.custom ? Theme.background : themeCard.modelData.bg
+                                            border.width: 1
+                                            border.color: Theme.light ? Theme.lightHairline : Theme.glassEdge
+                                            Rectangle {
+                                                x: 8; y: 8
+                                                width: parent.width * 0.30
+                                                height: parent.height - 16
+                                                radius: 6
+                                                color: themeCard.custom ? Theme.panel : themeCard.modelData.pane
+                                                opacity: 0.9
+                                            }
+                                            Rectangle {
+                                                x: parent.width * 0.30 + 16; y: 12
+                                                width: parent.width * 0.42
+                                                height: 6
+                                                radius: 3
+                                                color: themeCard.custom ? Theme.ink : themeCard.modelData.ink
+                                                opacity: 0.85
+                                            }
+                                            Rectangle {
+                                                x: parent.width * 0.30 + 16; y: 24
+                                                width: parent.width * 0.28
+                                                height: 4
+                                                radius: 2
+                                                color: themeCard.custom ? Theme.ink : themeCard.modelData.ink
+                                                opacity: 0.4
+                                            }
+                                            Rectangle {
+                                                x: parent.width * 0.30 + 16
+                                                y: parent.height - 22
+                                                width: 34
+                                                height: 12
+                                                radius: 6
+                                                color: themeCard.custom ? Theme.accent : themeCard.modelData.tint
+                                            }
+                                        }
+                                        Row {
+                                            anchors.left: parent.left
+                                            anchors.leftMargin: 12
+                                            anchors.bottom: parent.bottom
+                                            anchors.bottomMargin: 10
+                                            spacing: 7
+                                            Icon {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                name: themeCard.modelData.icon
+                                                size: 14
+                                                color: themeCard.chosen ? Theme.accent : Theme.textSecondary
+                                            }
+                                            Text {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                text: themeCard.modelData.label
+                                                color: Theme.text
+                                                font.pixelSize: Theme.fontSmall
+                                                font.weight: themeCard.chosen ? Font.DemiBold : Font.Normal
+                                            }
+                                        }
+                                        MouseArea {
+                                            id: themeArea
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            // A plain appearance sets the custom colours
+                                            // aside; the custom look brings them back (the
+                                            // colours below are where one is made).
+                                            onClicked: {
+                                                if (themeCard.custom)
+                                                    app.applyCustomLook()
+                                                else
+                                                    app.setTheme(themeCard.modelData.name)
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
 

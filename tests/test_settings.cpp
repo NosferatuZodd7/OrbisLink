@@ -39,6 +39,21 @@ ORBISLINK_TEST(settings_round_trip)
 	CHECK(restored.keepConvertedPackages);
 }
 
+ORBISLINK_TEST(stable_becomes_the_channel_once_then_a_choice_stays)
+{
+	// Saved by a version before 1.4.0: "testing" goes back to "stable".
+	bool ok = false;
+	const Settings older = Settings::fromJson(R"({"update_channel":"testing"})", &ok);
+	CHECK(ok);
+	CHECK_EQ(older.updateChannel, std::string("stable"));
+	// Chosen again afterwards: it stays.
+	Settings chosen = older;
+	chosen.updateChannel = "testing";
+	const Settings again = Settings::fromJson(chosen.toJson(), &ok);
+	CHECK(ok);
+	CHECK_EQ(again.updateChannel, std::string("testing"));
+}
+
 ORBISLINK_TEST(defaults_follow_the_specification)
 {
 	const Settings settings;

@@ -355,9 +355,9 @@ Item {
     // chosen tab's glass pill slides along it, as a segmented control.
     component TabTrack: Rectangle {
         radius: height / 2
-        color: Theme.light ? Qt.rgba(1, 1, 1, 0.45) : Qt.rgba(0, 0, 0, 0.20)
+        color: Theme.light ? Theme.lightTrack : Qt.rgba(0, 0, 0, 0.20)
         border.width: 1
-        border.color: Theme.light ? Qt.rgba(1, 1, 1, 0.9) : Theme.glassEdge
+        border.color: Theme.light ? Theme.lightHairline : Theme.glassEdge
     }
 
     // A tag on a cover: on a chip of frosted glass of its own, so it reads

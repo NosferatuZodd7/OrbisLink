@@ -4592,607 +4592,632 @@
         <translation>Type the console&apos;s IP address — it is checked on its own.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="528"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="546"/>
         <source>Settings</source>
         <translation>Settings</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="913"/>
-        <source>What is behind the glass, and the colours on top of the theme in use. Everything changes at once; a look can be saved to come back to.</source>
-        <translation>What is behind the glass, and the colours on top of the theme in use. Everything changes at once; a look can be saved to come back to.</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="930"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="948"/>
         <source>The navigation, the side panels, dialogs and plates</source>
         <translation>The navigation, the side panels, dialogs and plates</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="955"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="974"/>
+        <source>Theme</source>
+        <translation>Theme</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="987"/>
+        <source>Dark</source>
+        <translation>Dark</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="989"/>
+        <source>Glass</source>
+        <translation>Glass</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="991"/>
+        <source>Light</source>
+        <translation>Light</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="993"/>
+        <source>Custom</source>
+        <translation>Custom</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1103"/>
         <source>Background</source>
         <translation>Background</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="961"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1109"/>
         <source>Yours, out of focus behind the glass.</source>
         <translation>Yours, out of focus behind the glass.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="962"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1110"/>
         <source>The room the app comes with. Choose a picture of your own to put behind the glass.</source>
         <translation>The room the app comes with. Choose a picture of your own to put behind the glass.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="986"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1134"/>
         <source>Choose…</source>
         <translation>Choose…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="994"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="996"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1142"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1144"/>
         <source>Back to the room</source>
         <translation>Back to the room</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1002"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1150"/>
         <source>Colours from the picture</source>
         <translation>Colours from the picture</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1003"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1151"/>
         <source>On: the background, the panes, the accent and the champagne take the picture&apos;s colours, in the light or dark of the theme in use. Off: the picture stays, with the theme&apos;s own colours.</source>
-        <translation>On: the background, the panes, the accent and the champagne take the picture's colours, in the light or dark of the theme in use. Off: the picture stays, with the theme's own colours.</translation>
+        <translation>On: the background, the panes, the accent and the champagne take the picture&apos;s colours, in the light or dark of the theme in use. Off: the picture stays, with the theme&apos;s own colours.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1012"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1160"/>
         <source>Blur</source>
         <translation>Blur</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1013"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1161"/>
         <source>How out of focus the picture is. The glass reads best over a picture that is well blurred.</source>
         <translation>How out of focus the picture is. The glass reads best over a picture that is well blurred.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1063"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1211"/>
         <source>Water light</source>
         <translation>Water light</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1064"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1212"/>
         <source>Light moves slowly over the background, as through water — only behind the glass. It rests while Remote Play streams and while the window is in the background.</source>
         <translation>Light moves slowly over the background, as through water — only behind the glass. It rests while Remote Play streams and while the window is in the background.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1074"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1222"/>
         <source>Picture for the background</source>
         <translation>Picture for the background</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1076"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1224"/>
         <source>Pictures (*.jpg *.jpeg *.png *.webp *.bmp)</source>
         <translation>Pictures (*.jpg *.jpeg *.png *.webp *.bmp)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1076"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1224"/>
         <source>All files (*)</source>
         <translation>All files (*)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1095"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1243"/>
         <source>Every colour back to the theme&apos;s own</source>
         <translation>Every colour back to the theme&apos;s own</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1298"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1446"/>
         <source>Application</source>
         <translation>Application</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1300"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1448"/>
         <source>The language, how new versions are found, and the options for those who know what they do.</source>
         <translation>The language, how new versions are found, and the options for those who know what they do.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1307"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1455"/>
         <source>Changes the next time the app opens. The theme is picked at the foot of the navigation.</source>
         <translation>Changes the next time the app opens. The theme is picked at the foot of the navigation.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1348"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1496"/>
         <source>Look for a new version now</source>
         <translation>Look for a new version now</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1394"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1396"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1542"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1544"/>
         <source>Close</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1410"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1558"/>
         <source>Setup wizard…</source>
         <translation>Setup wizard…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1414"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1562"/>
         <source>See the three first-run steps again</source>
         <translation>See the three first-run steps again</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1419"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1567"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1424"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1572"/>
         <source>Save</source>
         <translation>Save</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="543"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="561"/>
         <source>Consoles</source>
         <translation>Consoles</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="526"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="544"/>
         <source>Preferences</source>
         <translation>Preferences</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="544"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="562"/>
         <source>Account IDs (PSID)</source>
         <translation>Account IDs (PSID)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="545"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="640"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="563"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="658"/>
         <source>Console in use</source>
         <translation>Console in use</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="547"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="912"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="565"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="930"/>
         <source>Personalisation</source>
         <translation>Personalisation</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="548"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1299"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="566"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1447"/>
         <source>General</source>
         <translation>General</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="583"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="601"/>
         <source>Update check</source>
         <translation>Update check</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="639"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="657"/>
         <source>Connection</source>
         <translation>Connection</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="641"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="659"/>
         <source>Where it is on the network, how packages reach it and the PC&apos;s own HTTP server.</source>
         <translation>Where it is on the network, how packages reach it and the PC&apos;s own HTTP server.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="644"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="662"/>
         <source>Address</source>
         <translation>Address</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="647"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="665"/>
         <source>Name</source>
         <translation>Name</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="651"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="669"/>
         <source>IP address</source>
         <translation>IP address</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="657"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="675"/>
         <source>End the Remote Play session first: it is running on the console in use.</source>
         <translation>End the Remote Play session first: it is running on the console in use.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="666"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="684"/>
         <source>FTP port (PS5)</source>
         <translation>FTP port (PS5)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="666"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="684"/>
         <source>FTP port</source>
         <translation>FTP port</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="675"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="693"/>
         <source>Installer port</source>
         <translation>Installer port</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="769"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="787"/>
         <source>Installation</source>
         <translation>Installation</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="772"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="790"/>
         <source>Default mode</source>
         <translation>Default mode</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="776"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="794"/>
         <source>Direct install</source>
         <translation>Direct install</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="776"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="794"/>
         <source>FTP upload</source>
         <translation>FTP upload</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="780"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="798"/>
         <source>FTP folder</source>
         <translation>FTP folder</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="785"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="803"/>
         <source>Check whether the title is already on the console before installing</source>
         <translation>Check whether the title is already on the console before installing</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="789"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="807"/>
         <source>Also install after sending over FTP</source>
         <translation>Also install after sending over FTP</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="790"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="808"/>
         <source>The file stays on the console and is installed right away from the PC — the remote installer only knows how to download over HTTP.</source>
         <translation>The file stays on the console and is installed right away from the PC — the remote installer only knows how to download over HTTP.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="797"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="815"/>
         <source>And delete the console copy once installed</source>
         <translation>And delete the console copy once installed</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="808"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="826"/>
         <source>Local HTTP server</source>
         <translation>Local HTTP server</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="811"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="829"/>
         <source>Port</source>
         <translation>Port</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="817"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="835"/>
         <source>Only accept requests from the console&apos;s IP</source>
         <translation>Only accept requests from the console&apos;s IP</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="546"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="824"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="564"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="842"/>
         <source>Remote Play</source>
         <translation>Remote Play</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="592"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="610"/>
         <source>About OrbisLink</source>
         <translation>About OrbisLink</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="753"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="771"/>
         <source>FTP answers on port %1, not on %2.</source>
         <translation>FTP answers on port %1, not on %2.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="761"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="779"/>
         <source>Use port %1</source>
         <translation>Use port %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="801"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="819"/>
         <source>Keep the packages the converter makes once they are on the console</source>
         <translation>Keep the packages the converter makes once they are on the console</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="802"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="820"/>
         <source>Off, a package made from a PS1/PS2 disc or an app folder is deleted from the output folder once the console has it — installed, or sent when it is not installed. Packages of your own are never touched.</source>
         <translation>Off, a package made from a PS1/PS2 disc or an app folder is deleted from the output folder once the console has it — installed, or sent when it is not installed. Packages of your own are never touched.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="830"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="848"/>
         <source>Quality</source>
         <translation>Quality</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="843"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="861"/>
         <source>1080p — PS4 Pro and PS5 only</source>
         <translation>1080p — PS4 Pro and PS5 only</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="843"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="861"/>
         <source>720p — balanced</source>
         <translation>720p — balanced</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="844"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="862"/>
         <source>540p</source>
         <translation>540p</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="844"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="862"/>
         <source>360p — weak network</source>
         <translation>360p — weak network</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="831"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="849"/>
         <source>These three only take effect from the next connection: the video profile is agreed with the console when the session starts. During the stream, the bar at the bottom shows what is actually arriving.</source>
         <translation>These three only take effect from the next connection: the video profile is agreed with the console when the session starts. During the stream, the bar at the bottom shows what is actually arriving.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="853"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="871"/>
         <source>Bitrate</source>
         <translation>Bitrate</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="858"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="876"/>
         <source>automatic (kbps)</source>
         <translation>automatic (kbps)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="900"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="918"/>
         <source>The Account ID each console registers with is chosen in Consoles (Edit), from the ones saved in Account IDs.</source>
         <translation>The Account ID each console registers with is chosen in Consoles (Edit), from the ones saved in Account IDs.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="865"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="883"/>
         <source>Decode video on the graphics card (falls back to the processor if it cannot)</source>
         <translation>Decode video on the graphics card (falls back to the processor if it cannot)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="823"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="841"/>
         <source>Streaming</source>
         <translation>Streaming</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="825"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="843"/>
         <source>The picture, the controller and the window while a console streams.</source>
         <translation>The picture, the controller and the window while a console streams.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="827"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="959"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="845"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1107"/>
         <source>Picture</source>
         <translation>Picture</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="870"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="888"/>
         <source>Session</source>
         <translation>Session</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="874"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="892"/>
         <source>Full screen on connect</source>
         <translation>Full screen on connect</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="878"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="896"/>
         <source>Controller rumble</source>
         <translation>Controller rumble</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="882"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="900"/>
         <source>Mouse acts as the touchpad while streaming</source>
         <translation>Mouse acts as the touchpad while streaming</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="918"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="931"/>
+        <source>The theme, what is behind the glass, and the colours on top. Everything changes at once; a look can be saved to come back to.</source>
+        <translation>The theme, what is behind the glass, and the colours on top. Everything changes at once; a look can be saved to come back to.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="936"/>
         <source>Accent</source>
         <translation>Accent</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="919"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="937"/>
         <source>Buttons, selection, links and the console in use</source>
         <translation>Buttons, selection, links and the console in use</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="920"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="938"/>
         <source>Jailbreak</source>
         <translation>Jailbreak</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="921"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="939"/>
         <source>GoldHEN, etaHEN, HEN: the console chip, badges and cards</source>
         <translation>GoldHEN, etaHEN, HEN: the console chip, badges and cards</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="922"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="940"/>
         <source>Available</source>
         <translation>Available</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="923"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="941"/>
         <source>Services that answer, finished tasks</source>
         <translation>Services that answer, finished tasks</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="924"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="942"/>
         <source>Checking</source>
         <translation>Checking</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="925"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="943"/>
         <source>Services being checked, warnings</source>
         <translation>Services being checked, warnings</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="926"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="944"/>
         <source>Error</source>
         <translation>Error</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="927"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="945"/>
         <source>Errors, services that do not answer</source>
         <translation>Errors, services that do not answer</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="928"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="946"/>
         <source>Window background</source>
         <translation>Window background</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="929"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="947"/>
         <source>Panels</source>
         <translation>Panels</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="931"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="949"/>
         <source>Text</source>
         <translation>Text</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1087"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1235"/>
         <source>Colours</source>
         <translation>Colours</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1115"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1117"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1263"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1265"/>
         <source>Back to the theme&apos;s colour</source>
         <translation>Back to the theme&apos;s colour</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1090"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1238"/>
         <source>Theme&apos;s colours</source>
         <translation>Theme&apos;s colours</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1180"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1328"/>
         <source>Saved looks</source>
         <translation>Saved looks</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1190"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1338"/>
         <source>None yet. Give the look in use a name below to keep it.</source>
         <translation>None yet. Give the look in use a name below to keep it.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1237"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1385"/>
         <source>Light theme</source>
         <translation>Light theme</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1238"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1386"/>
         <source>Glass theme</source>
         <translation>Glass theme</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1239"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1387"/>
         <source>Dark theme</source>
         <translation>Dark theme</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1247"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1395"/>
         <source>Apply</source>
         <translation>Apply</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1247"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1395"/>
         <source>In use</source>
         <translation>In use</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1257"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1259"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1405"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1407"/>
         <source>Delete this look</source>
         <translation>Delete this look</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1279"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1427"/>
         <source>Name of the look in use</source>
         <translation>Name of the look in use</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1284"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1432"/>
         <source>Save look</source>
         <translation>Save look</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="911"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="929"/>
         <source>Appearance</source>
         <translation>Appearance</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1303"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1306"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1451"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1454"/>
         <source>Language</source>
         <translation>Language</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1318"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1466"/>
         <source>Updates</source>
         <translation>Updates</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1322"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1470"/>
         <source>Updates over the internet</source>
         <translation>Updates over the internet</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1324"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1472"/>
         <source>On start, looks for a new version in the repository below and asks before installing. Nothing is installed without your click.</source>
         <translation>On start, looks for a new version in the repository below and asks before installing. Nothing is installed without your click.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1326"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1474"/>
         <source>Off: the app does not go online looking for versions. &quot;Check now&quot; still works.</source>
         <translation>Off: the app does not go online looking for versions. &quot;Check now&quot; still works.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1330"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1478"/>
         <source>Repository</source>
         <translation>Repository</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1340"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1488"/>
         <source>Channel</source>
         <translation>Channel</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1344"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1492"/>
         <source>Stable</source>
         <translation>Stable</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1344"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1492"/>
         <source>Testing (branch builds)</source>
         <translation>Testing (branch builds)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1356"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1504"/>
         <source>Check now</source>
         <translation>Check now</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1331"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1479"/>
         <source>Releases are read from the GitHub API and the repository has to be public. &quot;Check now&quot; saves the settings first.</source>
         <translation>Releases are read from the GitHub API and the repository has to be public. &quot;Check now&quot; saves the settings first.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1365"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1513"/>
         <source>Advanced</source>
         <translation>Advanced</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1370"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1518"/>
         <source>Advanced mode: allows writing to the FTP system areas</source>
         <translation>Advanced mode: allows writing to the FTP system areas</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1374"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1522"/>
         <source>Verbose log (debug)</source>
         <translation>Verbose log (debug)</translation>
     </message>

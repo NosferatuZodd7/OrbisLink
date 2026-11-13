@@ -42,7 +42,7 @@ ToolButton {
              : "transparent"
         border.width: button.active || button.hovered || button.visualFocus ? 1 : 0
         border.color: button.visualFocus ? Theme.accent
-                    : Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.04)
+                    : Theme.light ? Theme.lightHairline : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.04)
         Behavior on color { ColorAnimation { duration: Theme.fast; easing.type: Theme.easeOut } }
     }
 

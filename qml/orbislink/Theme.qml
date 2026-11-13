@@ -103,6 +103,13 @@ QtObject {
     readonly property color glassEdge: light ? Qt.rgba(30 / 255, 28 / 255, 24 / 255, 0.12)
                                              : Qt.rgba(1, 1, 1, glassBorder)
     readonly property color border: glassEdge
+    // On Daylight a white edge vanishes wherever the glass sits on white (a
+    // dialog, a settings group): wells, groups, tracks and secondary buttons
+    // there are drawn with a fine warm-grey line instead, over a faint tint.
+    readonly property color lightHairline: Qt.rgba(30 / 255, 28 / 255, 24 / 255, 0.16)
+    readonly property color lightHairlineStrong: Qt.rgba(30 / 255, 28 / 255, 24 / 255, 0.28)
+    readonly property color lightWell: Qt.rgba(30 / 255, 28 / 255, 24 / 255, 0.035)
+    readonly property color lightTrack: Qt.rgba(30 / 255, 28 / 255, 24 / 255, 0.05)
     // An engraved rule: a little stronger than a border, for the dividers
     // that carry a page's structure.
     readonly property color rule: light ? Qt.rgba(30 / 255, 28 / 255, 24 / 255, 0.16)
