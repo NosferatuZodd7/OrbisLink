@@ -23,6 +23,7 @@
 #ifdef ORBISLINK_HAS_STREAM
 #include "orbislink/qt/stream_controller.h"
 #include "orbislink/qt/video_bridge.h"
+#include "orbislink/stream/discovery.h"
 #endif
 #include "orbislink/qt/startup.h"
 #include "orbislink/qt/window_chrome.h"
@@ -388,6 +389,23 @@ int main(int argc, char **argv)
 	// Stream notifications appear in the same bar as the others.
 	QObject::connect(stream.get(), &StreamController::notify, controller.get(),
 		&AppController::notify);
+	// Following a console the router gave another address: Remote Play's
+	// search of the network says which consoles answer where (host-ids);
+	// one-click connect asks for it when the console does not answer; and
+	// nothing is searched while a session streams.
+	controller->setNetworkSearch([]() {
+		std::vector<Sighting> sightings;
+		for(const HostInfo &host : StreamDiscovery::scan(2400))
+			sightings.push_back({ host.address, host.id });
+		return sightings;
+	});
+	stream->setLocator([ptr = controller.get()](const QString &address,
+		std::function<void(const QString &)> done) {
+		ptr->findMovedConsoles({ address }, true,
+			[done](const QString &, const QString &newAddress) { done(newAddress); });
+	});
+	QObject::connect(stream.get(), &StreamController::sessionChanged, controller.get(),
+		[&controller, &stream]() { controller->setStreamBusy(stream->streaming()); });
 	// A console registered without ever answering discovery: its kind and
 	// host-id are kept, so its registration is found again.
 	QObject::connect(stream.get(), &StreamController::consoleIdentified, controller.get(),

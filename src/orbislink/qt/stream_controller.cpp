@@ -252,7 +252,11 @@ void StreamController::setAddress(const QString &address)
 	if(address_ == address)
 		return;
 	address_ = address;
+	// A one-click connect looking for its console survives the change of
+	// address that finding it brings (the search's answer decides).
+	const QString locating = locatingFor_;
 	cancelOneClick();
+	locatingFor_ = locating;
 	// What was known belonged to the previous console: the name, state, type
 	// and registration key. Keeping it until the new one answered made the
 	// new one's card show the old one's data (and store it as its own).
@@ -1039,19 +1043,33 @@ void StreamController::oneClickDecide(const HostInfo &info)
 {
 	if(!info.found)
 	{
-		setConnectStage(QString());
-		// No answer to discovery is not the end: some PS4s never answer it
-		// and still register and stream. Unregistered: registration opens,
-		// as it does for a console that answers. Registered: the connection
-		// is tried directly, and it says itself if the console is not there.
-		if(!credentials_.valid)
+		// The router may have given it another address: it is looked for
+		// on the network first (by its host-id and hardware address, never a
+		// guess). Found elsewhere, the settings follow it, this controller is
+		// moved to the new address, and the connection starts again there.
+		if(locator_ && locatingFor_.isEmpty())
 		{
-			logInfo("Remote Play: no answer to discovery; opening registration all the same.");
-			emit registrationNeeded();
+			const QString from = address_;
+			locatingFor_ = from;
+			setConnectStage(QStringLiteral("locating"));
+			locator_(from, [this, life = lifeline_, from](const QString &to) {
+				if(!life->alive() || locatingFor_ != from)
+					return;
+				locatingFor_.clear();
+				if(!to.isEmpty() && address_ == to)
+				{
+					logInfo("Remote Play: the console is now at " + to.toStdString() + "; connecting there.");
+					setConnectStage(QString());
+					connectOneClick();
+					return;
+				}
+				if(address_ != from || connectStage_ != QLatin1String("locating"))
+					return;
+				oneClickWithoutAnswer();
+			});
 			return;
 		}
-		logInfo("Remote Play: no answer to discovery; connecting directly with the stored registration.");
-		startStream();
+		oneClickWithoutAnswer();
 		return;
 	}
 	if(!credentials_.valid)
@@ -1096,6 +1114,23 @@ void StreamController::oneClickDecide(const HostInfo &info)
 	startStream();
 }
 
+void StreamController::oneClickWithoutAnswer()
+{
+	setConnectStage(QString());
+	// No answer to discovery is not the end: some PS4s never answer it and
+	// still register and stream. Unregistered: registration opens, as it
+	// does for a console that answers. Registered: the connection is tried
+	// directly, and it says itself if the console is not there.
+	if(!credentials_.valid)
+	{
+		logInfo("Remote Play: no answer to discovery; opening registration all the same.");
+		emit registrationNeeded();
+		return;
+	}
+	logInfo("Remote Play: no answer to discovery; connecting directly with the stored registration.");
+	startStream();
+}
+
 void StreamController::oneClickPoll()
 {
 	if(connectStage_ != QLatin1String("waking"))
@@ -1135,6 +1170,7 @@ void StreamController::oneClickPoll()
 void StreamController::cancelOneClick()
 {
 	++oneClickRun_;
+	locatingFor_.clear();
 	if(wakeTimer_)
 		wakeTimer_->stop();
 	setConnectStage(QString());

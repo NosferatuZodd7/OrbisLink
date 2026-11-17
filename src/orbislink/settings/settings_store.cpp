@@ -83,6 +83,8 @@ std::string Settings::toJson() const
 			input.set("start_mode", Json::fromString(console.startMode));
 		if(!console.remotePlayPin.empty())
 			input.set("remote_play_pin", Json::fromString(console.remotePlayPin));
+		if(!console.mac.empty())
+			input.set("mac", Json::fromString(console.mac));
 		items.push(input);
 	}
 	root.set("consoles", items);
@@ -248,6 +250,7 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 			entry.hostId = input["host_id"].toString();
 			entry.startMode = input["start_mode"].toString() == "ftp" ? "ftp" : "";
 			entry.remotePlayPin = input["remote_play_pin"].toString();
+			entry.mac = input["mac"].toString();
 			settings.consoles.push_back(entry);
 		}
 	}

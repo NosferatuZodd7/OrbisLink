@@ -75,6 +75,7 @@ Last review: v1.1.0.
 |---|---|
 | ✅ | `chiaki-lib` building without changing a line of the submodule |
 | ✅ | Console discovery (987/UDP on the PS4, 9302/UDP on the PS5): state, name, version, running game |
+| 🟡 | A console that changed address is followed: found by its host-id or MAC (Remote Play's search, this PC's neighbour table — Windows and Linux), its address updated with a notice; one-click connect looks for it first. Checked with the fake console and in the tests, not yet on a real router |
 | 🟡 | A console that does not answer discovery: registration opens all the same (as the kind of console saved) and a registered one is connected to directly; the host-id from registration finds it again. Checked in the code paths, not yet on the PS4 that never answers |
 | 🟡 | The network search: every interface's broadcast address, three rounds, every address of a small private network one by one, and the ports of a jailbroken console (2121, 1337, 12800) for one with Remote Play off; checked against the fake console and in the tests, not yet on the network that missed a real PS4 |
 | ✅ | Several consoles: each in its own box on the stage, with its state; "Add console" scans the network or takes an IP |
@@ -142,7 +143,7 @@ Last review: v1.1.0.
 | | |
 |---|---|
 | ✅ | Windows installer (NSIS) with components, firewall rule and shortcuts |
-| ✅ | Portable zip for Windows |
+| — | Portable zip for Windows: no longer made (its root held only the command line, and run from inside the zip the window found none of its DLLs); the installer is the Windows download |
 | ✅ | .tar.gz for Linux |
 | ✅ | mingw cross-compilation for the command line |
 | ✅ | Check that the package carries every DLL (Qt, curl, MSVC runtime, FFmpeg, SDL2) |

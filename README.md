@@ -6,7 +6,7 @@ A desktop app that brings together, in one window, **Remote Play** for a PS4
 or PS5, **installing .pkg files by drag and drop**, and an **FTP client** for
 the console.
 
-> **Status:** stable **v1.4.0**. Remote Play works on real PS4 and PS5
+> **Status:** stable **v1.4.1**. Remote Play works on real PS4 and PS5
 > consoles (discovery, registration, 1080p/60 video, sound, microphone,
 > controller and keyboard). Installing pkg files and FTP need a PS4 with
 > GoldHEN, or a PS5 with a jailbreak that provides them (etaHEN). Besides
@@ -18,7 +18,7 @@ the console.
 
 ## What works, and what is in development
 
-There are two versions: the **stable** one (v1.4.0, this branch) and the
+There are two versions: the **stable** one (v1.4.1, this branch) and the
 **beta** (test builds from the `beta` branch, `vX.Y.Z-dev.N`), where new work
 lands first. The app is made for the PS4 and the PS5 alike. To try the beta:
 **Settings → Updates → Testing (branch builds)**, or a pre-release from the
@@ -31,13 +31,14 @@ Releases page.
 | 🚧 | Not working yet, or still being built |
 | — | Does not apply to that console |
 
-### Stable (v1.4.0)
+### Stable (v1.4.1)
 
 | Feature | PS4 | PS5 |
 |---|---|---|
 | Remote Play: discovery, registration, 1080p/60 video, sound, controller, keyboard as a controller | ✅ | ✅ |
 | Remote Play on a console that never answers discovery: registration opens all the same, and a registered console is connected to directly | ✅ | 🧪 |
 | The console's Remote Play PINs asked for where they are needed: the 8-digit one when registering, the 4-digit passcode while connecting (then kept for that console) | ✅ | 🧪 |
+| A console the router gave another address is found again by its host-id or hardware address (never by a guess) and its address updated by itself, with a notice; connecting to one that does not answer looks for it first | 🧪 | 🧪 |
 | Microphone | 🧪 | ✅ (in a voice party) |
 | Waking the console from rest mode with one click | 🧪 | 🧪 |
 | Remote Play: several PSN accounts, each with its own PIN, picked on the console's card; no crash when the console is showing a video app | 🧪 | 🧪 |
@@ -75,7 +76,7 @@ Releases page.
 
 ### New in the beta
 
-Nothing yet: what was in the beta is the stable v1.4.0 above. New work
+Nothing yet: what was in the beta is the stable v1.4.1 above. New work
 lands in the beta first, and shows here.
 
 Everything still missing, and why, is in
@@ -83,7 +84,7 @@ Everything still missing, and why, is in
 
 ## The interface
 
-The screenshots show v1.4.0 with a PS4 (GoldHEN) and a PS5 (etaHEN) side
+The screenshots show v1.4.1 with a PS4 (GoldHEN) and a PS5 (etaHEN) side
 by side.
 
 ![Remote Play](docs/images/06-remote-play.png)
@@ -265,8 +266,7 @@ console and on this PC; a disc found there converts the same way.
 The binaries are produced by GitHub Actions
 ([the "Release" workflow](.github/workflows/release.yml)):
 
-* **Windows x64** — `OrbisLink-<version>-setup.exe` (installer) or
-  `OrbisLink-<version>-windows-x64.zip` (portable).
+* **Windows x64** — `OrbisLink-<version>-setup.exe` (installer).
 * **Linux x86-64** — `orbislink-<version>-linux-x86_64.tar.gz` (command line).
 
 There are two kinds of release:
@@ -318,8 +318,8 @@ cmake --build build --config RelWithDebInfo
 ```bash
 ./scripts/build-linux.sh      # builds, runs the tests and makes the .tar.gz
 
-sudo apt install mingw-w64 nsis zip
-./scripts/build-windows.sh    # standalone .exe + portable .zip + installer
+sudo apt install mingw-w64 nsis
+./scripts/build-windows.sh    # standalone .exe + installer
 ```
 
 `build-windows.sh` builds from Linux with mingw-w64: it builds a static

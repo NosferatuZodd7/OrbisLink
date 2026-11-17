@@ -5,6 +5,7 @@
 #include "orbislink/ftp/ftp_client.h"
 #include "orbislink/http/local_http_server.h"
 #include "orbislink/installer/rpi_client.h"
+#include "orbislink/net/console_locator.h"
 #include "orbislink/qt/ftp_model.h"
 #include "orbislink/qt/lifeline.h"
 #include "orbislink/qt/queue_model.h"
@@ -411,6 +412,19 @@ public:
 	// it is off. Only saves if it changed.
 	Q_INVOKABLE void rememberConsoleType(const QString &address, bool ps5,
 		const QString &hostId = QString());
+	// A saved console that stopped answering at its address may only have
+	// been given another one by the router. It is looked for on the network
+	// by who it is (net/console_locator.h); found elsewhere, its address is
+	// changed and a notice says so. `urgent` skips the wait between searches;
+	// `done` gets each address asked about and where that console is now
+	// (empty: not found anywhere else).
+	using LocateDone = std::function<void(const QString &oldAddress, const QString &newAddress)>;
+	void findMovedConsoles(const QStringList &addresses, bool urgent, LocateDone done = {});
+	// Remote Play's search of the network (when Remote Play is built in): the
+	// consoles that answered it, with their host-ids.
+	void setNetworkSearch(std::function<std::vector<Sighting>()> search) { networkSearch_ = std::move(search); }
+	// No looking around the network while a session streams.
+	void setStreamBusy(bool busy) { streamBusy_ = busy; }
 	// Changes the name and IP of a saved console (the one in use or any
 	// other). Returns false, with the reason in the status bar, when the
 	// new IP is empty or already belongs to another console.
@@ -562,6 +576,23 @@ private:
 	// changes, the previous one's listing must not stay on screen.
 	std::string listedConsole_;
 	bool probingFtp_ = false;
+	// Following consoles that change address (findMovedConsoles).
+	void checkConsoleAddresses(const QStringList &only, bool urgent, LocateDone done);
+	void relocateConsole(const std::string &from, const std::string &to);
+	void learnConsoleMac(const std::string &address, const std::string &mac);
+	struct LocateWait
+	{
+		int64_t nextMs = 0;
+		int64_t delayMs = 0;
+	};
+	// Per saved address: when a console that does not answer is looked for
+	// again. The wait grows (2, 5, 12 … up to 30 minutes), so a console that
+	// is simply off does not have the network searched every minute.
+	std::map<std::string, LocateWait> locateWaits_;
+	bool locating_ = false;
+	bool streamBusy_ = false;
+	std::vector<std::pair<QStringList, LocateDone>> locateWaiters_;
+	std::function<std::vector<Sighting>()> networkSearch_;
 	// The FTP drop waiting for an answer about the names already taken.
 	QStringList pendingUploads_;
 	QString pendingUploadDirectory_;

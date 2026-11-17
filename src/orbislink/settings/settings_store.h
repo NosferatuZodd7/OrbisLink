@@ -51,6 +51,11 @@ struct ConsoleEntry
 	// it shows, filled in when registering this PC; four are the passcode it
 	// asks for while connecting. Empty: the account's own PIN, if it has one.
 	std::string remotePlayPin;
+	// The hardware address (MAC) this PC saw the console answer from, kept
+	// once it answered as itself (Remote Play or FTP). With the host-id, it
+	// is how the console is found again when the router gives it another
+	// address (net/console_locator.h).
+	std::string mac;
 };
 
 // A place on the games page's shelf: a folder of this PC (a drive's root
