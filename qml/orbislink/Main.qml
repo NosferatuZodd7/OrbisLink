@@ -17,14 +17,41 @@ ApplicationWindow {
     title: qsTr("OrbisLink — %1").arg(app.consoleName)
 
     property bool panelVisible: true
-    // What the console in use offers besides Remote Play. When it has neither
-    // FTP nor the installer (a PS5 with no jailbreak), the side panel has
-    // nothing to show and stays closed — unless there are still items in the
-    // queue to follow.
-    readonly property bool ftpAbsent: app.ftpState === "unavailable" || app.ftpState === "not-applicable"
-    readonly property bool installerAbsent: app.installerState === "unavailable"
-                                            || app.installerState === "not-applicable"
-    readonly property bool panelAllowed: !(ftpAbsent && installerAbsent) || app.queue.count > 0
+    // What the console in use has shown it offers besides Remote Play. The
+    // side panel is the console's files, so it opens once FTP has answered —
+    // not while the check is still under way, so it never opens on an empty
+    // list only to close a moment later when nothing answers. A check under
+    // way keeps what was known (no flicker every time the services are
+    // asked again); another console in use starts from nothing. Without
+    // FTP, the panel is only the queue: it is there while something is
+    // being installed or sent, and goes when the work is done.
+    property bool ftpConfirmed: false
+    property bool installerConfirmed: false
+    property string confirmedFor: ""
+    function noteServices() {
+        if (confirmedFor !== app.consoleAddress) {
+            confirmedFor = app.consoleAddress
+            ftpConfirmed = false
+            installerConfirmed = false
+        }
+        if (app.ftpState === "available")
+            ftpConfirmed = true
+        else if (app.ftpState === "unavailable" || app.ftpState === "not-applicable")
+            ftpConfirmed = false
+        if (app.installerState === "available")
+            installerConfirmed = true
+        else if (app.installerState === "unavailable" || app.installerState === "not-applicable")
+            installerConfirmed = false
+    }
+    Connections {
+        target: app
+        function onStatusChanged() { window.noteServices() }
+        function onSettingsChanged() { window.noteServices() }
+    }
+    readonly property bool ftpAbsent: !ftpConfirmed
+    readonly property bool ftpChecking: !ftpConfirmed
+                                        && (app.ftpState === "checking" || app.ftpState === "unknown")
+    readonly property bool panelAllowed: ftpConfirmed || transferPanel.busy
     // Whether the transfers' spine is on screen.
     readonly property bool panelShown: panelVisible && panelAllowed && !streamFullscreen
     // The panel closed while jobs go on: a narrow column with them instead,
@@ -37,8 +64,12 @@ ApplicationWindow {
                           ? (demoView === "store-local" ? "store"
                              : demoView === "payloads-library" ? "payloads" : demoView)
                           : typeof demoGames !== "undefined" && demoGames ? "games" : "home"
-    readonly property string panelLockReason: qsTr("This console only offers Remote Play: it has "
-        + "neither FTP nor the remote installer running (a jailbreak adds them).")
+    readonly property string panelLockReason: ftpChecking
+        ? qsTr("Still checking the console's FTP: the transfers open as soon as it answers.")
+        : installerConfirmed
+          ? qsTr("This console has no FTP running: the transfers open while something is being installed.")
+          : qsTr("This console only offers Remote Play: it has "
+                 + "neither FTP nor the remote installer running (a jailbreak adds them).")
     // Full screen for the stream: hides the navigation and the transfers,
     // and the window takes up the whole screen.
     property bool streamFullscreen: false
@@ -601,6 +632,7 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
+        noteServices()
         applyTheme()
         if (demoSectionOn) {
             overSection = demoSection

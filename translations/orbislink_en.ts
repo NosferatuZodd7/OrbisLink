@@ -2485,57 +2485,67 @@
         <translation>OrbisLink — %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="40"/>
+        <location filename="../qml/orbislink/Main.qml" line="68"/>
+        <source>Still checking the console&apos;s FTP: the transfers open as soon as it answers.</source>
+        <translation>Still checking the console's FTP: the transfers open as soon as it answers.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/Main.qml" line="70"/>
+        <source>This console has no FTP running: the transfers open while something is being installed.</source>
+        <translation>This console has no FTP running: the transfers open while something is being installed.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/Main.qml" line="71"/>
         <source>This console only offers Remote Play: it has neither FTP nor the remote installer running (a jailbreak adds them).</source>
         <translation>This console only offers Remote Play: it has neither FTP nor the remote installer running (a jailbreak adds them).</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="79"/>
+        <location filename="../qml/orbislink/Main.qml" line="110"/>
         <source>Games</source>
         <translation>Games</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="80"/>
+        <location filename="../qml/orbislink/Main.qml" line="111"/>
         <source>Homebrew store</source>
         <translation>Homebrew store</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="81"/>
+        <location filename="../qml/orbislink/Main.qml" line="112"/>
         <source>Save vault</source>
         <translation>Save vault</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="82"/>
+        <location filename="../qml/orbislink/Main.qml" line="113"/>
         <source>Payloads</source>
         <translation>Payloads</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="361"/>
+        <location filename="../qml/orbislink/Main.qml" line="392"/>
         <source>Transfers</source>
         <translation>Transfers</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="375"/>
+        <location filename="../qml/orbislink/Main.qml" line="406"/>
         <source>Hide the transfers (F9)</source>
         <translation>Hide the transfers (F9)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="399"/>
+        <location filename="../qml/orbislink/Main.qml" line="430"/>
         <source>Queue (%1)</source>
         <translation>Queue (%1)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="400"/>
+        <location filename="../qml/orbislink/Main.qml" line="431"/>
         <source>Queue</source>
         <translation>Queue</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="402"/>
+        <location filename="../qml/orbislink/Main.qml" line="433"/>
         <source>Files (FTP)</source>
         <translation>Files (FTP)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="323"/>
+        <location filename="../qml/orbislink/Main.qml" line="354"/>
         <source>Local HTTP: %1</source>
         <translation>Local HTTP: %1</translation>
     </message>

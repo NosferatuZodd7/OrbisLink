@@ -79,7 +79,7 @@ The pane on the left, from the top:
 | The orb (emblem) | OrbisLink; a soft halo breathes behind it and it lifts under the mouse. | The consoles page — during a session, closes the page over the picture. |
 | **Consoles** (▶ **Remote Play** while a session runs, with a green dot) | The home page: every console, and the picture during a session. | Opens it; during a session, closes the page shown over the picture. |
 | **Games** · **Homebrew store** · **Save vault** · **Payloads** | The pages; the open one sits on a pill of brighter glass. The store only in builds with it. | Opens the page — over the picture while Remote Play plays (the same item again closes it). |
-| **Transfers** | How many cards the queue has. | Shows / hides the transfers (F9). Locked when the console has neither FTP nor the installer and nothing is queued. |
+| **Transfers** | How many cards the queue has. | Shows / hides the transfers (F9). They open once the console's FTP has answered — never while it is still being checked; without FTP, only while something is being installed or sent. |
 | **Log and diagnostics** | | Log, copy, save a diagnostics file (Ctrl+L). |
 | ☾ ◐ ☀ ✨ | Only one is lit. | Dark, glass or light: the plain appearance (custom colours step aside, kept for ✨). ✨ Custom: the saved look chosen in Settings → Personalisation (or the colours set aside); with none yet, opens that page. |
 | ⚙ **Settings** | | Settings (Ctrl+,). |
