@@ -9,6 +9,7 @@ set(ORBISLINK_TESTS
 	test_rpi_protocol
 	test_settings
 	test_console_probe
+	test_console_locator
 	test_update
 	test_pcm_convert
 	test_save_vault

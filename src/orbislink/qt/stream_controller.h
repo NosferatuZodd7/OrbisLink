@@ -14,6 +14,7 @@
 #include "orbislink/stream/session.h"
 
 #include <QObject>
+#include <functional>
 #include <QString>
 #include <QVariantMap>
 #include <map>
@@ -146,6 +147,11 @@ public:
 
 	// Comes from the OrbisLink settings.
 	void setAddress(const QString &address);
+	// Finds a saved console that may have changed address
+	// (AppController::findMovedConsoles); `done` gets where it is now, or an
+	// empty address when it is not anywhere else.
+	using Locator = std::function<void(const QString &address, std::function<void(const QString &newAddress)> done)>;
+	void setLocator(Locator locator) { locator_ = std::move(locator); }
 	void applySettings(const Settings &settings);
 	QString accountId() const { return accountId_; }
 	QString accountName() const;
@@ -293,6 +299,8 @@ private:
 	// One-click connection.
 	void setConnectStage(const QString &stage);
 	void oneClickDecide(const HostInfo &info);
+	// Discovery got no answer, and the console is not elsewhere either.
+	void oneClickWithoutAnswer();
 	void oneClickPoll();
 	QString connectStage_;
 	class QTimer *wakeTimer_ = nullptr;
@@ -306,6 +314,10 @@ private:
 	qint64 lastSessionEndMs_ = 0;
 	bool retryAfterInUse();
 	quint64 oneClickRun_ = 0;
+	Locator locator_;
+	// The address a one-click connect is looking for its console from: kept
+	// through the change of address the search may bring.
+	QString locatingFor_;
 	qint64 lastFrameCount_ = 0;
 	int measuredFps_ = 0;
 	int resolution_ = 720;

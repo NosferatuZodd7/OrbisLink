@@ -71,6 +71,7 @@ add_library(orbislink_core STATIC
 	src/orbislink/library/pkg_organizer.cpp
 	src/orbislink/library/shelf.cpp
 	src/orbislink/net/http_client.cpp
+	src/orbislink/net/console_locator.cpp
 	src/orbislink/net/lan_scan.cpp
 	src/orbislink/net/net_utils.cpp
 	src/orbislink/net/payload_sender.cpp

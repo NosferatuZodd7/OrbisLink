@@ -2,9 +2,14 @@
 #include "orbislink/net/net_utils.h"
 
 #include "orbislink/common/log.h"
+#include "orbislink/net/console_locator.h"
 #include "orbislink/net/socket_compat.h"
 
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <sstream>
 #include <vector>
 
 namespace orbislink {
@@ -252,6 +257,64 @@ bool findFreePort(const std::string &bindAddress, uint16_t preferred, uint16_t *
 		}
 	}
 	return false;
+}
+
+std::map<std::string, std::string> parseProcNetArp(const std::string &text)
+{
+	// IP address  HW type  Flags  HW address  Mask  Device — the first line
+	// is that header. Flags 0x2 (ATF_COM): the address answered.
+	std::map<std::string, std::string> table;
+	std::istringstream lines(text);
+	std::string line;
+	std::getline(lines, line);
+	while(std::getline(lines, line))
+	{
+		std::istringstream fields(line);
+		std::string address, type, flags, hardware;
+		if(!(fields >> address >> type >> flags >> hardware))
+			continue;
+		const unsigned long bits = std::strtoul(flags.c_str(), nullptr, 16);
+		const std::string mac = normaliseHardwareId(hardware);
+		if((bits & 0x2u) && !mac.empty())
+			table[address] = mac;
+	}
+	return table;
+}
+
+std::map<std::string, std::string> neighbourMacs()
+{
+	std::map<std::string, std::string> table;
+#ifdef _WIN32
+	ULONG size = 0;
+	if(GetIpNetTable(nullptr, &size, FALSE) != ERROR_INSUFFICIENT_BUFFER || size == 0)
+		return table;
+	std::vector<uint8_t> buffer(size);
+	auto *rows = reinterpret_cast<MIB_IPNETTABLE *>(buffer.data());
+	if(GetIpNetTable(rows, &size, FALSE) != NO_ERROR)
+		return table;
+	for(DWORD i = 0; i < rows->dwNumEntries; ++i)
+	{
+		const MIB_IPNETROW &row = rows->table[i];
+		// 2 is an entry that never got an answer (MIB_IPNET_TYPE_INVALID).
+		if(row.dwPhysAddrLen != 6 || row.dwType == 2)
+			continue;
+		char hex[13] = { 0 };
+		for(int b = 0; b < 6; ++b)
+			std::snprintf(hex + b * 2, 3, "%02X", static_cast<unsigned>(row.bPhysAddr[b]));
+		const std::string mac = normaliseHardwareId(hex);
+		if(!mac.empty())
+			table[ipv4ToString(row.dwAddr)] = mac;
+	}
+#elif defined(__linux__)
+	std::ifstream file("/proc/net/arp");
+	if(file)
+	{
+		std::stringstream text;
+		text << file.rdbuf();
+		table = parseProcNetArp(text.str());
+	}
+#endif
+	return table;
 }
 
 } // namespace orbislink

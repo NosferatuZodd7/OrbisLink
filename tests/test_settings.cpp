@@ -330,6 +330,26 @@ ORBISLINK_TEST(each_account_keeps_its_own_remote_play_pin)
 
 // Each console keeps its own Remote Play passcode: saved with it, read back,
 // left out when it has none, and never in a diagnostics report.
+ORBISLINK_TEST(each_console_keeps_the_hardware_address_it_answered_from)
+{
+	Settings settings;
+	ConsoleEntry living;
+	living.name = "Living room PS4";
+	living.address = "192.0.2.10";
+	living.hostId = "1122334455AA";
+	living.mac = "1122334455AC";
+	ConsoleEntry bedroom;
+	bedroom.name = "Bedroom PS5";
+	bedroom.address = "192.0.2.11";
+	settings.consoles = { living, bedroom };
+
+	const Settings reloaded = Settings::fromJson(settings.toJson());
+	CHECK_EQ(reloaded.consoles.size(), size_t(2));
+	CHECK_EQ(reloaded.consoles[0].mac, std::string("1122334455AC"));
+	CHECK_EQ(reloaded.consoles[0].hostId, std::string("1122334455AA"));
+	CHECK(reloaded.consoles[1].mac.empty());
+}
+
 ORBISLINK_TEST(each_console_keeps_its_own_remote_play_pin)
 {
 	Settings settings;

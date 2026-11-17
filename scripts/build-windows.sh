@@ -4,7 +4,7 @@
 # Produces the OrbisLink Windows x64 executable and the installer, from
 # Linux, with mingw-w64 + NSIS. Needs neither Windows nor MSVC.
 #
-#   sudo apt install mingw-w64 nsis cmake ninja-build git zip
+#   sudo apt install mingw-w64 nsis cmake ninja-build git
 #   ./scripts/build-windows.sh
 #
 # ORBISLINK_WINDOWS_TESTS=ON also builds the tests as .exe (useful to
@@ -12,8 +12,12 @@
 #
 # Output in dist/:
 #   orbislink-cli.exe                     standalone executable (no extra DLLs)
-#   OrbisLink-<version>-windows-x64.zip   portable version
 #   OrbisLink-<version>-setup.exe         installer
+#
+# There is no portable zip any more: its root held the command line, which
+# opens a console window and closes, and the window's .exe run from inside
+# the zip found none of its DLLs. The installer is what the update check
+# downloads anyway.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -111,18 +115,13 @@ fi | sed 's/$/\r/' > "$STAGE/README.txt"
 sed 's/$/\r/' "$REPO/packaging/windows/diagnostics.bat" > "$STAGE/diagnostics.bat"
 
 # If there is an already built graphical interface (from the Qt+MSVC job,
-# which runs on another machine), it goes into the installer and the zip.
+# which runs on another machine), it goes into the installer.
 GUI_DEFINE=()
 if [ -n "${ORBISLINK_GUI_DIR:-}" ] && [ -d "$ORBISLINK_GUI_DIR" ]; then
 	echo "    including the graphical interface from $ORBISLINK_GUI_DIR"
 	mkdir -p "$STAGE/gui"
 	cp -r "$ORBISLINK_GUI_DIR"/. "$STAGE/gui/"
 	GUI_DEFINE=("-DINCLUDE_GUI=1")
-fi
-
-if command -v zip >/dev/null; then
-	(cd "$STAGE" && zip -q -r "$DIST/OrbisLink-$VERSION-windows-x64.zip" .)
-	echo "    dist/OrbisLink-$VERSION-windows-x64.zip"
 fi
 
 echo "==> 4/4 instalador"

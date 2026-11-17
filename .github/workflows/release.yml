@@ -454,7 +454,7 @@ jobs:
           sudo apt-get update
           # Only the 64-bit compilers (the builds are x86_64-w64-mingw32): half
           # of what mingw-w64 brings, which also has the 32-bit ones.
-          sudo apt-get install -y gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 nsis cmake ninja-build zip
+          sudo apt-get install -y gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 nsis cmake ninja-build
       - name: libcurl cache for mingw
         uses: actions/cache@v4
         with:
@@ -484,7 +484,6 @@ jobs:
           name: orbislink-windows-x64
           path: |
             dist/*.exe
-            dist/*.zip
 
   linux:
     name: Linux x86-64
@@ -522,7 +521,7 @@ jobs:
       contents: write
     steps:
       # Only the finished packages. The interface artifact is a folder with
-      # hundreds of Qt DLLs — it already goes inside the installer and the zip.
+      # hundreds of Qt DLLs — it already goes inside the installer.
       - uses: actions/download-artifact@v4
         with:
           name: orbislink-windows-x64
@@ -538,7 +537,7 @@ jobs:
       - name: Publish the SHA-256 next to the files
         run: |
           cd artifacts
-          for file in *.exe *.zip *.tar.gz; do
+          for file in *.exe *.tar.gz; do
             [ -e "$file" ] || continue
             sha256sum "$file" > "$file.sha256"
           done
@@ -557,7 +556,6 @@ jobs:
           make_latest: false
           files: |
             artifacts/*.exe
-            artifacts/*.zip
             artifacts/*.tar.gz
             artifacts/*.sha256
           body: |
@@ -643,7 +641,6 @@ jobs:
           name: OrbisLink ${{ env.ORBISLINK_RELEASE_VERSION }}
           files: |
             artifacts/*.exe
-            artifacts/*.zip
             artifacts/*.tar.gz
             artifacts/*.sha256
           generate_release_notes: true
@@ -651,8 +648,7 @@ jobs:
             ## OrbisLink ${{ env.ORBISLINK_RELEASE_VERSION }}
 
             **Windows:** `OrbisLink-*-setup.exe` (installer, with the graphical
-            interface and the command line) or `OrbisLink-*-windows-x64.zip`
-            (portable, no install).
+            interface and the command line).
 
             **Linux:** `orbislink-*-linux-x86_64.tar.gz`.
 
@@ -703,7 +699,7 @@ jobs:
             --json body --jq .body > notes.md
           {
             printf '\n\n### SHA-256\n\n'
-            for file in artifacts/*.exe artifacts/*.zip artifacts/*.tar.gz; do
+            for file in artifacts/*.exe artifacts/*.tar.gz; do
               [ -e "$file" ] || continue
               printf '`%s`  %s\n\n' "$(cut -d' ' -f1 "$file.sha256")" "$(basename "$file")"
             done

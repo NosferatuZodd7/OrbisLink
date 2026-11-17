@@ -458,7 +458,7 @@ jobs:
           sudo apt-get update
           # Only the 64-bit compilers (the builds are x86_64-w64-mingw32): half
           # of what mingw-w64 brings, which also has the 32-bit ones.
-          sudo apt-get install -y gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 nsis cmake ninja-build zip
+          sudo apt-get install -y gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 nsis cmake ninja-build
       - name: libcurl cache for mingw
         uses: actions/cache@v4
         with:
@@ -486,7 +486,6 @@ jobs:
           name: orbislink-windows-x64-ci
           path: |
             dist/*.exe
-            dist/*.zip
 
   windows-msvc:
     name: Windows (MSVC, compatibility)

@@ -31,7 +31,8 @@ Item {
     property bool registered: false
     property bool connecting: false
     property bool searching: false
-    // The one-click connection step: "", "checking" or "waking".
+    // The one-click connection step: "", "checking", "locating" (looking for
+    // it at another address) or "waking".
     property string stage: ""
     property bool available: true   // false in a build without Remote Play
     // "ps4", "ps5", or empty when the console never answered — and then no
@@ -159,6 +160,7 @@ Item {
         if (current && connecting) return qsTr("Connecting…")
         if (current && stage === "waking") return qsTr("Waking the console…")
         if (current && stage === "checking") return qsTr("Checking the console…")
+        if (current && stage === "locating") return qsTr("Looking for it on the network…")
         if (current && searching) return qsTr("Searching for the console…")
         if (status === "offline") return qsTr("Not responding")
         if (status === "unknown") return qsTr("Checking…")

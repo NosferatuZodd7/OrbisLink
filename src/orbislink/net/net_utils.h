@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -30,6 +31,15 @@ std::string localAddressForConsole(const std::string &consoleIp);
 // `banner`, if not null, receives the first line sent by the server (used to
 // confirm FTP's "220").
 bool tcpProbe(const std::string &host, uint16_t port, int timeoutMs, std::string *banner = nullptr);
+
+// This PC's neighbour table (ARP): the hardware address each IPv4 address
+// of its own networks last answered from, as 12 upper-case hex digits
+// ("A24F107C3E91"). Only entries that did answer. Empty where the system
+// does not say (macOS for now). An address only gets an entry after this PC
+// tried to reach it — tcpProbe() to any port is enough.
+std::map<std::string, std::string> neighbourMacs();
+// The same, from the text of Linux's /proc/net/arp.
+std::map<std::string, std::string> parseProcNetArp(const std::string &text);
 
 // A free TCP port starting at `preferred` (§5.3: if taken, pick another).
 bool findFreePort(const std::string &bindAddress, uint16_t preferred, uint16_t *outPort,

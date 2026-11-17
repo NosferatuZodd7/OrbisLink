@@ -216,8 +216,7 @@ be joined first).
 The binaries are produced by GitHub Actions
 ([the "Release" workflow](.github/workflows/release.yml)):
 
-* **Windows x64** — `OrbisLink-<version>-setup.exe` (installer) or
-  `OrbisLink-<version>-windows-x64.zip` (portable).
+* **Windows x64** — `OrbisLink-<version>-setup.exe` (installer).
 * **Linux x86-64** — `orbislink-<version>-linux-x86_64.tar.gz` (command line).
 
 There are two kinds of release:
@@ -269,8 +268,8 @@ cmake --build build --config RelWithDebInfo
 ```bash
 ./scripts/build-linux.sh      # builds, runs the tests and makes the .tar.gz
 
-sudo apt install mingw-w64 nsis zip
-./scripts/build-windows.sh    # standalone .exe + portable .zip + installer
+sudo apt install mingw-w64 nsis
+./scripts/build-windows.sh    # standalone .exe + installer
 ```
 
 `build-windows.sh` builds from Linux with mingw-w64: it builds a static

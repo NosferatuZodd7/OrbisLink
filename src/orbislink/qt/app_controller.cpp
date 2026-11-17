@@ -14,6 +14,7 @@
 #include "orbislink/common/util.h"
 #include "orbislink/ftp/remote_move.h"
 #include "orbislink/net/http_client.h"
+#include "orbislink/net/lan_scan.h"
 #include "orbislink/net/net_utils.h"
 #include "orbislink/pkg/pkg_inspector.h"
 #include "orbislink/update/sha256.h"
@@ -99,6 +100,16 @@ AppController::AppController(QObject *parent)
 	qInfo("Startup: services ready");
 	if(!settings_.ftpUploadDirectory.empty())
 		ftpPath_ = QString::fromStdString(settings_.ftpUploadDirectory);
+
+	// Now and then, whether each saved console is still at its address
+	// (findMovedConsoles): a first look shortly after starting, then every
+	// minute. A look is a knock at each saved address and a read of the
+	// neighbour table; the network is only searched when one is missing.
+	auto *addressTimer = new QTimer(this);
+	addressTimer->setInterval(60 * 1000);
+	connect(addressTimer, &QTimer::timeout, this, [this]() { checkConsoleAddresses({}, false, {}); });
+	addressTimer->start();
+	QTimer::singleShot(20 * 1000, this, [this]() { checkConsoleAddresses({}, false, {}); });
 }
 
 AppController::~AppController()
@@ -445,6 +456,24 @@ void AppController::rememberConsoleType(const QString &address, bool ps5, const 
 	{
 		if(console.address != trimmedAddress)
 			continue;
+		// Another console answers at this one's address: the router gave it
+		// the address this one had. This one is looked for, instead of
+		// taking the newcomer for it.
+		if(!id.empty() && !console.hostId.empty()
+			&& normaliseHardwareId(console.hostId) != normaliseHardwareId(id))
+		{
+			checkConsoleAddresses({ address.trimmed() }, true, {});
+			return;
+		}
+		// It answered Remote Play as itself here: its hardware address, from
+		// the neighbour table, is kept to find it again if it moves.
+		if(!id.empty() && console.mac.empty())
+		{
+			const auto neighbours = neighbourMacs();
+			const auto mac = neighbours.find(trimmedAddress);
+			if(mac != neighbours.end())
+				learnConsoleMac(trimmedAddress, mac->second);
+		}
 		if(console.type == kind && (id.empty() || console.hostId == id))
 			return;
 		console.type = kind;
@@ -489,6 +518,7 @@ bool AppController::updateConsole(const QString &oldAddress, const QString &name
 	{
 		target->type.clear();
 		target->hostId.clear();
+		target->mac.clear();
 	}
 	const bool active = from == settings_.consoleAddress;
 	if(active)
@@ -1851,6 +1881,232 @@ void AppController::checkServicesNow()
 	if(!console_)
 		return;
 	std::thread([console = console_]() { console->checkNow(); }).detach();
+	// Asked for by hand: if the console is not where it was saved, it is
+	// looked for now, without waiting for the next turn.
+	if(!settings_.consoleAddress.empty())
+		checkConsoleAddresses({ QString::fromStdString(settings_.consoleAddress) }, true, {});
+}
+
+void AppController::findMovedConsoles(const QStringList &addresses, bool urgent, LocateDone done)
+{
+	checkConsoleAddresses(addresses, urgent, std::move(done));
+}
+
+void AppController::checkConsoleAddresses(const QStringList &only, bool urgent, LocateDone done)
+{
+	auto finishEmpty = [&only, &done]() {
+		if(done)
+			for(const QString &address : only)
+				done(address, QString());
+	};
+	if(streamBusy_ && !urgent)
+		return finishEmpty();
+	if(locating_)
+	{
+		// One look at a time; an urgent question waits for the look under
+		// way and then asks again.
+		if(urgent)
+			locateWaiters_.emplace_back(only, std::move(done));
+		return;
+	}
+
+	// The saved consoles to look at, with what identifies each; and those
+	// whose FTP answered at their address, whose hardware address can be
+	// learned there.
+	std::vector<SoughtConsole> sought;
+	std::vector<std::string> answering;
+	std::map<std::string, int64_t> notBefore;
+	for(const ConsoleEntry &console : settings_.consoles)
+	{
+		const QString address = QString::fromStdString(console.address);
+		if(!only.isEmpty() && !only.contains(address))
+			continue;
+		const bool ftpAnswers = ftpReachable_.value(address).toBool()
+			|| (console.address == settings_.consoleAddress && status_.ftp.state == ServiceState::Available);
+		if(ftpAnswers && console.mac.empty())
+			answering.push_back(console.address);
+		SoughtConsole item;
+		item.address = console.address;
+		if(!console.hostId.empty())
+			item.ids.push_back(console.hostId);
+		if(!console.mac.empty())
+			item.ids.push_back(console.mac);
+		if(item.ids.empty())
+			continue;
+		sought.push_back(item);
+		const auto wait = locateWaits_.find(console.address);
+		notBefore[console.address] = urgent || wait == locateWaits_.end() ? 0 : wait->second.nextMs;
+	}
+	if(sought.empty() && answering.empty())
+		return finishEmpty();
+
+	locating_ = true;
+	const auto search = networkSearch_;
+	std::thread([this, life = lifeline_, sought, answering, notBefore, search, only, done]() {
+		// A knock at each address (any port: what counts is that the PC asks
+		// who has it), then the neighbour table says who answered.
+		std::set<std::string> knocked;
+		for(const SoughtConsole &console : sought)
+			knocked.insert(console.address);
+		for(const std::string &address : answering)
+			knocked.insert(address);
+		for(const std::string &address : knocked)
+			tcpProbe(address, 9, 300);
+		std::map<std::string, std::string> neighbours = neighbourMacs();
+
+		const int64_t now = monotonicMillis();
+		std::vector<SoughtConsole> missing;
+		std::vector<std::string> present;
+		for(const SoughtConsole &console : sought)
+		{
+			const AddressCheck check = checkAddress(console, neighbours);
+			if(check == AddressCheck::Present)
+				present.push_back(console.address);
+			// Another machine has its address: it has certainly moved.
+			// Nothing answers there: it is off, or elsewhere — looked for
+			// when its wait is over.
+			else if(check == AddressCheck::Taken || now >= notBefore.at(console.address))
+				missing.push_back(console);
+		}
+
+		std::vector<Sighting> sightings;
+		std::map<std::string, std::string> moved;
+		if(!missing.empty())
+		{
+			logInfo("Looking on the network for " + std::to_string(missing.size())
+				+ " saved console(s) that did not answer at their address.");
+			if(search)
+				sightings = search();
+			else
+			{
+				// Without Remote Play's search, every address of the network is
+				// knocked at instead, which fills the neighbour table.
+				std::vector<std::string> hosts = lanTargets(localInterfaces()).hosts;
+				if(hosts.size() > 1024)
+					hosts.resize(1024);
+				hostsWithPort(hosts, 9, 600);
+			}
+			neighbours = neighbourMacs();
+			moved = locateMoved(missing, sightings, neighbours);
+		}
+
+		// What each console's hardware address is, where it answered as
+		// itself: by FTP, or to Remote Play's search with its host-id.
+		std::map<std::string, std::string> learned;
+		for(const std::string &address : answering)
+		{
+			const auto mac = neighbours.find(address);
+			if(mac != neighbours.end())
+				learned[address] = mac->second;
+		}
+		for(const SoughtConsole &console : missing)
+			for(const Sighting &sighting : sightings)
+				if(sighting.address == console.address
+					&& !console.ids.empty() && normaliseHardwareId(sighting.id) == normaliseHardwareId(console.ids.front()))
+				{
+					const auto mac = neighbours.find(console.address);
+					if(mac != neighbours.end())
+						learned[console.address] = mac->second;
+				}
+
+		life->post([this, missing, present, moved, learned, only, done]() {
+			locating_ = false;
+			for(const auto &entry : learned)
+				learnConsoleMac(entry.first, entry.second);
+			for(const std::string &address : present)
+				locateWaits_.erase(address);
+			const int64_t now = monotonicMillis();
+			for(const SoughtConsole &console : missing)
+			{
+				if(moved.count(console.address))
+				{
+					locateWaits_.erase(console.address);
+					continue;
+				}
+				// Not found anywhere: wait longer before the next search.
+				LocateWait &wait = locateWaits_[console.address];
+				wait.delayMs = std::min<int64_t>(30 * 60 * 1000,
+					wait.delayMs == 0 ? 2 * 60 * 1000 : wait.delayMs * 5 / 2);
+				wait.nextMs = now + wait.delayMs;
+			}
+			for(const auto &entry : moved)
+				relocateConsole(entry.first, entry.second);
+			if(done)
+				for(const QString &address : only)
+				{
+					const auto found = moved.find(address.toStdString());
+					done(address, found == moved.end() ? QString() : QString::fromStdString(found->second));
+				}
+			if(!locateWaiters_.empty())
+			{
+				auto next = std::move(locateWaiters_.front());
+				locateWaiters_.erase(locateWaiters_.begin());
+				checkConsoleAddresses(next.first, true, std::move(next.second));
+			}
+		});
+	}).detach();
+}
+
+void AppController::learnConsoleMac(const std::string &address, const std::string &mac)
+{
+	const std::string normal = normaliseHardwareId(mac);
+	if(normal.empty())
+		return;
+	for(ConsoleEntry &console : settings_.consoles)
+	{
+		// Only the first time: a console that already has one keeps it, so
+		// another machine taking its address never becomes it.
+		if(console.address != address || !console.mac.empty())
+			continue;
+		console.mac = normal;
+		store_.save(settings_);
+		return;
+	}
+}
+
+void AppController::relocateConsole(const std::string &from, const std::string &to)
+{
+	ConsoleEntry *entry = nullptr;
+	for(ConsoleEntry &console : settings_.consoles)
+	{
+		if(console.address == from)
+			entry = &console;
+		else if(console.address == to)
+		{
+			// Two saved consoles cannot share an address: say so, and leave
+			// the choice to the person.
+			logWarning("A saved console now answers at " + to + ", where another saved console is.");
+			emit notify(tr("Consoles"),
+				tr("A saved console now answers at %1, which another saved console also uses. Check the "
+					"addresses in Settings → Consoles.").arg(QString::fromStdString(to)),
+				true);
+			return;
+		}
+	}
+	if(!entry)
+		return;
+	const QString name = QString::fromStdString(entry->name);
+	entry->address = to;
+	const bool active = settings_.consoleAddress == from;
+	if(active)
+		settings_.consoleAddress = to;
+	// What was learned about the console goes with it.
+	const QString oldKey = QString::fromStdString(from);
+	const QString newKey = QString::fromStdString(to);
+	for(QVariantMap *map : { &ftpReachable_, &jailbreaks_, &henVersions_ })
+		if(map->contains(oldKey))
+			map->insert(newKey, map->take(oldKey));
+	store_.save(settings_);
+	logInfo(entry->name + " moved on the network: " + from + " → " + to + ". Address updated.");
+	if(active)
+		rebuildBackends();
+	emit settingsChanged();
+	emit statusChanged();
+	emit ftpReachableChanged();
+	emit notify(tr("Consoles"),
+		tr("%1 has a new address on the network: it was at %2 and is now at %3. Updated by itself.")
+			.arg(name, oldKey, newKey),
+		false);
 }
 
 void AppController::cancelTask(const QString &id)

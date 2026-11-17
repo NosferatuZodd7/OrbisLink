@@ -163,6 +163,26 @@ console saved; a registered one is connected to directly, and the session
 says itself if the console is not there. The registration keeps the
 console's host-id, so it is found again without discovery.
 
+**A console that changed address.** Routers hand addresses out again (after
+a power cut, a while away), so a console saved at .20 may come back at .45.
+Each saved console keeps what identifies it on the network: the host-id
+Remote Play reports and the hardware address (MAC) this PC saw it answer from
+— learned the first time it answers as itself, by Remote Play or FTP. About a
+minute after the app starts and then every minute (never while a session
+streams), the app knocks at each saved address and reads this PC's
+neighbour table: a console still there is left alone. One that is not — or
+whose address now answers with another machine's hardware address — is
+looked for on the network (Remote Play's search, then the neighbour table);
+found at exactly one other address, its address is changed by itself, with a
+notice, and everything follows (FTP, the installer, the PC's HTTP server).
+Nothing moves on a guess: not by name, not when it shows up in two places,
+not onto an address another saved console uses. A console that is simply off
+is looked for again after 2, then 5, 12 … up to 30 minutes, so the network is
+not searched every minute. **Connect** on a console that does not answer
+looks for it first ("Looking for it on the network…") and connects at its new
+address; **Check the services now** looks for the console in use straight
+away.
+
 **Add console**: name, IP and type; it is probed straight away. Its
 **On the network** list searches as it opens (and with **Search again**): the
 Remote Play search goes to every network interface's own broadcast address,
