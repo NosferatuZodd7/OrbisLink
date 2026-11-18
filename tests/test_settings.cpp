@@ -350,6 +350,33 @@ ORBISLINK_TEST(each_console_keeps_the_hardware_address_it_answered_from)
 	CHECK(reloaded.consoles[1].mac.empty());
 }
 
+ORBISLINK_TEST(a_console_keeps_that_it_connects_directly_and_its_last_firmware)
+{
+	Settings settings;
+	ConsoleEntry living;
+	living.name = "Living room PS4";
+	living.address = "192.0.2.10";
+	living.type = "ps4";
+	living.connectsDirectly = true;
+	living.firmware = 0x0900;
+	ConsoleEntry bedroom;
+	bedroom.name = "Bedroom PS5";
+	bedroom.address = "192.0.2.11";
+	settings.consoles = { living, bedroom };
+
+	const Settings reloaded = Settings::fromJson(settings.toJson());
+	CHECK_EQ(reloaded.consoles.size(), size_t(2));
+	CHECK(reloaded.consoles[0].connectsDirectly);
+	CHECK_EQ(reloaded.consoles[0].firmware, 0x0900);
+	CHECK(!reloaded.consoles[1].connectsDirectly);
+	CHECK_EQ(reloaded.consoles[1].firmware, 0);
+	// A hand-edited value out of range is not a firmware.
+	const Settings odd = Settings::fromJson(
+		R"({"consoles":[{"name":"x","address":"192.0.2.12","firmware":99999999}]})");
+	CHECK_EQ(odd.consoles.size(), size_t(1));
+	CHECK_EQ(odd.consoles[0].firmware, 0);
+}
+
 ORBISLINK_TEST(each_console_keeps_its_own_remote_play_pin)
 {
 	Settings settings;

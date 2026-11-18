@@ -63,6 +63,9 @@ class AppController : public QObject
 	Q_PROPERTY(QString httpServerAddress READ httpServerAddress NOTIFY statusChanged)
 	Q_PROPERTY(QString ftpPath READ ftpPath NOTIFY ftpPathChanged)
 	Q_PROPERTY(bool ftpBusy READ ftpBusy NOTIFY ftpBusyChanged)
+	// Why the folder on screen could not be listed (empty when it was): an
+	// empty folder and one that could not be opened are not the same.
+	Q_PROPERTY(QString ftpListError READ ftpListError NOTIFY ftpListErrorChanged)
 	// What is being deleted on the console from the file list: their paths,
 	// each row showing its own progress.
 	Q_PROPERTY(QStringList ftpDeleting READ ftpDeleting NOTIFY ftpDeletingChanged)
@@ -91,6 +94,10 @@ class AppController : public QObject
 	Q_PROPERTY(double downloadProgress READ downloadProgress NOTIFY downloadChanged)
 	// The transfer is a move between two disks of the console, through this PC.
 	Q_PROPERTY(bool downloadMoving READ downloadMoving NOTIFY downloadChanged)
+	// The transfer under way is a copy on the console (not a move).
+	Q_PROPERTY(bool downloadCopying READ downloadCopying NOTIFY downloadChanged)
+	// Settings → Advanced mode for FTP (protected areas, server commands).
+	Q_PROPERTY(bool ftpAdvancedMode READ ftpAdvancedMode NOTIFY settingsChanged)
 	Q_PROPERTY(QStringList ftpShortcuts READ ftpShortcuts NOTIFY ftpShortcutsChanged)
 	// Remote Play picture: "fit" (as the console sends it), "4:3" or "fill".
 	Q_PROPERTY(QString streamAspect READ streamAspect WRITE setStreamAspect NOTIFY streamAspectChanged)
@@ -177,6 +184,7 @@ public:
 	QString httpServerAddress() const;
 	QString ftpPath() const { return ftpPath_; }
 	bool ftpBusy() const { return ftpBusy_; }
+	QString ftpListError() const { return ftpListError_; }
 	QStringList ftpDeleting() const { return ftpDeleting_; }
 	QVariantMap ftpSpace() const { return ftpSpace_; }
 	QVariantList ftpUploads() const { return ftpUploads_; }
@@ -189,6 +197,7 @@ public:
 	QString downloadName() const { return downloadName_; }
 	double downloadProgress() const { return downloadProgress_; }
 	bool downloadMoving() const { return downloadMoving_; }
+	bool downloadCopying() const { return downloadCopying_; }
 	QStringList ftpShortcuts() const;
 	QString streamAspect() const { return QString::fromStdString(settings_.streamAspect); }
 	void setStreamAspect(const QString &aspect);
@@ -267,6 +276,10 @@ public:
 	// The system version discovery reported for a console ("09000000");
 	// empty when it did not answer. Only the console in use's counts.
 	void reportConsoleFirmware(const QString &address, const QString &systemVersion);
+	// The consoles that took a direct Remote Play connection without
+	// answering the search, and noting one more.
+	QStringList directConsoles() const;
+	void rememberDirectConsole(const QString &address);
 	// What to know before a package goes to the console in use: an
 	// official package, or one that needs a newer firmware than this PS4's
 	// (`category` as the package says it: "gd", "gp"…). Empty when there is
@@ -330,6 +343,21 @@ public:
 	Q_INVOKABLE void ftpMove(const QString &path, const QString &destinationDir);
 	// Several, one after the other.
 	Q_INVOKABLE void ftpMoveMany(const QStringList &paths, const QString &destinationDir);
+	// The same, copied: the original stays. Through this PC (the consoles'
+	// servers have no copy command); into the same folder it gets a new
+	// name ("name copy").
+	Q_INVOKABLE void ftpCopyMany(const QStringList &paths, const QString &destinationDir);
+	// SITE CHMOD on each of [{ path, isDirectory }] — `mode` octal ("755",
+	// "777") — and, when asked, on everything inside the folders.
+	Q_INVOKABLE void ftpChmod(const QVariantList &items, const QString &mode, bool everythingInside);
+	// A small text file of the console (up to 1 MB) to read and change:
+	// ftpTextLoaded brings it, ftpTextSaved says it went back.
+	Q_INVOKABLE void ftpLoadText(const QString &path);
+	Q_INVOKABLE void ftpSaveText(const QString &path, const QString &text);
+	// A command of the console's FTP server itself (Advanced mode only):
+	// "MTRW" (ftpsrv: /system writable) or "KILL" (ftpsrv: stops itself).
+	Q_INVOKABLE void ftpServerCommand(const QString &command);
+	bool ftpAdvancedMode() const { return settings_.ftpAdvancedMode; }
 	// A whole folder, with everything inside it, to a folder of the PC
 	// (empty: the downloads folder).
 	Q_INVOKABLE void ftpDownloadFolder(const QString &remotePath, const QString &name,
@@ -473,8 +501,11 @@ signals:
 	void statusMessageChanged();
 	void ftpPathChanged();
 	void ftpFoldersListed(const QString &path, const QStringList &folders, const QString &error);
+	void ftpTextLoaded(const QString &path, const QString &text, const QString &error);
+	void ftpTextSaved(const QString &path, const QString &error);
 	void ftpFolderCreated(const QString &path, const QString &error);
 	void ftpBusyChanged();
+	void ftpListErrorChanged();
 	void ftpDeletingChanged();
 	void ftpSpaceChanged();
 	void ftpUploadsChanged();
@@ -528,6 +559,9 @@ private:
 	// Reads each queued package's icon, and what to know about it (its
 	// firmware, an official package), on a worker thread.
 	void readPackageFacts(const QStringList &paths, const QStringList &taskIds);
+	// Folders dropped to go over FTP: every file in them, with their tree,
+	// under `baseDir` (the folder open in the file list, or the upload folder).
+	void enqueueFolderUploads(const QStringList &folders, const QString &baseDir);
 	void enqueueFiles(const QStringList &files, TransferMode mode,
 		const std::vector<std::string> &remoteNames = {}, const QString &directory = QString());
 	// Lists the folder the files go to and, for those already there, asks first.
@@ -556,6 +590,14 @@ private:
 	QString statusMessage_;
 	QString ftpPath_ = QStringLiteral("/data/pkg/");
 	bool ftpBusy_ = false;
+	QString ftpListError_;
+	void setFtpListError(const QString &error)
+	{
+		if(ftpListError_ == error)
+			return;
+		ftpListError_ = error;
+		emit ftpListErrorChanged();
+	}
 	QStringList ftpDeleting_;
 	// Asked to list while a listing was under way.
 	bool ftpRelist_ = false;
@@ -601,6 +643,10 @@ private:
 	// Only the most recent check matters: earlier ones are discarded when
 	// they arrive, so the result never contradicts what is on screen.
 	std::atomic<uint64_t> probeGeneration_ { 0 };
+	// Which ConsoleManager is the current one: what an earlier one says (a
+	// check still under way when the console was switched) speaks of
+	// another console and is not taken.
+	uint64_t consoleGeneration_ = 0;
 	bool streamVerbose_ = false;
 	int dragsSeen_ = 0;
 	int dragsDropped_ = 0;
@@ -635,6 +681,9 @@ private:
 	QString downloadName_;
 	double downloadProgress_ = 0.0;
 	bool downloadMoving_ = false;
+	bool downloadCopying_ = false;
+	// Move or copy on the console (ftpMoveMany / ftpCopyMany).
+	void transferOnConsole(const QStringList &paths, const QString &destinationDir, bool copy);
 	// Each download's own flag, shared with its thread.
 	std::shared_ptr<std::atomic<bool>> downloadCancel_ = std::make_shared<std::atomic<bool>>(false);
 

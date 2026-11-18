@@ -241,7 +241,17 @@ Item {
                 readonly property int cols: Math.max(1, Math.floor((width + spacing) / (minCell + spacing)))
                 readonly property int cell: Math.min(maxCell,
                                                      Math.floor((width - spacing * (cols - 1)) / cols))
-                readonly property int cellHeight: 240
+                // As tall as the card that needs most room (tags on two
+                // lines), so the cards of a row stay alike.
+                readonly property int cellHeight: {
+                    var tallest = 240
+                    for (var i = 0; i < children.length; ++i) {
+                        var needed = children[i].neededHeight
+                        if (needed !== undefined && needed > tallest)
+                            tallest = needed
+                    }
+                    return tallest
+                }
                 // Room for the ring of glass around the console in use.
                 x: 6
                 width: parent.width - 12
@@ -266,6 +276,9 @@ Item {
                         status: modelData.active ? root.consoleState
                               : (other ? other.state : "unknown")
                         registered: modelData.active ? root.registered : (other ? other.registered : false)
+                        // It took a direct connection without answering the search.
+                        direct: modelData.active ? (root.built && stream.directReachable)
+                                                 : modelData.connectsDirectly === true
                         // What the console said just now, if it answered; otherwise,
                         // what was stored the last time it answered.
                         kind: {
@@ -358,6 +371,9 @@ Item {
                                     + "installing pkg files and FTP — still works.")
                     if (root.sessionState === "failed" && stream.sessionDetail.length > 0)
                         return stream.sessionDetail
+                    if (root.consoleState === "offline" && stream.directReachable)
+                        return qsTr("This console does not answer the network search, but takes a direct "
+                                    + "connection: Remote Play connects all the same.")
                     if (root.consoleState === "offline")
                         return qsTr("Check the IP in the settings, and that the console is on the "
                                     + "same network.")

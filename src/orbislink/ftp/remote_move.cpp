@@ -74,36 +74,15 @@ bool walk(FtpClient &ftp, const std::string &root, const std::string &relative, 
 
 } // namespace
 
-FtpResult moveOnConsole(FtpClient &ftp, const std::string &fromPath, const std::string &toPath,
-	const std::string &scratchDir, const FtpProgressCallback &progress, bool *throughPc)
+namespace {
+
+// Copies `from` (a file, or a folder and everything in it) to `to` through
+// this PC: each file downloaded into `scratchDir`, sent to its place and its
+// size checked there. `items` is what `from` holds (see walk). What was made
+// before a failure or a cancel is left as it is, the half-sent file aside.
+FtpResult copyThroughPc(FtpClient &ftp, const std::string &from, const std::string &to,
+	const std::vector<Item> &items, const std::string &scratchDir, const FtpProgressCallback &progress)
 {
-	if(throughPc)
-		*throughPc = false;
-	const std::string from = normalizeRemotePath(fromPath);
-	const std::string to = normalizeRemotePath(toPath);
-	if(from == to)
-		return FtpResult::success();
-	// Into itself: no rename does it, and a copy would be deleted with the original.
-	if(startsWith(to, from + "/"))
-		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "A folder cannot be moved into itself."));
-	if(lookUp(ftp, to, nullptr))
-		return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Messages",
-			"There is already something with that name there")) + ": " + to);
-
-	const FtpResult renamed = ftp.rename(from, to);
-	if(renamed.ok || renamed.cancelled)
-		return renamed;
-
-	// Not renamed: most likely another disk. Through this PC, then — if it is
-	// still there to copy.
-	FtpEntry top;
-	if(!lookUp(ftp, from, &top))
-		return renamed;
-	std::vector<Item> items { { std::string(), top.isDirectory, top.isDirectory ? 0 : top.size } };
-	std::string why;
-	if(top.isDirectory && !walk(ftp, from, std::string(), &items, &why))
-		return FtpResult::failure(why);
-
 	int64_t bytes = 0;
 	int64_t largest = 0;
 	for(const Item &item : items)
@@ -116,19 +95,14 @@ FtpResult moveOnConsole(FtpClient &ftp, const std::string &fromPath, const std::
 	const fs::space_info room = fs::space(fs::u8path(scratchDir), ec);
 	if(!ec && static_cast<int64_t>(room.available) < largest + 64LL * 1024 * 1024)
 		return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Messages",
-			"Not enough free space on this PC to move it between disks")) + " (" + humanBytes(largest) + ")");
+			"Not enough free space on this PC to copy it")) + " (" + humanBytes(largest) + ")");
 
-	logInfo("FTP: " + from + " cannot be renamed to " + to + " (" + renamed.message
-		+ "); copying it through this PC.");
-	if(throughPc)
-		*throughPc = true;
 	const int64_t total = bytes * 2;
 	int64_t done = 0;
 	const std::string local = joinPath(scratchDir, "moving.part");
 	auto at = [&](const Item &item, const std::string &root) {
 		return item.relative.empty() ? root : root + "/" + item.relative;
 	};
-
 	for(const Item &item : items)
 	{
 		const std::string source = at(item, from);
@@ -167,16 +141,118 @@ FtpResult moveOnConsole(FtpClient &ftp, const std::string &fromPath, const std::
 			return cancelled;
 		}
 	}
+	return FtpResult::success();
+}
+
+// What `from` is and holds, top first.
+FtpResult itemsOf(FtpClient &ftp, const std::string &from, std::vector<Item> *items)
+{
+	FtpEntry top;
+	if(!lookUp(ftp, from, &top))
+		return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Messages", "It is not on the console any more"))
+			+ ": " + from);
+	items->assign({ { std::string(), top.isDirectory, top.isDirectory ? 0 : top.size } });
+	std::string why;
+	if(top.isDirectory && !walk(ftp, from, std::string(), items, &why))
+		return FtpResult::failure(why);
+	return FtpResult::success();
+}
+
+} // namespace
+
+FtpResult moveOnConsole(FtpClient &ftp, const std::string &fromPath, const std::string &toPath,
+	const std::string &scratchDir, const FtpProgressCallback &progress, bool *throughPc)
+{
+	if(throughPc)
+		*throughPc = false;
+	const std::string from = normalizeRemotePath(fromPath);
+	const std::string to = normalizeRemotePath(toPath);
+	if(from == to)
+		return FtpResult::success();
+	// Into itself: no rename does it, and a copy would be deleted with the original.
+	if(startsWith(to, from + "/"))
+		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "A folder cannot be moved into itself."));
+	if(lookUp(ftp, to, nullptr))
+		return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Messages",
+			"There is already something with that name there")) + ": " + to);
+
+	const FtpResult renamed = ftp.rename(from, to);
+	if(renamed.ok || renamed.cancelled)
+		return renamed;
+
+	// Not renamed: most likely another disk. Through this PC, then — if it is
+	// still there to copy.
+	std::vector<Item> items;
+	if(!lookUp(ftp, from, nullptr))
+		return renamed;
+	const FtpResult listed = itemsOf(ftp, from, &items);
+	if(!listed.ok)
+		return listed;
+
+	logInfo("FTP: " + from + " cannot be renamed to " + to + " (" + renamed.message
+		+ "); copying it through this PC.");
+	if(throughPc)
+		*throughPc = true;
+	const FtpResult copied = copyThroughPc(ftp, from, to, items, scratchDir, progress);
+	if(!copied.ok)
+		return copied;
 
 	// All of it is in place: the original goes, what is in folders first.
 	for(auto it = items.rbegin(); it != items.rend(); ++it)
 	{
-		const std::string source = at(*it, from);
+		const std::string source = it->relative.empty() ? from : from + "/" + it->relative;
 		const FtpResult removed = it->directory ? ftp.removeDirectory(source) : ftp.removeFile(source);
 		if(!removed.ok)
 			return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Messages",
 				"Copied, but the original could not be deleted")) + ": " + removed.message);
 	}
+	return FtpResult::success();
+}
+
+FtpResult copyOnConsole(FtpClient &ftp, const std::string &fromPath, const std::string &toPath,
+	const std::string &scratchDir, const FtpProgressCallback &progress)
+{
+	const std::string from = normalizeRemotePath(fromPath);
+	const std::string to = normalizeRemotePath(toPath);
+	if(from == to || startsWith(to, from + "/"))
+		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "A folder cannot be copied into itself."));
+	if(lookUp(ftp, to, nullptr))
+		return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Messages",
+			"There is already something with that name there")) + ": " + to);
+	std::vector<Item> items;
+	const FtpResult listed = itemsOf(ftp, from, &items);
+	if(!listed.ok)
+		return listed;
+	// The consoles' servers have no copy command: it goes through this PC.
+	return copyThroughPc(ftp, from, to, items, scratchDir, progress);
+}
+
+FtpResult chmodOnConsole(FtpClient &ftp, const std::string &pathIn, bool isDirectory, const std::string &mode,
+	bool everythingInside, const std::function<bool(int done, int total)> &progress)
+{
+	const std::string path = normalizeRemotePath(pathIn);
+	std::vector<Item> items { { std::string(), isDirectory, 0 } };
+	std::string why;
+	if(isDirectory && everythingInside && !walk(ftp, path, std::string(), &items, &why))
+		return FtpResult::failure(why);
+	const int total = static_cast<int>(items.size());
+	int done = 0;
+	for(const Item &item : items)
+	{
+		if(progress && !progress(done, total))
+		{
+			FtpResult cancelled = FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Operation cancelled."));
+			cancelled.cancelled = true;
+			return cancelled;
+		}
+		const std::string target = item.relative.empty() ? path : path + "/" + item.relative;
+		const FtpResult changed = ftp.setPermissions(target, mode);
+		if(!changed.ok)
+			return FtpResult::failure(changed.message + " (" + target + ")");
+		++done;
+	}
+	if(progress)
+		progress(total, total);
 	return FtpResult::success();
 }
 

@@ -29,6 +29,11 @@ Plate {
     signal customThemeRequested()
 
     readonly property bool live: typeof stream !== "undefined" && stream !== null && stream.streaming
+    // The console in use has no FTP answering (checked, not still being
+    // checked): the pages that read it over FTP say so in the list.
+    readonly property bool noFtp: app.ftpState === "unavailable" || app.ftpState === "not-applicable"
+    readonly property string noFtpHint: qsTr("The console's FTP is not answering: this page shows only what is "
+                                             + "on this PC until it does.")
     // The page lit: the one open over the picture, or in the main area.
     readonly property string current: window.overSection.length > 0 ? window.overSection : window.view
 
@@ -42,6 +47,9 @@ Plate {
         property bool selected: false
         property int badge: 0
         property bool pulse: false
+        // A quiet word at the right: what the page lacks just now ("no
+        // FTP"). Folded, a grey dot at the icon's corner.
+        property string note: ""
         signal clicked()
 
         Layout.fillWidth: true
@@ -99,6 +107,24 @@ Plate {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
             Rectangle {
+                visible: item.note.length > 0
+                anchors.verticalCenter: parent.verticalCenter
+                width: noteText.implicitWidth + 12
+                height: 18
+                radius: 9
+                color: "transparent"
+                border.width: 1
+                border.color: Theme.light ? Theme.lightHairlineStrong : Qt.rgba(1, 1, 1, 0.18)
+                Text {
+                    id: noteText
+                    anchors.centerIn: parent
+                    text: item.note
+                    color: Theme.textSecondary
+                    font.pixelSize: 10
+                    font.weight: Font.DemiBold
+                }
+            }
+            Rectangle {
                 visible: item.badge > 0
                 anchors.verticalCenter: parent.verticalCenter
                 width: Math.max(20, count.implicitWidth + 10)
@@ -116,6 +142,15 @@ Plate {
             }
         }
         // Folded: the count at the icon's corner; a live dot for Remote Play.
+        Rectangle {
+            visible: nav.compact && item.note.length > 0 && item.badge === 0 && !item.pulse
+            x: glyph.x + glyph.width - 4
+            y: glyph.y - 5
+            width: 8
+            height: 8
+            radius: 4
+            color: Theme.textSecondary
+        }
         Rectangle {
             visible: nav.compact && (item.badge > 0 || item.pulse)
             x: glyph.x + glyph.width - 4
@@ -160,7 +195,8 @@ Plate {
         }
         ToolTip.visible: mouse.containsMouse && (nav.compact || item.hint.length > 0)
         ToolTip.delay: nav.compact ? 150 : 700
-        ToolTip.text: nav.compact ? item.text + (item.hint.length > 0 ? " — " + item.hint : "") : item.hint
+        ToolTip.text: (nav.compact ? item.text + (item.hint.length > 0 ? " — " + item.hint : "") : item.hint)
+                      + (item.note.length > 0 ? "\n" + nav.noFtpHint : "")
     }
 
     ColumnLayout {
@@ -236,6 +272,7 @@ Plate {
                     iconName: "archive"
                     text: qsTr("Save vault")
                     hint: qsTr("Back up the console's saves on this PC")
+                    note: nav.noFtp ? qsTr("no FTP") : ""
                     selected: nav.current === "saves"
                     onClicked: window.goTo("saves")
                 }
@@ -243,6 +280,7 @@ Plate {
                     iconName: "zap"
                     text: qsTr("Payloads")
                     hint: qsTr("See and manage the console's payloads and plugins, and run one now")
+                    note: nav.noFtp ? qsTr("no FTP") : ""
                     selected: nav.current === "payloads"
                     onClicked: window.goTo("payloads")
                 }

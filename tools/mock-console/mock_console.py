@@ -56,6 +56,9 @@ class FtpSession(threading.Thread):
     # Answers AVBL with the room left on the disk of the root (--ftp-avbl):
     # the consoles' servers do not.
     avbl = False
+    # Offers MLSD in FEAT and answers it (--ftp-mlsd), as zftpd does; the
+    # consoles' usual servers only have LIST.
+    mlsd = False
     # What it says on connecting (--ftp-greeting).
     greeting = "220 GoldHEN FTP Server (mock-console)"
     # The address the console listens on (--host): data connections too.
@@ -168,6 +171,9 @@ class FtpSession(threading.Thread):
             self.send(" SIZE")
             self.send(" REST STREAM")
             self.send(" PASV")
+            if FtpSession.mlsd:
+                self.send(" MLSD")
+                self.send(" MDTM")
             self.send("211 End")
         elif command == "OPTS":
             self.send("200 Ok")
@@ -193,6 +199,11 @@ class FtpSession(threading.Thread):
             self.send(f"229 Entering Extended Passive Mode (|||{port}|)")
         elif command in ("LIST", "NLST"):
             self.command_list(argument, names_only=command == "NLST")
+        elif command == "MLSD" and FtpSession.mlsd:
+            self.command_mlsd(argument)
+        elif command == "MTRW":
+            # ftpsrv's own command (remounts /system writable): only said.
+            self.send("200 /system remounted read-write")
         elif command == "SIZE":
             path = self.local_path(argument)
             if os.path.isfile(path):
@@ -282,6 +293,27 @@ class FtpSession(threading.Thread):
                     entry = os.path.join(path, name)
                     line = name if names_only else self.listing_line(entry, name)
                     data.sendall((line + "\r\n").encode("utf-8", "replace"))
+            self.send("226 Transfer complete")
+        finally:
+            data.close()
+
+    def command_mlsd(self, argument: str) -> None:
+        path = self.local_path(argument.strip() or self.cwd)
+        if not os.path.isdir(path):
+            self.send("550 No such folder")
+            return
+        self.send("150 Opening data connection")
+        data = self.open_data()
+        if not data:
+            return
+        try:
+            for name in sorted(os.listdir(path)):
+                stats = os.stat(os.path.join(path, name))
+                kind = "dir" if stat.S_ISDIR(stats.st_mode) else "file"
+                stamp = time.strftime("%Y%m%d%H%M%S", time.gmtime(stats.st_mtime))
+                mode = oct(stats.st_mode & 0o777)[2:].rjust(3, "0")
+                line = f"type={kind};size={stats.st_size};modify={stamp};UNIX.mode=0{mode}; {name}"
+                data.sendall((line + "\r\n").encode("utf-8", "replace"))
             self.send("226 Transfer complete")
         finally:
             data.close()
@@ -907,6 +939,8 @@ def main() -> int:
                         help="cuts each upload once after this many bytes (to try resuming)")
     parser.add_argument("--ftp-drop-download-once", type=int, default=0, metavar="BYTES",
                         help="cuts each download once after this many bytes with a 426 (to try resuming)")
+    parser.add_argument("--ftp-mlsd", action="store_true",
+                        help="offer MLSD (machine-readable listings) besides LIST")
     parser.add_argument("--ftp-avbl", action="store_true",
                         help="answers AVBL with the free space (the consoles' servers do not)")
     parser.add_argument("--ftp-greeting", default=FtpSession.greeting, metavar="TEXT",
@@ -943,6 +977,7 @@ def main() -> int:
     FtpSession.drop_after = arguments.ftp_drop_once
     FtpSession.drop_download_after = arguments.ftp_drop_download_once
     FtpSession.avbl = arguments.ftp_avbl
+    FtpSession.mlsd = arguments.ftp_mlsd
     FtpSession.greeting = arguments.ftp_greeting
     ftp = FtpServer(arguments.ftp_port, root, arguments.host)
     ftp.start()

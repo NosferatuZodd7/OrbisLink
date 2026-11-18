@@ -21,6 +21,17 @@ namespace orbislink {
 FtpResult moveOnConsole(FtpClient &ftp, const std::string &from, const std::string &to,
 	const std::string &scratchDir, const FtpProgressCallback &progress = nullptr, bool *throughPc = nullptr);
 
+// Copies a file or folder of the console to `to` (its full new path),
+// through this PC as a move between disks is (the consoles' servers have no
+// copy command). The original is not touched; nothing is overwritten.
+FtpResult copyOnConsole(FtpClient &ftp, const std::string &from, const std::string &to,
+	const std::string &scratchDir, const FtpProgressCallback &progress = nullptr);
+
+// SITE CHMOD `mode` ("755", "777") on a file or folder — and, when asked,
+// on everything inside a folder. `progress` gets how many are done.
+FtpResult chmodOnConsole(FtpClient &ftp, const std::string &path, bool isDirectory, const std::string &mode,
+	bool everythingInside, const std::function<bool(int done, int total)> &progress = nullptr);
+
 // A file or folder of the console with everything in it: what is in a
 // folder goes first (a console's server refuses RMD for a folder that is not
 // empty), then the folder. `progress` gets the entries deleted and how many

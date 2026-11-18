@@ -237,6 +237,11 @@ void ConsoleManager::setRemotePlayState(RemotePlayState state, const std::string
 				status_.remotePlay.hint = QT_TRANSLATE_NOOP("Messages", "The console is off or not on the "
 					"network.");
 				break;
+			case RemotePlayState::Direct:
+				status_.remotePlay.state = ServiceState::Available;
+				status_.remotePlay.hint = QT_TRANSLATE_NOOP("Messages", "It does not answer the network search, "
+					"but takes a direct connection: Remote Play connects all the same.");
+				break;
 			case RemotePlayState::Unknown:
 				status_.remotePlay.state = ServiceState::Unknown;
 				break;

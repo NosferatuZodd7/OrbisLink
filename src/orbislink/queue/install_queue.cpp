@@ -404,9 +404,10 @@ bool InstallQueue::cancel(const std::string &id)
 		std::lock_guard<std::mutex> lock(mutex_);
 		if(currentId_ == id)
 		{
+			// The transfer's own progress callback sees this and stops it.
+			// Not ftp->cancel(): the file browser shares that client, and a
+			// download of its own going on at the same time would stop too.
 			cancelCurrent_.store(true);
-			if(deps_.ftp)
-				deps_.ftp->cancel();
 			return true;
 		}
 		for(auto it = tasks_.begin(); it != tasks_.end(); ++it)

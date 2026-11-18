@@ -364,11 +364,18 @@ int main(int argc, char **argv)
 	auto stream = std::make_unique<StreamController>();
 	stream->setAddress(controller->consoleAddress());
 	stream->applySettings(controller->settings());
+	stream->setDirectConsoles(controller->directConsoles());
 	QObject::connect(controller.get(), &AppController::settingsChanged, stream.get(),
 		[&controller, &stream]() {
 			stream->setAddress(controller->consoleAddress());
 			stream->applySettings(controller->settings());
+			stream->setDirectConsoles(controller->directConsoles());
 		});
+	// A console that never answers the search but took a direct connection
+	// is remembered as such: its card and the top bar stop calling it
+	// "not responding".
+	QObject::connect(stream.get(), &StreamController::directConnectionWorked, controller.get(),
+		&AppController::rememberDirectConsole);
 	// The keys edited in the map window are kept in the settings; the new
 	// map comes back to the stream through settingsChanged above.
 	QObject::connect(stream.get(), &StreamController::keyBindingsEdited, controller.get(),
@@ -383,7 +390,8 @@ int main(int argc, char **argv)
 	// answered to discovery, instead of staying grey forever.
 	QObject::connect(stream.get(), &StreamController::consoleChanged, controller.get(),
 		[&controller, &stream]() {
-			controller->reportRemotePlayState(stream->consoleState(), stream->runningApp());
+			controller->reportRemotePlayState(
+				stream->directReachable() ? QStringLiteral("direct") : stream->consoleState(), stream->runningApp());
 			controller->reportConsoleFirmware(stream->hostAddress(), stream->systemVersion());
 		});
 	// Stream notifications appear in the same bar as the others.

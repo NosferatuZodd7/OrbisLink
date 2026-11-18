@@ -56,6 +56,13 @@ struct ConsoleEntry
 	// is how the console is found again when the router gives it another
 	// address (net/console_locator.h).
 	std::string mac;
+	// It took a direct Remote Play connection without answering the
+	// network search (some PS4s never answer it): its card says it connects
+	// directly instead of "not responding".
+	bool connectsDirectly = false;
+	// The last system software it reported (Remote Play's search; 0x0900 is
+	// 9.00), kept so it shows while the console does not answer.
+	int firmware = 0;
 };
 
 // A place on the games page's shelf: a folder of this PC (a drive's root

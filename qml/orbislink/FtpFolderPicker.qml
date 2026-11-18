@@ -11,6 +11,9 @@ import QtQuick.Layouts
 Dialog {
     id: picker
 
+    // Moving, or copying (the same tree; a copy may go into its own folder,
+    // where it gets a new name).
+    property bool copying: false
     // What is being moved: it and what is inside it cannot be the destination.
     property string movingPath: ""
     property string movingName: ""
@@ -43,7 +46,7 @@ Dialog {
         }
         return false
     }
-    readonly property bool canMove: !excluded(norm(selected)) && norm(selected) !== parentOf(movingPath)
+    readonly property bool canMove: !excluded(norm(selected)) && (copying || norm(selected) !== parentOf(movingPath))
 
     function indexOf(path) {
         for (var i = 0; i < rows.count; ++i)
@@ -102,7 +105,8 @@ Dialog {
         continueReveal()
     }
 
-    function openFor(path, name, startFolder) {
+    function openFor(path, name, startFolder, copy) {
+        copying = copy === true
         movingPaths = []
         movingPath = path
         movingName = name
@@ -115,8 +119,8 @@ Dialog {
     }
 
     // Several paths; `label` names them in the title ("3 items").
-    function openForMany(paths, label, startFolder) {
-        openFor(paths.length > 0 ? paths[0] : "", label, startFolder)
+    function openForMany(paths, label, startFolder, copy) {
+        openFor(paths.length > 0 ? paths[0] : "", label, startFolder, copy)
         movingPaths = paths
     }
 
@@ -187,7 +191,7 @@ Dialog {
 
     header: DialogHeader {
         eyebrow: qsTr("Console files")
-        title: qsTr("Move to…")
+        title: picker.copying ? qsTr("Copy to…") : qsTr("Move to…")
         dialog: picker
     }
 
@@ -409,7 +413,7 @@ Dialog {
                 onClicked: picker.close()
             }
             StyledButton {
-                text: qsTr("Move here")
+                text: picker.copying ? qsTr("Copy here") : qsTr("Move here")
                 primary: true
                 minimumWidth: 120
                 enabled: picker.canMove

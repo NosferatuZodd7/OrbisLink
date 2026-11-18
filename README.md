@@ -6,7 +6,7 @@ A desktop app that brings together, in one window, **Remote Play** for a PS4
 or PS5, **installing .pkg files by drag and drop**, and an **FTP client** for
 the console.
 
-> **Status:** stable **v1.4.1**. Remote Play works on real PS4 and PS5
+> **Status:** stable **v1.4.2**. Remote Play works on real PS4 and PS5
 > consoles (discovery, registration, 1080p/60 video, sound, microphone,
 > controller and keyboard). Installing pkg files and FTP need a PS4 with
 > GoldHEN, or a PS5 with a jailbreak that provides them (etaHEN). Besides
@@ -18,7 +18,7 @@ the console.
 
 ## What works, and what is in development
 
-There are two versions: the **stable** one (v1.4.1, this branch) and the
+There are two versions: the **stable** one (v1.4.2, this branch) and the
 **beta** (test builds from the `beta` branch, `vX.Y.Z-dev.N`), where new work
 lands first. The app is made for the PS4 and the PS5 alike. To try the beta:
 **Settings → Updates → Testing (branch builds)**, or a pre-release from the
@@ -31,12 +31,13 @@ Releases page.
 | 🚧 | Not working yet, or still being built |
 | — | Does not apply to that console |
 
-### Stable (v1.4.1)
+### Stable (v1.4.2)
 
 | Feature | PS4 | PS5 |
 |---|---|---|
 | Remote Play: discovery, registration, 1080p/60 video, sound, controller, keyboard as a controller | ✅ | ✅ |
 | Remote Play on a console that never answers discovery: registration opens all the same, and a registered console is connected to directly | ✅ | 🧪 |
+| Such a console, once it has taken a direct connection, is remembered: its card and the top bar say *Connects directly* instead of "not responding", and its last firmware stays beside its name | 🧪 | 🧪 |
 | The console's Remote Play PINs asked for where they are needed: the 8-digit one when registering, the 4-digit passcode while connecting (then kept for that console) | ✅ | 🧪 |
 | A console the router gave another address is found again by its host-id or hardware address (never by a guess) and its address updated by itself, with a notice; connecting to one that does not answer looks for it first | 🧪 | 🧪 |
 | Microphone | 🧪 | ✅ (in a voice party) |
@@ -46,6 +47,9 @@ Releases page.
 | Adding a console: the search asks every network adapter and every address of a home network, and finds a console with Remote Play off by its FTP | 🧪 | 🧪 |
 | The console's firmware and its jailbreak's version (when its FTP says it) beside its name in the top bar | 🧪 | 🧪 |
 | FTP browser: browse, upload, download, rename, delete | ✅ (GoldHEN) | ✅ (etaHEN, ftpsrv) |
+| FTP browser: filter and sort (name, size, date), the keyboard (arrows, Enter, Delete, F2, Ctrl+A, Ctrl+F…), copy on the console (files and whole folders), permissions (`SITE CHMOD`), text files edited and saved in place; one connection kept between operations, `MLSD` listings when the server has them; a cancel stops only its own transfer; folders uploaded whole, each file's size checked | 🧪 | 🧪 |
+| ftpsrv's own commands in advanced mode: make `/system` writable (`MTRW`), stop the server (`KILL`) | — | 🧪 |
+| Nothing asks the console's FTP before it has answered: after switching consoles the pages wait for the new one; Save vault and Payloads say *no FTP* in the navigation when it does not answer, and what is on the PC (converting a PS2 disc, the store's downloads, saves kept here) stays usable | 🧪 | 🧪 |
 | FTP found by itself when the set port is silent (2121, 1337, 21, and 9090 on a PS5) | 🧪 | ✅ |
 | Files tab: several files and folders picked at once, downloaded, moved or deleted together; folders deleted with everything inside; downloads in the queue that go on after the console breaks them; moving between drives (internal ↔ USB), copied through the PC; a drop goes into the folder that is open | 🧪 | 🧪 |
 | Sending any file (an ISO, a PS3 package for RPCS3) to the console's memory or a USB drive, as it is — only a PS4 package is ever installed | 🧪 | 🧪 |
@@ -76,7 +80,7 @@ Releases page.
 
 ### New in the beta
 
-Nothing yet: what was in the beta is the stable v1.4.1 above. New work
+Nothing yet: what was in the beta is the stable v1.4.2 above. New work
 lands in the beta first, and shows here.
 
 Everything still missing, and why, is in
@@ -84,7 +88,7 @@ Everything still missing, and why, is in
 
 ## The interface
 
-The screenshots show v1.4.1 with a PS4 (GoldHEN) and a PS5 (etaHEN) side
+The screenshots show v1.4.2 with a PS4 (GoldHEN) and a PS5 (etaHEN) side
 by side.
 
 ![Remote Play](docs/images/06-remote-play.png)
@@ -146,8 +150,11 @@ PLK's Payload Manager reads), each checked against its SHA-256 before use.*
 ![File menu](docs/images/05-file-menu.png)
 
 *In the FTP browser, every file and folder has its own menu: download to the
-PC, prepare for dragging out of the window, copy the path, rename, delete on
-the console. In the settings, the IP address is checked as you type.*
+PC, prepare for dragging out of the window, copy the path, rename, move or
+copy on the console, edit a text file in place, change permissions, delete
+on the console. The list filters by name, sorts by name, size or date, and
+works from the keyboard. In the settings, the IP address is checked as you
+type.*
 
 All these screenshots are generated automatically by
 `./scripts/screenshots.sh` (on the `beta` branch), against two mock

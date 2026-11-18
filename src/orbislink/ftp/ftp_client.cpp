@@ -6,6 +6,8 @@
 #include "orbislink/common/util.h"
 
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <chrono>
 #include <condition_variable>
 #include <cstdio>
@@ -20,6 +22,96 @@ namespace orbislink {
 namespace {
 
 std::condition_variable g_slotAvailable;
+
+std::string upperCase(std::string text)
+{
+	for(char &c : text)
+		c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+	return text;
+}
+
+// Days since 1970-01-01 → year, month, day (Howard Hinnant's civil_from_days).
+void civilFromDays(int64_t days, int *year, int *month, int *day)
+{
+	days += 719468;
+	const int64_t era = (days >= 0 ? days : days - 146096) / 146097;
+	const int64_t doe = days - era * 146097;
+	const int64_t yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+	const int64_t doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+	const int64_t mp = (5 * doy + 2) / 153;
+	*day = static_cast<int>(doy - (153 * mp + 2) / 5 + 1);
+	*month = static_cast<int>(mp < 10 ? mp + 3 : mp - 9);
+	*year = static_cast<int>(yoe + era * 400 + (*month <= 2 ? 1 : 0));
+}
+
+int64_t daysFromCivil(int year, int month, int day)
+{
+	year -= month <= 2 ? 1 : 0;
+	const int64_t era = (year >= 0 ? year : year - 399) / 400;
+	const int64_t yoe = year - era * 400;
+	const int64_t doy = (153 * (month + (month > 2 ? -3 : 9)) + 2) / 5 + day - 1;
+	const int64_t doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+	return era * 146097 + doe - 719468;
+}
+
+// "20261117221300" (MLSD's modify, UTC) → seconds since 1970; 0 if unreadable.
+int64_t machineTime(const std::string &text)
+{
+	if(text.size() < 14 || text.find_first_not_of("0123456789", 0) < 14)
+		return 0;
+	auto number = [&](size_t at, size_t length) { return std::atoi(text.substr(at, length).c_str()); };
+	const int year = number(0, 4), month = number(4, 2), day = number(6, 2);
+	if(year < 1970 || month < 1 || month > 12 || day < 1 || day > 31)
+		return 0;
+	return daysFromCivil(year, month, day) * 86400 + number(8, 2) * 3600 + number(10, 2) * 60 + number(12, 2);
+}
+
+// The same moment as LIST writes it: "Nov 17 22:13" within the last half
+// year, "Nov 17 2024" before.
+std::string listStyleTime(int64_t when, int64_t nowUnix)
+{
+	static const char *const months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct",
+		"Nov", "Dec" };
+	int year = 0, month = 0, day = 0;
+	civilFromDays(when / 86400, &year, &month, &day);
+	char text[32];
+	const bool recent = when <= nowUnix + 86400 && nowUnix - when < 180LL * 86400;
+	if(recent)
+	{
+		const int64_t seconds = ((when % 86400) + 86400) % 86400;
+		std::snprintf(text, sizeof(text), "%s %02d %02d:%02d", months[month - 1], day,
+			static_cast<int>(seconds / 3600), static_cast<int>(seconds % 3600 / 60));
+	}
+	else
+		std::snprintf(text, sizeof(text), "%s %02d %d", months[month - 1], day, year);
+	return text;
+}
+
+// "0755" → "rwxr-xr-x", behind the kind ("d" or "-").
+std::string permissionText(const std::string &mode, bool directory)
+{
+	std::string out(1, directory ? 'd' : '-');
+	const std::string digits = mode.size() > 3 ? mode.substr(mode.size() - 3) : mode;
+	if(digits.size() != 3 || digits.find_first_not_of("01234567") != std::string::npos)
+		return std::string();
+	for(const char digit : digits)
+	{
+		const int bits = digit - '0';
+		out += (bits & 4) ? 'r' : '-';
+		out += (bits & 2) ? 'w' : '-';
+		out += (bits & 1) ? 'x' : '-';
+	}
+	return out;
+}
+
+void sortEntries(std::vector<FtpEntry> &entries)
+{
+	std::sort(entries.begin(), entries.end(), [](const FtpEntry &a, const FtpEntry &b) {
+		if(a.isDirectory != b.isDirectory)
+			return a.isDirectory;
+		return toLower(a.name) < toLower(b.name);
+	});
+}
 
 struct CurlGlobalFtp
 {
@@ -56,7 +148,8 @@ size_t readFromStream(char *buffer, size_t size, size_t count, void *userdata)
 struct ProgressState
 {
 	FtpProgressCallback callback;
-	const std::atomic<bool> *cancel = nullptr;
+	const std::atomic<uint64_t> *generation = nullptr;
+	uint64_t startedAt = 0;
 	int64_t knownTotal = 0;
 	int64_t offset = 0; // already on the other side before this transfer
 	bool cancelled = false;
@@ -66,7 +159,7 @@ int progressCallback(void *userdata, curl_off_t dlTotal, curl_off_t dlNow, curl_
 	curl_off_t ulNow)
 {
 	auto *state = static_cast<ProgressState *>(userdata);
-	if(state->cancel && state->cancel->load())
+	if(state->generation && state->generation->load() != state->startedAt)
 	{
 		state->cancelled = true;
 		return 1; // aborts the transfer
@@ -203,15 +296,99 @@ FtpClient::FtpClient(Config config) : config_(std::move(config))
 		config_.maxConnections = 2;
 }
 
-FtpClient::~FtpClient() = default;
+FtpClient::~FtpClient() { dropIdleHandles(); }
 
 void FtpClient::setConfig(const Config &config)
 {
-	std::lock_guard<std::mutex> lock(mutex_);
-	config_ = config;
-	if(config_.port == 0)
-		config_.port = 2121;
-	config_.maxConnections = std::max(1, std::min(2, config_.maxConnections));
+	bool otherServer = false;
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		otherServer = config.host != config_.host || config.port != config_.port || config.user != config_.user;
+		config_ = config;
+		if(config_.port == 0)
+			config_.port = 2121;
+		config_.maxConnections = std::max(1, std::min(2, config_.maxConnections));
+	}
+	// Another console (or port): what was kept open, and what was learned,
+	// belonged to the one before.
+	if(otherServer)
+	{
+		dropIdleHandles();
+		std::lock_guard<std::mutex> lock(featureMutex_);
+		featuresKnown_ = false;
+		features_.clear();
+		mlsdBroken_.store(false);
+	}
+}
+
+namespace {
+
+// How long a connection at rest is kept for the next operation. Short: the
+// consoles' servers close idle ones themselves, and holding them would
+// keep sessions other programs (FileZilla) may need.
+constexpr int64_t kIdleKeepMs = 20000;
+constexpr size_t kIdleHandles = 2;
+
+} // namespace
+
+void *FtpClient::takeHandle()
+{
+	ensureCurl();
+	CURL *handle = nullptr;
+	std::vector<CURL *> stale;
+	{
+		std::lock_guard<std::mutex> lock(poolMutex_);
+		const int64_t now = monotonicMillis();
+		while(!idle_.empty())
+		{
+			auto entry = idle_.back();
+			idle_.pop_back();
+			if(now - entry.second > kIdleKeepMs)
+			{
+				stale.push_back(static_cast<CURL *>(entry.first));
+				continue;
+			}
+			handle = static_cast<CURL *>(entry.first);
+			break;
+		}
+	}
+	for(CURL *old : stale)
+		curl_easy_cleanup(old);
+	if(handle)
+	{
+		// Every option back to its default; the open connection stays.
+		curl_easy_reset(handle);
+		return handle;
+	}
+	return curl_easy_init();
+}
+
+void FtpClient::giveBack(void *handle, bool reusable)
+{
+	if(!handle)
+		return;
+	if(reusable)
+	{
+		std::lock_guard<std::mutex> lock(poolMutex_);
+		if(idle_.size() < kIdleHandles)
+		{
+			idle_.emplace_back(handle, monotonicMillis());
+			return;
+		}
+	}
+	// After a failure the connection may be in any state: not kept.
+	curl_easy_cleanup(static_cast<CURL *>(handle));
+}
+
+void FtpClient::dropIdleHandles()
+{
+	std::vector<std::pair<void *, int64_t>> idle;
+	{
+		std::lock_guard<std::mutex> lock(poolMutex_);
+		idle.swap(idle_);
+	}
+	for(const auto &entry : idle)
+		curl_easy_cleanup(static_cast<CURL *>(entry.first));
 }
 
 FtpClient::Config FtpClient::config() const
@@ -220,7 +397,7 @@ FtpClient::Config FtpClient::config() const
 	return config_;
 }
 
-void FtpClient::cancel() { cancel_.store(true); }
+void FtpClient::cancel() { ++cancelGeneration_; }
 
 std::vector<std::string> FtpClient::shortcutPaths()
 {
@@ -286,17 +463,79 @@ std::vector<FtpEntry> FtpClient::parseListing(const std::string &listing, const 
 		entry.path = normalizeRemotePath(base + "/" + entry.name);
 		entries.push_back(entry);
 	}
-	std::sort(entries.begin(), entries.end(), [](const FtpEntry &a, const FtpEntry &b) {
-		if(a.isDirectory != b.isDirectory)
-			return a.isDirectory;
-		return toLower(a.name) < toLower(b.name);
-	});
+	sortEntries(entries);
+	return entries;
+}
+
+std::vector<FtpEntry> FtpClient::parseMachineListing(const std::string &listing, const std::string &baseDir,
+	int64_t nowUnix)
+{
+	std::vector<FtpEntry> entries;
+	std::istringstream stream(listing);
+	std::string line;
+	const std::string base = normalizeRemotePath(baseDir);
+	while(std::getline(stream, line))
+	{
+		if(!line.empty() && line.back() == '\r')
+			line.pop_back();
+		// "fact=value;fact=value; name": the facts, one space, the name.
+		const size_t space = line.find(' ');
+		if(space == std::string::npos || space == 0 || space + 1 >= line.size())
+			continue;
+		const std::string name = line.substr(space + 1);
+		if(name == "." || name == "..")
+			continue;
+		FtpEntry entry;
+		std::string type;
+		std::string mode;
+		bool typed = false;
+		for(const std::string &fact : split(line.substr(0, space), ';', false))
+		{
+			const size_t equals = fact.find('=');
+			if(equals == std::string::npos)
+				continue;
+			const std::string key = toLower(fact.substr(0, equals));
+			const std::string value = fact.substr(equals + 1);
+			if(key == "type")
+			{
+				type = toLower(value);
+				typed = true;
+			}
+			else if(key == "size" || key == "sizd")
+			{
+				try { entry.size = static_cast<int64_t>(std::stoll(value)); }
+				catch(...) { entry.size = 0; }
+			}
+			else if(key == "modify")
+			{
+				const int64_t when = machineTime(value);
+				if(when > 0)
+					entry.modified = listStyleTime(when, nowUnix);
+			}
+			else if(key == "unix.mode")
+				mode = value;
+		}
+		// Without a type it is not an MLSD line.
+		if(!typed)
+			continue;
+		if(type == "cdir" || type == "pdir")
+			continue;
+		entry.isDirectory = type == "dir";
+		entry.isSymlink = type.find("slink") != std::string::npos || type.find("symlink") != std::string::npos;
+		if(entry.isDirectory)
+			entry.size = 0;
+		entry.permissions = permissionText(mode, entry.isDirectory);
+		entry.name = name;
+		entry.rawLine = line;
+		entry.path = normalizeRemotePath(base + "/" + name);
+		entries.push_back(entry);
+	}
+	sortEntries(entries);
 	return entries;
 }
 
 FtpResult FtpClient::withRetries(const std::string &what, const std::function<FtpResult()> &operation)
 {
-	cancel_.store(false);
 	const Config cfg = config();
 	FtpResult result;
 	for(int attempt = 0; attempt < std::max(1, cfg.maxRetries); ++attempt)
@@ -341,6 +580,9 @@ void applyCommonOptions(CURL *curl, const FtpClient::Config &cfg, char *errorBuf
 	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
 	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errorBuffer);
 	curl_easy_setopt(curl, CURLOPT_PROXY, "");
+	// A connection kept from an earlier operation is only reused while
+	// fresh; an older one is closed and a new one made.
+	curl_easy_setopt(curl, CURLOPT_MAXAGE_CONN, 20L);
 }
 
 } // namespace
@@ -375,7 +617,10 @@ FtpResult FtpClient::list(const std::string &remoteDir, std::vector<FtpEntry> *e
 	const std::string dir = normalizeRemotePath(remoteDir);
 	return withRetries("list " + dir, [&]() -> FtpResult {
 		const Config cfg = config();
-		CURL *curl = curl_easy_init();
+		// The machine-readable listing when the server has it: exact sizes,
+		// times and types, whatever the server's LIST looks like.
+		const bool machine = !mlsdBroken_.load() && hasFeature("MLSD");
+		CURL *curl = static_cast<CURL *>(takeHandle());
 		if(!curl)
 			return FtpResult::failure("could not initialise libcurl");
 
@@ -391,15 +636,56 @@ FtpResult FtpClient::list(const std::string &remoteDir, std::vector<FtpEntry> *e
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &listing);
 		// Asks for the full LIST (not just names), to get type and size.
 		curl_easy_setopt(curl, CURLOPT_DIRLISTONLY, 0L);
+		if(machine)
+			curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "MLSD");
 
 		const CURLcode code = curl_easy_perform(curl);
-		curl_easy_cleanup(curl);
+		giveBack(curl, code == CURLE_OK);
 		if(code != CURLE_OK)
+		{
+			// MLSD refused outright: LIST next time, and now.
+			if(machine && code != CURLE_REMOTE_ACCESS_DENIED && code != CURLE_REMOTE_FILE_NOT_FOUND)
+			{
+				mlsdBroken_.store(true);
+				logInfo("FTP: the server offers MLSD but did not answer it; listing with LIST.");
+			}
 			return readFailure(code, errorBuffer);
+		}
+		std::vector<FtpEntry> parsed = machine ? parseMachineListing(listing, dir, nowUnixSeconds())
+											   : parseListing(listing, dir);
+		// Something came, and none of it read as MLSD: this server's MLSD is
+		// not what it says. LIST from now on.
+		if(machine && parsed.empty() && !trim(listing).empty())
+		{
+			mlsdBroken_.store(true);
+			logInfo("FTP: the server's MLSD reply could not be read; listing with LIST.");
+			return FtpResult::failure("MLSD reply not understood");
+		}
 		if(entries)
-			*entries = parseListing(listing, dir);
+			*entries = std::move(parsed);
 		return FtpResult::success();
 	});
+}
+
+bool FtpClient::isDirectory(const std::string &remotePath)
+{
+	const Config cfg = config();
+	CURL *curl = static_cast<CURL *>(takeHandle());
+	if(!curl)
+		return false;
+	char errorBuffer[CURL_ERROR_SIZE] = { 0 };
+	std::string url = urlFor(normalizeRemotePath(remotePath));
+	if(url.back() != '/')
+		url += '/';
+	applyCommonOptions(curl, cfg, errorBuffer);
+	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+	// A folder URL with no body: libcurl only goes into it (CWD), which a
+	// file refuses.
+	curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
+	const CURLcode code = curl_easy_perform(curl);
+	giveBack(curl, code == CURLE_OK);
+	return code == CURLE_OK;
 }
 
 FtpResult FtpClient::remoteSize(const std::string &remotePath, int64_t *size)
@@ -407,7 +693,7 @@ FtpResult FtpClient::remoteSize(const std::string &remotePath, int64_t *size)
 	const std::string path = normalizeRemotePath(remotePath);
 	return withRetries("get size of " + path, [&]() -> FtpResult {
 		const Config cfg = config();
-		CURL *curl = curl_easy_init();
+		CURL *curl = static_cast<CURL *>(takeHandle());
 		if(!curl)
 			return FtpResult::failure("could not initialise libcurl");
 
@@ -426,7 +712,7 @@ FtpResult FtpClient::remoteSize(const std::string &remotePath, int64_t *size)
 		curl_off_t remote = -1;
 		if(code == CURLE_OK)
 			curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &remote);
-		curl_easy_cleanup(curl);
+		giveBack(curl, code == CURLE_OK);
 		if(code != CURLE_OK)
 			return readFailure(code, errorBuffer);
 		if(size)
@@ -458,11 +744,12 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 	// A large package can lose its connection more than once (Wi-Fi, the
 	// console's server); each new try goes on from what the console already
 	// has, and tries keep coming while they make headway.
-	cancel_.store(false);
+	const uint64_t generation = cancelGeneration_.load();
 	const std::string what = "upload " + baseName(localPath);
 	FtpResult result;
 	int failuresWithoutHeadway = 0;
 	bool appendWorks = true;
+	int sizeMismatches = 0;
 	// Going on from what the console has is only right once those bytes are
 	// this file's: asked to resume, or written by an attempt of this call.
 	// Before that, what is there may be the file being replaced — appending
@@ -476,7 +763,7 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 			logWarning("FTP: " + what + " failed (" + result.message + "); retrying in "
 				+ std::to_string(delayMs) + " ms.");
 			std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
-			if(cancel_.load())
+			if(cancelledSince(generation))
 			{
 				result.cancelled = true;
 				result.ok = false;
@@ -492,8 +779,27 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 		}
 
 		int64_t reached = alreadyThere;
-		result = uploadOnce(localPath, path, progress, localSize, alreadyThere, &reached);
-		if(result.ok || result.cancelled)
+		result = uploadOnce(localPath, path, progress, localSize, alreadyThere, &reached, generation);
+		if(result.ok)
+		{
+			// The console's own count of what it got: a data connection that
+			// closed early can still end in a "226 Transfer complete". A
+			// server that does not say (no SIZE) is taken at its word.
+			int64_t remote = -1;
+			if(!querySize(path, &remote) || remote < 0 || remote == localSize)
+				break;
+			logWarning("FTP: " + what + " ended with " + std::to_string(remote) + " of "
+				+ std::to_string(localSize) + " bytes on the console.");
+			result = FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "The copy on the console came out a "
+				"different size from the file sent."));
+			remoteIsOurs = true;
+			if(remote > localSize)
+				appendWorks = false; // more than the file: only starting over mends it
+			if(++sizeMismatches >= 3)
+				break;
+			continue;
+		}
+		if(result.cancelled)
 			break;
 		if(reached > alreadyThere)
 			remoteIsOurs = true;
@@ -512,7 +818,7 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 bool FtpClient::querySize(const std::string &path, int64_t *size)
 {
 	const Config cfg = config();
-	CURL *curl = curl_easy_init();
+	CURL *curl = static_cast<CURL *>(takeHandle());
 	if(!curl)
 		return false;
 	char errorBuffer[CURL_ERROR_SIZE] = { 0 };
@@ -528,7 +834,7 @@ bool FtpClient::querySize(const std::string &path, int64_t *size)
 	curl_off_t remote = -1;
 	if(code == CURLE_OK)
 		curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &remote);
-	curl_easy_cleanup(curl);
+	giveBack(curl, code == CURLE_OK);
 	if(code != CURLE_OK)
 		return false;
 	*size = static_cast<int64_t>(remote);
@@ -536,7 +842,7 @@ bool FtpClient::querySize(const std::string &path, int64_t *size)
 }
 
 FtpResult FtpClient::uploadOnce(const std::string &localPath, const std::string &path,
-	const FtpProgressCallback &progress, int64_t localSize, int64_t from, int64_t *reached)
+	const FtpProgressCallback &progress, int64_t localSize, int64_t from, int64_t *reached, uint64_t generation)
 {
 	Slot slot(this);
 	const Config cfg = config();
@@ -546,13 +852,14 @@ FtpResult FtpClient::uploadOnce(const std::string &localPath, const std::string 
 	if(from > 0)
 		input.seekg(static_cast<std::streamoff>(from), std::ios::beg);
 
-	CURL *curl = curl_easy_init();
+	CURL *curl = static_cast<CURL *>(takeHandle());
 	if(!curl)
 		return FtpResult::failure("could not initialise libcurl");
 
 	char errorBuffer[CURL_ERROR_SIZE] = { 0 };
 	ProgressState state;
-	state.cancel = &cancel_;
+	state.generation = &cancelGeneration_;
+	state.startedAt = generation;
 	state.knownTotal = localSize;
 	state.offset = from;
 	state.callback = [&](int64_t done, int64_t total) {
@@ -578,7 +885,7 @@ FtpResult FtpClient::uploadOnce(const std::string &localPath, const std::string 
 		curl_easy_setopt(curl, CURLOPT_APPEND, 1L);
 
 	const CURLcode code = curl_easy_perform(curl);
-	curl_easy_cleanup(curl);
+	giveBack(curl, code == CURLE_OK);
 	if(state.cancelled)
 	{
 		FtpResult result;
@@ -598,7 +905,8 @@ namespace {
 struct DownloadState
 {
 	FtpProgressCallback callback;
-	const std::atomic<bool> *cancel = nullptr;
+	const std::atomic<uint64_t> *generation = nullptr;
+	uint64_t startedAt = 0;
 	int64_t carried = 0;
 	int64_t start = 0;
 	int64_t *reached = nullptr;
@@ -608,7 +916,7 @@ struct DownloadState
 int downloadProgress(void *userdata, curl_off_t dlTotal, curl_off_t dlNow, curl_off_t, curl_off_t)
 {
 	auto *state = static_cast<DownloadState *>(userdata);
-	if(state->cancel && state->cancel->load())
+	if(state->generation && state->generation->load() != state->startedAt)
 	{
 		state->cancelled = true;
 		return 1;
@@ -633,7 +941,7 @@ FtpResult FtpClient::download(const std::string &remotePath, const std::string &
 	// What is here already counts only when asked to go on from it.
 	const int64_t initial = resume ? std::max<int64_t>(0, fileSize(localPath)) : 0;
 	int64_t from = initial;
-	cancel_.store(false);
+	const uint64_t generation = cancelGeneration_.load();
 	const std::string what = "download " + baseName(path);
 	FtpResult result;
 	int failuresWithoutHeadway = 0;
@@ -646,7 +954,7 @@ FtpResult FtpClient::download(const std::string &remotePath, const std::string &
 			logWarning("FTP: " + what + " failed (" + result.message + "); retrying in "
 				+ std::to_string(delayMs) + " ms.");
 			std::this_thread::sleep_for(std::chrono::milliseconds(delayMs));
-			if(cancel_.load())
+			if(cancelledSince(generation))
 			{
 				result.cancelled = true;
 				result.ok = false;
@@ -661,7 +969,7 @@ FtpResult FtpClient::download(const std::string &remotePath, const std::string &
 		}
 		int64_t reached = from;
 		bool restRefused = false;
-		result = downloadOnce(path, localPath, progress, from, from - initial, &reached, &restRefused);
+		result = downloadOnce(path, localPath, progress, from, from - initial, &reached, &restRefused, generation);
 		if(result.ok || result.cancelled || result.final)
 			break;
 		if(restRefused)
@@ -684,7 +992,8 @@ FtpResult FtpClient::download(const std::string &remotePath, const std::string &
 }
 
 FtpResult FtpClient::downloadOnce(const std::string &path, const std::string &localPath,
-	const FtpProgressCallback &progress, int64_t from, int64_t carried, int64_t *reached, bool *restRefused)
+	const FtpProgressCallback &progress, int64_t from, int64_t carried, int64_t *reached, bool *restRefused,
+	uint64_t generation)
 {
 	Slot slot(this);
 	const Config cfg = config();
@@ -696,14 +1005,15 @@ FtpResult FtpClient::downloadOnce(const std::string &path, const std::string &lo
 	if(!output)
 		return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Messages", "Could not write to the file")) + ": " + localPath);
 
-	CURL *curl = curl_easy_init();
+	CURL *curl = static_cast<CURL *>(takeHandle());
 	if(!curl)
 		return FtpResult::failure("could not initialise libcurl");
 
 	char errorBuffer[CURL_ERROR_SIZE] = { 0 };
 	DownloadState state;
 	state.callback = progress;
-	state.cancel = &cancel_;
+	state.generation = &cancelGeneration_;
+	state.startedAt = generation;
 	state.carried = carried;
 	state.start = from;
 	state.reached = reached;
@@ -722,7 +1032,7 @@ FtpResult FtpClient::downloadOnce(const std::string &path, const std::string &lo
 		curl_easy_setopt(curl, CURLOPT_RESUME_FROM_LARGE, static_cast<curl_off_t>(from));
 
 	const CURLcode code = curl_easy_perform(curl);
-	curl_easy_cleanup(curl);
+	giveBack(curl, code == CURLE_OK);
 	output.close();
 	if(state.cancelled)
 	{
@@ -743,7 +1053,7 @@ bool FtpClient::freeSpace(const std::string &remoteDir, int64_t *bytes)
 	if(noFreeSpace_.load())
 		return false;
 	const Config cfg = config();
-	CURL *curl = curl_easy_init();
+	CURL *curl = static_cast<CURL *>(takeHandle());
 	if(!curl)
 		return false;
 	char errorBuffer[CURL_ERROR_SIZE] = { 0 };
@@ -759,7 +1069,7 @@ bool FtpClient::freeSpace(const std::string &remoteDir, int64_t *bytes)
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
 	const CURLcode code = curl_easy_perform(curl);
 	curl_slist_free_all(commands);
-	curl_easy_cleanup(curl);
+	giveBack(curl, code == CURLE_OK);
 	if(code != CURLE_OK)
 		return false;
 	// "213 123456789": the bytes free.
@@ -819,7 +1129,7 @@ FtpResult FtpClient::read(const std::string &remotePath, int64_t offset, size_t 
 		Slot slot(this);
 		const Config cfg = config();
 		bytes->clear();
-		CURL *curl = curl_easy_init();
+		CURL *curl = static_cast<CURL *>(takeHandle());
 		if(!curl)
 			return FtpResult::failure("could not initialise libcurl");
 		char errorBuffer[CURL_ERROR_SIZE] = { 0 };
@@ -833,7 +1143,7 @@ FtpResult FtpClient::read(const std::string &remotePath, int64_t offset, size_t 
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, appendRange);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &state);
 		const CURLcode code = curl_easy_perform(curl);
-		curl_easy_cleanup(curl);
+		giveBack(curl, code == CURLE_OK);
 		// Stopped on purpose once it had everything.
 		if(bytes->size() >= length || code == CURLE_OK)
 			return FtpResult::success();
@@ -841,12 +1151,10 @@ FtpResult FtpClient::read(const std::string &remotePath, int64_t offset, size_t 
 	});
 }
 
-namespace {
-
-FtpResult runQuoteCommands(const FtpClient::Config &cfg, const std::string &host,
-	const std::vector<std::string> &commands, const std::string &baseUrl)
+FtpResult FtpClient::runCommands(const std::vector<std::string> &commands, std::string *replies)
 {
-	CURL *curl = curl_easy_init();
+	const Config cfg = config();
+	CURL *curl = static_cast<CURL *>(takeHandle());
 	if(!curl)
 		return FtpResult::failure("could not initialise libcurl");
 
@@ -855,15 +1163,19 @@ FtpResult runQuoteCommands(const FtpClient::Config &cfg, const std::string &host
 	for(const std::string &command : commands)
 		list = curl_slist_append(list, command.c_str());
 
+	std::string answers;
 	applyCommonOptions(curl, cfg, errorBuffer);
-	curl_easy_setopt(curl, CURLOPT_URL, baseUrl.c_str());
+	curl_easy_setopt(curl, CURLOPT_URL, ("ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/").c_str());
 	curl_easy_setopt(curl, CURLOPT_POSTQUOTE, list);
 	curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+	curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, appendToString);
+	curl_easy_setopt(curl, CURLOPT_HEADERDATA, &answers);
 
 	const CURLcode code = curl_easy_perform(curl);
 	curl_slist_free_all(list);
-	curl_easy_cleanup(curl);
-	(void)host;
+	giveBack(curl, code == CURLE_OK);
+	if(replies)
+		*replies = answers;
 	if(code != CURLE_OK)
 	{
 		FtpResult result = FtpResult::failure(curlMessage(code, errorBuffer));
@@ -875,8 +1187,6 @@ FtpResult runQuoteCommands(const FtpClient::Config &cfg, const std::string &host
 	return FtpResult::success();
 }
 
-} // namespace
-
 FtpResult FtpClient::makeDirectory(const std::string &remotePath)
 {
 	const std::string path = normalizeRemotePath(remotePath);
@@ -884,12 +1194,10 @@ FtpResult FtpClient::makeDirectory(const std::string &remotePath)
 		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
 			"mode in the settings."));
 	return withRetries("create folder " + path, [&]() -> FtpResult {
-		const Config cfg = config();
-		const std::string base = "ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/";
-		const FtpResult made = runQuoteCommands(cfg, cfg.host, { "MKD " + path }, base);
+		const FtpResult made = runCommands({ "MKD " + path });
 		// A folder that is there already is what was asked for. Some servers
 		// (the PS5's ftpsrv) refuse MKD for it; going into it tells.
-		if(!made.ok && runQuoteCommands(cfg, cfg.host, { "CWD " + path }, base).ok)
+		if(!made.ok && runCommands({ "CWD " + path }).ok)
 			return FtpResult::success();
 		return made;
 	});
@@ -902,9 +1210,7 @@ FtpResult FtpClient::removeFile(const std::string &remotePath)
 		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
 			"mode in the settings."));
 	return withRetries("delete " + path, [&]() -> FtpResult {
-		const Config cfg = config();
-		return runQuoteCommands(cfg, cfg.host, { "DELE " + path },
-			"ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/");
+		return runCommands({ "DELE " + path });
 	});
 }
 
@@ -915,9 +1221,7 @@ FtpResult FtpClient::removeDirectory(const std::string &remotePath)
 		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
 			"mode in the settings."));
 	return withRetries("delete folder " + path, [&]() -> FtpResult {
-		const Config cfg = config();
-		return runQuoteCommands(cfg, cfg.host, { "RMD " + path },
-			"ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/");
+		return runCommands({ "RMD " + path });
 	});
 }
 
@@ -929,9 +1233,7 @@ FtpResult FtpClient::rename(const std::string &fromPath, const std::string &toPa
 		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
 			"mode in the settings."));
 	return withRetries("rename " + from, [&]() -> FtpResult {
-		const Config cfg = config();
-		return runQuoteCommands(cfg, cfg.host, { "RNFR " + from, "RNTO " + to },
-			"ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/");
+		return runCommands({ "RNFR " + from, "RNTO " + to });
 	});
 }
 
@@ -943,9 +1245,68 @@ FtpResult FtpClient::setPermissions(const std::string &remotePath, const std::st
 	if(!isWriteAllowed(path))
 		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
 			"mode in the settings."));
-	const Config cfg = config();
-	return runQuoteCommands(cfg, cfg.host, { "SITE CHMOD " + mode + " " + path },
-		"ftp://" + cfg.host + ":" + std::to_string(cfg.port) + "/");
+	return runCommands({ "SITE CHMOD " + mode + " " + path });
+}
+
+bool FtpClient::hasFeature(const std::string &feature)
+{
+	{
+		std::lock_guard<std::mutex> lock(featureMutex_);
+		if(featuresKnown_)
+			return std::find(features_.begin(), features_.end(), upperCase(feature)) != features_.end();
+	}
+	// "*": a server without FEAT answers with an error, and that is no failure.
+	std::string replies;
+	const FtpResult asked = runCommands({ "*FEAT" }, &replies);
+	std::vector<std::string> found;
+	// "211-Features:", then one feature a line, each line starting with a
+	// space ("␠MLSD", "␠REST STREAM"), then "211 End".
+	std::istringstream lines(replies);
+	std::string line;
+	while(std::getline(lines, line))
+	{
+		if(line.size() < 2 || line[0] != ' ')
+			continue;
+		std::istringstream words(trim(line));
+		std::string word;
+		if(words >> word)
+			found.push_back(upperCase(word));
+	}
+	std::lock_guard<std::mutex> lock(featureMutex_);
+	// Not reached at all (the console away): asked again next time.
+	if(!asked.ok && found.empty())
+		return false;
+	features_ = found;
+	featuresKnown_ = true;
+	if(!found.empty())
+	{
+		std::string list;
+		for(const std::string &name : found)
+			list += (list.empty() ? "" : " ") + name;
+		logDebug("FTP: the server offers " + list);
+	}
+	return std::find(features_.begin(), features_.end(), upperCase(feature)) != features_.end();
+}
+
+FtpResult FtpClient::command(const std::string &line, std::string *reply)
+{
+	std::string replies;
+	const FtpResult result = runCommands({ line }, &replies);
+	if(reply)
+	{
+		// Only what answered the command, not the login's lines before it.
+		std::string last;
+		std::istringstream lines(replies);
+		std::string text;
+		while(std::getline(lines, text))
+		{
+			text = trim(text);
+			if(text.size() >= 4 && std::isdigit(static_cast<unsigned char>(text[0])))
+				last = text;
+		}
+		*reply = last;
+	}
+	return result;
 }
 
 } // namespace orbislink
