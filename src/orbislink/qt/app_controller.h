@@ -276,6 +276,10 @@ public:
 	// The system version discovery reported for a console ("09000000");
 	// empty when it did not answer. Only the console in use's counts.
 	void reportConsoleFirmware(const QString &address, const QString &systemVersion);
+	// The consoles that took a direct Remote Play connection without
+	// answering the search, and noting one more.
+	QStringList directConsoles() const;
+	void rememberDirectConsole(const QString &address);
 	// What to know before a package goes to the console in use: an
 	// official package, or one that needs a newer firmware than this PS4's
 	// (`category` as the package says it: "gd", "gp"…). Empty when there is
@@ -639,6 +643,10 @@ private:
 	// Only the most recent check matters: earlier ones are discarded when
 	// they arrive, so the result never contradicts what is on screen.
 	std::atomic<uint64_t> probeGeneration_ { 0 };
+	// Which ConsoleManager is the current one: what an earlier one says (a
+	// check still under way when the console was switched) speaks of
+	// another console and is not taken.
+	uint64_t consoleGeneration_ = 0;
 	bool streamVerbose_ = false;
 	int dragsSeen_ = 0;
 	int dragsDropped_ = 0;

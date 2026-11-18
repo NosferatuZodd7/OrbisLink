@@ -79,6 +79,7 @@ Last review: v1.1.0.
 | ✅ | Permissions (`SITE CHMOD`) for one item or several, and through everything inside folders |
 | 🟡 | Text files (up to 1 MB) edited and saved back in place; checked against the fake console |
 | 🟡 | ftpsrv's `MTRW` and `KILL` (advanced mode), after asking; checked against the fake console, still to be seen on a PS5 with ftpsrv |
+| ✅ | Nothing asks the console's FTP before it has answered the check: after a console switch the services count as being checked (no page tries the new console with the old one's state), a late answer about the console before is ignored, and the file list is read the moment FTP answers; Save vault and Payloads say *no FTP* in the navigation |
 | 🟡 | Save vault: saves a PS4 copied to a USB drive (`PS4/SAVEDATA`), on the console's drives (`/mnt/usbN`) or on a drive plugged into this PC, shown and backed up into the vault folder (the drive is only read); checked with the fake console and in the tests |
 
 ## 3. Remote Play
@@ -88,6 +89,7 @@ Last review: v1.1.0.
 | ✅ | `chiaki-lib` building without changing a line of the submodule |
 | ✅ | Console discovery (987/UDP on the PS4, 9302/UDP on the PS5): state, name, version, running game |
 | ✅ | A console that changed address is followed: found by its host-id or MAC (Remote Play's search, this PC's neighbour table — Windows and Linux), its address updated with a notice; one-click connect looks for it first. Confirmed on a real network |
+| 🟡 | A registered console that never answers the search but took a direct connection is remembered as such: its card, the 🎮 indicator and the hint say *Connects directly* instead of "not responding"; its last firmware is kept and shown. Checked with the fake console; the learning itself needs the real PS4 |
 | 🟡 | A console that does not answer discovery: registration opens all the same (as the kind of console saved) and a registered one is connected to directly; the host-id from registration finds it again. Checked in the code paths, not yet on the PS4 that never answers |
 | 🟡 | The network search: every interface's broadcast address, three rounds, every address of a small private network one by one, and the ports of a jailbroken console (2121, 1337, 12800) for one with Remote Play off; checked against the fake console and in the tests, not yet on the network that missed a real PS4 |
 | ✅ | Several consoles: each in its own box on the stage, with its state; "Add console" scans the network or takes an IP |

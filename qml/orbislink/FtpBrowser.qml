@@ -109,6 +109,10 @@ Item {
         }
     }
 
+    // The console's FTP is still being checked (just after starting, or
+    // after switching consoles): the list waits, and is read once it answers.
+    readonly property bool ftpChecking: app.ftpState === "checking" || app.ftpState === "unknown"
+
     // Files that open as text to edit here (small ones: up to 1 MB).
     readonly property var textSuffixes: ["txt", "ini", "cfg", "conf", "json", "xml", "yml", "yaml", "toml",
         "log", "lua", "js", "md", "sh", "csv", "properties", "list"]
@@ -852,7 +856,7 @@ Item {
                     readonly property bool failed: app.ftpListError.length > 0
                     anchors.centerIn: parent
                     width: parent.width - 32
-                    visible: files.count === 0 && !app.ftpBusy
+                    visible: files.count === 0 && !app.ftpBusy && !root.ftpChecking
                     spacing: 12
                     Rectangle {
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -905,7 +909,7 @@ Item {
                     anchors.right: parent.right
                     anchors.top: parent.top
                     anchors.topMargin: 6
-                    visible: app.ftpBusy && files.count === 0
+                    visible: (app.ftpBusy || root.ftpChecking) && files.count === 0
                     Repeater {
                         model: parent.visible ? 8 : 0
                         SkeletonRow {

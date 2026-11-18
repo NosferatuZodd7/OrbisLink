@@ -146,10 +146,25 @@ void AppController::rebuildBackends()
 	{
 		ftpModel_.clear();
 		listedConsole_ = settings_.consoleAddress;
-		// Another console: its firmware comes with its own discovery.
-		if(consoleFirmware_ != 0)
+		// What the services said was about the console before: until this
+		// one is checked, nothing counts as answering, so no page asks its
+		// FTP (or its installer) in the meantime.
+		const bool hadStatus = status_.ftp.state != ServiceState::Unknown
+			|| status_.installer.state != ServiceState::Unknown;
+		status_ = ConsoleStatus();
+		status_.ftp.state = ServiceState::Checking;
+		status_.installer.state = ServiceState::Checking;
+		if(hadStatus)
+			emit statusChanged();
+		// Another console: the firmware it last reported, until its own
+		// discovery says it again.
+		uint16_t known = 0;
+		for(const ConsoleEntry &console : settings_.consoles)
+			if(console.address == settings_.consoleAddress)
+				known = static_cast<uint16_t>(console.firmware);
+		if(consoleFirmware_ != known)
 		{
-			consoleFirmware_ = 0;
+			consoleFirmware_ = known;
 			emit consoleFirmwareChanged();
 			refreshPackageWarnings();
 		}
@@ -170,16 +185,23 @@ void AppController::rebuildBackends()
 			reportRemotePlayState(stateCopy, detailCopy);
 		});
 	}
-	console_->setListener([this, life = lifeline_, source = console_.get()](const ConsoleStatus &status) {
-		life->post([this, status, source]() {
-			status_ = status;
+	const uint64_t generation = ++consoleGeneration_;
+	console_->setListener([this, life = lifeline_, generation](const ConsoleStatus &status) {
+		life->post([this, status, generation]() {
 			// Only from the manager of the console in use: a late answer from
 			// the one before a console switch speaks of another console.
-			if(source == console_.get() && status.canUseFtp() && status.ftpPort != 0
-				&& status.ftpPort != activeFtpPort())
+			if(generation != consoleGeneration_)
+				return;
+			const bool ftpWas = status_.canUseFtp();
+			status_ = status;
+			if(status.canUseFtp() && status.ftpPort != 0 && status.ftpPort != activeFtpPort())
 				adoptFtpPort(status.ftpPort);
 			emit statusChanged();
 			resumeWhenInstallerIsBack();
+			// FTP has just answered: the file list is read now, instead of
+			// staying on what it said while FTP was not there.
+			if(!ftpWas && status.canUseFtp())
+				refreshFtpListing(false);
 		});
 	});
 
@@ -305,6 +327,7 @@ QVariantList AppController::consoles() const
 			? QStringLiteral("ftp") : QStringLiteral("remoteplay");
 		input[QStringLiteral("accountId")] = QString::fromStdString(console.accountId);
 		input[QStringLiteral("remotePlayPin")] = QString::fromStdString(console.remotePlayPin);
+		input[QStringLiteral("connectsDirectly")] = console.connectsDirectly;
 		QString accountLabel;
 		for(const SavedAccount &account : settings_.accounts)
 			if(account.accountId == console.accountId)
@@ -1528,6 +1551,37 @@ void AppController::reportConsoleFirmware(const QString &address, const QString 
 	consoleFirmware_ = version;
 	emit consoleFirmwareChanged();
 	refreshPackageWarnings();
+	// Kept with the console: it shows next time too, even when the console
+	// does not answer the search then.
+	for(ConsoleEntry &console : settings_.consoles)
+		if(console.address == settings_.consoleAddress && console.firmware != version)
+		{
+			console.firmware = version;
+			store_.save(settings_);
+		}
+}
+
+QStringList AppController::directConsoles() const
+{
+	QStringList addresses;
+	for(const ConsoleEntry &console : settings_.consoles)
+		if(console.connectsDirectly)
+			addresses.append(QString::fromStdString(console.address));
+	return addresses;
+}
+
+void AppController::rememberDirectConsole(const QString &address)
+{
+	const std::string wanted = address.trimmed().toStdString();
+	for(ConsoleEntry &console : settings_.consoles)
+		if(console.address == wanted && !console.connectsDirectly)
+		{
+			console.connectsDirectly = true;
+			store_.save(settings_);
+			logInfo("Remote Play: " + wanted + " does not answer the search but takes a direct connection; "
+				"its card says so from now on.");
+			emit settingsChanged();
+		}
 }
 
 void AppController::refreshPackageWarnings()
@@ -2313,6 +2367,18 @@ void AppController::refreshFtpListing(bool announce)
 	// after other operations, and a notice for each one would be noise.
 	if(!ftp_)
 		return;
+	// FTP is asked only once it has answered the check: not while that is
+	// still going on (it is read as soon as it answers), and not when it
+	// does not answer, which the list says.
+	if(!canUseFtp())
+	{
+		ftpModel_.clear();
+		setFtpListError(status_.ftp.state == ServiceState::Unavailable
+				? tr("The console's FTP is not answering: start it on the console (GoldHEN, etaHEN or the "
+					 "ftpsrv payload) and try again.")
+				: QString());
+		return;
+	}
 	// A listing under way: another one once it is in.
 	if(ftpBusy_)
 	{
@@ -3374,6 +3440,8 @@ void AppController::reportRemotePlayState(const QString &state, const QString &d
 		mapped = RemotePlayState::Standby;
 	else if(state == QLatin1String("offline"))
 		mapped = RemotePlayState::Offline;
+	else if(state == QLatin1String("direct"))
+		mapped = RemotePlayState::Direct;
 	console_->setRemotePlayState(mapped, detail.toStdString());
 }
 

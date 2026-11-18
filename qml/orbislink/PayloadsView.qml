@@ -449,6 +449,9 @@ Item {
             visible: !root.online && !root.library
             Layout.fillWidth: true
             Layout.fillHeight: true
+            // A layout is no wider than its widest child allows (the text,
+            // up to 520): without this it would sit at the left.
+            Layout.alignment: Qt.AlignHCenter
             spacing: 10
             Item { Layout.fillHeight: true }
             Image {

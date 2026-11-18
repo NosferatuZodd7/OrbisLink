@@ -109,7 +109,9 @@ ProbeResult probeConsoleServices(const std::string &address, uint16_t ftpPort,
 	bool ps5 = false);
 
 // Remote Play state as chiaki-ng reports it.
-enum class RemotePlayState { Unknown, Ready, Standby, Offline };
+// Direct: it does not answer the network search, but has taken a direct
+// connection before (some PS4s never answer the search).
+enum class RemotePlayState { Unknown, Ready, Standby, Offline, Direct };
 
 // Console profile and periodic service checks.
 //

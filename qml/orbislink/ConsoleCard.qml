@@ -29,6 +29,9 @@ Item {
     // "ready", "standby", "offline" or "unknown", as it comes from the stream.
     property string status: "unknown"
     property bool registered: false
+    // It does not answer the network search but has taken a direct
+    // connection (some PS4s never answer it): not "not responding".
+    property bool direct: false
     property bool connecting: false
     property bool searching: false
     // The one-click connection step: "", "checking", "locating" (looking for
@@ -129,14 +132,14 @@ Item {
         if (!available) return "off"
         if (confirmRemoval) return "remove"
         if (busy) return "busy"
-        if (status === "offline") return "offline"
+        if (status === "offline") return direct ? "direct" : "offline"
         if (status === "unknown") return "busy"
         if (current && !registered) return "unregistered"
         if (status === "standby") return "standby"
         return "ready"
     }
 
-    readonly property color statusColor: mood === "ready" ? Theme.ok
+    readonly property color statusColor: mood === "ready" || mood === "direct" ? Theme.ok
                                        : mood === "unregistered" || mood === "busy" ? Theme.accent
                                        : mood === "standby" ? Theme.warn
                                        : mood === "offline" || mood === "remove" ? Theme.error
@@ -145,7 +148,7 @@ Item {
     readonly property color statusInk: Theme.light ? Qt.darker(statusColor, 1.35)
                                                    : Qt.lighter(statusColor, 1.2)
 
-    readonly property string stateIcon: mood === "ready" ? "play"
+    readonly property string stateIcon: mood === "ready" || mood === "direct" ? "play"
                                       : mood === "busy" ? "loader"
                                       : mood === "standby" ? "moon"
                                       : mood === "offline" ? "warning"
@@ -162,6 +165,7 @@ Item {
         if (current && stage === "checking") return qsTr("Checking the console…")
         if (current && stage === "locating") return qsTr("Looking for it on the network…")
         if (current && searching) return qsTr("Searching for the console…")
+        if (status === "offline" && direct) return qsTr("Connects directly")
         if (status === "offline") return qsTr("Not responding")
         if (status === "unknown") return qsTr("Checking…")
         if (current && !registered) return qsTr("Not registered for Remote Play")
@@ -297,6 +301,14 @@ Item {
     }
 
     readonly property int pad: 20
+
+    // The height the content needs: the head and its tags, then the foot
+    // (hairline, state and buttons) under them. When the tags take two
+    // lines (a narrow card, a longer name for the jailbreak, a longer
+    // translation) the page makes the cards taller, rather than the tags
+    // running under the foot.
+    readonly property real footHeight: footRule.height + 5 + stateLine.height + 14 + buttons.height + 18
+    readonly property real neededHeight: Math.ceil(tags.y + tags.height + 6 + footHeight)
 
     // ── Head: PS4/PS5 large and bold; on the right the account (on the
     // console in use) and the registration button, or the ✕ on the others.
@@ -515,6 +527,7 @@ Item {
 
     // ── Foot: a fading hairline, the state in one line, and the two ways in.
     EngravedRule {
+        id: footRule
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: stateLine.top

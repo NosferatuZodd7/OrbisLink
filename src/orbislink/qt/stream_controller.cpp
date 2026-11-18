@@ -105,6 +105,15 @@ StreamController::StreamController(QObject *parent)
 					// console's usual one: the picker offers it first.
 					if(!wasStreaming && !credentials_.accountId.empty())
 						emit accountIdAccepted(QString::fromStdString(credentials_.accountId));
+					// In without the console answering the search: it is
+					// one of those that only take a direct connection.
+					if(!wasStreaming && consoleState_ != QLatin1String("ready")
+						&& consoleState_ != QLatin1String("standby") && !directConsoles_.contains(address_))
+					{
+						directConsoles_.append(address_);
+						emit directConnectionWorked(address_);
+						emit consoleChanged();
+					}
 					gamepad_.start();
 					hardwareDecoder_ = lastHardwareDecoder_ = session_->usingHardwareDecoder();
 					lastFrameCount_ = video_.framesDelivered();
@@ -478,6 +487,14 @@ void StreamController::useAccount(const QString &accountId)
 	loadCredentials();
 	emit settingsApplied();
 	emit registrationChanged();
+}
+
+void StreamController::setDirectConsoles(const QStringList &addresses)
+{
+	if(addresses == directConsoles_)
+		return;
+	directConsoles_ = addresses;
+	emit consoleChanged();
 }
 
 void StreamController::answerLoginPin(bool incorrect)

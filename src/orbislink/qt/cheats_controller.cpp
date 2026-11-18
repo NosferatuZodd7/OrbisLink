@@ -275,13 +275,21 @@ void CheatsController::run(const QString &what, Job job, bool forceLists)
 	emit busyChanged();
 
 	const FtpClient::Config config = app_->ftpClientConfigFor(app_->settings().consoleAddress);
-	const Context context = context_;
+	Context context = context_;
+	context.ftp = app_->canUseFtp();
 	const quint64 generation = generation_;
 	const std::shared_ptr<std::atomic<bool>> cancel = cancel_;
 	worker_ = std::thread([this, config, context, generation, cancel, job, forceLists]() {
 		FtpClient ftp(config);
 		bool error = false;
-		const QString message = job ? job(ftp, &error) : QString();
+		QString message;
+		if(job && !context.ftp)
+		{
+			error = true;
+			message = tr("The console's FTP is not answering: nothing was changed on it.");
+		}
+		else if(job)
+			message = job(ftp, &error);
 		Snapshot snapshot;
 		if(!cancel->load())
 			snapshot = read(ftp, context, forceLists, *cancel);
@@ -383,7 +391,7 @@ CheatsController::Snapshot CheatsController::read(FtpClient &ftp, const Context 
 	// ── what the console has: its cheat folders, for this game
 	const cheats::Console console = context.ps5 ? cheats::Console::EtaHen : cheats::Console::GoldHen;
 	std::vector<FtpEntry> top;
-	snapshot.consoleRead = !cancel.load() && ftp.list("/data/", &top).ok;
+	snapshot.consoleRead = context.ftp && !cancel.load() && ftp.list("/data/", &top).ok;
 	std::map<std::string, std::pair<std::string, Format>> onConsole; // lower-case name → name, format
 	if(snapshot.consoleRead)
 		for(Format format : cheats::allFormats())

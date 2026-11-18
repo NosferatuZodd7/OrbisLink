@@ -45,6 +45,10 @@ class StreamController : public QObject
 	// its saves are not touched while it runs.
 	Q_PROPERTY(QString runningAppTitleId READ runningAppTitleId NOTIFY consoleChanged)
 	Q_PROPERTY(bool registered READ registered NOTIFY registrationChanged)
+	// The console in use does not answer the search, but this PC is
+	// registered on it and it has taken a direct connection before: it
+	// "connects directly" rather than "not responding".
+	Q_PROPERTY(bool directReachable READ directReachable NOTIFY consoleChanged)
 	// The host-id (MAC) of the console in use, once it has answered.
 	Q_PROPERTY(QString hostId READ hostId NOTIFY consoleChanged)
 	// Every registration of this PC: [{ hostId, name, ps5, accountId }], one
@@ -116,6 +120,12 @@ public:
 	QString systemVersion() const { return host_.found ? QString::fromStdString(host_.systemVersion) : QString(); }
 	QString hostAddress() const { return QString::fromStdString(host_.address); }
 	bool registered() const { return credentials_.valid; }
+	bool directReachable() const
+	{
+		return consoleState_ == QLatin1String("offline") && credentials_.valid && directConsoles_.contains(address_);
+	}
+	// The consoles known to take a direct connection (from the settings).
+	void setDirectConsoles(const QStringList &addresses);
 	bool registering() const { return registering_; }
 	QString sessionState() const { return sessionState_; }
 	QString sessionDetail() const { return sessionDetail_; }
@@ -244,6 +254,9 @@ signals:
 	// when discovery never got an answer from it.
 	void consoleIdentified(const QString &address, bool ps5, const QString &hostId);
 	void consoleChanged();
+	// A console that did not answer the search took a direct connection:
+	// whoever stores the settings remembers it.
+	void directConnectionWorked(const QString &address);
 	void registrationChanged();
 	void sessionChanged();
 	void videoChanged();
@@ -280,6 +293,7 @@ private:
 	void probe(bool reportResult);
 
 	QString address_;
+	QStringList directConsoles_;
 	QString consoleState_ = QStringLiteral("unknown");
 	QString consoleName_;
 	QString runningApp_;

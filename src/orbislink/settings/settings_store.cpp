@@ -85,6 +85,10 @@ std::string Settings::toJson() const
 			input.set("remote_play_pin", Json::fromString(console.remotePlayPin));
 		if(!console.mac.empty())
 			input.set("mac", Json::fromString(console.mac));
+		if(console.connectsDirectly)
+			input.set("connects_directly", Json::fromBool(true));
+		if(console.firmware > 0)
+			input.set("firmware", Json::fromInt(console.firmware));
 		items.push(input);
 	}
 	root.set("consoles", items);
@@ -251,6 +255,9 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 			entry.startMode = input["start_mode"].toString() == "ftp" ? "ftp" : "";
 			entry.remotePlayPin = input["remote_play_pin"].toString();
 			entry.mac = input["mac"].toString();
+			entry.connectsDirectly = input["connects_directly"].toLooseBool(false);
+			const int64_t firmware = input["firmware"].toInt(0);
+			entry.firmware = firmware > 0 && firmware <= 0xFFFF ? static_cast<int>(firmware) : 0;
 			settings.consoles.push_back(entry);
 		}
 	}

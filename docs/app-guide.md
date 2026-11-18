@@ -78,7 +78,7 @@ The pane on the left, from the top:
 |---|---|---|
 | The orb (emblem) | OrbisLink; a soft halo breathes behind it and it lifts under the mouse. | The consoles page — during a session, closes the page over the picture. |
 | **Consoles** (▶ **Remote Play** while a session runs, with a green dot) | The home page: every console, and the picture during a session. | Opens it; during a session, closes the page shown over the picture. |
-| **Games** · **Homebrew store** · **Save vault** · **Payloads** | The pages; the open one sits on a pill of brighter glass. The store only in builds with it. | Opens the page — over the picture while Remote Play plays (the same item again closes it). |
+| **Games** · **Homebrew store** · **Save vault** · **Payloads** | The pages; the open one sits on a pill of brighter glass. The store only in builds with it. **Save vault** and **Payloads** carry a small *no FTP* when the console in use has been checked and its FTP does not answer (no jailbreak, or its FTP off); folded, a grey dot. | Opens the page — over the picture while Remote Play plays (the same item again closes it). |
 | **Transfers** | How many cards the queue has. | Shows / hides the transfers (F9). They open once the console's FTP or remote installer has answered — never while they are still being checked — or while something is in the queue. |
 | **Log and diagnostics** | | Log, copy, save a diagnostics file (Ctrl+L). |
 | ☾ ◐ ☀ ✨ | Only one is lit. | Dark, glass or light: the plain appearance (custom colours step aside, kept for ✨). ✨ Custom: the saved look chosen in Settings → Personalisation (or the colours set aside); with none yet, opens that page. |
@@ -95,7 +95,7 @@ Across the top of the page:
 
 | Item | What it shows | Click |
 |---|---|---|
-| **Console** selector | The console every action goes to: its kind (PS4, PS5) in a ring, its name, its address and firmware (as Remote Play's discovery reports it, "9.00") and its jailbreak in champagne with its version when its FTP greeting gives one ("GoldHEN 2.4b18"). | A list of the saved consoles — one click makes another the console in use — with **Check the services now** and **Show the consoles**. |
+| **Console** selector | The console every action goes to: its kind (PS4, PS5) in a ring, its name, its address and firmware (as Remote Play's discovery reports it, "9.00"; the last one reported is kept with the console, so it shows while the console does not answer the search) and its jailbreak in champagne with its version when its FTP greeting gives one ("GoldHEN 2.4b18"). | A list of the saved consoles — one click makes another the console in use — with **Check the services now** and **Show the consoles**. |
 | 🎮 · **FTP** · 📦 | Remote Play, FTP and the installer, each with a dot at the corner: green available, amber checking (it breathes), red not answering, grey not applicable. Hover: a small card with the name, the state in its colour and, when something is off, what to do. | — |
 | ⟳ | | Checks the three services now. |
 | 🗎 | | Log and diagnostics (Ctrl+L). |
@@ -114,6 +114,14 @@ in the status line.
 
 Remote Play is not needed for anything but the picture: converting, sending
 and installing only need the console's FTP (and the installer to install).
+
+Nothing is asked of a console's FTP before it has answered the check. Just
+after switching consoles everything counts as *checking* — what the services
+said was about the console before — so the Files tab, the save vault, the
+payloads, the store, the cheats and the console's library wait for the new
+console's answer instead of trying it; a page whose console's FTP does not
+answer says so and shows what this PC holds. The Files tab lists the folder
+the moment FTP answers.
 
 ## Consoles page (home)
 
@@ -137,6 +145,15 @@ jailbreak is warmed in bronze.
 | ✕ | Removes the console from the list (asks first). |
 | Gold badge | The console has a jailbreak (FTP answers). |
 | 👤 Account ⌄ (console in use) | The account (PSID) Remote Play goes in with on this console. A click lists the saved accounts — the one in use ticked, the ones this PC is not registered with on this console marked — and **Manage accounts…** (Settings → Account IDs). The choice is kept for this console. |
+
+The state at the card's foot: **Ready**, **In rest mode**, **Checking…**,
+**Not registered for Remote Play**, **Not responding** — or **Connects
+directly**, for a console that never answers the network search (some PS4s
+do not) but has taken a direct connection from this PC: it is remembered
+the first time a session gets in that way, and from then on its card, the
+🎮 indicator and the line under the cards say so instead of "not
+responding". When the tags under the name take two lines (a narrow window,
+a longer jailbreak name, a longer translation), the cards grow to fit them.
 
 One click, one request: after a click the card takes no other until the
 console has answered (Remote Play connected or failed, FTP found or not).

@@ -113,6 +113,10 @@ private:
 		std::string version;
 		std::string title;
 		bool ps5 = false;
+		// Whether the console's FTP answered its check: if not, it is not
+		// asked (each try would only wait for it), and the cheats on the
+		// console are shown as not read.
+		bool ftp = true;
 	};
 	struct Listing
 	{
