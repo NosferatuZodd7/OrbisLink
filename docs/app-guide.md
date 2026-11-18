@@ -79,7 +79,7 @@ The pane on the left, from the top:
 | The orb (emblem) | OrbisLink; a soft halo breathes behind it and it lifts under the mouse. | The consoles page — during a session, closes the page over the picture. |
 | **Consoles** (▶ **Remote Play** while a session runs, with a green dot) | The home page: every console, and the picture during a session. | Opens it; during a session, closes the page shown over the picture. |
 | **Games** · **Homebrew store** · **Save vault** · **Payloads** | The pages; the open one sits on a pill of brighter glass. The store only in builds with it. | Opens the page — over the picture while Remote Play plays (the same item again closes it). |
-| **Transfers** | How many cards the queue has. | Shows / hides the transfers (F9). They open once the console's FTP has answered — never while it is still being checked; without FTP, only while something is being installed or sent. |
+| **Transfers** | How many cards the queue has. | Shows / hides the transfers (F9). They open once the console's FTP or remote installer has answered — never while they are still being checked — or while something is in the queue. |
 | **Log and diagnostics** | | Log, copy, save a diagnostics file (Ctrl+L). |
 | ☾ ◐ ☀ ✨ | Only one is lit. | Dark, glass or light: the plain appearance (custom colours step aside, kept for ✨). ✨ Custom: the saved look chosen in Settings → Personalisation (or the colours set aside); with none yet, opens that page. |
 | ⚙ **Settings** | | Settings (Ctrl+,). |
@@ -384,11 +384,16 @@ The console's files. Needs FTP.
 
 | Action | Does |
 |---|---|
-| Path field, ↑, ⟳ | Where you are; one level up; list again. A folder the console does not have (the PS4's `/data/pkg/` on a PS5) opens the nearest one up that it has, and the status line says so. |
+| Path field, ↑, ⟳ | Where you are; one level up; list again (F5). A folder the console does not have (the PS4's `/data/pkg/` on a PS5) opens the nearest one up that it has, and the status line says so. |
+| ▤ (advanced mode only, next to ⟳) | Commands of ftpsrv, the PS5's FTP payload, each after asking: **Make /system writable** (its `MTRW`: `/system` and `/system_ex` writable until the console restarts) and **Stop the FTP server** (its `KILL`). The console's answer is shown as it comes; a server that does not have the command (GoldHEN's, etaHEN's) says so and nothing changes. |
 | Pinned folders (tags) | Click: opens it. ✕: removes it from the top. **Pin this folder** pins the one that is open (also *Pin to the top* in a folder's menu). A PS4 and a PS5 each keep their own, in the settings: a PS4's start as `/data/`, `/data/pkg/`, `/data/GoldHEN/`, `/user/app/`, `/mnt/usb0/`; a PS5's as `/data/`, `/data/etaHEN/`, `/data/homebrew/`, `/mnt/usb0/`, `/mnt/ext0/`. |
-| One click on a folder | Opens it. |
+| Filter this folder · ⇅ | Above the list. The filter keeps the names that hold what is typed (any case), the line under the list says *3 of 12 shown*, and ✕ or Esc clears it; it is cleared when another folder opens. ⇅ orders by **Name**, **Size** or **Date** — the same one again turns the order round (size and date start with the biggest and newest) — and folders always come first. The order stays from folder to folder. |
+| One click on a folder | Opens it. A symbolic link that leads to a folder opens as one (the console is asked where it leads). |
+| Under each name | When it last changed, as the console's clock has it: `2026-11-17 22:13`. |
+| An empty folder | Says *This folder is empty*. One that could not be opened (a drive not plugged in, the connection lost) says so, with the console's answer and **Try again** — the two are never the same message. |
 | One click on a file, or ⋮, or right click | The file's menu. |
-| ○ at the left of a row (or Ctrl+click; Shift+click from the last one picked) | Picks it; while some are picked, a click on a row picks it too, and a bar at the bottom (in place of the new-folder row) says how many, with ☑ all / none, **Download to the desktop**, **Download to…**, **Move to…**, **Delete on the console** and ✕. |
+| ○ at the left of a row (or Ctrl+click; Shift+click from the last one picked) | Picks it; while some are picked, a click on a row picks it too, and a bar at the bottom (in place of the new-folder row) says how many, with ☑ all / none, **Download to the desktop**, **Move to…**, **Copy to…**, **Delete on the console**, ⋮ (**Download to…**, **Permissions…**) and ✕. |
+| The keyboard (on the list) | ↑ ↓ move along the rows (a ring shows which), Enter opens a folder or a file's menu, Backspace goes up, Space picks the row, Ctrl+A picks them all, Delete deletes (what is picked, or the row), F2 renames, Ctrl+C copies the path, Ctrl+F goes to the filter (↓ comes back to the list), F5 lists again, Esc lets go of the picks and then of the filter. |
 | 🗑 | Deletes on the console, after asking: a folder with everything inside it (what is inside first, then the folder). The row says *deleting…* until it is gone. |
 | The line under the list | How many folders and files the folder has and their size; the free space of its disk when the console's FTP says it (GoldHEN's and etaHEN's do not). |
 | A file arriving | Listed as soon as its upload starts, with its percentage (*waiting* while it is in line). |
@@ -403,20 +408,48 @@ transfer the console breaks — its 426 — goes on from where it stopped) · Ge
 it ready to drag · Show the local
 copy · Copy the path · Rename… · **Move to…** (a folder tree of the console:
 quick access on the left, folders that open on the right, **New folder**,
-then **Move here**) · Delete on the console. A move is a rename on the
+then **Move here**) · **Copy to…** (the same tree, then **Copy here**) ·
+**Edit as text…** (text files up to 1 MB) · **Permissions…** · Delete on the
+console. A move is a rename on the
 console; between two disks (`/data` and a USB drive, say) the console cannot
 rename, so it is copied through this PC — each file brought here, sent to its
 new place and its size checked, with the bar and **Cancel** at the foot of the
 tab — and only then is the original deleted. Nothing is overwritten: a name
 already taken there is said so.
 
+**Copy to…** goes the same way through this PC (an FTP server has no copy
+command), with the same bar, **Cancel** and size check, and never deletes the
+original; a folder is copied with everything inside it, but never into
+itself. A copy into the folder it is already in is named *name copy.ext*
+(*name copy 2.ext*, …). The PC needs room for the largest file being copied.
+
+**Edit as text…** opens `.txt`, `.ini`, `.cfg`, `.conf`, `.json`, `.xml`,
+`.yml`, `.toml`, `.log`, `.lua`, `.js`, `.md`, `.sh`, `.csv` and the like
+(up to 1 MB; one with NUL bytes, or that is not UTF-8, is refused rather than
+spoiled). It is shown as plain text, never as a page, and a file with
+Windows line ends keeps them. **Save on the console** sends it back in place
+and checks its size; with changes not saved, Esc or a click outside does not
+close it — **Cancel** does.
+
+**Permissions…** shows the current ones (`-rw-r--r--`) and takes three
+digits (755, 777, 644 with one click), for one item or every one picked; for
+folders, **Also everything inside the folders** goes through them too. It is
+sent as `SITE CHMOD`: a server that does not take it changes nothing, and the
+app says so with the console's answer.
+
+The FTP connection is kept open between operations (one login for a whole
+folder's worth of work, dropped after 20 s of quiet), and when the console's
+server offers `MLSD` (its `FEAT` says so) folders are listed with it: exact
+sizes, dates and kinds, whatever the server's language. A server whose `MLSD`
+fails is listed with `LIST` from then on.
+
 ## Dropping files on the window
 
-Dragging `.pkg` files (or folders with them) over the window shows two zones:
+Dragging files or folders over the window shows two zones:
 
 | Zone | Does | Needs |
 |---|---|---|
-| **Send over FTP** | Copies them to the folder the Files tab is in (the zone names it). Any other file dropped (a disc image for the USB drive, a payload, a PS3 package for RPCS3) is copied as it is and never installed — a `.pkg` that is not a PS4 one too, even with *Install after upload* on; its card says *Copied to the console (not a PS4 package, so not installed)*. | FTP |
+| **Send over FTP** | Copies them to the folder the Files tab is in (the zone names it). A **folder** dropped goes whole, with its tree and every file in it (a homebrew app's folder, a save, a dump): the console gets the same folders, the missing ones made as the files arrive, names made safe part by part as a single file's are. Every upload is checked at the end: a copy on the console whose size is not the file's is sent again. Any other file dropped (a disc image for the USB drive, a payload, a PS3 package for RPCS3) is copied as it is and never installed — a `.pkg` that is not a PS4 one too, even with *Install after upload* on; its card says *Copied to the console (not a PS4 package, so not installed)*. | FTP |
 | **Install directly** | The console downloads them from this PC and installs. Only PS4 packages: anything else is turned away saying what it is (*A PS3 package, not a PS4 one*, *A PSP or PS Vita package…*) and that **Send over FTP** copies it as it is. | Installer |
 
 On a PS5, a package sent with *install after sending* (and a converted game's

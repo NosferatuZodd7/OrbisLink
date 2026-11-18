@@ -102,4 +102,34 @@ ORBISLINK_TEST(suggested_shortcuts)
 	CHECK(std::find(shortcuts.begin(), shortcuts.end(), "/mnt/usb0/") != shortcuts.end());
 }
 
+ORBISLINK_TEST(machine_listing_reads_types_sizes_times_and_modes)
+{
+	// 2026-11-17 22:13:00 UTC, and "now" an hour later.
+	const int64_t now = 1794953580 + 3600;
+	const std::string listing =
+		"type=cdir;modify=20261117221300; .\r\n"
+		"type=pdir;modify=20261117221300; ..\r\n"
+		"type=dir;size=4096;modify=20261117221300;UNIX.mode=0755; homebrew\r\n"
+		"type=file;size=1048576;modify=20261117221300;UNIX.mode=0644; Game Name.pkg\r\n"
+		"type=file;size=12;modify=20200101000000; old.txt\r\n"
+		"type=OS.unix=slink:/data;modify=20261117221300; link\r\n"
+		"not an mlsd line\r\n";
+	const auto entries = FtpClient::parseMachineListing(listing, "/data", now);
+	CHECK_EQ(entries.size(), size_t(4));
+	CHECK_EQ(entries[0].name, std::string("homebrew"));
+	CHECK(entries[0].isDirectory);
+	CHECK_EQ(entries[0].permissions, std::string("drwxr-xr-x"));
+	CHECK_EQ(entries[0].path, std::string("/data/homebrew"));
+	// Files after folders, by name; the space in the name kept.
+	CHECK_EQ(entries[1].name, std::string("Game Name.pkg"));
+	CHECK_EQ(entries[1].size, int64_t(1048576));
+	CHECK_EQ(entries[1].permissions, std::string("-rw-r--r--"));
+	// Written as LIST writes it: recent with the time, old with the year.
+	CHECK_EQ(entries[1].modified, std::string("Nov 17 22:13"));
+	CHECK_EQ(entries[2].name, std::string("link"));
+	CHECK(entries[2].isSymlink);
+	CHECK_EQ(entries[3].name, std::string("old.txt"));
+	CHECK_EQ(entries[3].modified, std::string("Jan 01 2020"));
+}
+
 TEST_MAIN()

@@ -18,13 +18,13 @@ ApplicationWindow {
 
     property bool panelVisible: true
     // What the console in use has shown it offers besides Remote Play. The
-    // side panel is the console's files, so it opens once FTP has answered —
+    // side panel only opens once FTP or the installer has answered (the
+    // installer works without FTP: the console downloads from this PC) —
     // not while the check is still under way, so it never opens on an empty
     // list only to close a moment later when nothing answers. A check under
     // way keeps what was known (no flicker every time the services are
-    // asked again); another console in use starts from nothing. Without
-    // FTP, the panel is only the queue: it is there while something is
-    // being installed or sent, and goes when the work is done.
+    // asked again); another console in use starts from nothing. Items still
+    // in the queue keep the panel available whatever the console offers.
     property bool ftpConfirmed: false
     property bool installerConfirmed: false
     property string confirmedFor: ""
@@ -49,9 +49,11 @@ ApplicationWindow {
         function onSettingsChanged() { window.noteServices() }
     }
     readonly property bool ftpAbsent: !ftpConfirmed
-    readonly property bool ftpChecking: !ftpConfirmed
-                                        && (app.ftpState === "checking" || app.ftpState === "unknown")
-    readonly property bool panelAllowed: ftpConfirmed || transferPanel.busy
+    readonly property bool servicesChecking: !ftpConfirmed && !installerConfirmed
+                                             && (app.ftpState === "checking" || app.ftpState === "unknown"
+                                                 || app.installerState === "checking"
+                                                 || app.installerState === "unknown")
+    readonly property bool panelAllowed: ftpConfirmed || installerConfirmed || app.queue.count > 0
     // Whether the transfers' spine is on screen.
     readonly property bool panelShown: panelVisible && panelAllowed && !streamFullscreen
     // The panel closed while jobs go on: a narrow column with them instead,
@@ -64,12 +66,10 @@ ApplicationWindow {
                           ? (demoView === "store-local" ? "store"
                              : demoView === "payloads-library" ? "payloads" : demoView)
                           : typeof demoGames !== "undefined" && demoGames ? "games" : "home"
-    readonly property string panelLockReason: ftpChecking
-        ? qsTr("Still checking the console's FTP: the transfers open as soon as it answers.")
-        : installerConfirmed
-          ? qsTr("This console has no FTP running: the transfers open while something is being installed.")
-          : qsTr("This console only offers Remote Play: it has "
-                 + "neither FTP nor the remote installer running (a jailbreak adds them).")
+    readonly property string panelLockReason: servicesChecking
+        ? qsTr("Still checking the console's FTP and installer: the transfers open as soon as one answers.")
+        : qsTr("This console only offers Remote Play: it has "
+               + "neither FTP nor the remote installer running (a jailbreak adds them).")
     // Full screen for the stream: hides the navigation and the transfers,
     // and the window takes up the whole screen.
     property bool streamFullscreen: false

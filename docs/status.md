@@ -67,6 +67,18 @@ Last review: v1.1.0.
 | ✅ | Downloads (files and whole folders) as cards in the queue; one the console breaks (its 426) goes on from where it stopped (`REST`), while each try gets further; tested against the fake console |
 | ✅ | Several files and folders picked at once (click, Ctrl+click, Shift+click) and downloaded, moved or deleted together; a folder deleted with everything inside it, what is inside first |
 | ✅ | A file being uploaded listed with its percentage as soon as its upload starts; the folder's totals under the list, and its disk's free space when the server says it (`AVBL`: GoldHEN's and etaHEN's do not, so only the totals show) |
+| ✅ | Cancelling one transfer no longer stops another running at the same time (the queue and the file list share one client) |
+| ✅ | A folder sent over FTP goes whole, with its tree and every file; each upload's size is checked on the console at the end, and sent again when it differs |
+| ✅ | An empty folder and one that could not be opened are told apart, with **Try again**; dates shown in one form; links to folders open as folders |
+| ✅ | The transfers panel opens only once the console's FTP or installer has answered (or something is queued) — never on an empty list that closes again while they are being checked |
+| ✅ | The connection is kept between operations (one login for many listings and transfers; dropped after 20 s of quiet, and when the console changes) |
+| ✅ | `MLSD` listings when the server's `FEAT` offers it (exact sizes, dates and kinds), `LIST` otherwise or when `MLSD` fails; tested against the fake console both ways |
+| ✅ | Filter by name and order by name, size or date (folders first) |
+| ✅ | The keyboard on the list: arrows, Enter, Backspace, Space, Ctrl+A, Delete, F2, Ctrl+C, Ctrl+F, F5, Esc |
+| ✅ | Copy on the console (files and whole folders, through this PC, size checked, never into itself; a copy in the same folder named *name copy*) |
+| ✅ | Permissions (`SITE CHMOD`) for one item or several, and through everything inside folders |
+| 🟡 | Text files (up to 1 MB) edited and saved back in place; checked against the fake console |
+| 🟡 | ftpsrv's `MTRW` and `KILL` (advanced mode), after asking; checked against the fake console, still to be seen on a PS5 with ftpsrv |
 | 🟡 | Save vault: saves a PS4 copied to a USB drive (`PS4/SAVEDATA`), on the console's drives (`/mnt/usbN`) or on a drive plugged into this PC, shown and backed up into the vault folder (the drive is only read); checked with the fake console and in the tests |
 
 ## 3. Remote Play
@@ -76,7 +88,6 @@ Last review: v1.1.0.
 | ✅ | `chiaki-lib` building without changing a line of the submodule |
 | ✅ | Console discovery (987/UDP on the PS4, 9302/UDP on the PS5): state, name, version, running game |
 | ✅ | A console that changed address is followed: found by its host-id or MAC (Remote Play's search, this PC's neighbour table — Windows and Linux), its address updated with a notice; one-click connect looks for it first. Confirmed on a real network |
-| ✅ | The transfers panel opens only once the console's FTP has answered — never on an empty list that closes again; without FTP, only while something is being installed or sent |
 | 🟡 | A console that does not answer discovery: registration opens all the same (as the kind of console saved) and a registered one is connected to directly; the host-id from registration finds it again. Checked in the code paths, not yet on the PS4 that never answers |
 | 🟡 | The network search: every interface's broadcast address, three rounds, every address of a small private network one by one, and the ports of a jailbroken console (2121, 1337, 12800) for one with Remote Play off; checked against the fake console and in the tests, not yet on the network that missed a real PS4 |
 | ✅ | Several consoles: each in its own box on the stage, with its state; "Add console" scans the network or takes an IP |

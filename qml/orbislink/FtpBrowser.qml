@@ -102,12 +102,86 @@ Item {
     }
     Connections {
         target: app
-        function onFtpPathChanged() { root.clearPicks() }
+        function onFtpPathChanged() {
+            root.clearPicks()
+            filterField.text = ""
+            files.currentIndex = -1
+        }
+    }
+
+    // Files that open as text to edit here (small ones: up to 1 MB).
+    readonly property var textSuffixes: ["txt", "ini", "cfg", "conf", "json", "xml", "yml", "yaml", "toml",
+        "log", "lua", "js", "md", "sh", "csv", "properties", "list"]
+    function isTextFile(name, size) {
+        var dot = name.lastIndexOf(".")
+        var suffix = dot > 0 ? name.substring(dot + 1).toLowerCase() : ""
+        return size <= 1024 * 1024 && textSuffixes.indexOf(suffix) >= 0
+    }
+
+    // The keyboard, on the list: arrows move, Enter opens, Backspace goes
+    // up, Delete deletes (what is picked, or the row), F2 renames, Space
+    // picks, Ctrl+A picks all, Ctrl+F filters, Ctrl+C copies the path, F5
+    // lists again, Esc lets go of the picks, then of the filter.
+    function currentRow() {
+        return files.currentIndex >= 0 && files.currentIndex < app.files.count ? app.files.get(files.currentIndex) : null
+    }
+    function listKey(event) {
+        var ctrl = (event.modifiers & Qt.ControlModifier) !== 0
+        var row = currentRow()
+        if (event.key === Qt.Key_F5) {
+            app.ftpRefresh()
+        } else if (ctrl && event.key === Qt.Key_F) {
+            filterField.forceActiveFocus()
+        } else if (ctrl && event.key === Qt.Key_A) {
+            pickAll()
+        } else if (event.key === Qt.Key_Backspace) {
+            app.ftpUp()
+        } else if (event.key === Qt.Key_Escape) {
+            if (picking)
+                clearPicks()
+            else if (filterField.text.length > 0)
+                filterField.text = ""
+            else
+                return
+        } else if (!row) {
+            return
+        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+            if (row.isDirectory) {
+                app.ftpNavigate(row.path)
+            } else {
+                var item = files.itemAtIndex(files.currentIndex)
+                rowMenu.popupFor(row.path, row.name, false, row.size, item ? item.rowSizeText : "", item)
+            }
+        } else if (event.key === Qt.Key_Delete) {
+            confirmDelete.openRows(picking ? pickedRows() : [row])
+        } else if (event.key === Qt.Key_F2) {
+            renameDialog.open(row.path, row.name)
+        } else if (event.key === Qt.Key_Space) {
+            togglePick(files.currentIndex, row.path)
+        } else if (ctrl && event.key === Qt.Key_C) {
+            app.copyToClipboard(row.path)
+            notice.show(qsTr("Path copied."))
+        } else {
+            return
+        }
+        event.accepted = true
+    }
+    // The keyboard's row stays on the same file when the list is redone
+    // (sorted, filtered, listed again), not on the same place.
+    property string keyedPath: ""
+    property bool listResetting: false
+    function restoreKeyed() {
+        listResetting = false
+        files.currentIndex = keyedPath.length > 0 ? app.files.indexOfPath(keyedPath) : -1
     }
     // What left the list (deleted, moved) is not picked any more.
     Connections {
         target: app.files
+        function onModelAboutToBeReset() {
+            root.listResetting = true
+        }
         function onModelReset() {
+            Qt.callLater(root.restoreKeyed)
             if (!root.picking)
                 return
             var still = {}
@@ -163,11 +237,11 @@ Item {
             Layout.fillWidth: true
             implicitHeight: 40
             radius: height / 2
-            color: Theme.light ? Qt.rgba(1, 1, 1, pathField.activeFocus ? 0.92 : 0.66)
+            color: Theme.light ? (pathField.activeFocus ? Qt.rgba(1, 1, 1, 0.95) : Theme.lightWell)
                                : Qt.rgba(0, 0, 0, pathField.activeFocus ? 0.30 : 0.20)
             border.width: 1
             border.color: pathField.activeFocus ? Theme.accent
-                        : Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Theme.glassEdge
+                        : Theme.light ? Theme.lightHairline : Theme.glassEdge
             Behavior on border.color { ColorAnimation { duration: Theme.fast } }
             // The focus glow, around it.
             Rectangle {
@@ -231,7 +305,21 @@ Item {
                     Accessible.name: qsTr("Refresh")
                     ToolTip.visible: hovered
                     ToolTip.delay: 400
-                    ToolTip.text: qsTr("Refresh")
+                    ToolTip.text: qsTr("Refresh (F5)")
+                }
+                // The console's FTP server itself: only with Advanced mode on.
+                StyledToolButton {
+                    id: serverButton
+                    visible: app.ftpAdvancedMode
+                    iconName: "server"
+                    iconSize: 15
+                    implicitWidth: 32
+                    implicitHeight: 32
+                    Accessible.name: qsTr("The console's FTP server")
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: qsTr("The console's FTP server")
+                    onClicked: serverMenu.popup(serverButton, 0, serverButton.height + 4)
                 }
             }
         }
@@ -320,6 +408,81 @@ Item {
             }
         }
 
+        // Narrowing the folder to the names that hold some text (Ctrl+F),
+        // and the order of the rows — folders always first.
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 6
+            visible: app.files.total > 0 || filterField.text.length > 0
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 32
+                radius: height / 2
+                color: Theme.light ? (filterField.activeFocus ? Qt.rgba(1, 1, 1, 0.95) : Theme.lightWell)
+                                   : Qt.rgba(0, 0, 0, filterField.activeFocus ? 0.30 : 0.20)
+                border.width: 1
+                border.color: filterField.activeFocus ? Theme.accent
+                            : Theme.light ? Theme.lightHairline : Theme.glassEdge
+                Behavior on border.color { ColorAnimation { duration: Theme.fast } }
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 11
+                    anchors.rightMargin: 3
+                    spacing: 2
+                    Icon {
+                        name: "search"
+                        size: 13
+                        color: Theme.textSecondary
+                    }
+                    StyledField {
+                        id: filterField
+                        Layout.fillWidth: true
+                        implicitHeight: 30
+                        leftPadding: 6
+                        rightPadding: 4
+                        font.pixelSize: Theme.fontSmall
+                        placeholderText: qsTr("Filter this folder")
+                        background: Item { }
+                        Accessible.name: qsTr("Filter this folder")
+                        onTextChanged: app.files.setFilter(text)
+                        Keys.onEscapePressed: {
+                            text = ""
+                            files.forceActiveFocus()
+                        }
+                        Keys.onDownPressed: {
+                            files.forceActiveFocus()
+                            if (files.currentIndex < 0 && files.count > 0)
+                                files.currentIndex = 0
+                        }
+                    }
+                    StyledToolButton {
+                        visible: filterField.text.length > 0
+                        iconName: "close"
+                        iconSize: 12
+                        implicitWidth: 26
+                        implicitHeight: 26
+                        Accessible.name: qsTr("Clear the filter")
+                        onClicked: filterField.text = ""
+                    }
+                }
+            }
+            StyledToolButton {
+                id: sortButton
+                iconName: "arrow-up-down"
+                iconSize: 15
+                implicitWidth: 32
+                implicitHeight: 32
+                readonly property string keyName: app.files.sortKey === "size" ? qsTr("size")
+                                                : app.files.sortKey === "date" ? qsTr("date") : qsTr("name")
+                Accessible.name: qsTr("Order")
+                ToolTip.visible: hovered
+                ToolTip.delay: 400
+                ToolTip.text: app.files.sortAscending ? qsTr("By %1, ascending").arg(keyName)
+                                                      : qsTr("By %1, descending").arg(keyName)
+                onClicked: sortMenu.popup(sortButton, sortButton.width - 200, sortButton.height + 4)
+            }
+        }
+
         // The folder's contents: a well of glass one step below the pane,
         // its rows between hairlines.
         Plate {
@@ -336,6 +499,14 @@ Item {
                 clip: true
                 model: app.files
                 ScrollBar.vertical: ScrollBar { }
+                focus: true
+                keyNavigationEnabled: true
+                currentIndex: -1
+                Keys.onPressed: (event) => root.listKey(event)
+                onCurrentIndexChanged: {
+                    if (!root.listResetting)
+                        root.keyedPath = currentIndex >= 0 ? (app.files.get(currentIndex).path || "") : ""
+                }
 
                 delegate: ItemDelegate {
                     id: row
@@ -347,6 +518,9 @@ Item {
                     readonly property bool deleting: app.ftpDeleting.indexOf(model.path) >= 0
                     readonly property bool picked: root.picked[model.path] === true
                     height: 40
+                    // The current row holds the keys: without this, being a
+                    // button, it would take Space for itself.
+                    Keys.onPressed: (event) => root.listKey(event)
                     opacity: deleting ? 0.55 : 1.0
                     Behavior on opacity { NumberAnimation { duration: Theme.fast } }
                     // The Basic style pads 12px all round, which in a 34px row
@@ -362,10 +536,12 @@ Item {
                     // bottom.
                     background: Rectangle {
                         radius: 12
+                        // The keyboard's row: a ring while the list has the keys.
+                        readonly property bool keyed: row.ListView.isCurrentItem && files.activeFocus
                         color: row.picked ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
-                             : row.hovered ? Theme.controlFill : "transparent"
-                        border.width: row.picked ? 1 : 0
-                        border.color: Theme.alpha(Theme.accent, 0.45)
+                             : row.hovered || keyed ? Theme.controlFill : "transparent"
+                        border.width: row.picked || keyed ? 1 : 0
+                        border.color: Theme.alpha(Theme.accent, keyed ? 0.75 : 0.45)
                         Behavior on color { ColorAnimation { duration: Theme.fast } }
                         // The hairline under each row but the last.
                         Rectangle {
@@ -481,13 +657,39 @@ Item {
                                         }
                                     }
                                 }
-                                Text {
+                                ColumnLayout {
                                     Layout.fillWidth: true
-                                    text: model.name
-                                    color: model.isDirectory ? Theme.ink : Theme.text
-                                    font.pixelSize: Theme.fontSmall + 1
-                                    font.weight: model.isDirectory ? Font.DemiBold : Font.Medium
-                                    elide: Text.ElideMiddle
+                                    spacing: 0
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 5
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: model.name
+                                            color: model.isDirectory ? Theme.ink : Theme.text
+                                            font.pixelSize: Theme.fontSmall + 1
+                                            font.weight: model.isDirectory ? Font.DemiBold : Font.Medium
+                                            elide: Text.ElideMiddle
+                                        }
+                                        // A symbolic link: where it leads is elsewhere.
+                                        Icon {
+                                            visible: model.isLink
+                                            name: "link"
+                                            size: 11
+                                            color: Theme.textSecondary
+                                        }
+                                    }
+                                    // When it last changed, as the console says (its
+                                    // own clock), read into one form: "2026-11-17 22:13".
+                                    Text {
+                                        Layout.fillWidth: true
+                                        visible: (model.modified || "").length > 0
+                                        text: model.modified || ""
+                                        color: Theme.textSecondary
+                                        font.pixelSize: Theme.fontEyebrow
+                                        font.family: Theme.fontMono
+                                        elide: Text.ElideRight
+                                    }
                                 }
                             }
 
@@ -514,6 +716,8 @@ Item {
                                 onClicked: (mouse) => {
                                     if (dragged)
                                         return
+                                    files.currentIndex = index
+                                    files.forceActiveFocus()
                                     if (mouse.button === Qt.LeftButton) {
                                         // On the round mark: pick the row.
                                         if (mouse.x <= 30 && (row.hovered || root.picking)) {
@@ -641,8 +845,11 @@ Item {
                     }
                 }
 
-                // Nothing here: an empty folder on a glass disc, one quiet line.
+                // Nothing here: an empty folder on a glass disc, one quiet line —
+                // or, when the folder could not be opened, why, and a way to
+                // try again. The two are never the same message.
                 Column {
+                    readonly property bool failed: app.ftpListError.length > 0
                     anchors.centerIn: parent
                     width: parent.width - 32
                     visible: files.count === 0 && !app.ftpBusy
@@ -654,21 +861,42 @@ Item {
                         radius: 26
                         color: Theme.controlFill
                         border.width: 1
-                        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.04)
+                        border.color: Theme.light ? Theme.lightHairline : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.04)
                         Icon {
                             anchors.centerIn: parent
-                            name: "folder-open"
+                            name: parent.parent.failed ? "alert" : "folder-open"
                             size: 22
-                            color: Theme.textSecondary
+                            color: parent.parent.failed ? (Theme.light ? Qt.darker(Theme.error, 1.3) : Theme.error)
+                                                        : Theme.textSecondary
                         }
                     }
                     Text {
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
-                        text: qsTr("No files (or FTP is down)")
-                        color: Theme.textSecondary
+                        text: parent.failed ? qsTr("This folder could not be opened.")
+                            : app.files.total > 0 ? qsTr("Nothing here has “%1” in its name.").arg(app.files.filter)
+                            : qsTr("This folder is empty.")
+                        color: parent.failed ? Theme.text : Theme.textSecondary
                         font.pixelSize: Theme.fontSmall
+                        font.weight: parent.failed ? Font.DemiBold : Font.Normal
+                    }
+                    Text {
+                        visible: parent.failed
+                        width: parent.width
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.WordWrap
+                        text: app.ftpListError
+                        color: Theme.textSecondary
+                        font.pixelSize: Theme.fontCaption
+                    }
+                    StyledButton {
+                        visible: parent.failed
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: qsTr("Try again")
+                        iconName: "refresh"
+                        chip: true
+                        onClicked: app.ftpRefresh()
                     }
                 }
 
@@ -737,10 +965,14 @@ Item {
             visible: files.count > 0
             text: {
                 var parts = []
-                if ((space.folders || 0) > 0)
-                    parts.push(qsTr("%n folder(s)", "", space.folders))
-                if ((space.files || 0) > 0)
-                    parts.push(qsTr("%n file(s)", "", space.files) + " · " + app.queue.bytesText(space.bytes || 0))
+                if (app.files.filter.length > 0) {
+                    parts.push(qsTr("%1 of %2 shown").arg(app.files.count).arg(app.files.total))
+                } else {
+                    if ((space.folders || 0) > 0)
+                        parts.push(qsTr("%n folder(s)", "", space.folders))
+                    if ((space.files || 0) > 0)
+                        parts.push(qsTr("%n file(s)", "", space.files) + " · " + app.queue.bytesText(space.bytes || 0))
+                }
                 if (space.free !== undefined && space.free >= 0)
                     parts.push(qsTr("%1 free on this disk").arg(app.queue.bytesText(space.free)))
                 return parts.join(" · ")
@@ -760,8 +992,9 @@ Item {
             visible: app.downloadActive
 
             Text {
-                text: app.downloadMoving ? qsTr("Moving %1").arg(app.downloadName)
-                                         : qsTr("Downloading %1").arg(app.downloadName)
+                text: app.downloadCopying ? qsTr("Copying %1").arg(app.downloadName)
+                    : app.downloadMoving ? qsTr("Moving %1").arg(app.downloadName)
+                    : qsTr("Downloading %1").arg(app.downloadName)
                 color: Theme.textSecondary
                 font.pixelSize: Theme.fontCaption
                 elide: Text.ElideMiddle
@@ -846,17 +1079,6 @@ Item {
                     }
                 }
                 StyledToolButton {
-                    iconName: "save"
-                    iconSize: 15
-                    implicitWidth: 32; implicitHeight: 32
-                    ToolTip.visible: hovered
-                    ToolTip.text: qsTr("Download to…")
-                    onClicked: {
-                        destinationDialog.rows = root.pickedRows()
-                        destinationDialog.open()
-                    }
-                }
-                StyledToolButton {
                     iconName: "folder-open"
                     iconSize: 15
                     implicitWidth: 32; implicitHeight: 32
@@ -864,7 +1086,18 @@ Item {
                     ToolTip.text: qsTr("Move to…")
                     onClicked: {
                         var paths = root.pickedRows().map(function (row) { return row.path })
-                        folderPicker.openForMany(paths, qsTr("%n item(s)", "", paths.length), app.ftpPath)
+                        folderPicker.openForMany(paths, qsTr("%n item(s)", "", paths.length), app.ftpPath, false)
+                    }
+                }
+                StyledToolButton {
+                    iconName: "copy"
+                    iconSize: 15
+                    implicitWidth: 32; implicitHeight: 32
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Copy to…")
+                    onClicked: {
+                        var paths = root.pickedRows().map(function (row) { return row.path })
+                        folderPicker.openForMany(paths, qsTr("%n item(s)", "", paths.length), app.ftpPath, true)
                     }
                 }
                 StyledToolButton {
@@ -875,6 +1108,15 @@ Item {
                     ToolTip.visible: hovered
                     ToolTip.text: qsTr("Delete on the console")
                     onClicked: confirmDelete.openRows(root.pickedRows())
+                }
+                StyledToolButton {
+                    id: pickedMore
+                    iconName: "more"
+                    iconSize: 15
+                    implicitWidth: 32; implicitHeight: 32
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("More")
+                    onClicked: pickedMenu.popup(pickedMore, pickedMore.width - 240, -pickedMenu.implicitHeight - 6)
                 }
                 StyledToolButton {
                     iconName: "close"
@@ -895,11 +1137,11 @@ Item {
             visible: !root.picking
             implicitHeight: 42
             radius: height / 2
-            color: Theme.light ? Qt.rgba(1, 1, 1, newFolderName.activeFocus ? 0.92 : 0.66)
+            color: Theme.light ? (newFolderName.activeFocus ? Qt.rgba(1, 1, 1, 0.95) : Theme.lightWell)
                                : Qt.rgba(0, 0, 0, newFolderName.activeFocus ? 0.30 : 0.20)
             border.width: 1
             border.color: newFolderName.activeFocus ? Theme.accent
-                        : Theme.light ? Qt.rgba(1, 1, 1, 0.95) : Theme.glassEdge
+                        : Theme.light ? Theme.lightHairline : Theme.glassEdge
             Behavior on border.color { ColorAnimation { duration: Theme.fast } }
 
             RowLayout {
@@ -993,7 +1235,7 @@ Item {
                     implicitHeight: 36
                     radius: 11
                     color: rowMenu.targetIsDirectory ? Theme.accentFill : Theme.controlFill
-                    border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+                    border.color: Theme.light ? Theme.lightHairline : Theme.glassEdge
                     Icon {
                         anchors.centerIn: parent
                         name: rowMenu.targetIsDirectory ? "folder" : "file"
@@ -1130,7 +1372,27 @@ Item {
         StyledMenuItem {
             text: qsTr("Move to…")
             iconName: "folder-open"
-            onTriggered: folderPicker.openFor(rowMenu.targetPath, rowMenu.targetName, app.ftpPath)
+            onTriggered: folderPicker.openFor(rowMenu.targetPath, rowMenu.targetName, app.ftpPath, false)
+        }
+        StyledMenuItem {
+            text: qsTr("Copy to…")
+            iconName: "copy"
+            onTriggered: folderPicker.openFor(rowMenu.targetPath, rowMenu.targetName, app.ftpPath, true)
+        }
+        StyledMenuItem {
+            text: qsTr("Edit as text…")
+            iconName: "file"
+            visible: !rowMenu.targetIsDirectory && root.isTextFile(rowMenu.targetName, rowMenu.targetSize)
+            height: visible ? implicitHeight : 0
+            onTriggered: textEditor.load(rowMenu.targetPath)
+        }
+        StyledMenuItem {
+            text: qsTr("Permissions…")
+            iconName: "unlock"
+            onTriggered: {
+                var at = app.files.indexOfPath(rowMenu.targetPath)
+                permissionsDialog.openFor(rowMenu.targetRows(), at >= 0 ? app.files.get(at).permissions : "")
+            }
         }
         StyledMenuItem {
             text: qsTr("Delete on the console")
@@ -1243,11 +1505,15 @@ Item {
     FtpFolderPicker {
         id: folderPicker
         onChosen: (path) => {
-            if (movingPaths.length > 0) {
+            var paths = movingPaths.length > 0 ? movingPaths : [movingPath]
+            if (copying)
+                app.ftpCopyMany(paths, path)
+            else if (movingPaths.length > 0)
                 app.ftpMoveMany(movingPaths, path)
-                root.clearPicks()
-            } else
+            else
                 app.ftpMove(movingPath, path)
+            if (movingPaths.length > 0)
+                root.clearPicks()
         }
     }
 
@@ -1388,6 +1654,451 @@ Item {
                         if (!confirmDelete.single)
                             root.clearPicks()
                         confirmDelete.close()
+                    }
+                }
+            }
+        }
+    }
+
+    // The order of the rows: name, size or date; the same one again turns it round.
+    Menu {
+        id: sortMenu
+        topPadding: 6
+        bottomPadding: 6
+        // The keys go back to the list, on the same row.
+        onClosed: files.forceActiveFocus()
+        background: Plate {
+            implicitWidth: 200
+            level: "secondary"
+            radius: 16
+            color: Theme.menuFill
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+        }
+        Repeater {
+            model: [{ key: "name", label: qsTr("Name") }, { key: "size", label: qsTr("Size") },
+                    { key: "date", label: qsTr("Date") }]
+            delegate: StyledMenuItem {
+                required property var modelData
+                text: modelData.label
+                iconName: app.files.sortKey === modelData.key ? (app.files.sortAscending ? "arrow-up" : "arrow-down") : ""
+                onTriggered: app.files.sortBy(modelData.key)
+            }
+        }
+    }
+
+    // What else can be done with the rows picked.
+    Menu {
+        id: pickedMenu
+        topPadding: 6
+        bottomPadding: 6
+        background: Plate {
+            implicitWidth: 240
+            level: "secondary"
+            radius: 16
+            color: Theme.menuFill
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+        }
+        StyledMenuItem {
+            text: qsTr("Download to…")
+            iconName: "save"
+            onTriggered: {
+                destinationDialog.rows = root.pickedRows()
+                destinationDialog.open()
+            }
+        }
+        StyledMenuItem {
+            text: qsTr("Permissions…")
+            iconName: "unlock"
+            onTriggered: permissionsDialog.openFor(root.pickedRows(), "")
+        }
+    }
+
+    // The console's FTP server itself (Advanced mode): ftpsrv, on a PS5, has
+    // commands of its own. Other servers say they do not know them.
+    Menu {
+        id: serverMenu
+        topPadding: 6
+        bottomPadding: 6
+        background: Plate {
+            implicitWidth: 300
+            level: "secondary"
+            radius: 16
+            color: Theme.menuFill
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+        }
+        StyledMenuItem {
+            text: qsTr("Make /system writable (ftpsrv)")
+            iconName: "unlock"
+            onTriggered: serverConfirm.ask("MTRW")
+        }
+        StyledMenuItem {
+            text: qsTr("Stop the FTP server (ftpsrv)")
+            iconName: "power"
+            danger: true
+            onTriggered: serverConfirm.ask("KILL")
+        }
+    }
+
+    // A server command always asks first: both act on the console itself.
+    Dialog {
+        id: serverConfirm
+        property string command: ""
+        function ask(name) {
+            command = name
+            open()
+        }
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: 460
+        modal: true
+        padding: 0
+        Overlay.modal: Rectangle { color: Theme.scrim }
+        background: Plate {
+            level: "secondary"
+            radius: Theme.radiusDialog
+            color: Theme.dialogFill
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+        }
+        header: DialogHeader {
+            eyebrow: qsTr("The console's FTP server")
+            title: serverConfirm.command === "KILL" ? qsTr("Stop the FTP server?") : qsTr("Make /system writable?")
+            dialog: serverConfirm
+        }
+        contentItem: Text {
+            leftPadding: Theme.dialogMargin
+            rightPadding: Theme.dialogMargin
+            wrapMode: Text.WordWrap
+            color: Theme.textSecondary
+            font.pixelSize: Theme.fontSmall
+            text: serverConfirm.command === "KILL"
+                  ? qsTr("ftpsrv stops itself: FTP is gone until the payload is loaded again on the console.")
+                  : qsTr("ftpsrv remounts /system and /system_ex with writing allowed until the console restarts. "
+                         + "A wrong change there can stop the console from starting: only for those who know what "
+                         + "they change.")
+        }
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                spacing: 10
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("Cancel")
+                    minimumWidth: 100
+                    onClicked: serverConfirm.close()
+                }
+                StyledButton {
+                    text: serverConfirm.command === "KILL" ? qsTr("Stop it") : qsTr("Make it writable")
+                    danger: true
+                    solid: true
+                    minimumWidth: 130
+                    onClicked: {
+                        app.ftpServerCommand(serverConfirm.command)
+                        serverConfirm.close()
+                    }
+                }
+            }
+        }
+    }
+
+    // Permissions (SITE CHMOD): a mode in three digits, with the usual ones
+    // a click away, and — for folders — everything inside them too.
+    Dialog {
+        id: permissionsDialog
+        // [{ path, name, isDirectory }]
+        property var targets: []
+        property string current: ""
+        readonly property bool anyFolder: {
+            for (var i = 0; i < targets.length; ++i)
+                if (targets[i].isDirectory)
+                    return true
+            return false
+        }
+        readonly property bool valid: /^[0-7]{3,4}$/.test(modeField.text.trim())
+        // "drwxr-xr-x" → "755".
+        function octalOf(text) {
+            if (!text || text.length < 10)
+                return ""
+            var out = ""
+            for (var g = 0; g < 3; ++g) {
+                var part = text.substr(1 + g * 3, 3)
+                var v = 0
+                if (part.charAt(0) === "r") v += 4
+                if (part.charAt(1) === "w") v += 2
+                if ("xst".indexOf(part.charAt(2)) >= 0) v += 1
+                out += v
+            }
+            return out
+        }
+        // "755" → "rwxr-xr-x".
+        function lettersOf(mode) {
+            var digits = mode.length > 3 ? mode.substring(mode.length - 3) : mode
+            if (!/^[0-7]{3}$/.test(digits))
+                return ""
+            var out = ""
+            for (var i = 0; i < 3; ++i) {
+                var v = parseInt(digits.charAt(i))
+                out += (v & 4 ? "r" : "-") + (v & 2 ? "w" : "-") + (v & 1 ? "x" : "-")
+            }
+            return out
+        }
+        function openFor(rows, permissions) {
+            targets = rows
+            current = permissions || ""
+            modeField.text = octalOf(current) || "755"
+            insideBox.checked = false
+            open()
+        }
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: 480
+        modal: true
+        padding: 0
+        Overlay.modal: Rectangle { color: Theme.scrim }
+        background: Plate {
+            level: "secondary"
+            radius: Theme.radiusDialog
+            color: Theme.dialogFill
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+        }
+        header: DialogHeader {
+            eyebrow: qsTr("Console files")
+            title: qsTr("Permissions")
+            dialog: permissionsDialog
+        }
+        contentItem: ColumnLayout {
+            spacing: 12
+            Text {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                text: (permissionsDialog.targets.length === 1 ? permissionsDialog.targets[0].name
+                                                              : qsTr("%n item(s)", "", permissionsDialog.targets.length))
+                      + (permissionsDialog.current.length > 0 ? "  ·  " + permissionsDialog.current : "")
+                color: Theme.ink
+                font.family: Theme.fontMono
+                font.pixelSize: Theme.fontSmall
+                elide: Text.ElideMiddle
+            }
+            Flow {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                spacing: 6
+                Repeater {
+                    model: [{ mode: "755", hint: qsTr("everyone reads, the owner writes") },
+                            { mode: "777", hint: qsTr("everyone reads and writes") },
+                            { mode: "644", hint: qsTr("files: everyone reads, the owner writes") }]
+                    delegate: StyledButton {
+                        required property var modelData
+                        chip: true
+                        text: modelData.mode
+                        primary: modeField.text.trim() === modelData.mode
+                        ToolTip.visible: hovered
+                        ToolTip.text: modelData.hint
+                        onClicked: modeField.text = modelData.mode
+                    }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                spacing: 10
+                StyledField {
+                    id: modeField
+                    Layout.preferredWidth: 110
+                    font.family: Theme.fontMono
+                    maximumLength: 4
+                    inputMethodHints: Qt.ImhDigitsOnly
+                    validator: RegularExpressionValidator { regularExpression: /[0-7]{0,4}/ }
+                    Accessible.name: qsTr("Permissions")
+                    onAccepted: if (permissionsDialog.valid) applyButton.clicked()
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: permissionsDialog.lettersOf(modeField.text.trim())
+                    color: Theme.textSecondary
+                    font.family: Theme.fontMono
+                    font.pixelSize: Theme.fontSmall
+                }
+            }
+            StyledCheck {
+                id: insideBox
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                visible: permissionsDialog.anyFolder
+                text: qsTr("Also everything inside the folders")
+            }
+            Text {
+                Layout.fillWidth: true
+                Layout.leftMargin: Theme.dialogMargin
+                Layout.rightMargin: Theme.dialogMargin
+                Layout.bottomMargin: Theme.dialogInner
+                wrapMode: Text.WordWrap
+                color: Theme.textSecondary
+                font.pixelSize: Theme.fontCaption
+                text: qsTr("Sent as SITE CHMOD. Not every console's FTP server takes it; when one does not, nothing "
+                           + "changes and the app says so.")
+            }
+        }
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                spacing: 10
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("Cancel")
+                    minimumWidth: 100
+                    onClicked: permissionsDialog.close()
+                }
+                StyledButton {
+                    id: applyButton
+                    text: qsTr("Apply")
+                    primary: true
+                    minimumWidth: 110
+                    enabled: permissionsDialog.valid
+                    onClicked: {
+                        app.ftpChmod(permissionsDialog.targets, modeField.text.trim(), insideBox.checked)
+                        if (permissionsDialog.targets.length > 1)
+                            root.clearPicks()
+                        permissionsDialog.close()
+                    }
+                }
+            }
+        }
+    }
+
+    // A small text file of the console, to read and change in place.
+    Dialog {
+        id: textEditor
+        property string path: ""
+        property string original: ""
+        property bool loading: false
+        property bool saving: false
+        // A file with Windows line ends (\r\n) is edited with plain ones
+        // and saved with its own again.
+        property bool windowsLines: false
+        function load(p) {
+            path = p
+            original = ""
+            windowsLines = false
+            textArea.text = ""
+            loading = true
+            saving = false
+            open()
+            app.ftpLoadText(p)
+        }
+        Connections {
+            target: app
+            function onFtpTextLoaded(path, text, error) {
+                if (path !== textEditor.path || !textEditor.loading)
+                    return
+                textEditor.loading = false
+                if (error.length > 0) {
+                    textEditor.close()
+                    notice.show(qsTr("Could not open it: %1").arg(error))
+                    return
+                }
+                textEditor.windowsLines = text.indexOf("\r\n") >= 0
+                var plain = text.replace(/\r\n/g, "\n")
+                textEditor.original = plain
+                textArea.text = plain
+                textArea.forceActiveFocus()
+            }
+            function onFtpTextSaved(path, error) {
+                if (path !== textEditor.path || !textEditor.saving)
+                    return
+                textEditor.saving = false
+                if (error.length === 0)
+                    textEditor.close()
+            }
+        }
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(760, parent.width - 48)
+        height: Math.min(620, parent.height - 48)
+        modal: true
+        padding: 0
+        // With changes not saved, a stray Esc or click outside does not
+        // throw them away: only Cancel or the close button do.
+        closePolicy: textArea.text !== original ? Popup.NoAutoClose : (Popup.CloseOnEscape | Popup.CloseOnPressOutside)
+        Overlay.modal: Rectangle { color: Theme.scrim }
+        background: Plate {
+            level: "secondary"
+            radius: Theme.radiusDialog
+            color: Theme.dialogFill
+            border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+        }
+        header: DialogHeader {
+            eyebrow: qsTr("Console files")
+            title: textEditor.path
+            dialog: textEditor
+        }
+        contentItem: Item {
+            ScrollView {
+                anchors.fill: parent
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                anchors.topMargin: 4
+                enabled: !textEditor.loading
+                TextArea {
+                    id: textArea
+                    // Never read as HTML: an .xml or .html file stays as it is.
+                    textFormat: TextEdit.PlainText
+                    wrapMode: TextEdit.NoWrap
+                    selectByMouse: true
+                    color: Theme.text
+                    selectionColor: Theme.alpha(Theme.accent, 0.4)
+                    font.family: Theme.fontMono
+                    font.pixelSize: 13
+                    placeholderText: textEditor.loading ? qsTr("Reading it from the console…") : ""
+                    // Solid enough that nothing behind the dialog shows
+                    // through the text.
+                    background: Rectangle {
+                        color: Theme.light ? Qt.rgba(1, 1, 1, 0.94) : Qt.rgba(0, 0, 0, 0.30)
+                        border.color: Theme.light ? Theme.lightHairline : Theme.glassEdge
+                        radius: Theme.radiusField
+                    }
+                }
+            }
+        }
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                spacing: 8
+                Text {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    text: textEditor.saving ? qsTr("Saving on the console…")
+                        : textArea.text !== textEditor.original ? qsTr("Changed — saving puts it on the console.") : ""
+                    color: Theme.textSecondary
+                    font.pixelSize: 12
+                }
+                StyledButton {
+                    text: qsTr("Cancel")
+                    onClicked: textEditor.close()
+                }
+                StyledButton {
+                    text: qsTr("Save on the console")
+                    iconName: "save"
+                    primary: true
+                    enabled: !textEditor.loading && !textEditor.saving && textArea.text !== textEditor.original
+                    onClicked: {
+                        textEditor.saving = true
+                        app.ftpSaveText(textEditor.path, textEditor.windowsLines
+                                        ? textArea.text.replace(/\r?\n/g, "\r\n") : textArea.text)
                     }
                 }
             }

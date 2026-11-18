@@ -72,8 +72,11 @@ PLK's Payload Manager reads), each checked against its SHA-256 before use.*
 ![File menu](docs/images/05-file-menu.png)
 
 *In the FTP browser, every file and folder has its own menu: download to the
-PC, prepare for dragging out of the window, copy the path, rename, delete on
-the console. In the settings, the IP address is checked as you type.*
+PC, prepare for dragging out of the window, copy the path, rename, move or
+copy on the console, edit a text file in place, change permissions, delete
+on the console. The list filters by name, sorts by name, size or date, and
+works from the keyboard. In the settings, the IP address is checked as you
+type.*
 
 All these screenshots are generated automatically by
 `./scripts/screenshots.sh`, against two mock consoles, a PS4 (GoldHEN) and a

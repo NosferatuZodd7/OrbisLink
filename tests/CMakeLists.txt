@@ -99,6 +99,18 @@ if(ORBISLINK_BUILD_GUI AND Qt6_FOUND)
 	add_test(NAME test_backdrop COMMAND test_backdrop)
 endif()
 
+# The Files tab's list: order, filter and dates.
+if(ORBISLINK_BUILD_GUI AND Qt6_FOUND)
+	add_executable(test_ftp_model
+		test_ftp_model.cpp
+		${CMAKE_SOURCE_DIR}/src/orbislink/qt/ftp_model.cpp
+		${CMAKE_SOURCE_DIR}/src/orbislink/qt/ftp_model.h)
+	set_target_properties(test_ftp_model PROPERTIES AUTOMOC ON)
+	target_link_libraries(test_ftp_model PRIVATE orbislink_core Qt6::Core)
+	target_include_directories(test_ftp_model PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+	add_test(NAME test_ftp_model COMMAND test_ftp_model)
+endif()
+
 # Keyboard as controller: the key swap rules live on the Qt side
 # (the codes are Qt::Key) and use chiaki's buttons.
 if(ORBISLINK_BUILD_GUI AND Qt6_FOUND AND TARGET orbislink_stream)

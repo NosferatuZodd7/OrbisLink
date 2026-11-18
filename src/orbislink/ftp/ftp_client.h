@@ -75,6 +75,15 @@ public:
 	bool probe(std::string *detail = nullptr);
 
 	FtpResult list(const std::string &remoteDir, std::vector<FtpEntry> *entries);
+	// Whether the server can go into `remotePath` as a folder. A listing does
+	// not say where a symbolic link points; this asks.
+	bool isDirectory(const std::string &remotePath);
+	// Whether the server names `feature` ("MLSD", "MDTM", "UTF8") in its
+	// FEAT reply. Asked once per server; a server without FEAT has none.
+	bool hasFeature(const std::string &feature);
+	// One command as it is — a server's own, like ftpsrv's MTRW — and what
+	// the server answered (the reply lines).
+	FtpResult command(const std::string &line, std::string *reply = nullptr);
 	FtpResult upload(const std::string &localPath, const std::string &remotePath,
 		FtpProgressCallback progress = nullptr, bool resume = false);
 	// A dropped transfer (the console's "426", a lost connection) goes on
@@ -99,9 +108,12 @@ public:
 	// is octal, "777".
 	FtpResult setPermissions(const std::string &remotePath, const std::string &mode);
 
-	// Cancels the current operation; goes back to false when the operation ends.
+	// Stops every transfer under way at this moment (closing the app, the
+	// queue stopping). One transfer alone is stopped by its own progress
+	// callback returning false: the queue and the file browser share this
+	// client, and stopping one must never stop the other. Operations that
+	// start afterwards are not touched — there is no flag to put back.
 	void cancel();
-	bool cancelRequested() const { return cancel_.load(); }
 
 	// Protected areas (§5.5): read-only unless "Advanced mode" is on.
 	static bool isProtectedPath(const std::string &remotePath);
@@ -114,21 +126,46 @@ public:
 
 	// Exposed for tests: lenient parser of the LIST reply.
 	static std::vector<FtpEntry> parseListing(const std::string &listing, const std::string &baseDir);
+	// Exposed for tests: the MLSD reply ("type=dir;size=0;modify=…; name").
+	// Its exact time is kept, and written as LIST writes it too, so code that
+	// reads either kind of listing reads the same thing.
+	static std::vector<FtpEntry> parseMachineListing(const std::string &listing, const std::string &baseDir,
+		int64_t nowUnix);
 
 private:
 	struct Slot;
 	FtpResult withRetries(const std::string &what, const std::function<FtpResult()> &operation);
 	bool querySize(const std::string &path, int64_t *size);
 	FtpResult uploadOnce(const std::string &localPath, const std::string &path,
-		const FtpProgressCallback &progress, int64_t localSize, int64_t from, int64_t *reached);
+		const FtpProgressCallback &progress, int64_t localSize, int64_t from, int64_t *reached, uint64_t generation);
 	FtpResult downloadOnce(const std::string &path, const std::string &localPath,
-		const FtpProgressCallback &progress, int64_t from, int64_t carried, int64_t *reached, bool *restRefused);
+		const FtpProgressCallback &progress, int64_t from, int64_t carried, int64_t *reached, bool *restRefused,
+		uint64_t generation);
+	bool cancelledSince(uint64_t generation) const { return cancelGeneration_.load() != generation; }
+	// Quote commands (MKD, DELE, RNFR/RNTO, SITE…), on a connection of the pool.
+	FtpResult runCommands(const std::vector<std::string> &commands, std::string *replies = nullptr);
+	// The connections kept open between operations (see takeHandle).
+	void *takeHandle();
+	void giveBack(void *handle, bool reusable);
+	void dropIdleHandles();
 
 	mutable std::mutex mutex_;
 	Config config_;
-	std::atomic<bool> cancel_ { false };
+	// Goes up with each cancel(): a transfer stops when it changed since it began.
+	std::atomic<uint64_t> cancelGeneration_ { 0 };
 	// AVBL was answered with an error once: the server has no such command.
 	std::atomic<bool> noFreeSpace_ { false };
+	// Easy handles at rest, each keeping its connection (and login) to the
+	// console, with when each was put down. Reused for the next operation
+	// instead of a new connection each time; let go after a short while.
+	std::mutex poolMutex_;
+	std::vector<std::pair<void *, int64_t>> idle_;
+	// FEAT, asked once per server.
+	std::mutex featureMutex_;
+	bool featuresKnown_ = false;
+	std::vector<std::string> features_;
+	// MLSD offered but answered with nothing usable: LIST from then on.
+	std::atomic<bool> mlsdBroken_ { false };
 	// Simple semaphore to limit simultaneous connections.
 	mutable std::mutex slotMutex_;
 	int slotsInUse_ = 0;
