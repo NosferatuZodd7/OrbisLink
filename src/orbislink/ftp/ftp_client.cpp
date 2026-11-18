@@ -153,6 +153,7 @@ struct ProgressState
 	int64_t knownTotal = 0;
 	int64_t offset = 0; // already on the other side before this transfer
 	bool cancelled = false;
+	std::atomic<int64_t> *answered = nullptr; // bytes moving: the server is there
 };
 
 int progressCallback(void *userdata, curl_off_t dlTotal, curl_off_t dlNow, curl_off_t ulTotal,
@@ -164,6 +165,8 @@ int progressCallback(void *userdata, curl_off_t dlTotal, curl_off_t dlNow, curl_
 		state->cancelled = true;
 		return 1; // aborts the transfer
 	}
+	if(state->answered && (ulNow > 0 || dlNow > 0))
+		state->answered->store(monotonicMillis());
 	const int64_t done = state->offset + (ulNow > 0 ? static_cast<int64_t>(ulNow) : static_cast<int64_t>(dlNow));
 	int64_t total = ulTotal > 0 ? static_cast<int64_t>(ulTotal) : static_cast<int64_t>(dlTotal);
 	if(total <= 0 || state->offset > 0)
@@ -369,6 +372,7 @@ void FtpClient::giveBack(void *handle, bool reusable)
 		return;
 	if(reusable)
 	{
+		lastAnsweredMs_.store(monotonicMillis());
 		std::lock_guard<std::mutex> lock(poolMutex_);
 		if(idle_.size() < kIdleHandles)
 		{
@@ -858,6 +862,7 @@ FtpResult FtpClient::uploadOnce(const std::string &localPath, const std::string 
 
 	char errorBuffer[CURL_ERROR_SIZE] = { 0 };
 	ProgressState state;
+	state.answered = &lastAnsweredMs_;
 	state.generation = &cancelGeneration_;
 	state.startedAt = generation;
 	state.knownTotal = localSize;
@@ -911,6 +916,7 @@ struct DownloadState
 	int64_t start = 0;
 	int64_t *reached = nullptr;
 	bool cancelled = false;
+	std::atomic<int64_t> *answered = nullptr;
 };
 
 int downloadProgress(void *userdata, curl_off_t dlTotal, curl_off_t dlNow, curl_off_t, curl_off_t)
@@ -921,6 +927,8 @@ int downloadProgress(void *userdata, curl_off_t dlTotal, curl_off_t dlNow, curl_
 		state->cancelled = true;
 		return 1;
 	}
+	if(state->answered && dlNow > 0)
+		state->answered->store(monotonicMillis());
 	*state->reached = std::max(*state->reached, state->start + static_cast<int64_t>(dlNow));
 	const int64_t done = std::max<int64_t>(0, state->carried + static_cast<int64_t>(dlNow));
 	const int64_t total = dlTotal > 0 ? std::max<int64_t>(0, state->carried + static_cast<int64_t>(dlTotal)) : 0;
@@ -1011,6 +1019,7 @@ FtpResult FtpClient::downloadOnce(const std::string &path, const std::string &lo
 
 	char errorBuffer[CURL_ERROR_SIZE] = { 0 };
 	DownloadState state;
+	state.answered = &lastAnsweredMs_;
 	state.callback = progress;
 	state.generation = &cancelGeneration_;
 	state.startedAt = generation;

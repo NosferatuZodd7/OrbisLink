@@ -371,7 +371,7 @@ Item {
                                     + "installing pkg files and FTP — still works.")
                     if (root.sessionState === "failed" && stream.sessionDetail.length > 0)
                         return stream.sessionDetail
-                    if (root.consoleState === "offline" && stream.directReachable)
+                    if (root.consoleState === "offline" && stream.directReachable && app.ftpState === "available")
                         return qsTr("This console does not answer the network search, but takes a direct "
                                     + "connection: Remote Play connects all the same.")
                     if (root.consoleState === "offline")

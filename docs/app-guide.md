@@ -112,6 +112,13 @@ When FTP is silent on its port, 1337, 2121 and 21 (and 9090 on a PS5) are
 asked once a minute; if one greets as FTP the app keeps that port and says so
 in the status line.
 
+A port that takes the connection but does not greet counts as FTP only for
+30 seconds after FTP last answered (a server busy for a moment, or busy with
+this app's own transfer): a console turned off into rest mode keeps the port
+open with nothing behind it, so after that FTP is *not answering* — the
+transfers close, the pages say *no FTP*, and **Connects directly** goes back
+to *Not responding* until FTP answers again.
+
 Remote Play is not needed for anything but the picture: converting, sending
 and installing only need the console's FTP (and the installer to install).
 

@@ -73,6 +73,10 @@ public:
 
 	// Checks whether the server answers (used by ConsoleManager).
 	bool probe(std::string *detail = nullptr);
+	// When the server last answered this client (monotonicMillis(); -1:
+	// never). A transfer under way counts: a server busy with it may not
+	// greet another connection.
+	int64_t lastAnsweredMs() const { return lastAnsweredMs_.load(); }
 
 	FtpResult list(const std::string &remoteDir, std::vector<FtpEntry> *entries);
 	// Whether the server can go into `remotePath` as a folder. A listing does
@@ -166,6 +170,9 @@ private:
 	std::vector<std::string> features_;
 	// MLSD offered but answered with nothing usable: LIST from then on.
 	std::atomic<bool> mlsdBroken_ { false };
+	// When the server last answered an operation of this client (or moved
+	// bytes of a transfer), on monotonicMillis(); -1 before that.
+	std::atomic<int64_t> lastAnsweredMs_ { -1 };
 	// Simple semaphore to limit simultaneous connections.
 	mutable std::mutex slotMutex_;
 	int slotsInUse_ = 0;

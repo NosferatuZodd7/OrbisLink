@@ -143,6 +143,14 @@ public:
 	void setRemotePlayState(RemotePlayState state, const std::string &detail = std::string());
 	void setListener(std::function<void(const ConsoleStatus &)> listener);
 
+	// When this app's own FTP client last got an answer (a transfer
+	// keeping the server busy): also keeps a silent port counted as FTP.
+	void setFtpAnsweredAt(std::function<int64_t()> answeredAt)
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		ftpAnsweredAt_ = std::move(answeredAt);
+	}
+
 private:
 	void loop(int intervalSeconds);
 	void publish(const ConsoleStatus &status);
@@ -153,6 +161,12 @@ private:
 	// When FTP was last looked for on the other ports: at most once a
 	// minute while the set port does not greet.
 	int64_t lastFtpSearchMs_ = -1;
+	// When FTP last greeted. A port that takes the connection and says
+	// nothing counts as FTP only shortly after that (a server busy for a
+	// moment); for longer it is a console in rest mode, whose port stays
+	// open with nothing behind it.
+	int64_t lastFtpGreetingMs_ = -1;
+	std::function<int64_t()> ftpAnsweredAt_;
 	std::function<void(const ConsoleStatus &)> listener_;
 
 	std::atomic<bool> running_ { false };

@@ -110,6 +110,7 @@ ICONS = {
     "package-plus": "package-plus",
     "square": "square",
     "square-check": "square-check",
+    "square-minus": "square-minus",
     "image": "image",
     "unlock": "lock-keyhole-open",
     "cpu": "cpu",

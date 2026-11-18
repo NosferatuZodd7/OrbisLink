@@ -198,9 +198,16 @@ void AppController::rebuildBackends()
 				adoptFtpPort(status.ftpPort);
 			emit statusChanged();
 			resumeWhenInstallerIsBack();
+			// "Connects directly" follows FTP coming and going.
+			if(ftpWas != status.canUseFtp() && lastRemotePlayState_ == QLatin1String("direct"))
+				reportRemotePlayState(lastRemotePlayState_, lastRemotePlayDetail_);
 			// FTP has just answered: the file list is read now, instead of
 			// staying on what it said while FTP was not there.
 			if(!ftpWas && status.canUseFtp())
+				refreshFtpListing(false);
+			// It stopped answering (the console turned off or went to rest):
+			// the list does not keep showing what is no longer reachable.
+			else if(ftpWas && !status.canUseFtp())
 				refreshFtpListing(false);
 		});
 	});
@@ -251,6 +258,9 @@ void AppController::rebuildBackends()
 	ftpConfig.maxConnections = settings_.ftpMaxConnections;
 	ftpConfig.advancedMode = settings_.ftpAdvancedMode;
 	ftp_ = std::make_shared<FtpClient>(ftpConfig);
+	// A transfer of this app keeping the console's FTP busy is not taken
+	// for an FTP that stopped answering.
+	console_->setFtpAnsweredAt([ftp = ftp_]() { return ftp->lastAnsweredMs(); });
 
 	InstallQueue::Dependencies deps;
 	deps.httpServer = httpServer_.get();
@@ -3440,8 +3450,10 @@ void AppController::reportRemotePlayState(const QString &state, const QString &d
 		mapped = RemotePlayState::Standby;
 	else if(state == QLatin1String("offline"))
 		mapped = RemotePlayState::Offline;
+	// Taking a direct connection says nothing while the console is off: its
+	// FTP answering is what says it is on.
 	else if(state == QLatin1String("direct"))
-		mapped = RemotePlayState::Direct;
+		mapped = canUseFtp() ? RemotePlayState::Direct : RemotePlayState::Offline;
 	console_->setRemotePlayState(mapped, detail.toStdString());
 }
 
