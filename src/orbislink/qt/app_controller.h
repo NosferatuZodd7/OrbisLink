@@ -284,7 +284,15 @@ public:
 	// official package, or one that needs a newer firmware than this PS4's
 	// (`category` as the package says it: "gd", "gp"…). Empty when there is
 	// nothing to say.
-	Q_INVOKABLE QString packageWarning(bool official, int requiredFirmware, const QString &category) const;
+	Q_INVOKABLE QString packageWarning(bool official, int requiredFirmware, const QString &category,
+		bool ps5Package = false) const;
+	// What starts a PS5 fake package on the console in use, by its firmware:
+	// kstuff up to 11.60, the Titan Core payload on 12.00–13.60, nothing
+	// public from 14.00.
+	Q_INVOKABLE QString ps5StartHint() const;
+	// The last time Titan Core was asked about an install: whether it
+	// answered, its version and what it said (for the diagnostics).
+	QString titanCoreReport() const { return titanCoreReport_; }
 	// QML reports here every time a drag enters, leaves or is dropped.
 	//
 	// Without counters there is no telling Windows not delivering the event
@@ -666,7 +674,15 @@ private:
 		QString category;
 		QString title;
 		QString warning; // the last one said
+		bool ps5 = false; // a PS5 package
 	};
+	// A PS5 package installed on the console in use: Titan Core, when it
+	// runs there (port 8097), is asked to look for it and its progress
+	// preparing it to start is shown on the job's card; without it, what
+	// starts it on this firmware.
+	void followPs5Install(const QString &taskId, const QString &titleId);
+	QSet<QString> ps5Followed_;
+	QString titanCoreReport_;
 	QHash<QString, PackageFacts> packageFacts_;
 	void refreshPackageWarnings();
 	QString lastRemotePlayDetail_;

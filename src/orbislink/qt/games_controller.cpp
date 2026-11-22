@@ -2,9 +2,11 @@
 #include "orbislink/qt/games_controller.h"
 
 #include "orbislink/common/log.h"
+#include "orbislink/common/tr.h"
 #include "orbislink/common/util.h"
 #include "orbislink/library/folder_package.h"
 #include "orbislink/net/http_client.h"
+#include "orbislink/pkg/pkg_inspector.h"
 #include "orbislink/qt/app_controller.h"
 #include "orbislink/qt/translate_message.h"
 #include "orbislink/settings/settings_store.h"
@@ -28,6 +30,8 @@
 #include <QJsonObject>
 #include <QPainter>
 #include <QPointer>
+#include <QRegularExpression>
+#include <QProcess>
 #include <QSet>
 #include <QStandardPaths>
 #include <QStorageInfo>
@@ -166,6 +170,8 @@ struct GamesController::Job
 	bool sendBack = false;
 	// A PS4 app folder made into a package, instead of a disc converted.
 	QString packFolder;
+	// That folder (or image) is a PS5 game, made into a package by Packwright.
+	bool ps5Pack = false;
 	QString titleId;
 	// The package already in the output folder, sent instead of making it again.
 	QString reusePath;
@@ -337,6 +343,58 @@ void GamesController::setOutputFolder(const QString &folder)
 {
 	const std::string path = toLocalPath(folder).toStdString();
 	app_->updateSettings([&](Settings &s) { s.convertOutputFolder = path; });
+}
+
+void GamesController::setPackwrightPath(const QString &program)
+{
+	const QString local = program.startsWith(QStringLiteral("file:")) ? QUrl(program).toLocalFile() : program;
+	const std::string path = QDir::toNativeSeparators(local.trimmed()).toStdString();
+	app_->updateSettings([&](Settings &s) { s.packwrightPath = path; });
+	emit foldersChanged();
+}
+
+QString GamesController::packwright() const
+{
+	return findPackwright(QString::fromStdString(app_->settings().packwrightPath));
+}
+
+QString GamesController::findPackwright(const QString &configured)
+{
+	auto runnable = [](const QString &path) {
+		const QFileInfo file(path);
+		return file.isFile() && (file.isExecutable() || path.endsWith(QStringLiteral(".exe"), Qt::CaseInsensitive)
+			|| path.endsWith(QStringLiteral(".cmd"), Qt::CaseInsensitive));
+	};
+	if(!configured.isEmpty())
+	{
+		// A folder: the program in it.
+		const QFileInfo chosen(configured);
+		if(chosen.isDir())
+		{
+			for(const QString &name : { QStringLiteral("Packwright.exe"), QStringLiteral("Packwright"),
+					 QStringLiteral("packwright") })
+				if(runnable(QDir(configured).filePath(name)))
+					return QDir::toNativeSeparators(QDir(configured).filePath(name));
+		}
+		else if(runnable(configured))
+			return QDir::toNativeSeparators(configured);
+	}
+	QStringList places;
+#ifdef Q_OS_WIN
+	// Its installer: per user (no administrator rights), or for everyone.
+	places << QDir(qEnvironmentVariable("LOCALAPPDATA")).filePath(QStringLiteral("Programs/Packwright/Packwright.exe"))
+		   << QDir(qEnvironmentVariable("ProgramFiles")).filePath(QStringLiteral("Packwright/Packwright.exe"));
+#elif defined(Q_OS_MACOS)
+	places << QStringLiteral("/Applications/Packwright.app/Contents/MacOS/Packwright");
+#else
+	// Its .deb, .rpm and Arch packages.
+	places << QStringLiteral("/opt/packwright/Packwright") << QStringLiteral("/usr/bin/packwright");
+#endif
+	for(const QString &place : places)
+		if(runnable(place))
+			return QDir::toNativeSeparators(place);
+	const QString onPath = QStandardPaths::findExecutable(QStringLiteral("packwright"));
+	return onPath.isEmpty() ? QString() : QDir::toNativeSeparators(onPath);
 }
 
 QString GamesController::folderOn(const QString &storage)
@@ -1301,7 +1359,8 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 	{
 		std::string packed;
 		std::string packError;
-		const bool packedOk = runPack(job, schedulePublish, &packed, &packError);
+		const bool packedOk = job->ps5Pack ? runPs5Pack(job, schedulePublish, &packed, &packError)
+										   : runPack(job, schedulePublish, &packed, &packError);
 		finishJob(job, packedOk, packed, packError);
 		return;
 	}
@@ -1403,7 +1462,7 @@ void GamesController::finishJob(const std::shared_ptr<Job> &job, bool ok, const 
 		else
 		{
 			job->state = QStringLiteral("error");
-			job->message = QString::fromStdString(error);
+			job->message = translateMessage(error);
 		}
 	}
 	if(ok)
@@ -1417,7 +1476,7 @@ void GamesController::finishJob(const std::shared_ptr<Job> &job, bool ok, const 
 	const bool install = job->install;
 	const bool send = install || job->sendBack;
 	const QString title = job->title;
-	const QString message = QString::fromStdString(error);
+	const QString message = translateMessage(error);
 	const bool cancelled = job->cancel.load();
 	QMetaObject::invokeMethod(this, [this, job, ok, install, send, pkg, sendTo, title, message, cancelled, what]() {
 		// Over FTP into the app's own folder on the console, installed once
@@ -1524,6 +1583,174 @@ bool GamesController::runPack(const std::shared_ptr<Job> &job, const std::functi
 	*error = "this build cannot make packages";
 	return false;
 #endif
+}
+
+void GamesController::packPs5(const QString &source, bool install)
+{
+#ifdef ORBISLINK_HAS_FPKG
+	ensureOutputFolder();
+	auto job = std::make_shared<Job>();
+	job->packFolder = source;
+	job->ps5Pack = true;
+	job->path = source;
+	job->listedPath = source;
+	const QFileInfo info(source);
+	job->title = info.isDir() ? info.fileName() : info.completeBaseName();
+	job->platform = QStringLiteral("ps5");
+	job->install = install;
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		job->id = QString::number(nextId_++);
+		jobs_.push_back(job);
+	}
+	wakeup_.notify_all();
+	publish();
+	emit app_->showPanel(QStringLiteral("queue"));
+#else
+	Q_UNUSED(source);
+	Q_UNUSED(install);
+#endif
+}
+
+bool GamesController::runPs5Pack(const std::shared_ptr<Job> &job, const std::function<void()> &tick,
+	std::string *pkgPath, std::string *error)
+{
+	const QString program = packwright();
+	if(program.isEmpty())
+	{
+		const std::string chosen = app_->settings().packwrightPath;
+		logWarning("Games: Packwright not found (chosen: " + (chosen.empty() ? std::string("none") : chosen)
+			+ "; its install folders and the PATH looked in too).");
+		*error = QT_TRANSLATE_NOOP("Messages", "Packwright is not installed: it makes PS5 packages. Get it from "
+			"github.com/itsmemac/Packwright (free, GPL-3.0), or show where it is with Choose… in the game's details.");
+		return false;
+	}
+	const Settings settings = app_->settings();
+	const QDir output(QString::fromStdString(settings.convertOutputFolder));
+	output.mkpath(QStringLiteral("."));
+	const QFileInfo source(job->packFolder);
+	const QString base = source.isDir() ? source.fileName() : source.completeBaseName();
+	*pkgPath = QDir::toNativeSeparators(output.filePath(base + QStringLiteral(".pkg"))).toStdString();
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		job->stage = QStringLiteral("image");
+		job->percent = 0;
+	}
+	tick();
+
+	QStringList arguments { QStringLiteral("convert"), QDir::toNativeSeparators(job->packFolder),
+		QStringLiteral("--to"), QStringLiteral("pkg"), QStringLiteral("-o"), QString::fromStdString(*pkgPath),
+		QStringLiteral("--overwrite") };
+	logInfo("Games: making a PS5 package of \"" + job->packFolder.toStdString() + "\" with Packwright ("
+		+ program.toStdString() + "): " + [&arguments]() {
+			// Each argument as given: quoted when it has a space.
+			QStringList shown;
+			for(const QString &argument : arguments)
+				shown << (argument.contains(QLatin1Char(' ')) ? QLatin1Char('"') + argument + QLatin1Char('"') : argument);
+			return shown.join(QLatin1Char(' ')).toStdString();
+		}());
+	QProcess process;
+	process.setProcessChannelMode(QProcess::MergedChannels);
+#ifdef Q_OS_WIN
+	if(program.endsWith(QStringLiteral(".cmd"), Qt::CaseInsensitive))
+	{
+		// A .cmd runs through cmd.exe, which reads its own command line: /s
+		// takes only the outer quotes off, so paths with spaces stay whole.
+		QString line = QStringLiteral("/d /s /c \"\"") + program + QLatin1Char('"');
+		for(const QString &argument : arguments)
+			line += QStringLiteral(" \"") + argument + QLatin1Char('"');
+		line += QLatin1Char('"');
+		process.setProgram(QStringLiteral("cmd.exe"));
+		process.setNativeArguments(line);
+		process.start();
+	}
+	else
+#endif
+		process.start(program, arguments);
+	if(!process.waitForStarted(15000))
+	{
+		*error = "Packwright did not start (" + process.errorString().toStdString() + ")";
+		return false;
+	}
+	QByteArray pending;
+	QStringList said;
+	while(process.state() != QProcess::NotRunning)
+	{
+		if(job->cancel.load() || stopping_.load())
+		{
+			process.kill();
+			process.waitForFinished(5000);
+			QFile::remove(QString::fromStdString(*pkgPath));
+			*error = "cancelled";
+			return false;
+		}
+		process.waitForReadyRead(250);
+		pending += process.readAll();
+		// "Stage" lines, and "  42%" on lines of their own (its output is
+		// not a terminal), or after a \r.
+		pending.replace('\r', '\n');
+		int end;
+		while((end = pending.indexOf('\n')) >= 0)
+		{
+			const QString line = QString::fromUtf8(pending.left(end)).trimmed();
+			pending.remove(0, end + 1);
+			if(line.isEmpty())
+				continue;
+			const QRegularExpressionMatch percent = QRegularExpression(QStringLiteral("(\\d{1,3})%$")).match(line);
+			if(percent.hasMatch())
+			{
+				std::lock_guard<std::mutex> lock(mutex_);
+				job->percent = std::min(99.0, percent.captured(1).toDouble());
+			}
+			else
+			{
+				said << line;
+				if(said.size() > 6)
+					said.removeFirst();
+				logDebug("Packwright: " + line.toStdString());
+			}
+			tick();
+		}
+	}
+	process.waitForFinished(-1);
+	pending += process.readAll();
+	for(const QString &line : QString::fromUtf8(pending).split(QLatin1Char('\n'), Qt::SkipEmptyParts))
+		said << line.trimmed();
+	const int code = process.exitStatus() == QProcess::NormalExit ? process.exitCode() : -1;
+	if(code == 0 && QFileInfo::exists(QString::fromStdString(*pkgPath)))
+	{
+		// What it made, read back: its title and ID for the card.
+		const PkgInfo made = PkgInspector(PkgInspector::Options { false, 4u * 1024 * 1024, 0 }).inspect(*pkgPath);
+		if(made.valid)
+			logInfo("Games: Packwright made " + made.titleId + " (" + (made.ps5 ? "PS5" : "PS4") + ", "
+				+ (made.official ? "official" : "fake") + ", version " + made.appVersion + ", needs firmware "
+				+ (made.requiredFirmware ? firmwareText(made.requiredFirmware) : std::string("-")) + ").");
+		else
+			logWarning("Games: what Packwright made does not read as a package (" + made.error + "): "
+				+ *pkgPath);
+		std::lock_guard<std::mutex> lock(mutex_);
+		if(made.valid)
+		{
+			job->title = QString::fromStdString(made.displayTitle());
+			job->titleId = QString::fromStdString(made.titleId);
+		}
+		job->percent = 100;
+		return true;
+	}
+	// Its last words, for the log: why it stopped.
+	if(code != 130)
+	{
+		logWarning("Games: Packwright stopped with exit code " + std::to_string(code)
+			+ (process.exitStatus() == QProcess::CrashExit ? " (it crashed)" : "")
+			+ (code == 0 ? " but made no file" : "") + "; its last lines:");
+		for(const QString &line : said)
+			logWarning("  Packwright: " + line.toStdString());
+	}
+	QFile::remove(QString::fromStdString(*pkgPath));
+	*error = code == 130 ? std::string("cancelled")
+		: "Packwright could not make it (exit code " + std::to_string(code) + ")"
+			+ (said.isEmpty() ? std::string() : ": " + said.last().toStdString());
+	return false;
 }
 
 void GamesController::packFolder(const QString &folder, bool install)

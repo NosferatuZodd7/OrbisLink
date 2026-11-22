@@ -371,6 +371,7 @@ ShelfItem identify(FileSource &source, const ShelfEntry &entry, const FolderInde
 			BlockReader reader = readerFor(source, entry.path, entry.size);
 			const PkgInfo info = PkgInspector(options).inspect(entry.path, entry.size,
 				[&reader](int64_t offset, void *buffer, size_t size) { return reader.read(offset, buffer, size); });
+			item.packageRead = kPackageRead;
 			if(!info.valid)
 			{
 				item.readable = false;
@@ -384,8 +385,7 @@ ShelfItem identify(FileSource &source, const ShelfEntry &entry, const FolderInde
 			item.contentId = info.contentId;
 			item.official = info.official;
 			item.requiredFirmware = info.requiredFirmware;
-			item.packageRead = kPackageRead;
-			item.platform = "ps4";
+			item.platform = info.ps5 ? "ps5" : "ps4";
 			switch(info.kind)
 			{
 				case PkgCategory::Patch:
@@ -742,8 +742,9 @@ bool ShelfCache::find(const std::string &key, ShelfItem *item) const
 		&& !exists(found->second.pictureFile))
 		return false;
 	const ShelfItem &kept = found->second;
-	// A package read before its firmware was: read it again.
-	if(kept.kind == Kind::Package && kept.readable && kept.packageRead < kPackageRead)
+	// A package read before its firmware was, or before PS5 packages were
+	// read at all (kept as unreadable then): read it again.
+	if(kept.kind == Kind::Package && kept.packageRead < kPackageRead)
 		return false;
 	item->kind = kept.kind;
 	item->group = kept.group;

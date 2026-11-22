@@ -179,6 +179,8 @@ std::string Settings::toJson() const
 	root.set("first_run_done", Json::fromBool(firstRunDone));
 	root.set("games_folder", Json::fromString(gamesFolder));
 	root.set("convert_output_folder", Json::fromString(convertOutputFolder));
+	if(!packwrightPath.empty())
+		root.set("packwright_path", Json::fromString(packwrightPath));
 	root.set("keep_converted_packages", Json::fromBool(keepConvertedPackages));
 	root.set("install_storage", Json::fromString(installStorage));
 	root.set("save_vault_folder", Json::fromString(saveVaultFolder));
@@ -378,6 +380,7 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.firstRunDone = root["first_run_done"].toLooseBool(settings.firstRunDone);
 	settings.gamesFolder = root["games_folder"].toString(settings.gamesFolder);
 	settings.convertOutputFolder = root["convert_output_folder"].toString(settings.convertOutputFolder);
+	settings.packwrightPath = root["packwright_path"].toString(settings.packwrightPath);
 	settings.keepConvertedPackages = root["keep_converted_packages"].toLooseBool(settings.keepConvertedPackages);
 	settings.installStorage = root["install_storage"].toString(settings.installStorage);
 	if(settings.installStorage != "usb" && settings.installStorage != "ext")

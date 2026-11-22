@@ -347,7 +347,19 @@ ShelfController::ShelfController(AppController *app, GamesController *games, Lib
 				scanConsoleDrives();
 		}
 	});
-	connect(app_, &AppController::settingsChanged, this, [this]() { rebuildSources(); });
+	ps5_ = app_->installsFromConsole();
+	connect(app_, &AppController::settingsChanged, this, [this]() {
+		rebuildSources();
+		// What a card of this PC offers (install, mount, make a PS5 package)
+		// depends on the console in use: the folder open is read again.
+		const bool ps5 = app_->installsFromConsole();
+		if(ps5 == ps5_)
+			return;
+		ps5_ = ps5;
+		const Source *current = source(place_.sourceId);
+		if(current && current->where == QLatin1String("pc"))
+			loadPlace();
+	});
 	connect(consoleLibrary_, &LibraryController::itemsChanged, this, [this]() {
 		if(const Source *library = source(kConsoleLibrary))
 			refreshSourcePreview(*library);
@@ -1072,10 +1084,16 @@ QVariantMap ShelfController::cardFor(const ShelfItem &item, const Source &from, 
 		switch(item.kind)
 		{
 			case Kind::Package:
-				if(item.readable)
-					actions << QStringLiteral("install") << QStringLiteral("send");
-				else
+				if(!item.readable)
 					note = tr("Not a package this can read.");
+				else if(platform == QLatin1String("ps5") && !ps5)
+				{
+					// A PS4 cannot install a PS5 package; it can hold a copy
+					// (the package's warning says why).
+					actions << QStringLiteral("send");
+				}
+				else
+					actions << QStringLiteral("install") << QStringLiteral("send");
 				break;
 			case Kind::Disc:
 				if(item.readable && canConvert && !platform.isEmpty())
@@ -1096,6 +1114,14 @@ QVariantMap ShelfController::cardFor(const ShelfItem &item, const Source &from, 
 				else if(platform == QLatin1String("ps4"))
 					note = tr("A PS4 app or game folder, not a package: it installs once it is made into a .pkg (a .gp4 "
 							  "beside it is the recipe for that, from the tool that made it).");
+				else if(platform == QLatin1String("ps5") && canConvert && (item.kind == Kind::Image || item.appFolder))
+				{
+					// Made into a PS5 fake package by Packwright, then like any
+					// package; or, as it is, for ShadowMountPlus.
+					actions << QStringLiteral("packPs5") << QStringLiteral("packPs5Only");
+					note = tr("A PS5 game: made into a PS5 fake package here (by Packwright), then installed — or, as "
+							  "it is, copied to /data/homebrew on the PS5, where ShadowMountPlus finds it.");
+				}
 				else
 					note = tr("A PS5 game: copy it to /data/homebrew on the PS5 (Files tab), where ShadowMountPlus finds it.");
 				break;
@@ -2098,6 +2124,8 @@ void ShelfController::actOn(const QVariantMap &card, const QString &action)
 		games_->convertFile(path, action == QLatin1String("convert"));
 	else if(action == QLatin1String("pack") || action == QLatin1String("packOnly"))
 		games_->packFolder(path, action == QLatin1String("pack"));
+	else if(action == QLatin1String("packPs5") || action == QLatin1String("packPs5Only"))
+		games_->packPs5(path, action == QLatin1String("packPs5"));
 	else if(action == QLatin1String("runPayload"))
 		payloads_->sendFromPc(path, payloads_->portFor(name));
 	else if(action == QLatin1String("reveal"))
@@ -2132,14 +2160,14 @@ QString batchStep(const QVariantMap &card, const QString &action)
 	const QStringList actions = card.value(QStringLiteral("actions")).toStringList();
 	if(action == QLatin1String("install"))
 	{
-		for(const char *step : { "convert", "pack", "install" })
+		for(const char *step : { "convert", "pack", "packPs5", "install" })
 			if(actions.contains(QLatin1String(step)))
 				return QLatin1String(step);
 		return QString();
 	}
 	if(action == QLatin1String("convertOnly"))
 	{
-		for(const char *step : { "convertOnly", "packOnly" })
+		for(const char *step : { "convertOnly", "packOnly", "packPs5Only" })
 			if(actions.contains(QLatin1String(step)))
 				return QLatin1String(step);
 		return QString();
@@ -2161,7 +2189,7 @@ QVariantMap ShelfController::batchActions(const QStringList &keys) const
 			continue;
 		const QString step = batchStep(card, QStringLiteral("install"));
 		install += step.isEmpty() ? 0 : 1;
-		converts += step == QLatin1String("convert") || step == QLatin1String("pack") ? 1 : 0;
+		converts += step == QLatin1String("convert") || step == QLatin1String("pack") || step == QLatin1String("packPs5") ? 1 : 0;
 		convertOnly += batchStep(card, QStringLiteral("convertOnly")).isEmpty() ? 0 : 1;
 		copy += batchStep(card, QStringLiteral("copyToPc")).isEmpty() ? 0 : 1;
 		remove += batchStep(card, QStringLiteral("delete")).isEmpty() ? 0 : 1;

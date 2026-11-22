@@ -775,6 +775,29 @@ Item {
                                             }
                                         }
 
+                                        // What happens next on the console: a PS5
+                                        // package being prepared by Titan Core, or
+                                        // what starts it on this firmware.
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            visible: !!r.note
+                                            spacing: 6
+                                            Icon {
+                                                Layout.alignment: Qt.AlignTop
+                                                Layout.topMargin: 1
+                                                name: "info"
+                                                size: 12
+                                                color: Theme.textSecondary
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: r.note ? r.note : ""
+                                                color: Theme.textSecondary
+                                                font.pixelSize: Theme.fontCaption
+                                                wrapMode: Text.WordWrap
+                                            }
+                                        }
+
                                         ThinBar {
                                             Layout.fillWidth: true
                                             fraction: (r.percent || 0) / 100
@@ -916,7 +939,8 @@ Item {
                                                     Layout.fillWidth: true
                                                     spacing: 6
                                                     Text {
-                                                        text: c.platform === "ps2" ? "PS2" : c.platform === "ps1" ? "PS1" : "PS4"
+                                                        text: c.platform === "ps2" ? "PS2" : c.platform === "ps1" ? "PS1"
+                                                            : c.platform === "ps5" ? "PS5" : "PS4"
                                                         color: Theme.textSecondary
                                                         font.family: Theme.fontMono
                                                         font.pixelSize: Theme.fontCaption
@@ -996,6 +1020,29 @@ Item {
                                                         elide: Text.ElideRight
                                                     }
                                                 }
+                                            }
+                                        }
+
+                                        // A PS5 package made here: what Titan Core does
+                                        // with it, or what starts it on this firmware.
+                                        RowLayout {
+                                            readonly property string note: (c.transfer || {}).note || ""
+                                            Layout.fillWidth: true
+                                            visible: note.length > 0
+                                            spacing: 6
+                                            Icon {
+                                                Layout.alignment: Qt.AlignTop
+                                                Layout.topMargin: 1
+                                                name: "info"
+                                                size: 12
+                                                color: Theme.textSecondary
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: parent.note
+                                                color: Theme.textSecondary
+                                                font.pixelSize: Theme.fontCaption
+                                                wrapMode: Text.WordWrap
                                             }
                                         }
 

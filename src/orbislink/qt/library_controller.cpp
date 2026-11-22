@@ -304,7 +304,7 @@ void LibraryController::refresh()
 						}
 						title = QString::fromStdString(info.displayTitle());
 						titleId = info.titleId;
-						platform = QStringLiteral("ps4");
+						platform = info.ps5 ? QStringLiteral("ps5") : QStringLiteral("ps4");
 						item[QStringLiteral("version")] = QString::fromStdString(info.appVersion);
 						item[QStringLiteral("category")] = QString::fromLatin1(pkgCategoryCode(info.kind));
 						item[QStringLiteral("icon")] = dataUrl(info.iconPng);

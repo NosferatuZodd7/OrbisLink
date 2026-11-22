@@ -370,6 +370,27 @@ reports nothing back), a direct install is followed by what the PC has served:
 the card is done once the console has taken the whole package, and the
 console finishes the install on its own (its notifications show it).
 
+**PS5 packages.** A PS5 fake package (`.pkg` starting `\x7FFIH`, a `PPSA`
+title ID; a backport `\x7FLIH` too) is read like a PS4 one — its name, title
+ID, version and the firmware it needs come from the `param.json` inside — and
+installs on a PS5 the same ways (*Install directly*, *Send and install*,
+*Install on the console*). A PS4 is never asked to install one: *Install
+directly* turns it away, and sent over FTP it is only a copy. An official
+store package (encrypted) is turned away saying a jailbroken PS5 installs
+fake packages only. A package that needs a newer firmware than the PS5's
+says it installs but does not start (look for a backport).
+
+Once a PS5 package is installed, its card says what makes it start: the app
+asks the console's **Titan Core** payload (port 8097, firmware 12.00–13.60)
+to look for it, then follows it — *looking for it*, *checking it*,
+*preparing it to start (building its cache)*, *ready — it starts from the
+home screen*, or why it could not (another copy already there; moved to the
+M.2 after it was prepared). With no Titan Core answering, the card says what
+starts a PS5 fake package on that firmware: kstuff up to 11.60 (etaHEN or
+kstuff-lite), Titan Core from 12.00 to 13.60, nothing public yet from 14.00.
+A package made here by Packwright (below) shows the same on its conversion
+card.
+
 On a PS5 with no installer on port 12800 the app looks for the **Prospero
 Manager** payload (port 7070): when it answers, the installer indicator is
 green and packages go through its package API — a package already on the
@@ -473,8 +494,8 @@ Dragging files or folders over the window shows two zones:
 
 | Zone | Does | Needs |
 |---|---|---|
-| **Send over FTP** | Copies them to the folder the Files tab is in (the zone names it). A **folder** dropped goes whole, with its tree and every file in it (a homebrew app's folder, a save, a dump): the console gets the same folders, the missing ones made as the files arrive, names made safe part by part as a single file's are. Every upload is checked at the end: a copy on the console whose size is not the file's is sent again. Any other file dropped (a disc image for the USB drive, a payload, a PS3 package for RPCS3) is copied as it is and never installed — a `.pkg` that is not a PS4 one too, even with *Install after upload* on; its card says *Copied to the console (not a PS4 package, so not installed)*. | FTP |
-| **Install directly** | The console downloads them from this PC and installs. Only PS4 packages: anything else is turned away saying what it is (*A PS3 package, not a PS4 one*, *A PSP or PS Vita package…*) and that **Send over FTP** copies it as it is. | Installer |
+| **Send over FTP** | Copies them to the folder the Files tab is in (the zone names it). A **folder** dropped goes whole, with its tree and every file in it (a homebrew app's folder, a save, a dump): the console gets the same folders, the missing ones made as the files arrive, names made safe part by part as a single file's are. Every upload is checked at the end: a copy on the console whose size is not the file's is sent again. Any other file dropped (a disc image for the USB drive, a payload, a PS3 package for RPCS3) is copied as it is and never installed — a `.pkg` that is not a PS4 or PS5 one too, even with *Install after upload* on; its card says *Copied to the console (not a PS4 package, so not installed)*. A PS5 package sent to a PS4 is a copy too (*a PS4 does not install it*). | FTP |
+| **Install directly** | The console downloads them from this PC and installs. Only PS4 packages, and PS5 packages on a PS5: anything else is turned away saying what it is (*A PS3 package, not a PS4 one*, *A PSP or PS Vita package…*, *A PS5 package: only a PS5 installs it…*) and that **Send over FTP** copies it as it is. | Installer |
 
 On a PS5, a package sent with *install after sending* (and a converted game's
 **Send and install**) is installed from where it was put, by its path on the
@@ -655,10 +676,10 @@ A game's buttons:
 
 | It is | On this PC | On the console |
 |---|---|---|
-| `.pkg` | **Install on the console** (it downloads it from this PC), **Send to the console** (FTP, to the upload folder), **Show in its folder**. | **Install** (PS5: from where it is, followed in the Queue tab; a PS4 installs from Debug Settings → Package Installer, which the details say), **Delete from the console…**. |
+| `.pkg` (PS4 or PS5; its details say which) | **Install on the console** (it downloads it from this PC), **Send to the console** (FTP, to the upload folder), **Show in its folder**. A PS5 package with a PS4 in use: only **Send to the console**, and its details say only a PS5 installs it. | **Install** (PS5: from where it is, followed in the Queue tab; a PS4 installs from Debug Settings → Package Installer, which the details say), **Delete from the console…**. |
 | PS1/PS2 disc | **Convert and install**, **Only convert** (the package goes to the output folder), **Send the disc file**, **Show in its folder**. | **Convert and install**, **Only convert** (the package goes back beside the disc), **Delete…**. |
 | PS4 app or game folder (`sce_sys/param.sfo`; what a converter leaves before packing, often with a `.gp4`) | **Pack and install**: made into a `.pkg` in the output folder, then sent and installed like a converted game (its card in the Queue tab: Pack, Send, Install); **Only pack**: the package stays in the output folder; **Show in its folder**. The `.gp4` in the folder (or beside it, named after it) is followed when there is one: its files, where each goes in the package, its content ID; paths of the PC it was made on are found again in the folder by their place in the package, and what it leaves out (the converter's notes) stays out. Without one, the whole folder goes in but for the tools' leftovers (`.gp4`, `.complete`, `desktop.ini`…), under the content ID of its `param.sfo`. | — (on the console, a PS4 folder is not packed: copy it to this PC first). |
-| PS5 image or app folder | **Show in its folder** (it is copied to `/data/homebrew` on the PS5, where ShadowMountPlus finds it). | **Put on the home screen** (PS5): moved into the folder ShadowMountPlus mounts from on the same drive, then ShadowMountPlus is asked to scan, or started again. |
+| PS5 image or app folder | **Make a PS5 package and install**: made into a PS5 fake package (`.pkg`) in the output folder by Packwright, then sent and installed on the PS5 like a converted game (its card in the Queue tab: Pack, Send, Install, then what Titan Core does with it); **Only make the PS5 package**; **Show in its folder** (as it is, it is copied to `/data/homebrew` on the PS5, where ShadowMountPlus finds it). Packwright is not part of OrbisLink: it is found where its installer puts it (or on the PATH), or chosen in the details (**Choose…**); the details say whether it was found and where it comes from. | **Put on the home screen** (PS5): moved into the folder ShadowMountPlus mounts from on the same drive, then ShadowMountPlus is asked to scan, or started again. |
 | Payload | **Run on the console** (sent from this PC to its loader). | **Run**, **Delete…**. |
 
 Nothing is installed, sent or run by itself: only these buttons do. Every
@@ -723,7 +744,8 @@ off, and **Convert only** still works.
 |---|---|---|
 | A PS4 package (`.pkg`, fake-signed) | Installed by the installer: Remote Package Installer on a PS4, etaHEN's DPI v2 on a PS5 (PS4 packages on a PS5 need etaHEN with kstuff). | This PC (*Install directly*), or a copy on the console: its memory, a USB drive, the extended storage (PS5: **Install on the console** in the Files tab, or *Send and install*). |
 | A PS1/PS2 disc (`.iso`, `.bin/.cue`, `.img`) | Converted here into a PS4 package, then as above. The image itself is not installable; *Send disc file* only copies it. | Same. |
-| A PS5 game as a folder, or as an image (`.ffpkg`, `.exfat`, `.ffpfs`) | Not installed: ShadowMountPlus mounts it and puts it on the home screen. Copy it over FTP into a folder it looks in. | `/data/homebrew`, `/mnt/usb0`–`/mnt/usb7` and their `homebrew` folders, `/mnt/ext0`, `/mnt/ext1` and theirs (ShadowMountPlus's own list, first level of sub-folders). |
+| A PS5 fake package (`.pkg`, `PPSA…`) | Installed by the PS5's installer (etaHEN's DPI v2, or Prospero Manager), like a PS4 one. It starts with kstuff (up to 11.60) or Titan Core (12.00–13.60). | This PC, or a copy on the console, as above. |
+| A PS5 game as a folder, or as an image (`.ffpkg`, `.exfat`, `.ffpfs`) | Made into a PS5 fake package here by Packwright (Games page), then as above; or not installed: ShadowMountPlus mounts it and puts it on the home screen. Copy it over FTP into a folder it looks in. | `/data/homebrew`, `/mnt/usb0`–`/mnt/usb7` and their `homebrew` folders, `/mnt/ext0`, `/mnt/ext1` and theirs (ShadowMountPlus's own list, first level of sub-folders). |
 | A homebrew app from the store | Its folder goes to `/data/homebrew`; ShadowMountPlus registers it. | The Homebrew store page. |
 
 ### Conversion card (Queue tab)
@@ -747,6 +769,13 @@ as `image/disc01.iso`. A PS2 game on CD kept as a raw `.bin` (with its
 each sector, taken while the package is built, the `.bin` left as it is: the
 emulator reads only an ISO, and crashes (CE-34878-0) on the raw image. PS1
 discs as PS Classics fPKG Builder does.
+
+A PS5 game folder (`sce_sys/param.json`, `eboot.bin`) or image is made into
+a PS5 fake package by [Packwright](https://github.com/itsmemac/Packwright)
+(GPL-3.0, its own program, installed separately): `packwright convert <it>
+--to pkg -o <output folder>/<name>.pkg`. Its progress shows on the card;
+cancelling stops it and deletes the half-made package. The package is read
+back to name the card from its `param.json`.
 
 ## Save vault
 
@@ -902,8 +931,8 @@ beside it in the archive is not installed — as ProsperoStore does.
 
 No package is built for homebrew.page's apps: on the PS5 the app folder is the
 install, which is why apps the catalog offers only as disc images are listed
-but not installed. Building a PS5 fake package (fpkg) is not something any
-open tool does yet.
+but not installed. (A PS5 game folder or image of this PC is made into a
+PS5 fake package on the Games page, with Packwright.)
 
 ## Payloads
 
@@ -951,7 +980,10 @@ The community's PS5 payloads: the list PLK's Payload Manager reads
 its SHA-256 and where it comes from. The list is read when the tab first
 opens (⟳ reads it again) and kept: when the site does not answer, the last
 one is shown and said so. A payload is downloaded once to this PC and used
-only if its SHA-256 matches the list.
+only if its SHA-256 matches the list. **Titan Core** (devchmod/TITAN-CORE),
+which starts installed PS5 fake packages on firmware 12.00–13.60, is not in
+that list: it is added from its own latest release, with the SHA-256 its
+release publishes, when the list does not have it.
 
 | Item | Does |
 |---|---|

@@ -105,8 +105,9 @@ struct DiscProbe
 };
 
 // One thing on the shelf.
-// What a package's item holds since official/fake and its firmware are read.
-constexpr int kPackageRead = 2;
+// What a package's item holds since official/fake and its firmware are read
+// (2), and since PS5 packages are read too (3).
+constexpr int kPackageRead = 3;
 
 struct ShelfItem
 {

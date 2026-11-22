@@ -127,6 +127,65 @@ ORBISLINK_TEST(firmware_versions_read_and_compare)
 	CHECK(firmwareFromSystemVer(0x11008000u) > firmwareFromSystemVer(0x09508000u));
 }
 
+ORBISLINK_TEST(reads_a_ps5_fake_package_and_its_param_json)
+{
+	PkgOptions options;
+	options.contentId = "UP9000-PPSA01234_00-ORBISLINKPS50001";
+	options.includeSfo = false;
+	options.paramJson = R"({"titleId":"PPSA01234","contentId":"UP9000-PPSA01234_00-ORBISLINKPS50001",)"
+						R"("contentVersion":"01.002.000","requiredSystemSoftwareVersion":"0x0960000000000000",)"
+						R"("localizedParameters":{"defaultLanguage":"en-US","en-US":{"titleName":"Test PS5 Game"}}})";
+	const std::string path = writeTempFile("ps5.pkg", buildPs5Pkg(options, false));
+	const PkgInfo info = PkgInspector().inspect(path);
+	removeTempFile(path);
+	CHECK(info.valid);
+	CHECK(info.ps5);
+	CHECK(!info.official);
+	CHECK(!info.backport);
+	CHECK_EQ(info.titleId, std::string("PPSA01234"));
+	CHECK_EQ(info.title, std::string("Test PS5 Game"));
+	CHECK_EQ(info.appVersion, std::string("01.002.000"));
+	CHECK_EQ(info.requiredFirmware, uint16_t(0x0960));
+	CHECK(info.kind == PkgCategory::Game);
+	CHECK(!info.iconPng.empty());
+}
+
+ORBISLINK_TEST(tells_an_official_ps5_package_and_a_backport)
+{
+	PkgOptions options;
+	options.contentId = "UP9000-PPSA01234_00-ORBISLINKPS50001";
+	options.includeSfo = false;
+	const std::string official = writeTempFile("ps5-official.pkg", buildPs5Pkg(options, true));
+	const PkgInfo store = PkgInspector().inspect(official);
+	removeTempFile(official);
+	CHECK(store.ps5);
+	CHECK(store.official);
+
+	const std::string backport = writeTempFile("ps5-backport.pkg", buildPs5Pkg(options, false, true));
+	const PkgInfo lih = PkgInspector().inspect(backport);
+	removeTempFile(backport);
+	CHECK(lih.valid);
+	CHECK(lih.ps5);
+	CHECK(lih.backport);
+	CHECK(!lih.official);
+	// No param.json: the title ID comes from the content ID.
+	CHECK_EQ(lih.titleId, std::string("PPSA01234"));
+
+	// An encrypted store package: no readable container inside.
+	std::vector<uint8_t> retail(0x3000, 0);
+	retail[0] = 0x7F;
+	retail[1] = 'F';
+	retail[2] = 'I';
+	retail[3] = 'H';
+	retail[5] = 0x80;
+	const std::string sealed = writeTempFile("ps5-retail.pkg", retail);
+	const PkgInfo closed = PkgInspector().inspect(sealed);
+	removeTempFile(sealed);
+	CHECK(!closed.valid);
+	CHECK(closed.ps5);
+	CHECK(closed.official);
+}
+
 ORBISLINK_TEST(rejects_invalid_magic)
 {
 	PkgOptions options;
@@ -135,7 +194,7 @@ ORBISLINK_TEST(rejects_invalid_magic)
 
 	const PkgInfo info = PkgInspector().inspect(path);
 	CHECK(!info.valid);
-	CHECK_EQ(info.error, std::string("Not a valid PS4 pkg."));
+	CHECK_EQ(info.error, std::string("Not a valid PS4 or PS5 package."));
 	CHECK(!PkgInspector::hasPkgMagic(path));
 
 	removeTempFile(path);

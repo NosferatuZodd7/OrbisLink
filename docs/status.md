@@ -37,6 +37,9 @@ Last review: v1.1.0.
 | ✅ | Installing automatically after the FTP upload (on a PS4 the file stays on the console and is installed from the PC, because the installer only downloads over HTTP; on a PS5 it is installed by its path there) |
 | ✅ | Deleting the uploaded copy from the console after installing |
 | 🟡 | Installing on a PS5 through etaHEN's DPI v2: its own protocol (a form with `url`, a path on the console or an http:// address; a text reply), told apart from Remote Package Installer's JSON API by asking; checked against etaHEN's source and the fake console, not yet on a real PS5 |
+| ✅ | PS5 fake packages (`\x7FFIH`, and backports `\x7FLIH`): their name, title ID, version and the firmware they need read from the `param.json` inside, official (encrypted) ones told apart and turned away; installed on a PS5 the ways a PS4 package is, never on a PS4 (refused for *Install directly*, only copied over FTP) |
+| 🟡 | After a PS5 package is installed, Titan Core (port 8097, firmware 12.00–13.60) asked to look for it and followed until it is ready (or why it is not); without it, what starts a PS5 fake package on that firmware. Checked against Titan Core's source and the fake console, not yet on a real PS5 |
+| 🟡 | A PS5 game folder or image of this PC made into a PS5 fake package by Packwright (installed separately), then sent and installed; checked with a stand-in for Packwright's command line, not yet with Packwright itself nor on a real PS5 |
 | 🟡 | Installing on a PS5 through Prospero Manager (port 7070) when there is no DPI v2: its package API (`/api/pkg/install` with a path or an address, `/api/pkg/status` until *queued*), checked against its source and the fake console, not yet on a real PS5 |
 | ✅ | Error 0x80990015 (a task left by an earlier try): the task is removed and the install asked again |
 | ✅ | Official (store) packages told apart from fake ones (the header's type field at 0x04, as PS4 PKG Tool does), and a warning before one goes: it installs only with its licence |
@@ -55,7 +58,7 @@ Last review: v1.1.0.
 | ✅ | FTP on another port: 1337, 2121 and 21 (and 9090 on a PS5) are asked, and the one that greets as FTP is kept |
 | ✅ | List, browse, create folder (one already there is fine), delete, rename |
 | ✅ | Move between disks (`/data` ↔ USB), where the console cannot rename: copied through the PC, checked, then the original deleted |
-| ✅ | Dropping on *Send over FTP* copies to the folder the Files tab has open; any file goes as it is — a disc image, a payload, a package for another console (a PS3 one for RPCS3, told apart by its header) — and only a PS4 package is ever installed |
+| ✅ | Dropping on *Send over FTP* copies to the folder the Files tab has open; any file goes as it is — a disc image, a payload, a package for another console (a PS3 one for RPCS3, told apart by its header) — and only a PS4 package (or a PS5 one on a PS5) is ever installed |
 | ✅ | Upload files with progress and cancellation |
 | ✅ | Download files to the PC (menu, double click, or a chosen folder) |
 | ✅ | Drag from the window to the desktop (downloads to a local cache first) |
@@ -142,7 +145,7 @@ Last review: v1.1.0.
 | ✅ | First-run wizard (3 steps, with a live console check); can be reopened from the settings |
 | ✅ | System notifications when a long job ends with the window in the background: Windows (`Shell_NotifyIconW`), Linux (org.freedesktop.Notifications over D-Bus), macOS (osascript); elsewhere the window flashes |
 | ✅ | Live log window (Ctrl+L), with a filter and Remote Play detail |
-| ✅ | Exporting diagnostics to a file, with versions, network, settings (without secrets), the last Remote Play attempt and the end of the log |
+| ✅ | Exporting diagnostics to a file, with versions, network, the console's kind and firmware, settings (without secrets), the last Remote Play attempt, Titan Core's last answer about an install and where Packwright is, and the end of the log (which has each Titan Core step, Packwright's command and, when it fails, its last lines) |
 | ✅ | English (source language and default) and Portuguese, chosen in the settings; the log and the diagnostics are always in English |
 | ⬜ | Shortcut to the queue in full screen |
 | ✅ | One queue for every job, in three groups (under way, lit and on top; waiting, with a breathing badge; finished, at the end, with one **Clear finished** for all), totals for the round (percentage, jobs to go, time left from its pace) and a compact rail with the jobs when the panel is closed while they run; the tabs only while there is a card |
@@ -151,6 +154,7 @@ Last review: v1.1.0.
 | ✅ | Save vault: **Select all** selects everything shown (then **Select none**), and each game a button for its saves |
 | ✅ | Library: packages in the console's places deleted together, after one question |
 | ✅ | Payloads and plugins say what they do: the payload library's words, else what is known of the common ones (GoldHEN's plugins, PS4 and PS5 payloads), else the kind of file and its loader |
+| 🟡 | Titan Core in the PS5 payload library, from its own latest release and checked against the SHA-256 the release publishes (it is not in the community list); the release's asset names checked against its README only |
 | 🟡 | Homebrew store with several stores at once: homebrew.page, PKG-Zone (its `store.db`, read through its MD5) and any Homebrew Store added; an app in more than one shows each store's tag and asks which to take it from; a store's packages downloaded (resumed, checked against their MD5) and installed through the queue on a PS4 or a PS5. Always in order of downloads (PKG-Zone's counts, asked one app at a time, one every three seconds, kept a week; homebrew.page counts none, so its apps come after), with **PS4** / **PS5** tags on each card and filters for each console. Checked against PKG-Zone's real database and counts and a fake store with the fake console, not yet on a real console |
 
 ## 5. Packaging and CI

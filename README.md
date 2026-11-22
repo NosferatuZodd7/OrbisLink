@@ -101,6 +101,7 @@ must already be running GoldHEN (PS4) or a jailbreak such as etaHEN (PS5).
 | PS5 — etaHEN FTP server | 1337 | `FTP=1` in etaHEN's `config.ini` |
 | PS5 — etaHEN DPI v2 installer | 12800 | `DPI_v2=1` in etaHEN's `config.ini` |
 | PS5 — Prospero Manager (when there is no DPI v2) | 7070 | load the Prospero Manager payload |
+| PS5 — Titan Core (optional: starts PS5 fake packages on 12.00–13.60) | 8097 | load the Titan Core payload (Payloads → Library) |
 
 The PS5 FTP port has its own setting, because it differs from the PS4's:
 with a PS5 in use, the settings show and edit the PS5 port. When the set
@@ -109,6 +110,11 @@ a PS5) and moves to the one that answers as an FTP server; the diagnostics
 list what each port said. On etaHEN, 9090 is the DPI v1 installer, not FTP. Installing on a
 PS5 through DPI v2 uses the same API as on the PS4; it has not been
 confirmed on a real PS5 yet.
+
+PS5 fake packages (`PPSA…`) install on a PS5 like PS4 ones, and the app
+follows Titan Core preparing them when it runs. A PS5 game folder or image
+on the PC is made into one with [Packwright](https://github.com/itsmemac/Packwright),
+installed separately (it is not part of OrbisLink).
 
 ### Registering Remote Play
 

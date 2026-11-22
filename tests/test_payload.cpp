@@ -108,6 +108,30 @@ const char *kPayloadSays =
 
 } // namespace
 
+ORBISLINK_TEST(titan_core_comes_from_its_release_with_its_checksum)
+{
+	const std::string release = R"({"tag_name":"v1.0.0","published_at":"2026-11-16T10:00:00Z",)"
+		R"("html_url":"https://github.com/devchmod/TITAN-CORE/releases/tag/v1.0.0","assets":[)"
+		R"({"name":"TITAN-CORE-v1.0.elf","browser_download_url":"https://github.com/devchmod/TITAN-CORE/releases/download/v1.0.0/TITAN-CORE-v1.0.elf"},)"
+		R"({"name":"SHA256SUMS","browser_download_url":"https://github.com/devchmod/TITAN-CORE/releases/download/v1.0.0/SHA256SUMS"}]})";
+	CHECK_EQ(payloads::titanCoreChecksumsUrl(release),
+		std::string("https://github.com/devchmod/TITAN-CORE/releases/download/v1.0.0/SHA256SUMS"));
+	const std::string hash(64, 'a');
+	payloads::CatalogPayload titan;
+	std::string why;
+	CHECK(payloads::titanCoreFromRelease(release, hash + "  TITAN-CORE-v1.0.elf\n", &titan, &why));
+	CHECK_EQ(titan.name, std::string("TITAN-CORE"));
+	CHECK_EQ(titan.filename, std::string("TITAN-CORE-v1.0.elf"));
+	CHECK_EQ(titan.version, std::string("1.0.0"));
+	CHECK_EQ(titan.checksum, hash);
+	CHECK_EQ(titan.lastUpdate, std::string("2026-11-16"));
+	// No checksum for the file: not offered.
+	CHECK(!payloads::titanCoreFromRelease(release, hash + "  other.elf\n", &titan, &why));
+	CHECK(!payloads::titanCoreFromRelease(R"({"assets":[]})", hash + "  TITAN-CORE-v1.0.elf", &titan, &why));
+	// A list of releases (pre-releases only): the newest.
+	CHECK(payloads::titanCoreFromRelease("[" + release + "]", hash + " *TITAN-CORE-v1.0.elf", &titan, &why));
+}
+
 ORBISLINK_TEST(sends_the_whole_payload_and_reads_what_it_prints)
 {
 	const std::vector<uint8_t> elf = fakeElf(200000);

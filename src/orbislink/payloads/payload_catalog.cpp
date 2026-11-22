@@ -175,5 +175,96 @@ std::string autoloadText(const std::vector<AutoloadStep> &steps, const std::stri
 	return out;
 }
 
+namespace {
+
+// The release itself, or the newest of a list of them (pre-releases are
+// left out of "latest").
+Json releaseOf(const std::string &json)
+{
+	Json parsed = Json::parse(json);
+	if(parsed.isArray())
+		return parsed.items().empty() ? Json() : parsed.items().front();
+	return parsed;
+}
+
+const Json *titanAsset(const Json &release, bool elf)
+{
+	for(const Json &asset : release["assets"].items())
+	{
+		const std::string name = asset["name"].toString();
+		const std::string lowered = lower(name);
+		if(elf ? (lowered.size() > 4 && lowered.compare(lowered.size() - 4, 4, ".elf") == 0)
+			   : lowered == "sha256sums" || lowered == "sha256sums.txt")
+			return &asset;
+	}
+	return nullptr;
+}
+
+} // namespace
+
+std::string titanCoreChecksumsUrl(const std::string &releaseJson)
+{
+	const Json release = releaseOf(releaseJson);
+	const Json *sums = release.isObject() ? titanAsset(release, false) : nullptr;
+	return sums ? (*sums)["browser_download_url"].toString() : std::string();
+}
+
+bool titanCoreFromRelease(const std::string &releaseJson, const std::string &sha256sums, CatalogPayload *out,
+	std::string *error)
+{
+	const Json release = releaseOf(releaseJson);
+	const Json *elf = release.isObject() ? titanAsset(release, true) : nullptr;
+	if(!elf)
+	{
+		if(error)
+			*error = "the release has no .elf";
+		return false;
+	}
+	const std::string file = (*elf)["name"].toString();
+	const std::string url = (*elf)["browser_download_url"].toString();
+	// "<sha256>  <file>" (or "<sha256> *<file>"), one per line.
+	std::string checksum;
+	size_t start = 0;
+	while(start < sha256sums.size())
+	{
+		size_t end = sha256sums.find('\n', start);
+		if(end == std::string::npos)
+			end = sha256sums.size();
+		const std::string line = trim(sha256sums.substr(start, end - start));
+		start = end + 1;
+		const size_t space = line.find_first_of(" \t");
+		if(space != 64 || line.size() <= space)
+			continue;
+		std::string named = trim(line.substr(space));
+		if(!named.empty() && named.front() == '*')
+			named.erase(0, 1);
+		if(named == file)
+			checksum = lower(line.substr(0, 64));
+	}
+	if(checksum.size() != 64 || checksum.find_first_not_of("0123456789abcdef") != std::string::npos)
+	{
+		if(error)
+			*error = "SHA256SUMS does not list " + file;
+		return false;
+	}
+	CatalogPayload payload;
+	payload.name = kTitanCoreName;
+	payload.filename = file;
+	payload.url = url;
+	payload.source = release["html_url"].toString("https://github.com/devchmod/TITAN-CORE/releases");
+	payload.sourceDirect = url;
+	payload.description = "Starts installed PS5 fake packages on firmware up to 13.60 (kstuff-lite and "
+						  "ShadowMountPlus inside). Experimental.";
+	payload.lastUpdate = release["published_at"].toString().substr(0, 10);
+	std::string version = release["tag_name"].toString();
+	if(!version.empty() && (version.front() == 'v' || version.front() == 'V'))
+		version.erase(0, 1);
+	payload.version = version;
+	payload.category = "Jailbreak";
+	payload.checksum = checksum;
+	*out = payload;
+	return true;
+}
+
 } // namespace payloads
 } // namespace orbislink

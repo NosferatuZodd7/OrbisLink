@@ -13,6 +13,7 @@
 #include "orbislink/common/log.h"
 #include "orbislink/common/util.h"
 #include "orbislink/ftp/remote_move.h"
+#include "orbislink/common/json.h"
 #include "orbislink/net/http_client.h"
 #include "orbislink/net/lan_scan.h"
 #include "orbislink/net/net_utils.h"
@@ -48,6 +49,18 @@
 #include <set>
 
 namespace orbislink {
+
+namespace {
+
+std::string asciiUpper(std::string text)
+{
+	for(char &c : text)
+		c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+	return text;
+}
+
+} // namespace
+
 
 namespace {
 
@@ -275,6 +288,13 @@ void AppController::rebuildBackends()
 		const QString title = QString::fromStdString(task.title);
 		const QString message = translateMessage(task.message);
 		const bool failed = task.state == TaskState::Error;
+		// A PS5 game (PPSA) the console installed: followed once, to say
+		// what starts it (and Titan Core's progress preparing it).
+		const bool ps5Installed = task.state == TaskState::Completed
+			&& (task.mode == TransferMode::DirectInstall || task.installedFromConsole)
+			&& startsWith(asciiUpper(task.titleId), "PPSA");
+		const QString taskId = QString::fromStdString(task.id);
+		const QString titleId = QString::fromStdString(task.titleId);
 		// An upload that reached the console: the folder it went into.
 		QString landedIn;
 		if(task.mode == TransferMode::FtpUpload && task.state == TaskState::Completed)
@@ -283,8 +303,13 @@ void AppController::rebuildBackends()
 			landedIn = QString::fromStdString(path.substr(0, path.find_last_of('/') + 1));
 		}
 		life->post(
-			[this, terminal, title, message, failed, landedIn]() {
+			[this, terminal, title, message, failed, landedIn, ps5Installed, taskId, titleId]() {
 				refreshQueueModel();
+				if(ps5Installed && activeIsPs5() && !ps5Followed_.contains(taskId))
+				{
+					ps5Followed_.insert(taskId);
+					followPs5Install(taskId, titleId);
+				}
 				emit queueStateChanged();
 				// Waiting for the installer: a fresh look at the console
 				// decides when to go on.
@@ -1453,6 +1478,7 @@ void AppController::refreshQueueModel()
 		item[QStringLiteral("taskId")] = QString::fromStdString(task.id);
 		item[QStringLiteral("mode")] =
 			task.mode != TransferMode::FtpUpload ? QStringLiteral("install") : QStringLiteral("send");
+		item[QStringLiteral("note")] = queueModel_.note(QString::fromStdString(task.id));
 		transfers[key] = item;
 	}
 	if(transfers != transfers_)
@@ -1525,16 +1551,18 @@ void AppController::readPackageFacts(const QStringList &paths, const QStringList
 			if(!info.valid)
 				continue;
 			const bool official = info.official;
+			const bool ps5 = info.ps5;
 			const int required = info.requiredFirmware;
 			const QString category = QString::fromLatin1(pkgCategoryCode(info.kind));
 			const QString title = QString::fromStdString(info.displayTitle());
-			life->post([this, taskId, official, required, category, title]() {
+			life->post([this, taskId, official, ps5, required, category, title]() {
 				PackageFacts facts;
 				facts.official = official;
+				facts.ps5 = ps5;
 				facts.requiredFirmware = required;
 				facts.category = category;
 				facts.title = title;
-				facts.warning = packageWarning(official, required, category);
+				facts.warning = packageWarning(official, required, category, ps5);
 				packageFacts_.insert(taskId, facts);
 				queueModel_.setPackageFacts(taskId,
 					QString::fromStdString(firmwareText(static_cast<uint16_t>(required))), facts.warning);
@@ -1599,7 +1627,7 @@ void AppController::refreshPackageWarnings()
 	for(auto it = packageFacts_.begin(); it != packageFacts_.end(); ++it)
 	{
 		PackageFacts &facts = it.value();
-		const QString warning = packageWarning(facts.official, facts.requiredFirmware, facts.category);
+		const QString warning = packageWarning(facts.official, facts.requiredFirmware, facts.category, facts.ps5);
 		if(warning == facts.warning)
 			continue;
 		facts.warning = warning;
@@ -1610,11 +1638,23 @@ void AppController::refreshPackageWarnings()
 	}
 }
 
-QString AppController::packageWarning(bool official, int requiredFirmware, const QString &category) const
+QString AppController::packageWarning(bool official, int requiredFirmware, const QString &category,
+	bool ps5Package) const
 {
 	if(official)
 		return tr("An official store package: it installs only with its licence. A jailbroken console "
 			"installs fake packages (fpkg).");
+	if(ps5Package)
+	{
+		if(!activeIsPs5())
+			return tr("A PS5 package: only a PS5 installs it.");
+		// A PS5 game made for a newer system software does not start either.
+		if(consoleFirmware_ != 0 && requiredFirmware > consoleFirmware_)
+			return tr("Needs firmware %1, and this PS5 runs %2: it installs, but does not start. Look for a "
+				"backport of it.")
+				.arg(QString::fromStdString(firmwareText(static_cast<uint16_t>(requiredFirmware))), consoleFirmware());
+		return QString();
+	}
 	// Only a PS4 refuses to start what was made for a newer firmware; a
 	// PS5 runs PS4 games whatever their firmware. A game or its update.
 	const bool startable = category == QLatin1String("gd") || category == QLatin1String("gp");
@@ -1624,6 +1664,190 @@ QString AppController::packageWarning(bool official, int requiredFirmware, const
 			.arg(QString::fromStdString(firmwareText(static_cast<uint16_t>(requiredFirmware))),
 				consoleFirmware());
 	return QString();
+}
+
+QString AppController::ps5StartHint() const
+{
+	const QString firmware = consoleFirmware();
+	if(consoleFirmware_ == 0)
+		return tr("A PS5 fake package starts with kstuff loaded on firmware up to 11.60; on 12.00–13.60, with the "
+			"Titan Core payload loaded (Payloads).");
+	if(consoleFirmware_ <= 0x1160)
+		return tr("Installed: on firmware %1 it starts with kstuff loaded (etaHEN or kstuff-lite).").arg(firmware);
+	if(consoleFirmware_ <= 0x1360)
+		return tr("On firmware %1 it starts only with the Titan Core payload loaded (Payloads): it prepares the "
+			"installed fake packages to start.").arg(firmware);
+	return tr("On firmware %1 no public method starts a PS5 fake package yet.").arg(firmware);
+}
+
+void AppController::followPs5Install(const QString &taskId, const QString &titleId)
+{
+	const std::string address = settings_.consoleAddress;
+	const QString hint = ps5StartHint();
+	const std::string wanted = asciiUpper(titleId.toStdString());
+	const std::string firmware = consoleFirmware().toStdString();
+	std::thread([this, life = lifeline_, taskId, wanted, address, hint, firmware]() {
+		const std::string base = "http://" + address + ":8097";
+		HttpClient http(2500);
+		// Why the last read failed, for the log: no answer, or an answer that
+		// is not Titan Core's (another program on the port, another version).
+		std::string why;
+		auto readState = [&http, &base, &why](Json *state) {
+			const HttpResponse reply = http.get(base + "/api/state");
+			if(!reply.transportOk)
+			{
+				why = "no answer (" + reply.error + ")";
+				return false;
+			}
+			if(reply.status != 200)
+			{
+				why = "HTTP " + std::to_string(reply.status) + " to /api/state";
+				return false;
+			}
+			*state = Json::parse(reply.body);
+			if(state->isObject() && (*state)["games"].isArray())
+				return true;
+			why = "a reply that is not Titan Core's state: " + reply.body.substr(0, 160);
+			return false;
+		};
+		auto note = [this, &life, &taskId](const QString &text) {
+			life->post([this, taskId, text]() {
+				queueModel_.setNote(taskId, text);
+				// A package made here shows it on its conversion card too.
+				bool changed = false;
+				for(auto it = transfers_.begin(); it != transfers_.end(); ++it)
+				{
+					QVariantMap item = it.value().toMap();
+					if(item.value(QStringLiteral("taskId")).toString() != taskId
+						|| item.value(QStringLiteral("note")).toString() == text)
+						continue;
+					item[QStringLiteral("note")] = text;
+					it.value() = item;
+					changed = true;
+				}
+				if(changed)
+					emit transfersChanged();
+			});
+		};
+		auto report = [this, &life](const std::string &text) {
+			const QString line = QDateTime::currentDateTime().toString(QStringLiteral("HH:mm:ss")) + QStringLiteral("  ")
+				+ QString::fromStdString(text);
+			life->post([this, line]() { titanCoreReport_ = line; });
+		};
+		Json state;
+		if(!readState(&state))
+		{
+			// No Titan Core there: what starts it on this firmware.
+			logInfo("Titan Core on " + base + ": " + why + ". " + wanted + " installed on firmware "
+				+ (firmware.empty() ? std::string("unknown") : firmware) + "; the card says what starts it.");
+			report(wanted + ": Titan Core did not answer on 8097 — " + why);
+			note(hint);
+			return;
+		}
+		const std::string version = state["version"].toString();
+		logInfo("Titan Core " + (version.empty() ? std::string("(no version)") : version) + " answers on " + base
+			+ ": asking it to look for " + wanted + ".");
+		note(tr("Titan Core: looking for it…"));
+		auto rescan = [&http, &base]() {
+			const HttpResponse reply = http.post(base + "/api/rescan", std::string(), "text/plain");
+			if(!reply.transportOk || reply.status >= 300)
+				logDebug("Titan Core: rescan answered " + (reply.transportOk ? "HTTP " + std::to_string(reply.status)
+					: "nothing (" + reply.error + ")"));
+		};
+		rescan();
+		const int64_t started = monotonicMillis();
+		int64_t lastRescan = started;
+		bool announcedWait = false;
+		bool lostIt = false;
+		std::string lastStatus;
+		while(life->alive() && monotonicMillis() - started < 30 * 60 * 1000)
+		{
+			std::this_thread::sleep_for(std::chrono::seconds(3));
+			if(!readState(&state))
+			{
+				if(!lostIt)
+				{
+					lostIt = true;
+					logInfo("Titan Core stopped answering while following " + wanted + ": " + why + ".");
+				}
+				continue;
+			}
+			if(lostIt)
+			{
+				lostIt = false;
+				logInfo("Titan Core answers again.");
+			}
+			const Json *game = nullptr;
+			for(const Json &item : state["games"].items())
+				if(asciiUpper(item["title_id"].toString()) == wanted)
+				{
+					game = &item;
+					// The installed package (not an image of it elsewhere).
+					if(item["kind"].toString() == "pkg")
+						break;
+				}
+			if(!game)
+			{
+				// Not seen yet: the console may still be installing it.
+				if(monotonicMillis() - lastRescan > 15000)
+				{
+					rescan();
+					lastRescan = monotonicMillis();
+				}
+				if(!announcedWait && monotonicMillis() - started > 60000)
+				{
+					announcedWait = true;
+					std::string seen;
+					int count = 0;
+					for(const Json &item : state["games"].items())
+						if(++count <= 12)
+							seen += (seen.empty() ? "" : ", ") + item["title_id"].toString();
+					logInfo("Titan Core has not listed " + wanted + " after a minute; it lists " + std::to_string(count)
+						+ (count ? ": " + seen + (count > 12 ? "…" : "") : std::string()) + ".");
+					report(wanted + ": not listed by Titan Core " + version + " after a minute");
+					note(tr("Titan Core has not found it yet: once the console finishes installing it, Titan Core "
+							"prepares it."));
+				}
+				continue;
+			}
+			const std::string status = (*game)["status"].toString();
+			if(status == lastStatus)
+				continue;
+			lastStatus = status;
+			const std::string error = (*game)["error"].toString();
+			logInfo("Titan Core: " + wanted + " is " + status + (error.empty() ? std::string() : " — " + error)
+				+ " (" + (*game)["kind"].toString() + ", " + (*game)["path"].toString() + ").");
+			report(wanted + ": " + status + " (Titan Core " + version + ")" + (error.empty() ? "" : " — " + error));
+			if(status == "ready")
+			{
+				note(tr("Titan Core: ready — it starts from the home screen."));
+				return;
+			}
+			if(status == "error")
+			{
+				logWarning("Titan Core could not prepare " + wanted + ": " + error);
+				note(error.find("belongs to another source") != std::string::npos
+						? tr("Titan Core could not prepare it: the game was moved (to the M.2?) after it was "
+							 "prepared. Move it back to the console's storage.")
+						: tr("Titan Core could not prepare it: %1").arg(QString::fromStdString(error)));
+				return;
+			}
+			if(status == "duplicate")
+			{
+				note(tr("Titan Core: another copy of this game is already there."));
+				return;
+			}
+			note(status == "building" ? tr("Titan Core: preparing it to start (building its cache)…")
+									  : tr("Titan Core: checking it…"));
+		}
+		if(life->alive())
+		{
+			logInfo("Titan Core: stopped following " + wanted + " after 30 minutes (last: "
+				+ (lastStatus.empty() ? std::string("never listed") : lastStatus) + ").");
+			report(wanted + ": still " + (lastStatus.empty() ? std::string("not listed") : lastStatus)
+				+ " after 30 minutes");
+		}
+	}).detach();
 }
 
 void AppController::addPaths(const QStringList &paths, int mode, const QString &directory)

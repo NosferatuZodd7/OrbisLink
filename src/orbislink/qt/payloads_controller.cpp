@@ -765,6 +765,44 @@ void PayloadsController::refreshCatalog()
 			error = tr("The payload list could not be read: %1").arg(reason);
 			logWarning("Payloads: the payload list could not be read: " + reason.toStdString());
 		}
+		// Titan Core is not in the community list: its own latest release,
+		// offered only with the checksum its release publishes.
+		if(!cancel->load())
+		{
+			HttpClient github(15000);
+			HttpResponse release = github.fetch(kTitanCoreRelease, options);
+			if(release.transportOk && release.status == 404)
+				release = github.fetch(kTitanCoreReleases, options);
+			const std::string sums = release.transportOk && release.status == 200
+				? titanCoreChecksumsUrl(release.body) : std::string();
+			const HttpResponse checksums = sums.empty() ? HttpResponse() : github.fetch(sums, options);
+			CatalogPayload titan;
+			std::string titanWhy;
+			if(checksums.transportOk && checksums.status == 200
+				&& titanCoreFromRelease(release.body, checksums.body, &titan, &titanWhy))
+			{
+				const bool listed = std::any_of(list.begin(), list.end(), [](const CatalogPayload &payload) {
+					return QString::fromStdString(payload.name).compare(QString::fromLatin1(kTitanCoreName),
+							   Qt::CaseInsensitive) == 0;
+				});
+				if(!listed)
+					list.push_back(titan);
+				logInfo("Payloads: Titan Core " + titan.version + " (" + titan.filename + ") from its release"
+					+ (listed ? ", already in the list" : "") + ".");
+			}
+			else
+			{
+				// Which step failed: the release, its checksums file, or what they say.
+				auto status = [](const HttpResponse &reply) {
+					return reply.transportOk ? "HTTP " + std::to_string(reply.status) : "no answer (" + reply.error + ")";
+				};
+				const std::string what = !titanWhy.empty() ? titanWhy
+					: !release.transportOk || release.status != 200 ? "its release: " + status(release)
+					: sums.empty() ? std::string("its release has no SHA256SUMS file")
+					: "its SHA256SUMS: " + status(checksums);
+				logInfo("Payloads: Titan Core's release could not be used (" + what + ").");
+			}
+		}
 		if(cancel->load())
 			return;
 		QMetaObject::invokeMethod(this, [this, list, offline, error]() {
@@ -867,6 +905,8 @@ QString PayloadsController::knownDescription(const QString &fileName) const
 		{ "ps5debug", QT_TR_NOOP("A debugger for PS5 cheat tools.") },
 		{ "klogsrv|klog", QT_TR_NOOP("Sends the kernel's log over the network.") },
 		{ "byepervisor", QT_TR_NOOP("Lifts the hypervisor's protections, on the early firmwares it works on.") },
+		{ "titan-core|titan core|titan_core", QT_TR_NOOP("Starts installed PS5 fake packages on firmware up to 13.60, with "
+			"kstuff-lite and ShadowMountPlus inside: load it alone, not with them or Kraken Mount. Experimental.") },
 		{ "gdbsrv", QT_TR_NOOP("A GDB debugging server on the console.") },
 		{ "offact", QT_TR_NOOP("Activates a PSN account on the console offline.") },
 	};

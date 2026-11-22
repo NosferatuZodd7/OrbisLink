@@ -31,6 +31,11 @@ inline uint32_t readLE32(const uint8_t *p)
 		| (static_cast<uint32_t>(p[2]) << 16) | (static_cast<uint32_t>(p[3]) << 24);
 }
 
+inline uint64_t readLE64(const uint8_t *p)
+{
+	return static_cast<uint64_t>(readLE32(p)) | (static_cast<uint64_t>(readLE32(p + 4)) << 32);
+}
+
 // Copies at most `max` bytes and stops at the first NUL, like the PKG ASCII fields.
 inline std::string readFixedString(const uint8_t *p, size_t max)
 {

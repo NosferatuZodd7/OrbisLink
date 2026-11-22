@@ -59,6 +59,7 @@ public:
 		// it goes (an official package; one above the PS4's firmware).
 		FirmwareRole,
 		WarningRole,
+		NoteRole,
 	};
 
 	explicit QueueModel(QObject *parent = nullptr);
@@ -86,6 +87,10 @@ public:
 	void applySnapshot(const std::vector<QueueTask> &tasks);
 	void setIcon(const QString &taskId, const QString &dataUri);
 	void setPackageFacts(const QString &taskId, const QString &firmware, const QString &warning);
+	// A line of what happens next on the console (a PS5 package prepared
+	// by Titan Core, what starts it on this firmware); empty clears it.
+	void setNote(const QString &taskId, const QString &note);
+	QString note(const QString &taskId) const { return notes_.value(taskId); }
 	// The same file, however its path is written (case aside on Windows).
 	static QString fileKey(const QString &localPath);
 
@@ -135,6 +140,7 @@ private:
 	QHash<QString, QString> icons_;
 	QHash<QString, QString> firmware_;
 	QHash<QString, QString> warnings_;
+	QHash<QString, QString> notes_;
 };
 
 } // namespace orbislink

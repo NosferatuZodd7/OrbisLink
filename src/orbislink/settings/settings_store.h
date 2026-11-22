@@ -213,6 +213,10 @@ struct Settings
 	// PS1/PS2 games: where the discs are and where converted packages go.
 	std::string gamesFolder;
 	std::string convertOutputFolder;
+	// Packwright (itsmemac/Packwright, GPL-3.0), which makes PS5 fake
+	// packages from game folders and images: where its program is, when it
+	// is not where its installers put it. Empty: looked for.
+	std::string packwrightPath;
 	// A package the converter made (from a disc, or a folder) stays in the
 	// output folder once it is on the console; off, it is deleted then
 	// (installed, or sent when not installing).

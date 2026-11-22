@@ -42,6 +42,9 @@ public:
 	std::atomic<int> stepBytes { 4096 };
 	std::vector<std::string> lastUrls;
 
+	// Like a PS5's installer (etaHEN, Prospero Manager).
+	std::atomic<bool> ps5 { false };
+	bool installsFromConsole() const override { return ps5.load(); }
 	std::string name() const override { return "Test installer"; }
 	std::string endpoint() const override { return "http://fake"; }
 	bool probe(std::string *detail) override
@@ -260,7 +263,38 @@ ORBISLINK_TEST(refuses_invalid_files)
 	const auto ids = queue.enqueue({ path }, TransferMode::DirectInstall, &rejected);
 	CHECK(ids.empty());
 	CHECK_EQ(rejected.size(), static_cast<size_t>(1));
-	CHECK(rejected[0].find("valid PS4 pkg") != std::string::npos);
+	CHECK(rejected[0].find("valid PS4 or PS5 package") != std::string::npos);
+	removeTempFile(path);
+}
+
+ORBISLINK_TEST(a_ps5_package_installs_on_a_ps5_and_not_on_a_ps4)
+{
+	PkgOptions options;
+	options.contentId = "UP9000-PPSA01234_00-ORBISLINKPS50001";
+	options.includeSfo = false;
+	const std::string path = writeTempFile("ps5-game.pkg", buildPs5Pkg(options, false));
+
+	FakeInstaller installer;
+	InstallQueue::Dependencies deps;
+	deps.installer = &installer;
+	{
+		InstallQueue queue(deps, Settings {});
+		std::vector<std::string> rejected;
+		CHECK(queue.enqueue({ path }, TransferMode::DirectInstall, &rejected).empty());
+		CHECK_EQ(rejected.size(), static_cast<size_t>(1));
+		CHECK(rejected[0].find("only a PS5 installs it") != std::string::npos);
+	}
+	installer.ps5.store(true);
+	{
+		InstallQueue queue(deps, Settings {});
+		std::vector<std::string> rejected;
+		const auto ids = queue.enqueue({ path }, TransferMode::DirectInstall, &rejected);
+		CHECK_EQ(ids.size(), static_cast<size_t>(1));
+		CHECK(rejected.empty());
+		const auto tasks = queue.tasks();
+		CHECK_EQ(tasks.size(), static_cast<size_t>(1));
+		CHECK_EQ(tasks[0].titleId, std::string("PPSA01234"));
+	}
 	removeTempFile(path);
 }
 

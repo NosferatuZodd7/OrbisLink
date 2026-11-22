@@ -175,6 +175,7 @@ int commandInspect(const Options &options)
 				  << "  Type        : " << pkgCategoryLabel(info.kind) << " ("
 				  << (info.category.empty() ? pkgCategoryCode(info.kind) : info.category) << ")\n"
 				  << "  Version     : " << (info.appVersion.empty() ? "-" : info.appVersion) << "\n"
+				  << "  Console     : " << (info.ps5 ? (info.backport ? "PS5 (backport)" : "PS5") : "PS4") << "\n"
 				  << "  Package     : " << (info.official ? "official (store)" : "fake (fpkg)") << "\n"
 				  << "  Firmware    : " << (info.requiredFirmware ? firmwareText(info.requiredFirmware) + " or newer" : "-") << "\n"
 				  << "  Size        : " << humanBytes(info.fileSize) << "\n"

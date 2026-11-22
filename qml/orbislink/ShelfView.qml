@@ -33,7 +33,8 @@ FocusScope {
     readonly property var batch: pickedKeys.length > 0 ? shelf.batchActions(pickedKeys) : ({})
     function pickable(card) {
         var actions = card.actions || []
-        return card.card === "title" && ["convert", "pack", "install", "convertOnly", "packOnly", "copyToPc", "delete"]
+        return card.card === "title" && ["convert", "pack", "packPs5", "install", "convertOnly", "packOnly", "packPs5Only",
+                                         "copyToPc", "delete"]
             .some(function (a) { return actions.indexOf(a) >= 0 })
     }
     // The last one picked or left, where a Shift+click run starts from.
@@ -131,6 +132,8 @@ FocusScope {
                                                             : qsTr("Only convert")
         case "pack": return qsTr("Pack and install")
         case "packOnly": return qsTr("Only pack")
+        case "packPs5": return qsTr("Make a PS5 package and install")
+        case "packPs5Only": return qsTr("Only make the PS5 package")
         case "mount": return qsTr("Put on the home screen")
         case "run": return qsTr("Run")
         case "runPayload": return qsTr("Run on the console")
@@ -155,6 +158,8 @@ FocusScope {
                                    : qsTr("Made into a PS4 package, kept in the output folder")
         case "pack": return qsTr("Made into a .pkg on this PC (as its .gp4 says, when it has one), sent and installed")
         case "packOnly": return qsTr("Made into a .pkg, kept in the output folder")
+        case "packPs5": return qsTr("Made into a PS5 fake package on this PC by Packwright, sent and installed")
+        case "packPs5Only": return qsTr("Made into a PS5 fake package by Packwright, kept in the output folder")
         case "mount": return qsTr("Moved into the folder ShadowMountPlus mounts from, on the same drive")
         case "run": return qsTr("Sent to the console's loader now")
         case "runPayload": return qsTr("Sent from this PC to the console's loader now")
@@ -174,6 +179,8 @@ FocusScope {
         case "convertOnly": return "package"
         case "pack": return "package-plus"
         case "packOnly": return "package"
+        case "packPs5": return "package-plus"
+        case "packPs5Only": return "package"
         case "mount": return "home"
         case "run": case "runPayload": return "play"
         case "reveal": return "external-link"
@@ -188,14 +195,17 @@ FocusScope {
         if (card.where === "console")
             return action !== "reveal"
         return action === "install" || action === "send" || action === "sendFile"
-               || action === "convert" || action === "pack" || action === "runPayload"
+               || action === "convert" || action === "pack" || action === "packPs5" || action === "runPayload"
     }
     function kindText(card) {
         if (card.app) return card.platform === "ps4" ? qsTr("PS4 app or game folder") : qsTr("PS5 app or game folder")
         if (card.kind === "installed") return card.platform === "ps5" ? qsTr("Installed PS5 game or app")
                                                                      : qsTr("Installed PS4 game or app")
         switch (card.kind) {
-        case "package": return card.category === "gp" || card.category === "gpd" ? qsTr("PS4 update")
+        case "package": if (card.platform === "ps5")
+                            return card.category === "gp" || card.category === "gpd" ? qsTr("PS5 update")
+                                 : card.category === "ac" ? qsTr("PS5 add-on") : qsTr("PS5 package")
+                        return card.category === "gp" || card.category === "gpd" ? qsTr("PS4 update")
                              : card.category === "ac" ? qsTr("PS4 add-on")
                              : card.category === "gdt" ? qsTr("PS4 theme") : qsTr("PS4 package")
         case "disc": return card.platform === "ps2" ? qsTr("PS2 disc") : card.platform === "ps1" ? qsTr("PS1 disc")
@@ -988,7 +998,8 @@ FocusScope {
         readonly property bool isPackage: (card.ext || "") === ".pkg" && card.readable !== false
         // An official package, or a firmware above the PS4's: before it goes.
         readonly property string packageWarning: isPackage
-            ? app.packageWarning(card.official === true, card.firmwareValue || 0, card.category || "")
+            ? app.packageWarning(card.official === true, card.firmwareValue || 0, card.category || "",
+                                 card.platform === "ps5")
             : ""
         readonly property var facts: [
             [qsTr("Title ID"), card.titleId || "", true],
@@ -1088,6 +1099,33 @@ FocusScope {
                     color: Theme.textSecondary
                     font.pixelSize: 12
                     wrapMode: Text.WordWrap
+                }
+                // A PS5 game made into a package: Packwright, found or not,
+                // and where it is.
+                RowLayout {
+                    visible: (details.card.actions || []).indexOf("packPs5Only") >= 0
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Icon {
+                        name: games.packwright.length > 0 ? "check" : "info"
+                        size: 14
+                        color: games.packwright.length > 0 ? Theme.ok : Theme.textSecondary
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: games.packwright.length > 0 ? qsTr("Packwright: %1").arg(games.packwright)
+                                                          : qsTr("Packwright is not installed: it makes the PS5 package "
+                                                                 + "(free, from github.com/itsmemac/Packwright).")
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
+                        // Words whole; a long path breaks where it must.
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    }
+                    StyledButton {
+                        text: qsTr("Choose…")
+                        chip: true
+                        onClicked: packwrightDialog.open()
+                    }
                 }
                 RowLayout {
                     visible: details.packageWarning.length > 0
@@ -1895,5 +1933,12 @@ FocusScope {
                 }
             }
         }
+    }
+
+    // Where Packwright's program is, when it was not found by itself.
+    FileDialog {
+        id: packwrightDialog
+        title: qsTr("Packwright's program")
+        onAccepted: games.setPackwrightPath(selectedFile)
     }
 }

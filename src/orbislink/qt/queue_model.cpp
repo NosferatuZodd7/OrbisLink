@@ -39,6 +39,7 @@ QHash<int, QByteArray> QueueModel::roleNames() const
 		{ CanMoveDownRole, "canMoveDown" },
 		{ FirmwareRole, "firmware" },
 		{ WarningRole, "warning" },
+		{ NoteRole, "note" },
 	};
 }
 
@@ -69,6 +70,7 @@ QVariant QueueModel::data(const QModelIndex &index, int role) const
 		case IconRole: return icons_.value(row.id);
 		case FirmwareRole: return firmware_.value(row.id);
 		case WarningRole: return warnings_.value(row.id);
+		case NoteRole: return notes_.value(row.id);
 		default: return {};
 	}
 }
@@ -137,6 +139,7 @@ QVariantList QueueModel::rows() const
 		map[QStringLiteral("iconSource")] = icons_.value(row.id);
 		map[QStringLiteral("firmware")] = firmware_.value(row.id);
 		map[QStringLiteral("warning")] = warnings_.value(row.id);
+		map[QStringLiteral("note")] = notes_.value(row.id);
 		map[QStringLiteral("totalBytes")] = static_cast<double>(row.totalBytes);
 		map[QStringLiteral("doneBytes")] = static_cast<double>(row.totalBytes - row.remainingBytes);
 		map[QStringLiteral("bytesPerSecond")] = row.bytesPerSecond;
@@ -299,6 +302,25 @@ void QueueModel::setPackageFacts(const QString &taskId, const QString &firmware,
 		if(rows_[i].id == taskId)
 		{
 			emit dataChanged(index(i), index(i), { FirmwareRole, WarningRole });
+			emit rowsChanged();
+			break;
+		}
+	}
+}
+
+void QueueModel::setNote(const QString &taskId, const QString &note)
+{
+	if(notes_.value(taskId) == note)
+		return;
+	if(note.isEmpty())
+		notes_.remove(taskId);
+	else
+		notes_.insert(taskId, note);
+	for(int i = 0; i < rows_.size(); ++i)
+	{
+		if(rows_[i].id == taskId)
+		{
+			emit dataChanged(index(i), index(i), { NoteRole });
 			emit rowsChanged();
 			break;
 		}

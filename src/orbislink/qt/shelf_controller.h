@@ -317,6 +317,7 @@ private:
 	QHash<QString, QVariantList> searchIndex_; // place id → the cards seen there
 
 	Place place_;
+	bool ps5_ = false; // the console in use, for what the cards offer
 	bool organizing_ = false;
 	QString organizeFolder_;
 	std::vector<library::OrganizeStep> organizePlan_;

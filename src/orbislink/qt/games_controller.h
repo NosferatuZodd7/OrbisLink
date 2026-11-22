@@ -40,6 +40,9 @@ class GamesController : public QObject
 	Q_PROPERTY(bool available READ available CONSTANT)
 	Q_PROPERTY(QString gamesFolder READ gamesFolder NOTIFY foldersChanged)
 	Q_PROPERTY(QString outputFolder READ outputFolder NOTIFY foldersChanged)
+	// Packwright's program, as found (the settings' choice, else where its
+	// installers put it, else on the PATH); "" when it is not there.
+	Q_PROPERTY(QString packwright READ packwright NOTIFY foldersChanged)
 	// Where on the console a game goes to be installed ("internal", "usb",
 	// "ext"), its folder there, and which drives the console has:
 	// { checked, usb, ext } (checked: false until it was asked).
@@ -87,6 +90,15 @@ public:
 	// Folders come as paths or file:// URLs (what FolderDialog gives).
 	Q_INVOKABLE void setGamesFolder(const QString &folder);
 	Q_INVOKABLE void setOutputFolder(const QString &folder);
+	// Where Packwright's program is (a path or file:// URL; "" looks for it).
+	Q_INVOKABLE void setPackwrightPath(const QString &program);
+	QString packwright() const;
+	// The places Packwright is looked for, the setting first.
+	static QString findPackwright(const QString &configured);
+	// A PS5 game (a dump folder, or an .exfat, .ffpkg, .ffpfs(c) or .zar
+	// image) made into a PS5 fake package by Packwright, in the output
+	// folder; then, with `install`, sent and installed like any package.
+	Q_INVOKABLE void packPs5(const QString &source, bool install);
 	Q_INVOKABLE void setStorage(const QString &storage);
 	Q_INVOKABLE QString folderFor(const QString &storage) const { return folderOn(storage); }
 	// Asks the console in use over FTP which drives it has (drives).
@@ -160,6 +172,9 @@ private:
 	// The end of a job: its state, then the package on its way.
 	void finishJob(const std::shared_ptr<Job> &job, bool ok, const std::string &pkgPath, const std::string &error);
 	bool runPack(const std::shared_ptr<Job> &job, const std::function<void()> &tick, std::string *pkgPath,
+		std::string *error);
+	// The same for a PS5 game, through Packwright's command line.
+	bool runPs5Pack(const std::shared_ptr<Job> &job, const std::function<void()> &tick, std::string *pkgPath,
 		std::string *error);
 	// On the worker: a job's disc from the console to this PC.
 	bool fetchFromConsole(const std::shared_ptr<Job> &job, const std::function<void()> &tick);
