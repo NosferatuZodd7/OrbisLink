@@ -193,6 +193,33 @@ ORBISLINK_TEST(sfo_round_trips_and_sorts)
 	CHECK_EQ(back.serialize().size(), sfo.fileSize());
 }
 
+// A slot size from the file sizes the rewritten file: a huge or too small one
+// must be refused, not wrapped into a short buffer.
+ORBISLINK_TEST(sfo_refuses_a_slot_bigger_than_the_file)
+{
+	ParamSfo sfo;
+	sfo.setString("TITLE", "Game", 16);
+	const Bytes good = sfo.serialize();
+	ParamSfo back;
+	CHECK(back.parse(good));
+
+	Bytes huge = good;
+	huge[0x14 + 8] = 0xFC;
+	huge[0x14 + 9] = 0xFF;
+	huge[0x14 + 10] = 0xFF;
+	huge[0x14 + 11] = 0xFF;
+	std::string error;
+	CHECK(!back.parse(huge, &error));
+	CHECK(!error.empty());
+
+	Bytes small = good;
+	small[0x14 + 8] = 2;
+	small[0x14 + 9] = 0;
+	small[0x14 + 10] = 0;
+	small[0x14 + 11] = 0;
+	CHECK(!back.parse(small));
+}
+
 ORBISLINK_TEST(sfo_cuts_long_titles_on_a_character)
 {
 	ParamSfo sfo;

@@ -53,7 +53,6 @@ class AppController : public QObject
 	// The console's firmware as Remote Play discovery reports it: "9.00",
 	// and as a number to compare with a package's (0x0900; 0 unknown).
 	Q_PROPERTY(QString consoleFirmware READ consoleFirmware NOTIFY consoleFirmwareChanged)
-	Q_PROPERTY(int consoleFirmwareValue READ consoleFirmwareValue NOTIFY consoleFirmwareChanged)
 	Q_PROPERTY(bool canUseFtp READ canUseFtp NOTIFY statusChanged)
 	Q_PROPERTY(bool queuePaused READ queuePaused NOTIFY queueStateChanged)
 	Q_PROPERTY(QString pauseReason READ pauseReason NOTIFY queueStateChanged)
@@ -122,7 +121,6 @@ class AppController : public QObject
 	Q_PROPERTY(orbislink::FtpModel *files READ files CONSTANT)
 	Q_PROPERTY(QString version READ version CONSTANT)
 	// True when the application was built with Remote Play.
-	Q_PROPERTY(bool streamAvailable READ streamAvailable CONSTANT)
 
 	// Updates: "idle", "checking", "available", "downloading",
 	// "ready", "up-to-date" or "error".
@@ -162,7 +160,6 @@ public:
 	// Kept once the slider is let go (not at each step of a drag).
 	Q_INVOKABLE void setOverlayOpacity(double opacity);
 	QString consoleFirmware() const;
-	int consoleFirmwareValue() const { return consoleFirmware_; }
 	bool canUseFtp() const;
 	// The console in use is a PS5 (by the type that was stored).
 	bool activeIsPs5() const;
@@ -249,14 +246,6 @@ public:
 	void updateSettings(const std::function<void(Settings &)> &change);
 	// Stores the PSN Account ID, so it does not have to be typed every time.
 	Q_INVOKABLE void rememberAccountId(const QString &accountId);
-	bool streamAvailable() const
-	{
-#ifdef ORBISLINK_HAS_STREAM
-		return true;
-#else
-		return false;
-#endif
-	}
 
 	// Dropping files: mode 0 = direct install, 1 = FTP upload — into the
 	// folder open in the Files tab, which is what the drop zone says.
@@ -269,7 +258,12 @@ public:
 	// was already on the console; action is "overwrite", "rename" (to name)
 	// or "skip". The other files of the drop go as they were.
 	Q_INVOKABLE void resolveUploadConflicts(const QVariantList &decisions);
-	Q_INVOKABLE void checkServicesNow();
+	Q_INVOKABLE void checkServicesNow() { checkServices(true); }
+	// The services checked now; `search` also looks for the console at once
+	// when it is not where it was saved (a check asked for by hand), else the
+	// search keeps its own pace (a queue waiting for the installer asks every
+	// few seconds, which must not search the network every few seconds).
+	void checkServices(bool search);
 	// The Remote Play state comes from chiaki (StreamController), not from
 	// the periodic check: this is how it reaches the status bar indicator.
 	Q_INVOKABLE void reportRemotePlayState(const QString &state, const QString &detail);
@@ -330,10 +324,8 @@ public:
 	// Drops the finished tasks (sent, installed, failed, cancelled) of one
 	// file: a conversion card that goes away takes its queue tasks along.
 	void removeFinishedTasksOf(const QString &localPath);
-	// A converted game: over FTP into `directory`, installed once there,
-	// and the copy on the console deleted after the install.
-	void sendAndInstall(const QString &pkg, const QString &directory);
-	// The same, or with `install` false only put there.
+	// A converted game: over FTP into `directory` and, with `install`,
+	// installed once there and the copy on the console deleted after it.
 	void sendTo(const QString &pkg, const QString &directory, bool install);
 	Q_INVOKABLE void moveTaskUp(const QString &id);
 	Q_INVOKABLE void moveTaskDown(const QString &id);
@@ -343,9 +335,8 @@ public:
 	Q_INVOKABLE void ftpNavigate(const QString &path);
 	Q_INVOKABLE void ftpRefresh();
 	Q_INVOKABLE void ftpUp();
-	// A file, or a folder with everything in it; the row shows it going.
-	Q_INVOKABLE void ftpDelete(const QString &path, bool isDirectory);
-	// Several at once, one after the other: [{ path, isDirectory }].
+	// Files, or folders with everything in them, one after the other:
+	// [{ path, isDirectory }]; each row shows it going.
 	Q_INVOKABLE void ftpDeleteMany(const QVariantList &items);
 	Q_INVOKABLE void ftpMakeDirectory(const QString &name);
 	Q_INVOKABLE void ftpRename(const QString &path, const QString &newName);
@@ -377,16 +368,7 @@ public:
 	// "MTRW" (ftpsrv: /system writable) or "KILL" (ftpsrv: stops itself).
 	Q_INVOKABLE void ftpServerCommand(const QString &command);
 	bool ftpAdvancedMode() const { return settings_.ftpAdvancedMode; }
-	// A whole folder, with everything inside it, to a folder of the PC
-	// (empty: the downloads folder).
-	Q_INVOKABLE void ftpDownloadFolder(const QString &remotePath, const QString &name,
-		const QString &destinationDir);
-
-	// Bring from the console to the PC (§5.5). Empty `destination` = default
-	// folder (desktop).
-	Q_INVOKABLE void ftpDownload(const QString &remotePath, const QString &name,
-		const QString &destinationDir);
-	// The same, but for the local cache that feeds dragging out.
+	// A file of the console, to the local cache that feeds dragging out.
 	Q_INVOKABLE void ftpPrepareForDrag(const QString &remotePath, const QString &name, qint64 size);
 	// Local URL of the file if it is already cached with the right size, otherwise empty.
 	Q_INVOKABLE QString cachedFileUrl(const QString &remotePath, qint64 size) const;

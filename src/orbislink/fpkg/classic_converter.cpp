@@ -406,7 +406,18 @@ bool convertClassic(const DiscInfo &disc, const EmulatorInfo &emulators,
 	// spending minutes on it.
 	uint64_t needed = 32ull << 20;
 	for(const PkgSource &s : request.files)
-		needed += s.sourcePath.empty() ? s.data.size() : fs::file_size(fs::u8path(s.sourcePath), ec);
+	{
+		if(s.sourcePath.empty())
+		{
+			needed += s.data.size();
+			continue;
+		}
+		// A size that cannot be read counts nothing (it is -1 then).
+		std::error_code sizeError;
+		const uintmax_t size = fs::file_size(fs::u8path(s.sourcePath), sizeError);
+		if(!sizeError)
+			needed += size;
+	}
 	const fs::space_info space = fs::space(fs::u8path(options.outputDir), ec);
 	if(!ec && space.available < needed)
 	{

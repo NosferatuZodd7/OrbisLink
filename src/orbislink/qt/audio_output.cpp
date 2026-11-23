@@ -160,12 +160,6 @@ QString AudioOutput::deviceName() const
 	return deviceName_;
 }
 
-qint64 AudioOutput::samplesPlayed() const
-{
-	QMutexLocker lock(&mutex_);
-	return samplesPlayed_;
-}
-
 void AudioOutput::configure(unsigned int channels, unsigned int rate)
 {
 	{
@@ -292,7 +286,6 @@ void AudioOutput::ensureStarted()
 		QMutexLocker lock(&mutex_);
 		sink_ = std::move(fresh);
 		pushTarget_ = target;
-		pushMode_ = true;
 		state_ = QStringLiteral("playing");
 		sinkState_ = stateName(sink_->state());
 		deviceLabel = deviceName_;
@@ -353,7 +346,7 @@ void AudioOutput::feedPushMode()
 	qint64 space = 0;
 	{
 		QMutexLocker lock(&mutex_);
-		if(!pushMode_ || !sink_ || !pushTarget_)
+		if(!sink_ || !pushTarget_)
 			return;
 		target = pushTarget_;
 		// The card's buffer is the only brake we need: write everything
@@ -431,31 +424,28 @@ void AudioOutput::write(const int16_t *pcm, size_t samples)
 		return;
 
 	int channels = 0;
-	bool converter = false;
 	{
 		QMutexLocker lock(&mutex_);
 		if(muted_ || !configured_)
 			return;
 		channels = format_.channelCount();
-		converter = converter_.needed();
 		samplesPlayed_ += static_cast<qint64>(samples);
 		++framesReceived_;
+
+		if(converter_.needed())
+		{
+			// Under the lock: ensureStarted() configures converter_ on the
+			// UI thread while this runs on chiaki's.
+			const std::vector<int16_t> &converted = converter_.convert(pcm, samples);
+			if(!converted.empty())
+				queue_.push(reinterpret_cast<const char *>(converted.data()),
+					static_cast<qint64>(converted.size()) * 2);
+			return;
+		}
 	}
 
-	if(!converter)
-	{
-		queue_.push(reinterpret_cast<const char *>(pcm),
-			static_cast<qint64>(samples) * channels * 2);
-		return;
-	}
-
-	// Conversion happens on chiaki's thread, the same one that always
-	// wrote here; converter_ is not touched by anyone else once
-	// configured.
-	const std::vector<int16_t> &converted = converter_.convert(pcm, samples);
-	if(!converted.empty())
-		queue_.push(reinterpret_cast<const char *>(converted.data()),
-			static_cast<qint64>(converted.size()) * 2);
+	queue_.push(reinterpret_cast<const char *>(pcm),
+		static_cast<qint64>(samples) * channels * 2);
 }
 
 void AudioOutput::setMuted(bool muted)
@@ -478,7 +468,6 @@ void AudioOutput::stop()
 		QMutexLocker lock(&mutex_);
 		dead = std::move(sink_);
 		pushTarget_ = nullptr;
-		pushMode_ = false;
 		// The session's numbers stay for the diagnostics; only mark that
 		// it ended, so it does not look like the sound never arrived. It
 		// can be called again after the session is gone: that must not

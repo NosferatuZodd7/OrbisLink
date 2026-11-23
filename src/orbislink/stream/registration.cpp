@@ -143,8 +143,6 @@ void registCallback(ChiakiRegistEvent *event, void *user)
 StreamRegistration::StreamRegistration() : impl_(std::make_unique<Impl>()) {}
 StreamRegistration::~StreamRegistration() = default;
 
-bool StreamRegistration::running() const { return impl_->running.load(); }
-
 bool StreamRegistration::start(const Request &request, Finished finished, std::string *error)
 {
 	if(impl_->running.load())
@@ -175,6 +173,16 @@ bool StreamRegistration::start(const Request &request, Finished finished, std::s
 		if(error)
 			*error = decodeError;
 		return false;
+	}
+
+	// A previous attempt (a wrong PIN, say) has already finished, but its
+	// thread, stop pipe and copied strings are only released by fini, which
+	// joins: chiaki_regist_start would overwrite them.
+	if(impl_->started)
+	{
+		chiaki_regist_stop(&impl_->regist);
+		chiaki_regist_fini(&impl_->regist);
+		impl_->started = false;
 	}
 
 	{

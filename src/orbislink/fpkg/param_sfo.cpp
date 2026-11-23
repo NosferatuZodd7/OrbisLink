@@ -92,6 +92,11 @@ bool ParamSfo::parse(const uint8_t *data, size_t size, std::string *error)
 		const size_t dataAt = size_t(dataTable) + le32(entry + 12);
 		if(keyAt >= avail || dataAt > avail || dataAt + len > avail)
 			return fail("param.sfo entry runs past the end");
+		// serialize() sizes the file from maxLength and copies text into it,
+		// so a slot bigger than the file or smaller than its text is refused.
+		const bool isText = type == Type::Utf8 || type == Type::Utf8Special;
+		if(isText && (maxLen < len || dataAt + maxLen > avail))
+			return fail("param.sfo entry has a bad size");
 		Value v;
 		const char *key = reinterpret_cast<const char *>(base + keyAt);
 		v.name.assign(key, strnlen(key, avail - keyAt));

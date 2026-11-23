@@ -140,13 +140,14 @@ QString Diagnostics::report(AppController *app)
 		}
 	}
 
-#ifdef ORBISLINK_HAS_STREAM
+	// Drag and drop is in every build, Remote Play or not.
 	if(app)
 	{
 		heading(out, "Drag and drop");
 		out << app->dragSummary() << "\n";
 	}
 
+#ifdef ORBISLINK_HAS_STREAM
 	heading(out, "Remote Play — video");
 	if(app && !app->videoProbe().isEmpty())
 		out << app->videoProbe();

@@ -478,9 +478,11 @@ int main(int argc, char **argv)
 		auto *chrome = new WindowChrome(window, window);
 		engine.rootContext()->setContextProperty(QStringLiteral("chrome"), chrome);
 		QMetaObject::invokeMethod(window, "applyTheme", Qt::QueuedConnection);
-		// When the first frame appears, startup went well.
+		// When the first frame appears, startup went well (once: the frames
+		// after it, sixty a second, have nothing to mark).
 		QObject::connect(window, &QQuickWindow::frameSwapped, &app, [drawn]() {
-			drawn->storeRelaxed(1);
+			if(drawn->fetchAndStoreRelaxed(1) != 0)
+				return;
 			startup::markLaunchSucceeded();
 		});
 

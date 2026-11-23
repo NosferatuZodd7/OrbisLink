@@ -12,6 +12,7 @@ bool iequals(const std::string &a, const std::string &b);
 bool startsWith(const std::string &s, const std::string &prefix);
 bool endsWith(const std::string &s, const std::string &suffix);
 std::string toLower(const std::string &s);
+std::string toUpper(std::string s);
 std::vector<std::string> split(const std::string &s, char sep, bool keepEmpty = true);
 std::string join(const std::vector<std::string> &parts, const std::string &sep);
 
@@ -30,9 +31,15 @@ std::string joinPath(const std::string &a, const std::string &b);
 std::string normalizeRemotePath(const std::string &path);
 
 // Size of a local file in bytes; -1 if it does not exist or cannot be read.
+// These three take UTF-8 paths, on Windows too.
 int64_t fileSize(const std::string &path);
 bool fileExists(const std::string &path);
 bool directoryExists(const std::string &path);
+
+// Writes `content` to path + ".tmp" and then renames it over `path`, so a
+// crash or a full disk never leaves the old file cut short. `path` is in the
+// narrow encoding std::ofstream takes (the ANSI code page on Windows).
+bool writeFileReplacing(const std::string &path, const std::string &content);
 
 std::string humanBytes(int64_t bytes);
 std::string humanDuration(int64_t seconds);

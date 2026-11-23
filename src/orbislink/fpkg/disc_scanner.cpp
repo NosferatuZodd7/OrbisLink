@@ -91,7 +91,8 @@ std::string readSystemCnf(SectorReader &reader)
 		for(size_t pos = 0; pos < 2048;)
 		{
 			const uint8_t len = sector[pos];
-			if(len == 0 || pos + len > 2048)
+			// A record is at least 34 bytes: 33 fixed, then its name.
+			if(len < 34 || pos + len > 2048)
 				break;
 			const uint8_t nameLen = sector[pos + 32];
 			std::string name(reinterpret_cast<const char *>(sector + pos + 33),

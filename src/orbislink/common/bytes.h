@@ -10,8 +10,6 @@ namespace orbislink {
 // Integer readers with explicit endianness.
 // PS4 PKG headers are big-endian; PARAM.SFO is little-endian.
 
-inline uint16_t readBE16(const uint8_t *p) { return static_cast<uint16_t>((p[0] << 8) | p[1]); }
-
 inline uint32_t readBE32(const uint8_t *p)
 {
 	return (static_cast<uint32_t>(p[0]) << 24) | (static_cast<uint32_t>(p[1]) << 16)

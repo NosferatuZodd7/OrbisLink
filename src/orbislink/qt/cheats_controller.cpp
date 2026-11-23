@@ -339,7 +339,8 @@ CheatsController::Snapshot CheatsController::read(FtpClient &ftp, const Context 
 
 	// ── the repositories' lists: the game's files, from each repository
 	std::vector<Listing> listings;
-	QSet<QString> seen;
+	std::vector<CheatListing> found;
+	std::map<QString, std::string> baseOf; // lower-case console name → repository
 	bool anyList = false;
 	for(const std::string &base : cheatRepositories(context.ps5))
 	{
@@ -367,26 +368,16 @@ CheatsController::Snapshot CheatsController::read(FtpClient &ftp, const Context 
 				if(!iequals(item.titleId, context.titleId))
 					continue;
 				// The same file in two repositories: the first one's.
-				const QString key = toQ(item.consoleName()).toLower();
-				if(seen.contains(key))
+				if(!baseOf.emplace(toQ(item.consoleName()).toLower(), base).second)
 					continue;
-				seen.insert(key);
-				listings.push_back({ item, base });
+				found.push_back(item);
 			}
 		}
 	}
 	snapshot.loaded = anyList;
-	std::stable_sort(listings.begin(), listings.end(), [&version](const Listing &a, const Listing &b) {
-		const bool aExact = !version.empty() && a.item.version == version;
-		const bool bExact = !version.empty() && b.item.version == version;
-		if(aExact != bExact)
-			return aExact;
-		if(a.item.version != b.item.version)
-			return a.item.version > b.item.version;
-		if(a.item.format != b.item.format)
-			return static_cast<int>(a.item.format) < static_cast<int>(b.item.format);
-		return a.item.variant < b.item.variant;
-	});
+	// Those for the game's version first, then the others newest first.
+	for(const CheatListing &item : cheats::cheatsFor(found, context.titleId, context.version))
+		listings.push_back({ item, baseOf[toQ(item.consoleName()).toLower()] });
 
 	// ── what the console has: its cheat folders, for this game
 	const cheats::Console console = context.ps5 ? cheats::Console::EtaHen : cheats::Console::GoldHen;

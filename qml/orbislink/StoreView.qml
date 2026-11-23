@@ -118,17 +118,6 @@ Item {
                 names.push(store.stores[i].name)
         return names
     }
-    readonly property var storeTroubles: {
-        var lines = []
-        for (var i = 0; i < store.stores.length; ++i) {
-            var s = store.stores[i]
-            if (!s.enabled || s.error.length === 0)
-                continue
-            lines.push(s.offline ? qsTr("%1 did not answer (%2): its apps are the ones kept from last time.").arg(s.name).arg(s.error)
-                                 : qsTr("%1 could not be read: %2").arg(s.name).arg(s.error))
-        }
-        return lines
-    }
     // The stores an app can come from now, onto the console in use.
     function readySources(app) {
         var list = []
@@ -182,69 +171,6 @@ Item {
         required property string platform
         text: platform === "ps4" ? "PS4" : "PS5"
         tone: platform === "ps4" ? "accent" : "neutral"
-    }
-
-    // A filter: a round-ended pill of glass, bright when it is the one in
-    // use (a chip button cannot say "chosen").
-    component FilterPill: Rectangle {
-        id: pill
-        property string text: ""
-        property string iconName: ""
-        property string count: ""
-        property bool chosen: false
-        property string tip: ""
-        signal clicked()
-
-        implicitWidth: pillRow.implicitWidth + 24
-        implicitHeight: 32
-        radius: height / 2
-        color: chosen ? (Theme.light ? Qt.rgba(1, 1, 1, 0.92) : Qt.rgba(1, 1, 1, 0.14))
-             : pillHover.hovered ? Theme.controlHover : Theme.controlFill
-        border.width: activeFocus ? 2 : 1
-        border.color: activeFocus ? Theme.alpha(Theme.accent, 0.8)
-                    : chosen ? (Theme.light ? Qt.rgba(1, 1, 1, 1) : Qt.rgba(1, 1, 1, Theme.glassBorder + 0.14))
-                    : Theme.light ? Qt.rgba(1, 1, 1, 0.75) : Theme.glassEdge
-        Behavior on color { ColorAnimation { duration: Theme.fast } }
-
-        activeFocusOnTab: true
-        Accessible.role: Accessible.Button
-        Accessible.name: text
-        Keys.onSpacePressed: clicked()
-        Keys.onReturnPressed: clicked()
-        ToolTip.visible: pillHover.hovered && tip.length > 0
-        ToolTip.text: tip
-        ToolTip.delay: 400
-
-        HoverHandler { id: pillHover; cursorShape: Qt.PointingHandCursor }
-        TapHandler { onTapped: pill.clicked() }
-
-        Row {
-            id: pillRow
-            anchors.centerIn: parent
-            spacing: 6
-            Icon {
-                visible: pill.iconName.length > 0
-                anchors.verticalCenter: parent.verticalCenter
-                name: pill.iconName
-                size: 13
-                color: pill.chosen ? Theme.accent : Theme.textSecondary
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: pill.text
-                color: pill.chosen ? Theme.ink : Theme.text
-                font.pixelSize: 12
-                font.weight: pill.chosen ? Font.DemiBold : Font.Medium
-            }
-            Text {
-                visible: pill.count.length > 0
-                anchors.verticalCenter: parent.verticalCenter
-                text: pill.count
-                color: Theme.textSecondary
-                font.family: Theme.fontMono
-                font.pixelSize: 11
-            }
-        }
     }
 
     onVisibleChanged: if (visible && store.apps.length === 0 && !store.loading) store.refresh()
@@ -377,7 +303,6 @@ Item {
                 Repeater {
                     model: store.stores
                     Tag {
-                        id: sourceTag
                         required property var modelData
                         visible: modelData.enabled
                         text: modelData.name + (modelData.count > 0 ? "  " + modelData.count : "")

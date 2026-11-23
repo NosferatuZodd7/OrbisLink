@@ -23,10 +23,10 @@ struct ServedFileStats
 	std::string path;    // real local path (never exposed)
 	int64_t size = 0;
 	int64_t bytesSent = 0;
-	int64_t requestCount = 0;
-	int64_t registeredAtMs = 0;
-	int64_t firstByteAtMs = -1; // -1 = the console has not downloaded anything yet
-	int64_t lastActivityMs = -1;
+	// The bytes of the file sent at least once: the console asks for some
+	// parts more than once, so bytesSent can pass the size before it has
+	// the whole file.
+	int64_t bytesCovered = 0;
 };
 
 // Local HTTP server that serves the pkg files to the console (§5.3).
@@ -62,17 +62,15 @@ public:
 	std::string bindAddress() const;
 
 	// Registers a file and returns the token; an empty string if the file does
-	// not exist. The token stops being valid at unregisterFile()/clearFiles().
+	// not exist. The token stops being valid at unregisterFile().
 	std::string registerFile(const std::string &path, const std::string &displayName = std::string());
 	bool unregisterFile(const std::string &token);
-	void clearFiles();
 
 	// http://<ip>:<porta>/f/<token>/<nome>.pkg
 	std::string urlForToken(const std::string &token) const;
 	bool statsForToken(const std::string &token, ServedFileStats *out) const;
 	std::vector<ServedFileStats> allStats() const;
 
-	void setAllowedClient(const std::string &ip);
 	std::string allowedClient() const;
 
 private:
@@ -89,6 +87,8 @@ private:
 	mutable std::mutex mutex_;
 	mutable std::condition_variable workersDone_;
 	std::map<std::string, ServedFileStats> files_;
+	// Each file's parts sent (start → end, not overlapping), for bytesCovered.
+	std::map<std::string, std::map<int64_t, int64_t>> covered_;
 	std::set<socket_t> clients_;
 	int activeWorkers_ = 0;
 };

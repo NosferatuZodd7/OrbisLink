@@ -46,14 +46,9 @@ class LibraryController : public QObject
 	//    ("working"/"done"/"error"/"cancelled"), stageText, message; a copy
 	//    also percent, speedText, etaText, amountText and folder }]
 	Q_PROPERTY(QVariantList jobs READ jobs NOTIFY jobsChanged)
-	// The library folders the console has: [{ path, drive }].
-	Q_PROPERTY(QVariantList folders READ folders NOTIFY itemsChanged)
 	Q_PROPERTY(bool scanning READ scanning NOTIFY itemsChanged)
 	Q_PROPERTY(bool scanned READ scanned NOTIFY itemsChanged)
 	Q_PROPERTY(bool busy READ busy NOTIFY busyChanged)
-	Q_PROPERTY(QString status READ status NOTIFY itemsChanged)
-	// What the console in use is, as the actions depend on it.
-	Q_PROPERTY(bool ps5 READ ps5 NOTIFY itemsChanged)
 
 public:
 	LibraryController(AppController *app, GamesController *games, QObject *parent = nullptr);
@@ -61,22 +56,12 @@ public:
 
 	QVariantList items() const { return items_; }
 	QVariantList jobs() const { return jobs_; }
-	QVariantList folders() const { return folders_; }
 	bool scanning() const { return scanning_; }
 	bool scanned() const { return scanned_; }
 	bool busy() const { return busy_; }
-	QString status() const { return status_; }
-	bool ps5() const;
 
 	// Reads the folders again.
 	Q_INVOKABLE void refresh();
-	// Does the item's action.
-	Q_INVOKABLE void act(const QString &path);
-	// A disc: converted, its package put back beside it and, when asked,
-	// installed.
-	Q_INVOKABLE void convert(const QString &path, bool install);
-	// Deletes a file from the library.
-	Q_INVOKABLE void remove(const QString &path);
 	// Deletes files of the console, one after the other, as one job.
 	void removeMany(const QStringList &paths);
 	Q_INVOKABLE void removeJob(const QString &id);
@@ -138,8 +123,6 @@ signals:
 	void finished(const QString &message, bool error);
 
 private:
-	// The item at that path (empty when there is none).
-	QVariantMap itemAt(const QString &path) const;
 	// A job on the action thread; refreshes after when asked. With a `kind`,
 	// it has a card in the installs panel.
 	void runAction(const QString &what, std::function<QString(FtpClient &ftp, bool *error)> job, bool rescan,
@@ -182,14 +165,12 @@ private:
 	AppController *app_;
 	GamesController *games_;
 	QVariantList items_;
-	QVariantList folders_;
 	QVariantList jobs_;
 	int nextJob_ = 1;
 	QSet<QString> finishedSeen_;
 	bool scanning_ = false;
 	bool scanned_ = false;
 	bool busy_ = false;
-	QString status_;
 	std::atomic<bool> cancel_ { false };
 	std::thread scanner_;
 	std::thread worker_;

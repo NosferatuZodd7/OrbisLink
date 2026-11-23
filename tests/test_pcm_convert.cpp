@@ -63,6 +63,30 @@ ORBISLINK_TEST(phase_continues_across_frames)
 	CHECK(total >= 44050 && total <= 44150);
 }
 
+ORBISLINK_TEST(no_sample_is_lost_between_frames)
+{
+	// The gap between two frames is interpolated too: a converter that
+	// dropped it would lose one sample per frame and underrun.
+	const int formats[][4] = {
+		{ 48000, 2, 48000, 1 },
+		{ 48000, 2, 44100, 2 },
+		{ 48000, 2, 96000, 2 },
+		{ 48000, 1, 22050, 2 },
+	};
+	for(const auto &format : formats)
+	{
+		PcmConverter conv;
+		conv.configure(format[0], format[1], format[2], format[3]);
+		const auto input = sine(480, format[1], 440.0, format[0]);
+		long total = 0;
+		for(int i = 0; i < 1000; ++i)
+			total += static_cast<long>(conv.convert(input.data(), 480).size() / format[3]);
+		// 1000 frames of 10 ms = 10 seconds.
+		const long expected = 10L * format[2];
+		CHECK(total >= expected - 1 && total <= expected + 1);
+	}
+}
+
 ORBISLINK_TEST(mono_to_stereo_duplicates_the_channel)
 {
 	PcmConverter conv;

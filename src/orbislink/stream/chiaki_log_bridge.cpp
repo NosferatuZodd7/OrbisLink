@@ -76,8 +76,42 @@ std::string shapeOf(const char *message)
 	return shape;
 }
 
+bool isHexDigit(char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); }
+
+// A line of chiaki_log_hexdump (lib/src/log.c): its header, or a row made
+// with "%6zx %s%s" — a 6-wide offset, 16 "hh " cells (blank past the end)
+// and 16 characters of text. The dumps are registration replies and session
+// requests, with the RP-Key and the registration key in them, cut into
+// pieces redactSensitive cannot recognise. So they are not logged at all.
+bool isHexdumpLine(const char *message)
+{
+	static const char header[] = "offset 0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f";
+	if(std::strncmp(message, header, sizeof(header) - 1) == 0)
+		return true;
+	constexpr size_t kWidth = 16;
+	if(std::strlen(message) != 6 + 1 + kWidth * 3 + kWidth || message[6] != ' ' || !isHexDigit(message[5]))
+		return false;
+	for(size_t i = 0; i < 5; ++i)
+	{
+		if(message[i] != ' ' && !isHexDigit(message[i]))
+			return false;
+	}
+	for(size_t i = 0; i < kWidth; ++i)
+	{
+		const char *cell = message + 7 + i * 3;
+		const bool byte = isHexDigit(cell[0]) && isHexDigit(cell[1]);
+		const bool blank = cell[0] == ' ' && cell[1] == ' ';
+		if((!byte && !blank) || cell[2] != ' ')
+			return false;
+	}
+	return true;
+}
+
 void forward(ChiakiLogLevel level, const char *message, void *)
 {
+	if(isHexdumpLine(message))
+		return;
+
 	static const char prefix[] = "Reported Application Reason: ";
 	if(std::strncmp(message, prefix, sizeof(prefix) - 1) == 0)
 		reason.store(static_cast<uint32_t>(std::strtoul(message + sizeof(prefix) - 1, nullptr, 16)));

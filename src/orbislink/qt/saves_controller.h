@@ -127,7 +127,8 @@ private:
 	// epoch), kept in a file beside the settings so a restart does not redo it.
 	QHash<QString, qint64> lastAutoBackup_;
 	bool lastAutoBackupRead_ = false;
-	// The application closing: an automatic backup stops between saves.
+	// The application closing: a backup or a sending stops between saves,
+	// and the console is not read again.
 	std::atomic<bool> autoStop_ { false };
 	void saveLastAutoBackup() const;
 	// `quiet`: a console that cannot be read says nothing (the automatic backup).

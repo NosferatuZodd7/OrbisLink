@@ -145,7 +145,6 @@ Item {
         }
         return out
     }
-    readonly property bool manyOwners: groups.length > 1
 
     // The consoles saves can go to: the ones whose FTP answers.
     readonly property var targets: {

@@ -627,8 +627,11 @@ void SavesController::run(const QString &what, Job job, bool quiet)
 		if(job)
 			message = job(remote, vault, list, &error);
 		// Every action ends with a fresh look at both sides.
+		// Not while the application closes: a full walk of the console's
+		// folders would hold it open.
+		const bool look = reachable && !autoStop_.load();
 		std::string scanError;
-		if(reachable)
+		if(look)
 		{
 			list = vault.scan(remote, &scanError, [this](const std::string &title, double fraction) {
 				setProgress(tr("Reading the console's saves… %1").arg(QString::fromStdString(title)), fraction);
@@ -648,7 +651,7 @@ void SavesController::run(const QString &what, Job job, bool quiet)
 		{
 			list = vault.vaultSaves();
 		}
-		publish(list, vault, reachable && scanError.empty() ? &remote : nullptr);
+		publish(list, vault, look && scanError.empty() ? &remote : nullptr);
 		{
 			std::lock_guard<std::mutex> lock(mutex_);
 			missingMeta_[shown.address] = vault.missingMeta();
@@ -709,6 +712,12 @@ void SavesController::backup(const QStringList &keys)
 		QStringList failed;
 		for(size_t i = 0; i < chosen.size(); ++i)
 		{
+			// The application closing: it stops between saves.
+			if(autoStop_.load())
+			{
+				logInfo("Saves: backup stopped, the application is closing.");
+				return QString();
+			}
 			SaveInfo save = chosen[i];
 			if(!save.onConsole && !save.onUsb)
 				continue;
@@ -769,6 +778,13 @@ void SavesController::send(const QStringList &keys, const QString &address)
 		std::map<std::string, std::vector<SaveDbEntry>> sent;
 		for(size_t i = 0; i < chosen.size(); ++i)
 		{
+			// The application closing: it stops between saves; those sent
+			// still go in the console's list below.
+			if(autoStop_.load())
+			{
+				logInfo("Saves: sending stopped, the application is closing.");
+				break;
+			}
 			SaveInfo save = chosen[i];
 			// Only on a USB drive: into the vault first (the vault folder is
 			// where saves are kept), then on to the console.

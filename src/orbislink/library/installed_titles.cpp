@@ -3,6 +3,7 @@
 
 #include "orbislink/common/json.h"
 #include "orbislink/common/util.h"
+#include "orbislink/library/text.h"
 #include "orbislink/pkg/sfo_parser.h"
 
 #include <algorithm>
@@ -26,13 +27,6 @@ bool titleIdLike(const std::string &name)
 		if(!std::isdigit(static_cast<unsigned char>(name[i])))
 			return false;
 	return true;
-}
-
-std::string upper(std::string text)
-{
-	for(char &c : text)
-		c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-	return text;
 }
 
 // A PS5 title ID: PPSA (and the region and test series that go with it).

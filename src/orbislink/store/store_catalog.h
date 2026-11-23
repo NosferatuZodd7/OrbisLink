@@ -85,6 +85,10 @@ bool parseAppDetail(const std::string &bytes, StoreAppDetail *out, std::string *
 constexpr int kNotComparable = -1000;
 int compareContentVersions(const std::string &a, const std::string &b);
 
+// A title ID as the catalog and the PS5 use it: four capital letters and
+// five digits ("PPSA01234").
+bool plainTitleId(const std::string &id);
+
 // Fetching it: the main site first, the mirror when it does not answer.
 // Kept in `cacheDir`: the last catalog that checked out (shown when offline,
 // checked again on reading), the highest sequence ever accepted (an older

@@ -41,7 +41,6 @@ public:
 	// Starts registration. `finished` is called on a chiaki thread.
 	bool start(const Request &request, Finished finished, std::string *error = nullptr);
 	void cancel();
-	bool running() const;
 
 private:
 	std::unique_ptr<Impl> impl_;

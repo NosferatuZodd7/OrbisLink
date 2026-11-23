@@ -4,15 +4,16 @@
 #include "orbislink/common/log.h"
 #include "orbislink/common/tr.h"
 #include "orbislink/common/util.h"
+#include "orbislink/net/curl_global.h"
 
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
 #include <chrono>
-#include <condition_variable>
 #include <cstdio>
 #include <cstring>
 #include <curl/curl.h>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <thread>
@@ -20,15 +21,6 @@
 namespace orbislink {
 
 namespace {
-
-std::condition_variable g_slotAvailable;
-
-std::string upperCase(std::string text)
-{
-	for(char &c : text)
-		c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-	return text;
-}
 
 // Days since 1970-01-01 → year, month, day (Howard Hinnant's civil_from_days).
 void civilFromDays(int64_t days, int *year, int *month, int *day)
@@ -113,16 +105,10 @@ void sortEntries(std::vector<FtpEntry> &entries)
 	});
 }
 
-struct CurlGlobalFtp
+// Whether text can go into a raw FTP command line as it is.
+bool safeInCommand(const std::string &text)
 {
-	CurlGlobalFtp() { curl_global_init(CURL_GLOBAL_DEFAULT); }
-	~CurlGlobalFtp() { curl_global_cleanup(); }
-};
-
-void ensureCurl()
-{
-	static CurlGlobalFtp global;
-	(void)global;
+	return text.find_first_of(std::string("\r\n\0", 3)) == std::string::npos;
 }
 
 size_t appendToString(char *data, size_t size, size_t count, void *userdata)
@@ -277,20 +263,20 @@ struct FtpClient::Slot
 	{
 		std::unique_lock<std::mutex> lock(owner->slotMutex_);
 		const int limit = std::max(1, std::min(2, owner->config_.maxConnections));
-		g_slotAvailable.wait(lock, [&]() { return owner->slotsInUse_ < limit; });
+		owner->slotAvailable_.wait(lock, [&]() { return owner->slotsInUse_ < limit; });
 		++owner->slotsInUse_;
 	}
 	~Slot()
 	{
 		std::lock_guard<std::mutex> lock(owner->slotMutex_);
 		--owner->slotsInUse_;
-		g_slotAvailable.notify_one();
+		owner->slotAvailable_.notify_one();
 	}
 };
 
 FtpClient::FtpClient(Config config) : config_(std::move(config))
 {
-	ensureCurl();
+	ensureCurlGlobal();
 	if(config_.port == 0)
 		config_.port = 2121;
 	if(config_.maxConnections < 1)
@@ -336,7 +322,7 @@ constexpr size_t kIdleHandles = 2;
 
 void *FtpClient::takeHandle()
 {
-	ensureCurl();
+	ensureCurlGlobal();
 	CURL *handle = nullptr;
 	std::vector<CURL *> stale;
 	{
@@ -596,7 +582,7 @@ bool FtpClient::probe(std::string *detail)
 	const Config cfg = config();
 	// ConsoleManager confirms the "220" with a TCP probe; here the anonymous
 	// login is confirmed with a PWD.
-	ensureCurl();
+	ensureCurlGlobal();
 	CURL *curl = curl_easy_init();
 	if(!curl)
 		return false;
@@ -695,34 +681,7 @@ bool FtpClient::isDirectory(const std::string &remotePath)
 FtpResult FtpClient::remoteSize(const std::string &remotePath, int64_t *size)
 {
 	const std::string path = normalizeRemotePath(remotePath);
-	return withRetries("get size of " + path, [&]() -> FtpResult {
-		const Config cfg = config();
-		CURL *curl = static_cast<CURL *>(takeHandle());
-		if(!curl)
-			return FtpResult::failure("could not initialise libcurl");
-
-		char errorBuffer[CURL_ERROR_SIZE] = { 0 };
-		applyCommonOptions(curl, cfg, errorBuffer);
-		curl_easy_setopt(curl, CURLOPT_URL, urlFor(path).c_str());
-		curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
-		curl_easy_setopt(curl, CURLOPT_FILETIME, 1L);
-		std::string headers;
-		curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, appendToString);
-		curl_easy_setopt(curl, CURLOPT_HEADERDATA, &headers);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, appendToString);
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &headers);
-
-		const CURLcode code = curl_easy_perform(curl);
-		curl_off_t remote = -1;
-		if(code == CURLE_OK)
-			curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &remote);
-		giveBack(curl, code == CURLE_OK);
-		if(code != CURLE_OK)
-			return readFailure(code, errorBuffer);
-		if(size)
-			*size = static_cast<int64_t>(remote);
-		return FtpResult::success();
-	});
+	return withRetries("get size of " + path, [&]() -> FtpResult { return querySize(path, size); });
 }
 
 FtpResult FtpClient::upload(const std::string &localPath, const std::string &remotePath,
@@ -776,7 +735,7 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 			}
 			int64_t remote = -1;
 			alreadyThere = 0;
-			if(remoteIsOurs && appendWorks && querySize(path, &remote) && remote > 0 && remote < localSize)
+			if(remoteIsOurs && appendWorks && querySize(path, &remote).ok && remote > 0 && remote < localSize)
 				alreadyThere = remote;
 			if(alreadyThere > 0)
 				logInfo("FTP: " + what + " goes on from " + std::to_string(alreadyThere) + " bytes.");
@@ -790,7 +749,7 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 			// closed early can still end in a "226 Transfer complete". A
 			// server that does not say (no SIZE) is taken at its word.
 			int64_t remote = -1;
-			if(!querySize(path, &remote) || remote < 0 || remote == localSize)
+			if(!querySize(path, &remote).ok || remote < 0 || remote == localSize)
 				break;
 			logWarning("FTP: " + what + " ended with " + std::to_string(remote) + " of "
 				+ std::to_string(localSize) + " bytes on the console.");
@@ -819,12 +778,12 @@ FtpResult FtpClient::upload(const std::string &localPath, const std::string &rem
 	return result;
 }
 
-bool FtpClient::querySize(const std::string &path, int64_t *size)
+FtpResult FtpClient::querySize(const std::string &path, int64_t *size)
 {
 	const Config cfg = config();
 	CURL *curl = static_cast<CURL *>(takeHandle());
 	if(!curl)
-		return false;
+		return FtpResult::failure("could not initialise libcurl");
 	char errorBuffer[CURL_ERROR_SIZE] = { 0 };
 	applyCommonOptions(curl, cfg, errorBuffer);
 	curl_easy_setopt(curl, CURLOPT_URL, urlFor(path).c_str());
@@ -840,9 +799,10 @@ bool FtpClient::querySize(const std::string &path, int64_t *size)
 		curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &remote);
 	giveBack(curl, code == CURLE_OK);
 	if(code != CURLE_OK)
-		return false;
-	*size = static_cast<int64_t>(remote);
-	return true;
+		return readFailure(code, errorBuffer);
+	if(size)
+		*size = static_cast<int64_t>(remote);
+	return FtpResult::success();
 }
 
 FtpResult FtpClient::uploadOnce(const std::string &localPath, const std::string &path,
@@ -850,7 +810,9 @@ FtpResult FtpClient::uploadOnce(const std::string &localPath, const std::string 
 {
 	Slot slot(this);
 	const Config cfg = config();
-	std::ifstream input(localPath, std::ios::binary);
+	// u8path: the path is UTF-8, and on Windows a narrow string would be
+	// read in the ANSI code page.
+	std::ifstream input(std::filesystem::u8path(localPath), std::ios::binary);
 	if(!input)
 		return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Messages", "Could not open the file")) + ": " + localPath);
 	if(from > 0)
@@ -1009,7 +971,7 @@ FtpResult FtpClient::downloadOnce(const std::string &path, const std::string &lo
 	std::vector<char> diskBuffer(1024 * 1024);
 	std::ofstream output;
 	output.rdbuf()->pubsetbuf(diskBuffer.data(), static_cast<std::streamsize>(diskBuffer.size()));
-	output.open(localPath, std::ios::binary | (from > 0 ? std::ios::app : std::ios::trunc));
+	output.open(std::filesystem::u8path(localPath), std::ios::binary | (from > 0 ? std::ios::app : std::ios::trunc));
 	if(!output)
 		return FtpResult::failure(std::string(QT_TRANSLATE_NOOP("Messages", "Could not write to the file")) + ": " + localPath);
 
@@ -1059,7 +1021,7 @@ FtpResult FtpClient::downloadOnce(const std::string &path, const std::string &lo
 
 bool FtpClient::freeSpace(const std::string &remoteDir, int64_t *bytes)
 {
-	if(noFreeSpace_.load())
+	if(noFreeSpace_.load() || !safeInCommand(remoteDir))
 		return false;
 	const Config cfg = config();
 	CURL *curl = static_cast<CURL *>(takeHandle());
@@ -1162,6 +1124,20 @@ FtpResult FtpClient::read(const std::string &remotePath, int64_t offset, size_t 
 
 FtpResult FtpClient::runCommands(const std::vector<std::string> &commands, std::string *replies)
 {
+	// A line break in a path would end the command there and send the rest
+	// as a command of its own; a NUL would cut it short (DELE of another
+	// file). Refused before anything is sent.
+	for(const std::string &command : commands)
+	{
+		if(!safeInCommand(command))
+		{
+			FtpResult refused = FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "The path contains a line "
+				"break or a null character, which an FTP command cannot carry."));
+			refused.final = true;
+			return refused;
+		}
+	}
+
 	const Config cfg = config();
 	CURL *curl = static_cast<CURL *>(takeHandle());
 	if(!curl)
@@ -1262,7 +1238,7 @@ bool FtpClient::hasFeature(const std::string &feature)
 	{
 		std::lock_guard<std::mutex> lock(featureMutex_);
 		if(featuresKnown_)
-			return std::find(features_.begin(), features_.end(), upperCase(feature)) != features_.end();
+			return std::find(features_.begin(), features_.end(), toUpper(feature)) != features_.end();
 	}
 	// "*": a server without FEAT answers with an error, and that is no failure.
 	std::string replies;
@@ -1279,7 +1255,7 @@ bool FtpClient::hasFeature(const std::string &feature)
 		std::istringstream words(trim(line));
 		std::string word;
 		if(words >> word)
-			found.push_back(upperCase(word));
+			found.push_back(toUpper(word));
 	}
 	std::lock_guard<std::mutex> lock(featureMutex_);
 	// Not reached at all (the console away): asked again next time.
@@ -1294,7 +1270,7 @@ bool FtpClient::hasFeature(const std::string &feature)
 			list += (list.empty() ? "" : " ") + name;
 		logDebug("FTP: the server offers " + list);
 	}
-	return std::find(features_.begin(), features_.end(), upperCase(feature)) != features_.end();
+	return std::find(features_.begin(), features_.end(), toUpper(feature)) != features_.end();
 }
 
 FtpResult FtpClient::command(const std::string &line, std::string *reply)

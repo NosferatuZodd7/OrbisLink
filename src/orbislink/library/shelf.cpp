@@ -4,6 +4,7 @@
 #include "orbislink/common/json.h"
 #include "orbislink/common/util.h"
 #include "orbislink/ftp/ftp_client.h"
+#include "orbislink/library/text.h"
 #include "orbislink/pkg/pkg_inspector.h"
 #include "orbislink/update/sha256.h"
 
@@ -22,26 +23,6 @@ namespace orbislink {
 namespace library {
 
 namespace {
-
-std::string lower(std::string text)
-{
-	std::transform(text.begin(), text.end(), text.begin(),
-		[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-	return text;
-}
-
-std::string upper(std::string text)
-{
-	std::transform(text.begin(), text.end(), text.begin(),
-		[](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-	return text;
-}
-
-std::string extensionOf(const std::string &name)
-{
-	const size_t dot = name.rfind('.');
-	return dot == std::string::npos || dot == 0 ? std::string() : lower(name.substr(dot));
-}
 
 std::string stemOf(const std::string &name)
 {
@@ -128,7 +109,7 @@ bool pictureBeside(FileSource &source, const FolderIndex &folder, const ShelfIte
 		for(const char *suffix : { "", "-cover", "_cover", " cover" })
 			for(const char *ext : { ".jpg", ".png", ".jpeg" })
 			{
-				const ShelfEntry *found = folder.find(lower(stem + suffix + ext));
+				const ShelfEntry *found = folder.find(toLower(stem + suffix + ext));
 				if(found && !found->directory && takePicture(source, *found, "folder", out))
 					return true;
 			}
@@ -253,7 +234,7 @@ int64_t ftpListingTime(const std::string &text, int64_t nowUnix)
 		return 0;
 	int month = 0;
 	for(int i = 0; i < 12; ++i)
-		if(lower(parts[0]).compare(0, 3, months[i]) == 0)
+		if(toLower(parts[0]).compare(0, 3, months[i]) == 0)
 			month = i + 1;
 	const int day = std::atoi(parts[1].c_str());
 	if(month == 0 || day < 1 || day > 31)
@@ -286,7 +267,7 @@ int64_t ftpListingTime(const std::string &text, int64_t nowUnix)
 FolderIndex::FolderIndex(const std::vector<ShelfEntry> &entries)
 {
 	for(const ShelfEntry &entry : entries)
-		byName_[lower(entry.name)] = &entry;
+		byName_[toLower(entry.name)] = &entry;
 }
 
 const ShelfEntry *FolderIndex::find(const std::string &lowerName) const
@@ -347,7 +328,7 @@ std::set<std::string> cueTracks(FileSource &source, const std::vector<ShelfEntry
 		const std::string track = probe.cueTrack(std::string(text.begin(), text.end()));
 		if(track.empty())
 			continue;
-		tracks.insert(lower(track));
+		tracks.insert(toLower(track));
 		if(trackOf)
 			(*trackOf)[entry.name] = track;
 	}
@@ -416,7 +397,7 @@ ShelfItem identify(FileSource &source, const ShelfEntry &entry, const FolderInde
 			const ShelfEntry *image = &entry;
 			if(item.ext == ".cue")
 			{
-				image = cueTrack.empty() ? nullptr : folder.find(lower(cueTrack));
+				image = cueTrack.empty() ? nullptr : folder.find(toLower(cueTrack));
 				if(!image)
 				{
 					item.readable = false;
@@ -530,7 +511,7 @@ std::vector<ShelfItem> readShelf(FileSource &source, const std::vector<ShelfEntr
 	{
 		if(cancel && *cancel)
 			break;
-		if(!shownOnShelf(entry) || (!entry.directory && tracks.count(lower(entry.name))))
+		if(!shownOnShelf(entry) || (!entry.directory && tracks.count(toLower(entry.name))))
 			continue;
 		const auto track = trackOf.find(entry.name);
 		items.push_back(identify(source, entry, folder, probe, track == trackOf.end() ? std::string() : track->second));
@@ -552,7 +533,7 @@ FolderPreview previewFolder(FileSource &source, const std::string &dir, const Di
 	std::vector<const ShelfEntry *> pictures;
 	for(const ShelfEntry &entry : entries)
 	{
-		if(!entry.directory && tracks.count(lower(entry.name)))
+		if(!entry.directory && tracks.count(toLower(entry.name)))
 			continue;
 		if(shownOnShelf(entry))
 			shown.push_back(&entry);
@@ -639,7 +620,7 @@ bool folderHasGames(FileSource &source, const std::string &dir, int depth, size_
 			if(entry.directory)
 			{
 				// An app's own folder: the folder it is in is that app.
-				if(lower(entry.name) == "sce_sys")
+				if(toLower(entry.name) == "sce_sys")
 					return true;
 				if(next.second < depth)
 					queue.emplace_back(entry.path, next.second + 1);

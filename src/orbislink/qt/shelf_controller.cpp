@@ -46,7 +46,6 @@ using library::ShelfItem;
 
 namespace {
 
-const char *const kPs2Covers = "https://raw.githubusercontent.com/xlenore/ps2-covers/main/covers/default/%1.jpg";
 const char *const kPs1Covers = "https://raw.githubusercontent.com/xlenore/psx-covers/main/covers/default/%1.jpg";
 const QString kConsoleLibrary = QStringLiteral("console-library");
 const QString kConsoleInstalled = QStringLiteral("console-installed");
@@ -87,6 +86,43 @@ QString placeholderFor(const QString &kind, const QString &platform, bool appFol
 	if(kind == QLatin1String("archive"))
 		return QStringLiteral("archive");
 	return QStringLiteral("bd");
+}
+
+// The path with "/" between its names and none at the end ("/" stays).
+QString trimmedPath(const QString &path)
+{
+	QString clean = QDir::fromNativeSeparators(path);
+	while(clean.endsWith(QLatin1Char('/')) && clean.size() > 1)
+		clean.chop(1);
+	return clean;
+}
+
+// Its last name: "Games" for "D:\Games\".
+QString lastName(const QString &path)
+{
+	const QString clean = trimmedPath(path);
+	return clean.mid(clean.lastIndexOf(QLatin1Char('/')) + 1);
+}
+
+// A title card's files to copy into `folder`, its update and add-ons only
+// when asked.
+QVector<LibraryController::CopyItem> copyItemsOf(const QVariantMap &card, const QString &folder, bool updates,
+	bool addons)
+{
+	QVector<LibraryController::CopyItem> files;
+	for(const QVariant &entry : card.value(QStringLiteral("parts")).toList())
+	{
+		const QVariantMap part = entry.toMap();
+		LibraryController::CopyItem file;
+		file.what = part.value(QStringLiteral("what")).toString();
+		if((file.what == QLatin1String("update") && !updates) || (file.what == QLatin1String("addon") && !addons))
+			continue;
+		file.remote = part.value(QStringLiteral("path")).toString();
+		file.local = QDir(folder).filePath(part.value(QStringLiteral("fileName")).toString());
+		file.size = static_cast<qint64>(part.value(QStringLiteral("size")).toDouble());
+		files << file;
+	}
+	return files;
 }
 
 QString samePathKey(QString path)
@@ -580,12 +616,7 @@ void ShelfController::rebuildSources()
 			else if(isDriveRoot(item.path))
 				item.name = tr("This PC — %1").arg(QDir::toNativeSeparators(item.path));
 			else
-			{
-				QString clean = QDir::fromNativeSeparators(item.path);
-				while(clean.endsWith(QLatin1Char('/')) && clean.size() > 1)
-					clean.chop(1);
-				item.name = clean.mid(clean.lastIndexOf(QLatin1Char('/')) + 1);
-			}
+				item.name = lastName(item.path);
 		}
 		sources.push_back(item);
 	}
@@ -960,7 +991,7 @@ void ShelfController::findCover(ShelfItem *item, const std::atomic<bool> *cancel
 	HttpClient::FetchOptions options;
 	options.headers = { "User-Agent: OrbisLink" };
 	options.cancel = cancel;
-	const QString url = QString::fromLatin1(item->platform == "ps2" ? kPs2Covers : kPs1Covers).arg(serial);
+	const QString url = QString::fromLatin1(item->platform == "ps2" ? GamesController::kPs2CoverUrl : kPs1Covers).arg(serial);
 	const HttpResponse reply = http.fetch(url.toStdString(), options);
 	const std::string &body = reply.body;
 	const bool picture = body.size() > 4
@@ -1738,10 +1769,7 @@ QString ShelfController::title() const
 		return tr("Library");
 	if(samePathKey(place_.path) == samePathKey(place_.root))
 		return item->name;
-	QString clean = QDir::fromNativeSeparators(place_.path);
-	while(clean.endsWith(QLatin1Char('/')) && clean.size() > 1)
-		clean.chop(1);
-	return clean.mid(clean.lastIndexOf(QLatin1Char('/')) + 1);
+	return lastName(place_.path);
 }
 
 QVariantList ShelfController::crumbs() const
@@ -1765,12 +1793,6 @@ QVariantList ShelfController::crumbs() const
 			out << QVariantMap { { QStringLiteral("title"), part } };
 	}
 	return out;
-}
-
-QString ShelfController::placeKind() const
-{
-	const Source *item = source(place_.sourceId);
-	return item ? item->kind : QString();
 }
 
 void ShelfController::setQuery(const QString &query)
@@ -2033,9 +2055,7 @@ void ShelfController::back()
 		home();
 		return;
 	}
-	QString clean = QDir::fromNativeSeparators(place_.path);
-	while(clean.endsWith(QLatin1Char('/')) && clean.size() > 1)
-		clean.chop(1);
+	const QString clean = trimmedPath(place_.path);
 	QString parent = clean.left(clean.lastIndexOf(QLatin1Char('/')));
 	if(parent.isEmpty() || parent.endsWith(QLatin1Char(':')))
 		parent += QLatin1Char('/');
@@ -2128,17 +2148,7 @@ void ShelfController::actOn(const QVariantMap &card, const QString &action)
 		// Copied to this PC, then installed on that console.
 		const QString target = action.mid(7);
 		const QString folder = QDir(copyFolder()).filePath(card.value(QStringLiteral("copyFolderName")).toString());
-		QVector<LibraryController::CopyItem> files;
-		for(const QVariant &entry : card.value(QStringLiteral("parts")).toList())
-		{
-			const QVariantMap part = entry.toMap();
-			LibraryController::CopyItem file;
-			file.what = part.value(QStringLiteral("what")).toString();
-			file.remote = part.value(QStringLiteral("path")).toString();
-			file.local = QDir(folder).filePath(part.value(QStringLiteral("fileName")).toString());
-			file.size = static_cast<qint64>(part.value(QStringLiteral("size")).toDouble());
-			files << file;
-		}
+		const QVector<LibraryController::CopyItem> files = copyItemsOf(card, folder, true, true);
 		if(!files.isEmpty())
 			consoleLibrary_->copyToPc(card.value(QStringLiteral("title")).toString(),
 				card.value(QStringLiteral("picture")).toString(), folder, files, target);
@@ -2529,14 +2539,24 @@ void ShelfController::loadInstalled(bool forPlace)
 		// waits for this PC's places.
 		setLoading(!installedScanning_ || filter_ == QLatin1String("pending"));
 	}
-	if(installedReading_ || !found->available)
+	if(!found->available)
 		return;
+	if(installedReading_)
+	{
+		// A cancelled read ends without showing what it read: this one is
+		// made after it.
+		if(installedCancel_ && installedCancel_->load())
+			installedAgain_ = true;
+		return;
+	}
 	installedReading_ = true;
+	installedAgain_ = false;
 	const Source copy = *found;
 	const FtpClient::Config config = ftpConfig();
 	const std::string place = "installed:" + app_->settings().consoleAddress;
 	const bool ps5 = app_->installsFromConsole();
 	std::shared_ptr<std::atomic<bool>> cancel = sourcesCancel_;
+	installedCancel_ = cancel;
 	// The folders of this PC, for the updates and add-ons the console lacks:
 	// those in the search, the places of one's own first, whole drives last.
 	QStringList roots, later;
@@ -2565,7 +2585,6 @@ void ShelfController::loadInstalled(bool forPlace)
 				searchIndex_[kConsoleInstalled] = list;
 				if(last)
 				{
-					installedReading_ = scanning;
 					installedScanning_ = scanning;
 					QVariantList previews;
 					for(const QVariant &entry : list)
@@ -2588,6 +2607,8 @@ void ShelfController::loadInstalled(bool forPlace)
 				}
 				else if(place_.sourceId.isEmpty() && last)
 					showCards();
+				if(last && !scanning)
+					installedReadEnded();
 			});
 		};
 		library::readInstalled(files, std::string(), cancel.get(), [&](const library::InstalledTitle &title) {
@@ -2617,7 +2638,7 @@ void ShelfController::loadInstalled(bool forPlace)
 		});
 		if(cancel->load())
 		{
-			onUi([this]() { installedReading_ = false; });
+			onUi([this]() { installedReadEnded(); });
 			return;
 		}
 		cache_->save();
@@ -2635,10 +2656,9 @@ void ShelfController::loadInstalled(bool forPlace)
 		if(cancel->load())
 		{
 			onUi([this]() {
-				installedReading_ = false;
-				installedScanning_ = false;
 				if(place_.sourceId == kConsoleInstalled)
 					setLoading(false);
+				installedReadEnded();
 			});
 			return;
 		}
@@ -2657,14 +2677,15 @@ void ShelfController::loadInstalled(bool forPlace)
 		// The same cards with what is new for them, changed in place: the list
 		// keeps where it is and what is picked.
 		onUi([this, cards, changed, cancel]() {
-			installedReading_ = false;
 			installedScanning_ = false;
 			if(cancel->load())
 			{
 				if(place_.sourceId == kConsoleInstalled)
 					setLoading(false);
+				installedReadEnded();
 				return;
 			}
+			installedReading_ = false;
 			installedCards_ = cards;
 			searchIndex_[kConsoleInstalled] = cards;
 			if(place_.sourceId == kConsoleInstalled)
@@ -2683,6 +2704,16 @@ void ShelfController::loadInstalled(bool forPlace)
 				updateCards(changed);
 		});
 	});
+}
+
+void ShelfController::installedReadEnded()
+{
+	installedReading_ = false;
+	installedScanning_ = false;
+	if(!installedAgain_)
+		return;
+	installedAgain_ = false;
+	loadInstalled(false);
 }
 
 QString ShelfController::copyFolder() const
@@ -2757,19 +2788,7 @@ void ShelfController::copyToPc(const QStringList &keys, bool updates, bool addon
 		if(!card.value(QStringLiteral("actions")).toStringList().contains(QStringLiteral("copyToPc")))
 			continue;
 		const QString folder = QDir(base).filePath(card.value(QStringLiteral("copyFolderName")).toString());
-		QVector<LibraryController::CopyItem> files;
-		for(const QVariant &entry : card.value(QStringLiteral("parts")).toList())
-		{
-			const QVariantMap part = entry.toMap();
-			LibraryController::CopyItem file;
-			file.what = part.value(QStringLiteral("what")).toString();
-			if((file.what == QLatin1String("update") && !updates) || (file.what == QLatin1String("addon") && !addons))
-				continue;
-			file.remote = part.value(QStringLiteral("path")).toString();
-			file.local = QDir(folder).filePath(part.value(QStringLiteral("fileName")).toString());
-			file.size = static_cast<qint64>(part.value(QStringLiteral("size")).toDouble());
-			files << file;
-		}
+		const QVector<LibraryController::CopyItem> files = copyItemsOf(card, folder, updates, addons);
 		if(!files.isEmpty())
 			consoleLibrary_->copyToPc(card.value(QStringLiteral("title")).toString(),
 				card.value(QStringLiteral("picture")).toString(), folder, files);

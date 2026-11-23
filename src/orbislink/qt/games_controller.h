@@ -11,6 +11,8 @@
 // them).
 #pragma once
 
+#include "orbislink/qt/lifeline.h"
+
 #include <QElapsedTimer>
 #include <QObject>
 #include <QString>
@@ -66,6 +68,11 @@ class GamesController : public QObject
 	Q_PROPERTY(QVariantMap progress READ progress NOTIFY progressChanged)
 
 public:
+	// A PS2 game's front cover by serial (%1), from the xlenore/ps2-covers
+	// collection, as easy-ps2-fpkg gets it.
+	static constexpr char kPs2CoverUrl[] =
+		"https://raw.githubusercontent.com/xlenore/ps2-covers/main/covers/default/%1.jpg";
+
 	explicit GamesController(AppController *app, QObject *parent = nullptr);
 	~GamesController() override;
 
@@ -166,6 +173,9 @@ private:
 	// The output folder, made in the documents when none was chosen.
 	void ensureOutputFolder();
 	struct Job;
+	// What a job needs of the settings, read on the interface's thread when
+	// it is queued: the worker must not read them while they change.
+	void takeSettings(Job &job) const;
 	QString toLocalPath(const QString &folder) const;
 	QString assetsFolder() const;
 	// Downloads and unpacks the emulator files unless they are there; one
@@ -227,8 +237,12 @@ private:
 	QTimer *publishTimer_ = nullptr;
 	std::thread worker_;
 	std::thread drivesThread_;
+	// downloadAssets(): joined on the way out, as it works on this object.
+	std::thread assetsThread_;
+	std::atomic<bool> assetsBusy_ { false };
 	QVariantMap drives_;
 	int nextId_ = 1;
+	LifelinePtr lifeline_ = std::make_shared<Lifeline>(this);
 };
 
 } // namespace orbislink

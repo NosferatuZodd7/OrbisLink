@@ -102,9 +102,6 @@ class ShelfController : public QObject
 	Q_PROPERTY(QString title READ title NOTIFY placeChanged)
 	// [{ title }]: the library, the place, then each folder down.
 	Q_PROPERTY(QVariantList crumbs READ crumbs NOTIFY placeChanged)
-	// The kind of the place open ("console", "usb", "pc", "drive",
-	// "custom"), and whether it is on the console.
-	Q_PROPERTY(QString placeKind READ placeKind NOTIFY placeChanged)
 	Q_PROPERTY(bool loading READ loading NOTIFY stateChanged)
 	// Why there is nothing to show: a folder that cannot be read, a drive
 	// taken out ("gone").
@@ -147,7 +144,6 @@ public:
 	QString level() const;
 	QString title() const;
 	QVariantList crumbs() const;
-	QString placeKind() const;
 	bool loading() const { return loading_; }
 	QString message() const { return message_; }
 	bool gone() const { return gone_; }
@@ -280,6 +276,8 @@ private:
 	// The place of what the console has installed: read over FTP, shown as
 	// it is read; at home, its covers.
 	void loadInstalled(bool forPlace);
+	// The read of what is installed is over: the one asked for meanwhile next.
+	void installedReadEnded();
 	// An installed title's card with what this PC has for it that the
 	// console does not (a newer update, add-ons): pendingPaths, pendingText,
 	// and the action to install them.
@@ -365,6 +363,10 @@ private:
 	// Its titles are shown; this PC's places are still looked through for
 	// the updates and add-ons they lack (part of the reading).
 	bool installedScanning_ = false;
+	// The cancel flag of the read under way, and whether another read was
+	// asked for while it was cancelled (refresh): made once it has stopped.
+	std::shared_ptr<std::atomic<bool>> installedCancel_;
+	bool installedAgain_ = false;
 	// Covers asked for by the pages, on their way (interface thread only).
 	QSet<QString> coverPending_;
 	int coverRevision_ = 0;

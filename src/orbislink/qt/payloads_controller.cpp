@@ -2,6 +2,7 @@
 #include "orbislink/qt/payloads_controller.h"
 
 #include "orbislink/common/log.h"
+#include "orbislink/common/util.h"
 #include "orbislink/net/http_client.h"
 #include "orbislink/net/payload_sender.h"
 #include "orbislink/qt/app_controller.h"
@@ -60,9 +61,19 @@ std::string nameOf(const std::string &path)
 	return slash == std::string::npos ? path : path.substr(slash + 1);
 }
 
-bool endsWith(const std::string &text, const std::string &suffix)
+// The name a console file takes on this PC. The console names it: a "\\"
+// or a ".." in it must not lead out of the folder it goes to.
+QString localNameOf(const std::string &remote)
 {
-	return text.size() >= suffix.size() && text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
+	QString name = QString::fromStdString(nameOf(remote));
+	name = name.mid(name.lastIndexOf(QLatin1Char('\\')) + 1);
+	// Not a name Windows takes either.
+	for(QChar &c : name)
+		if(c.unicode() < 0x20 || QStringLiteral(":*?\"<>|").contains(c))
+			c = QLatin1Char('_');
+	if(name.isEmpty() || name == QLatin1String(".") || name == QLatin1String(".."))
+		name = QStringLiteral("download");
+	return name;
 }
 
 // Local files through Qt: a Windows user folder with accents in its name
@@ -591,7 +602,7 @@ void PayloadsController::download(const QString &path)
 	const std::string remote = path.toStdString();
 	run(tr("Downloading…"), [this, dir, remote](FtpClient &ftp, bool *error) {
 		QDir().mkpath(dir);
-		const QString local = uniqueLocal(dir, QString::fromStdString(nameOf(remote)));
+		const QString local = uniqueLocal(dir, localNameOf(remote));
 		const FtpResult got = ftp.download(remote, local.toStdString());
 		if(!got.ok)
 		{
@@ -1020,8 +1031,14 @@ bool PayloadsController::fetchPayload(const CatalogPayload &payload, const std::
 		return payload.checksum.empty()
 			|| sha256Hex(std::string(data.constData(), static_cast<size_t>(data.size()))) == payload.checksum;
 	};
+	// Without a checksum to tell versions apart, the copy kept is named after
+	// the address and version it came from: an update under the same file
+	// name is downloaded again.
+	const QString prefix = payload.checksum.empty()
+		? QString::fromStdString(sha256Hex(payload.url + "\n" + payload.version).substr(0, 12)) + QLatin1Char('-')
+		: QString();
 	const QString kept = QDir(cacheRoot()).filePath(
-		QStringLiteral("files/%1").arg(QString::fromStdString(payload.filename)));
+		QStringLiteral("files/%1%2").arg(prefix, QString::fromStdString(payload.filename)));
 	QByteArray data = readLocal(kept);
 	if(data.isEmpty() || !vouched(data))
 	{

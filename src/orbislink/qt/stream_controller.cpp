@@ -57,25 +57,12 @@ QString stateName(HostState state)
 	return QStringLiteral("unknown");
 }
 
-QString sessionStateSlug(SessionState state)
-{
-	switch(state)
-	{
-		case SessionState::Idle: return QStringLiteral("idle");
-		case SessionState::Connecting: return QStringLiteral("connecting");
-		case SessionState::Connected: return QStringLiteral("connected");
-		case SessionState::Stopped: return QStringLiteral("stopped");
-		case SessionState::Failed: return QStringLiteral("failed");
-	}
-	return QStringLiteral("idle");
-}
-
 } // namespace
 
 StreamController::StreamController(QObject *parent)
 	: QObject(parent), store_(CredentialStore::defaultPath()),
 	  registration_(std::make_unique<StreamRegistration>()),
-	  session_(std::make_unique<StreamSession>())
+	  session_(std::make_shared<StreamSession>())
 {
 	// Every captured frame goes to chiaki's encoder. Capture runs on the
 	// interface thread (QAudioSource signals), and the session protects
@@ -85,7 +72,7 @@ StreamController::StreamController(QObject *parent)
 	});
 
 	session_->setStateCallback([this](SessionState state, const std::string &detail) {
-		const QString slug = sessionStateSlug(state);
+		const QString slug = QString::fromLatin1(sessionStateName(state));
 		const QString message = translateMessage(detail);
 		QMetaObject::invokeMethod(
 			this,
@@ -134,6 +121,11 @@ StreamController::StreamController(QObject *parent)
 				}
 				if(state == SessionState::Stopped || state == SessionState::Failed)
 				{
+					// The microphone goes with the session: chiaki's stream is
+					// closed and must not get any more frames.
+					microphone_.stop();
+					session_->stopMicrophone();
+					emit microphoneChanged();
 					cantDisplay_ = false;
 					audio_.stop();
 					video_.clear();
@@ -1215,7 +1207,8 @@ void StreamController::stopStream()
 
 	// chiaki's stop waits for its threads; off the UI thread so the
 	// window does not freeze.
-	std::thread([this]() { session_->stop(); }).detach();
+	// The thread holds its own reference: the controller may be gone first.
+	std::thread([session = session_]() { session->stop(); }).detach();
 }
 
 void StreamController::setMuted(bool muted)

@@ -62,7 +62,6 @@ ApplicationWindow {
     // In full screen, the same column over the picture (F9, or the button on
     // Remote Play's bar), to glance at the transfers without leaving the game.
     property bool queueOverPicture: false
-    readonly property bool sideShown: panelShown || railShown
     // What the main area shows: the consoles ("home"), "games", "store",
     // "saves" or "payloads".
     property string view: typeof demoView !== "undefined" && demoView.length > 0

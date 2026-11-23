@@ -39,8 +39,11 @@ private:
 	int targetChannels_ = 2;
 	bool needed_ = false;
 	// The phase is kept between calls: without it there would be a click at
-	// every frame boundary.
+	// every frame boundary. It is relative to the current frame and may be
+	// negative (down to -1): then it falls between the previous frame's last
+	// sample, kept in last_, and this frame's first.
 	double position_ = 0.0;
+	std::vector<int16_t> last_;
 	std::vector<int16_t> out_;
 };
 

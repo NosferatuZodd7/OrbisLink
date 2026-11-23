@@ -182,14 +182,14 @@ bool writeAll(const std::string &path, const std::vector<StreamCredentials> &sto
 	}
 
 	SettingsStore::ensureDirectory(SettingsStore::defaultDirectory());
-	std::ofstream file(path, std::ios::binary | std::ios::trunc);
-	if(!file)
+	// Through a temporary file: a crash halfway through must not lose
+	// every console's registration.
+	if(!writeFileReplacing(path, root.dump() + "\n"))
 	{
 		logError("Could not save the Remote Play credentials to " + path);
 		return false;
 	}
-	file << root.dump() << "\n";
-	return file.good();
+	return true;
 }
 
 } // namespace

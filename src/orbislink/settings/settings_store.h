@@ -140,7 +140,6 @@ struct Settings
 	uint16_t httpPort = 8765;
 	std::string httpBindAddress;       // empty = choose by the console's subnet
 	bool restrictToConsoleIp = true;
-	bool firewallNoticeShown = false;  // aviso da firewall do Windows (§5.3)
 
 	// FTP
 	int ftpMaxConnections = 1;

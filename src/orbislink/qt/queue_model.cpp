@@ -157,31 +157,6 @@ QString QueueModel::totalSpeedText() const
 	return QString::fromStdString(humanBytes(static_cast<int64_t>(total))) + QStringLiteral("/s");
 }
 
-QString QueueModel::remainingText() const
-{
-	const double remaining = bytesLeft();
-	if(remaining <= 0)
-		return QStringLiteral("—");
-	return QString::fromStdString(humanBytes(static_cast<int64_t>(remaining)));
-}
-
-QString QueueModel::totalText() const
-{
-	const double total = bytesTotal();
-	if(total <= 0)
-		return QStringLiteral("—");
-	return QString::fromStdString(humanBytes(static_cast<int64_t>(total)));
-}
-
-int QueueModel::shownCount(const QVariantMap &followed) const
-{
-	int shown = 0;
-	for(const Row &row : rows_)
-		if(!row.superseded && !followed.value(row.localKey).toBool())
-			++shown;
-	return shown;
-}
-
 void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
 {
 	QVector<Row> rows;

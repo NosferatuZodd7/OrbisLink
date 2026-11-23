@@ -2,6 +2,7 @@
 #include "orbislink/payloads/payload_catalog.h"
 
 #include "orbislink/common/json.h"
+#include "orbislink/common/util.h"
 
 #include <algorithm>
 #include <cctype>
@@ -10,24 +11,6 @@ namespace orbislink {
 namespace payloads {
 
 namespace {
-
-std::string lower(std::string text)
-{
-	std::transform(text.begin(), text.end(), text.begin(),
-		[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-	return text;
-}
-
-std::string trim(const std::string &text)
-{
-	size_t begin = 0;
-	size_t end = text.size();
-	while(begin < end && std::isspace(static_cast<unsigned char>(text[begin])))
-		++begin;
-	while(end > begin && std::isspace(static_cast<unsigned char>(text[end - 1])))
-		--end;
-	return text.substr(begin, end - begin);
-}
 
 bool plainFileName(const std::string &name)
 {
@@ -65,7 +48,7 @@ std::vector<CatalogPayload> parseCatalog(const std::string &json, std::string *e
 		p.category = item["category"].toString();
 		if(p.category.empty())
 			p.category = "Uncategorized";
-		p.checksum = lower(trim(item["checksum"].toString()));
+		p.checksum = toLower(trim(item["checksum"].toString()));
 		list.push_back(p);
 	}
 	return list;
@@ -102,10 +85,10 @@ void readDetails(const std::string &json, std::string *name, std::string *versio
 
 bool isFileOf(const CatalogPayload &payload, const std::string &fileName)
 {
-	const std::string file = lower(fileName);
-	if(file == lower(payload.filename))
+	const std::string file = toLower(fileName);
+	if(file == toLower(payload.filename))
 		return true;
-	const std::string name = lower(payload.name);
+	const std::string name = toLower(payload.name);
 	if(file.size() <= name.size() || file.compare(0, name.size(), name) != 0)
 		return false;
 	// The name, then a version or the extension: "kstuff-lite" is not "kstuff".
@@ -192,7 +175,7 @@ const Json *titanAsset(const Json &release, bool elf)
 	for(const Json &asset : release["assets"].items())
 	{
 		const std::string name = asset["name"].toString();
-		const std::string lowered = lower(name);
+		const std::string lowered = toLower(name);
 		if(elf ? (lowered.size() > 4 && lowered.compare(lowered.size() - 4, 4, ".elf") == 0)
 			   : lowered == "sha256sums" || lowered == "sha256sums.txt")
 			return &asset;
@@ -239,7 +222,7 @@ bool titanCoreFromRelease(const std::string &releaseJson, const std::string &sha
 		if(!named.empty() && named.front() == '*')
 			named.erase(0, 1);
 		if(named == file)
-			checksum = lower(line.substr(0, 64));
+			checksum = toLower(line.substr(0, 64));
 	}
 	if(checksum.size() != 64 || checksum.find_first_not_of("0123456789abcdef") != std::string::npos)
 	{

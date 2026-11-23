@@ -5,6 +5,7 @@
 #include "orbislink/common/log.h"
 #include "orbislink/common/util.h"
 #include "orbislink/ftp/ftp_client.h"
+#include "orbislink/store/store_catalog.h"
 #include "orbislink/store/zip_reader.h"
 
 #include <algorithm>
@@ -25,16 +26,6 @@ bool fail(std::string *error, const std::string &why)
 	if(error)
 		*error = why;
 	return false;
-}
-
-bool plainTitleId(const std::string &id)
-{
-	if(id.size() != 9)
-		return false;
-	for(size_t i = 0; i < 9; ++i)
-		if(i < 4 ? !std::isupper(static_cast<unsigned char>(id[i])) : !std::isdigit(static_cast<unsigned char>(id[i])))
-			return false;
-	return true;
 }
 
 std::string parentOf(const std::string &path)

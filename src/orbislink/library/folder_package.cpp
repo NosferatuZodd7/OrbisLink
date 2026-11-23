@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "orbislink/library/folder_package.h"
 
+#include "orbislink/library/text.h"
 #include "orbislink/pkg/sfo_parser.h"
 
 #include <algorithm>
@@ -17,13 +18,6 @@ namespace orbislink {
 namespace library {
 
 namespace {
-
-std::string lower(std::string text)
-{
-	std::transform(text.begin(), text.end(), text.begin(),
-		[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-	return text;
-}
 
 std::string readText(const fs::path &file, size_t limit)
 {
@@ -61,7 +55,7 @@ std::string attribute(const std::string &tag, const std::string &name)
 // The tools' own leftovers, never part of an app.
 bool leftover(const std::string &name)
 {
-	const std::string low = lower(name);
+	const std::string low = toLower(name);
 	return low.empty() || low[0] == '.' || low == "thumbs.db" || low == "desktop.ini"
 		|| (low.size() > 4 && low.compare(low.size() - 4, 4, ".gp4") == 0)
 		|| (low.size() > 9 && low.compare(low.size() - 9, 9, ".complete") == 0);
@@ -105,10 +99,10 @@ std::string findGp4(const std::string &folder)
 															   : dir.filename().u8string();
 	std::vector<fs::path> inside;
 	for(fs::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec))
-		if(it->is_regular_file(ec) && lower(it->path().extension().u8string()) == ".gp4")
+		if(it->is_regular_file(ec) && toLower(it->path().extension().u8string()) == ".gp4")
 			inside.push_back(it->path());
 	for(const fs::path &gp4 : inside)
-		if(lower(gp4.stem().u8string()) == lower(name))
+		if(toLower(gp4.stem().u8string()) == toLower(name))
 			return gp4.u8string();
 	if(inside.size() == 1)
 		return inside.front().u8string();
@@ -178,7 +172,7 @@ PackPlan planFolderPackage(const std::string &folder)
 			file.target = target;
 			file.source = source.u8string();
 			file.size = static_cast<uint64_t>(fs::file_size(source, ec));
-			files[lower(target)] = file;
+			files[toLower(target)] = file;
 		}
 		if(!missing.empty())
 		{
@@ -202,7 +196,7 @@ PackPlan planFolderPackage(const std::string &folder)
 			file.target = target;
 			file.source = it->path().u8string();
 			file.size = static_cast<uint64_t>(it->file_size(ec));
-			files[lower(target)] = file;
+			files[toLower(target)] = file;
 		}
 	}
 	if(!files.count("sce_sys/param.sfo"))

@@ -31,7 +31,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPainter>
-#include <QPointer>
 #include <QRegularExpression>
 #include <QProcess>
 #include <QSet>
@@ -64,10 +63,6 @@ QString sizeText(quint64 bytes)
 }
 
 #ifdef ORBISLINK_HAS_FPKG
-// easy-ps2-fpkg's "official cover": the front cover by serial, from the
-// xlenore/ps2-covers collection.
-const char *const kCoverUrl = "https://raw.githubusercontent.com/xlenore/ps2-covers/main/covers/default/%1.jpg";
-
 fpkg::Bytes png(const QImage &image)
 {
 	QByteArray data;
@@ -151,7 +146,7 @@ bool fetchCover(const std::string &serial, fpkg::Bytes *icon, fpkg::Bytes *backg
 	HttpClient http(20000);
 	HttpClient::FetchOptions options;
 	options.headers = {"User-Agent: OrbisLink"};
-	const HttpResponse r = http.fetch(QString::fromLatin1(kCoverUrl).arg(QString::fromStdString(serial)).toStdString(), options);
+	const HttpResponse r = http.fetch(QString::fromLatin1(GamesController::kPs2CoverUrl).arg(QString::fromStdString(serial)).toStdString(), options);
 	if(!r.transportOk || r.status != 200 || r.body.empty())
 		return false;
 	const QImage cover = QImage::fromData(reinterpret_cast<const uchar *>(r.body.data()), static_cast<int>(r.body.size()));
@@ -204,6 +199,12 @@ struct GamesController::Job
 	uint64_t sourceBytes = 0;
 	// Its package was deleted from the output folder once the console had it.
 	bool pkgRemoved = false;
+	// The settings it runs with (takeSettings), not kept in conversions.json:
+	// taken again when it is queued again.
+	QString outputFolder;
+	QString packwright;
+	std::string packwrightChosen;
+	FtpClient::Config ftp;
 	std::atomic<bool> cancel { false };
 #ifdef ORBISLINK_HAS_FPKG
 	fpkg::DiscInfo disc;
@@ -282,6 +283,7 @@ GamesController::GamesController(AppController *app, QObject *parent) : QObject(
 
 GamesController::~GamesController()
 {
+	lifeline_->cut();
 	saveUnfinished();
 	stopping_ = true;
 	{
@@ -294,6 +296,8 @@ GamesController::~GamesController()
 		worker_.join();
 	if(drivesThread_.joinable())
 		drivesThread_.join();
+	if(assetsThread_.joinable())
+		assetsThread_.join();
 }
 
 bool GamesController::available() const
@@ -349,6 +353,15 @@ QString GamesController::toLocalPath(const QString &folder) const
 	if(url.isLocalFile())
 		return QDir::cleanPath(url.toLocalFile());
 	return folder.isEmpty() ? QString() : QDir::cleanPath(folder);
+}
+
+void GamesController::takeSettings(Job &job) const
+{
+	const Settings &settings = app_->settings();
+	job.outputFolder = QString::fromStdString(settings.convertOutputFolder);
+	job.packwright = job.ps5Pack ? packwright() : QString();
+	job.packwrightChosen = settings.packwrightPath;
+	job.ftp = app_->ftpClientConfigFor(settings.consoleAddress);
 }
 
 void GamesController::setGamesFolder(const QString &folder)
@@ -557,11 +570,15 @@ void GamesController::downloadAssets()
 {
 	if(assetsState_ == QLatin1String("downloading") || assetsState_ == QLatin1String("unpacking"))
 		return;
-	QPointer<GamesController> self(this);
-	std::thread([self]() {
-		if(self)
-			self->ensureAssets({}, nullptr);
-	}).detach();
+	if(assetsBusy_.exchange(true))
+		return;
+	if(assetsThread_.joinable())
+		assetsThread_.join();
+	// Stopped when the app closes: the destructor waits for it.
+	assetsThread_ = std::thread([this]() {
+		ensureAssets([this](const QString &, double, uint64_t, uint64_t) { return !stopping_.load(); }, nullptr);
+		assetsBusy_ = false;
+	});
 }
 
 void GamesController::rescan()
@@ -581,8 +598,7 @@ void GamesController::rescan()
 	scanning_ = true;
 	scanStatus_ = tr("Looking for games…");
 	emit scanChanged();
-	QPointer<GamesController> self(this);
-	std::thread([self, run, folder, emulatorFolder]() {
+	std::thread([this, life = lifeline_, run, folder, emulatorFolder]() {
 		const fpkg::EmulatorInfo emus = fpkg::findEmulators(emulatorFolder);
 		const std::vector<fpkg::DiscInfo> discs = fpkg::scanFolder(folder);
 		QVariantList list;
@@ -610,19 +626,17 @@ void GamesController::rescan()
 			m[QStringLiteral("bootFile")] = QString::fromStdString(d.bootFile);
 			list << m;
 		}
-		if(!self)
-			return;
-		QMetaObject::invokeMethod(self, [self, run, list]() {
-			if(!self || run != self->scanRun_)
+		life->post([this, run, list]() {
+			if(run != scanRun_)
 				return;
-			self->games_ = list;
-			self->scanning_ = false;
-			self->scanStatus_ = list.isEmpty() ? tr("No PS1 or PS2 discs in this folder.")
+			games_ = list;
+			scanning_ = false;
+			scanStatus_ = list.isEmpty() ? tr("No PS1 or PS2 discs in this folder.")
 				: tr("%n game(s)", "", list.size());
 			logInfo("Games: " + std::to_string(list.size()) + " disc(s) found");
-			emit self->scanChanged();
-			self->updateProgress();
-		}, Qt::QueuedConnection);
+			emit scanChanged();
+			updateProgress();
+		});
 	}).detach();
 #endif
 }
@@ -703,6 +717,7 @@ void GamesController::convert(const QStringList &paths, bool install, const QStr
 		if(reuse)
 			job->reusePath = existingPackage(job->path, job->title);
 		job->disc = fpkg::inspectDisc(job->listedPath.toStdString());
+		takeSettings(*job);
 		{
 			std::lock_guard<std::mutex> lock(mutex_);
 			job->id = QString::number(nextId_++);
@@ -770,6 +785,7 @@ void GamesController::convertFile(const QString &path, bool install)
 	job->title = !known.isEmpty() ? known : QString::fromStdString(disc.title);
 	job->install = install;
 	job->disc = disc;
+	takeSettings(*job);
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
 		job->id = QString::number(nextId_++);
@@ -799,6 +815,7 @@ void GamesController::convertFromConsole(const QString &remotePath, const QStrin
 	job->sendBack = true;
 	// The package goes back where the disc was.
 	job->storageFolder = remotePath.left(remotePath.lastIndexOf(QLatin1Char('/')) + 1);
+	takeSettings(*job);
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
 		job->id = QString::number(nextId_++);
@@ -836,7 +853,7 @@ bool GamesController::fetchFromConsole(const std::shared_ptr<Job> &job, const st
 		return false;
 	};
 
-	FtpClient ftp(app_->ftpClientConfigFor(app_->settings().consoleAddress));
+	FtpClient ftp(job->ftp);
 	const std::string remote = job->remotePath.toStdString();
 	const std::string remoteFolder = remote.substr(0, remote.find_last_of('/') + 1);
 	const auto localFor = [&folder](const std::string &path) {
@@ -939,6 +956,7 @@ void GamesController::retryConversion(const QString &id)
 			job->interrupted = false;
 			job->cancel = false;
 			job->stopMeter();
+			takeSettings(*job);
 			// A disc of the console is brought here again.
 			if(!job->remotePath.isEmpty())
 			{
@@ -1393,10 +1411,9 @@ void GamesController::runJob(const std::shared_ptr<Job> &job)
 		return;
 	}
 
-	const Settings settings = app_->settings();
 	fpkg::ClassicOptions options;
 	options.title = job->title.toStdString();
-	options.outputDir = settings.convertOutputFolder;
+	options.outputDir = job->outputFolder.toStdString();
 	options.now = QDateTime::currentSecsSinceEpoch();
 
 	// First use: the emulator files, as easy-ps2-fpkg fetches them.
@@ -1502,13 +1519,16 @@ void GamesController::finishJob(const std::shared_ptr<Job> &job, bool ok, const 
 	const QString pkg = QString::fromStdString(pkgPath);
 	const QString what = job->packFolder.isEmpty() ? tr("Convert")
 		: job->ps5Pack && job->ps5Target != QLatin1String("pkg") ? tr("Image") : tr("Pack");
-	const QString sendTo = job->storageFolder.isEmpty() ? storageFolder() : job->storageFolder;
+	const QString chosenFolder = job->storageFolder;
 	const bool install = job->install;
 	const bool send = install || job->sendBack;
 	const QString title = job->title;
 	const QString message = translateMessage(error);
 	const bool cancelled = job->cancel.load();
-	QMetaObject::invokeMethod(this, [this, job, ok, install, send, pkg, sendTo, title, message, cancelled, what]() {
+	QMetaObject::invokeMethod(this, [this, job, ok, install, send, pkg, chosenFolder, title, message, cancelled, what]() {
+		// The job's own folder, else the storage chosen in the settings (read
+		// here, on the interface's thread).
+		const QString sendTo = chosenFolder.isEmpty() ? storageFolder() : chosenFolder;
 		// Over FTP into the app's own folder on the console, installed once
 		// it lands, and deleted from there after the install; a disc from
 		// the console's library has its package put back beside it, installed
@@ -1562,8 +1582,7 @@ bool GamesController::runPack(const std::shared_ptr<Job> &job, const std::functi
 	logInfo("Games: packing \"" + plan.title + "\" (" + plan.contentId + ", " + std::to_string(plan.files.size())
 		+ " files" + (plan.gp4.empty() ? std::string() : ", as " + plan.gp4 + " says") + ")");
 
-	const Settings settings = app_->settings();
-	const QDir output(QString::fromStdString(settings.convertOutputFolder));
+	const QDir output(job->outputFolder);
 	output.mkpath(QStringLiteral("."));
 	// Room for it, checked before minutes are spent on it.
 	const QStorageInfo space(output.absolutePath());
@@ -1628,6 +1647,7 @@ void GamesController::packPs5(const QString &source, bool install)
 	job->title = info.isDir() ? info.fileName() : info.completeBaseName();
 	job->platform = QStringLiteral("ps5");
 	job->install = install;
+	takeSettings(*job);
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
 		job->id = QString::number(nextId_++);
@@ -1671,6 +1691,7 @@ void GamesController::imagePs5(const QString &source, bool send)
 	// own storage.
 	job->sendBack = send;
 	job->storageFolder = QStringLiteral("/data/homebrew/");
+	takeSettings(*job);
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
 		job->id = QString::number(nextId_++);
@@ -1688,18 +1709,17 @@ void GamesController::imagePs5(const QString &source, bool send)
 bool GamesController::runPs5Pack(const std::shared_ptr<Job> &job, const std::function<void()> &tick,
 	std::string *pkgPath, std::string *error)
 {
-	const QString program = packwright();
+	const QString program = job->packwright;
 	if(program.isEmpty())
 	{
-		const std::string chosen = app_->settings().packwrightPath;
+		const std::string &chosen = job->packwrightChosen;
 		logWarning("Games: Packwright not found (chosen: " + (chosen.empty() ? std::string("none") : chosen)
 			+ "; its install folders and the PATH looked in too).");
 		*error = QT_TRANSLATE_NOOP("Messages", "Packwright is not installed: it makes PS5 packages. Get it from "
 			"github.com/itsmemac/Packwright (free, GPL-3.0), or show where it is with Choose… in the game's details.");
 		return false;
 	}
-	const Settings settings = app_->settings();
-	const QDir output(QString::fromStdString(settings.convertOutputFolder));
+	const QDir output(job->outputFolder);
 	output.mkpath(QStringLiteral("."));
 	const QFileInfo source(job->packFolder);
 	const QString base = source.isDir() ? source.fileName() : source.completeBaseName();
@@ -1894,6 +1914,7 @@ void GamesController::packFolder(const QString &folder, bool install)
 	job->title = QFileInfo(folder).fileName();
 	job->platform = QStringLiteral("ps4");
 	job->install = install;
+	takeSettings(*job);
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
 		job->id = QString::number(nextId_++);

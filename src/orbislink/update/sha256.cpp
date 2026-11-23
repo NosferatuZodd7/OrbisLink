@@ -2,6 +2,7 @@
 #include "orbislink/update/sha256.h"
 
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <vector>
 
@@ -141,7 +142,9 @@ std::string sha256Hex(const std::string &data)
 
 std::string sha256File(const std::string &path)
 {
-	std::ifstream file(path, std::ios::binary);
+	// The path is UTF-8: a narrow one would not open a Windows folder with
+	// accents in its name.
+	std::ifstream file(std::filesystem::u8path(path), std::ios::binary);
 	if(!file)
 		return std::string();
 	Sha256 hash;
@@ -153,6 +156,9 @@ std::string sha256File(const std::string &path)
 		if(read > 0)
 			hash.update(chunk.data(), static_cast<size_t>(read));
 	}
+	// A read that broke off is not the file's hash.
+	if(file.bad() || !file.eof())
+		return std::string();
 	return hash.hex();
 }
 

@@ -5,6 +5,7 @@
 #include "orbislink/common/util.h"
 #include "orbislink/ftp/remote_move.h"
 #include "orbislink/library/console_library.h"
+#include "orbislink/library/text.h"
 #include "orbislink/net/payload_sender.h"
 #include "orbislink/payloads/payload_layout.h"
 #include "orbislink/pkg/pkg_inspector.h"
@@ -41,6 +42,7 @@
 namespace orbislink {
 
 using library::Kind;
+using library::upper;
 
 namespace {
 
@@ -98,13 +100,6 @@ std::string stem(const std::string &name)
 	return dot == std::string::npos || dot == 0 ? name : name.substr(0, dot);
 }
 
-std::string upper(std::string text)
-{
-	std::transform(text.begin(), text.end(), text.begin(),
-		[](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-	return text;
-}
-
 } // namespace
 
 LibraryController::LibraryController(AppController *app, GamesController *games, QObject *parent)
@@ -160,16 +155,6 @@ LibraryController::~LibraryController()
 		copier_.join();
 }
 
-bool LibraryController::ps5() const { return app_->installsFromConsole(); }
-
-QVariantMap LibraryController::itemAt(const QString &path) const
-{
-	for(const QVariant &entry : items_)
-		if(entry.toMap().value(QStringLiteral("path")).toString() == path)
-			return entry.toMap();
-	return QVariantMap();
-}
-
 void LibraryController::refresh()
 {
 	if(scanning_)
@@ -179,16 +164,14 @@ void LibraryController::refresh()
 	const std::string address = app_->settings().consoleAddress;
 	if(address.empty() || !app_->canUseFtp())
 	{
-		status_ = tr("The console's FTP is not answering: the library is read over it.");
 		emit itemsChanged();
 		return;
 	}
 	scanning_ = true;
-	status_ = tr("Reading the console's library…");
 	emit itemsChanged();
 
 	const FtpClient::Config config = app_->ftpClientConfigFor(address);
-	const bool onPs5 = ps5();
+	const bool onPs5 = app_->installsFromConsole();
 	const payloads::Kind consoleKind = onPs5 ? payloads::Kind::Ps5 : payloads::Kind::Ps4;
 	GamesController *games = games_;
 	scanner_ = std::thread([this, config, onPs5, consoleKind, games]() {
@@ -227,7 +210,6 @@ void LibraryController::refresh()
 		};
 
 		QVariantList items;
-		QVariantList folders;
 		for(const std::string &folder : presentLibraryFolders(ftp))
 		{
 			if(cancel_)
@@ -235,8 +217,6 @@ void LibraryController::refresh()
 			std::vector<FtpEntry> entries;
 			if(!ftp.list(folder, &entries).ok)
 				continue;
-			folders << QVariantMap { { QStringLiteral("path"), QString::fromStdString(folder) },
-				{ QStringLiteral("drive"), QString::fromStdString(library::driveOf(folder)) } };
 
 			std::map<std::string, FtpEntry> byName;
 			for(const FtpEntry &entry : entries)
@@ -452,13 +432,11 @@ void LibraryController::refresh()
 		});
 		if(cancel_)
 			return;
-		QMetaObject::invokeMethod(this, [this, items, folders]() {
+		QMetaObject::invokeMethod(this, [this, items]() {
 			items_ = items;
-			folders_ = folders;
 			scanning_ = false;
 			scanned_ = true;
 			finishedSeen_ = finishedTasks();
-			status_.clear();
 			emit itemsChanged();
 		}, Qt::QueuedConnection);
 	});
@@ -476,12 +454,15 @@ QString LibraryController::consoleName() const
 void LibraryController::runAction(const QString &what, std::function<QString(FtpClient &ftp, bool *error)> job,
 	bool rescan, const QVariantMap &item, const QString &kind)
 {
+	// One action at a time: this one is not lost without a word.
 	if(busy_)
+	{
+		emit finished(tr("Another action is still running on the console: try again once it is done."), true);
 		return;
+	}
 	if(worker_.joinable())
 		worker_.join();
 	busy_ = true;
-	status_ = what;
 	emit busyChanged();
 	emit itemsChanged();
 
@@ -515,7 +496,6 @@ void LibraryController::runAction(const QString &what, std::function<QString(Ftp
 			return;
 		QMetaObject::invokeMethod(this, [this, message, error, rescan, jobId]() {
 			busy_ = false;
-			status_.clear();
 			emit busyChanged();
 			emit itemsChanged();
 			if(!jobId.isEmpty())
@@ -571,13 +551,6 @@ void LibraryController::clearFinishedJobs()
 		return;
 	jobs_ = kept;
 	emit jobsChanged();
-}
-
-void LibraryController::act(const QString &path)
-{
-	const QVariantMap item = itemAt(path);
-	if(!item.isEmpty())
-		perform(item, item.value(QStringLiteral("action")).toString());
 }
 
 void LibraryController::perform(const QVariantMap &item, const QString &action)
@@ -743,14 +716,6 @@ void LibraryController::uninstall(const QVariantMap &item, bool updateOnly)
 		true, card, QStringLiteral("uninstall"));
 }
 
-void LibraryController::convert(const QString &path, bool install)
-{
-	const QVariantMap item = itemAt(path);
-	if(item.isEmpty() || item.value(QStringLiteral("action")).toString() != QLatin1String("convert"))
-		return;
-	perform(item, install ? QStringLiteral("convert") : QStringLiteral("convertOnly"));
-}
-
 void LibraryController::removeMany(const QStringList &paths)
 {
 	if(paths.isEmpty())
@@ -771,13 +736,6 @@ void LibraryController::removeMany(const QStringList &paths)
 		*error = true;
 		return tr("%1 of %2 deleted. Not deleted: %3").arg(deleted).arg(paths.size()).arg(failed);
 	}, true);
-}
-
-void LibraryController::remove(const QString &path)
-{
-	const QVariantMap item = itemAt(path);
-	if(!item.isEmpty())
-		perform(item, QStringLiteral("delete"));
 }
 
 // ── copies to this PC ───────────────────────────────────────────────────
@@ -907,21 +865,38 @@ void LibraryController::copyToPc(const QString &title, const QString &icon, cons
 
 namespace {
 
-// `wanted`, or "name (2).ext" and on when something is there already.
-QString freeLocalName(const QString &wanted)
+// How a local name is compared with those already given out: some file
+// systems do not tell case apart.
+QString nameKey(const QString &path)
 {
-	if(!QFileInfo::exists(wanted))
-		return wanted;
-	const QFileInfo info(wanted);
-	const QString base = info.isDir() ? info.fileName() : info.completeBaseName();
-	const QString suffix = info.isDir() || info.suffix().isEmpty() ? QString() : QLatin1Char('.') + info.suffix();
-	for(int n = 2; n < 1000; ++n)
+	return QDir::cleanPath(path).toLower();
+}
+
+// `wanted`, or "name (2).ext" and on when something is there already or
+// a copy not finished goes there (`taken`, which gets the name given).
+QString freeLocalName(const QString &wanted, QSet<QString> *taken)
+{
+	auto unused = [taken](const QString &path) {
+		return !QFileInfo::exists(path) && !taken->contains(nameKey(path));
+	};
+	QString chosen = wanted;
+	if(!unused(wanted))
 	{
-		const QString candidate = QDir(info.path()).filePath(QStringLiteral("%1 (%2)%3").arg(base).arg(n).arg(suffix));
-		if(!QFileInfo::exists(candidate))
-			return candidate;
+		const QFileInfo info(wanted);
+		const QString base = info.isDir() ? info.fileName() : info.completeBaseName();
+		const QString suffix = info.isDir() || info.suffix().isEmpty() ? QString() : QLatin1Char('.') + info.suffix();
+		for(int n = 2; n < 1000; ++n)
+		{
+			const QString candidate = QDir(info.path()).filePath(QStringLiteral("%1 (%2)%3").arg(base).arg(n).arg(suffix));
+			if(unused(candidate))
+			{
+				chosen = candidate;
+				break;
+			}
+		}
 	}
-	return wanted;
+	taken->insert(nameKey(chosen));
+	return chosen;
 }
 
 } // namespace
@@ -933,6 +908,22 @@ void LibraryController::download(const QVariantList &items, const QString &folde
 		folder = QUrl(folder).toLocalFile();
 	if(folder.trimmed().isEmpty())
 		folder = app_->defaultDownloadDirectory();
+	// Where the copies not finished go: two items of one name (or one still
+	// copying) must not write to the same place.
+	QSet<QString> taken;
+	for(const QVariant &entry : jobs_)
+	{
+		const QVariantMap card = entry.toMap();
+		if(card.value(QStringLiteral("state")).toString() != QLatin1String("working"))
+			continue;
+		const auto recipe = copyRecipes_.constFind(card.value(QStringLiteral("id")).toString());
+		if(recipe == copyRecipes_.cend())
+			continue;
+		if(!recipe->remoteFolder.isEmpty())
+			taken.insert(nameKey(recipe->folder));
+		for(const CopyItem &file : recipe->files)
+			taken.insert(nameKey(file.local));
+	}
 	for(const QVariant &value : items)
 	{
 		const QVariantMap item = value.toMap();
@@ -950,7 +941,7 @@ void LibraryController::download(const QVariantList &items, const QString &folde
 		if(isFolder)
 		{
 			// Into a folder of its own name, never into one already there.
-			job.folder = freeLocalName(QDir(folder).filePath(name));
+			job.folder = freeLocalName(QDir(folder).filePath(name), &taken);
 			job.remoteFolder = path;
 		}
 		else
@@ -964,7 +955,9 @@ void LibraryController::download(const QVariantList &items, const QString &folde
 			// one with its name is left alone.
 			const QString local = QDir(folder).filePath(name);
 			const QFileInfo there(local);
-			file.local = !there.exists() || (there.isFile() && there.size() == file.size) ? local : freeLocalName(local);
+			const bool same = there.isFile() && there.size() == file.size && !taken.contains(nameKey(local));
+			file.local = same ? local : freeLocalName(local, &taken);
+			taken.insert(nameKey(file.local));
 			job.files << file;
 			total = file.size;
 		}

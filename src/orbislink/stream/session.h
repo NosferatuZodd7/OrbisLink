@@ -74,8 +74,6 @@ public:
 
 	bool start(const Config &config, std::string *error = nullptr);
 	void stop();
-	bool active() const;
-	SessionState state() const;
 
 	void setLoginPin(const std::string &pin);
 
@@ -130,12 +128,6 @@ public:
 	// samples per channel. Called by the capture, off chiaki's thread.
 	void sendMicrophoneFrame(const int16_t *pcm, size_t samplesPerChannel);
 
-	// Dimensions of the last frame received (0 before the first).
-	int frameWidth() const;
-	int frameHeight() const;
-	// Frames delivered since start — lets the UI know there is a picture
-	// even before drawing it.
-	uint64_t framesDecoded() const;
 	// True when the video is being decoded on the GPU.
 	bool usingHardwareDecoder() const;
 	// True when the last session failed because the console said its

@@ -2,6 +2,7 @@
 #include "orbislink/net/http_client.h"
 
 #include "orbislink/common/log.h"
+#include "orbislink/net/curl_global.h"
 
 #include <curl/curl.h>
 
@@ -18,22 +19,10 @@ size_t writeCallback(char *data, size_t size, size_t count, void *userdata)
 	return size * count;
 }
 
-struct CurlGlobal
-{
-	CurlGlobal() { curl_global_init(CURL_GLOBAL_DEFAULT); }
-	~CurlGlobal() { curl_global_cleanup(); }
-};
-
-void ensureCurlInitialised()
-{
-	static CurlGlobal global;
-	(void)global;
-}
-
 HttpResponse perform(const std::string &url, const std::string *body,
 	const std::string &contentType, int timeoutMs)
 {
-	ensureCurlInitialised();
+	ensureCurlGlobal();
 	HttpResponse response;
 
 	CURL *curl = curl_easy_init();
@@ -163,7 +152,7 @@ int fetchProgress(void *userdata, curl_off_t, curl_off_t, curl_off_t, curl_off_t
 HttpResponse HttpClient::fetch(const std::string &url, const FetchOptions &options) const
 {
 	logDebug("HTTP GET (external) " + url);
-	ensureCurlInitialised();
+	ensureCurlGlobal();
 	HttpResponse response;
 
 	CURL *curl = curl_easy_init();
@@ -225,7 +214,7 @@ HttpClient::DownloadResult HttpClient::download(const std::string &url, const st
 	const std::function<bool(int64_t done, int64_t total)> &progress, const DownloadOptions &options) const
 {
 	logInfo("Downloading " + url + " to " + destinationPath);
-	ensureCurlInitialised();
+	ensureCurlGlobal();
 	DownloadResult result;
 
 	DownloadState state;

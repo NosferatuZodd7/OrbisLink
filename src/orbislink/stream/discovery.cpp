@@ -8,6 +8,7 @@
 #include "orbislink/stream/stream_trace.h"
 
 #include <chiaki/discovery.h>
+#include <chiaki/stoppipe.h>
 #include <chiaki/thread.h>
 
 #include <chrono>
@@ -177,11 +178,15 @@ HostInfo ask(const std::string &address, int timeoutMs, uint16_t ps4Port, bool t
 	}
 
 	// chiaki's thread only ends by itself when it gets a reply; if the
-	// time runs out, it is stopped by force.
+	// time runs out, it is stopped by force. chiaki_discovery_thread_stop
+	// joins and closes the stop pipe; when the thread already ended, it is
+	// joined, so only the pipe is left to close (joining twice is undefined).
 	const ChiakiErrorCode joined = chiaki_thread_timedjoin(&thread.thread, nullptr,
 		static_cast<uint64_t>(timeoutMs > 0 ? timeoutMs : 2000));
 	if(joined != CHIAKI_ERR_SUCCESS)
 		chiaki_discovery_thread_stop(&thread);
+	else
+		chiaki_stop_pipe_fini(&thread.stop_pipe);
 	chiaki_discovery_fini(&discovery);
 
 	std::lock_guard<std::mutex> lock(harvest.mutex);
