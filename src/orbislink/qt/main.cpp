@@ -4,6 +4,7 @@
 
 #include "orbislink/common/log.h"
 #include "orbislink/qt/app_controller.h"
+#include "orbislink/qt/captures_controller.h"
 #include "orbislink/qt/cheats_controller.h"
 #include "orbislink/qt/cover_provider.h"
 #include "orbislink/qt/games_controller.h"
@@ -320,6 +321,7 @@ int main(int argc, char **argv)
 	// PS1/PS2 discs: found, sent or converted. Made before the engine, so it
 	// outlives the interface that reads it when the application closes.
 	auto games = std::make_unique<GamesController>(controller.get());
+	controller->setSendsPending([games = games.get()]() { return games->willSend(); });
 	// The save vault, the same way.
 	auto saves = std::make_unique<SavesController>(controller.get());
 	// The payloads and plugins of a jailbroken console, the same way.
@@ -331,6 +333,8 @@ int main(int argc, char **argv)
 		payloads.get());
 	// Cheats and game patches for the games the console has, the same way.
 	auto cheats = std::make_unique<CheatsController>(controller.get());
+	// The console's screenshots and video clips, the same way.
+	auto captures = std::make_unique<CapturesController>(controller.get());
 #ifdef ORBISLINK_HAS_STORE
 	// The PS5 homebrew store, the same way.
 	auto store = std::make_unique<StoreController>(controller.get());
@@ -352,6 +356,7 @@ int main(int argc, char **argv)
 	engine.rootContext()->setContextProperty(QStringLiteral("consoleLibrary"), consoleLibrary.get());
 	engine.rootContext()->setContextProperty(QStringLiteral("shelf"), shelf.get());
 	engine.rootContext()->setContextProperty(QStringLiteral("cheats"), cheats.get());
+	engine.rootContext()->setContextProperty(QStringLiteral("captures"), captures.get());
 #ifdef ORBISLINK_HAS_STORE
 	engine.rootContext()->setContextProperty(QStringLiteral("store"), store.get());
 #else
@@ -394,6 +399,9 @@ int main(int argc, char **argv)
 				stream->directReachable() ? QStringLiteral("direct") : stream->consoleState(), stream->runningApp());
 			controller->reportConsoleFirmware(stream->hostAddress(), stream->systemVersion());
 		});
+	// Whether a session is on, for the work that waits for it to end.
+	QObject::connect(stream.get(), &StreamController::sessionChanged, controller.get(),
+		[&controller, &stream]() { controller->setStreaming(stream->streaming()); });
 	// Stream notifications appear in the same bar as the others.
 	QObject::connect(stream.get(), &StreamController::notify, controller.get(),
 		&AppController::notify);

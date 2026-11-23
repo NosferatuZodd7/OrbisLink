@@ -4,6 +4,7 @@
 #include "orbislink/common/log.h"
 #include "orbislink/common/tr.h"
 #include "orbislink/common/util.h"
+#include "orbislink/library/console_library.h"
 #include "orbislink/library/folder_package.h"
 #include "orbislink/net/http_client.h"
 #include "orbislink/pkg/pkg_inspector.h"
@@ -22,6 +23,7 @@
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
@@ -41,6 +43,11 @@
 #include <algorithm>
 #include <chrono>
 #include <vector>
+
+#ifdef Q_OS_UNIX
+#include <signal.h>
+#include <unistd.h>
+#endif
 
 namespace orbislink {
 
@@ -170,8 +177,10 @@ struct GamesController::Job
 	bool sendBack = false;
 	// A PS4 app folder made into a package, instead of a disc converted.
 	QString packFolder;
-	// That folder (or image) is a PS5 game, made into a package by Packwright.
+	// That folder (or image) is a PS5 game, made by Packwright into a
+	// package ("pkg") or into an image ShadowMountPlus mounts ("ffpkg").
 	bool ps5Pack = false;
+	QString ps5Target = QStringLiteral("pkg");
 	QString titleId;
 	// The package already in the output folder, sent instead of making it again.
 	QString reusePath;
@@ -324,6 +333,16 @@ bool GamesController::converting() const
 	return false;
 }
 
+bool GamesController::willSend() const
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	for(const auto &job : jobs_)
+		if((job->install || job->sendBack)
+			&& (job->state == QLatin1String("waiting") || job->state == QLatin1String("converting")))
+			return true;
+	return false;
+}
+
 QString GamesController::toLocalPath(const QString &folder) const
 {
 	const QUrl url(folder);
@@ -363,7 +382,8 @@ QString GamesController::findPackwright(const QString &configured)
 	auto runnable = [](const QString &path) {
 		const QFileInfo file(path);
 		return file.isFile() && (file.isExecutable() || path.endsWith(QStringLiteral(".exe"), Qt::CaseInsensitive)
-			|| path.endsWith(QStringLiteral(".cmd"), Qt::CaseInsensitive));
+			|| path.endsWith(QStringLiteral(".cmd"), Qt::CaseInsensitive)
+			|| path.endsWith(QStringLiteral(".bat"), Qt::CaseInsensitive));
 	};
 	if(!configured.isEmpty())
 	{
@@ -961,7 +981,8 @@ void GamesController::saveUnfinished() const
 				{ QStringLiteral("sendBack"), job->sendBack }, { QStringLiteral("packFolder"), job->packFolder },
 				{ QStringLiteral("titleId"), job->titleId }, { QStringLiteral("reusePath"), job->reusePath },
 				{ QStringLiteral("remotePath"), job->remotePath },
-				{ QStringLiteral("storageFolder"), job->storageFolder } });
+				{ QStringLiteral("storageFolder"), job->storageFolder }, { QStringLiteral("ps5Pack"), job->ps5Pack },
+				{ QStringLiteral("ps5Target"), job->ps5Target } });
 		}
 	}
 	if(kept.isEmpty())
@@ -999,6 +1020,8 @@ void GamesController::loadUnfinished()
 		job->reusePath = saved.value(QStringLiteral("reusePath")).toString();
 		job->remotePath = saved.value(QStringLiteral("remotePath")).toString();
 		job->storageFolder = saved.value(QStringLiteral("storageFolder")).toString();
+		job->ps5Pack = saved.value(QStringLiteral("ps5Pack")).toBool();
+		job->ps5Target = saved.value(QStringLiteral("ps5Target")).toString(QStringLiteral("pkg"));
 		if(!job->remotePath.isEmpty())
 		{
 			job->path = job->remotePath;
@@ -1094,6 +1117,8 @@ void GamesController::publish()
 			m[QStringLiteral("title")] = job->title;
 			m[QStringLiteral("platform")] = job->platform;
 			m[QStringLiteral("kind")] = job->packFolder.isEmpty() ? QStringLiteral("convert") : QStringLiteral("pack");
+			// A PS5 image for ShadowMountPlus: sent, not installed.
+			m[QStringLiteral("image")] = job->ps5Pack && job->ps5Target != QLatin1String("pkg");
 #ifdef ORBISLINK_HAS_FPKG
 			m[QStringLiteral("serial")] = job->packFolder.isEmpty() ? QString::fromStdString(job->disc.serial)
 																	: job->titleId;
@@ -1123,7 +1148,10 @@ void GamesController::publish()
 			m[QStringLiteral("size")] = static_cast<double>(size);
 			m[QStringLiteral("message")] = job->message;
 			m[QStringLiteral("note")] = job->pkgRemoved
-				? tr("The package was deleted from the output folder: the console has it.") : QString();
+				? (job->ps5Pack && job->ps5Target != QLatin1String("pkg")
+					? tr("The image was deleted from the output folder: the console has it.")
+					: tr("The package was deleted from the output folder: the console has it."))
+				: QString();
 			m[QStringLiteral("install")] = job->install;
 			m[QStringLiteral("send")] = job->install || job->sendBack;
 			m[QStringLiteral("pkgPath")] = job->pkgPath;
@@ -1466,12 +1494,14 @@ void GamesController::finishJob(const std::shared_ptr<Job> &job, bool ok, const 
 		}
 	}
 	if(ok)
-		logInfo("Games: package ready at " + pkgPath);
+		logInfo("Games: " + std::string(job->ps5Pack && job->ps5Target != QLatin1String("pkg") ? "image" : "package")
+			+ " ready at " + pkgPath);
 	else
 		logWarning("Games: " + std::string(job->packFolder.isEmpty() ? "conversion" : "packing") + " failed — " + error);
 
 	const QString pkg = QString::fromStdString(pkgPath);
-	const QString what = job->packFolder.isEmpty() ? tr("Convert") : tr("Pack");
+	const QString what = job->packFolder.isEmpty() ? tr("Convert")
+		: job->ps5Pack && job->ps5Target != QLatin1String("pkg") ? tr("Image") : tr("Pack");
 	const QString sendTo = job->storageFolder.isEmpty() ? storageFolder() : job->storageFolder;
 	const bool install = job->install;
 	const bool send = install || job->sendBack;
@@ -1612,6 +1642,49 @@ void GamesController::packPs5(const QString &source, bool install)
 #endif
 }
 
+void GamesController::imagePs5(const QString &source, bool send)
+{
+#ifdef ORBISLINK_HAS_FPKG
+	ensureOutputFolder();
+	auto job = std::make_shared<Job>();
+	job->packFolder = source;
+	job->ps5Pack = true;
+	job->ps5Target = QStringLiteral("ffpkg");
+	job->path = source;
+	job->listedPath = source;
+	const QFileInfo info(source);
+	job->title = info.isDir() ? info.fileName() : info.completeBaseName();
+	// A game folder names itself in its param.json.
+	QFile params(QDir(source).filePath(QStringLiteral("sce_sys/param.json")));
+	if(info.isDir() && params.size() < 1024 * 1024 && params.open(QIODevice::ReadOnly))
+	{
+		const library::AppParams read = library::readParamJson(params.readAll().toStdString());
+		if(read.ok)
+		{
+			if(!read.title.empty())
+				job->title = QString::fromStdString(read.title);
+			job->titleId = QString::fromStdString(read.titleId);
+		}
+	}
+	job->platform = QStringLiteral("ps5");
+	// Not installed: copied where ShadowMountPlus looks, on the console's
+	// own storage.
+	job->sendBack = send;
+	job->storageFolder = QStringLiteral("/data/homebrew/");
+	{
+		std::lock_guard<std::mutex> lock(mutex_);
+		job->id = QString::number(nextId_++);
+		jobs_.push_back(job);
+	}
+	wakeup_.notify_all();
+	publish();
+	emit app_->showPanel(QStringLiteral("queue"));
+#else
+	Q_UNUSED(source);
+	Q_UNUSED(send);
+#endif
+}
+
 bool GamesController::runPs5Pack(const std::shared_ptr<Job> &job, const std::function<void()> &tick,
 	std::string *pkgPath, std::string *error)
 {
@@ -1630,18 +1703,43 @@ bool GamesController::runPs5Pack(const std::shared_ptr<Job> &job, const std::fun
 	output.mkpath(QStringLiteral("."));
 	const QFileInfo source(job->packFolder);
 	const QString base = source.isDir() ? source.fileName() : source.completeBaseName();
-	*pkgPath = QDir::toNativeSeparators(output.filePath(base + QStringLiteral(".pkg"))).toStdString();
+	const QString target = job->ps5Target.isEmpty() ? QStringLiteral("pkg") : job->ps5Target;
+	*pkgPath = QDir::toNativeSeparators(output.filePath(base + QLatin1Char('.') + target)).toStdString();
+	// What it is made from, for the panel's totals, and room for what is made
+	// (about as big), checked before minutes are spent on it.
+	uint64_t bytes = 0;
+	if(source.isDir())
+	{
+		QDirIterator files(job->packFolder, QDir::Files | QDir::Hidden | QDir::NoSymLinks, QDirIterator::Subdirectories);
+		while(files.hasNext())
+		{
+			files.next();
+			bytes += static_cast<uint64_t>(std::max<qint64>(0, files.fileInfo().size()));
+		}
+	}
+	else
+		bytes = static_cast<uint64_t>(std::max<qint64>(0, source.size()));
+	const QStorageInfo space(output.absolutePath());
+	const uint64_t needed = bytes + bytes / 20 + (64ull << 20);
+	if(space.isValid() && space.bytesAvailable() > 0 && static_cast<uint64_t>(space.bytesAvailable()) < needed)
+	{
+		*error = "not enough free space in the output folder (needs about " + std::to_string(needed >> 20)
+			+ " MB, has " + std::to_string(space.bytesAvailable() >> 20) + " MB)";
+		return false;
+	}
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
 		job->stage = QStringLiteral("image");
 		job->percent = 0;
+		job->sourceBytes = bytes;
 	}
 	tick();
 
 	QStringList arguments { QStringLiteral("convert"), QDir::toNativeSeparators(job->packFolder),
-		QStringLiteral("--to"), QStringLiteral("pkg"), QStringLiteral("-o"), QString::fromStdString(*pkgPath),
+		QStringLiteral("--to"), target, QStringLiteral("-o"), QString::fromStdString(*pkgPath),
 		QStringLiteral("--overwrite") };
-	logInfo("Games: making a PS5 package of \"" + job->packFolder.toStdString() + "\" with Packwright ("
+	logInfo("Games: making a PS5 " + std::string(target == QLatin1String("pkg") ? "package" : "image") + " of \""
+		+ job->packFolder.toStdString() + "\" with Packwright ("
 		+ program.toStdString() + "): " + [&arguments]() {
 			// Each argument as given: quoted when it has a space.
 			QStringList shown;
@@ -1651,8 +1749,28 @@ bool GamesController::runPs5Pack(const std::shared_ptr<Job> &job, const std::fun
 		}());
 	QProcess process;
 	process.setProcessChannelMode(QProcess::MergedChannels);
+#ifdef Q_OS_UNIX
+	// A group of its own: a launcher script's children go with it when it is stopped.
+	process.setChildProcessModifier([]() { ::setsid(); });
+#endif
+	// Stopped with whatever it started (a .cmd's cmd.exe runs Packwright
+	// as a child; so may a launcher script).
+	auto stopAll = [&process]() {
+		if(process.state() == QProcess::NotRunning)
+			return;
 #ifdef Q_OS_WIN
-	if(program.endsWith(QStringLiteral(".cmd"), Qt::CaseInsensitive))
+		QProcess::execute(QStringLiteral("taskkill"), { QStringLiteral("/PID"),
+			QString::number(process.processId()), QStringLiteral("/T"), QStringLiteral("/F") });
+#elif defined(Q_OS_UNIX)
+		if(process.processId() > 0)
+			::kill(-static_cast<pid_t>(process.processId()), SIGKILL);
+#endif
+		process.kill();
+		process.waitForFinished(5000);
+	};
+#ifdef Q_OS_WIN
+	if(program.endsWith(QStringLiteral(".cmd"), Qt::CaseInsensitive)
+		|| program.endsWith(QStringLiteral(".bat"), Qt::CaseInsensitive))
 	{
 		// A .cmd runs through cmd.exe, which reads its own command line: /s
 		// takes only the outer quotes off, so paths with spaces stay whole.
@@ -1678,8 +1796,7 @@ bool GamesController::runPs5Pack(const std::shared_ptr<Job> &job, const std::fun
 	{
 		if(job->cancel.load() || stopping_.load())
 		{
-			process.kill();
-			process.waitForFinished(5000);
+			stopAll();
 			QFile::remove(QString::fromStdString(*pkgPath));
 			*error = "cancelled";
 			return false;
@@ -1717,6 +1834,16 @@ bool GamesController::runPs5Pack(const std::shared_ptr<Job> &job, const std::fun
 	for(const QString &line : QString::fromUtf8(pending).split(QLatin1Char('\n'), Qt::SkipEmptyParts))
 		said << line.trimmed();
 	const int code = process.exitStatus() == QProcess::NormalExit ? process.exitCode() : -1;
+	if(code == 0 && QFileInfo::exists(QString::fromStdString(*pkgPath)) && target != QLatin1String("pkg"))
+	{
+		// An image: nothing in it to read back here; the card keeps the
+		// folder's name and title ID.
+		logInfo("Games: Packwright made the image " + *pkgPath + " ("
+			+ humanBytes(QFileInfo(QString::fromStdString(*pkgPath)).size()) + ").");
+		std::lock_guard<std::mutex> lock(mutex_);
+		job->percent = 100;
+		return true;
+	}
 	if(code == 0 && QFileInfo::exists(QString::fromStdString(*pkgPath)))
 	{
 		// What it made, read back: its title and ID for the card.
@@ -1747,6 +1874,9 @@ bool GamesController::runPs5Pack(const std::shared_ptr<Job> &job, const std::fun
 			logWarning("  Packwright: " + line.toStdString());
 	}
 	QFile::remove(QString::fromStdString(*pkgPath));
+	// 130: stopped from outside (its own cancel, a signal): a cancel, not a failure.
+	if(code == 130)
+		job->cancel.store(true);
 	*error = code == 130 ? std::string("cancelled")
 		: "Packwright could not make it (exit code " + std::to_string(code) + ")"
 			+ (said.isEmpty() ? std::string() : ": " + said.last().toStdString());

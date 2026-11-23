@@ -230,6 +230,7 @@ The picture fills the stage. Moving the mouse shows the toolbar:
 | Speaker | Mutes / unmutes the console's sound. |
 | ▭ 16:9 / 4:3 / Fill | The picture's shape, one click to the next: as the console sends it (16:9), 4:3 with bars at the sides (PS1/PS2 games come stretched), or stretched to the window. Kept for next time. |
 | Microphone | Sends / stops the PC microphone. |
+| Transfers | The transfers panel (F9). In full screen, the transfers' column over the picture instead, on the right: the batch's ring and each job under way with its progress; a click on it leaves full screen and opens the panel. F9 cannot be given to a console button. |
 | Full screen | Full screen on / off (F11; Esc leaves the session). |
 | **End the session** | Disconnects. |
 
@@ -507,12 +508,13 @@ If a file with the same name is already on the console: **Replace**,
 
 ## Games page
 
-Two tabs, kept apart, as converting is a choice and not a step:
+Three tabs, kept apart, as converting is a choice and not a step:
 
 - **All games** (it opens on this one): the library, every place games can
   be — on the console and on this PC — shown as their covers.
 - **PS1/PS2 converter** (optional): PS1/PS2 discs on this PC made into PS4
   packages. Only in builds with the converter.
+- **Captures**: the console's screenshots and video clips (below).
 
 | Item | Does |
 |---|---|
@@ -598,6 +600,32 @@ elsewhere. A title with no package on the console (one ShadowMountPlus puts
 on the home screen from its own folder) is listed but cannot be copied from
 here.
 
+**Copy to <console>** (under **…**, one entry for each other console in the
+list: a PS4 game to any console, as a PS5 runs PS4 games; a PS5 game to
+another PS5) copies the game, its update and its add-ons to this PC as above,
+then makes that console the one in use and queues them there: game first,
+then update, then add-ons — once nothing runs on the console in use (its
+install queue, a conversion or packing that sends there, a Remote Play
+session), so nothing under way is cut or sent to the wrong console; the copy's
+card says what it waits for. If that console is no longer in the list, its
+queue is paused with jobs in it, or OrbisLink is closed before then, nothing
+is installed and the copy stays on this PC (the notice says where). A copy
+cut short and carried on later, or tried again, still reads the console it
+started from and still goes on to the other one. The same licence rule
+applies.
+
+**New on this PC.** Once the installed titles are read, the packages in this
+PC's places (each place and three levels of folders under it) are read too:
+an update newer than the version installed, and add-ons the console does not
+have, show on the title's card (**Update on PC** / **Add-on on PC**, in place
+of *Installed*), in its details (**New on this PC**: *update 01.05 · 1
+add-on*) and as **Install from this PC**, which queues them together (also
+for several picked with **Select**). An update of the same size as the one the
+console has is that one, and is not offered; an add-on goes by its label.
+The places in the search are read (one's own first, whole drives last), each
+package once while it stays the same. **Filter → Updates and add-ons
+on this PC** shows only those titles.
+
 On a PS4, its details also have **Uninstall…** (under **…**): the add-ons, the
 update and the game go from the console through Remote Package Installer
 (its saves stay), and **Uninstall the update…** puts the game back at the
@@ -679,7 +707,7 @@ A game's buttons:
 | `.pkg` (PS4 or PS5; its details say which) | **Install on the console** (it downloads it from this PC), **Send to the console** (FTP, to the upload folder), **Show in its folder**. A PS5 package with a PS4 in use: only **Send to the console**, and its details say only a PS5 installs it. | **Install** (PS5: from where it is, followed in the Queue tab; a PS4 installs from Debug Settings → Package Installer, which the details say), **Delete from the console…**. |
 | PS1/PS2 disc | **Convert and install**, **Only convert** (the package goes to the output folder), **Send the disc file**, **Show in its folder**. | **Convert and install**, **Only convert** (the package goes back beside the disc), **Delete…**. |
 | PS4 app or game folder (`sce_sys/param.sfo`; what a converter leaves before packing, often with a `.gp4`) | **Pack and install**: made into a `.pkg` in the output folder, then sent and installed like a converted game (its card in the Queue tab: Pack, Send, Install); **Only pack**: the package stays in the output folder; **Show in its folder**. The `.gp4` in the folder (or beside it, named after it) is followed when there is one: its files, where each goes in the package, its content ID; paths of the PC it was made on are found again in the folder by their place in the package, and what it leaves out (the converter's notes) stays out. Without one, the whole folder goes in but for the tools' leftovers (`.gp4`, `.complete`, `desktop.ini`…), under the content ID of its `param.sfo`. | — (on the console, a PS4 folder is not packed: copy it to this PC first). |
-| PS5 image or app folder | **Make a PS5 package and install**: made into a PS5 fake package (`.pkg`) in the output folder by Packwright, then sent and installed on the PS5 like a converted game (its card in the Queue tab: Pack, Send, Install, then what Titan Core does with it); **Only make the PS5 package**; **Show in its folder** (as it is, it is copied to `/data/homebrew` on the PS5, where ShadowMountPlus finds it). Packwright is not part of OrbisLink: it is found where its installer puts it (or on the PATH), or chosen in the details (**Choose…**); the details say whether it was found and where it comes from. | **Put on the home screen** (PS5): moved into the folder ShadowMountPlus mounts from on the same drive, then ShadowMountPlus is asked to scan, or started again. |
+| PS5 image or app folder | A **folder**: **Make an image and mount it**: made by Packwright into one `.ffpkg` image (UFS2, the kind ShadowMountPlus recommends) in the output folder, copied to `/data/homebrew` on the PS5 — one file instead of the folder's thousands, much faster over FTP — and ShadowMountPlus asked to look; nothing is installed. **Only make the image** keeps it in the output folder. An **image** (`.ffpkg`, `.exfat`, `.ffpfs`, `.ffpfsc`): **Send for ShadowMountPlus** copies it to `/data/homebrew` the same way. Either way the card says what ShadowMountPlus did (put it on the home screen now, was started again, or did not answer). And for both: **Make a PS5 package and install**: made into a PS5 fake package (`.pkg`) in the output folder by Packwright, then sent and installed on the PS5 like a converted game (its card in the Queue tab: Pack, Send, Install, then what Titan Core does with it); **Only make the PS5 package**; **Show in its folder** (as it is, it is copied to `/data/homebrew` on the PS5, where ShadowMountPlus finds it). Packwright is not part of OrbisLink: it is found where its installer puts it (or on the PATH), or chosen in the details (**Choose…**); the details say whether it was found and where it comes from. | **Put on the home screen** (PS5): moved into the folder ShadowMountPlus mounts from on the same drive, then ShadowMountPlus is asked to scan, or started again. |
 | Payload | **Run on the console** (sent from this PC to its loader). | **Run**, **Delete…**. |
 
 Nothing is installed, sent or run by itself: only these buttons do. Every
@@ -691,6 +719,27 @@ a drive taken out while open says so (*… was taken out. Plug it in again and
 it opens here.*) and comes back when it is plugged in again; the console's
 places follow its FTP coming and going; the console library is read again
 after an install or a package put back.
+
+### Captures
+
+The console's screenshots and video clips, read over FTP from
+`/user/av_contents` (a PS4 keeps them there, in `photo` and `video`, a folder
+per game), newest first. A photo shows a small picture made on this PC from it
+(kept, so it is made once, per console); a clip shows ▶. A click picks one.
+
+A PS5 keeps its originals encrypted, so what can be read over FTP are its own
+previews (smaller pictures, under `thumbnails`): those are what is listed,
+dated by their name and with no game (they are copied into the folder itself),
+and the page says so. Full-size copies come from the console's Media Gallery
+(copy to a USB drive). There is no **Delete** on a PS5: deleting a preview would
+leave the original. This layout comes from a third-party tool's source and has
+not yet been seen on a real PS5.
+
+| Item | Does |
+|---|---|
+| **Copy all to this PC** / **Copy N to this PC** | Copies them into *Pictures/OrbisLink captures*, a folder per game, named as on the console (characters Windows refuses replaced); one already there with the same size is skipped. Stops at once when the app closes. |
+| **Delete from the console…** | Deletes the picked ones from the console, after asking (they are gone for good). PS4 only. |
+| 📂 · ⟳ | Opens the folder on this PC · reads the console again. |
 
 ### PS1/PS2 converter
 
@@ -785,6 +834,18 @@ account (a PS4 game's save goes from a PS4 to a PS5 and back). It needs the
 console's FTP (GoldHEN, etaHEN); without it, the page shows what the PC
 holds. Backing up only reads the console; sending writes the save where the
 console keeps it.
+
+**Automatic backup** (off until turned on in Settings → Console in use, *Back
+up the saves by themselves when the console appears*): a few seconds after
+the FTP of the console in use answers, what is new or changed on it is
+backed up, at most every six hours a console (kept across restarts, and
+counted only once it has run to the end); not while a Remote Play session or
+the install queue is running — it waits for the next chance. Turning it on
+with the console already answering starts it a few seconds later; closing
+OrbisLink stops it between two saves, and it goes on at the next start. A notice says
+how many, and nothing when there was nothing or the console could not be
+read. It never sends anything to a console. Each save keeps its last backups
+as always.
 
 Opening the page reads a console — the one in use, or another picked in the
 header: every user, every game with saves, and each save with its icon, its
@@ -999,7 +1060,7 @@ release publishes, when the list does not have it.
 |---|---|
 | Consoles | Saved consoles: name, IP, type; add / remove. |
 | Account IDs (PSID) | PSN accounts for Remote Play: name, Account ID and its own **Remote Play PIN** (optional: 4 digits, the account's passcode, sent when the console asks for it; 8 digits, the pairing PIN, filled in when the account registers — the console shows a new one each time). Each row says which consoles the account is registered on. Editing one account's PIN never changes another's. |
-| Console in use | Which console; FTP port, user, upload folder, connections, advanced mode (protected system folders); installer port and install options; local HTTP server. While the address is typed the console is checked; when FTP answers on another port than the typed one, a line says which, with **Use port N**. |
+| Console in use | Which console; FTP port, user, upload folder, connections, advanced mode (protected system folders); installer port and install options (and the automatic backup of the saves, see Save vault); local HTTP server. While the address is typed the console is checked; when FTP answers on another port than the typed one, a line says which, with **Use port N**. |
 | Remote Play | Resolution, frame rate, bitrate, hardware decoding, rumble, touchpad from the mouse, full screen on connect. |
 | Personalisation | **Theme**: dark, glass, light or custom, each with a small picture of itself — the same choice as at the foot of the navigation. **Background**: the room the app comes with, or a **picture** of one's own (**Choose…**; ↺ goes back to the room). The app keeps a copy of it, shown out of focus behind the glass (**Blur**, 0–100%). **Colours from the picture**: the background, the panes, the accent, the champagne and the jailbreak colour are taken from the picture, in the light or dark of the theme in use; off, the picture stays with the theme's own colours. Colours changed by hand go on top either way. **Water light**: light moves slowly over the background, as through water — only behind the glass; it rests while Remote Play streams and while the window is in the background. Then the app's colours, on top of the theme picked at the foot of the navigation: accent, jailbreak (GoldHEN gold), available, checking, error, window background, panels, text. A click on a colour opens a picker (square, hue strip, hex code, suggestions); ↺ puts the theme's colour back. **Saved looks**: give the theme and colours in use a name to keep them; **Apply** brings one back (it is then the one ✨ in the navigation brings), 🗑 deletes it. Changes show at once. |
 | General | Language, theme, updates (channel: stable or testing), advanced options. |

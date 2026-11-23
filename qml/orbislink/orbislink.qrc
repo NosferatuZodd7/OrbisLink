@@ -13,6 +13,7 @@
         <file alias="JobCard.qml">JobCard.qml</file>
         <file alias="GamesView.qml">GamesView.qml</file>
         <file alias="SavesView.qml">SavesView.qml</file>
+        <file alias="CapturesView.qml">CapturesView.qml</file>
         <file alias="PayloadsView.qml">PayloadsView.qml</file>
         <file alias="ShelfView.qml">ShelfView.qml</file>
         <file alias="InlineField.qml">InlineField.qml</file>

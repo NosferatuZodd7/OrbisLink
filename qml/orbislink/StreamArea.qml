@@ -644,6 +644,13 @@ Item {
                 ToolTip.visible: aspectArea.containsMouse
                 ToolTip.text: qsTr("Picture shape: 16:9 as the console sends it, 4:3 for PS1/PS2 games, or Fill to stretch it to the window. Click to change.")
             }
+            // The transfers: over the picture in full screen, the side
+            // panel otherwise (F9).
+            HudButton {
+                iconName: "panel"
+                tip: window.streamFullscreen ? qsTr("Transfers over the picture (F9)") : qsTr("Transfers (F9)")
+                onClicked: window.togglePanel()
+            }
             HudButton {
                 iconName: window.streamFullscreen ? "minimize" : "maximize"
                 tip: window.streamFullscreen ? qsTr("Leave full screen") : qsTr("Full screen")

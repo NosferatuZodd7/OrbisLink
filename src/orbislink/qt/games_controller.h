@@ -85,6 +85,9 @@ public:
 	QVariantList games() const { return games_; }
 	QVariantList conversions() const { return conversions_; }
 	bool converting() const;
+	// A conversion or packing still to finish whose result goes to the
+	// console in use.
+	bool willSend() const;
 	QVariantMap progress() const { return progress_; }
 
 	// Folders come as paths or file:// URLs (what FolderDialog gives).
@@ -99,6 +102,11 @@ public:
 	// image) made into a PS5 fake package by Packwright, in the output
 	// folder; then, with `install`, sent and installed like any package.
 	Q_INVOKABLE void packPs5(const QString &source, bool install);
+	// The same game made by Packwright into an image ShadowMountPlus mounts
+	// (.ffpkg, UFS2, the kind it recommends), in the output folder; then,
+	// with `send`, copied to /data/homebrew on the PS5 (one file, not the
+	// thousands of the folder) and ShadowMountPlus asked to look.
+	Q_INVOKABLE void imagePs5(const QString &source, bool send);
 	Q_INVOKABLE void setStorage(const QString &storage);
 	Q_INVOKABLE QString folderFor(const QString &storage) const { return folderOn(storage); }
 	// Asks the console in use over FTP which drives it has (drives).

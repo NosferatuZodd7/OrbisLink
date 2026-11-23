@@ -182,6 +182,7 @@ std::string Settings::toJson() const
 	if(!packwrightPath.empty())
 		root.set("packwright_path", Json::fromString(packwrightPath));
 	root.set("keep_converted_packages", Json::fromBool(keepConvertedPackages));
+	root.set("auto_save_backup", Json::fromBool(autoSaveBackup));
 	root.set("install_storage", Json::fromString(installStorage));
 	root.set("save_vault_folder", Json::fromString(saveVaultFolder));
 	Json places = Json::makeArray();
@@ -382,6 +383,7 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.convertOutputFolder = root["convert_output_folder"].toString(settings.convertOutputFolder);
 	settings.packwrightPath = root["packwright_path"].toString(settings.packwrightPath);
 	settings.keepConvertedPackages = root["keep_converted_packages"].toLooseBool(settings.keepConvertedPackages);
+	settings.autoSaveBackup = root["auto_save_backup"].toLooseBool(settings.autoSaveBackup);
 	settings.installStorage = root["install_storage"].toString(settings.installStorage);
 	if(settings.installStorage != "usb" && settings.installStorage != "ext")
 		settings.installStorage = "internal";

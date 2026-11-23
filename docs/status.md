@@ -40,6 +40,9 @@ Last review: v1.1.0.
 | ✅ | PS5 fake packages (`\x7FFIH`, and backports `\x7FLIH`): their name, title ID, version and the firmware they need read from the `param.json` inside, official (encrypted) ones told apart and turned away; installed on a PS5 the ways a PS4 package is, never on a PS4 (refused for *Install directly*, only copied over FTP) |
 | 🟡 | After a PS5 package is installed, Titan Core (port 8097, firmware 12.00–13.60) asked to look for it and followed until it is ready (or why it is not); without it, what starts a PS5 fake package on that firmware. Checked against Titan Core's source and the fake console, not yet on a real PS5 |
 | 🟡 | A PS5 game folder or image of this PC made into a PS5 fake package by Packwright (installed separately), then sent and installed; checked with a stand-in for Packwright's command line, not yet with Packwright itself nor on a real PS5 |
+| 🟡 | A PS5 game folder made by Packwright into one `.ffpkg` image (or an image of this PC as it is) copied to `/data/homebrew` and ShadowMountPlus asked to look (its API, else started again), what it did said on the card; checked with the stand-in and a fake ShadowMountPlus API |
+| ✅ | Updates and add-ons in this PC's places that an installed title lacks (a newer version than installed, add-ons it does not have; the same package by size is not offered): on the card, in the details, a filter, and installed in one click |
+| ✅ | A game installed on a console copied to another (a PS4 game to any, a PS5 game to a PS5): copied to this PC with its update and add-ons, that console made the one in use and the packages queued there |
 | 🟡 | Installing on a PS5 through Prospero Manager (port 7070) when there is no DPI v2: its package API (`/api/pkg/install` with a path or an address, `/api/pkg/status` until *queued*), checked against its source and the fake console, not yet on a real PS5 |
 | ✅ | Error 0x80990015 (a task left by an earlier try): the task is removed and the install asked again |
 | ✅ | Official (store) packages told apart from fake ones (the header's type field at 0x04, as PS4 PKG Tool does), and a warning before one goes: it installs only with its licence |
@@ -117,7 +120,7 @@ Last review: v1.1.0.
 | ✅ | Full screen (F11, Esc to leave) |
 | 🟡 | Games, store, save vault and payloads as a page over the picture while a session is on screen, with an opacity slider (70–100 %, kept) and the keyboard the page's while it is open; checked with the demo stage, not yet over a real session |
 | ✅ | Choosing resolution, fps and bitrate in the settings |
-| ⬜ | Remote Play over PSN (needs a libcurl with WebSockets) |
+| ➖ | Remote Play over PSN: decided not to. It needs the official Remote Play app's OAuth client ID and secret (Sony's, which OrbisLink does not ship), a PSN login kept by the app, a libcurl with WebSockets and chiaki-ng's hole punching (some 6,300 lines), and could not be tried here |
 
 ## 4. Interface
 
@@ -147,11 +150,13 @@ Last review: v1.1.0.
 | ✅ | Live log window (Ctrl+L), with a filter and Remote Play detail |
 | ✅ | Exporting diagnostics to a file, with versions, network, the console's kind and firmware, settings (without secrets), the last Remote Play attempt, Titan Core's last answer about an install and where Packwright is, and the end of the log (which has each Titan Core step, Packwright's command and, when it fails, its last lines) |
 | ✅ | English (source language and default) and Portuguese, chosen in the settings; the log and the diagnostics are always in English |
-| ⬜ | Shortcut to the queue in full screen |
+| ✅ | The transfers in full screen: F9 (or the button on Remote Play's bar) shows their column over the picture, a click leaves full screen and opens the panel; F9 is never a console button |
 | ✅ | One queue for every job, in three groups (under way, lit and on top; waiting, with a breathing badge; finished, at the end, with one **Clear finished** for all), totals for the round (percentage, jobs to go, time left from its pace) and a compact rail with the jobs when the panel is closed while they run; the tabs only while there is a card |
 | ✅ | A converted package deleted from the output folder once the console has it (a setting keeps them) |
 | 🟡 | The console chip's firmware (Remote Play discovery) and the jailbreak's version when its FTP greeting gives it; checked with the fake console — GoldHEN's own greeting still to be seen, and etaHEN's does not give it |
 | ✅ | Save vault: **Select all** selects everything shown (then **Select none**), and each game a button for its saves |
+| ✅ | Saves backed up by themselves when the console's FTP answers (a setting, off by default): what is new or changed, at most every six hours a console, never sent anywhere |
+| 🟡 | Captures: the console's screenshots and clips from `/user/av_contents`, small pictures made on this PC, copied to this PC by game or deleted from the console after asking; the PS4's place is from community documentation. On a PS5 the originals are encrypted (`.dat` + `.meta` under `photo/NPXS40087/NPXS40087/<bucket>`), so what is listed are the console's own previews under `thumbnails/` (`.jpg.jpeg`), (then the users' `screenshot` folders if there are none), dated by their name, with no game, and nothing is deleted (a preview deleted would leave its original). That layout is from a third-party tool's source (PS5-Upload-Suite), not yet seen on a real PS5 |
 | ✅ | Library: packages in the console's places deleted together, after one question |
 | ✅ | Payloads and plugins say what they do: the payload library's words, else what is known of the common ones (GoldHEN's plugins, PS4 and PS5 payloads), else the kind of file and its loader |
 | 🟡 | Titan Core in the PS5 payload library, from its own latest release and checked against the SHA-256 the release publishes (it is not in the community list); the release's asset names checked against its README only |
@@ -168,7 +173,7 @@ Last review: v1.1.0.
 | ✅ | Check that the package carries every DLL (Qt, curl, MSVC runtime, FFmpeg, SDL2) |
 | ✅ | Detection of missing graphics acceleration, with automatic compatibility mode |
 | ✅ | Diagnostics script (`diagnostics.bat`) that collects the logs and the Windows event log |
-| ⬜ | AppImage for Linux |
+| 🟡 | AppImage for Linux: the graphical interface with its Qt, its QML modules (and the one Qt's file dialogs need) and Remote Play's libraries (`scripts/build-appimage.sh`, a job of its own in release.yml that does not hold a release back); built and run here, Remote Play in it not yet tried with a console, nor the job on GitHub |
 | ➖ | Code signing: decided not to. A certificate costs €200–400/year and this is not sold — the SmartScreen warning can be clicked through |
 | ✅ | Update check: reads the GitHub releases, compares by semver, downloads, verifies the SHA-256 and runs the installer |
 | ✅ | Stable or testing channel (pre-releases), and the repository is a setting — the project can move without recompiling |

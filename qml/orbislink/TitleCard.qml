@@ -99,8 +99,13 @@ ShelfTile {
         Repeater {
             model: [
                 card.kindTag.length > 0 ? { text: card.kindTag, tone: "neutral", icon: "", mono: card.kindTag === card.typeText } : null,
-                card.info.installed === true ? { text: card.updated ? qsTr("Updated") : qsTr("Installed"), tone: "ok",
-                                                 icon: "check", mono: false } : null
+                // This PC has an update or add-ons the console does not: said
+                // instead of "Installed" (the glow says that), for room.
+                (card.info.pendingPaths || []).length > 0
+                    ? { text: card.info.pendingUpdate ? qsTr("Update on PC") : qsTr("Add-on on PC"), tone: "accent",
+                        icon: "download", mono: false }
+                    : card.info.installed === true ? { text: card.updated ? qsTr("Updated") : qsTr("Installed"),
+                                                       tone: "ok", icon: "check", mono: false } : null
             ].filter(function (t) { return t !== null })
             ShelfTile.CoverTag {
                 required property var modelData

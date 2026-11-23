@@ -233,7 +233,7 @@ PkgInfo PkgInspector::inspect(const std::string &path, int64_t size, const ByteR
 		const uint64_t inner = readLE64(header.data() + (fih ? 0x58 : 0x30));
 		const bool official = fih && header[5] == 0x80;
 		uint8_t magic[4] = { 0, 0, 0, 0 };
-		const bool hasInner = inner > 0 && static_cast<int64_t>(inner) + kMinPkgSize <= size
+		const bool hasInner = inner > 0 && size >= kMinPkgSize && inner <= static_cast<uint64_t>(size - kMinPkgSize)
 			&& read(static_cast<int64_t>(inner), magic, 4) && magic[0] == 0x7F && magic[1] == 'C' && magic[2] == 'N'
 			&& magic[3] == 'T';
 		if(!hasInner)

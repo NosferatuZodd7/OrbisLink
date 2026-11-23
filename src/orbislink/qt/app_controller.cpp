@@ -2,6 +2,7 @@
 #include "orbislink/qt/app_controller.h"
 
 #include "orbislink/library/console_library.h"
+#include "orbislink/qt/shadowmount_control.h"
 
 #include "orbislink/qt/backdrop.h"
 #include "orbislink/qt/diagnostics.h"
@@ -297,18 +298,31 @@ void AppController::rebuildBackends()
 		const QString titleId = QString::fromStdString(task.titleId);
 		// An upload that reached the console: the folder it went into.
 		QString landedIn;
+		// A PS5 game image put in a folder ShadowMountPlus looks in (its
+		// first level): it is asked to look now.
+		QString imageLanded;
 		if(task.mode == TransferMode::FtpUpload && task.state == TaskState::Completed)
 		{
 			const std::string &path = task.remotePath;
-			landedIn = QString::fromStdString(path.substr(0, path.find_last_of('/') + 1));
+			const std::string folder = path.substr(0, path.find_last_of('/') + 1);
+			landedIn = QString::fromStdString(folder);
+			const std::string name = path.substr(folder.size());
+			if(library::kindOf(name, false, task.totalBytes) == library::Kind::Image
+				&& library::mountFolderFor(path) + "/" == folder)
+				imageLanded = QString::fromStdString(path);
 		}
 		life->post(
-			[this, terminal, title, message, failed, landedIn, ps5Installed, taskId, titleId]() {
+			[this, terminal, title, message, failed, landedIn, ps5Installed, taskId, titleId, imageLanded]() {
 				refreshQueueModel();
 				if(ps5Installed && activeIsPs5() && !ps5Followed_.contains(taskId))
 				{
 					ps5Followed_.insert(taskId);
 					followPs5Install(taskId, titleId);
+				}
+				if(!imageLanded.isEmpty() && activeIsPs5() && !ps5Followed_.contains(taskId))
+				{
+					ps5Followed_.insert(taskId);
+					handImageToShadowMount(taskId, imageLanded);
 				}
 				emit queueStateChanged();
 				// Waiting for the installer: a fresh look at the console
@@ -1680,6 +1694,57 @@ QString AppController::ps5StartHint() const
 	return tr("On firmware %1 no public method starts a PS5 fake package yet.").arg(firmware);
 }
 
+bool AppController::queueBusy() const
+{
+	if(!queue_)
+		return false;
+	for(const QueueTask &task : queue_->tasks())
+		if(!task.isTerminal())
+			return true;
+	return false;
+}
+
+void AppController::setTaskNote(const QString &taskId, const QString &text)
+{
+	queueModel_.setNote(taskId, text);
+	// A package or image made here shows it on its conversion card too.
+	bool changed = false;
+	for(auto it = transfers_.begin(); it != transfers_.end(); ++it)
+	{
+		QVariantMap item = it.value().toMap();
+		if(item.value(QStringLiteral("taskId")).toString() != taskId
+			|| item.value(QStringLiteral("note")).toString() == text)
+			continue;
+		item[QStringLiteral("note")] = text;
+		it.value() = item;
+		changed = true;
+	}
+	if(changed)
+		emit transfersChanged();
+}
+
+void AppController::handImageToShadowMount(const QString &taskId, const QString &remotePath)
+{
+	const std::string address = settings_.consoleAddress;
+	const FtpClient::Config config = ftpClientConfigFor(address);
+	setTaskNote(taskId, tr("ShadowMountPlus: asking it to look…"));
+	std::thread([this, life = lifeline_, taskId, remotePath, address, config]() {
+		const std::atomic<bool> never { false };
+		const std::string how = shadowmount::rescan(config, address, &never);
+		logInfo("ShadowMountPlus: " + remotePath.toStdString() + " is where it looks; "
+			+ (how == "api" ? std::string("its API was asked to scan.")
+				: how == "restarted" ? std::string("it was started again, which scans everything.")
+				: std::string("neither its API nor a restart answered: it finds it at its next scan, if it runs.")));
+		const QString text = how == "api"
+			? tr("ShadowMountPlus: it puts it on the home screen now.")
+			: how == "restarted"
+			? tr("ShadowMountPlus was started again: it is on the home screen in a few seconds.")
+			: tr("ShadowMountPlus did not answer: it puts it on the home screen at its next scan, if it runs "
+				 "(load it in Payloads).");
+		life->post([this, taskId, text]() { setTaskNote(taskId, text); });
+	}).detach();
+}
+
 void AppController::followPs5Install(const QString &taskId, const QString &titleId)
 {
 	const std::string address = settings_.consoleAddress;
@@ -1711,23 +1776,7 @@ void AppController::followPs5Install(const QString &taskId, const QString &title
 			return false;
 		};
 		auto note = [this, &life, &taskId](const QString &text) {
-			life->post([this, taskId, text]() {
-				queueModel_.setNote(taskId, text);
-				// A package made here shows it on its conversion card too.
-				bool changed = false;
-				for(auto it = transfers_.begin(); it != transfers_.end(); ++it)
-				{
-					QVariantMap item = it.value().toMap();
-					if(item.value(QStringLiteral("taskId")).toString() != taskId
-						|| item.value(QStringLiteral("note")).toString() == text)
-						continue;
-					item[QStringLiteral("note")] = text;
-					it.value() = item;
-					changed = true;
-				}
-				if(changed)
-					emit transfersChanged();
-			});
+			life->post([this, taskId, text]() { setTaskNote(taskId, text); });
 		};
 		auto report = [this, &life](const std::string &text) {
 			const QString line = QDateTime::currentDateTime().toString(QStringLiteral("HH:mm:ss")) + QStringLiteral("  ")
@@ -4013,6 +4062,7 @@ QVariantMap AppController::settingsMap() const
 	map[QStringLiteral("installAfterUpload")] = settings_.installAfterUpload;
 	map[QStringLiteral("deleteFromConsoleAfterInstall")] = settings_.deleteFromConsoleAfterInstall;
 	map[QStringLiteral("keepConvertedPackages")] = settings_.keepConvertedPackages;
+	map[QStringLiteral("autoSaveBackup")] = settings_.autoSaveBackup;
 	map[QStringLiteral("ftpMaxConnections")] = settings_.ftpMaxConnections;
 	map[QStringLiteral("ftpAdvancedMode")] = settings_.ftpAdvancedMode;
 	map[QStringLiteral("debugLogging")] = settings_.debugLogging;
@@ -4084,6 +4134,7 @@ void AppController::applySettings(const QVariantMap &values)
 	settings_.deleteFromConsoleAfterInstall =
 		boolOr("deleteFromConsoleAfterInstall", settings_.deleteFromConsoleAfterInstall);
 	settings_.keepConvertedPackages = boolOr("keepConvertedPackages", settings_.keepConvertedPackages);
+	settings_.autoSaveBackup = boolOr("autoSaveBackup", settings_.autoSaveBackup);
 	settings_.ftpMaxConnections = intOr("ftpMaxConnections", settings_.ftpMaxConnections);
 	settings_.ftpAdvancedMode = boolOr("ftpAdvancedMode", settings_.ftpAdvancedMode);
 	settings_.theme = stringOr("theme", settings_.theme);

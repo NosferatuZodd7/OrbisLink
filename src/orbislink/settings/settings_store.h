@@ -221,6 +221,10 @@ struct Settings
 	// output folder once it is on the console; off, it is deleted then
 	// (installed, or sent when not installing).
 	bool keepConvertedPackages = false;
+	// The saves of the console in use backed up to the vault by themselves
+	// when its FTP answers (what is new or changed, at most every few hours);
+	// never sent anywhere.
+	bool autoSaveBackup = false;
 	// Where on the console a game goes to be installed: "internal"
 	// (/data), "usb" (/mnt/usb0) or "ext" (the extended storage, /mnt/ext0).
 	std::string installStorage = "internal";

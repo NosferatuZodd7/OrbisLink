@@ -280,7 +280,15 @@ private:
 	// The place of what the console has installed: read over FTP, shown as
 	// it is read; at home, its covers.
 	void loadInstalled(bool forPlace);
-	QVariantMap installedCard(const library::InstalledTitle &title, const Source &from, bool ps5) const;
+	// An installed title's card with what this PC has for it that the
+	// console does not (a newer update, add-ons): pendingPaths, pendingText,
+	// and the action to install them.
+	QVariantMap withPending(QVariantMap card, const library::InstalledTitle &title,
+		const std::vector<library::PcPackage> &packages) const;
+	// `others`: the other consoles of the list (address → type), read on the
+	// interface's thread, for "Copy to <console>".
+	QVariantMap installedCard(const library::InstalledTitle &title, const Source &from, bool ps5,
+		const QList<QPair<QString, QString>> &others = {}) const;
 	// A card by its key, among those of the place open or of the search.
 	QVariantMap cardByKey(const QString &key) const;
 	void actOn(const QVariantMap &card, const QString &action);
@@ -354,6 +362,9 @@ private:
 	// What the console has installed, as last read (interface thread only).
 	QVariantList installedCards_;
 	bool installedReading_ = false;
+	// Its titles are shown; this PC's places are still looked through for
+	// the updates and add-ons they lack (part of the reading).
+	bool installedScanning_ = false;
 	// Covers asked for by the pages, on their way (interface thread only).
 	QSet<QString> coverPending_;
 	int coverRevision_ = 0;

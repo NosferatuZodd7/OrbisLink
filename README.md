@@ -226,7 +226,9 @@ The binaries are produced by GitHub Actions
 ([the "Release" workflow](.github/workflows/release.yml)):
 
 * **Windows x64** — `OrbisLink-<version>-setup.exe` (installer).
-* **Linux x86-64** — `orbislink-<version>-linux-x86_64.tar.gz` (command line).
+* **Linux x86-64** — `OrbisLink-<version>-x86_64.AppImage` (the graphical
+  interface, with its Qt: `chmod +x` it and run it) and
+  `orbislink-<version>-linux-x86_64.tar.gz` (command line).
 
 There are two kinds of release:
 
@@ -276,6 +278,7 @@ cmake --build build --config RelWithDebInfo
 
 ```bash
 ./scripts/build-linux.sh      # builds, runs the tests and makes the .tar.gz
+./scripts/build-appimage.sh   # the graphical interface as an AppImage (Qt 6 and its QML modules installed)
 
 sudo apt install mingw-w64 nsis
 ./scripts/build-windows.sh    # standalone .exe + installer
@@ -404,8 +407,9 @@ as the PS4 installer; it still has to be confirmed on a real PS5.
 translucent layers. Real blur needs `QtQuick.Effects` (Qt 6.5+), and the
 screenshots are built with 6.4.
 
-**AppImage for Linux.** There is the `.tar.gz` with the command line; the
-graphical interface is only distributed for Windows.
+**AppImage for Linux.** New: it is built and runs here, but Remote Play in
+it has not been tried with a console yet, and its release job does not hold a
+release back if it fails.
 
 **Code signing.** The installer is not signed, so Windows shows the
 SmartScreen warning on the first run. A code-signing certificate costs a few

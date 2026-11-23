@@ -462,6 +462,159 @@
     </message>
 </context>
 <context>
+    <name>CapturesView</name>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="61"/>
+        <source>Screenshots and video clips, from %1 on the console</source>
+        <translation>Capturas de ecrã e vídeos, de %1 na consola</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../qml/orbislink/CapturesView.qml" line="62"/>
+        <source>%n picked</source>
+        <translation>
+            <numerusform>%n escolhida</numerusform>
+            <numerusform>%n escolhidas</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../qml/orbislink/CapturesView.qml" line="63"/>
+        <source>%n photo(s)</source>
+        <translation>
+            <numerusform>%n foto</numerusform>
+            <numerusform>%n fotos</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../qml/orbislink/CapturesView.qml" line="64"/>
+        <source>%n clip(s)</source>
+        <translation>
+            <numerusform>%n vídeo</numerusform>
+            <numerusform>%n vídeos</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="64"/>
+        <source>newest first</source>
+        <translation>as mais recentes primeiro</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="68"/>
+        <source>Pick none</source>
+        <translation>Não escolher nenhuma</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="75"/>
+        <source>Delete from the console…</source>
+        <translation>Apagar da consola…</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../qml/orbislink/CapturesView.qml" line="86"/>
+        <source>Copy %n to this PC</source>
+        <translation>
+            <numerusform>Copiar %n para este PC</numerusform>
+            <numerusform>Copiar %n para este PC</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="87"/>
+        <source>Copy all to this PC</source>
+        <translation>Copiar todas para este PC</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="89"/>
+        <source>Into %1, a folder per game; one already there is skipped</source>
+        <translation>Para %1, uma pasta por jogo; as que já lá estão são saltadas</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="90"/>
+        <source>From a PS5 these are its previews, smaller than the originals.</source>
+        <translation>De uma PS5, são as pré-visualizações dela, mais pequenas do que os originais.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="97"/>
+        <source>Open the folder on this PC</source>
+        <translation>Abrir a pasta neste PC</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="105"/>
+        <source>Read the console again</source>
+        <translation>Ler a consola de novo</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="117"/>
+        <source>A PS5 keeps its originals encrypted: these are its own previews, smaller pictures. For full-size copies, or to delete, use its Media Gallery (it copies to a USB drive).</source>
+        <translation>Uma PS5 guarda os originais cifrados: estas são as pré-visualizações dela, imagens mais pequenas. Para cópias em tamanho real, ou para apagar, usa a Galeria multimédia dela (copia para uma pen USB).</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="145"/>
+        <source>The console&apos;s FTP is not answering</source>
+        <translation>O FTP da consola não responde</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="146"/>
+        <source>No captures on the console</source>
+        <translation>Não há capturas na consola</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="146"/>
+        <source>The console&apos;s captures</source>
+        <translation>As capturas da consola</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="147"/>
+        <source>Its captures are read over FTP: once it answers, they show here.</source>
+        <translation>As capturas são lidas por FTP: assim que responder, aparecem aqui.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="149"/>
+        <source>Looked in %1 for the previews a PS5 makes of its captures (it keeps the originals encrypted). Full-size copies come from its Media Gallery: copy them to a USB drive.</source>
+        <translation>Procurei em %1 as pré-visualizações que uma PS5 faz das capturas (os originais ficam cifrados). As cópias em tamanho real vêm da Galeria multimédia dela: copia-as para uma pen USB.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="153"/>
+        <source>Looked in %1, where a PS4 keeps its screenshots and clips (a folder per game). On a PS5 they may be elsewhere: the Files tab shows the console&apos;s folders.</source>
+        <translation>Procurei em %1, onde uma PS4 guarda as capturas de ecrã e os vídeos (uma pasta por jogo). Numa PS5 podem estar noutro sítio: o separador Ficheiros mostra as pastas da consola.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="155"/>
+        <source>Its screenshots and video clips, to look at and copy to this PC.</source>
+        <translation>As capturas de ecrã e os vídeos dela, para ver e copiar para este PC.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="160"/>
+        <source>Read the console</source>
+        <translation>Ler a consola</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="226"/>
+        <source>Clip</source>
+        <translation>Vídeo</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../qml/orbislink/CapturesView.qml" line="288"/>
+        <source>Delete %n capture(s) from the console?</source>
+        <translation>
+            <numerusform>Apagar %n captura da consola?</numerusform>
+            <numerusform>Apagar %n capturas da consola?</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="298"/>
+        <source>They are deleted from the console for good. Copy them to this PC first to keep them.</source>
+        <translation>São apagadas da consola de vez. Copia-as primeiro para este PC se as quiseres guardar.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="310"/>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/CapturesView.qml" line="314"/>
+        <source>Delete from the console</source>
+        <translation>Apagar da consola</translation>
+    </message>
+</context>
+<context>
     <name>CheatsController</name>
     <message>
         <location filename="../src/orbislink/qt/cheats_controller.cpp" line="133"/>
@@ -2307,18 +2460,18 @@
 <context>
     <name>GamesView</name>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="84"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="85"/>
         <source>Choose the folder where your disc images are.</source>
         <translation>Escolhe a pasta onde estão as imagens dos teus discos.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="135"/>
-        <location filename="../qml/orbislink/GamesView.qml" line="450"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="136"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="466"/>
         <source>Change the games folder</source>
         <translation>Alterar a pasta dos jogos</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="145"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="146"/>
         <source>Look again</source>
         <translation>Procurar de novo</translation>
     </message>
@@ -2349,12 +2502,12 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="164"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="166"/>
         <source>All games</source>
         <translation>Todos os jogos</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="171"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="173"/>
         <source>PS1/PS2 converter</source>
         <translation>Conversor PS1/PS2</translation>
     </message>
@@ -2369,122 +2522,132 @@
         <translation>Biblioteca</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="85"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="84"/>
+        <source>The console&apos;s screenshots and video clips, to look at and copy to this PC</source>
+        <translation>As capturas de ecrã e os vídeos da consola, para ver e copiar para este PC</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/GamesView.qml" line="86"/>
         <source>Optional: PS1/PS2 discs on this PC made into PS4 packages</source>
         <translation>Opcional: discos PS1/PS2 deste PC transformados em pacotes PS4</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="95"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="96"/>
         <source>Read every place again</source>
         <translation>Ler todos os locais de novo</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="95"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="96"/>
         <source>Read this folder again</source>
         <translation>Ler esta pasta de novo</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="104"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="105"/>
         <source>Organise the packages in this folder</source>
         <translation>Organizar os pacotes desta pasta</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="113"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="114"/>
         <source>Add a place to the library</source>
         <translation>Adicionar um local à biblioteca</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="119"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="120"/>
         <source>Places</source>
         <translation>Locais</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="121"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="122"/>
         <source>Manage the places</source>
         <translation>Gerir os locais</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="212"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="179"/>
+        <source>Captures</source>
+        <translation>Capturas</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/GamesView.qml" line="220"/>
         <source>Downloading the PS1/PS2 emulator files… %1%</source>
         <translation>A descarregar os ficheiros do emulador PS1/PS2… %1%</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="214"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="222"/>
         <source>Unpacking the emulator files… %1%</source>
         <translation>A extrair os ficheiros do emulador… %1%</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="216"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="224"/>
         <source>The emulator files could not be downloaded: %1</source>
         <translation>Não foi possível descarregar os ficheiros do emulador: %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="217"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="225"/>
         <source>Nothing else is needed: the first conversion downloads the PS1/PS2 emulator files once (about 109 MB), like easy-ps2-fpkg.</source>
         <translation>Não é preciso mais nada: a primeira conversão descarrega os ficheiros do emulador PS1/PS2 uma única vez (cerca de 109 MB), como o easy-ps2-fpkg.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="222"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="230"/>
         <source>Try again</source>
         <translation>Tentar de novo</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="222"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="230"/>
         <source>Download now</source>
         <translation>Descarregar agora</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="269"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="277"/>
         <source>Ready to convert</source>
         <translation>Prontos a converter</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="270"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="278"/>
         <source>Converting</source>
         <translation>A converter</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="271"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="279"/>
         <source>On its way</source>
         <translation>A caminho</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="272"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="280"/>
         <source>Installed</source>
         <translation>Instalado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="273"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="281"/>
         <source>Failed</source>
         <translation>Falhou</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="347"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="355"/>
         <source>Your PS1 and PS2 games, ready for the console</source>
         <translation>Os teus jogos de PS1 e PS2, prontos para a consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="348"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="356"/>
         <source>Choose the folder with your disc images (.iso, .bin/.cue, .img). The app finds which are PS1 and PS2 games, converts them into PS4 packages, sends them to the console over FTP and installs them.</source>
         <translation>Escolhe a pasta com as imagens dos teus discos (.iso, .bin/.cue, .img). A app descobre quais são jogos de PS1 e PS2, converte-os em pacotes de PS4, envia-os para a consola por FTP e instala-os.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="352"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="360"/>
         <source>Choose games folder…</source>
         <translation>Escolher pasta dos jogos…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="447"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="463"/>
         <source>No discs here</source>
         <translation>Nenhum disco aqui</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="448"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="464"/>
         <source>No PS1 or PS2 discs in this folder.</source>
         <translation>Não há discos de PS1 ou PS2 nesta pasta.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/GamesView.qml" line="476"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="492"/>
         <source>%n selected</source>
         <translation>
             <numerusform>%n selecionado</numerusform>
@@ -2492,17 +2655,17 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="487"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="503"/>
         <source>Clear the selection</source>
         <translation>Limpar a seleção</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="492"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="508"/>
         <source>Continue…</source>
         <translation>Continuar…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/GamesView.qml" line="509"/>
+        <location filename="../qml/orbislink/GamesView.qml" line="525"/>
         <source>Folder with your PS1/PS2 disc images</source>
         <translation>Pasta com as imagens dos teus discos de PS1/PS2</translation>
     </message>
@@ -2687,8 +2850,8 @@
     </message>
     <message>
         <location filename="../qml/orbislink/KeyboardMap.qml" line="216"/>
-        <source>That key can&apos;t be used: Esc leaves the stream and F11 toggles full screen.</source>
-        <translation>Essa tecla não se pode usar: o Esc sai do stream e o F11 muda o ecrã inteiro.</translation>
+        <source>That key can&apos;t be used: Esc leaves the stream, F11 toggles full screen and F9 shows the transfers.</source>
+        <translation>Essa tecla não pode ser usada: Esc sai da transmissão, F11 liga e desliga o ecrã inteiro e F9 mostra as transferências.</translation>
     </message>
     <message>
         <location filename="../qml/orbislink/KeyboardMap.qml" line="270"/>
@@ -2723,62 +2886,62 @@
         <translation>OrbisLink — %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="70"/>
+        <location filename="../qml/orbislink/Main.qml" line="73"/>
         <source>Still checking the console&apos;s FTP and installer: the transfers open as soon as one answers.</source>
         <translation>Ainda a verificar o FTP e o instalador da consola: as transferências abrem assim que um responder.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="71"/>
+        <location filename="../qml/orbislink/Main.qml" line="74"/>
         <source>This console only offers Remote Play: it has neither FTP nor the remote installer running (a jailbreak adds them).</source>
         <translation>Esta consola só oferece Remote Play: não tem FTP nem o instalador remoto a correr (um jailbreak acrescenta-os).</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="110"/>
+        <location filename="../qml/orbislink/Main.qml" line="113"/>
         <source>Games</source>
         <translation>Jogos</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="111"/>
+        <location filename="../qml/orbislink/Main.qml" line="114"/>
         <source>Homebrew store</source>
         <translation>Loja de homebrew</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="112"/>
+        <location filename="../qml/orbislink/Main.qml" line="115"/>
         <source>Save vault</source>
         <translation>Baú de saves</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="113"/>
+        <location filename="../qml/orbislink/Main.qml" line="116"/>
         <source>Payloads</source>
         <translation>Payloads</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="392"/>
+        <location filename="../qml/orbislink/Main.qml" line="399"/>
         <source>Transfers</source>
         <translation>Transferências</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="406"/>
+        <location filename="../qml/orbislink/Main.qml" line="413"/>
         <source>Hide the transfers (F9)</source>
         <translation>Esconder as transferências (F9)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="430"/>
+        <location filename="../qml/orbislink/Main.qml" line="437"/>
         <source>Queue (%1)</source>
         <translation>Fila (%1)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="431"/>
+        <location filename="../qml/orbislink/Main.qml" line="438"/>
         <source>Queue</source>
         <translation>Fila</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="433"/>
+        <location filename="../qml/orbislink/Main.qml" line="440"/>
         <source>Files (FTP)</source>
         <translation>Ficheiros (FTP)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="354"/>
+        <location filename="../qml/orbislink/Main.qml" line="361"/>
         <source>Local HTTP: %1</source>
         <translation>HTTP local: %1</translation>
     </message>
@@ -3617,7 +3780,7 @@
         <translation>Não foi possível escrever um ficheiro neste PC.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="1624"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="1697"/>
         <source>Packwright is not installed: it makes PS5 packages. Get it from github.com/itsmemac/Packwright (free, GPL-3.0), or show where it is with Choose… in the game&apos;s details.</source>
         <translation>O Packwright não está instalado: é ele que faz os pacotes PS5. Obtém-no em github.com/itsmemac/Packwright (gratuito, GPL-3.0), ou indica onde está com Escolher… nos detalhes do jogo.</translation>
     </message>
@@ -4234,17 +4397,17 @@
 <context>
     <name>QueueModel</name>
     <message>
-        <location filename="../src/orbislink/qt/queue_model.cpp" line="207"/>
+        <location filename="../src/orbislink/qt/queue_model.cpp" line="223"/>
         <source>Direct install</source>
         <translation>Instalação direta</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/queue_model.cpp" line="209"/>
+        <location filename="../src/orbislink/qt/queue_model.cpp" line="225"/>
         <source>Install on the console</source>
         <translation>Instalar na consola</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/queue_model.cpp" line="210"/>
+        <location filename="../src/orbislink/qt/queue_model.cpp" line="226"/>
         <source>FTP upload</source>
         <translation>Envio por FTP</translation>
     </message>
@@ -4896,632 +5059,642 @@
         <translation>Escreve o endereço IP da consola — é verificado sozinho.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="549"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="551"/>
         <source>Settings</source>
         <translation>Definições</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="951"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="831"/>
+        <source>Back up the saves by themselves when the console appears</source>
+        <translation>Fazer cópia automática dos saves quando a consola aparece</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="961"/>
         <source>The navigation, the side panels, dialogs and plates</source>
         <translation>A navegação, os painéis laterais, as caixas de diálogo e as placas</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="977"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="987"/>
         <source>Theme</source>
         <translation>Tema</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="990"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1000"/>
         <source>Dark</source>
         <translation>Escuro</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="992"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1002"/>
         <source>Glass</source>
         <translation>Vidro</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="994"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1004"/>
         <source>Light</source>
         <translation>Claro</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="996"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1006"/>
         <source>Custom</source>
         <translation>Personalizado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1106"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1116"/>
         <source>Background</source>
         <translation>Fundo</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1112"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1122"/>
         <source>Yours, out of focus behind the glass.</source>
         <translation>A tua, desfocada por trás do vidro.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1113"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1123"/>
         <source>The room the app comes with. Choose a picture of your own to put behind the glass.</source>
         <translation>A sala que vem com a app. Escolhe uma imagem tua para pôr por trás do vidro.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1137"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1147"/>
         <source>Choose…</source>
         <translation>Escolher…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1145"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1147"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1155"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1157"/>
         <source>Back to the room</source>
         <translation>Voltar à sala</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1153"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1163"/>
         <source>Colours from the picture</source>
         <translation>Cores da imagem</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1154"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1164"/>
         <source>On: the background, the panes, the accent and the champagne take the picture&apos;s colours, in the light or dark of the theme in use. Off: the picture stays, with the theme&apos;s own colours.</source>
         <translation>Ligado: o fundo, os painéis, o destaque e o champanhe tomam as cores da imagem, na luz ou no escuro do tema em uso. Desligado: a imagem fica, com as cores do próprio tema.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1163"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1173"/>
         <source>Blur</source>
         <translation>Desfoque</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1164"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1174"/>
         <source>How out of focus the picture is. The glass reads best over a picture that is well blurred.</source>
         <translation>Quão desfocada fica a imagem. O vidro lê-se melhor sobre uma imagem bem desfocada.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1214"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1224"/>
         <source>Water light</source>
         <translation>Luz de água</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1215"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1225"/>
         <source>Light moves slowly over the background, as through water — only behind the glass. It rests while Remote Play streams and while the window is in the background.</source>
         <translation>A luz move-se devagar sobre o fundo, como através da água — só por trás do vidro. Pára durante o Remote Play e enquanto a janela está em segundo plano.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1225"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1235"/>
         <source>Picture for the background</source>
         <translation>Imagem para o fundo</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1227"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1237"/>
         <source>Pictures (*.jpg *.jpeg *.png *.webp *.bmp)</source>
         <translation>Imagens (*.jpg *.jpeg *.png *.webp *.bmp)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1227"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1237"/>
         <source>All files (*)</source>
         <translation>Todos os ficheiros (*)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1246"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1256"/>
         <source>Every colour back to the theme&apos;s own</source>
         <translation>Todas as cores de volta às do tema</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1449"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1459"/>
         <source>Application</source>
         <translation>Aplicação</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1451"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1461"/>
         <source>The language, how new versions are found, and the options for those who know what they do.</source>
         <translation>O idioma, como são encontradas novas versões e as opções para quem sabe o que faz.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1458"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1468"/>
         <source>Changes the next time the app opens. The theme is picked at the foot of the navigation.</source>
         <translation>Muda da próxima vez que a aplicação abrir. O tema escolhe-se no fundo da navegação.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1499"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1509"/>
         <source>Look for a new version now</source>
         <translation>Procurar uma nova versão agora</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1545"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1547"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1555"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1557"/>
         <source>Close</source>
         <translation>Fechar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1561"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1571"/>
         <source>Setup wizard…</source>
         <translation>Assistente…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1565"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1575"/>
         <source>See the three first-run steps again</source>
         <translation>Voltar a ver os três passos da primeira utilização</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1570"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1580"/>
         <source>Cancel</source>
         <translation>Cancelar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1575"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1585"/>
         <source>Save</source>
         <translation>Guardar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="564"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="566"/>
         <source>Consoles</source>
         <translation>Consolas</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="547"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="549"/>
         <source>Preferences</source>
         <translation>Preferências</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="565"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="567"/>
         <source>Account IDs (PSID)</source>
         <translation>Account IDs (PSID)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="566"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="661"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="568"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="663"/>
         <source>Console in use</source>
         <translation>Consola em uso</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="568"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="933"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="570"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="943"/>
         <source>Personalisation</source>
         <translation>Personalização</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="569"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1450"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="571"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1460"/>
         <source>General</source>
         <translation>Geral</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="604"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="606"/>
         <source>Update check</source>
         <translation>Procurar atualizações</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="613"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="615"/>
         <source>About OrbisLink</source>
         <translation>Sobre o OrbisLink</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="660"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="662"/>
         <source>Connection</source>
         <translation>Ligação</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="662"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="664"/>
         <source>Where it is on the network, how packages reach it and the PC&apos;s own HTTP server.</source>
         <translation>Onde está na rede, como os pacotes lá chegam e o servidor HTTP do próprio PC.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="665"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="667"/>
         <source>Address</source>
         <translation>Endereço</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="668"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="670"/>
         <source>Name</source>
         <translation>Nome</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="672"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="674"/>
         <source>IP address</source>
         <translation>Endereço IP</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="678"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="680"/>
         <source>End the Remote Play session first: it is running on the console in use.</source>
         <translation>Termina primeiro a sessão de Remote Play: está a correr na consola em uso.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="687"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="689"/>
         <source>FTP port (PS5)</source>
         <translation>Porta FTP (PS5)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="687"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="689"/>
         <source>FTP port</source>
         <translation>Porta FTP</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="696"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="698"/>
         <source>Installer port</source>
         <translation>Porta do instalador</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="790"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="792"/>
         <source>Installation</source>
         <translation>Instalação</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="793"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="795"/>
         <source>Default mode</source>
         <translation>Modo por omissão</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="797"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="799"/>
         <source>Direct install</source>
         <translation>Instalação direta</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="797"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="799"/>
         <source>FTP upload</source>
         <translation>Envio por FTP</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="801"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="803"/>
         <source>FTP folder</source>
         <translation>Pasta no FTP</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="806"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="808"/>
         <source>Check whether the title is already on the console before installing</source>
         <translation>Verificar se o título já existe na consola antes de instalar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="810"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="812"/>
         <source>Also install after sending over FTP</source>
         <translation>Instalar também depois de enviar por FTP</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="811"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="813"/>
         <source>The file stays on the console and is installed right away from the PC — the remote installer only knows how to download over HTTP.</source>
         <translation>O ficheiro fica guardado na consola e é logo instalado a partir do PC — o instalador remoto só sabe descarregar por HTTP.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="818"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="820"/>
         <source>And delete the console copy once installed</source>
         <translation>E apagar a cópia da consola depois de instalar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="829"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="832"/>
+        <source>The Save vault copies to this PC what is new or changed on the console in use once its FTP answers, at most every six hours, and not during Remote Play or the install queue. Each save keeps its last backups; nothing is ever sent to a console by itself.</source>
+        <translation>O Baú de saves copia para este PC o que é novo ou mudou na consola em uso assim que o FTP dela responde, no máximo de seis em seis horas, e nunca durante o Remote Play ou a fila de instalação. Cada save guarda as últimas cópias; nada é enviado sozinho para uma consola.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="839"/>
         <source>Local HTTP server</source>
         <translation>Servidor HTTP local</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="832"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="842"/>
         <source>Port</source>
         <translation>Porta</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="838"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="848"/>
         <source>Only accept requests from the console&apos;s IP</source>
         <translation>Aceitar pedidos apenas do IP da consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="567"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="845"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="569"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="855"/>
         <source>Remote Play</source>
         <translation>Remote Play</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="774"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="776"/>
         <source>FTP answers on port %1, not on %2.</source>
         <translation>O FTP responde na porta %1, não na %2.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="782"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="784"/>
         <source>Use port %1</source>
         <translation>Usar a porta %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="822"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="824"/>
         <source>Keep the packages the converter makes once they are on the console</source>
         <translation>Guardar os pacotes que o conversor faz depois de estarem na consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="823"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="825"/>
         <source>Off, a package made from a PS1/PS2 disc or an app folder is deleted from the output folder once the console has it — installed, or sent when it is not installed. Packages of your own are never touched.</source>
         <translation>Desligado, um pacote feito a partir de um disco PS1/PS2 ou de uma pasta de app é apagado da pasta de saída quando a consola já o tem — instalado, ou enviado quando não é para instalar. Os seus próprios pacotes nunca são tocados.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="851"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="861"/>
         <source>Quality</source>
         <translation>Qualidade</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="864"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="874"/>
         <source>1080p — PS4 Pro and PS5 only</source>
         <translation>1080p — só em PS4 Pro e PS5</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="864"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="874"/>
         <source>720p — balanced</source>
         <translation>720p — equilíbrio</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="865"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="875"/>
         <source>540p</source>
         <translation>540p</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="865"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="875"/>
         <source>360p — weak network</source>
         <translation>360p — rede fraca</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="852"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="862"/>
         <source>These three only take effect from the next connection: the video profile is agreed with the console when the session starts. During the stream, the bar at the bottom shows what is actually arriving.</source>
         <translation>Estas três só valem a partir da próxima ligação: o perfil de vídeo é combinado com a consola no início da sessão. Durante o stream, a barra de baixo mostra o que está mesmo a chegar.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="874"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="884"/>
         <source>Bitrate</source>
         <translation>Bitrate</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="879"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="889"/>
         <source>automatic (kbps)</source>
         <translation>automático (kbps)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="921"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="931"/>
         <source>The Account ID each console registers with is chosen in Consoles (Edit), from the ones saved in Account IDs.</source>
         <translation>O Account ID com que cada consola se regista escolhe-se em Consolas (Editar), entre os guardados em Account IDs.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="886"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="896"/>
         <source>Decode video on the graphics card (falls back to the processor if it cannot)</source>
         <translation>Descodificar o vídeo na placa gráfica (recua para o processador se não der)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="844"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="854"/>
         <source>Streaming</source>
         <translation>Transmissão</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="846"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="856"/>
         <source>The picture, the controller and the window while a console streams.</source>
         <translation>A imagem, o comando e a janela enquanto uma consola transmite.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="848"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1110"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="858"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1120"/>
         <source>Picture</source>
         <translation>Imagem</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="891"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="901"/>
         <source>Session</source>
         <translation>Sessão</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="895"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="905"/>
         <source>Full screen on connect</source>
         <translation>Ecrã inteiro ao ligar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="899"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="909"/>
         <source>Controller rumble</source>
         <translation>Vibração no comando</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="903"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="913"/>
         <source>Mouse acts as the touchpad while streaming</source>
         <translation>Rato faz de touchpad durante o stream</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="934"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="944"/>
         <source>The theme, what is behind the glass, and the colours on top. Everything changes at once; a look can be saved to come back to.</source>
         <translation>O tema, o que está por trás do vidro e as cores por cima. Tudo muda de imediato; um visual pode ser guardado para voltar a ele.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="939"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="949"/>
         <source>Accent</source>
         <translation>Destaque</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="940"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="950"/>
         <source>Buttons, selection, links and the console in use</source>
         <translation>Botões, seleção, ligações e a consola em uso</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="941"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="951"/>
         <source>Jailbreak</source>
         <translation>Jailbreak</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="942"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="952"/>
         <source>GoldHEN, etaHEN, HEN: the console chip, badges and cards</source>
         <translation>GoldHEN, etaHEN, HEN: o indicador da consola, etiquetas e cartões</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="943"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="953"/>
         <source>Available</source>
         <translation>Disponível</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="944"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="954"/>
         <source>Services that answer, finished tasks</source>
         <translation>Serviços que respondem, tarefas concluídas</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="945"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="955"/>
         <source>Checking</source>
         <translation>A verificar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="946"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="956"/>
         <source>Services being checked, warnings</source>
         <translation>Serviços a ser verificados, avisos</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="947"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="957"/>
         <source>Error</source>
         <translation>Erro</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="948"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="958"/>
         <source>Errors, services that do not answer</source>
         <translation>Erros, serviços que não respondem</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="949"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="959"/>
         <source>Window background</source>
         <translation>Fundo da janela</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="950"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="960"/>
         <source>Panels</source>
         <translation>Painéis</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="952"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="962"/>
         <source>Text</source>
         <translation>Texto</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1238"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1248"/>
         <source>Colours</source>
         <translation>Cores</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1266"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1268"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1276"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1278"/>
         <source>Back to the theme&apos;s colour</source>
         <translation>Voltar à cor do tema</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1241"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1251"/>
         <source>Theme&apos;s colours</source>
         <translation>Cores do tema</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1331"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1341"/>
         <source>Saved looks</source>
         <translation>Visuais guardados</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1341"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1351"/>
         <source>None yet. Give the look in use a name below to keep it.</source>
         <translation>Ainda nenhum. Dá um nome ao visual em uso, aqui em baixo, para o guardar.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1388"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1398"/>
         <source>Light theme</source>
         <translation>Tema claro</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1389"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1399"/>
         <source>Glass theme</source>
         <translation>Tema vidro</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1390"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1400"/>
         <source>Dark theme</source>
         <translation>Tema escuro</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1398"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1408"/>
         <source>Apply</source>
         <translation>Aplicar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1398"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1408"/>
         <source>In use</source>
         <translation>Em uso</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1408"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1410"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1418"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1420"/>
         <source>Delete this look</source>
         <translation>Apagar este visual</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1430"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1440"/>
         <source>Name of the look in use</source>
         <translation>Nome do visual em uso</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1435"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1445"/>
         <source>Save look</source>
         <translation>Guardar visual</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="932"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="942"/>
         <source>Appearance</source>
         <translation>Aspeto</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1454"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1457"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1464"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1467"/>
         <source>Language</source>
         <translation>Idioma</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1469"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1479"/>
         <source>Updates</source>
         <translation>Actualizações</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1473"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1483"/>
         <source>Updates over the internet</source>
         <translation>Updates pela internet</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1475"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1485"/>
         <source>On start, looks for a new version in the repository below and asks before installing. Nothing is installed without your click.</source>
         <translation>Ao abrir, procura uma versão nova no repositório abaixo e pergunta antes de instalar. Nada é instalado sem o teu clique.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1477"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1487"/>
         <source>Off: the app does not go online looking for versions. &quot;Check now&quot; still works.</source>
         <translation>Desligado: a aplicação não vai à internet à procura de versões. &quot;Verificar agora&quot; continua a funcionar.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1481"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1491"/>
         <source>Repository</source>
         <translation>Repositório</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1491"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1501"/>
         <source>Channel</source>
         <translation>Canal</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1495"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1505"/>
         <source>Stable</source>
         <translation>Estável</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1495"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1505"/>
         <source>Testing (branch builds)</source>
         <translation>Testes (builds da branch)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1507"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1517"/>
         <source>Check now</source>
         <translation>Verificar agora</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1482"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1492"/>
         <source>Releases are read from the GitHub API and the repository has to be public. &quot;Check now&quot; saves the settings first.</source>
         <translation>Os lançamentos são lidos da API do GitHub e o repositório tem de ser público. &quot;Verificar agora&quot; guarda as definições primeiro.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1516"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1526"/>
         <source>Advanced</source>
         <translation>Avançado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1521"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1531"/>
         <source>Advanced mode: allows writing to the FTP system areas</source>
         <translation>Modo avançado: permite escrever nas zonas de sistema do FTP</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1525"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1535"/>
         <source>Verbose log (debug)</source>
         <translation>Registo detalhado (debug)</translation>
     </message>
@@ -5574,8 +5747,8 @@
     </message>
     <message>
         <location filename="../qml/orbislink/ShelfView.qml" line="117"/>
-        <location filename="../qml/orbislink/ShelfView.qml" line="447"/>
-        <location filename="../qml/orbislink/ShelfView.qml" line="783"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="478"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="814"/>
         <source>Folders</source>
         <translation>Pastas</translation>
     </message>
@@ -5600,380 +5773,446 @@
         <translation>Outros ficheiros</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="126"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="133"/>
+        <source>Copy to %1</source>
+        <translation>Copiar para %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ShelfView.qml" line="135"/>
         <source>Open</source>
         <translation>Abrir</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="127"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="136"/>
         <source>Install</source>
         <translation>Instalar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="127"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="136"/>
         <source>Install on the console</source>
         <translation>Instalar na consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="128"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="137"/>
         <source>Send to the console</source>
         <translation>Enviar para a consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="129"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="138"/>
         <source>Send the disc file</source>
         <translation>Enviar o ficheiro do disco</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="130"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="139"/>
         <source>Convert and install</source>
         <translation>Converter e instalar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="131"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="140"/>
         <source>Only convert (the package stays in this folder)</source>
         <translation>Só converter (o pacote fica nesta pasta)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="132"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="141"/>
         <source>Only convert</source>
         <translation>Só converter</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="133"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="142"/>
         <source>Pack and install</source>
         <translation>Empacotar e instalar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="134"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="143"/>
         <source>Only pack</source>
         <translation>Só empacotar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="135"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="144"/>
         <source>Make a PS5 package and install</source>
         <translation>Fazer um pacote PS5 e instalar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="136"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="145"/>
         <source>Only make the PS5 package</source>
         <translation>Só fazer o pacote PS5</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="137"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="146"/>
+        <source>Install from this PC</source>
+        <translation>Instalar a partir deste PC</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ShelfView.qml" line="147"/>
+        <source>Make an image and mount it</source>
+        <translation>Fazer imagem e montar</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ShelfView.qml" line="148"/>
+        <source>Only make the image</source>
+        <translation>Só fazer a imagem</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ShelfView.qml" line="149"/>
+        <source>Send for ShadowMountPlus</source>
+        <translation>Enviar para o ShadowMountPlus</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ShelfView.qml" line="150"/>
         <source>Put on the home screen</source>
         <translation>Pôr no ecrã inicial</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="138"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="151"/>
         <source>Run</source>
         <translation>Correr</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="139"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="152"/>
         <source>Run on the console</source>
         <translation>Correr na consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="140"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="153"/>
         <source>Show in its folder</source>
         <translation>Mostrar na pasta</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="141"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="154"/>
         <source>Delete from the console…</source>
         <translation>Apagar da consola…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="142"/>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1528"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="155"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1561"/>
         <source>Copy to this PC</source>
         <translation>Copiar para este PC</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="143"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="156"/>
         <source>Uninstall…</source>
         <translation>Desinstalar…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="144"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="157"/>
         <source>Uninstall the update…</source>
         <translation>Desinstalar a atualização…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="145"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="158"/>
         <source>Cheats</source>
         <translation>Cheats</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="145"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="158"/>
         <source>Cheats and patches</source>
         <translation>Cheats e patches</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="151"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="164"/>
+        <source>Copied to this PC (the game, its update and add-ons), then installed on %1, which becomes the console in use. A game from the store or a disc stays tied to its licence.</source>
+        <translation>Copiado para este PC (o jogo, a atualização e os extras) e depois instalado na %1, que passa a ser a consola em uso. Um jogo da loja ou de disco continua preso à sua licença.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ShelfView.qml" line="168"/>
         <source>The console installs it from where it is</source>
         <translation>A consola instala-o a partir de onde está</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="152"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="169"/>
         <source>The console downloads it from this PC and installs it</source>
         <translation>A consola descarrega-o deste PC e instala-o</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="153"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="170"/>
         <source>Copied over FTP to the console&apos;s upload folder</source>
         <translation>Copiado por FTP para a pasta de envio da consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="154"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="171"/>
         <source>The disc image itself, copied over FTP</source>
         <translation>A própria imagem do disco, copiada por FTP</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="155"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="172"/>
         <source>Made into a PS4 package on this PC, sent and installed</source>
         <translation>Transformado num pacote PS4 neste PC, enviado e instalado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="157"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="174"/>
         <source>Made into a PS4 package on this PC and put back beside the disc</source>
         <translation>Transformado num pacote PS4 neste PC e devolvido ao lado do disco</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="158"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="175"/>
         <source>Made into a PS4 package, kept in the output folder</source>
         <translation>Transformado num pacote PS4, guardado na pasta de saída</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="159"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="176"/>
         <source>Made into a .pkg on this PC (as its .gp4 says, when it has one), sent and installed</source>
         <translation>Transformado num .pkg neste PC (como diz o .gp4, quando existe), enviado e instalado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="160"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="177"/>
         <source>Made into a .pkg, kept in the output folder</source>
         <translation>Transformado num .pkg, guardado na pasta de saída</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="161"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="178"/>
         <source>Made into a PS5 fake package on this PC by Packwright, sent and installed</source>
         <translation>Transformado num pacote fake PS5 neste PC pelo Packwright, enviado e instalado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="162"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="179"/>
         <source>Made into a PS5 fake package by Packwright, kept in the output folder</source>
         <translation>Transformado num pacote fake PS5 pelo Packwright, guardado na pasta de saída</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="163"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="180"/>
+        <source>The update and add-ons in this PC&apos;s places that the console does not have: %1</source>
+        <translation>A atualização e os extras nos locais deste PC que a consola não tem: %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ShelfView.qml" line="182"/>
+        <source>Made into one .ffpkg image on this PC by Packwright, copied to /data/homebrew and mounted by ShadowMountPlus: nothing is installed</source>
+        <translation>Transformado numa imagem .ffpkg neste PC pelo Packwright, copiado para /data/homebrew e montado pelo ShadowMountPlus: nada é instalado</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ShelfView.qml" line="184"/>
+        <source>Made into a .ffpkg image by Packwright, kept in the output folder</source>
+        <translation>Transformado numa imagem .ffpkg pelo Packwright, guardado na pasta de saída</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ShelfView.qml" line="185"/>
+        <source>Copied to /data/homebrew on the PS5; ShadowMountPlus mounts it and puts it on the home screen</source>
+        <translation>Copiado para /data/homebrew na PS5; o ShadowMountPlus monta-o e põe-no no ecrã inicial</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ShelfView.qml" line="187"/>
         <source>Moved into the folder ShadowMountPlus mounts from, on the same drive</source>
         <translation>Movido para a pasta de onde o ShadowMountPlus monta, na mesma unidade</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="164"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="188"/>
         <source>Sent to the console&apos;s loader now</source>
         <translation>Enviado já para o carregador da consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="165"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="189"/>
         <source>Sent from this PC to the console&apos;s loader now</source>
         <translation>Enviado já deste PC para o carregador da consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="166"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="190"/>
         <source>The package the console installed it from, with its update and add-ons, copied over FTP</source>
         <translation>O pacote de onde a consola o instalou, com a atualização e os extras, copiado por FTP</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="168"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="192"/>
         <source>Cheat files from GoldHEN&apos;s and etaHEN&apos;s lists, for etaHEN</source>
         <translation>Ficheiros de cheats das listas do GoldHEN e do etaHEN, para o etaHEN</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="169"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="193"/>
         <source>Cheat files and game patches for GoldHEN</source>
         <translation>Ficheiros de cheats e patches de jogos para o GoldHEN</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="201"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="231"/>
         <source>PS4 app or game folder</source>
         <translation>Pasta de app ou jogo PS4</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="201"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="231"/>
         <source>PS5 app or game folder</source>
         <translation>Pasta de app ou jogo PS5</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="202"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="232"/>
         <source>Installed PS5 game or app</source>
         <translation>Jogo ou app PS5 instalado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="203"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="233"/>
         <source>Installed PS4 game or app</source>
         <translation>Jogo ou app PS4 instalado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="206"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="236"/>
         <source>PS5 update</source>
         <translation>Atualização PS5</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="207"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="237"/>
         <source>PS5 add-on</source>
         <translation>Extra PS5</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="207"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="237"/>
         <source>PS5 package</source>
         <translation>Pacote PS5</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="208"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="238"/>
         <source>PS4 update</source>
         <translation>Atualização PS4</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="209"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="239"/>
         <source>PS4 add-on</source>
         <translation>Extra PS4</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="210"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="240"/>
         <source>PS4 theme</source>
         <translation>Tema PS4</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="210"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="240"/>
         <source>PS4 package</source>
         <translation>Pacote PS4</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="211"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="241"/>
         <source>PS2 disc</source>
         <translation>Disco PS2</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="211"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="241"/>
         <source>PS1 disc</source>
         <translation>Disco PS1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="212"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="242"/>
         <source>Disc image</source>
         <translation>Imagem de disco</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="213"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="243"/>
         <source>PS5 game image</source>
         <translation>Imagem de jogo PS5</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="214"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="244"/>
         <source>Payload</source>
         <translation>Payload</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="215"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="245"/>
         <source>Archive</source>
         <translation>Arquivo comprimido</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="216"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="246"/>
         <source>Folder</source>
         <translation>Pasta</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="218"/>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1013"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="248"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1046"/>
         <source>File</source>
         <translation>Ficheiro</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="310"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="340"/>
         <source>Back (Esc)</source>
         <translation>Voltar (Esc)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="406"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="436"/>
         <source>Only games</source>
         <translation>Só jogos</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="406"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="436"/>
         <source>Everything</source>
         <translation>Tudo</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1941"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="476"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1043"/>
+        <source>New on this PC</source>
+        <translation>Novo neste PC</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ShelfView.qml" line="815"/>
+        <source>Updates and add-ons on this PC</source>
+        <translation>Atualizações e extras neste PC</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1150"/>
+        <source>Packwright is not installed: it makes the PS5 packages and images (free, from github.com/itsmemac/Packwright).</source>
+        <translation>O Packwright não está instalado: é ele que faz os pacotes e as imagens PS5 (gratuito, em github.com/itsmemac/Packwright).</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1974"/>
         <source>Packwright&apos;s program</source>
         <translation>O programa do Packwright</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="372"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="402"/>
         <source>Select</source>
         <translation>Selecionar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="374"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="404"/>
         <source>Pick several games and do one thing to all of them</source>
         <translation>Escolhe vários jogos e faz o mesmo a todos</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="448"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="479"/>
         <source>Filter</source>
         <translation>Filtrar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="464"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="495"/>
         <source>Search every place</source>
         <translation>Procurar em todos os locais</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="464"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="495"/>
         <source>Search here</source>
         <translation>Procurar aqui</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="446"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="477"/>
         <source>Games</source>
         <translation>Jogos</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="446"/>
-        <location filename="../qml/orbislink/ShelfView.qml" line="782"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="477"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="813"/>
         <source>PKG files</source>
         <translation>Ficheiros PKG</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="447"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="478"/>
         <source>Other</source>
         <translation>Outros</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="782"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="813"/>
         <source>All</source>
         <translation>Tudo</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="455"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="486"/>
         <source>Name</source>
         <translation>Nome</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="455"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="486"/>
         <source>Date</source>
         <translation>Data</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="455"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="486"/>
         <source>Type</source>
         <translation>Tipo</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/ShelfView.qml" line="650"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="681"/>
         <source>%n picked</source>
         <translation>
             <numerusform>%n escolhido</numerusform>
@@ -5981,296 +6220,291 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="659"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="690"/>
         <source>Pick all</source>
         <translation>Escolher todos</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="664"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="695"/>
         <source>Copy to this PC (%1)</source>
         <translation>Copiar para este PC (%1)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="672"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="703"/>
         <source>Delete (%1)</source>
         <translation>Apagar (%1)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="680"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="711"/>
         <source>Only convert (%1)</source>
         <translation>Só converter (%1)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="691"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="722"/>
         <source>Convert and install (%1)</source>
         <translation>Converter e instalar (%1)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="692"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="723"/>
         <source>Install (%1)</source>
         <translation>Instalar (%1)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="696"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="727"/>
         <source>Discs are converted and app folders packed first, one after the other; then each goes to the console and is installed</source>
         <translation>Os discos são convertidos e as pastas de apps empacotadas primeiro, um de cada vez; depois cada um vai para a consola e é instalado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="741"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="772"/>
         <source>Nothing found for “%1” in the places searched.</source>
         <translation>Nada encontrado para “%1” nos locais pesquisados.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="742"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="773"/>
         <source>No places yet: add a folder of this PC, a drive or a folder of the console.</source>
         <translation>Ainda sem locais: adiciona uma pasta deste PC, uma unidade ou uma pasta da consola.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="743"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="774"/>
         <source>No games here. Everything shows all this folder holds.</source>
         <translation>Aqui não há jogos. «Tudo» mostra tudo o que esta pasta tem.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="744"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="775"/>
         <source>Nothing here with this filter or search.</source>
         <translation>Nada aqui com este filtro ou pesquisa.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="745"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="776"/>
         <source>Nothing here the library shows: no games, apps, folders or payloads.</source>
         <translation>Nada aqui que a biblioteca mostre: sem jogos, apps, pastas ou payloads.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="756"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="787"/>
         <source>Show everything</source>
         <translation>Mostrar tudo</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="763"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="794"/>
         <source>Back to the library</source>
         <translation>Voltar à biblioteca</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="782"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="813"/>
         <source>Games found</source>
         <translation>Jogos reconhecidos</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="783"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="814"/>
         <source>Other supported files</source>
         <translation>Outros ficheiros suportados</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="800"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="832"/>
         <source>By type (in sections)</source>
         <translation>Por tipo (em secções)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="800"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="832"/>
         <source>By name</source>
         <translation>Por nome</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="800"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="832"/>
         <source>Newest first</source>
         <translation>Mais recentes primeiro</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="823"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="855"/>
         <source>A folder of this PC…</source>
         <translation>Uma pasta deste PC…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="828"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="860"/>
         <source>A folder of the console…</source>
         <translation>Uma pasta da consola…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="840"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="872"/>
         <source>Desktop</source>
         <translation>Ambiente de trabalho</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="846"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="878"/>
         <source>Downloads</source>
         <translation>Transferências</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="852"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="884"/>
         <source>Documents</source>
         <translation>Documentos</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="858"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="890"/>
         <source>The console&apos;s data/pkg</source>
         <translation>A data/pkg da consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="873"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="905"/>
         <source>Drive %1</source>
         <translation>Unidade %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="888"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="920"/>
         <source>A folder for the library</source>
         <translation>Uma pasta para a biblioteca</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="908"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="940"/>
         <source>A folder of the console</source>
         <translation>Uma pasta da consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="920"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="952"/>
         <source>Its path on the console, as the Files tab shows it: /data/games, /mnt/usb0/games…</source>
         <translation>O caminho na consola, como o separador Ficheiros o mostra: /data/games, /mnt/usb0/games…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="954"/>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1305"/>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1399"/>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1476"/>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1683"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="986"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1338"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1432"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1509"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1716"/>
         <source>Cancel</source>
         <translation>Cancelar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="958"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="990"/>
         <source>Add</source>
         <translation>Adicionar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1073"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1106"/>
         <source>Official (store)</source>
         <translation>Oficial (loja)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1073"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1106"/>
         <source>Fake (fpkg)</source>
         <translation>Falso (fpkg)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1008"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1040"/>
         <source>Firmware</source>
         <translation>Firmware</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1008"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1040"/>
         <source>%1 or newer</source>
         <translation>%1 ou mais recente</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1010"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1042"/>
         <source>On the console</source>
         <translation>Na consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1067"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1100"/>
         <source>Installed</source>
         <translation>Instalado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1005"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1037"/>
         <source>Title ID</source>
         <translation>Title ID</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="649"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="680"/>
         <source>Click the games to pick them; Shift+click picks a run</source>
         <translation>Clica nos jogos para os escolher; Shift+clique escolhe uma sequência</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="735"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="766"/>
         <source>This place cannot be read</source>
         <translation>Não é possível ler este local</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="736"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="767"/>
         <source>Nothing found</source>
         <translation>Nada encontrado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="737"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="768"/>
         <source>No places yet</source>
         <translation>Ainda sem locais</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="738"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="769"/>
         <source>No games here</source>
         <translation>Nenhum jogo aqui</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="739"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="770"/>
         <source>Nothing to show</source>
         <translation>Nada para mostrar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1006"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1038"/>
         <source>Serial</source>
         <translation>Série</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1007"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1039"/>
         <source>Version</source>
         <translation>Versão</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1009"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1041"/>
         <source>Size</source>
         <translation>Tamanho</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1011"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1044"/>
         <source>Changed</source>
         <translation>Alterado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1012"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1045"/>
         <source>Where</source>
         <translation>Onde</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1116"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1149"/>
         <source>Packwright: %1</source>
         <translation>Packwright: %1</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1117"/>
-        <source>Packwright is not installed: it makes the PS5 package (free, from github.com/itsmemac/Packwright).</source>
-        <translation>O Packwright não está instalado: é ele que faz o pacote PS5 (gratuito, em github.com/itsmemac/Packwright).</translation>
-    </message>
-    <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1125"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1158"/>
         <source>Choose…</source>
         <translation>Escolher…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1271"/>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1345"/>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1438"/>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1527"/>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1720"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1304"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1378"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1471"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1560"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1753"/>
         <source>Library</source>
         <translation>Biblioteca</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1272"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1305"/>
         <source>Delete %1 from the console?</source>
         <translation>Apagar %1 da consola?</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1283"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1316"/>
         <source>The file goes from the console. What was installed from it stays installed.</source>
         <translation>O ficheiro sai da consola. O que foi instalado a partir dele continua instalado.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1309"/>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1403"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1342"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1436"/>
         <source>Delete</source>
         <translation>Apagar</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/ShelfView.qml" line="1346"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1379"/>
         <source>Delete %n file(s) from the console?</source>
         <translation>
             <numerusform>Apagar %n ficheiro da consola?</numerusform>
@@ -6278,7 +6512,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/ShelfView.qml" line="1359"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1392"/>
         <source>and %n more</source>
         <translation>
             <numerusform>e mais %n</numerusform>
@@ -6286,37 +6520,37 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1376"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1409"/>
         <source>The files go from the console. What was installed from them stays installed.</source>
         <translation>Os ficheiros saem da consola. O que foi instalado a partir deles continua instalado.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1439"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1472"/>
         <source>Uninstall the update of %1?</source>
         <translation>Desinstalar a atualização de %1?</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1440"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1473"/>
         <source>Uninstall %1?</source>
         <translation>Desinstalar %1?</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1452"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1485"/>
         <source>The update goes from the console, and the game is back at the version it was installed with.</source>
         <translation>A atualização sai da consola, e o jogo volta à versão com que foi instalado.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1453"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1486"/>
         <source>The game, its update and its add-ons go from the console, through Remote Package Installer. Its saves stay. Copy it to this PC first to keep it.</source>
         <translation>O jogo, a atualização e os extras saem da consola, pelo Remote Package Installer. Os saves ficam. Copia-o primeiro para este PC para o guardares.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1480"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1513"/>
         <source>Uninstall</source>
         <translation>Desinstalar</translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/ShelfView.qml" line="1553"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1586"/>
         <source>%n game(s)</source>
         <translation>
             <numerusform>%n jogo</numerusform>
@@ -6324,7 +6558,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../qml/orbislink/ShelfView.qml" line="1562"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1595"/>
         <source>%n file(s)</source>
         <translation>
             <numerusform>%n ficheiro</numerusform>
@@ -6332,135 +6566,135 @@
         </translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1577"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1610"/>
         <source>With its update</source>
         <translation>Com a atualização</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1577"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1610"/>
         <source>With their updates</source>
         <translation>Com as atualizações</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1583"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1616"/>
         <source>With its add-ons</source>
         <translation>Com os extras</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1583"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1616"/>
         <source>With their add-ons</source>
         <translation>Com os extras</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1622"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1655"/>
         <source>%1 to copy  ·  %2 free</source>
         <translation>%1 a copiar  ·  %2 livres</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1624"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1657"/>
         <source>%1 to copy</source>
         <translation>%1 a copiar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1630"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1663"/>
         <source>Change…</source>
         <translation>Alterar…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1640"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1673"/>
         <source>Not enough room on that drive: free some space or choose another folder.</source>
         <translation>Não há espaço suficiente nesse disco: liberta espaço ou escolhe outra pasta.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1649"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1682"/>
         <source>Each game in a folder of its own, its files named after it. One game at a time, as fast as the network goes; a copy stopped goes on from where it was the next time. A fake package installs again on any console with a homebrew enabler; a game from the PlayStation Store or a disc stays tied to its licence.</source>
         <translation>Cada jogo numa pasta própria, com os ficheiros com o nome dele. Um jogo de cada vez, à velocidade máxima da rede; uma cópia interrompida continua de onde parou na vez seguinte. Um pacote fake volta a instalar em qualquer consola com homebrew ativo; um jogo da PlayStation Store ou de disco fica preso à sua licença.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1677"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1710"/>
         <source>Open the folder</source>
         <translation>Abrir a pasta</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1687"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1720"/>
         <source>Copy</source>
         <translation>Copiar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1702"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1735"/>
         <source>Where games copied from the console go</source>
         <translation>Onde ficam os jogos copiados da consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1721"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1754"/>
         <source>Places in the library</source>
         <translation>Locais da biblioteca</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1735"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1768"/>
         <source>Renaming or taking a place off the library never touches the folder itself. USB drives and the console&apos;s own library show up by themselves.</source>
         <translation>Mudar o nome ou tirar um local da biblioteca nunca mexe na pasta em si. As pens USB e a biblioteca da consola aparecem sozinhas.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1859"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1892"/>
         <source>Favourite: shown first</source>
         <translation>Favorito: aparece primeiro</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1860"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1893"/>
         <source>Make it a favourite</source>
         <translation>Marcar como favorito</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1844"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1877"/>
         <source>not found</source>
         <translation>não encontrado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1161"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1194"/>
         <source>More can be done with it once a console&apos;s FTP answers.</source>
         <translation>Há mais a fazer com ele quando o FTP de uma consola responder.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1192"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1225"/>
         <source>More</source>
         <translation>Mais</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1746"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1779"/>
         <source>Place</source>
         <translation>Local</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1754"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1787"/>
         <source>Search</source>
         <translation>Pesquisa</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1754"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1787"/>
         <source>Favourite</source>
         <translation>Favorito</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1874"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1907"/>
         <source>Looked in by the library&apos;s search</source>
         <translation>Incluído na pesquisa da biblioteca</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1885"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1918"/>
         <source>Take it off the library (the folder stays)</source>
         <translation>Tirar da biblioteca (a pasta fica)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="749"/>
-        <location filename="../qml/orbislink/ShelfView.qml" line="907"/>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1924"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="780"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="939"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1957"/>
         <source>Add a place</source>
         <translation>Adicionar local</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/ShelfView.qml" line="372"/>
-        <location filename="../qml/orbislink/ShelfView.qml" line="1930"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="402"/>
+        <location filename="../qml/orbislink/ShelfView.qml" line="1963"/>
         <source>Done</source>
         <translation>Concluído</translation>
     </message>
@@ -7385,22 +7619,22 @@
         <translation>Ainda não chegou som da consola.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="717"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="724"/>
         <source>Keyboard map</source>
         <translation>Mapa do teclado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="742"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="749"/>
         <source>Go back to the default keys and controller buttons</source>
         <translation>Voltar às teclas e botões do comando de origem</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="852"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="859"/>
         <source>Press a key or a controller button and both light up. Hover over a key to see which button it presses.</source>
         <translation>Carrega numa tecla ou num botão do comando e os dois acendem. Passa o rato por uma tecla para ver que botão carrega.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="863"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="870"/>
         <source>Controller buttons changed: %1</source>
         <translation>Botões do comando mudados: %1</translation>
     </message>
@@ -7491,88 +7725,98 @@
         <translation>Formato da imagem: 16:9 como a consola envia, 4:3 para jogos PS1/PS2, ou Encher para a esticar à janela. Clica para mudar.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="649"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="651"/>
+        <source>Transfers over the picture (F9)</source>
+        <translation>Transferências por cima da imagem (F9)</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/StreamArea.qml" line="651"/>
+        <source>Transfers (F9)</source>
+        <translation>Transferências (F9)</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/StreamArea.qml" line="656"/>
         <source>Leave full screen</source>
         <translation>Sair do ecrã inteiro</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="649"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="656"/>
         <source>Full screen</source>
         <translation>Ecrã inteiro</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="654"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="661"/>
         <source>End the session</source>
         <translation>Terminar sessão</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="716"/>
-        <location filename="../qml/orbislink/StreamArea.qml" line="1016"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="723"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="1023"/>
         <source>Remote Play</source>
         <translation>Remote Play</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="732"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="739"/>
         <source>Done</source>
         <translation>Concluir</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="732"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="739"/>
         <source>Change keys</source>
         <translation>Mudar teclas</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="739"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="746"/>
         <source>Reset</source>
         <translation>Repor</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="780"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="787"/>
         <source>Controller connected: %1. The keyboard works too:</source>
         <translation>Comando ligado: %1. O teclado também funciona:</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="782"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="789"/>
         <source>No controller connected — plug one in over USB and it is picked up on its own. Meanwhile, the keyboard:</source>
         <translation>Nenhum comando ligado — liga um por USB e é reconhecido sozinho. Entretanto, o teclado:</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="847"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="854"/>
         <source>Keyboard: click a key, then press the new one. Controller: click a button on the drawing, then press it on your controller. Taken already? The two swap.</source>
         <translation>Teclado: clica numa tecla e carrega na nova. Comando: clica num botão no desenho e carrega-o no teu comando. Já está em uso? Os dois trocam.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="850"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="857"/>
         <source>Click the key you want to change, then press the new key. If it already does something, the two swap.</source>
         <translation>Clica na tecla que queres mudar e depois carrega na tecla nova. Se ela já tiver uma função, as duas trocam.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="1017"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="1024"/>
         <source>Console PIN</source>
         <translation>PIN da consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="1032"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="1039"/>
         <source>Cancel</source>
         <translation>Cancelar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="1037"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="1044"/>
         <source>Send</source>
         <translation>Enviar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="1055"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="1062"/>
         <source>The console refused that PIN. Type the right one: it replaces the one saved for this console.</source>
         <translation>A consola recusou esse PIN. Escreve o correto: substitui o que está guardado para esta consola.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="1058"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="1065"/>
         <source>The console is asking for the login PIN of %1.</source>
         <translation>A consola está a pedir o PIN de início de sessão de %1.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/StreamArea.qml" line="1059"/>
+        <location filename="../qml/orbislink/StreamArea.qml" line="1066"/>
         <source>The console is asking for the account&apos;s login PIN.</source>
         <translation>A consola pede o PIN de início de sessão da conta.</translation>
     </message>
@@ -7712,12 +7956,22 @@
         <translation>Payload</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TitleCard.qml" line="102"/>
+        <location filename="../qml/orbislink/TitleCard.qml" line="105"/>
+        <source>Update on PC</source>
+        <translation>Atualização no PC</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TitleCard.qml" line="105"/>
+        <source>Add-on on PC</source>
+        <translation>Extra no PC</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TitleCard.qml" line="107"/>
         <source>Updated</source>
         <translation>Atualizado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TitleCard.qml" line="102"/>
+        <location filename="../qml/orbislink/TitleCard.qml" line="107"/>
         <source>Installed</source>
         <translation>Instalado</translation>
     </message>
@@ -7947,96 +8201,116 @@
     </message>
     <message>
         <location filename="../qml/orbislink/TransferPanel.qml" line="1338"/>
+        <source>Making the image… %1%</source>
+        <translation>A fazer a imagem… %1%</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1339"/>
         <source>Packing… %1%</source>
         <translation>A empacotar… %1%</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="1339"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1340"/>
         <source>Converting… %1%</source>
         <translation>A converter… %1%</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="1340"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1341"/>
         <source>Package ready</source>
         <translation>Pacote pronto</translation>
     </message>
     <message>
         <location filename="../qml/orbislink/TransferPanel.qml" line="1341"/>
+        <source>Image ready</source>
+        <translation>Imagem pronta</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1342"/>
+        <source>Image made — sending next</source>
+        <translation>Imagem feita — a seguir o envio</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1343"/>
         <source>Converted — sending next</source>
         <translation>Convertido — a seguir, envio</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="1341"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1343"/>
         <source>Packed — sending next</source>
         <translation>Empacotado — a seguir, enviar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="1343"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1345"/>
         <source>Waiting to send</source>
         <translation>À espera para enviar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="1343"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1345"/>
         <source>Sending to the console… %1%</source>
         <translation>A enviar para a consola… %1%</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="1344"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1346"/>
         <source>On the console</source>
         <translation>Na consola</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="1346"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1348"/>
         <source>Waiting to install</source>
         <translation>À espera para instalar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="1346"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1348"/>
         <source>Installing… %1%</source>
         <translation>A instalar… %1%</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="1348"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1350"/>
         <source>Stopped when the app closed</source>
         <translation>Parado quando a app fechou</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="1359"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1361"/>
         <source>Pack</source>
         <translation>Empacotar</translation>
     </message>
     <message>
         <location filename="../qml/orbislink/TransferPanel.qml" line="1118"/>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="1347"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1349"/>
         <source>Installed</source>
         <translation>Instalado</translation>
     </message>
     <message>
         <location filename="../qml/orbislink/TransferPanel.qml" line="1120"/>
         <location filename="../qml/orbislink/TransferPanel.qml" line="1124"/>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="1348"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1350"/>
         <source>Cancelled</source>
         <translation>Cancelado</translation>
     </message>
     <message>
         <location filename="../qml/orbislink/TransferPanel.qml" line="1119"/>
         <location filename="../qml/orbislink/TransferPanel.qml" line="1123"/>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="1349"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1351"/>
         <source>Failed</source>
         <translation>Falhou</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="1359"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1361"/>
         <source>Convert</source>
         <translation>Converter</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="1359"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1361"/>
         <source>Send</source>
         <translation>Enviar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/TransferPanel.qml" line="1359"/>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1361"/>
+        <source>Image</source>
+        <translation>Imagem</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TransferPanel.qml" line="1362"/>
         <source>Install</source>
         <translation>Instalar</translation>
     </message>
@@ -8211,71 +8485,71 @@
 <context>
     <name>main</name>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="285"/>
-        <location filename="../src/orbislink/qt/main.cpp" line="292"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="286"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="293"/>
         <source>OrbisLink could not start</source>
         <translation>O OrbisLink não conseguiu arrancar</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="286"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="287"/>
         <source>Setting up the services failed:
 %1</source>
         <translation>Falhou a preparação dos serviços:
 %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="293"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="294"/>
         <source>Setting up the services failed (unknown error).</source>
         <translation>Falhou a preparação dos serviços (erro desconhecido).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="343"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="347"/>
         <source>Could not load the interface (%1).</source>
         <translation>Não foi possível carregar a interface (%1).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="458"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="466"/>
         <source>The interface was never created.</source>
         <translation>A interface não chegou a ser criada.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="488"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="496"/>
         <source>Drag and drop</source>
         <translation>Arrastar e largar</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="497"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="505"/>
         <source>It was already in software mode.</source>
         <translation>Já estava em modo de software.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="498"/>
-        <location filename="../src/orbislink/qt/main.cpp" line="517"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="506"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="525"/>
         <source>Try the &quot;OrbisLink (compatibility mode)&quot; shortcut, or run it with the --software option.</source>
         <translation>Experimenta o atalho &quot;OrbisLink (compatibility mode)&quot;, ou corre-o com a opção --software.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="501"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="509"/>
         <source>OrbisLink — graphics error</source>
         <translation>OrbisLink — erro gráfico</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="514"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="522"/>
         <source>Windows refused to create the window.</source>
         <translation>O Windows recusou criar a janela.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="515"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="523"/>
         <source>The window was created but nothing was ever drawn.</source>
         <translation>A janela foi criada mas nada chegou a ser desenhado.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="520"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="528"/>
         <source>OrbisLink could not open</source>
         <translation>O OrbisLink não conseguiu abrir</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="590"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="598"/>
         <source>OrbisLink ended with an error</source>
         <translation>O OrbisLink terminou com um erro</translation>
     </message>
@@ -8283,77 +8557,77 @@
 <context>
     <name>orbislink::AppController</name>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="259"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="260"/>
         <source>The local HTTP server did not start: %1</source>
         <translation>Servidor HTTP local não arrancou: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="404"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="418"/>
         <source>The Account ID is empty or not valid.</source>
         <translation>O Account ID está vazio ou não é válido.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="411"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="425"/>
         <source>The Remote Play PIN is 4 digits (the account&apos;s passcode) or 8 (the pairing PIN the console shows).</source>
         <translation>O PIN de Remote Play tem 4 dígitos (o código de acesso da conta) ou 8 (o PIN de emparelhamento que a consola mostra).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="422"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="436"/>
         <source>That Account ID is already saved as &quot;%1&quot;.</source>
         <translation>Esse Account ID já está guardado como &quot;%1&quot;.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="428"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="442"/>
         <source>PSN account %1</source>
         <translation>Conta PSN %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="451"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="465"/>
         <source>Account ID &quot;%1&quot; saved.</source>
         <translation>Account ID &quot;%1&quot; guardado.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="503"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="517"/>
         <source>Using %1 (%2).</source>
         <translation>A usar %1 (%2).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="555"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="569"/>
         <source>The IP address cannot be empty.</source>
         <translation>O endereço IP não pode ficar vazio.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="565"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="579"/>
         <source>Another console in the list already uses %1.</source>
         <translation>Outra consola da lista já usa %1.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="593"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="607"/>
         <source>Console %1 saved.</source>
         <translation>Consola %1 guardada.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="650"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="664"/>
         <source>The console&apos;s Remote Play PIN is 8 digits (the one it shows to register this PC) or 4 (the passcode it asks for when connecting).</source>
         <translation>O PIN de Remote Play da consola tem 8 dígitos (o que ela mostra para registar este PC) ou 4 (o código de acesso que pede ao ligar).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="787"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="801"/>
         <source>This is the only console in the list: add another one before removing it.</source>
         <translation>É a única consola da lista: adiciona outra antes de a remover.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="815"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="829"/>
         <source>I have not asked the console yet. Click its box to search.</source>
         <translation>Ainda não perguntei à consola. Clica na caixa dela para procurar.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="923"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="937"/>
         <source>Remote Package Installer is not open</source>
         <translation>O Remote Package Installer não está aberto</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="930"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="944"/>
         <source>To install packages, the PS4 needs the Remote Package Installer app open. Do this:
 • On the PS4, open Remote Package Installer.
 • Keep it in the foreground while installs are sent: in the background it does not answer.
@@ -8364,7 +8638,7 @@ The install waits in the queue and starts by itself once it answers.</source>
 A instalação fica à espera na fila e começa sozinha quando ele responder.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="949"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="963"/>
         <source>OrbisLink reaches the PS4&apos;s files over GoldHEN&apos;s FTP server, and nothing answers. Check this:
 • GoldHEN is loaded: after the console restarts, the jailbreak has to be run again.
 • Its FTP server is on (it is by default): in GoldHEN&apos;s settings, the server settings.
@@ -8375,7 +8649,7 @@ OrbisLink finds it by itself on the usual ports (2121, 1337, 21).</source>
 O OrbisLink encontra-o sozinho nas portas habituais (2121, 1337, 21).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="953"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="967"/>
         <source>OrbisLink reaches the PS5&apos;s files over FTP, and nothing answers. Do one of these:
 • Load the ftpsrv payload with your payload loader, or from this PC in Payloads → Send from this PC…
 • In etaHEN, turn on its FTP (FTP=1 in config.ini).
@@ -8386,48 +8660,48 @@ OrbisLink finds it by itself on the usual ports (1337, 2121, 21).</source>
 O OrbisLink encontra-o sozinho nas portas habituais (1337, 2121, 21).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="988"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1002"/>
         <source>stopped</source>
         <translation>parado</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1284"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1298"/>
         <source>Look &quot;%1&quot; saved.</source>
         <translation>Visual &quot;%1&quot; guardado.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1355"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1369"/>
         <source>%1 pinned to the top.</source>
         <translation>%1 afixada no topo.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1370"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1384"/>
         <source>%1 removed from the top.</source>
         <translation>%1 removida do topo.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2055"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2224"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2104"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2273"/>
         <source>Install</source>
         <translation>Instalar</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1892"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1941"/>
         <source>None of the dropped files can be used.</source>
         <translation>Nenhum ficheiro utilizável foi largado.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="905"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="919"/>
         <source>FTP is not running on the console: load the ftpsrv payload (with your payload loader, or Payloads → Send from this PC…), or turn on etaHEN&apos;s FTP (FTP=1 in config.ini). Nothing answered on %1.</source>
         <translation>O FTP não está a correr na consola: carrega o payload ftpsrv (com o teu carregador de payloads, ou em Payloads → Enviar deste PC…), ou liga o FTP do etaHEN (FTP=1 no config.ini). Nada respondeu em %1.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="924"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="938"/>
         <source>No installer running on the console</source>
         <translation>Nenhum instalador a correr na consola</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="934"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="948"/>
         <source>To install packages, the PS5 needs an installer running on it. Do one of these:
 • In Payloads, press ▶ on Prospero Manager (when it is on the console).
 • In etaHEN, turn on DPI v2 (DPI_v2=1 in config.ini).
@@ -8438,123 +8712,143 @@ The install waits in the queue and goes on by itself once one of them answers. T
 A instalação fica à espera na fila e continua sozinha quando um deles responder. Para o teres sempre, liga o interruptor do Prospero Manager em Payloads: passa a arrancar com cada jailbreak.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="943"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="957"/>
         <source>FTP is not running on the console</source>
         <translation>O FTP não está a correr na consola</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="969"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="983"/>
         <source>No installer is running on the console: in Payloads, press ▶ on Prospero Manager (port 7070), or turn on etaHEN&apos;s DPI v2 (DPI_v2=1 in config.ini, port %1).</source>
         <translation>Nenhum instalador a correr na consola: em Payloads, carrega em ▶ no Prospero Manager (porta 7070), ou liga o DPI v2 do etaHEN (DPI_v2=1 no config.ini, porta %1).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1179"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1188"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1193"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1202"/>
         <source>Background</source>
         <translation>Fundo</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1179"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1193"/>
         <source>That file could not be read as a picture.</source>
         <translation>Esse ficheiro não pôde ser lido como imagem.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1188"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1202"/>
         <source>The picture could not be saved in the data folder.</source>
         <translation>Não foi possível guardar a imagem na pasta de dados.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1645"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1659"/>
         <source>An official store package: it installs only with its licence. A jailbroken console installs fake packages (fpkg).</source>
         <translation>Um pacote oficial da loja: só instala com a licença. Uma consola desbloqueada instala pacotes falsos (fpkg).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1650"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1664"/>
         <source>A PS5 package: only a PS5 installs it.</source>
         <translation>Um pacote PS5: só uma PS5 o instala.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1653"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1667"/>
         <source>Needs firmware %1, and this PS5 runs %2: it installs, but does not start. Look for a backport of it.</source>
         <translation>Precisa do firmware %1, e esta PS5 tem o %2: instala, mas não arranca. Procura uma versão adaptada (backport).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1662"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1676"/>
         <source>Needs firmware %1, and this PS4 runs %2: it installs, but does not start. Look for a version backported to %2.</source>
         <translation>Precisa do firmware %1, e esta PS4 tem o %2: instala, mas não arranca. Procura uma versão adaptada (backport) ao %2.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1673"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1687"/>
         <source>A PS5 fake package starts with kstuff loaded on firmware up to 11.60; on 12.00–13.60, with the Titan Core payload loaded (Payloads).</source>
         <translation>Um pacote fake PS5 arranca com o kstuff carregado no firmware até ao 11.60; do 12.00 ao 13.60, com o payload Titan Core carregado (Payloads).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1676"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1690"/>
         <source>Installed: on firmware %1 it starts with kstuff loaded (etaHEN or kstuff-lite).</source>
         <translation>Instalado: no firmware %1 arranca com o kstuff carregado (etaHEN ou kstuff-lite).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1678"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1692"/>
         <source>On firmware %1 it starts only with the Titan Core payload loaded (Payloads): it prepares the installed fake packages to start.</source>
         <translation>No firmware %1 só arranca com o payload Titan Core carregado (Payloads): é ele que prepara os pacotes fake instalados para arrancarem.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1680"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1694"/>
         <source>On firmware %1 no public method starts a PS5 fake package yet.</source>
         <translation>No firmware %1 ainda não há nenhum método público que arranque um pacote fake PS5.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1750"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1730"/>
+        <source>ShadowMountPlus: asking it to look…</source>
+        <translation>ShadowMountPlus: a pedir-lhe que procure…</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1739"/>
+        <source>ShadowMountPlus: it puts it on the home screen now.</source>
+        <translation>ShadowMountPlus: põe-na no ecrã inicial agora.</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1741"/>
+        <source>ShadowMountPlus was started again: it is on the home screen in a few seconds.</source>
+        <translation>O ShadowMountPlus foi iniciado de novo: aparece no ecrã inicial dentro de segundos.</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1742"/>
+        <source>ShadowMountPlus did not answer: it puts it on the home screen at its next scan, if it runs (load it in Payloads).</source>
+        <translation>O ShadowMountPlus não respondeu: põe-na no ecrã inicial na próxima procura, se estiver a correr (carrega-o nos Payloads).</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1799"/>
         <source>Titan Core: looking for it…</source>
         <translation>Titan Core: à procura dele…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1808"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1857"/>
         <source>Titan Core has not found it yet: once the console finishes installing it, Titan Core prepares it.</source>
         <translation>O Titan Core ainda não o encontrou: quando a consola acabar de o instalar, o Titan Core prepara-o.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1823"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1872"/>
         <source>Titan Core: ready — it starts from the home screen.</source>
         <translation>Titan Core: pronto — arranca a partir do ecrã inicial.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1830"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1879"/>
         <source>Titan Core could not prepare it: the game was moved (to the M.2?) after it was prepared. Move it back to the console&apos;s storage.</source>
         <translation>O Titan Core não o conseguiu preparar: o jogo foi movido (para o M.2?) depois de preparado. Volta a pô-lo no armazenamento da consola.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1832"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1881"/>
         <source>Titan Core could not prepare it: %1</source>
         <translation>O Titan Core não o conseguiu preparar: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1837"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1886"/>
         <source>Titan Core: another copy of this game is already there.</source>
         <translation>Titan Core: já lá está outra cópia deste jogo.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1840"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1889"/>
         <source>Titan Core: preparing it to start (building its cache)…</source>
         <translation>Titan Core: a prepará-lo para arrancar (a criar a cache)…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1841"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1890"/>
         <source>Titan Core: checking it…</source>
         <translation>Titan Core: a verificá-lo…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1903"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="1952"/>
         <source>%1 is not a .pkg — only the FTP zone takes it.</source>
         <translation>%1 não é um .pkg — só é aceite na zona de FTP.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1958"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2007"/>
         <source>The dropped folder has no files to send.</source>
         <translation>A pasta largada não tem ficheiros para enviar.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="1972"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2021"/>
         <source>%n file(s) queued, with their folders, for %1.</source>
         <translation>
             <numerusform>%n ficheiro na fila, com as suas pastas, para %1.</numerusform>
@@ -8562,12 +8856,12 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2009"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2058"/>
         <source>To copy a file as it is, drop it on Send over FTP.</source>
         <translation>Para copiar um ficheiro tal como está, largue-o em Enviar por FTP.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2012"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2061"/>
         <source>%n file(s) queued.</source>
         <translation>
             <numerusform>%n ficheiro na fila.</numerusform>
@@ -8575,27 +8869,27 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2052"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2101"/>
         <source>%1 was not installed: %2</source>
         <translation>%1 não foi instalado: %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2062"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2111"/>
         <source>%1: queued to install on the console.</source>
         <translation>%1: na fila para instalar na consola.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2111"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2160"/>
         <source>Checking what is already on the console…</source>
         <translation>A ver o que já está na consola…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2159"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2208"/>
         <source>queued</source>
         <translation>na fila</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2170"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2219"/>
         <source>%n file(s) already on the console.</source>
         <translation>
             <numerusform>%n ficheiro já está na consola.</numerusform>
@@ -8603,217 +8897,217 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2209"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2258"/>
         <source>Nothing was sent: every file was skipped.</source>
         <translation>Nada foi enviado: todos os ficheiros foram saltados.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2224"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2273"/>
         <source>Remote Package Installer answers: the install goes on.</source>
         <translation>O Remote Package Installer respondeu: a instalação continua.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2438"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2465"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2487"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2514"/>
         <source>Consoles</source>
         <translation>Consolas</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2439"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2488"/>
         <source>A saved console now answers at %1, which another saved console also uses. Check the addresses in Settings → Consoles.</source>
         <translation>Uma consola guardada responde agora em %1, que outra consola guardada também usa. Confirma os endereços em Definições → Consolas.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2466"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2515"/>
         <source>%1 has a new address on the network: it was at %2 and is now at %3. Updated by itself.</source>
         <translation>%1 tem um novo endereço na rede: estava em %2 e está agora em %3. Atualizado automaticamente.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2540"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2589"/>
         <source>Paused by you.</source>
         <translation>Pausado pelo utilizador.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2559"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2608"/>
         <source>FTP is not connected. Check the console IP and that the GoldHEN FTP server is running.</source>
         <translation>O FTP não está ligado. Confirma o IP da consola e que o servidor FTP do GoldHEN está a correr.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2565"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2614"/>
         <source>FTP is busy with another operation. Wait for it to finish.</source>
         <translation>O FTP está ocupado com outra operação. Espera que acabe.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2611"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2660"/>
         <source>The console&apos;s FTP is not answering: start it on the console (GoldHEN, etaHEN or the ftpsrv payload) and try again.</source>
         <translation>O FTP da consola não está a responder: ativa-o na consola (GoldHEN, etaHEN ou o payload ftpsrv) e tenta de novo.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2661"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2710"/>
         <source>%1 is not on this console: showing %2.</source>
         <translation>%1 não existe nesta consola: a mostrar %2.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2669"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2718"/>
         <source>%1: %2 entries</source>
         <translation>%1: %2 entradas</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2682"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2805"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2836"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2874"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3034"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3089"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3307"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3535"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2731"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2854"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2885"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2923"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3083"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3138"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3356"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3584"/>
         <source>FTP: %1</source>
         <translation>FTP: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2683"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2732"/>
         <source>FTP</source>
         <translation>FTP</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2684"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2733"/>
         <source>I could not list %1: %2</source>
         <translation>Não consegui listar %1: %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2765"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2807"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2814"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2856"/>
         <source>Delete</source>
         <translation>Apagar</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2795"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3011"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3081"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2844"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3060"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3130"/>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2805"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2854"/>
         <source>Deleted.</source>
         <translation>Apagado.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2810"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2859"/>
         <source>I could not delete it: %1</source>
         <translation>Não consegui apagar: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2821"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2824"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2837"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2870"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2873"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2886"/>
         <source>Create folder</source>
         <translation>Criar pasta</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2821"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2870"/>
         <source>Type the folder name first.</source>
         <translation>Escreve primeiro o nome da pasta.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2836"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2838"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2885"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2887"/>
         <source>Folder created.</source>
         <translation>Pasta criada.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2838"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2887"/>
         <source>I could not create the folder: %1</source>
         <translation>Não consegui criar a pasta: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2851"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2859"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2862"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2876"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2900"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2908"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2911"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2925"/>
         <source>Rename</source>
         <translation>Mudar o nome</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2851"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2900"/>
         <source>Type the new name.</source>
         <translation>Escreve o nome novo.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2858"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2859"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2907"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2908"/>
         <source>The name cannot contain slashes.</source>
         <translation>O nome não pode conter barras.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2874"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2923"/>
         <source>Renamed.</source>
         <translation>Nome mudado.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2877"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2926"/>
         <source>I could not rename it: %1</source>
         <translation>Não consegui mudar o nome: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2901"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3039"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2950"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3088"/>
         <source>Move</source>
         <translation>Mover</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2901"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3036"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2950"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3085"/>
         <source>Copy</source>
         <translation>Copiar</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2905"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2954"/>
         <source>Type the folder to move it to.</source>
         <translation>Escreve a pasta para onde o mover.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2905"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2954"/>
         <source>Type the folder to copy it to.</source>
         <translation>Escreve a pasta para onde o copiar.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2992"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3041"/>
         <source>Copying %1 through this PC…</source>
         <translation>A copiar %1 através deste PC…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2993"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3042"/>
         <source>Moving %1 to another disk through this PC…</source>
         <translation>A mover %1 para outro disco através deste PC…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3030"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3079"/>
         <source>Copy cancelled: the original is where it was.</source>
         <translation>Cópia cancelada: o original ficou onde estava.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3031"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3080"/>
         <source>Move cancelled: the original is where it was.</source>
         <translation>Mover cancelado: o original ficou onde estava.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3036"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3085"/>
         <source>%1 of %2 copied. I could not copy %3</source>
         <translation>%1 de %2 copiados. Não consegui copiar %3</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3037"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3086"/>
         <source>I could not copy it: %1</source>
         <translation>Não consegui copiar: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3039"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3088"/>
         <source>%1 of %2 moved. I could not move %3</source>
         <translation>%1 de %2 movidos. Não consegui mover %3</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3043"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3092"/>
         <source>%n item(s) copied.</source>
         <translation>
             <numerusform>%n item copiado.</numerusform>
@@ -8821,22 +9115,22 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3043"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3092"/>
         <source>Copied to %1</source>
         <translation>Copiado para %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3045"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3094"/>
         <source>Moved to %1</source>
         <translation>Movido para %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3040"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3089"/>
         <source>I could not move it: %1</source>
         <translation>Não consegui mover: %1</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3314"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3363"/>
         <source>%1 (%n file(s)) saved to %2</source>
         <translation>
             <numerusform>%1 (%n ficheiro) guardado em %2</numerusform>
@@ -8844,115 +9138,115 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3400"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3422"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3449"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3471"/>
         <source>FTP is not connected.</source>
         <translation>O FTP não está ligado.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3472"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3521"/>
         <source>A download is already running.</source>
         <translation>Já há uma transferência a decorrer.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3215"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3219"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3473"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3480"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3264"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3268"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3522"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3529"/>
         <source>Bring to the PC</source>
         <translation>Trazer para o PC</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2954"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3216"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3474"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3003"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3265"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3523"/>
         <source>A transfer is already running (%1). Wait for it to finish.</source>
         <translation>Já há uma transferência a decorrer (%1). Espera que acabe.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3481"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3530"/>
         <source>FTP is not connected. Check the console IP and the GoldHEN FTP server.</source>
         <translation>O FTP não está ligado. Confirma o IP da consola e o servidor FTP do GoldHEN.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3234"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3491"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3909"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3283"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3540"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3958"/>
         <source>Downloading %1…</source>
         <translation>A descarregar %1…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3304"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3529"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3353"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3578"/>
         <source>Download cancelled.</source>
         <translation>Transferência cancelada.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3308"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3309"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3536"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3537"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3357"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3358"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3585"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3586"/>
         <source>Download failed</source>
         <translation>Transferência falhou</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3542"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3591"/>
         <source>%1 is ready to drag.</source>
         <translation>%1 pronto para arrastar.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3547"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3548"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3596"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3597"/>
         <source>%1 saved to %2</source>
         <translation>%1 guardado em %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3315"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3316"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3549"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3550"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3364"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3365"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3598"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3599"/>
         <source>Download finished</source>
         <translation>Transferência concluída</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3605"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3654"/>
         <source>FTP uploads will now go to %1</source>
         <translation>Envios por FTP passam a ir para %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3756"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3805"/>
         <source>Could not write the diagnostics file: %1</source>
         <translation>Não consegui escrever o diagnóstico: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3757"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3761"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3806"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3810"/>
         <source>Diagnostics</source>
         <translation>Diagnóstico</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3760"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3809"/>
         <source>Diagnostics saved to %1</source>
         <translation>Diagnóstico guardado em %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3313"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3761"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3362"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3810"/>
         <source>Saved to %1</source>
         <translation>Guardado em %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="854"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="868"/>
         <source>FTP answered on port %1, not on %2: OrbisLink uses port %1 from now on.</source>
         <translation>O FTP respondeu na porta %1, não na %2: o OrbisLink passa a usar a porta %1.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2026"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2075"/>
         <source>Reading %1 on the console…</source>
         <translation>A ler %1 na consola…</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2808"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2857"/>
         <source>%n item(s) deleted from the console.</source>
         <translation>
             <numerusform>%n item apagado da consola.</numerusform>
@@ -8960,12 +9254,12 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="2809"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="2858"/>
         <source>%1 of %2 deleted. I could not delete %3</source>
         <translation>%1 de %2 apagados. Não consegui apagar %3</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3045"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3094"/>
         <source>%n item(s) moved.</source>
         <translation>
             <numerusform>%n item movido.</numerusform>
@@ -8973,24 +9267,24 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3056"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3059"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3090"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3105"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3108"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3139"/>
         <source>Permissions</source>
         <translation>Permissões</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3056"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3105"/>
         <source>The permissions are three digits from 0 to 7, as 755 or 777.</source>
         <translation>As permissões são três algarismos de 0 a 7, como 755 ou 777.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3091"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3140"/>
         <source>The console did not change the permissions: %1. Its FTP server may not have SITE CHMOD.</source>
         <translation>A consola não mudou as permissões: %1. O servidor FTP dela pode não ter SITE CHMOD.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3096"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3145"/>
         <source>Permissions %1 set on %n item(s).</source>
         <translation>
             <numerusform>Permissões %1 aplicadas a %n item.</numerusform>
@@ -8998,112 +9292,112 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3116"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3135"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3165"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3184"/>
         <source>It is too big to edit here (%1; up to 1 MB).</source>
         <translation>É demasiado grande para editar aqui (%1; até 1 MB).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3135"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3184"/>
         <source>over 1 MB</source>
         <translation>mais de 1 MB</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3139"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3188"/>
         <source>It is not a text file.</source>
         <translation>Não é um ficheiro de texto.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3141"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3190"/>
         <source>It is not UTF-8 text: saving it from here could spoil it.</source>
         <translation>Não é texto UTF-8: guardá-lo a partir daqui podia estragá-lo.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3152"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3177"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3201"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3226"/>
         <source>Save</source>
         <translation>Guardar</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3162"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3211"/>
         <source>Could not write a temporary file on this PC.</source>
         <translation>Não foi possível escrever um ficheiro temporário neste PC.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3175"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3224"/>
         <source>%1 saved on the console.</source>
         <translation>%1 guardado na consola.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3177"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3226"/>
         <source>Could not save %1: %2</source>
         <translation>Não foi possível guardar %1: %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3190"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3199"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3201"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3239"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3248"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3250"/>
         <source>FTP server</source>
         <translation>Servidor FTP</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3199"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3248"/>
         <source>The console&apos;s FTP server answered %1: %2</source>
         <translation>O servidor FTP da consola respondeu a %1: %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3202"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3251"/>
         <source>The console&apos;s FTP server does not take %1 (%2). Only ftpsrv on a PS5 has it.</source>
         <translation>O servidor FTP da consola não aceita %1 (%2). Só o ftpsrv numa PS5 o tem.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3768"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3817"/>
         <source>Diagnostics copied.</source>
         <translation>Diagnóstico copiado.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3814"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3863"/>
         <source>Looking for new versions…</source>
         <translation>A procurar versões novas…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3826"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3835"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3875"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3884"/>
         <source>Updates</source>
         <translation>Actualizações</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3887"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3936"/>
         <source>There is a new version: %1.</source>
         <translation>Há uma versão nova: %1.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3950"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3999"/>
         <source>The download failed: %1</source>
         <translation>A descarga falhou: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3956"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="4005"/>
         <source>The downloaded file does not match the published SHA-256. I will not install it.</source>
         <translation>O ficheiro descarregado não corresponde ao SHA-256 publicado. Não vou instalá-lo.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3968"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="4017"/>
         <source>Update</source>
         <translation>Actualização</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3979"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="4028"/>
         <source>Downloaded. The installer will open and the app will close.</source>
         <translation>Descarregado. O instalador vai abrir e a aplicação fecha-se.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3989"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="4038"/>
         <source>I could not open the installer at %1.</source>
         <translation>Não consegui abrir o instalador em %1.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="4122"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="4173"/>
         <source>Settings saved.</source>
         <translation>Definições guardadas.</translation>
     </message>
@@ -9142,6 +9436,85 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         <location filename="../src/orbislink/qt/audio_output.cpp" line="336"/>
         <source>The sound stopped (error %1).</source>
         <translation>O som parou (erro %1).</translation>
+    </message>
+</context>
+<context>
+    <name>orbislink::CapturesController</name>
+    <message>
+        <location filename="../src/orbislink/qt/captures_controller.cpp" line="307"/>
+        <source>Reading the console&apos;s captures…</source>
+        <translation>A ler as capturas da consola…</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/captures_controller.cpp" line="327"/>
+        <source>Copying the captures to this PC…</source>
+        <translation>A copiar as capturas para este PC…</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/captures_controller.cpp" line="333"/>
+        <source>Copying %1 (%2 of %3)…</source>
+        <translation>A copiar %1 (%2 de %3)…</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/captures_controller.cpp" line="363"/>
+        <source>could not be written</source>
+        <translation>não foi possível escrever</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/captures_controller.cpp" line="371"/>
+        <source>%1 of %2 captures copied. Not done: %3</source>
+        <translation>%1 de %2 capturas copiadas. Não feitas: %3</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/captures_controller.cpp" line="374"/>
+        <source>They were already on this PC, in %1.</source>
+        <translation>Já estavam neste PC, em %1.</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/orbislink/qt/captures_controller.cpp" line="375"/>
+        <source>%n capture(s) copied to %1.</source>
+        <translation>
+            <numerusform>%n captura copiada para %1.</numerusform>
+            <numerusform>%n capturas copiadas para %1.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/captures_controller.cpp" line="385"/>
+        <source>Deleting from the console…</source>
+        <translation>A apagar da consola…</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/captures_controller.cpp" line="390"/>
+        <source>Deleting %1 of %2…</source>
+        <translation>A apagar %1 de %2…</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/captures_controller.cpp" line="401"/>
+        <source>%1 of %2 deleted. Not done: %3</source>
+        <translation>%1 de %2 apagadas. Não feitas: %3</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/orbislink/qt/captures_controller.cpp" line="403"/>
+        <source>%n capture(s) deleted from the console.</source>
+        <translation>
+            <numerusform>%n captura apagada da consola.</numerusform>
+            <numerusform>%n capturas apagadas da consola.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/captures_controller.cpp" line="429"/>
+        <source>The console&apos;s FTP is not answering: its captures are read over it.</source>
+        <translation>O FTP da consola não responde: as capturas são lidas por ele.</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/captures_controller.cpp" line="452"/>
+        <source>%1 could not be read on this console: %2</source>
+        <translation>Não foi possível ler %1 nesta consola: %2</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/captures_controller.cpp" line="509"/>
+        <source>Making the small pictures… %1</source>
+        <translation>A fazer as miniaturas… %1</translation>
     </message>
 </context>
 <context>
@@ -9236,27 +9609,27 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
 <context>
     <name>orbislink::GamesController</name>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="497"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="517"/>
         <source>the server answered %1</source>
         <translation>o servidor respondeu %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="523"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="543"/>
         <source>Could not get the emulator files: %1</source>
         <translation>Não foi possível obter os ficheiros do emulador: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="562"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="582"/>
         <source>Looking for games…</source>
         <translation>A procurar jogos…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="600"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="620"/>
         <source>No PS1 or PS2 discs in this folder.</source>
         <translation>Não há discos de PS1 ou PS2 nesta pasta.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="601"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="621"/>
         <source>%n game(s)</source>
         <translation>
             <numerusform>%n jogo</numerusform>
@@ -9264,61 +9637,71 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="667"/>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="741"/>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="1474"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="687"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="761"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="1503"/>
         <source>Convert</source>
         <translation>Converter</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="667"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="687"/>
         <source>Choose where the packages go first.</source>
         <translation>Escolhe primeiro onde ficam os pacotes.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="741"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="761"/>
         <source>%1 is not a PS1/PS2 disc this can convert.</source>
         <translation>%1 não é um disco PS1/PS2 que isto converta.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="831"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="851"/>
         <source>Could not read %1 on the console.</source>
         <translation>Não foi possível ler %1 na consola.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="836"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="856"/>
         <source>The cue sheet names no file.</source>
         <translation>O ficheiro .cue não indica nenhum ficheiro.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="860"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="880"/>
         <source>Could not bring %1 from the console: %2</source>
         <translation>Não foi possível trazer %1 da consola: %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="871"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="891"/>
         <source>%1 is not a PS1/PS2 disc this can convert (%2).</source>
         <translation>%1 não é um disco PS1/PS2 que isto consiga converter (%2).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="1126"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="1152"/>
+        <source>The image was deleted from the output folder: the console has it.</source>
+        <translation>A imagem foi apagada da pasta de saída: a consola já a tem.</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="1153"/>
         <source>The package was deleted from the output folder: the console has it.</source>
         <translation>O pacote foi apagado da pasta de saída: a consola já o tem.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="1474"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="1504"/>
         <source>Pack</source>
         <translation>Empacotar</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="1498"/>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="1499"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="1504"/>
+        <source>Image</source>
+        <translation>Imagem</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="1528"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="1529"/>
         <source>%1 is ready in the output folder.</source>
         <translation>%1 está pronto na pasta de saída.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="1503"/>
-        <location filename="../src/orbislink/qt/games_controller.cpp" line="1504"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="1533"/>
+        <location filename="../src/orbislink/qt/games_controller.cpp" line="1534"/>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
     </message>
@@ -9417,7 +9800,7 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
     </message>
     <message>
         <location filename="../src/orbislink/qt/library_controller.cpp" line="669"/>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1116"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1202"/>
         <source>Could not read %1 on the console: %2</source>
         <translation>Não foi possível ler %1 na consola: %2</translation>
     </message>
@@ -9484,99 +9867,173 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
     </message>
     <message>
         <location filename="../src/orbislink/qt/library_controller.cpp" line="797"/>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="937"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1020"/>
         <source>Waiting to copy</source>
         <translation>À espera para copiar</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1036"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="826"/>
+        <source>Not installed: %1 is no longer in the list</source>
+        <translation>Não instalado: %1 já não está na lista</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="828"/>
+        <source>%1 is on this PC, in %2; %3 is no longer in the list of consoles, so nothing was installed.</source>
+        <translation>%1 está neste PC, em %2; a %3 já não está na lista de consolas, por isso nada foi instalado.</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="874"/>
+        <source>%1 is on this PC, in %2, but %3 could not be made the console in use: choose it and install the copy from there.</source>
+        <translation>%1 está neste PC, em %2, mas não foi possível pôr a %3 como consola em uso: escolhe-a e instala a cópia a partir daí.</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1122"/>
         <source>Stopped when the app closed. ⟲ goes on from where it was.</source>
         <translation>Parado quando a app fechou. ⟲ continua de onde estava.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1096"/>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1250"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1182"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1348"/>
         <source>Copy to this PC</source>
         <translation>Copiar para este PC</translation>
     </message>
     <message>
         <location filename="../src/orbislink/qt/library_controller.cpp" line="767"/>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1096"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1182"/>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1101"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="839"/>
+        <source>Not installed on %1: the queue here is paused</source>
+        <translation>Não instalado em %1: a fila aqui está em pausa</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="841"/>
+        <source>%1 is on this PC, in %2; the queue here is paused with jobs in it, so it was not installed on %3: choose %3 once they are done and install the copy from there.</source>
+        <translation>%1 está neste PC, em %2; a fila aqui está em pausa com trabalhos por fazer, por isso não foi instalado em %3: escolhe %3 quando eles terminarem e instala a cópia a partir daí.</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="854"/>
+        <source>the transfers and the Remote Play session here are over</source>
+        <translation>terminarem as transferências e a sessão de Remote Play aqui</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="855"/>
+        <source>the transfers here are over</source>
+        <translation>terminarem as transferências aqui</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="855"/>
+        <source>the Remote Play session here is over</source>
+        <translation>terminar a sessão de Remote Play aqui</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="859"/>
+        <source>Goes on to %1 once %2</source>
+        <translation>Segue para %1 quando %2</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="861"/>
+        <source>%1 is on this PC; it goes on to %2 once %3 (closing OrbisLink before then leaves it in %4, to install from there).</source>
+        <translation>%1 está neste PC; segue para %2 quando %3 (se fechares o OrbisLink antes disso, fica em %4, para instalares a partir daí).</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="872"/>
+        <source>Not installed: %1 could not be chosen</source>
+        <translation>Não instalado: não foi possível escolher %1</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="881"/>
+        <source>Queued on %1</source>
+        <translation>Na fila de %1</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1187"/>
         <source>Cancelled before it started.</source>
         <translation>Cancelado antes de começar.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1110"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1196"/>
         <source>Looking inside %1…</source>
         <translation>A ver o que há em %1…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1150"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1236"/>
         <source>Could not make the folder %1.</source>
         <translation>Não foi possível criar a pasta %1.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1156"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1242"/>
         <source>Not enough room in %1: it needs %2 and has %3.</source>
         <translation>Não há espaço em %1: precisa de %2 e tem %3.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1174"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1260"/>
         <source>the update</source>
         <translation>a atualização</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1175"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1261"/>
         <source>an add-on</source>
         <translation>um extra</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1175"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1261"/>
         <source>the game</source>
         <translation>o jogo</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1177"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1263"/>
         <source>Copying %1 (%2 of %3)</source>
         <translation>A copiar %1 (%2 de %3)</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1177"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1263"/>
         <source>Copying %1</source>
         <translation>A copiar %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1213"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1299"/>
         <source>%1 of %2</source>
         <translation>%1 de %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1225"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1311"/>
         <source>Stopped. What was copied is kept: copying it again goes on from there.</source>
         <translation>Parado. O que já foi copiado fica guardado: copiar outra vez continua daí.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1231"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1317"/>
         <source>Could not copy %1: %2</source>
         <translation>Não foi possível copiar %1: %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1238"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1324"/>
         <source>Could not name the copy %1.</source>
         <translation>Não foi possível dar o nome à cópia %1.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1247"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1333"/>
         <source>In the folder %1</source>
         <translation>Na pasta %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/library_controller.cpp" line="1250"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="827"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="840"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="860"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="873"/>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="882"/>
+        <source>Copy to another console</source>
+        <translation>Copiar para outra consola</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="883"/>
+        <source>%1 is on this PC; it installs on %2 now, the console in use from here on.</source>
+        <translation>%1 está neste PC; instala-se agora na %2, que passa a ser a consola em uso.</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/library_controller.cpp" line="1348"/>
         <source>%1 is on this PC.</source>
         <translation>%1 está neste PC.</translation>
     </message>
@@ -9995,39 +10452,69 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
     </message>
 </context>
 <context>
+    <name>orbislink::QueueModel</name>
+    <message>
+        <location filename="../src/orbislink/qt/queue_model.cpp" line="203"/>
+        <source>PS5 game image</source>
+        <translation>Imagem de jogo PS5</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/queue_model.cpp" line="204"/>
+        <source>Disc image</source>
+        <translation>Imagem de disco</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/queue_model.cpp" line="205"/>
+        <source>Payload</source>
+        <translation>Payload</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/queue_model.cpp" line="206"/>
+        <source>Archive</source>
+        <translation>Arquivo comprimido</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/queue_model.cpp" line="208"/>
+        <source>File</source>
+        <translation>Ficheiro</translation>
+    </message>
+</context>
+<context>
     <name>orbislink::SavesController</name>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="514"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="238"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="634"/>
         <source>Reading the console&apos;s saves… %1</source>
         <translation>A ler os saves da consola… %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="522"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="642"/>
         <source>The console&apos;s saves could not be read: %1</source>
         <translation>Não foi possível ler os saves da consola: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="557"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="677"/>
         <source>Reading the console&apos;s saves…</source>
         <translation>A ler os saves da consola…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="595"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="262"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="715"/>
         <source>Backing up %1 (%2 of %3)…</source>
         <translation>A guardar %1 (%2 de %3)…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="609"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="729"/>
         <source>%1 of %2 saves backed up. Not done: %3</source>
         <translation>%1 de %2 saves guardados. Por fazer: %3</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="707"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="827"/>
         <source>Adding them to the console&apos;s list of saves…</source>
         <translation>A adicioná-los à lista de saves da consola…</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="724"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="844"/>
         <source>%n added to the console&apos;s list of saves; if one does not show yet, restart the console.</source>
         <translation>
             <numerusform>%n adicionado à lista de saves da consola; se ainda não aparecer, reinicia a consola.</numerusform>
@@ -10035,17 +10522,35 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="586"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="706"/>
         <source>Backing up to the PC…</source>
         <translation>A fazer backup para o PC…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="607"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="234"/>
+        <source>Backing up the saves by themselves…</source>
+        <translation>A copiar os saves automaticamente…</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="284"/>
+        <source>Automatic backup: %1 of %2 saves copied. Not done: %3</source>
+        <translation>Cópia automática: %1 de %2 saves copiados. Não feitos: %3</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="286"/>
+        <source>%n save(s) backed up to the PC by themselves.</source>
+        <translation>
+            <numerusform>%n save copiado para o PC automaticamente.</numerusform>
+            <numerusform>%n saves copiados para o PC automaticamente.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="727"/>
         <source>Everything on the console is already on the PC.</source>
         <translation>Tudo o que está na consola já está no PC.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="610"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="730"/>
         <source>%n save(s) backed up to the PC.</source>
         <translation>
             <numerusform>Backup de %n save feito no PC.</numerusform>
@@ -10053,22 +10558,22 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="620"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="740"/>
         <source>Sending to %1…</source>
         <translation>A enviar para a consola %1…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="638"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="758"/>
         <source>%1 could not be read: %2</source>
         <translation>Não foi possível ler %1: %2</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="685"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="805"/>
         <source>Sending %1 to %2 (%3 of %4)…</source>
         <translation>A enviar %1 para %2 (%3 de %4)…</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="717"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="837"/>
         <source>%n save(s) sent to %1.</source>
         <translation>
             <numerusform>%n save enviado para a consola %1.</numerusform>
@@ -10076,12 +10581,12 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="718"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="838"/>
         <source>%1 of %2 saves sent to %3. Not done: %4</source>
         <translation>%1 de %2 saves enviados para %3. Por fazer: %4</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="721"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="841"/>
         <source>%n not sent: no user on %1 has their PSID. Link one first.</source>
         <translation>
             <numerusform>%n não foi enviado: nenhum utilizador de %1 tem o PSID dele. Liga um primeiro.</numerusform>
@@ -10089,42 +10594,42 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="728"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="848"/>
         <source>Their files are there, but the console&apos;s list of saves could not be updated: %1</source>
         <translation>Os ficheiros estão lá, mas a lista de saves da consola não pôde ser atualizada: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="731"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="851"/>
         <source>On a PS5, start the PS4 game once and save, then send again.</source>
         <translation>Numa PS5, abre o jogo de PS4 uma vez e grava; depois envia outra vez.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="820"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="940"/>
         <source>it could not be read (%1)</source>
         <translation>não foi possível lê-la (%1)</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="826"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="946"/>
         <source>no room for a copy on this PC</source>
         <translation>sem espaço para uma cópia neste PC</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="851"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="971"/>
         <source>it could not be written back (%1)</source>
         <translation>não foi possível escrevê-la de volta (%1)</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="875"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="995"/>
         <source>the edited list did not arrive whole, so the console&apos;s own was put back</source>
         <translation>a lista editada não chegou inteira, por isso foi reposta a da própria consola</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="891"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="1011"/>
         <source>Deleting from the PC…</source>
         <translation>A apagar do PC…</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="899"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="1019"/>
         <source>%n save(s) deleted from the PC.</source>
         <translation>
             <numerusform>%n save apagado do PC.</numerusform>
@@ -10132,7 +10637,7 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/saves_controller.cpp" line="900"/>
+        <location filename="../src/orbislink/qt/saves_controller.cpp" line="1020"/>
         <source>Not everything was deleted: %1</source>
         <translation>Nem tudo foi apagado: %1</translation>
     </message>
@@ -10140,149 +10645,154 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
 <context>
     <name>orbislink::ShelfController</name>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="501"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="502"/>
         <source>Console library</source>
         <translation>Biblioteca da consola</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="509"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="510"/>
         <source>Installed on the console</source>
         <translation>Instalado na consola</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="520"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="521"/>
         <source>Console USB (%1)</source>
         <translation>USB da consola (%1)</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="521"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="522"/>
         <source>Console extended storage (%1)</source>
         <translation>Armazenamento expandido da consola (%1)</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="572"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="573"/>
         <source>Desktop</source>
         <translation>Ambiente de trabalho</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="574"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="575"/>
         <source>Downloads</source>
         <translation>Transferências</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="576"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="577"/>
         <source>Documents</source>
         <translation>Documentos</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="580"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="581"/>
         <source>This PC — %1</source>
         <translation>Este PC — %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="605"/>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1236"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="606"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1263"/>
         <source>%1 is not there any more: a drive taken out, or the console gone.</source>
         <translation>%1 já não está disponível: uma unidade retirada, ou a consola desligada.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="607"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="608"/>
         <source>%1 was taken out. Plug it in again and it opens here.</source>
         <translation>%1 foi retirada. Liga-a de novo e abre aqui.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="608"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="609"/>
         <source>This place was taken off the library.</source>
         <translation>Este local foi tirado da biblioteca.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1048"/>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1088"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1049"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1089"/>
         <source>Not a package this can read.</source>
         <translation>Não é um pacote que isto consiga ler.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1052"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1053"/>
         <source>On a PS4 a package on the console installs from Debug Settings → Package Installer.</source>
         <translation>Numa PS4, um pacote na consola instala-se em Definições de depuração → Package Installer.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1058"/>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1102"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1059"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1103"/>
         <source>Not a PS1/PS2 disc this can read.</source>
         <translation>Não é um disco PS1/PS2 que isto consiga ler.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1065"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1066"/>
         <source>A PS4 app or game folder, not a package: a PS4 installs it once it is made into a .pkg.</source>
         <translation>Uma pasta de app ou jogo PS4, não um pacote: a PS4 instala-a depois de transformada num .pkg.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1067"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1068"/>
         <source>A PS5 game: for a PS5 with ShadowMountPlus.</source>
         <translation>Um jogo PS5: para uma PS5 com ShadowMountPlus.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1074"/>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1132"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1075"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1153"/>
         <source>An archive: unpack it on the PC first; the console does not open them.</source>
         <translation>Um arquivo comprimido: descomprime-o primeiro no PC; a consola não os abre.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1111"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1112"/>
         <source>A PS4 app or game folder, not yet a package: it is made into one here (as the .gp4 in it says, when it has one), then installed.</source>
         <translation>Uma pasta de app ou jogo PS4, ainda não é um pacote: transforma-se num aqui (como diz o .gp4 dela, quando existe) e depois instala-se.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1115"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1116"/>
         <source>A PS4 app or game folder, not a package: it installs once it is made into a .pkg (a .gp4 beside it is the recipe for that, from the tool that made it).</source>
         <translation>Uma pasta de app ou jogo PS4, não um pacote: instala-se depois de transformada num .pkg (um .gp4 junto dela é a receita para isso, do programa que a fez).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1122"/>
-        <source>A PS5 game: made into a PS5 fake package here (by Packwright), then installed — or, as it is, copied to /data/homebrew on the PS5, where ShadowMountPlus finds it.</source>
-        <translation>Um jogo PS5: transformado aqui num pacote fake PS5 (pelo Packwright) e depois instalado — ou, tal como está, copiado para /data/homebrew na PS5, onde o ShadowMountPlus o encontra.</translation>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1139"/>
+        <source>A PS5 game image: copied to /data/homebrew on the PS5, where ShadowMountPlus mounts it and puts it on the home screen — or made into a PS5 fake package here (by Packwright) and installed.</source>
+        <translation>Uma imagem de jogo PS5: copiada para /data/homebrew na PS5, onde o ShadowMountPlus a monta e a põe no ecrã inicial — ou transformada aqui num pacote fake PS5 (pelo Packwright) e instalada.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1126"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1142"/>
+        <source>A PS5 game: made here (by Packwright) into one image that ShadowMountPlus mounts — much faster to send than the folder&apos;s files — or into a PS5 fake package the console installs.</source>
+        <translation>Um jogo PS5: transformado aqui (pelo Packwright) numa imagem que o ShadowMountPlus monta — muito mais rápida de enviar do que os ficheiros da pasta — ou num pacote fake PS5 que a consola instala.</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1147"/>
         <source>A PS5 game: copy it to /data/homebrew on the PS5 (Files tab), where ShadowMountPlus finds it.</source>
         <translation>Um jogo PS5: copia-o para /data/homebrew na PS5 (separador Ficheiros), onde o ShadowMountPlus o encontra.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1152"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1173"/>
         <source>%1 is on the console, whose FTP is not answering.</source>
         <translation>%1 está na consola, cujo FTP não responde.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1153"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1174"/>
         <source>%1 is not there now.</source>
         <translation>%1 não está disponível agora.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1269"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1296"/>
         <source>This folder cannot be read: %1</source>
         <translation>Esta pasta não pode ser lida: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1432"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1459"/>
         <source>The console&apos;s FTP is not answering: the library is read over it.</source>
         <translation>O FTP da consola não responde: a biblioteca é lida por ele.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1704"/>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1709"/>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1720"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1733"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1738"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1749"/>
         <source>Library</source>
         <translation>Biblioteca</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1706"/>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1723"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1735"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1752"/>
         <source>Search</source>
         <translation>Pesquisa</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1900"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1929"/>
         <source>%n package(s) renamed.</source>
         <translation>
             <numerusform>%n pacote renomeado.</numerusform>
@@ -10290,12 +10800,12 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1902"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="1931"/>
         <source>%1 could not be renamed: %2</source>
         <translation>%1 não puderam ser renomeados: %2</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2243"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2306"/>
         <source>%n of the games picked cannot be done that way and were left as they are.</source>
         <translation>
             <numerusform>%n dos jogos escolhidos não dá para fazer assim e ficou como estava.</numerusform>
@@ -10303,17 +10813,18 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2293"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2357"/>
         <source>the game</source>
         <translation>o jogo</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2295"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2359"/>
         <source>its update</source>
         <translation>a atualização</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2297"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2361"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2504"/>
         <source>%n add-on(s)</source>
         <translation>
             <numerusform>%n extra</numerusform>
@@ -10321,37 +10832,42 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         </translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2314"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2384"/>
         <source>Copied to this PC as the console has it. A fake package (a converted game, or one made with a packager) installs again on any console with a homebrew enabler; a game from the PlayStation Store or a disc stays tied to its licence, and only a dump made on the console plays elsewhere.</source>
         <translation>Copiado para este PC tal como a consola o tem. Um pacote fake (um jogo convertido, ou feito com um empacotador) volta a instalar em qualquer consola com homebrew ativo; um jogo da PlayStation Store ou de disco fica preso à sua licença, e só um dump feito na consola funciona noutra.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2317"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2387"/>
         <source>The console has no package of it to copy: a game ShadowMountPlus puts on the home screen is copied from its own folder.</source>
         <translation>A consola não tem um pacote dele para copiar: um jogo que o ShadowMountPlus põe no ecrã inicial copia-se da sua própria pasta.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2320"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2390"/>
         <source>To uninstall it, use the console&apos;s own menu: the PS5&apos;s installer cannot.</source>
         <translation>Para o desinstalar, usa o menu da própria consola: o instalador da PS5 não o faz.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2334"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2499"/>
+        <source>update %1</source>
+        <translation>atualização %1</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2523"/>
         <source>The console&apos;s FTP is not answering: what it has installed is read over it.</source>
         <translation>O FTP da consola não está a responder: o que está instalado é lido através dele.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2533"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2802"/>
         <source>%1 is not a folder of this PC.</source>
         <translation>%1 não é uma pasta deste PC.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2544"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2813"/>
         <source>%1 is already in the library.</source>
         <translation>%1 já está na biblioteca.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2560"/>
+        <location filename="../src/orbislink/qt/shelf_controller.cpp" line="2829"/>
         <source>%1 is in the library.</source>
         <translation>%1 está na biblioteca.</translation>
     </message>

@@ -1335,9 +1335,11 @@ Item {
                  : c.stage === "cover" ? qsTr("Getting the cover…")
                  : c.stage === "digest" || c.stage === "finish"
                  ? qsTr("Signing… %1%").arg(pct(c.percent))
+                 : c.image ? qsTr("Making the image… %1%").arg(pct(c.percent))
                  : c.kind === "pack" ? qsTr("Packing… %1%").arg(pct(c.percent))
                  : qsTr("Converting… %1%").arg(pct(c.percent)); break
-        case "converted": text = !c.send ? qsTr("Package ready")
+        case "converted": text = !c.send ? (c.image ? qsTr("Image ready") : qsTr("Package ready"))
+                                : c.image ? qsTr("Image made — sending next")
                                 : c.kind === "pack" ? qsTr("Packed — sending next") : qsTr("Converted — sending next"); break
         case "sending":
             text = t.waiting ? qsTr("Waiting to send") : qsTr("Sending to the console… %1%").arg(pct(t.percent)); break
@@ -1356,7 +1358,8 @@ Item {
                     : stage === "installed" ? 3 : -1
         var failedAt = c.state === "error" ? 0 : c.state === "cancelled" ? 0
                      : (t.stage === "error" || t.stage === "cancelled") ? (t.mode === "install" ? 2 : 1) : -1
-        var labels = [c.kind === "pack" ? qsTr("Pack") : qsTr("Convert"), qsTr("Send"), qsTr("Install")]
+        var labels = [c.image ? qsTr("Image") : c.kind === "pack" ? qsTr("Pack") : qsTr("Convert"), qsTr("Send"),
+                      qsTr("Install")]
         // Over, and well: the package made (and no more asked), on the
         // console, or installed. The card goes green.
         var done = stage === "installed" || stage === "sent" || (stage === "converted" && !c.send)

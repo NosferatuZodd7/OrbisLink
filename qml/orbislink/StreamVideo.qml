@@ -47,6 +47,11 @@ VideoOutput {
             event.accepted = true
             return
         }
+        if (event.key === Qt.Key_F9) {
+            window.togglePanel()
+            event.accepted = true
+            return
+        }
         event.accepted = stream.keyPressed(event.key)
     }
     Keys.onReleased: function(event) {

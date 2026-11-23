@@ -11,10 +11,13 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QFileInfo>
 #include <QMetaObject>
 #include <QStandardPaths>
 #include <QStorageInfo>
+#include <QTimer>
 
 #include <algorithm>
 #include <cinttypes>
@@ -166,10 +169,127 @@ SavesController::SavesController(AppController *app, QObject *parent) : QObject(
 	connect(app_, &AppController::settingsChanged, this, &SavesController::consolesChanged);
 	connect(app_, &AppController::statusChanged, this, &SavesController::consolesChanged);
 	connect(app_, &AppController::ftpReachableChanged, this, &SavesController::consolesChanged);
+	// The automatic backup: a moment after the console's FTP answers (the
+	// start's checks settle first), and every half hour after that.
+	connect(app_, &AppController::ftpReachableChanged, this, [this]() {
+		QTimer::singleShot(5000, this, &SavesController::maybeAutoBackup);
+	});
+	// …and a moment after the setting is turned on (or the console in use
+	// changes), with the FTP already answering.
+	connect(app_, &AppController::settingsChanged, this, [this]() {
+		QTimer::singleShot(5000, this, &SavesController::maybeAutoBackup);
+	});
+	auto *again = new QTimer(this);
+	again->setInterval(30 * 60 * 1000);
+	connect(again, &QTimer::timeout, this, &SavesController::maybeAutoBackup);
+	again->start();
+}
+
+namespace {
+
+QString lastAutoBackupPath()
+{
+	return QDir(QString::fromStdString(SettingsStore::defaultDirectory())).filePath(QStringLiteral("auto-save-backup.json"));
+}
+
+} // namespace
+
+void SavesController::saveLastAutoBackup() const
+{
+	QJsonObject times;
+	for(auto it = lastAutoBackup_.constBegin(); it != lastAutoBackup_.constEnd(); ++it)
+		times.insert(it.key(), static_cast<double>(it.value()));
+	QFile out(lastAutoBackupPath());
+	if(out.open(QIODevice::WriteOnly | QIODevice::Truncate))
+		out.write(QJsonDocument(times).toJson(QJsonDocument::Compact));
+}
+
+void SavesController::maybeAutoBackup()
+{
+	if(!app_->settings().autoSaveBackup || busy_ || !online())
+		return;
+	// The console in use only (the setting says so), and not while its
+	// network is busy: a Remote Play session or the install queue at work (a
+	// paused one sends nothing).
+	const QString address = source();
+	if(address != QString::fromStdString(app_->settings().consoleAddress) || app_->streaming()
+		|| (app_->queueBusy() && !app_->queuePaused()))
+		return;
+	if(!lastAutoBackupRead_)
+	{
+		lastAutoBackupRead_ = true;
+		QFile in(lastAutoBackupPath());
+		if(in.open(QIODevice::ReadOnly))
+		{
+			const QJsonObject times = QJsonDocument::fromJson(in.readAll()).object();
+			for(auto it = times.constBegin(); it != times.constEnd(); ++it)
+				lastAutoBackup_.insert(it.key(), static_cast<qint64>(it.value().toDouble()));
+		}
+	}
+	const qint64 now = QDateTime::currentMSecsSinceEpoch();
+	if(lastAutoBackup_.contains(address) && now - lastAutoBackup_.value(address) < 6ll * 60 * 60 * 1000)
+		return;
+	const QString name = sourceName();
+	logInfo("Saves: backing up what is new or changed on " + name.toStdString() + " (automatic).");
+	run(tr("Backing up the saves by themselves…"), [this, name, address](SaveRemote &remote, SaveVault &vault,
+							   std::vector<SaveInfo> &, bool *error) -> QString {
+		std::string scanError;
+		const std::vector<SaveInfo> list = vault.scan(remote, &scanError, [this](const std::string &title, double f) {
+			setProgress(tr("Reading the console's saves… %1").arg(QString::fromStdString(title)), f / 2);
+		});
+		if(!scanError.empty())
+		{
+			// Quiet: tried again at the next chance, as the time was not noted.
+			logWarning("Saves: automatic backup — the console could not be read: " + scanError);
+			return QString();
+		}
+		// What is new or changed; never an earlier copy over a newer backup.
+		std::vector<SaveInfo> chosen;
+		for(const SaveInfo &save : list)
+			if(save.onConsole && (save.sync() == SaveSync::Changed || save.sync() == SaveSync::ConsoleOnly))
+				chosen.push_back(save);
+		int done = 0;
+		QStringList failed;
+		for(size_t i = 0; i < chosen.size(); ++i)
+		{
+			// The application closing: it stops between saves, and the time
+			// is not noted, so it goes on at the next start.
+			if(autoStop_.load())
+			{
+				logInfo("Saves: automatic backup stopped, the application is closing.");
+				return QString();
+			}
+			setProgress(tr("Backing up %1 (%2 of %3)…")
+					.arg(QString::fromStdString(chosen[i].saveTitle.empty() ? chosen[i].dir : chosen[i].saveTitle))
+					.arg(i + 1).arg(chosen.size()),
+				0.5 + 0.5 * static_cast<double>(i) / chosen.size());
+			std::string why;
+			if(vault.backup(remote, chosen[i], &why))
+				++done;
+			else
+				failed << QString::fromStdString(chosen[i].key() + ": " + why);
+		}
+		// Done: the time is noted (and kept), the next one in six hours.
+		QMetaObject::invokeMethod(this, [this, address]() {
+			lastAutoBackup_.insert(address, QDateTime::currentMSecsSinceEpoch());
+			saveLastAutoBackup();
+		}, Qt::QueuedConnection);
+		logInfo("Saves: automatic backup of " + name.toStdString() + " — " + std::to_string(done) + " of "
+			+ std::to_string(chosen.size()) + " new or changed save(s) copied"
+			+ (failed.isEmpty() ? std::string() : "; not done: " + failed.join(QStringLiteral("; ")).toStdString()) + ".");
+		*error = !failed.isEmpty();
+		if(chosen.empty())
+			return QString();
+		if(!failed.isEmpty())
+			return tr("Automatic backup: %1 of %2 saves copied. Not done: %3").arg(done).arg(chosen.size())
+				.arg(failed.join(QStringLiteral("; ")));
+		return tr("%n save(s) backed up to the PC by themselves.", "", done);
+	}, true);
 }
 
 SavesController::~SavesController()
 {
+	autoStop_ = true;
 	if(worker_.joinable())
 		worker_.join();
 	if(inspector_.joinable())
@@ -461,7 +581,7 @@ void SavesController::publish(const std::vector<SaveInfo> &list, SaveVault &vaul
 	}, Qt::QueuedConnection);
 }
 
-void SavesController::run(const QString &what, Job job)
+void SavesController::run(const QString &what, Job job, bool quiet)
 {
 	if(busy_)
 		return;
@@ -477,7 +597,7 @@ void SavesController::run(const QString &what, Job job)
 	const std::string root = vaultFolder().toStdString();
 	const std::map<std::string, std::string> known = links();
 	const QString scratch = QDir(vaultFolder()).filePath(QStringLiteral(".cache/owners"));
-	worker_ = std::thread([this, job, reachable, shown, root, known, scratch]() {
+	worker_ = std::thread([this, job, reachable, shown, root, known, scratch, quiet]() {
 		FtpClient ftp(shown.config);
 		FtpRemote remote(ftp);
 		SaveVault vault(root);
@@ -517,7 +637,7 @@ void SavesController::run(const QString &what, Job job)
 			{
 				logWarning("Saves: the console could not be read: " + scanError);
 				list = vault.vaultSaves();
-				if(message.isEmpty())
+				if(message.isEmpty() && !quiet)
 				{
 					message = tr("The console's saves could not be read: %1").arg(QString::fromStdString(scanError));
 					error = true;

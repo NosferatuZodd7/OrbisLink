@@ -28,6 +28,13 @@ bool titleIdLike(const std::string &name)
 	return true;
 }
 
+std::string upper(std::string text)
+{
+	for(char &c : text)
+		c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+	return text;
+}
+
 // A PS5 title ID: PPSA (and the region and test series that go with it).
 bool ps5TitleId(const std::string &id)
 {
@@ -220,6 +227,80 @@ std::vector<InstalledTitle> readInstalled(FileSource &source, const std::string 
 		titles.push_back(std::move(title));
 	}
 	return titles;
+}
+
+int compareVersions(const std::string &a, const std::string &b)
+{
+	size_t i = 0, j = 0;
+	while(i < a.size() || j < b.size())
+	{
+		long x = 0, y = 0;
+		while(i < a.size() && a[i] != '.')
+		{
+			if(a[i] >= '0' && a[i] <= '9')
+				x = x * 10 + (a[i] - '0');
+			++i;
+		}
+		while(j < b.size() && b[j] != '.')
+		{
+			if(b[j] >= '0' && b[j] <= '9')
+				y = y * 10 + (b[j] - '0');
+			++j;
+		}
+		if(x != y)
+			return x < y ? -1 : 1;
+		++i;
+		++j;
+	}
+	return 0;
+}
+
+std::string contentLabel(const std::string &contentId)
+{
+	// XXYYYY-TITLEID_00-LABEL: the part after the second dash.
+	const size_t first = contentId.find('-');
+	const size_t second = first == std::string::npos ? std::string::npos : contentId.find('-', first + 1);
+	return second == std::string::npos ? std::string() : contentId.substr(second + 1);
+}
+
+PendingExtras pendingExtras(const InstalledTitle &title, const std::vector<PcPackage> &packages)
+{
+	PendingExtras pending;
+	const std::string id = upper(title.titleId);
+	std::set<std::string> labels;
+	// The update installed, by its size: an add-on goes by its label alone
+	// (unlockers of one game are often all the same size).
+	std::set<int64_t> updateSizes;
+	for(const InstalledPart &part : title.parts)
+	{
+		if(part.kind == "addon")
+			labels.insert(upper(part.label));
+		if(part.kind == "patch")
+			updateSizes.insert(part.size);
+	}
+	std::set<std::string> offered;
+	for(const PcPackage &package : packages)
+	{
+		if(upper(package.titleId) != id)
+			continue;
+		if(package.category == "gp")
+		{
+			if(updateSizes.count(package.size))
+				continue;
+			// Newer than what is installed, and the newest of them.
+			if(compareVersions(package.version, title.version) > 0
+				&& (pending.update.path.empty() || compareVersions(package.version, pending.update.version) > 0))
+				pending.update = package;
+		}
+		else if(package.category == "ac")
+		{
+			const std::string label = upper(contentLabel(package.contentId));
+			if(label.empty() || labels.count(label) || !offered.insert(label).second)
+				continue;
+			pending.addons.push_back(package);
+		}
+	}
+	return pending;
 }
 
 std::string copyFolderName(const InstalledTitle &title)

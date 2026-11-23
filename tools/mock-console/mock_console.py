@@ -619,6 +619,32 @@ class TitanCoreHandler(http.server.BaseHTTPRequestHandler):
         self._send(404, b"not found", "text/plain")
 
 
+class ShadowMountHandler(http.server.BaseHTTPRequestHandler):
+    """Answers like ShadowMountPlus's API (port 10101, with LAN access on):
+    POST /api/v1/scan is taken (200) and counted."""
+    protocol_version = "HTTP/1.1"
+    scans = 0
+
+    def log_message(self, *args) -> None:  # noqa: D401 - quiet
+        pass
+
+    def do_POST(self) -> None:  # noqa: N802
+        length = int(self.headers.get("Content-Length", "0") or 0)
+        if length:
+            self.rfile.read(length)
+        ok = self.path == "/api/v1/scan"
+        if ok:
+            ShadowMountHandler.scans += 1
+            print(f"ShadowMountPlus: scan asked ({ShadowMountHandler.scans})", flush=True)
+        body = b'{"ok":true}' if ok else b"not found"
+        self.send_response(200 if ok else 404)
+        self.send_header("Content-Type", "application/json" if ok else "text/plain")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(body)
+
+
 class ProsperoManagerHandler(http.server.BaseHTTPRequestHandler):
     """Answers like the Prospero Manager payload's package API (port 7070):
     POST /api/pkg/install with {"path"} or {"url"} starts one install at a
@@ -1036,6 +1062,8 @@ def main() -> int:
                         help="answers like the Prospero Manager payload's package API (7070 is the real one)")
     parser.add_argument("--titan-port", type=int, default=0, metavar="PORT",
                         help="answer like the Titan Core payload's web API (8097) on this port")
+    parser.add_argument("--shadowmount-port", type=int, default=0, metavar="PORT",
+                        help="answer like ShadowMountPlus's API (10101) on this port")
     parser.add_argument("--print-ports", action="store_true",
                         help="prints the chosen ports as JSON and keeps running")
     arguments = parser.parse_args()
@@ -1074,6 +1102,11 @@ def main() -> int:
     if arguments.titan_port:
         titan = ThreadingHttpServer((arguments.host, arguments.titan_port), TitanCoreHandler)
         threading.Thread(target=titan.serve_forever, daemon=True).start()
+
+    shadowmount = None
+    if arguments.shadowmount_port:
+        shadowmount = ThreadingHttpServer((arguments.host, arguments.shadowmount_port), ShadowMountHandler)
+        threading.Thread(target=shadowmount.serve_forever, daemon=True).start()
 
     discovery = None
     if arguments.discovery_port:
@@ -1116,6 +1149,8 @@ def main() -> int:
             prospero.shutdown()
         if titan:
             titan.shutdown()
+        if shadowmount:
+            shadowmount.shutdown()
         ftp.stop()
         if discovery:
             discovery.stop()

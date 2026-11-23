@@ -81,6 +81,7 @@ Item {
                       ? (shelf.level === "home" ? qsTr("%n place(s)", "", shelf.count)
                          : shelf.loading ? qsTr("Reading…") : qsTr("%n item(s)", "", shelf.count))
                         + "  ·  " + qsTr("Your games on the console and on this PC, place by place")
+                      : root.tab === 2 ? qsTr("The console's screenshots and video clips, to look at and copy to this PC")
                       : games.gamesFolder.length === 0 ? qsTr("Choose the folder where your disc images are.")
                       : games.scanStatus + "  ·  " + qsTr("Optional: PS1/PS2 discs on this PC made into PS4 packages")
 
@@ -161,6 +162,7 @@ Item {
             StyledTab {
                 leftPadding: 20
                 rightPadding: 20
+                width: implicitWidth
                 text: qsTr("All games")
             }
             StyledTab {
@@ -169,6 +171,12 @@ Item {
                 rightPadding: 20
                 width: games.available ? implicitWidth : 0
                 text: qsTr("PS1/PS2 converter")
+            }
+            StyledTab {
+                leftPadding: 20
+                rightPadding: 20
+                width: implicitWidth
+                text: qsTr("Captures")
             }
         }
 
@@ -367,6 +375,14 @@ Item {
             onVisibleChanged: if (visible) forceActiveFocus()
         }
         Binding { target: shelf; property: "active"; value: root.visible && root.tab === 0 }
+
+        // ── the console's screenshots and video clips
+        CapturesView {
+            visible: root.tab === 2
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.topMargin: 14
+        }
 
         // ── the games: as many to a row as fit, as the library lays them out
         Item {

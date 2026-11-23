@@ -501,4 +501,52 @@ ORBISLINK_TEST(lists_what_the_console_has_installed)
 	CHECK(readInstalled(source, empty.path.u8string()).empty());
 }
 
+ORBISLINK_TEST(finds_the_updates_and_add_ons_this_pc_has_that_the_console_does_not)
+{
+	CHECK(compareVersions("01.05", "01.10") < 0);
+	CHECK(compareVersions("01.10", "01.09") > 0);
+	CHECK(compareVersions("1.0", "01.00") == 0);
+	CHECK(compareVersions("02.00", "1.99") > 0);
+	CHECK_EQ(contentLabel("UP0001-CUSA00001_00-EXTRAPACK0000001"), std::string("EXTRAPACK0000001"));
+	CHECK(contentLabel("CUSA00001").empty());
+
+	InstalledTitle game;
+	game.titleId = "CUSA00001";
+	game.version = "01.02";
+	game.parts.push_back({ "app", "/user/app/CUSA00001/app.pkg", "app.pkg", std::string(), 5000 });
+	game.parts.push_back({ "patch", "/user/patch/CUSA00001/patch.pkg", "patch.pkg", std::string(), 700 });
+	game.parts.push_back({ "addon", "/user/addcont/CUSA00001/EXTRAPACK0000001/ac.pkg", "ac.pkg",
+		"EXTRAPACK0000001", 300 });
+
+	std::vector<PcPackage> pc {
+		// The update installed (the same package), an older one and two newer.
+		{ "/pc/patch-102.pkg", "CUSA00001", "UP0001-CUSA00001_00-GAME000000000000", "01.02", "gp", 700 },
+		{ "/pc/patch-101.pkg", "CUSA00001", "UP0001-CUSA00001_00-GAME000000000000", "01.01", "gp", 650 },
+		{ "/pc/patch-105.pkg", "cusa00001", "UP0001-CUSA00001_00-GAME000000000000", "01.05", "gp", 800 },
+		{ "/pc/patch-110.pkg", "CUSA00001", "UP0001-CUSA00001_00-GAME000000000000", "01.10", "gp", 900 },
+		// The add-on installed, another one twice, and one of another game.
+		{ "/pc/dlc1.pkg", "CUSA00001", "UP0001-CUSA00001_00-EXTRAPACK0000001", "01.00", "ac", 300 },
+		{ "/pc/dlc2.pkg", "CUSA00001", "UP0001-CUSA00001_00-EXTRAPACK0000002", "01.00", "ac", 400 },
+		{ "/pc/dlc2-copy.pkg", "CUSA00001", "UP0001-CUSA00001_00-EXTRAPACK0000002", "01.00", "ac", 400 },
+		{ "/pc/other.pkg", "CUSA09999", "UP0001-CUSA09999_00-EXTRAPACK0000003", "01.00", "ac", 100 },
+		// The game itself is not something it lacks.
+		{ "/pc/game.pkg", "CUSA00001", "UP0001-CUSA00001_00-GAME000000000000", "01.00", "gd", 5000 },
+	};
+	const PendingExtras pending = pendingExtras(game, pc);
+	CHECK_EQ(pending.update.path, std::string("/pc/patch-110.pkg"));
+	CHECK_EQ(pending.addons.size(), static_cast<size_t>(1));
+	CHECK_EQ(pending.addons[0].path, std::string("/pc/dlc2.pkg"));
+	CHECK(!pending.empty());
+	// Another add-on of the very size of the installed one is still another.
+	pc.push_back({ "/pc/dlc3.pkg", "CUSA00001", "UP0001-CUSA00001_00-EXTRAPACK0000003", "01.00", "ac", 300 });
+	CHECK_EQ(pendingExtras(game, pc).addons.size(), static_cast<size_t>(2));
+	pc.pop_back();
+
+	// Up to date, with every add-on: nothing.
+	game.version = "01.10";
+	game.parts.push_back({ "addon", "/user/addcont/CUSA00001/EXTRAPACK0000002/ac.pkg", "ac.pkg",
+		"extrapack0000002", 400 });
+	CHECK(pendingExtras(game, pc).empty());
+}
+
 TEST_MAIN()

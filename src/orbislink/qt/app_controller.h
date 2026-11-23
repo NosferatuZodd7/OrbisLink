@@ -293,6 +293,17 @@ public:
 	// The last time Titan Core was asked about an install: whether it
 	// answered, its version and what it said (for the diagnostics).
 	QString titanCoreReport() const { return titanCoreReport_; }
+	// A Remote Play session on screen (StreamController says so): work that
+	// would load the console's network (an automatic save backup, a console
+	// switch) waits for it to end.
+	bool streaming() const { return streaming_; }
+	void setStreaming(bool on) { streaming_ = on; }
+	// Something in the install queue under way or waiting.
+	bool queueBusy() const;
+	// Work elsewhere (a conversion or a packing) whose result is sent to the
+	// console in use once it is made: a console switch waits for it too.
+	void setSendsPending(std::function<bool()> check) { sendsPending_ = std::move(check); }
+	bool sendsPending() const { return sendsPending_ && sendsPending_(); }
 	// QML reports here every time a drag enters, leaves or is dropped.
 	//
 	// Without counters there is no telling Windows not delivering the event
@@ -681,8 +692,15 @@ private:
 	// preparing it to start is shown on the job's card; without it, what
 	// starts it on this firmware.
 	void followPs5Install(const QString &taskId, const QString &titleId);
+	// A PS5 game image copied where ShadowMountPlus looks: it is asked to
+	// look now (its API, else started again); its card says what happened.
+	void handImageToShadowMount(const QString &taskId, const QString &remotePath);
+	// A line under a job's card (and its conversion card's), on the UI thread.
+	void setTaskNote(const QString &taskId, const QString &text);
 	QSet<QString> ps5Followed_;
 	QString titanCoreReport_;
+	bool streaming_ = false;
+	std::function<bool()> sendsPending_;
 	QHash<QString, PackageFacts> packageFacts_;
 	void refreshPackageWarnings();
 	QString lastRemotePlayDetail_;

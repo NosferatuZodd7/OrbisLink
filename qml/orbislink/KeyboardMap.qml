@@ -213,8 +213,8 @@ Item {
             notice = ""
             chosen = ""
         } else {
-            notice = qsTr("That key can't be used: Esc leaves the stream and F11 toggles full "
-                         + "screen.")
+            notice = qsTr("That key can't be used: Esc leaves the stream, F11 toggles full screen and F9 "
+                         + "shows the transfers.")
             chosen = ""
         }
     }

@@ -511,9 +511,54 @@ jobs:
           name: orbislink-linux-x86_64
           path: dist/*.tar.gz
 
+  appimage:
+    name: Linux x86-64 — graphical interface (AppImage)
+    needs: version
+    runs-on: ubuntu-24.04
+    # New: until it has proved itself, a failure here does not hold the
+    # release back (it is then published without the AppImage).
+    continue-on-error: true
+    # Never holds the release for long, and needs no write access.
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      ORBISLINK_RELEASE_VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Remote Play comes from the chiaki-ng submodule.
+          submodules: recursive
+          persist-credentials: false
+      - name: Install dependencies
+        run: |
+          echo 'Acquire::Retries "5"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30";' \
+            | sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
+          sudo apt-get update
+          # Qt 6 with the QML modules the interface uses (and the one Qt's own
+          # file dialogs need), and Remote Play's libraries.
+          sudo apt-get install -y cmake ninja-build pkg-config file libfuse2 \
+            libcurl4-openssl-dev libssl-dev \
+            qt6-base-dev qt6-declarative-dev qt6-multimedia-dev libqt6sql6-sqlite \
+            qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-dialogs \
+            qml6-module-qtquick-layouts qml6-module-qtquick-shapes qml6-module-qtquick-templates \
+            qml6-module-qtquick-window qml6-module-qtqml-workerscript qml6-module-qtmultimedia \
+            qml6-module-qt-labs-folderlistmodel \
+            libavcodec-dev libavformat-dev libavutil-dev libopus-dev libsdl2-dev libjson-c-dev \
+            libminiupnpc-dev libudev-dev libpulse-dev libevent-dev protobuf-compiler python3-protobuf
+      - name: Build and pack
+        run: ./scripts/build-appimage.sh
+        env:
+          ORBISLINK_VERSION: ${{ env.ORBISLINK_RELEASE_VERSION }}
+          ORBISLINK_REPOSITORY: ${{ github.repository }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: orbislink-linux-appimage
+          path: dist/*.AppImage
+
   release:
     name: Publish the release
-    needs: [version, windows, linux]
+    needs: [version, windows, linux, appimage]
     runs-on: ubuntu-latest
     env:
       ORBISLINK_RELEASE_VERSION: ${{ needs.version.outputs.version }}
@@ -530,6 +575,12 @@ jobs:
         with:
           name: orbislink-linux-x86_64
           path: artifacts
+      # The AppImage, when its job made one.
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: orbislink-linux-appimage
+          path: artifacts
       - run: ls -lh artifacts
       # One .sha256 per file. This is what the app uses to confirm what it
       # downloaded before running the installer: without it, the only guarantee
@@ -537,7 +588,7 @@ jobs:
       - name: Publish the SHA-256 next to the files
         run: |
           cd artifacts
-          for file in *.exe *.tar.gz; do
+          for file in *.exe *.tar.gz *.AppImage; do
             [ -e "$file" ] || continue
             sha256sum "$file" > "$file.sha256"
           done
@@ -557,6 +608,7 @@ jobs:
           files: |
             artifacts/*.exe
             artifacts/*.tar.gz
+            artifacts/*.AppImage
             artifacts/*.sha256
           body: |
             ## Testing build ${{ env.ORBISLINK_RELEASE_VERSION }}
@@ -642,6 +694,7 @@ jobs:
           files: |
             artifacts/*.exe
             artifacts/*.tar.gz
+            artifacts/*.AppImage
             artifacts/*.sha256
           generate_release_notes: true
           body: |
@@ -650,7 +703,9 @@ jobs:
             **Windows:** `OrbisLink-*-setup.exe` (installer, with the graphical
             interface and the command line).
 
-            **Linux:** `orbislink-*-linux-x86_64.tar.gz`.
+            **Linux:** `orbislink-*-linux-x86_64.tar.gz` (the command line) and,
+            when this release has it, `OrbisLink-*-x86_64.AppImage` (the
+            graphical interface with its Qt: make it executable and run it).
 
             The installer creates the firewall rule that lets the console
             download the pkg files from the PC — without it the install stays
@@ -699,7 +754,7 @@ jobs:
             --json body --jq .body > notes.md
           {
             printf '\n\n### SHA-256\n\n'
-            for file in artifacts/*.exe artifacts/*.tar.gz; do
+            for file in artifacts/*.exe artifacts/*.tar.gz artifacts/*.AppImage; do
               [ -e "$file" ] || continue
               printf '`%s`  %s\n\n' "$(cut -d' ' -f1 "$file.sha256")" "$(basename "$file")"
             done

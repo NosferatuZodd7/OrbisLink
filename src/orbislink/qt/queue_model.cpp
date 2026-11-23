@@ -2,6 +2,7 @@
 #include "orbislink/qt/queue_model.h"
 
 #include "orbislink/common/util.h"
+#include "orbislink/library/console_library.h"
 #include "orbislink/qt/translate_message.h"
 
 #include <QDir>
@@ -192,6 +193,21 @@ void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
 		row.title = QString::fromStdString(task.title);
 		row.titleId = QString::fromStdString(task.titleId);
 		row.category = translateMessage(pkgCategoryLabel(task.category));
+		// A file that is no package says what it is instead of "Unknown".
+		if(task.category == PkgCategory::Unknown)
+		{
+			const std::string &path = task.localPath.empty() ? task.remotePath : task.localPath;
+			const std::string name = path.substr(path.find_last_of("/\\") + 1);
+			switch(library::kindOf(name, false, task.totalBytes))
+			{
+				case library::Kind::Image: row.category = tr("PS5 game image"); break;
+				case library::Kind::Disc: row.category = tr("Disc image"); break;
+				case library::Kind::Payload: row.category = tr("Payload"); break;
+				case library::Kind::Archive: row.category = tr("Archive"); break;
+				case library::Kind::Package: break;
+				default: row.category = tr("File");
+			}
+		}
 		row.state = QString::fromUtf8(taskStateName(task.state));
 		row.stateLabel = translateMessage(taskStateLabel(task.state));
 		row.percent = task.percent();

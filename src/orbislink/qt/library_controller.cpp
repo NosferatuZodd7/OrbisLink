@@ -805,8 +805,86 @@ QVariantMap LibraryController::copyCard(const CopyJob &job, const QString &itemK
 	return card;
 }
 
+void LibraryController::goOnTo(const QString &id, const QString &title, const QString &target, const QStringList &paths,
+	int waited)
+{
+	QString name;
+	bool listed = false;
+	for(const QVariant &entry : app_->consoles())
+		if(entry.toMap().value(QStringLiteral("address")).toString() == target)
+		{
+			listed = true;
+			name = entry.toMap().value(QStringLiteral("name")).toString();
+		}
+	if(name.isEmpty())
+		name = target;
+	const QString folder = paths.isEmpty() ? QString() : QDir::toNativeSeparators(QFileInfo(paths.first()).absolutePath());
+	if(!listed)
+	{
+		logWarning("Library: \"" + title.toStdString() + "\" was copied for " + target.toStdString()
+			+ ", which is no longer in the list of consoles.");
+		updateJob(id, { { QStringLiteral("message"), tr("Not installed: %1 is no longer in the list").arg(name) } });
+		emit app_->jobFinished(tr("Copy to another console"),
+			tr("%1 is on this PC, in %2; %3 is no longer in the list of consoles, so nothing was installed.")
+				.arg(title, folder, name), true);
+		return;
+	}
+	// A paused queue's packages would go to whichever console is in use when
+	// it carries on: switching now would send them to the other one, and
+	// waiting could last for ever.
+	if(app_->queueBusy() && app_->queuePaused())
+	{
+		logWarning("Library: \"" + title.toStdString() + "\" did not go on to " + name.toStdString()
+			+ ": the queue here is paused with jobs in it.");
+		updateJob(id, { { QStringLiteral("message"), tr("Not installed on %1: the queue here is paused").arg(name) } });
+		emit app_->jobFinished(tr("Copy to another console"),
+			tr("%1 is on this PC, in %2; the queue here is paused with jobs in it, so it was not installed on %3: "
+			   "choose %3 once they are done and install the copy from there.").arg(title, folder, name), true);
+		return;
+	}
+	// Not in the middle of transfers, a conversion that sends here or a
+	// Remote Play session: switching the console would cut them, or send
+	// what they make to the other one. It goes on once they are over.
+	const bool transfers = app_->queueBusy() || app_->sendsPending();
+	if(transfers || app_->streaming())
+	{
+		if(waited == 0)
+		{
+			const QString what = transfers && app_->streaming()
+				? tr("the transfers and the Remote Play session here are over")
+				: transfers ? tr("the transfers here are over") : tr("the Remote Play session here is over");
+			logInfo("Library: \"" + title.toStdString() + "\" waits for " + std::string(transfers ? "the transfers" : "")
+				+ (transfers && app_->streaming() ? " and " : "") + (app_->streaming() ? "the Remote Play session" : "")
+				+ " here to end before it goes on to " + name.toStdString() + ".");
+			updateJob(id, { { QStringLiteral("message"), tr("Goes on to %1 once %2").arg(name, what) } });
+			emit app_->notify(tr("Copy to another console"),
+				tr("%1 is on this PC; it goes on to %2 once %3 (closing OrbisLink before then leaves it in %4, "
+				   "to install from there).").arg(title, name, what, folder), false);
+		}
+		QTimer::singleShot(15000, this, [this, id, title, target, paths, waited]() {
+			goOnTo(id, title, target, paths, waited + 1);
+		});
+		return;
+	}
+	app_->selectConsole(target);
+	if(app_->settings().consoleAddress != target.toStdString())
+	{
+		updateJob(id, { { QStringLiteral("message"), tr("Not installed: %1 could not be chosen").arg(name) } });
+		emit app_->jobFinished(tr("Copy to another console"),
+			tr("%1 is on this PC, in %2, but %3 could not be made the console in use: choose it and install the "
+			   "copy from there.").arg(title, folder, name), true);
+		return;
+	}
+	logInfo("Library: \"" + title.toStdString() + "\" goes on to " + name.toStdString() + " (" + target.toStdString()
+		+ "): it is the console in use now, and " + std::to_string(paths.size()) + " package(s) are queued there.");
+	app_->addPaths(paths, 0);
+	updateJob(id, { { QStringLiteral("message"), tr("Queued on %1").arg(name) } });
+	emit app_->jobFinished(tr("Copy to another console"),
+		tr("%1 is on this PC; it installs on %2 now, the console in use from here on.").arg(title, name), false);
+}
+
 void LibraryController::copyToPc(const QString &title, const QString &icon, const QString &folder,
-	const QVector<CopyItem> &files)
+	const QVector<CopyItem> &files, const QString &thenInstallOn)
 {
 	if(files.isEmpty() || folder.isEmpty())
 		return;
@@ -816,6 +894,7 @@ void LibraryController::copyToPc(const QString &title, const QString &icon, cons
 	job.icon = icon;
 	job.folder = folder;
 	job.files = files;
+	job.thenInstallOn = thenInstallOn;
 
 	qint64 total = 0;
 	for(const CopyItem &file : files)
@@ -897,8 +976,12 @@ void LibraryController::download(const QVariantList &items, const QString &folde
 
 void LibraryController::enqueueCopy(CopyJob job)
 {
+	// The console in use when it is first queued; a retry, or a copy carried
+	// on after a restart, reads that one again.
+	if(job.source.isEmpty())
+		job.source = QString::fromStdString(app_->settings().consoleAddress);
 	copyRecipes_[job.id] = job;
-	job.config = app_->ftpClientConfigFor(app_->settings().consoleAddress);
+	job.config = app_->ftpClientConfigFor(job.source.toStdString());
 	job.cancel = std::make_shared<std::atomic<bool>>(false);
 	{
 		std::lock_guard<std::mutex> lock(copyMutex_);
@@ -968,6 +1051,7 @@ void LibraryController::saveUnfinishedCopies() const
 		kept.append(QJsonObject { { QStringLiteral("title"), job.title }, { QStringLiteral("icon"), job.icon },
 			{ QStringLiteral("folder"), job.folder }, { QStringLiteral("files"), files },
 			{ QStringLiteral("remoteFolder"), job.remoteFolder },
+			{ QStringLiteral("source"), job.source }, { QStringLiteral("thenInstallOn"), job.thenInstallOn },
 			{ QStringLiteral("itemKind"), card.value(QStringLiteral("itemKind")).toString() } });
 	}
 	if(kept.isEmpty())
@@ -996,6 +1080,8 @@ void LibraryController::loadUnfinishedCopies()
 		job.icon = saved.value(QStringLiteral("icon")).toString();
 		job.folder = saved.value(QStringLiteral("folder")).toString();
 		job.remoteFolder = saved.value(QStringLiteral("remoteFolder")).toString();
+		job.source = saved.value(QStringLiteral("source")).toString();
+		job.thenInstallOn = saved.value(QStringLiteral("thenInstallOn")).toString();
 		qint64 total = 0;
 		for(const QJsonValue &part : saved.value(QStringLiteral("files")).toArray())
 		{
@@ -1246,6 +1332,18 @@ void LibraryController::runCopy(const CopyJob &recipe)
 		{ QStringLiteral("amountText"), QString::fromStdString(humanBytes(total)) },
 		{ QStringLiteral("message"), tr("In the folder %1").arg(QDir(job.folder).dirName()) },
 		{ QStringLiteral("bytesPerSecond"), 0.0 } });
+	if(!job.thenInstallOn.isEmpty())
+	{
+		// On to the other console: it becomes the one in use, and the copy
+		// goes to its queue (the game first, then its update and add-ons).
+		QStringList paths;
+		for(const CopyItem &file : job.files)
+			paths << file.local;
+		QMetaObject::invokeMethod(this, [this, id = job.id, title = job.title, target = job.thenInstallOn, paths]() {
+			goOnTo(id, title, target, paths, 0);
+		}, Qt::QueuedConnection);
+		return;
+	}
 	QMetaObject::invokeMethod(this, [this, title = job.title]() {
 		emit app_->jobFinished(tr("Copy to this PC"), tr("%1 is on this PC.").arg(title), false);
 	}, Qt::QueuedConnection);

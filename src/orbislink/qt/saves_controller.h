@@ -5,6 +5,7 @@
 #include "orbislink/saves/save_vault.h"
 
 #include <QElapsedTimer>
+#include <QHash>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -99,6 +100,10 @@ public:
 	Q_INVOKABLE void linkPsid(const QString &user, const QString &psidFolder);
 	Q_INVOKABLE void setVaultFolder(const QString &folder);
 	Q_INVOKABLE void openVaultFolder() const;
+	// With the setting on: once the FTP of the console shown answers, what
+	// is new or changed there is backed up, at most every six hours a
+	// console. Quiet unless something was copied.
+	void maybeAutoBackup();
 
 signals:
 	void savesChanged();
@@ -118,7 +123,15 @@ private:
 		FtpClient::Config config;
 	};
 	using Job = std::function<QString(SaveRemote &, SaveVault &, std::vector<SaveInfo> &, bool *error)>;
-	void run(const QString &what, Job job);
+	// Each console's last automatic backup (its address → when, ms since the
+	// epoch), kept in a file beside the settings so a restart does not redo it.
+	QHash<QString, qint64> lastAutoBackup_;
+	bool lastAutoBackupRead_ = false;
+	// The application closing: an automatic backup stops between saves.
+	std::atomic<bool> autoStop_ { false };
+	void saveLastAutoBackup() const;
+	// `quiet`: a console that cannot be read says nothing (the automatic backup).
+	void run(const QString &what, Job job, bool quiet = false);
 	void publish(const std::vector<SaveInfo> &list, SaveVault &vault, SaveRemote *remote);
 	std::vector<SaveInfo> pick(const QStringList &keys) const;
 	Console consoleAt(const QString &address) const;
