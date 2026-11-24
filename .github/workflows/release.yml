@@ -211,7 +211,21 @@ jobs:
           arch: x64
       - name: Locate clang-cl
         run: |
-          $clang = Get-Command clang-cl.exe -ErrorAction SilentlyContinue
+          # Visual Studio's own clang-cl first: its C++ library checks the
+          # compiler's version (STL1000) and only the clang that comes with
+          # that Visual Studio is sure to pass. A runner image can bring a
+          # newer library than the separate LLVM install knows.
+          $clang = $null
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (Test-Path $vswhere) {
+            $vs = & $vswhere -latest -products * -property installationPath
+            if ($vs) {
+              $bundled = Join-Path $vs "VC\Tools\Llvm\x64\bin\clang-cl.exe"
+              if (Test-Path $bundled) { $clang = Get-Item $bundled }
+            }
+          }
+          $bundledClang = [bool]$clang
+          if (-not $clang) { $clang = Get-Command clang-cl.exe -ErrorAction SilentlyContinue }
           if (-not $clang) {
             $candidato = "C:\Program Files\LLVM\bin\clang-cl.exe"
             if (Test-Path $candidato) { $clang = Get-Item $candidato }
@@ -223,6 +237,13 @@ jobs:
           Write-Host "clang-cl at $clangPath"
           & $clangPath --version
           "CLANG_CL=$clangPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          # Another clang than Visual Studio's: its C++ library is told to
+          # take it (Microsoft's documented switch), read by CMake once, on
+          # the first configure, as the start of the C++ flags.
+          if (-not $bundledClang) {
+            Write-Host "Not Visual Studio's clang-cl: allowing the library/compiler version mismatch."
+            "CXXFLAGS=/D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          }
       - name: Prepare the protocol generator (protoc + nanopb)
         run: |
           # chiaki generates the protocol code from a .proto, with the
