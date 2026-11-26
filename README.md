@@ -122,13 +122,11 @@ searching the network or by IP.*
 
 ### Pages over Remote Play
 
-| Games library | PS1/PS2 converter |
+| Games library | Payloads |
 |---|---|
-| ![Games over Remote Play](docs/images/real/02-library-over-remote-play.webp) | ![Converter over Remote Play](docs/images/real/08-converter-over-remote-play.webp) |
+| ![Games over Remote Play](docs/images/real/02-library-over-remote-play.webp) | ![Payloads over Remote Play](docs/images/real/18-payloads-over-remote-play.webp) |
 
-| Payloads over Remote Play | PS1/PS2 converter |
-|---|---|
-| ![Payloads over Remote Play](docs/images/real/18-payloads-over-remote-play.webp) | ![PS1/PS2 converter](docs/images/real/12-converter.webp) |
+![PS1/PS2 converter](docs/images/real/12-converter.webp)
 
 *Games, the store, the save vault and payloads open over the picture, with a
 slider for how see-through they are, so the game stays in sight. Games: every
