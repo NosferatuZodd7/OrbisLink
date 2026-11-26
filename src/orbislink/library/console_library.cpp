@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "orbislink/library/console_library.h"
+#include "orbislink/library/archive_set.h"
 
 #include "orbislink/common/json.h"
+#include "orbislink/library/text.h"
 #include "orbislink/pkg/sfo_parser.h"
 
 #include <algorithm>
@@ -13,31 +15,6 @@ namespace orbislink {
 namespace library {
 
 namespace {
-
-std::string lower(std::string text)
-{
-	std::transform(text.begin(), text.end(), text.begin(),
-		[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-	return text;
-}
-
-std::string upper(std::string text)
-{
-	std::transform(text.begin(), text.end(), text.begin(),
-		[](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-	return text;
-}
-
-std::string extensionOf(const std::string &name)
-{
-	const size_t dot = name.rfind('.');
-	return dot == std::string::npos || dot == 0 ? std::string() : lower(name.substr(dot));
-}
-
-bool startsWith(const std::string &text, const std::string &prefix)
-{
-	return text.compare(0, prefix.size(), prefix) == 0;
-}
 
 // "/mnt/usb3/…" → "/mnt/usb3"; empty when `path` is not on such a drive.
 std::string mountPointOf(const std::string &path, const std::string &prefix)
@@ -79,7 +56,7 @@ Kind kindOf(const std::string &name, bool directory, int64_t size)
 		return Kind::Image;
 	if(ext == ".elf" || ext == ".self" || ext == ".lua" || ext == ".js" || ext == ".jar")
 		return Kind::Payload;
-	if(ext == ".zip" || ext == ".7z" || ext == ".rar")
+	if(ext == ".zip" || ext == ".7z" || ext == ".rar" || parseArchiveVolume(name, nullptr))
 		return Kind::Archive;
 	return Kind::Other;
 }

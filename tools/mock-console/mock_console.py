@@ -418,7 +418,8 @@ class FtpServer(threading.Thread):
 # ------------------------------------------------- API do instalador
 
 def read_pkg_title(url: str) -> tuple[str, str]:
-    """Reads TITLE/TITLE_ID from PARAM.SFO through Range requests, like the real installer.
+    """Reads TITLE/TITLE_ID from PARAM.SFO (param.json on a PS5) through Range
+    requests, like the real installer, or from a package already on the console.
 
     The Remote Package Installer does exactly this before registering the task
     (pkg_setup_prerequisites in pkg.c): it pulls the header, finds entry
@@ -426,6 +427,10 @@ def read_pkg_title(url: str) -> tuple[str, str]:
     realistic title — and exercises the local server's Range support.
     """
     def fetch(offset: int, size: int) -> bytes:
+        if os.path.isfile(url):  # a package already on the console
+            with open(url, "rb") as handle:
+                handle.seek(offset)
+                return handle.read(size)
         request = urllib.request.Request(url)
         request.add_header("Range", f"bytes={offset}-{offset + size - 1}")
         with urllib.request.urlopen(request, timeout=10) as response:
@@ -433,21 +438,34 @@ def read_pkg_title(url: str) -> tuple[str, str]:
 
     try:
         header = fetch(0, 0x2000)
+        inner = 0
+        # A PS5 package: its details are in a PS4-style container further in.
+        if header[0:4] in (b"\x7fFIH", b"\x7fLIH"):
+            inner = struct.unpack_from("<Q", header, 0x58 if header[1:2] == b"F" else 0x30)[0]
+            header = fetch(inner, 0x2000)
         if header[0:4] != b"\x7fCNT":
             return ("", "")
         entry_count = struct.unpack_from(">I", header, 0x10)[0]
         table_offset = struct.unpack_from(">I", header, 0x18)[0]
         if entry_count > 4096:
             return ("", "")
-        table = fetch(table_offset, entry_count * 0x20)
+        table = fetch(inner + table_offset, entry_count * 0x20)
         for index in range(entry_count):
             base = index * 0x20
             entry_id = struct.unpack_from(">I", table, base)[0]
+            if entry_id == 0x2000:  # param.json (PS5)
+                json_offset = struct.unpack_from(">I", table, base + 0x10)[0]
+                json_size = struct.unpack_from(">I", table, base + 0x14)[0]
+                params = json.loads(fetch(inner + json_offset, json_size).decode("utf-8"))
+                localized = params.get("localizedParameters", {})
+                language = localized.get("defaultLanguage", "en-US")
+                title = (localized.get(language) or {}).get("titleName", "")
+                return (title, params.get("titleId", ""))
             if entry_id != 0x1000:  # PARAM.SFO
                 continue
             sfo_offset = struct.unpack_from(">I", table, base + 0x10)[0]
             sfo_size = struct.unpack_from(">I", table, base + 0x14)[0]
-            sfo = fetch(sfo_offset, sfo_size)
+            sfo = fetch(inner + sfo_offset, sfo_size)
             if sfo[0:4] != b"\x00PSF":
                 return ("", "")
             key_table = struct.unpack_from("<I", sfo, 0x08)[0]
@@ -549,6 +567,82 @@ class InstallerState:
             with self.lock:
                 task["error"] = 0x80020005  # ORBIS_KERNEL_ERROR_EIO
                 task["message"] = str(error)
+
+
+class TitanCoreHandler(http.server.BaseHTTPRequestHandler):
+    """Answers like the Titan Core payload's web API (port 8097): GET
+    /api/state lists the PS5 games installed here (PPSA), each going from
+    "checking" to "building" to "ready" once it is first seen; POST
+    /api/rescan is taken (204)."""
+    protocol_version = "HTTP/1.1"
+    seen: dict = {}
+    rescans = 0
+
+    def log_message(self, *args) -> None:  # noqa: D401 - quiet
+        pass
+
+    def _send(self, status: int, body: bytes = b"", kind: str = "application/json") -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", kind)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        if body:
+            self.wfile.write(body)
+
+    def do_GET(self) -> None:  # noqa: N802
+        if self.path != "/api/state":
+            self._send(404, b"not found", "text/plain")
+            return
+        games = []
+        now = time.monotonic()
+        with InstallerApiHandler.state.lock:
+            installed = list(InstallerApiHandler.state.installed)
+        for title_id in installed:
+            if not title_id.upper().startswith("PPSA"):
+                continue
+            first = TitanCoreHandler.seen.setdefault(title_id, now)
+            age = now - first
+            status = "checking" if age < 2 else "building" if age < 6 else "ready"
+            games.append({"title_id": title_id, "title_name": title_id, "status": status, "error": None,
+                          "kind": "pkg", "path": f"/user/app/{title_id}/app.pkg"})
+        self._send(200, json.dumps({"version": "1.0.0", "busy": False, "games": games}).encode())
+
+    def do_POST(self) -> None:  # noqa: N802
+        length = int(self.headers.get("Content-Length", "0") or 0)
+        if length:
+            self.rfile.read(length)
+        if self.path == "/api/rescan":
+            TitanCoreHandler.rescans += 1
+            self._send(204)
+            return
+        self._send(404, b"not found", "text/plain")
+
+
+class ShadowMountHandler(http.server.BaseHTTPRequestHandler):
+    """Answers like ShadowMountPlus's API (port 10101, with LAN access on):
+    POST /api/v1/scan is taken (200) and counted."""
+    protocol_version = "HTTP/1.1"
+    scans = 0
+
+    def log_message(self, *args) -> None:  # noqa: D401 - quiet
+        pass
+
+    def do_POST(self) -> None:  # noqa: N802
+        length = int(self.headers.get("Content-Length", "0") or 0)
+        if length:
+            self.rfile.read(length)
+        ok = self.path == "/api/v1/scan"
+        if ok:
+            ShadowMountHandler.scans += 1
+            print(f"ShadowMountPlus: scan asked ({ShadowMountHandler.scans})", flush=True)
+        body = b'{"ok":true}' if ok else b"not found"
+        self.send_response(200 if ok else 404)
+        self.send_header("Content-Type", "application/json" if ok else "text/plain")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(body)
 
 
 class ProsperoManagerHandler(http.server.BaseHTTPRequestHandler):
@@ -707,6 +801,10 @@ class InstallerApiHandler(http.server.BaseHTTPRequestHandler):
                            "(0x%X) for URL: %s" % (code - (1 << 32), code, url))
                 return
             InstallerApiHandler.installed_paths.append(url)
+            title_id = read_pkg_title(local)[1]
+            if title_id:
+                with InstallerApiHandler.state.lock:
+                    InstallerApiHandler.state.installed[title_id] = os.path.getsize(local)
             print(f"DPI v2: installing {url}", flush=True)
         self._text(f"SUCCESS: Direct install console Task started for URL: {url}")
 
@@ -962,6 +1060,10 @@ def main() -> int:
                         help="no installer on the API port (a PS5 without etaHEN's DPI v2)")
     parser.add_argument("--prospero-port", type=int, default=-1, metavar="PORT",
                         help="answers like the Prospero Manager payload's package API (7070 is the real one)")
+    parser.add_argument("--titan-port", type=int, default=0, metavar="PORT",
+                        help="answer like the Titan Core payload's web API (8097) on this port")
+    parser.add_argument("--shadowmount-port", type=int, default=0, metavar="PORT",
+                        help="answer like ShadowMountPlus's API (10101) on this port")
     parser.add_argument("--print-ports", action="store_true",
                         help="prints the chosen ports as JSON and keeps running")
     arguments = parser.parse_args()
@@ -995,6 +1097,16 @@ def main() -> int:
         ProsperoManagerHandler.root = root
         prospero = ThreadingHttpServer((arguments.host, arguments.prospero_port), ProsperoManagerHandler)
         threading.Thread(target=prospero.serve_forever, daemon=True).start()
+
+    titan = None
+    if arguments.titan_port:
+        titan = ThreadingHttpServer((arguments.host, arguments.titan_port), TitanCoreHandler)
+        threading.Thread(target=titan.serve_forever, daemon=True).start()
+
+    shadowmount = None
+    if arguments.shadowmount_port:
+        shadowmount = ThreadingHttpServer((arguments.host, arguments.shadowmount_port), ShadowMountHandler)
+        threading.Thread(target=shadowmount.serve_forever, daemon=True).start()
 
     discovery = None
     if arguments.discovery_port:
@@ -1035,6 +1147,10 @@ def main() -> int:
             api.shutdown()
         if prospero:
             prospero.shutdown()
+        if titan:
+            titan.shutdown()
+        if shadowmount:
+            shadowmount.shutdown()
         ftp.stop()
         if discovery:
             discovery.stop()

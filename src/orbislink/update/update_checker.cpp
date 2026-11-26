@@ -69,8 +69,8 @@ std::string platformAssetSuffix()
 	// The installer release.yml publishes.
 	return "-setup.exe";
 #else
-	// On Linux there is no self-installing package yet (the AppImage
-	// is still to do), so only the release page is offered.
+	// On Linux nothing installs itself (the AppImage is downloaded and run
+	// by hand), so only the release page is offered.
 	return std::string();
 #endif
 }

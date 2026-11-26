@@ -49,6 +49,7 @@ ORBISLINK_TEST(esc_and_f11_are_given_to_nobody)
 	KeyboardMap::Bindings keys = KeyboardMap::defaults();
 	CHECK(!KeyboardMap::rebind(keys, "cross", Qt::Key_Escape));
 	CHECK(!KeyboardMap::rebind(keys, "cross", Qt::Key_F11));
+	CHECK(!KeyboardMap::rebind(keys, "cross", Qt::Key_F9));
 	CHECK(!KeyboardMap::rebind(keys, "does-not-exist", Qt::Key_Q));
 	CHECK(keys == KeyboardMap::defaults());
 }

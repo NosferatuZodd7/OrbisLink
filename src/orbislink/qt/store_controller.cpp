@@ -198,6 +198,8 @@ StoreController::StoreController(AppController *app, QObject *parent) : QObject(
 StoreController::~StoreController()
 {
 	cancel_ = true;
+	stopIcons_ = true;
+	closing_ = true;
 	for(std::thread *thread : { &loader_, &detailer_, &worker_, &checker_, &localScanner_, &adder_ })
 		if(thread->joinable())
 			thread->join();
@@ -639,7 +641,10 @@ StoreController::HbStore StoreController::loadHbStore(const StoreSource &source,
 void StoreController::refresh()
 {
 	if(loading_)
+	{
+		refreshAgain_ = true;
 		return;
+	}
 	loading_ = true;
 	error_.clear();
 	emit stateChanged();
@@ -695,7 +700,6 @@ void StoreController::refresh()
 		// /user/app (the versions of those once the stores say which matter).
 		std::map<std::string, Installed> installed;
 		std::set<std::string> titles;
-		bool known = false;
 		std::unique_ptr<FtpClient> ftp;
 		if(reachable)
 		{
@@ -709,7 +713,6 @@ void StoreController::refresh()
 				std::string listError;
 				for(const store::InstalledApp &app : installer.installed(remote, scratch, &listError))
 					installed[app.titleId] = { app.contentVersion };
-				known = listError.empty();
 			}
 			std::vector<FtpEntry> apps;
 			if(ftp->list("/user/app", &apps).ok)
@@ -724,10 +727,9 @@ void StoreController::refresh()
 		std::map<std::string, std::string> packages;
 		for(const std::string &id : titles)
 			packages[id] = std::string();
-		QMetaObject::invokeMethod(this, [this, installed, packages, known]() {
+		QMetaObject::invokeMethod(this, [this, installed, packages]() {
 			installed_ = installed;
 			installedPackages_ = packages;
-			installedKnown_ = known;
 			publish();
 		}, Qt::QueuedConnection);
 
@@ -748,7 +750,7 @@ void StoreController::refresh()
 		std::set<std::string> pictured;
 		for(const store::StoreApp &app : list)
 		{
-			if(cancel_ || stopIcons_)
+			if(stopIcons_)
 				break;
 			std::string icon;
 			{
@@ -769,9 +771,9 @@ void StoreController::refresh()
 		std::set<std::string> offered;
 		for(const StoreSource &source : sources)
 		{
-			if(cancel_)
+			if(stopIcons_)
 				break;
-			hbStores.push_back(loadHbStore(source, cache, &cancel_));
+			hbStores.push_back(loadHbStore(source, cache, &stopIcons_));
 			for(const store::HbStoreApp &app : hbStores.back().apps)
 				offered.insert(app.titleId);
 			QMetaObject::invokeMethod(this, [this, loaded = hbStores.back()]() {
@@ -792,7 +794,7 @@ void StoreController::refresh()
 			fs::create_directories(fs::u8path(scratch), ignored);
 			for(const std::string &id : titles)
 			{
-				if(cancel_ || !offered.count(id))
+				if(stopIcons_ || !offered.count(id))
 					continue;
 				const std::string local = joinPath(scratch, id + "-param.sfo");
 				if(ftp->download("/system_data/priv/appmeta/" + id + "/param.sfo", local).ok)
@@ -814,13 +816,19 @@ void StoreController::refresh()
 			// "On this PC" says what this PS5 has.
 			if(!localApps_.isEmpty())
 				scanLocal();
+			// Asked for meanwhile: what was read may be another console's.
+			if(refreshAgain_)
+			{
+				refreshAgain_ = false;
+				refresh();
+			}
 		}, Qt::QueuedConnection);
 
 		// A store's pictures, beside the counts below: kept for good once had,
 		// and asked for one every two seconds at most (the stores count the
 		// requests), the most downloaded first.
 		const auto pause = [this](std::chrono::steady_clock::time_point since, int ms) {
-			while(!cancel_ && !stopIcons_ && std::chrono::steady_clock::now() - since < std::chrono::milliseconds(ms))
+			while(!stopIcons_ && std::chrono::steady_clock::now() - since < std::chrono::milliseconds(ms))
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 		};
 		std::thread pictures([this, &hbStores, &cache, &pictured, &batch, &flush, &pause]() {
@@ -841,7 +849,7 @@ void StoreController::refresh()
 				});
 				for(const store::HbStoreApp *app : sorted)
 				{
-					if(cancel_ || stopIcons_)
+					if(stopIcons_)
 						break;
 					if(pictured.count(app->titleId) || app->image.empty())
 						continue;
@@ -900,7 +908,7 @@ void StoreController::refresh()
 			// first time it forms as the counts come, and the page says so.
 			const bool first = due.size() * 5 > hb.apps.size();
 			const auto progress = [this, first](int done, int total, bool waiting) {
-				if(!first || cancel_)
+				if(!first || closing_)
 					return;
 				QMetaObject::invokeMethod(this, [this, done, total, waiting]() {
 					countsDone_ = done;
@@ -911,7 +919,7 @@ void StoreController::refresh()
 			};
 			const auto post = [this, &counts, &file, &hb]() {
 				writeDownloads(file, counts);
-				if(cancel_)
+				if(closing_)
 					return;
 				QMetaObject::invokeMethod(this, [this, url = hb.source.url, counts]() {
 					for(HbStore &kept : hbStores_)
@@ -925,7 +933,7 @@ void StoreController::refresh()
 			int refusals = 0;
 			size_t next = 0;
 			progress(0, static_cast<int>(due.size()), false);
-			while(next < due.size() && !cancel_ && !stopIcons_)
+			while(next < due.size() && !stopIcons_)
 			{
 				const auto started = std::chrono::steady_clock::now();
 				HttpClient http(15000);
@@ -937,7 +945,7 @@ void StoreController::refresh()
 					? store::parseHbStoreDownloads(answer.body) : -1;
 				if(count < 0)
 				{
-					if(cancel_ || stopIcons_)
+					if(stopIcons_)
 						break;
 					// Refused (it says so with an error page): three minutes,
 					// then the same app again; the third time, the rest wait
@@ -989,14 +997,30 @@ void StoreController::showDetails(const QString &titleId)
 			inCatalog = true;
 	if(!inCatalog)
 	{
+		nextDetail_.clear();
 		detail_[QStringLiteral("ready")] = true;
 		emit detailChanged();
 		return;
 	}
 	emit detailChanged();
+	// One at a time: the latest asked for is read when the one under way
+	// ends. Waiting for it here would freeze the window while a reading of
+	// the catalog holds it.
+	if(detailing_)
+	{
+		nextDetail_ = pending;
+		return;
+	}
+	readDetails(pending);
+}
+
+void StoreController::readDetails(const QVariantMap &pending)
+{
+	detailing_ = true;
+	// Over (it said so), or never started.
 	if(detailer_.joinable())
 		detailer_.join();
-	const std::string id = titleId.toStdString();
+	const std::string id = pending.value(QStringLiteral("titleId")).toString().toStdString();
 	detailer_ = std::thread([this, id, pending]() {
 		store::StoreAppDetail detail;
 		std::string why;
@@ -1027,11 +1051,19 @@ void StoreController::showDetails(const QString &titleId)
 			result[QStringLiteral("safetyBuild")] = QString::fromStdString(detail.safetyBuild);
 		}
 		QMetaObject::invokeMethod(this, [this, result]() {
+			detailing_ = false;
 			// Only the one still asked for.
-			if(detail_.value(QStringLiteral("titleId")) != result.value(QStringLiteral("titleId")))
-				return;
-			detail_ = result;
-			emit detailChanged();
+			if(detail_.value(QStringLiteral("titleId")) == result.value(QStringLiteral("titleId")))
+			{
+				detail_ = result;
+				emit detailChanged();
+			}
+			if(!nextDetail_.isEmpty())
+			{
+				const QVariantMap next = nextDetail_;
+				nextDetail_.clear();
+				readDetails(next);
+			}
 		}, Qt::QueuedConnection);
 	});
 }
@@ -1290,17 +1322,22 @@ void StoreController::finishInstall(const std::string &id, const QString &messag
 	QMetaObject::invokeMethod(this, [this, id, message, error, version]() {
 		if(!error)
 			installed_[id] = { version };
-		working_.clear();
-		stage_.clear();
-		resetProgress();
-		publish();
-		emit stateChanged();
-		emit progressChanged();
-		emit finished(message, error);
+		endWork(message, error);
 		// "On this PC" says what is installed now.
 		if(!error && !localApps_.isEmpty())
 			scanLocal();
 	}, Qt::QueuedConnection);
+}
+
+void StoreController::endWork(const QString &message, bool error)
+{
+	working_.clear();
+	stage_.clear();
+	resetProgress();
+	publish();
+	emit stateChanged();
+	emit progressChanged();
+	emit finished(message, error);
 }
 
 void StoreController::putOnConsole(const std::string &id, const QString &name, const std::string &zip, bool keepZip,
@@ -1383,13 +1420,7 @@ void StoreController::installPackage(const QString &titleId, const StoreSource &
 					// The console installs it from the queue, beside the rest.
 					if(!queued.isEmpty())
 						app_->addPaths({ queued }, 0);
-					working_.clear();
-					stage_.clear();
-					resetProgress();
-					publish();
-					emit stateChanged();
-					emit progressChanged();
-					emit finished(message, error);
+					endWork(message, error);
 				}, Qt::QueuedConnection);
 			};
 			std::error_code ignored;
@@ -1525,7 +1556,7 @@ bool StoreController::addStore(const QString &address, const QString &name)
 	const std::string cache = cacheDir();
 	adder_ = std::thread([this, base, label, cache]() {
 		StoreSource source { label.toStdString(), base, "hb-store", true };
-		HbStore loaded = loadHbStore(source, cache, &cancel_);
+		HbStore loaded = loadHbStore(source, cache, &closing_);
 		const bool isStore = loaded.error.isEmpty() || !loaded.apps.empty();
 		bool mirror = false;
 		if(!isStore)
@@ -1689,7 +1720,7 @@ void StoreController::scanLocal()
 			QDir::Files | QDir::Readable, QDir::Name | QDir::IgnoreCase);
 		for(const QFileInfo &file : files)
 		{
-			if(cancel_)
+			if(closing_)
 				break;
 			store::ArchiveApp app;
 			std::string why;
@@ -1800,13 +1831,7 @@ void StoreController::uninstall(const QString &titleId)
 		QMetaObject::invokeMethod(this, [this, id, ok, message]() {
 			if(ok)
 				installed_.erase(id);
-			working_.clear();
-			stage_.clear();
-			resetProgress();
-			publish();
-			emit stateChanged();
-			emit progressChanged();
-			emit finished(message, !ok);
+			endWork(message, !ok);
 		}, Qt::QueuedConnection);
 	});
 }

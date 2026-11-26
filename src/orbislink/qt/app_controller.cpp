@@ -2,6 +2,7 @@
 #include "orbislink/qt/app_controller.h"
 
 #include "orbislink/library/console_library.h"
+#include "orbislink/qt/shadowmount_control.h"
 
 #include "orbislink/qt/backdrop.h"
 #include "orbislink/qt/diagnostics.h"
@@ -13,6 +14,7 @@
 #include "orbislink/common/log.h"
 #include "orbislink/common/util.h"
 #include "orbislink/ftp/remote_move.h"
+#include "orbislink/common/json.h"
 #include "orbislink/net/http_client.h"
 #include "orbislink/net/lan_scan.h"
 #include "orbislink/net/net_utils.h"
@@ -48,6 +50,18 @@
 #include <set>
 
 namespace orbislink {
+
+namespace {
+
+std::string asciiUpper(std::string text)
+{
+	for(char &c : text)
+		c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+	return text;
+}
+
+} // namespace
+
 
 namespace {
 
@@ -135,8 +149,14 @@ AppController::~AppController()
 
 void AppController::rebuildBackends()
 {
+	// The queue as it is now, which the new one loads: without this it would
+	// come back as it was when the app last closed (jobs added since lost,
+	// finished ones run again).
 	if(queue_)
+	{
+		queue_->save(SettingsStore::defaultQueuePath());
 		queue_->stop();
+	}
 	if(console_)
 		console_->stop();
 	if(httpServer_)
@@ -198,9 +218,16 @@ void AppController::rebuildBackends()
 				adoptFtpPort(status.ftpPort);
 			emit statusChanged();
 			resumeWhenInstallerIsBack();
+			// "Connects directly" follows FTP coming and going.
+			if(ftpWas != status.canUseFtp() && lastRemotePlayState_ == QLatin1String("direct"))
+				reportRemotePlayState(lastRemotePlayState_, lastRemotePlayDetail_);
 			// FTP has just answered: the file list is read now, instead of
 			// staying on what it said while FTP was not there.
 			if(!ftpWas && status.canUseFtp())
+				refreshFtpListing(false);
+			// It stopped answering (the console turned off or went to rest):
+			// the list does not keep showing what is no longer reachable.
+			else if(ftpWas && !status.canUseFtp())
 				refreshFtpListing(false);
 		});
 	});
@@ -251,12 +278,14 @@ void AppController::rebuildBackends()
 	ftpConfig.maxConnections = settings_.ftpMaxConnections;
 	ftpConfig.advancedMode = settings_.ftpAdvancedMode;
 	ftp_ = std::make_shared<FtpClient>(ftpConfig);
+	// A transfer of this app keeping the console's FTP busy is not taken
+	// for an FTP that stopped answering.
+	console_->setFtpAnsweredAt([ftp = ftp_]() { return ftp->lastAnsweredMs(); });
 
 	InstallQueue::Dependencies deps;
 	deps.httpServer = httpServer_.get();
 	deps.installer = installer_.get();
 	deps.ftp = ftp_.get();
-	deps.console = console_.get();
 	qInfo("Services: install queue");
 	queue_ = std::make_unique<InstallQueue>(deps, effective);
 	queue_->load(SettingsStore::defaultQueuePath());
@@ -265,22 +294,47 @@ void AppController::rebuildBackends()
 		const QString title = QString::fromStdString(task.title);
 		const QString message = translateMessage(task.message);
 		const bool failed = task.state == TaskState::Error;
+		// A PS5 game (PPSA) the console installed: followed once, to say
+		// what starts it (and Titan Core's progress preparing it).
+		const bool ps5Installed = task.state == TaskState::Completed
+			&& (task.mode == TransferMode::DirectInstall || task.installedFromConsole)
+			&& startsWith(asciiUpper(task.titleId), "PPSA");
+		const QString taskId = QString::fromStdString(task.id);
+		const QString titleId = QString::fromStdString(task.titleId);
 		// An upload that reached the console: the folder it went into.
 		QString landedIn;
+		// A PS5 game image put in a folder ShadowMountPlus looks in (its
+		// first level): it is asked to look now.
+		QString imageLanded;
 		if(task.mode == TransferMode::FtpUpload && task.state == TaskState::Completed)
 		{
 			const std::string &path = task.remotePath;
-			landedIn = QString::fromStdString(path.substr(0, path.find_last_of('/') + 1));
+			const std::string folder = path.substr(0, path.find_last_of('/') + 1);
+			landedIn = QString::fromStdString(folder);
+			const std::string name = path.substr(folder.size());
+			if(library::kindOf(name, false, task.totalBytes) == library::Kind::Image
+				&& library::mountFolderFor(path) + "/" == folder)
+				imageLanded = QString::fromStdString(path);
 		}
 		life->post(
-			[this, terminal, title, message, failed, landedIn]() {
+			[this, terminal, title, message, failed, landedIn, ps5Installed, taskId, titleId, imageLanded]() {
 				refreshQueueModel();
+				if(ps5Installed && activeIsPs5() && !ps5Followed_.contains(taskId))
+				{
+					ps5Followed_.insert(taskId);
+					followPs5Install(taskId, titleId);
+				}
+				if(!imageLanded.isEmpty() && activeIsPs5() && !ps5Followed_.contains(taskId))
+				{
+					ps5Followed_.insert(taskId);
+					handImageToShadowMount(taskId, imageLanded);
+				}
 				emit queueStateChanged();
 				// Waiting for the installer: a fresh look at the console
 				// decides when to go on.
 				const bool waiting = queue_ && queue_->waitingForService();
 				if(waiting && !installerRecheckPending_)
-					checkServicesNow();
+					checkServices(false);
 				// Once, as the queue starts waiting, what to do: on a PS4 open
 				// Remote Package Installer; on a PS5 the installer is a payload
 				// or an etaHEN setting.
@@ -649,9 +703,7 @@ std::string AppController::detectJailbreak(const std::string &address, uint16_t 
 		return "HEN";
 	for(const FtpEntry &entry : entries)
 	{
-		std::string name = entry.name;
-		for(char &c : name)
-			c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+		const std::string name = toLower(entry.name);
 		for(const char *hen : { "GoldHEN", "etaHEN" })
 			if(name == toLower(hen))
 			{
@@ -1376,8 +1428,7 @@ void AppController::refreshQueueModel()
 			? uploadDirectory()
 			: QString::fromStdString(normalizeRemotePath(
 				task.remotePath.substr(0, task.remotePath.find_last_of('/') + 1)));
-		item[QStringLiteral("percent")] = task.totalBytes > 0
-			? 100.0 * static_cast<double>(task.doneBytes) / static_cast<double>(task.totalBytes) : 0.0;
+		item[QStringLiteral("percent")] = task.percent();
 		item[QStringLiteral("sending")] = task.state == TaskState::Sending;
 		uploads << item;
 		// One that starts going into the folder on screen: the list is read
@@ -1399,10 +1450,6 @@ void AppController::refreshQueueModel()
 	// Each file's latest news: a task under way wins (installing over
 	// sending), otherwise the newest finished one says how it ended.
 	QVariantMap transfers;
-	auto percentOf = [](const QueueTask &task) {
-		return task.totalBytes > 0
-			? 100.0 * static_cast<double>(task.doneBytes) / static_cast<double>(task.totalBytes) : 0.0;
-	};
 	for(const QueueTask &task : queue_->tasks())
 	{
 		if(task.isTerminal())
@@ -1413,7 +1460,7 @@ void AppController::refreshQueueModel()
 			continue;
 		QVariantMap item;
 		item[QStringLiteral("stage")] = installing ? QStringLiteral("installing") : QStringLiteral("sending");
-		item[QStringLiteral("percent")] = percentOf(task);
+		item[QStringLiteral("percent")] = task.percent();
 		item[QStringLiteral("waiting")] = task.state == TaskState::Pending;
 		// How fast it goes and how long it has left, while it moves.
 		const bool moving = task.state == TaskState::Sending || task.state == TaskState::Installing;
@@ -1443,6 +1490,7 @@ void AppController::refreshQueueModel()
 		item[QStringLiteral("taskId")] = QString::fromStdString(task.id);
 		item[QStringLiteral("mode")] =
 			task.mode != TransferMode::FtpUpload ? QStringLiteral("install") : QStringLiteral("send");
+		item[QStringLiteral("note")] = queueModel_.note(QString::fromStdString(task.id));
 		transfers[key] = item;
 	}
 	if(transfers != transfers_)
@@ -1515,16 +1563,18 @@ void AppController::readPackageFacts(const QStringList &paths, const QStringList
 			if(!info.valid)
 				continue;
 			const bool official = info.official;
+			const bool ps5 = info.ps5;
 			const int required = info.requiredFirmware;
 			const QString category = QString::fromLatin1(pkgCategoryCode(info.kind));
 			const QString title = QString::fromStdString(info.displayTitle());
-			life->post([this, taskId, official, required, category, title]() {
+			life->post([this, taskId, official, ps5, required, category, title]() {
 				PackageFacts facts;
 				facts.official = official;
+				facts.ps5 = ps5;
 				facts.requiredFirmware = required;
 				facts.category = category;
 				facts.title = title;
-				facts.warning = packageWarning(official, required, category);
+				facts.warning = packageWarning(official, required, category, ps5);
 				packageFacts_.insert(taskId, facts);
 				queueModel_.setPackageFacts(taskId,
 					QString::fromStdString(firmwareText(static_cast<uint16_t>(required))), facts.warning);
@@ -1589,7 +1639,7 @@ void AppController::refreshPackageWarnings()
 	for(auto it = packageFacts_.begin(); it != packageFacts_.end(); ++it)
 	{
 		PackageFacts &facts = it.value();
-		const QString warning = packageWarning(facts.official, facts.requiredFirmware, facts.category);
+		const QString warning = packageWarning(facts.official, facts.requiredFirmware, facts.category, facts.ps5);
 		if(warning == facts.warning)
 			continue;
 		facts.warning = warning;
@@ -1600,11 +1650,23 @@ void AppController::refreshPackageWarnings()
 	}
 }
 
-QString AppController::packageWarning(bool official, int requiredFirmware, const QString &category) const
+QString AppController::packageWarning(bool official, int requiredFirmware, const QString &category,
+	bool ps5Package) const
 {
 	if(official)
 		return tr("An official store package: it installs only with its licence. A jailbroken console "
 			"installs fake packages (fpkg).");
+	if(ps5Package)
+	{
+		if(!activeIsPs5())
+			return tr("A PS5 package: only a PS5 installs it.");
+		// A PS5 game made for a newer system software does not start either.
+		if(consoleFirmware_ != 0 && requiredFirmware > consoleFirmware_)
+			return tr("Needs firmware %1, and this PS5 runs %2: it installs, but does not start. Look for a "
+				"backport of it.")
+				.arg(QString::fromStdString(firmwareText(static_cast<uint16_t>(requiredFirmware))), consoleFirmware());
+		return QString();
+	}
 	// Only a PS4 refuses to start what was made for a newer firmware; a
 	// PS5 runs PS4 games whatever their firmware. A game or its update.
 	const bool startable = category == QLatin1String("gd") || category == QLatin1String("gp");
@@ -1614,6 +1676,225 @@ QString AppController::packageWarning(bool official, int requiredFirmware, const
 			.arg(QString::fromStdString(firmwareText(static_cast<uint16_t>(requiredFirmware))),
 				consoleFirmware());
 	return QString();
+}
+
+QString AppController::ps5StartHint() const
+{
+	const QString firmware = consoleFirmware();
+	if(consoleFirmware_ == 0)
+		return tr("A PS5 fake package starts with kstuff loaded on firmware up to 11.60; on 12.00–13.60, with the "
+			"Titan Core payload loaded (Payloads).");
+	if(consoleFirmware_ <= 0x1160)
+		return tr("Installed: on firmware %1 it starts with kstuff loaded (etaHEN or kstuff-lite).").arg(firmware);
+	if(consoleFirmware_ <= 0x1360)
+		return tr("On firmware %1 it starts only with the Titan Core payload loaded (Payloads): it prepares the "
+			"installed fake packages to start.").arg(firmware);
+	return tr("On firmware %1 no public method starts a PS5 fake package yet.").arg(firmware);
+}
+
+bool AppController::queueBusy() const
+{
+	if(!queue_)
+		return false;
+	for(const QueueTask &task : queue_->tasks())
+		if(!task.isTerminal())
+			return true;
+	return false;
+}
+
+void AppController::setTaskNote(const QString &taskId, const QString &text)
+{
+	queueModel_.setNote(taskId, text);
+	// A package or image made here shows it on its conversion card too.
+	bool changed = false;
+	for(auto it = transfers_.begin(); it != transfers_.end(); ++it)
+	{
+		QVariantMap item = it.value().toMap();
+		if(item.value(QStringLiteral("taskId")).toString() != taskId
+			|| item.value(QStringLiteral("note")).toString() == text)
+			continue;
+		item[QStringLiteral("note")] = text;
+		it.value() = item;
+		changed = true;
+	}
+	if(changed)
+		emit transfersChanged();
+}
+
+void AppController::handImageToShadowMount(const QString &taskId, const QString &remotePath)
+{
+	const std::string address = settings_.consoleAddress;
+	const FtpClient::Config config = ftpClientConfigFor(address);
+	setTaskNote(taskId, tr("ShadowMountPlus: asking it to look…"));
+	std::thread([this, life = lifeline_, taskId, remotePath, address, config]() {
+		const std::atomic<bool> never { false };
+		const std::string how = shadowmount::rescan(config, address, &never);
+		logInfo("ShadowMountPlus: " + remotePath.toStdString() + " is where it looks; "
+			+ (how == "api" ? std::string("its API was asked to scan.")
+				: how == "restarted" ? std::string("it was started again, which scans everything.")
+				: std::string("neither its API nor a restart answered: it finds it at its next scan, if it runs.")));
+		const QString text = how == "api"
+			? tr("ShadowMountPlus: it puts it on the home screen now.")
+			: how == "restarted"
+			? tr("ShadowMountPlus was started again: it is on the home screen in a few seconds.")
+			: tr("ShadowMountPlus did not answer: it puts it on the home screen at its next scan, if it runs "
+				 "(load it in Payloads).");
+		life->post([this, taskId, text]() { setTaskNote(taskId, text); });
+	}).detach();
+}
+
+void AppController::followPs5Install(const QString &taskId, const QString &titleId)
+{
+	const std::string address = settings_.consoleAddress;
+	const QString hint = ps5StartHint();
+	const std::string wanted = asciiUpper(titleId.toStdString());
+	const std::string firmware = consoleFirmware().toStdString();
+	std::thread([this, life = lifeline_, taskId, wanted, address, hint, firmware]() {
+		const std::string base = "http://" + address + ":8097";
+		HttpClient http(2500);
+		// Why the last read failed, for the log: no answer, or an answer that
+		// is not Titan Core's (another program on the port, another version).
+		std::string why;
+		auto readState = [&http, &base, &why](Json *state) {
+			const HttpResponse reply = http.get(base + "/api/state");
+			if(!reply.transportOk)
+			{
+				why = "no answer (" + reply.error + ")";
+				return false;
+			}
+			if(reply.status != 200)
+			{
+				why = "HTTP " + std::to_string(reply.status) + " to /api/state";
+				return false;
+			}
+			*state = Json::parse(reply.body);
+			if(state->isObject() && (*state)["games"].isArray())
+				return true;
+			why = "a reply that is not Titan Core's state: " + reply.body.substr(0, 160);
+			return false;
+		};
+		auto note = [this, &life, &taskId](const QString &text) {
+			life->post([this, taskId, text]() { setTaskNote(taskId, text); });
+		};
+		auto report = [this, &life](const std::string &text) {
+			const QString line = QDateTime::currentDateTime().toString(QStringLiteral("HH:mm:ss")) + QStringLiteral("  ")
+				+ QString::fromStdString(text);
+			life->post([this, line]() { titanCoreReport_ = line; });
+		};
+		Json state;
+		if(!readState(&state))
+		{
+			// No Titan Core there: what starts it on this firmware.
+			logInfo("Titan Core on " + base + ": " + why + ". " + wanted + " installed on firmware "
+				+ (firmware.empty() ? std::string("unknown") : firmware) + "; the card says what starts it.");
+			report(wanted + ": Titan Core did not answer on 8097 — " + why);
+			note(hint);
+			return;
+		}
+		const std::string version = state["version"].toString();
+		logInfo("Titan Core " + (version.empty() ? std::string("(no version)") : version) + " answers on " + base
+			+ ": asking it to look for " + wanted + ".");
+		note(tr("Titan Core: looking for it…"));
+		auto rescan = [&http, &base]() {
+			const HttpResponse reply = http.post(base + "/api/rescan", std::string(), "text/plain");
+			if(!reply.transportOk || reply.status >= 300)
+				logDebug("Titan Core: rescan answered " + (reply.transportOk ? "HTTP " + std::to_string(reply.status)
+					: "nothing (" + reply.error + ")"));
+		};
+		rescan();
+		const int64_t started = monotonicMillis();
+		int64_t lastRescan = started;
+		bool announcedWait = false;
+		bool lostIt = false;
+		std::string lastStatus;
+		while(life->alive() && monotonicMillis() - started < 30 * 60 * 1000)
+		{
+			std::this_thread::sleep_for(std::chrono::seconds(3));
+			if(!readState(&state))
+			{
+				if(!lostIt)
+				{
+					lostIt = true;
+					logInfo("Titan Core stopped answering while following " + wanted + ": " + why + ".");
+				}
+				continue;
+			}
+			if(lostIt)
+			{
+				lostIt = false;
+				logInfo("Titan Core answers again.");
+			}
+			const Json *game = nullptr;
+			for(const Json &item : state["games"].items())
+				if(asciiUpper(item["title_id"].toString()) == wanted)
+				{
+					game = &item;
+					// The installed package (not an image of it elsewhere).
+					if(item["kind"].toString() == "pkg")
+						break;
+				}
+			if(!game)
+			{
+				// Not seen yet: the console may still be installing it.
+				if(monotonicMillis() - lastRescan > 15000)
+				{
+					rescan();
+					lastRescan = monotonicMillis();
+				}
+				if(!announcedWait && monotonicMillis() - started > 60000)
+				{
+					announcedWait = true;
+					std::string seen;
+					int count = 0;
+					for(const Json &item : state["games"].items())
+						if(++count <= 12)
+							seen += (seen.empty() ? "" : ", ") + item["title_id"].toString();
+					logInfo("Titan Core has not listed " + wanted + " after a minute; it lists " + std::to_string(count)
+						+ (count ? ": " + seen + (count > 12 ? "…" : "") : std::string()) + ".");
+					report(wanted + ": not listed by Titan Core " + version + " after a minute");
+					note(tr("Titan Core has not found it yet: once the console finishes installing it, Titan Core "
+							"prepares it."));
+				}
+				continue;
+			}
+			const std::string status = (*game)["status"].toString();
+			if(status == lastStatus)
+				continue;
+			lastStatus = status;
+			const std::string error = (*game)["error"].toString();
+			logInfo("Titan Core: " + wanted + " is " + status + (error.empty() ? std::string() : " — " + error)
+				+ " (" + (*game)["kind"].toString() + ", " + (*game)["path"].toString() + ").");
+			report(wanted + ": " + status + " (Titan Core " + version + ")" + (error.empty() ? "" : " — " + error));
+			if(status == "ready")
+			{
+				note(tr("Titan Core: ready — it starts from the home screen."));
+				return;
+			}
+			if(status == "error")
+			{
+				logWarning("Titan Core could not prepare " + wanted + ": " + error);
+				note(error.find("belongs to another source") != std::string::npos
+						? tr("Titan Core could not prepare it: the game was moved (to the M.2?) after it was "
+							 "prepared. Move it back to the console's storage.")
+						: tr("Titan Core could not prepare it: %1").arg(QString::fromStdString(error)));
+				return;
+			}
+			if(status == "duplicate")
+			{
+				note(tr("Titan Core: another copy of this game is already there."));
+				return;
+			}
+			note(status == "building" ? tr("Titan Core: preparing it to start (building its cache)…")
+									  : tr("Titan Core: checking it…"));
+		}
+		if(life->alive())
+		{
+			logInfo("Titan Core: stopped following " + wanted + " after 30 minutes (last: "
+				+ (lastStatus.empty() ? std::string("never listed") : lastStatus) + ").");
+			report(wanted + ": still " + (lastStatus.empty() ? std::string("not listed") : lastStatus)
+				+ " after 30 minutes");
+		}
+	}).detach();
 }
 
 void AppController::addPaths(const QStringList &paths, int mode, const QString &directory)
@@ -1749,7 +2030,6 @@ void AppController::enqueueFiles(const QStringList &files, TransferMode transfer
 	std::vector<std::string> nativePaths;
 	for(const QString &file : files)
 		nativePaths.push_back(file.toStdString());
-	const QStringList &accepted = files;
 
 	// Another folder than the upload folder: the uploads go there.
 	const std::string into = directory.toStdString();
@@ -1761,10 +2041,20 @@ void AppController::enqueueFiles(const QStringList &files, TransferMode transfer
 		elsewhere ? std::function<void(QueueTask &)>([&into](QueueTask &task) { task.remoteDirectory = into; })
 				  : std::function<void(QueueTask &)>());
 
+	// Each task with its own file: the queue sorts a batch (game, update,
+	// add-ons) and leaves out the files it refused, so the ids do not follow
+	// the order of `files`.
 	QStringList taskIds;
+	QStringList taskFiles;
 	for(const std::string &id : ids)
+	{
+		QueueTask task;
+		if(!queue_->task(id, &task))
+			continue;
 		taskIds << QString::fromStdString(id);
-	readPackageFacts(accepted, taskIds);
+		taskFiles << QString::fromStdString(task.localPath);
+	}
+	readPackageFacts(taskFiles, taskIds);
 
 	refreshQueueModel();
 	// To install, a file has to be a PS4 package; any other file (a PS3
@@ -1829,11 +2119,6 @@ void AppController::installFromConsole(const QString &remotePath)
 			emit showPanel(QStringLiteral("queue"));
 		});
 	}).detach();
-}
-
-void AppController::sendAndInstall(const QString &pkg, const QString &directory)
-{
-	sendTo(pkg, directory, true);
 }
 
 void AppController::sendTo(const QString &pkg, const QString &directory, bool install)
@@ -1997,11 +2282,11 @@ void AppController::resumeWhenInstallerIsBack()
 	QTimer::singleShot(3000, this, [this]() {
 		installerRecheckPending_ = false;
 		if(queue_ && queue_->waitingForService())
-			checkServicesNow();
+			checkServices(false);
 	});
 }
 
-void AppController::checkServicesNow()
+void AppController::checkServices(bool search)
 {
 	if(!console_)
 		return;
@@ -2009,7 +2294,7 @@ void AppController::checkServicesNow()
 	// Asked for by hand: if the console is not where it was saved, it is
 	// looked for now, without waiting for the next turn.
 	if(!settings_.consoleAddress.empty())
-		checkConsoleAddresses({ QString::fromStdString(settings_.consoleAddress) }, true, {});
+		checkConsoleAddresses({ QString::fromStdString(settings_.consoleAddress) }, search, {});
 }
 
 void AppController::findMovedConsoles(const QStringList &addresses, bool urgent, LocateDone done)
@@ -2521,11 +2806,6 @@ void AppController::updateFtpSpace(const std::vector<FtpEntry> &entries)
 	}).detach();
 }
 
-void AppController::ftpDelete(const QString &path, bool isDirectory)
-{
-	ftpDeleteMany({ QVariantMap { { QStringLiteral("path"), path }, { QStringLiteral("isDirectory"), isDirectory } } });
-}
-
 void AppController::ftpDeleteMany(const QVariantList &items)
 {
 	if(items.isEmpty() || !ftpReady(tr("Delete")))
@@ -2846,9 +3126,8 @@ void AppController::ftpChmod(const QVariantList &items, const QString &mode, boo
 			else if(failure.isEmpty())
 				failure = tr("%1: %2").arg(QString::fromStdString(baseName(path)), translateMessage(result.message));
 		}
-		const int count = static_cast<int>(targets.size());
 		const QString shownMode = QString::fromStdString(octal);
-		life->post([this, changed, count, failure, shownMode]() {
+		life->post([this, changed, failure, shownMode]() {
 			setFtpBusy(false);
 			if(!failure.isEmpty())
 			{
@@ -2860,7 +3139,6 @@ void AppController::ftpChmod(const QVariantList &items, const QString &mode, boo
 			}
 			else
 				setStatusMessage(tr("Permissions %1 set on %n item(s).", "", changed).arg(shownMode));
-			(void)count;
 			ftpRefresh();
 		});
 	}).detach();
@@ -2973,118 +3251,6 @@ void AppController::ftpServerCommand(const QString &command)
 	}).detach();
 }
 
-void AppController::ftpDownloadFolder(const QString &remotePath, const QString &name,
-	const QString &destinationDir)
-{
-	if(downloadActive_)
-	{
-		emit notify(tr("Bring to the PC"),
-			tr("A transfer is already running (%1). Wait for it to finish.").arg(downloadName_), true);
-		return;
-	}
-	if(!ftpReady(tr("Bring to the PC")))
-		return;
-	QString dir = destinationDir;
-	if(dir.startsWith(QStringLiteral("file:")))
-		dir = QUrl(dir).toLocalFile();
-	if(dir.trimmed().isEmpty())
-		dir = defaultDownloadDirectory();
-	const QString root = uniqueLocalPath(QDir(dir).filePath(name));
-	QDir().mkpath(root);
-
-	downloadCancel_ = std::make_shared<std::atomic<bool>>(false);
-	downloadActive_ = true;
-	downloadName_ = name;
-	downloadProgress_ = 0.0;
-	emit downloadChanged();
-	setStatusMessage(tr("Downloading %1…").arg(name));
-
-	const std::string remoteRoot = normalizeRemotePath(remotePath.toStdString());
-	const std::string localRoot = root.toStdString();
-	std::thread([this, life = lifeline_, ftp = ftp_, cancel = downloadCancel_, remoteRoot, localRoot, name, root]() {
-		// First everything that is inside, to know the total.
-		struct Item { std::string remote; std::string local; int64_t size; };
-		std::vector<Item> files;
-		std::vector<std::pair<std::string, std::string>> pending { { remoteRoot, localRoot } };
-		std::string failure;
-		while(!pending.empty() && failure.empty() && !cancel->load())
-		{
-			const auto [remoteDir, localDir] = pending.back();
-			pending.pop_back();
-			QDir().mkpath(QString::fromStdString(localDir));
-			std::vector<FtpEntry> entries;
-			const FtpResult listed = ftp->list(remoteDir, &entries);
-			if(!listed.ok)
-			{
-				failure = listed.message;
-				break;
-			}
-			for(const FtpEntry &e : entries)
-			{
-				if(e.name == "." || e.name == "..")
-					continue;
-				const std::string local = localDir + "/" + e.name;
-				if(e.isDirectory)
-					pending.emplace_back(e.path, local);
-				else
-					files.push_back({ e.path, local, e.size });
-			}
-		}
-		int64_t total = 0;
-		for(const Item &f : files)
-			total += f.size;
-		int64_t before = 0;
-		int lastPercent = -1;
-		for(const Item &f : files)
-		{
-			if(!failure.empty() || cancel->load())
-				break;
-			const FtpResult result = ftp->download(f.remote, f.local,
-				[&](int64_t done, int64_t) {
-					if(cancel->load())
-						return false;
-					const double fraction = total > 0 ? double(before + done) / double(total) : 0.0;
-					const int percent = static_cast<int>(fraction * 100);
-					if(percent != lastPercent)
-					{
-						lastPercent = percent;
-						life->post([this, fraction]() {
-							downloadProgress_ = fraction;
-							emit downloadChanged();
-						});
-					}
-					return true;
-				});
-			if(!result.ok && !result.cancelled)
-				failure = result.message;
-			before += f.size;
-		}
-		const bool cancelled = cancel->load();
-		const QString message = translateMessage(failure);
-		const int count = static_cast<int>(files.size());
-		life->post([this, cancelled, message, name, root, count]() {
-			downloadActive_ = false;
-			downloadProgress_ = message.isEmpty() && !cancelled ? 1.0 : 0.0;
-			emit downloadChanged();
-			if(cancelled)
-				setStatusMessage(tr("Download cancelled."));
-			else if(!message.isEmpty())
-			{
-				setStatusMessage(tr("FTP: %1").arg(message));
-				emit notify(tr("Download failed"), message, true);
-				emit jobFinished(tr("Download failed"), message, true);
-			}
-			else
-			{
-				setStatusMessage(tr("Saved to %1").arg(root));
-				const QString done = tr("%1 (%n file(s)) saved to %2", "", count).arg(name, root);
-				emit notify(tr("Download finished"), done, false);
-				emit jobFinished(tr("Download finished"), done, false);
-			}
-		});
-	}).detach();
-}
-
 QString AppController::uniqueLocalPath(const QString &wanted)
 {
 	if(!QFileInfo::exists(wanted))
@@ -3145,18 +3311,6 @@ QString AppController::cachedFileUrl(const QString &remotePath, qint64 size) con
 	if(!info.exists() || (size > 0 && info.size() != size))
 		return {};
 	return QUrl::fromLocalFile(info.absoluteFilePath()).toString();
-}
-
-void AppController::ftpDownload(const QString &remotePath, const QString &name,
-	const QString &destinationDir)
-{
-	QString dir = destinationDir;
-	if(dir.startsWith(QStringLiteral("file:")))
-		dir = QUrl(dir).toLocalFile();
-	if(dir.trimmed().isEmpty())
-		dir = defaultDownloadDirectory();
-	QDir().mkpath(dir);
-	startDownload(remotePath, name, uniqueLocalPath(QDir(dir).filePath(name)), false);
 }
 
 void AppController::ftpListFolders(const QString &path)
@@ -3366,7 +3520,13 @@ void AppController::setFtpUploadDirectory(const QString &path)
 {
 	settings_.ftpUploadDirectory = normalizeRemotePath(path.toStdString());
 	store_.save(settings_);
-	rebuildBackends();
+	// Only the queue reads it: nothing under way is stopped for it.
+	if(queue_)
+	{
+		Settings effective = settings_;
+		effective.ftpPort = activeFtpPort();
+		queue_->setSettings(effective);
+	}
 	emit settingsChanged();
 	setStatusMessage(tr("FTP uploads will now go to %1")
 			.arg(QString::fromStdString(settings_.ftpUploadDirectory)));
@@ -3440,8 +3600,10 @@ void AppController::reportRemotePlayState(const QString &state, const QString &d
 		mapped = RemotePlayState::Standby;
 	else if(state == QLatin1String("offline"))
 		mapped = RemotePlayState::Offline;
+	// Taking a direct connection says nothing while the console is off: its
+	// FTP answering is what says it is on.
 	else if(state == QLatin1String("direct"))
-		mapped = RemotePlayState::Direct;
+		mapped = canUseFtp() ? RemotePlayState::Direct : RemotePlayState::Offline;
 	console_->setRemotePlayState(mapped, detail.toStdString());
 }
 
@@ -3777,6 +3939,7 @@ QVariantMap AppController::settingsMap() const
 	map[QStringLiteral("installAfterUpload")] = settings_.installAfterUpload;
 	map[QStringLiteral("deleteFromConsoleAfterInstall")] = settings_.deleteFromConsoleAfterInstall;
 	map[QStringLiteral("keepConvertedPackages")] = settings_.keepConvertedPackages;
+	map[QStringLiteral("autoSaveBackup")] = settings_.autoSaveBackup;
 	map[QStringLiteral("ftpMaxConnections")] = settings_.ftpMaxConnections;
 	map[QStringLiteral("ftpAdvancedMode")] = settings_.ftpAdvancedMode;
 	map[QStringLiteral("debugLogging")] = settings_.debugLogging;
@@ -3848,6 +4011,7 @@ void AppController::applySettings(const QVariantMap &values)
 	settings_.deleteFromConsoleAfterInstall =
 		boolOr("deleteFromConsoleAfterInstall", settings_.deleteFromConsoleAfterInstall);
 	settings_.keepConvertedPackages = boolOr("keepConvertedPackages", settings_.keepConvertedPackages);
+	settings_.autoSaveBackup = boolOr("autoSaveBackup", settings_.autoSaveBackup);
 	settings_.ftpMaxConnections = intOr("ftpMaxConnections", settings_.ftpMaxConnections);
 	settings_.ftpAdvancedMode = boolOr("ftpAdvancedMode", settings_.ftpAdvancedMode);
 	settings_.theme = stringOr("theme", settings_.theme);

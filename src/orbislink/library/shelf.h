@@ -102,11 +102,28 @@ struct DiscProbe
 		const std::function<bool(uint64_t offset, uint8_t *out, size_t size)> &read)> inspect;
 	// A known title for the serial ("Neon Drift"), when there is one.
 	std::function<std::string(const std::string &platform, const std::string &titleId)> knownTitle;
+	// What an archive of this PC holds, from 7-Zip (the interface's): the
+	// package in it and its first bytes (enough for its header, details
+	// and icon), without extracting the rest.
+	struct ArchiveLook
+	{
+		bool listed = false;
+		// Its names or its contents need a password.
+		bool locked = false;
+		std::string package;      // the package's name inside ("" none / not known)
+		int64_t packageSize = 0;
+		std::vector<uint8_t> head;
+		std::string problem;      // English, for translateMessage
+	};
+	std::function<ArchiveLook(const std::string &path)> archive;
 };
 
 // One thing on the shelf.
-// What a package's item holds since official/fake and its firmware are read.
-constexpr int kPackageRead = 2;
+// What a package's item holds since official/fake and its firmware are read
+// (2), since PS5 packages are read too (3), and since a package split into
+// parts is told apart (4), since archives are looked into (5), and since
+// only 7-Zip itself is asked about them (6).
+constexpr int kPackageRead = 6;
 
 struct ShelfItem
 {
@@ -143,6 +160,20 @@ struct ShelfItem
 	std::string pictureFrom;
 	// For a cue sheet: the track it plays, shown as one with it.
 	std::string trackPath;
+	// The first part of a package split into parts (<name>_0.pkg, _1.pkg…,
+	// in a folder of this PC): how many parts are there, the whole
+	// package's size, and what is wrong with them (empty: they join).
+	int parts = 0;
+	int64_t partsSize = 0;
+	std::string partsProblem;
+	// An archive (one file, or the first of its volumes): how many volumes
+	// are there, the one missing (still downloading, or lost), whether it
+	// needs a password, the package in it and what is wrong with it.
+	int volumes = 0;
+	std::string volumeMissing;
+	bool archiveLocked = false;
+	std::string archivePackage;
+	std::string archiveProblem;
 };
 
 // A folder's names, to find one (in lower case) without walking the list.
@@ -179,6 +210,17 @@ ShelfItem identify(FileSource &source, const ShelfEntry &entry, const FolderInde
 ShelfItem quickItem(const ShelfEntry &entry);
 // Whether the shelf shows this entry at all (and what it is).
 bool shownOnShelf(const ShelfEntry &entry);
+// A later part of a split package (<name>_1.pkg, _2.pkg…) whose first part
+// is in the same folder: shown as one with it, not on its own.
+bool isLaterPkgPart(const ShelfEntry &entry, const FolderIndex &folder);
+// A split package's parts looked at again (one added or removed since the
+// item was kept): its count and what is wrong with them now.
+void checkPkgParts(ShelfItem *item);
+// A later volume of an archive (game.part2.rar, game.7z.002, game.r00…)
+// whose first volume is in the same folder: shown as one with it.
+bool isLaterArchiveVolume(const ShelfEntry &entry, const FolderIndex &folder);
+// An archive's volumes counted again (one downloaded since it was kept).
+void checkArchiveVolumes(ShelfItem *item);
 
 // A folder's look: up to `max` things in it to show on its card — the first
 // games (with their pictures, or a disc where they have none) and, when it

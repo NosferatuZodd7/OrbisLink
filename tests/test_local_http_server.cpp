@@ -257,8 +257,23 @@ ORBISLINK_TEST(counts_served_bytes)
 	ServedFileStats stats;
 	CHECK(fixture.server.statsForToken(fixture.token, &stats));
 	CHECK_EQ(stats.bytesSent, 20);
-	CHECK(stats.firstByteAtMs >= 0);
+	CHECK_EQ(stats.bytesCovered, 20);
 	CHECK_EQ(stats.size, static_cast<int64_t>(kPayload.size()));
+}
+
+ORBISLINK_TEST(parts_asked_again_are_not_counted_twice_as_covered)
+{
+	ServerFixture fixture(kPayload);
+	const std::string url = "/f/" + fixture.token + "/x.pkg";
+	rawRequest(fixture.server.port(), fixture.get(url, "Range: bytes=0-9\r\n"));
+	rawRequest(fixture.server.port(), fixture.get(url, "Range: bytes=5-14\r\n"));
+	rawRequest(fixture.server.port(), fixture.get(url, "Range: bytes=0-9\r\n"));
+	rawRequest(fixture.server.port(), fixture.get(url, "Range: bytes=20-24\r\n"));
+	ServedFileStats stats;
+	CHECK(fixture.server.statsForToken(fixture.token, &stats));
+	CHECK_EQ(stats.bytesSent, 35);
+	// 0–14 and 20–24.
+	CHECK_EQ(stats.bytesCovered, 20);
 }
 
 ORBISLINK_TEST(several_simultaneous_connections)

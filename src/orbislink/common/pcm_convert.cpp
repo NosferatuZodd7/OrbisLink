@@ -36,6 +36,7 @@ void PcmConverter::configure(int sourceRate, int sourceChannels, int targetRate,
 	targetChannels_ = targetChannels > 0 ? targetChannels : sourceChannels_;
 	needed_ = sourceRate_ != targetRate_ || sourceChannels_ != targetChannels_;
 	position_ = 0.0;
+	last_.clear();
 	out_.clear();
 }
 
@@ -54,12 +55,28 @@ const std::vector<int16_t> &PcmConverter::convert(const int16_t *pcm, size_t sam
 
 	const double step = static_cast<double>(sourceRate_) / static_cast<double>(targetRate_);
 	// While there is a pair of source samples to interpolate. The frame's
-	// last sample is carried to the next one, through position_.
+	// last sample is kept for the next one, so the gap between frames is
+	// interpolated too (index -1 below).
 	out_.reserve(outputSamples(samples) * static_cast<size_t>(targetChannels_) + 8);
+
+	// The first frame starts one sample early, on a copy of its own first
+	// sample: every frame then gives its full share, with no sample lost.
+	if(last_.size() != static_cast<size_t>(sourceChannels_))
+	{
+		last_.resize(static_cast<size_t>(sourceChannels_));
+		for(int c = 0; c < sourceChannels_; ++c)
+			last_[static_cast<size_t>(c)] = sampleAt(pcm, 0, sourceChannels_, c);
+		position_ = -1.0;
+	}
+	const auto at = [&](long frame, int channel) -> double {
+		if(frame < 0)
+			return last_[static_cast<size_t>(channel)];
+		return sampleAt(pcm, static_cast<size_t>(frame), sourceChannels_, channel);
+	};
 
 	while(position_ < static_cast<double>(samples) - 1.0)
 	{
-		const size_t idx = static_cast<size_t>(position_);
+		const long idx = static_cast<long>(std::floor(position_));
 		const double fraction = position_ - static_cast<double>(idx);
 
 		for(int channel = 0; channel < targetChannels_; ++channel)
@@ -67,8 +84,8 @@ const std::vector<int16_t> &PcmConverter::convert(const int16_t *pcm, size_t sam
 			// More channels out than in: the last one is repeated
 			// (mono to stereo gives the same sound on both sides).
 			const int sourceChannel = std::min(channel, sourceChannels_ - 1);
-			const double a = sampleAt(pcm, idx, sourceChannels_, sourceChannel);
-			const double b = sampleAt(pcm, idx + 1, sourceChannels_, sourceChannel);
+			const double a = at(idx, sourceChannel);
+			const double b = at(idx + 1, sourceChannel);
 			double value = a + (b - a) * fraction;
 
 			// Stereo to mono: add and divide, otherwise half of the
@@ -78,8 +95,8 @@ const std::vector<int16_t> &PcmConverter::convert(const int16_t *pcm, size_t sam
 				double total = 0.0;
 				for(int c = 0; c < sourceChannels_; ++c)
 				{
-					const double x = sampleAt(pcm, idx, sourceChannels_, c);
-					const double y = sampleAt(pcm, idx + 1, sourceChannels_, c);
+					const double x = at(idx, c);
+					const double y = at(idx + 1, c);
 					total += x + (y - x) * fraction;
 				}
 				value = total / sourceChannels_;
@@ -89,10 +106,11 @@ const std::vector<int16_t> &PcmConverter::convert(const int16_t *pcm, size_t sam
 		position_ += step;
 	}
 
-	// What is left of this frame counts towards the next one.
+	// What is left of this frame counts towards the next one. The loop
+	// stops at samples - 1 or later, so this is -1 or more.
 	position_ -= static_cast<double>(samples);
-	if(position_ < 0.0)
-		position_ = 0.0;
+	for(int c = 0; c < sourceChannels_; ++c)
+		last_[static_cast<size_t>(c)] = sampleAt(pcm, samples - 1, sourceChannels_, c);
 	return out_;
 }
 

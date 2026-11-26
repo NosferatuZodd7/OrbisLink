@@ -16,6 +16,8 @@ namespace {
 
 // How often FTP is looked for on the other ports while the set one is silent.
 constexpr int64_t kFtpSearchEveryMs = 60 * 1000;
+// How long after its last greeting a silent FTP port still counts as FTP.
+constexpr int64_t kFtpSilentGraceMs = 30 * 1000;
 
 bool activeConsoleIsPs5(const Settings &settings)
 {
@@ -315,6 +317,26 @@ ConsoleStatus ConsoleManager::checkNow()
 			result.ftpSearchAtMs = now;
 		}
 
+		// Silent on the port: FTP still, but only for a while after it last
+		// greeted (busy for a moment); after that it is not answering.
+		bool silent = false;
+		for(const PortAnswer &answer : searched ? result.ftpSearch : probe.ftpPorts)
+			if(answer.port == probe.ftpPort)
+				silent = !answer.ftp();
+		{
+			std::lock_guard<std::mutex> lock(mutex_);
+			if(probe.ftpOk && !silent)
+				lastFtpGreetingMs_ = now;
+			else if(probe.ftpOk && ftpAnsweredAt_ && ftpAnsweredAt_() >= 0 && now - ftpAnsweredAt_() <= kFtpSilentGraceMs)
+				; // busy with this app's own transfer: still FTP
+			else if(probe.ftpOk && (lastFtpGreetingMs_ < 0 || now - lastFtpGreetingMs_ > kFtpSilentGraceMs))
+			{
+				probe.ftpOk = false;
+				probe.ftpPort = 0;
+				probe.ftpDetail = "the port takes the connection, but no FTP server answers (the console may be "
+								  "in rest mode, or its FTP stopped)";
+			}
+		}
 		result.ftpPort = probe.ftpPort;
 		result.ftp.state = probe.ftpOk ? ServiceState::Available : ServiceState::Unavailable;
 		result.ftp.detail = probe.ftpDetail;

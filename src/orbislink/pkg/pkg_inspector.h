@@ -46,6 +46,14 @@ struct PkgInfo
 	// says 0x43 in its content flags — as PS4 PKG Tool tells them apart.
 	bool official = false;
 	uint32_t pkgType = 0; // the header's field at 0x04
+	// A PS5 package ("\x7FFIH"): its details are in a PS4-style container
+	// inside it, with param.json instead of PARAM.SFO. Only a PS5 installs
+	// it. `official`: byte 0x05 of its header is 0x80 (the store's,
+	// encrypted); otherwise a fake package (fpkg).
+	bool ps5 = false;
+	// A scene backport of a PS5 game ("\x7FLIH"), made to run on older
+	// firmware: always a fake package.
+	bool backport = false;
 	// The system software it needs (firmwareText()); 0 when the package
 	// does not say. PUBTOOLINFO's SDK version wins over SYSTEM_VER.
 	uint16_t requiredFirmware = 0;
@@ -83,6 +91,7 @@ public:
 
 	static constexpr uint32_t kEntryIdParamSfo = 0x1000;
 	static constexpr uint32_t kEntryIdIcon0Png = 0x1200;
+	static constexpr uint32_t kEntryIdParamJson = 0x2000; // PS5
 	static constexpr uint32_t kContentTypeGd = 0x1A;
 	static constexpr uint32_t kContentTypeAc = 0x1B;
 	static constexpr uint32_t kContentTypeAl = 0x1C;

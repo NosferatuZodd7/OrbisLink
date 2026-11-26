@@ -4,7 +4,10 @@
 #include "orbislink/common/json.h"
 #include "orbislink/common/util.h"
 #include "orbislink/ftp/ftp_client.h"
+#include "orbislink/library/archive_set.h"
+#include "orbislink/library/text.h"
 #include "orbislink/pkg/pkg_inspector.h"
+#include "orbislink/pkg/pkg_parts.h"
 #include "orbislink/update/sha256.h"
 
 #include <algorithm>
@@ -22,26 +25,6 @@ namespace orbislink {
 namespace library {
 
 namespace {
-
-std::string lower(std::string text)
-{
-	std::transform(text.begin(), text.end(), text.begin(),
-		[](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-	return text;
-}
-
-std::string upper(std::string text)
-{
-	std::transform(text.begin(), text.end(), text.begin(),
-		[](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-	return text;
-}
-
-std::string extensionOf(const std::string &name)
-{
-	const size_t dot = name.rfind('.');
-	return dot == std::string::npos || dot == 0 ? std::string() : lower(name.substr(dot));
-}
 
 std::string stemOf(const std::string &name)
 {
@@ -128,7 +111,7 @@ bool pictureBeside(FileSource &source, const FolderIndex &folder, const ShelfIte
 		for(const char *suffix : { "", "-cover", "_cover", " cover" })
 			for(const char *ext : { ".jpg", ".png", ".jpeg" })
 			{
-				const ShelfEntry *found = folder.find(lower(stem + suffix + ext));
+				const ShelfEntry *found = folder.find(toLower(stem + suffix + ext));
 				if(found && !found->directory && takePicture(source, *found, "folder", out))
 					return true;
 			}
@@ -253,7 +236,7 @@ int64_t ftpListingTime(const std::string &text, int64_t nowUnix)
 		return 0;
 	int month = 0;
 	for(int i = 0; i < 12; ++i)
-		if(lower(parts[0]).compare(0, 3, months[i]) == 0)
+		if(toLower(parts[0]).compare(0, 3, months[i]) == 0)
 			month = i + 1;
 	const int day = std::atoi(parts[1].c_str());
 	if(month == 0 || day < 1 || day > 31)
@@ -286,7 +269,7 @@ int64_t ftpListingTime(const std::string &text, int64_t nowUnix)
 FolderIndex::FolderIndex(const std::vector<ShelfEntry> &entries)
 {
 	for(const ShelfEntry &entry : entries)
-		byName_[lower(entry.name)] = &entry;
+		byName_[toLower(entry.name)] = &entry;
 }
 
 const ShelfEntry *FolderIndex::find(const std::string &lowerName) const
@@ -302,6 +285,57 @@ bool shownOnShelf(const ShelfEntry &entry)
 	return entry.directory || kindOf(entry.name, false, entry.size) != Kind::Other;
 }
 
+bool isLaterArchiveVolume(const ShelfEntry &entry, const FolderIndex &folder)
+{
+	ArchiveVolume volume;
+	if(entry.directory || !parseArchiveVolume(entry.name, &volume) || volume.index < 1)
+		return false;
+	std::vector<std::string> firsts;
+	if(volume.scheme == "part")
+		firsts = { volume.base + ".part1.rar", volume.base + ".part01.rar", volume.base + ".part001.rar" };
+	else if(volume.scheme == "old")
+		firsts = { volume.base + ".rar" };
+	else if(volume.scheme == "split")
+		firsts = { volume.base + volume.ext + ".001" };
+	for(const std::string &name : firsts)
+	{
+		const ShelfEntry *first = folder.find(toLower(name));
+		if(first && !first->directory)
+			return true;
+	}
+	return false;
+}
+
+void checkArchiveVolumes(ShelfItem *item)
+{
+	if(!item || item->kind != Kind::Archive || item->volumes <= 0)
+		return;
+	const ArchiveVolumes volumes = findArchiveVolumes(item->path);
+	item->volumes = static_cast<int>(volumes.paths.size());
+	item->volumeMissing = volumes.missingName;
+	if(volumes.totalSize > 0)
+		item->size = volumes.totalSize;
+}
+
+void checkPkgParts(ShelfItem *item)
+{
+	if(!item || item->parts <= 0)
+		return;
+	const PkgPartSet parts = planPkgParts(item->path);
+	item->parts = std::max(1, parts.found);
+	item->partsProblem = parts.ok ? std::string() : parts.error;
+}
+
+bool isLaterPkgPart(const ShelfEntry &entry, const FolderIndex &folder)
+{
+	std::string base;
+	int index = -1;
+	if(entry.directory || !parsePkgPartName(entry.name, &base, &index) || index < 1)
+		return false;
+	const ShelfEntry *first = folder.find(toLower(base + "_0.pkg"));
+	return first && !first->directory;
+}
+
 ShelfItem quickItem(const ShelfEntry &entry)
 {
 	ShelfItem item;
@@ -313,6 +347,9 @@ ShelfItem quickItem(const ShelfEntry &entry)
 	item.ext = entry.directory ? std::string() : extensionOf(entry.name);
 	item.kind = kindOf(entry.name, entry.directory, entry.size);
 	item.title = entry.directory ? entry.name : stemOf(entry.name);
+	ArchiveVolume archive;
+	if(item.kind == Kind::Archive && parseArchiveVolume(entry.name, &archive))
+		item.title = archive.base;
 	switch(item.kind)
 	{
 		case Kind::Folder: item.group = "folders"; break;
@@ -347,7 +384,7 @@ std::set<std::string> cueTracks(FileSource &source, const std::vector<ShelfEntry
 		const std::string track = probe.cueTrack(std::string(text.begin(), text.end()));
 		if(track.empty())
 			continue;
-		tracks.insert(lower(track));
+		tracks.insert(toLower(track));
 		if(trackOf)
 			(*trackOf)[entry.name] = track;
 	}
@@ -369,8 +406,29 @@ ShelfItem identify(FileSource &source, const ShelfEntry &entry, const FolderInde
 			options.extractIcon = !hasPicture;
 			options.maxIconBytes = 2 * 1024 * 1024;
 			BlockReader reader = readerFor(source, entry.path, entry.size);
-			const PkgInfo info = PkgInspector(options).inspect(entry.path, entry.size,
+			PkgInfo info = PkgInspector(options).inspect(entry.path, entry.size,
 				[&reader](int64_t offset, void *buffer, size_t size) { return reader.read(offset, buffer, size); });
+			item.packageRead = kPackageRead;
+			// The first part of a package split into parts (on this PC, where
+			// they can be joined): smaller than its header says (a PS4
+			// package), or not readable alone (a PS5 package, whose details
+			// are in its last part) — with its other parts beside it.
+			std::string partBase;
+			int partIndex = -1;
+			PkgPartSet parts;
+			bool split = false;
+			if(source.local() && parsePkgPartName(entry.name, &partBase, &partIndex) && partIndex == 0
+				&& (!info.valid || info.declaredSize > static_cast<uint64_t>(entry.size)))
+			{
+				parts = planPkgParts(entry.path);
+				split = parts.found >= 2 || info.valid;
+				if(!info.valid && parts.found >= 2)
+				{
+					const PkgInfo whole = inspectPkgParts(parts);
+					if(whole.valid)
+						info = whole;
+				}
+			}
 			if(!info.valid)
 			{
 				item.readable = false;
@@ -384,8 +442,13 @@ ShelfItem identify(FileSource &source, const ShelfEntry &entry, const FolderInde
 			item.contentId = info.contentId;
 			item.official = info.official;
 			item.requiredFirmware = info.requiredFirmware;
-			item.packageRead = kPackageRead;
-			item.platform = "ps4";
+			item.platform = info.ps5 ? "ps5" : "ps4";
+			if(split)
+			{
+				item.parts = std::max(1, parts.found);
+				item.partsSize = parts.ps5 ? parts.totalSize : static_cast<int64_t>(info.declaredSize);
+				item.partsProblem = parts.ok ? std::string() : parts.error;
+			}
 			switch(info.kind)
 			{
 				case PkgCategory::Patch:
@@ -416,7 +479,7 @@ ShelfItem identify(FileSource &source, const ShelfEntry &entry, const FolderInde
 			const ShelfEntry *image = &entry;
 			if(item.ext == ".cue")
 			{
-				image = cueTrack.empty() ? nullptr : folder.find(lower(cueTrack));
+				image = cueTrack.empty() ? nullptr : folder.find(toLower(cueTrack));
 				if(!image)
 				{
 					item.readable = false;
@@ -500,8 +563,85 @@ ShelfItem identify(FileSource &source, const ShelfEntry &entry, const FolderInde
 			}
 			break;
 		}
-		case Kind::Payload:
 		case Kind::Archive:
+		{
+			// On this PC, with 7-Zip there to ask: the package in it, read
+			// from its first bytes.
+			if(!source.local())
+				break;
+			const ArchiveVolumes volumes = findArchiveVolumes(entry.path);
+			item.volumes = static_cast<int>(volumes.paths.size());
+			item.volumeMissing = volumes.missingName;
+			if(volumes.totalSize > 0)
+				item.size = volumes.totalSize;
+			if(!probe.archive)
+				break;
+			const DiscProbe::ArchiveLook look = probe.archive(entry.path);
+			// Kept as looked into (not again at every listing), unless 7-Zip
+			// could not say anything: looked into again next time.
+			if(look.listed || look.locked)
+				item.packageRead = kPackageRead;
+			item.archiveLocked = look.locked;
+			item.archivePackage = look.package;
+			item.archiveProblem = look.problem;
+			// One with a password says nothing of itself until it is given:
+			// among the games, where it can be.
+			if(look.locked)
+			{
+				item.group = "games";
+				// Its name often carries the game's title ID ("…_CUSA12345_…"):
+				// the picture the app has for it, and whether it is installed.
+				const std::string upper = toUpper(baseName(entry.path));
+				for(const char *prefix : { "CUSA", "PPSA" })
+				{
+					const size_t at = upper.find(prefix);
+					if(at == std::string::npos || at + 9 > upper.size())
+						continue;
+					const std::string digits = upper.substr(at + 4, 5);
+					if(std::all_of(digits.begin(), digits.end(), [](char c) { return c >= '0' && c <= '9'; })
+						&& (at + 9 == upper.size() || !std::isdigit(static_cast<unsigned char>(upper[at + 9]))))
+					{
+						item.titleId = upper.substr(at, 9);
+						item.platform = prefix[0] == 'P' ? "ps5" : "ps4";
+						break;
+					}
+				}
+			}
+			if(look.package.empty())
+				break;
+			item.group = "games";
+			item.title = stemOf(baseName(look.package));
+			if(look.head.empty())
+				break;
+			PkgInspector::Options options;
+			options.maxIconBytes = 2 * 1024 * 1024;
+			const std::vector<uint8_t> &head = look.head;
+			const PkgInfo info = PkgInspector(options).inspect(entry.path, look.packageSize,
+				[&head](int64_t offset, void *buffer, size_t size) {
+					if(offset < 0 || static_cast<uint64_t>(offset) + size > head.size())
+						return false;
+					std::memcpy(buffer, head.data() + offset, size);
+					return true;
+				});
+			if(!info.valid)
+				break;
+			item.title = info.displayTitle();
+			item.titleId = info.titleId;
+			item.version = info.appVersion;
+			item.category = pkgCategoryCode(info.kind);
+			item.contentId = info.contentId;
+			item.official = info.official;
+			item.requiredFirmware = info.requiredFirmware;
+			item.platform = info.ps5 ? "ps5" : "ps4";
+			if(!info.iconPng.empty())
+			{
+				item.picture = info.iconPng;
+				item.pictureExt = ".png";
+				item.pictureFrom = "metadata";
+			}
+			break;
+		}
+		case Kind::Payload:
 		case Kind::Other:
 			break;
 	}
@@ -530,7 +670,8 @@ std::vector<ShelfItem> readShelf(FileSource &source, const std::vector<ShelfEntr
 	{
 		if(cancel && *cancel)
 			break;
-		if(!shownOnShelf(entry) || (!entry.directory && tracks.count(lower(entry.name))))
+		if(!shownOnShelf(entry) || (!entry.directory && tracks.count(toLower(entry.name)))
+			|| isLaterPkgPart(entry, folder) || isLaterArchiveVolume(entry, folder))
 			continue;
 		const auto track = trackOf.find(entry.name);
 		items.push_back(identify(source, entry, folder, probe, track == trackOf.end() ? std::string() : track->second));
@@ -552,7 +693,8 @@ FolderPreview previewFolder(FileSource &source, const std::string &dir, const Di
 	std::vector<const ShelfEntry *> pictures;
 	for(const ShelfEntry &entry : entries)
 	{
-		if(!entry.directory && tracks.count(lower(entry.name)))
+		if((!entry.directory && tracks.count(toLower(entry.name))) || isLaterPkgPart(entry, folder)
+			|| isLaterArchiveVolume(entry, folder))
 			continue;
 		if(shownOnShelf(entry))
 			shown.push_back(&entry);
@@ -639,7 +781,7 @@ bool folderHasGames(FileSource &source, const std::string &dir, int depth, size_
 			if(entry.directory)
 			{
 				// An app's own folder: the folder it is in is that app.
-				if(lower(entry.name) == "sce_sys")
+				if(toLower(entry.name) == "sce_sys")
 					return true;
 				if(next.second < depth)
 					queue.emplace_back(entry.path, next.second + 1);
@@ -677,6 +819,14 @@ Json itemToJson(const ShelfItem &item)
 	json.set("picture", Json::fromString(item.pictureFile));
 	json.set("picture_from", Json::fromString(item.pictureFrom));
 	json.set("track", Json::fromString(item.trackPath));
+	json.set("parts", Json::fromInt(item.parts));
+	json.set("parts_size", Json::fromInt(item.partsSize));
+	json.set("parts_problem", Json::fromString(item.partsProblem));
+	json.set("volumes", Json::fromInt(item.volumes));
+	json.set("volume_missing", Json::fromString(item.volumeMissing));
+	json.set("archive_locked", Json::fromBool(item.archiveLocked));
+	json.set("archive_package", Json::fromString(item.archivePackage));
+	json.set("archive_problem", Json::fromString(item.archiveProblem));
 	return json;
 }
 
@@ -708,6 +858,14 @@ ShelfItem itemFromJson(const Json &json)
 	item.pictureFile = json["picture"].toString();
 	item.pictureFrom = json["picture_from"].toString();
 	item.trackPath = json["track"].toString();
+	item.parts = static_cast<int>(json["parts"].toInt());
+	item.partsSize = json["parts_size"].toInt();
+	item.partsProblem = json["parts_problem"].toString();
+	item.volumes = static_cast<int>(json["volumes"].toInt());
+	item.volumeMissing = json["volume_missing"].toString();
+	item.archiveLocked = json["archive_locked"].toLooseBool(false);
+	item.archivePackage = json["archive_package"].toString();
+	item.archiveProblem = json["archive_problem"].toString();
 	return item;
 }
 
@@ -742,8 +900,12 @@ bool ShelfCache::find(const std::string &key, ShelfItem *item) const
 		&& !exists(found->second.pictureFile))
 		return false;
 	const ShelfItem &kept = found->second;
-	// A package read before its firmware was: read it again.
-	if(kept.kind == Kind::Package && kept.readable && kept.packageRead < kPackageRead)
+	// A package read before its firmware was, or before PS5 packages were
+	// read at all (kept as unreadable then): read it again.
+	if(kept.kind == Kind::Package && kept.packageRead < kPackageRead)
+		return false;
+	// An archive looked into before archives were (or without 7-Zip then).
+	if(kept.kind == Kind::Archive && kept.packageRead < kPackageRead)
 		return false;
 	item->kind = kept.kind;
 	item->group = kept.group;
@@ -762,6 +924,14 @@ bool ShelfCache::find(const std::string &key, ShelfItem *item) const
 	item->pictureFile = kept.pictureFile;
 	item->pictureFrom = kept.pictureFrom;
 	item->trackPath = kept.trackPath;
+	item->parts = kept.parts;
+	item->partsSize = kept.partsSize;
+	item->partsProblem = kept.partsProblem;
+	item->volumes = kept.volumes;
+	item->volumeMissing = kept.volumeMissing;
+	item->archiveLocked = kept.archiveLocked;
+	item->archivePackage = kept.archivePackage;
+	item->archiveProblem = kept.archiveProblem;
 	return true;
 }
 

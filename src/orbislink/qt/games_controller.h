@@ -11,6 +11,8 @@
 // them).
 #pragma once
 
+#include "orbislink/qt/lifeline.h"
+
 #include <QElapsedTimer>
 #include <QObject>
 #include <QString>
@@ -32,6 +34,8 @@ class QTimer;
 
 namespace orbislink {
 
+struct PkgPartSet;
+
 class AppController;
 
 class GamesController : public QObject
@@ -40,6 +44,9 @@ class GamesController : public QObject
 	Q_PROPERTY(bool available READ available CONSTANT)
 	Q_PROPERTY(QString gamesFolder READ gamesFolder NOTIFY foldersChanged)
 	Q_PROPERTY(QString outputFolder READ outputFolder NOTIFY foldersChanged)
+	// Packwright's program, as found (the settings' choice, else where its
+	// installers put it, else on the PATH); "" when it is not there.
+	Q_PROPERTY(QString packwright READ packwright NOTIFY foldersChanged)
 	// Where on the console a game goes to be installed ("internal", "usb",
 	// "ext"), its folder there, and which drives the console has:
 	// { checked, usb, ext } (checked: false until it was asked).
@@ -63,6 +70,11 @@ class GamesController : public QObject
 	Q_PROPERTY(QVariantMap progress READ progress NOTIFY progressChanged)
 
 public:
+	// A PS2 game's front cover by serial (%1), from the xlenore/ps2-covers
+	// collection, as easy-ps2-fpkg gets it.
+	static constexpr char kPs2CoverUrl[] =
+		"https://raw.githubusercontent.com/xlenore/ps2-covers/main/covers/default/%1.jpg";
+
 	explicit GamesController(AppController *app, QObject *parent = nullptr);
 	~GamesController() override;
 
@@ -82,11 +94,42 @@ public:
 	QVariantList games() const { return games_; }
 	QVariantList conversions() const { return conversions_; }
 	bool converting() const;
+	// A conversion or packing still to finish whose result goes to the
+	// console in use.
+	bool willSend() const;
 	QVariantMap progress() const { return progress_; }
 
 	// Folders come as paths or file:// URLs (what FolderDialog gives).
 	Q_INVOKABLE void setGamesFolder(const QString &folder);
 	Q_INVOKABLE void setOutputFolder(const QString &folder);
+	// Where Packwright's program is (a path or file:// URL; "" looks for it).
+	Q_INVOKABLE void setPackwrightPath(const QString &program);
+	QString packwright() const;
+	// The places Packwright is looked for, the setting first.
+	static QString findPackwright(const QString &configured);
+	// A PS5 game (a dump folder, or an .exfat, .ffpkg, .ffpfs(c) or .zar
+	// image) made into a PS5 fake package by Packwright, in the output
+	// folder; then, with `install`, sent and installed like any package.
+	Q_INVOKABLE void packPs5(const QString &source, bool install);
+	// A package split into parts (<name>_0.pkg, _1.pkg…): checked against its
+	// header, joined into one package in the output folder, and with
+	// `install` sent and installed like a converted one.
+	Q_INVOKABLE void joinParts(const QString &firstPart, bool install);
+	// A game downloaded as an archive (or its volumes): extracted by 7-Zip
+	// into the output folder, its parts joined when it holds a package in
+	// parts, then installed (`install`) or left there. `password` (empty:
+	// none) stays in memory only, for this job.
+	Q_INVOKABLE void extractArchive(const QString &firstVolume, const QString &title, bool install,
+		const QString &password = QString());
+	// A job stopped by its archive's password tried again with this one.
+	Q_INVOKABLE void retryWithPassword(const QString &id, const QString &password);
+	// The 7-Zip that comes with OrbisLink (else an installed one); empty: none.
+	QString sevenZip() const;
+	// The same game made by Packwright into an image ShadowMountPlus mounts
+	// (.ffpkg, UFS2, the kind it recommends), in the output folder; then,
+	// with `send`, copied to /data/homebrew on the PS5 (one file, not the
+	// thousands of the folder) and ShadowMountPlus asked to look.
+	Q_INVOKABLE void imagePs5(const QString &source, bool send);
 	Q_INVOKABLE void setStorage(const QString &storage);
 	Q_INVOKABLE QString folderFor(const QString &storage) const { return folderOn(storage); }
 	// Asks the console in use over FTP which drives it has (drives).
@@ -146,6 +189,9 @@ private:
 	// The output folder, made in the documents when none was chosen.
 	void ensureOutputFolder();
 	struct Job;
+	// What a job needs of the settings, read on the interface's thread when
+	// it is queued: the worker must not read them while they change.
+	void takeSettings(Job &job) const;
 	QString toLocalPath(const QString &folder) const;
 	QString assetsFolder() const;
 	// Downloads and unpacks the emulator files unless they are there; one
@@ -160,6 +206,27 @@ private:
 	// The end of a job: its state, then the package on its way.
 	void finishJob(const std::shared_ptr<Job> &job, bool ok, const std::string &pkgPath, const std::string &error);
 	bool runPack(const std::shared_ptr<Job> &job, const std::function<void()> &tick, std::string *pkgPath,
+		std::string *error);
+	// The same for a PS5 game, through Packwright's command line.
+	bool runJoin(const std::shared_ptr<Job> &job, const QString &firstPart, const std::function<void()> &tick,
+		std::string *pkgPath, std::string *error);
+	// An archive extracted (then joined); `extras` gets the other packages
+	// it held, moved beside the first.
+	bool runExtract(const std::shared_ptr<Job> &job, const std::function<void()> &tick, std::string *pkgPath,
+		QStringList *extras, std::string *error);
+	// Runs Packwright with `arguments`, following its "NN%" lines into the
+	// job, and stops it (with whatever it started) on a cancel. Its exit
+	// code, or one of these; `said` gets its last lines, `crashed` whether it
+	// crashed.
+	// A PS5 package's parts joined by Packwright (`packwright merge`), what it
+	// wrote read back.
+	bool runPs5Join(const std::shared_ptr<Job> &job, const PkgPartSet &set, const QString &target,
+		const std::function<void()> &tick, std::string *error);
+	static constexpr int kPackwrightNotStarted = -1000;
+	static constexpr int kPackwrightCancelled = -1001;
+	int runPackwright(const std::shared_ptr<Job> &job, const QString &program, const QStringList &arguments,
+		const std::function<void()> &tick, QStringList *said, bool *crashed, std::string *error);
+	bool runPs5Pack(const std::shared_ptr<Job> &job, const std::function<void()> &tick, std::string *pkgPath,
 		std::string *error);
 	// On the worker: a job's disc from the console to this PC.
 	bool fetchFromConsole(const std::shared_ptr<Job> &job, const std::function<void()> &tick);
@@ -204,8 +271,12 @@ private:
 	QTimer *publishTimer_ = nullptr;
 	std::thread worker_;
 	std::thread drivesThread_;
+	// downloadAssets(): joined on the way out, as it works on this object.
+	std::thread assetsThread_;
+	std::atomic<bool> assetsBusy_ { false };
 	QVariantMap drives_;
 	int nextId_ = 1;
+	LifelinePtr lifeline_ = std::make_shared<Lifeline>(this);
 };
 
 } // namespace orbislink

@@ -140,7 +140,6 @@ struct Settings
 	uint16_t httpPort = 8765;
 	std::string httpBindAddress;       // empty = choose by the console's subnet
 	bool restrictToConsoleIp = true;
-	bool firewallNoticeShown = false;  // aviso da firewall do Windows (§5.3)
 
 	// FTP
 	int ftpMaxConnections = 1;
@@ -213,10 +212,18 @@ struct Settings
 	// PS1/PS2 games: where the discs are and where converted packages go.
 	std::string gamesFolder;
 	std::string convertOutputFolder;
+	// Packwright (itsmemac/Packwright, GPL-3.0), which makes PS5 fake
+	// packages from game folders and images: where its program is, when it
+	// is not where its installers put it. Empty: looked for.
+	std::string packwrightPath;
 	// A package the converter made (from a disc, or a folder) stays in the
 	// output folder once it is on the console; off, it is deleted then
 	// (installed, or sent when not installing).
 	bool keepConvertedPackages = false;
+	// The saves of the console in use backed up to the vault by themselves
+	// when its FTP answers (what is new or changed, at most every few hours);
+	// never sent anywhere.
+	bool autoSaveBackup = false;
 	// Where on the console a game goes to be installed: "internal"
 	// (/data), "usb" (/mnt/usb0) or "ext" (the extended storage, /mnt/ext0).
 	std::string installStorage = "internal";

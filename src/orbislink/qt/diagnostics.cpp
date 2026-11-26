@@ -4,6 +4,8 @@
 #include "orbislink/common/log.h"
 #include "orbislink/net/net_utils.h"
 #include "orbislink/qt/app_controller.h"
+#include "orbislink/qt/archive_tool.h"
+#include "orbislink/qt/games_controller.h"
 #include "orbislink/qt/window_chrome.h"
 #include "orbislink/settings/settings_store.h"
 
@@ -93,6 +95,8 @@ QString Diagnostics::report(AppController *app)
 		heading(out, "Console and services");
 		out << "Name             " << app->consoleName() << "\n";
 		out << "Address          " << app->consoleAddress() << "\n";
+		out << "Kind, firmware   " << (app->installsFromConsole() ? "PS5" : "PS4") << ", "
+			<< (app->consoleFirmware().isEmpty() ? QStringLiteral("unknown") : app->consoleFirmware()) << "\n";
 		out << "Remote Play      " << app->remotePlayState();
 		if(!app->remotePlayHint().isEmpty())
 			out << "  — " << app->remotePlayHint();
@@ -110,6 +114,20 @@ QString Diagnostics::report(AppController *app)
 			out << "  — " << app->installerHint();
 		out << "\n";
 		out << "HTTP server      " << app->httpServerAddress() << "\n";
+		// PS5 packages: what prepares them to start, and what makes them.
+		out << "Titan Core       "
+			<< (app->titanCoreReport().isEmpty() ? QStringLiteral("not asked (it is, after a PS5 package installs)")
+												 : app->titanCoreReport())
+			<< "\n";
+		const QString chosen = QString::fromStdString(app->settings().packwrightPath);
+		const QString packwright = GamesController::findPackwright(chosen);
+		out << "Packwright       "
+			<< (!packwright.isEmpty() ? packwright
+				: QStringLiteral("not found") + (chosen.isEmpty() ? QString() : QStringLiteral(" (chosen: ") + chosen
+					+ QStringLiteral(", not a program)")))
+			<< "\n";
+		const QString sevenZip = ArchiveTool::find();
+		out << "7-Zip            " << (!sevenZip.isEmpty() ? sevenZip : QStringLiteral("not found")) << "\n";
 
 		heading(out, "Settings");
 		// Only what helps diagnose. The Account ID and the keys are left
@@ -125,13 +143,14 @@ QString Diagnostics::report(AppController *app)
 		}
 	}
 
-#ifdef ORBISLINK_HAS_STREAM
+	// Drag and drop is in every build, Remote Play or not.
 	if(app)
 	{
 		heading(out, "Drag and drop");
 		out << app->dragSummary() << "\n";
 	}
 
+#ifdef ORBISLINK_HAS_STREAM
 	heading(out, "Remote Play — video");
 	if(app && !app->videoProbe().isEmpty())
 		out << app->videoProbe();

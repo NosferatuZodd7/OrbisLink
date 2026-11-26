@@ -1064,7 +1064,8 @@ Item {
                 }
                 StyledToolButton {
                     readonly property bool all: root.pickedCount === app.files.count
-                    iconName: all ? "square" : "square-check"
+                    // The box says what is picked: all of them, or some.
+                    iconName: all ? "square-check" : "square-minus"
                     iconSize: 15
                     implicitWidth: 32; implicitHeight: 32
                     ToolTip.visible: hovered

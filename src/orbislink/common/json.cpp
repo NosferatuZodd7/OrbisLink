@@ -244,8 +244,17 @@ public:
 		char c = text_[pos_];
 		switch(c)
 		{
-			case '{': return parseObject(out);
-			case '[': return parseArray(out);
+			case '{':
+			case '[': {
+				// Each level is a few frames of recursion: a document of
+				// nothing but "[[[[…" must not run the stack out.
+				if(depth_ >= kMaxDepth)
+					return fail("nested too deeply");
+				++depth_;
+				const bool ok = c == '{' ? parseObject(out) : parseArray(out);
+				--depth_;
+				return ok;
+			}
 			case '"': {
 				std::string s;
 				if(!parseString(s))
@@ -287,10 +296,25 @@ public:
 			++pos_;
 	}
 
+	// Trailing NULs are let through with the whitespace: small C servers on
+	// the console may count the string's terminator in the body.
 	bool atEndIgnoringWhitespace()
 	{
-		skipWhitespace();
+		while(pos_ < text_.size()
+			&& (text_[pos_] == '\0' || std::isspace(static_cast<unsigned char>(text_[pos_]))))
+			++pos_;
 		return pos_ >= text_.size();
+	}
+
+	// One value and nothing after it: text left over means the document is
+	// not what it seemed (two documents glued, a cut-off reply).
+	bool parseDocument(Json &out)
+	{
+		if(!parseValue(out))
+			return false;
+		if(!atEndIgnoringWhitespace())
+			return fail("unexpected text after the value");
+		return true;
 	}
 
 	std::string error() const { return error_; }
@@ -410,16 +434,26 @@ private:
 					if(pos_ + 4 > text_.size())
 						return fail("truncated \\u escape");
 					unsigned code = 0;
-					for(int i = 0; i < 4; ++i)
-					{
-						char h = text_[pos_ + i];
-						code <<= 4;
-						if(h >= '0' && h <= '9') code |= static_cast<unsigned>(h - '0');
-						else if(h >= 'a' && h <= 'f') code |= static_cast<unsigned>(h - 'a' + 10);
-						else if(h >= 'A' && h <= 'F') code |= static_cast<unsigned>(h - 'A' + 10);
-						else return fail("invalid \\u escape");
-					}
+					if(!readHex4(pos_, &code))
+						return fail("invalid \\u escape");
 					pos_ += 4;
+					// Outside the BMP, JSON writes a pair of surrogates: they
+					// make one character, in one 4-byte sequence. Half a pair
+					// is no character at all.
+					if(code >= 0xD800 && code <= 0xDBFF)
+					{
+						unsigned low = 0;
+						if(pos_ + 6 <= text_.size() && text_[pos_] == '\\' && text_[pos_ + 1] == 'u'
+							&& readHex4(pos_ + 2, &low) && low >= 0xDC00 && low <= 0xDFFF)
+						{
+							pos_ += 6;
+							code = 0x10000 + ((code - 0xD800) << 10) + (low - 0xDC00);
+						}
+						else
+							code = 0xFFFD;
+					}
+					else if(code >= 0xDC00 && code <= 0xDFFF)
+						code = 0xFFFD;
 					appendUtf8(out, code);
 					break;
 				}
@@ -427,6 +461,22 @@ private:
 			}
 		}
 		return fail("unterminated string");
+	}
+
+	bool readHex4(size_t at, unsigned *code) const
+	{
+		unsigned value = 0;
+		for(size_t i = 0; i < 4; ++i)
+		{
+			const char h = text_[at + i];
+			value <<= 4;
+			if(h >= '0' && h <= '9') value |= static_cast<unsigned>(h - '0');
+			else if(h >= 'a' && h <= 'f') value |= static_cast<unsigned>(h - 'a' + 10);
+			else if(h >= 'A' && h <= 'F') value |= static_cast<unsigned>(h - 'A' + 10);
+			else return false;
+		}
+		*code = value;
+		return true;
 	}
 
 	static void appendUtf8(std::string &out, unsigned code)
@@ -438,9 +488,16 @@ private:
 			out.push_back(static_cast<char>(0xC0 | (code >> 6)));
 			out.push_back(static_cast<char>(0x80 | (code & 0x3F)));
 		}
-		else
+		else if(code < 0x10000)
 		{
 			out.push_back(static_cast<char>(0xE0 | (code >> 12)));
+			out.push_back(static_cast<char>(0x80 | ((code >> 6) & 0x3F)));
+			out.push_back(static_cast<char>(0x80 | (code & 0x3F)));
+		}
+		else
+		{
+			out.push_back(static_cast<char>(0xF0 | (code >> 18)));
+			out.push_back(static_cast<char>(0x80 | ((code >> 12) & 0x3F)));
 			out.push_back(static_cast<char>(0x80 | ((code >> 6) & 0x3F)));
 			out.push_back(static_cast<char>(0x80 | (code & 0x3F)));
 		}
@@ -507,8 +564,11 @@ private:
 		return true;
 	}
 
+	static constexpr int kMaxDepth = 256;
+
 	const std::string &text_;
 	size_t pos_ = 0;
+	int depth_ = 0;
 	std::string error_;
 };
 
@@ -518,7 +578,7 @@ Json Json::parse(const std::string &text, std::string *error)
 {
 	Parser parser(text);
 	Json value;
-	if(!parser.parseValue(value))
+	if(!parser.parseDocument(value))
 	{
 		if(error)
 			*error = parser.error();

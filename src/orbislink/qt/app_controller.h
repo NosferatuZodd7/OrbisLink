@@ -53,7 +53,6 @@ class AppController : public QObject
 	// The console's firmware as Remote Play discovery reports it: "9.00",
 	// and as a number to compare with a package's (0x0900; 0 unknown).
 	Q_PROPERTY(QString consoleFirmware READ consoleFirmware NOTIFY consoleFirmwareChanged)
-	Q_PROPERTY(int consoleFirmwareValue READ consoleFirmwareValue NOTIFY consoleFirmwareChanged)
 	Q_PROPERTY(bool canUseFtp READ canUseFtp NOTIFY statusChanged)
 	Q_PROPERTY(bool queuePaused READ queuePaused NOTIFY queueStateChanged)
 	Q_PROPERTY(QString pauseReason READ pauseReason NOTIFY queueStateChanged)
@@ -122,7 +121,6 @@ class AppController : public QObject
 	Q_PROPERTY(orbislink::FtpModel *files READ files CONSTANT)
 	Q_PROPERTY(QString version READ version CONSTANT)
 	// True when the application was built with Remote Play.
-	Q_PROPERTY(bool streamAvailable READ streamAvailable CONSTANT)
 
 	// Updates: "idle", "checking", "available", "downloading",
 	// "ready", "up-to-date" or "error".
@@ -162,7 +160,6 @@ public:
 	// Kept once the slider is let go (not at each step of a drag).
 	Q_INVOKABLE void setOverlayOpacity(double opacity);
 	QString consoleFirmware() const;
-	int consoleFirmwareValue() const { return consoleFirmware_; }
 	bool canUseFtp() const;
 	// The console in use is a PS5 (by the type that was stored).
 	bool activeIsPs5() const;
@@ -249,14 +246,6 @@ public:
 	void updateSettings(const std::function<void(Settings &)> &change);
 	// Stores the PSN Account ID, so it does not have to be typed every time.
 	Q_INVOKABLE void rememberAccountId(const QString &accountId);
-	bool streamAvailable() const
-	{
-#ifdef ORBISLINK_HAS_STREAM
-		return true;
-#else
-		return false;
-#endif
-	}
 
 	// Dropping files: mode 0 = direct install, 1 = FTP upload — into the
 	// folder open in the Files tab, which is what the drop zone says.
@@ -269,7 +258,12 @@ public:
 	// was already on the console; action is "overwrite", "rename" (to name)
 	// or "skip". The other files of the drop go as they were.
 	Q_INVOKABLE void resolveUploadConflicts(const QVariantList &decisions);
-	Q_INVOKABLE void checkServicesNow();
+	Q_INVOKABLE void checkServicesNow() { checkServices(true); }
+	// The services checked now; `search` also looks for the console at once
+	// when it is not where it was saved (a check asked for by hand), else the
+	// search keeps its own pace (a queue waiting for the installer asks every
+	// few seconds, which must not search the network every few seconds).
+	void checkServices(bool search);
 	// The Remote Play state comes from chiaki (StreamController), not from
 	// the periodic check: this is how it reaches the status bar indicator.
 	Q_INVOKABLE void reportRemotePlayState(const QString &state, const QString &detail);
@@ -284,7 +278,26 @@ public:
 	// official package, or one that needs a newer firmware than this PS4's
 	// (`category` as the package says it: "gd", "gp"…). Empty when there is
 	// nothing to say.
-	Q_INVOKABLE QString packageWarning(bool official, int requiredFirmware, const QString &category) const;
+	Q_INVOKABLE QString packageWarning(bool official, int requiredFirmware, const QString &category,
+		bool ps5Package = false) const;
+	// What starts a PS5 fake package on the console in use, by its firmware:
+	// kstuff up to 11.60, the Titan Core payload on 12.00–13.60, nothing
+	// public from 14.00.
+	Q_INVOKABLE QString ps5StartHint() const;
+	// The last time Titan Core was asked about an install: whether it
+	// answered, its version and what it said (for the diagnostics).
+	QString titanCoreReport() const { return titanCoreReport_; }
+	// A Remote Play session on screen (StreamController says so): work that
+	// would load the console's network (an automatic save backup, a console
+	// switch) waits for it to end.
+	bool streaming() const { return streaming_; }
+	void setStreaming(bool on) { streaming_ = on; }
+	// Something in the install queue under way or waiting.
+	bool queueBusy() const;
+	// Work elsewhere (a conversion or a packing) whose result is sent to the
+	// console in use once it is made: a console switch waits for it too.
+	void setSendsPending(std::function<bool()> check) { sendsPending_ = std::move(check); }
+	bool sendsPending() const { return sendsPending_ && sendsPending_(); }
 	// QML reports here every time a drag enters, leaves or is dropped.
 	//
 	// Without counters there is no telling Windows not delivering the event
@@ -311,10 +324,8 @@ public:
 	// Drops the finished tasks (sent, installed, failed, cancelled) of one
 	// file: a conversion card that goes away takes its queue tasks along.
 	void removeFinishedTasksOf(const QString &localPath);
-	// A converted game: over FTP into `directory`, installed once there,
-	// and the copy on the console deleted after the install.
-	void sendAndInstall(const QString &pkg, const QString &directory);
-	// The same, or with `install` false only put there.
+	// A converted game: over FTP into `directory` and, with `install`,
+	// installed once there and the copy on the console deleted after it.
 	void sendTo(const QString &pkg, const QString &directory, bool install);
 	Q_INVOKABLE void moveTaskUp(const QString &id);
 	Q_INVOKABLE void moveTaskDown(const QString &id);
@@ -324,9 +335,8 @@ public:
 	Q_INVOKABLE void ftpNavigate(const QString &path);
 	Q_INVOKABLE void ftpRefresh();
 	Q_INVOKABLE void ftpUp();
-	// A file, or a folder with everything in it; the row shows it going.
-	Q_INVOKABLE void ftpDelete(const QString &path, bool isDirectory);
-	// Several at once, one after the other: [{ path, isDirectory }].
+	// Files, or folders with everything in them, one after the other:
+	// [{ path, isDirectory }]; each row shows it going.
 	Q_INVOKABLE void ftpDeleteMany(const QVariantList &items);
 	Q_INVOKABLE void ftpMakeDirectory(const QString &name);
 	Q_INVOKABLE void ftpRename(const QString &path, const QString &newName);
@@ -358,16 +368,7 @@ public:
 	// "MTRW" (ftpsrv: /system writable) or "KILL" (ftpsrv: stops itself).
 	Q_INVOKABLE void ftpServerCommand(const QString &command);
 	bool ftpAdvancedMode() const { return settings_.ftpAdvancedMode; }
-	// A whole folder, with everything inside it, to a folder of the PC
-	// (empty: the downloads folder).
-	Q_INVOKABLE void ftpDownloadFolder(const QString &remotePath, const QString &name,
-		const QString &destinationDir);
-
-	// Bring from the console to the PC (§5.5). Empty `destination` = default
-	// folder (desktop).
-	Q_INVOKABLE void ftpDownload(const QString &remotePath, const QString &name,
-		const QString &destinationDir);
-	// The same, but for the local cache that feeds dragging out.
+	// A file of the console, to the local cache that feeds dragging out.
 	Q_INVOKABLE void ftpPrepareForDrag(const QString &remotePath, const QString &name, qint64 size);
 	// Local URL of the file if it is already cached with the right size, otherwise empty.
 	Q_INVOKABLE QString cachedFileUrl(const QString &remotePath, qint64 size) const;
@@ -666,7 +667,22 @@ private:
 		QString category;
 		QString title;
 		QString warning; // the last one said
+		bool ps5 = false; // a PS5 package
 	};
+	// A PS5 package installed on the console in use: Titan Core, when it
+	// runs there (port 8097), is asked to look for it and its progress
+	// preparing it to start is shown on the job's card; without it, what
+	// starts it on this firmware.
+	void followPs5Install(const QString &taskId, const QString &titleId);
+	// A PS5 game image copied where ShadowMountPlus looks: it is asked to
+	// look now (its API, else started again); its card says what happened.
+	void handImageToShadowMount(const QString &taskId, const QString &remotePath);
+	// A line under a job's card (and its conversion card's), on the UI thread.
+	void setTaskNote(const QString &taskId, const QString &text);
+	QSet<QString> ps5Followed_;
+	QString titanCoreReport_;
+	bool streaming_ = false;
+	std::function<bool()> sendsPending_;
 	QHash<QString, PackageFacts> packageFacts_;
 	void refreshPackageWarnings();
 	QString lastRemotePlayDetail_;

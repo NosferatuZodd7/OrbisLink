@@ -123,6 +123,8 @@ struct PkgOptions
 		{ "VERSION", "01.00" },
 	};
 	std::vector<std::pair<std::string, uint32_t>> sfoInts;
+	// A PS5 package's details (entry 0x2000), when not empty.
+	std::string paramJson;
 };
 
 // Generates a minimal but structurally correct .pkg.
@@ -138,6 +140,8 @@ inline std::vector<uint8_t> buildPkg(const PkgOptions &options)
 		entries.push_back({ 0x1000, sfo });
 	if(options.includeIcon)
 		entries.push_back({ 0x1200, icon });
+	if(!options.paramJson.empty())
+		entries.push_back({ 0x2000, std::vector<uint8_t>(options.paramJson.begin(), options.paramJson.end()) });
 
 	const size_t headerSize = 0x2000;
 	const size_t tableOffset = 0x1000;
@@ -182,6 +186,25 @@ inline std::vector<uint8_t> buildPkg(const PkgOptions &options)
 	// Padding so the file has a plausible size.
 	pkg.resize(pkg.size() + 1024, 0xAB);
 	putBE64(pkg, 0x430, static_cast<uint64_t>(pkg.size()));
+	return pkg;
+}
+
+// A PS5 package: a "\x7FFIH" header (or "\x7FLIH" for a backport) whose
+// field at 0x58 (0x30) points at a PS4-style container after it.
+inline std::vector<uint8_t> buildPs5Pkg(const PkgOptions &options, bool official, bool backport = false)
+{
+	std::vector<uint8_t> pkg(0x1000, 0);
+	pkg[0] = 0x7F;
+	pkg[1] = backport ? 'L' : 'F';
+	pkg[2] = 'I';
+	pkg[3] = 'H';
+	pkg[5] = official ? 0x80 : 0x00;
+	const size_t at = backport ? 0x30 : 0x58;
+	const uint64_t inner = 0x1000;
+	for(size_t i = 0; i < 8; ++i)
+		pkg[at + i] = static_cast<uint8_t>((inner >> (8 * i)) & 0xFF);
+	const std::vector<uint8_t> container = buildPkg(options);
+	pkg.insert(pkg.end(), container.begin(), container.end());
 	return pkg;
 }
 

@@ -102,9 +102,6 @@ class ShelfController : public QObject
 	Q_PROPERTY(QString title READ title NOTIFY placeChanged)
 	// [{ title }]: the library, the place, then each folder down.
 	Q_PROPERTY(QVariantList crumbs READ crumbs NOTIFY placeChanged)
-	// The kind of the place open ("console", "usb", "pc", "drive",
-	// "custom"), and whether it is on the console.
-	Q_PROPERTY(QString placeKind READ placeKind NOTIFY placeChanged)
 	Q_PROPERTY(bool loading READ loading NOTIFY stateChanged)
 	// Why there is nothing to show: a folder that cannot be read, a drive
 	// taken out ("gone").
@@ -147,7 +144,6 @@ public:
 	QString level() const;
 	QString title() const;
 	QVariantList crumbs() const;
-	QString placeKind() const;
 	bool loading() const { return loading_; }
 	QString message() const { return message_; }
 	bool gone() const { return gone_; }
@@ -186,6 +182,9 @@ public:
 	Q_INVOKABLE int neighbour(int index, int step) const { return rows_.neighbour(index, step); }
 	// What a card's buttons do (the ids are in its "actions").
 	Q_INVOKABLE void act(int index, const QString &action);
+	// An archive's card extracted (and installed, `install`) with the
+	// password asked for in the interface; kept in memory for that job only.
+	Q_INVOKABLE void extractWithPassword(int index, bool install, const QString &password);
 
 	// Several cards picked at once, by their keys: what can be done to all
 	// of them — { install, converts (of those, made into a package first),
@@ -280,7 +279,17 @@ private:
 	// The place of what the console has installed: read over FTP, shown as
 	// it is read; at home, its covers.
 	void loadInstalled(bool forPlace);
-	QVariantMap installedCard(const library::InstalledTitle &title, const Source &from, bool ps5) const;
+	// The read of what is installed is over: the one asked for meanwhile next.
+	void installedReadEnded();
+	// An installed title's card with what this PC has for it that the
+	// console does not (a newer update, add-ons): pendingPaths, pendingText,
+	// and the action to install them.
+	QVariantMap withPending(QVariantMap card, const library::InstalledTitle &title,
+		const std::vector<library::PcPackage> &packages) const;
+	// `others`: the other consoles of the list (address → type), read on the
+	// interface's thread, for "Copy to <console>".
+	QVariantMap installedCard(const library::InstalledTitle &title, const Source &from, bool ps5,
+		const QList<QPair<QString, QString>> &others = {}) const;
 	// A card by its key, among those of the place open or of the search.
 	QVariantMap cardByKey(const QString &key) const;
 	void actOn(const QVariantMap &card, const QString &action);
@@ -317,6 +326,7 @@ private:
 	QHash<QString, QVariantList> searchIndex_; // place id → the cards seen there
 
 	Place place_;
+	bool ps5_ = false; // the console in use, for what the cards offer
 	bool organizing_ = false;
 	QString organizeFolder_;
 	std::vector<library::OrganizeStep> organizePlan_;
@@ -353,6 +363,13 @@ private:
 	// What the console has installed, as last read (interface thread only).
 	QVariantList installedCards_;
 	bool installedReading_ = false;
+	// Its titles are shown; this PC's places are still looked through for
+	// the updates and add-ons they lack (part of the reading).
+	bool installedScanning_ = false;
+	// The cancel flag of the read under way, and whether another read was
+	// asked for while it was cancelled (refresh): made once it has stopped.
+	std::shared_ptr<std::atomic<bool>> installedCancel_;
+	bool installedAgain_ = false;
 	// Covers asked for by the pages, on their way (interface thread only).
 	QSet<QString> coverPending_;
 	int coverRevision_ = 0;

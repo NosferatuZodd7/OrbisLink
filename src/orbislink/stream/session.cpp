@@ -50,8 +50,6 @@ struct StreamSession::Impl
 	std::atomic<bool> active { false };
 	std::atomic<bool> failedInUse { false };
 	std::atomic<int> state { static_cast<int>(SessionState::Idle) };
-	std::atomic<int> width { 0 };
-	std::atomic<int> height { 0 };
 	std::atomic<uint64_t> frames { 0 };
 	ChiakiControllerState controller {};
 	bool controllerInitialised = false;
@@ -172,8 +170,6 @@ void frameAvailable(ChiakiFfmpegDecoder *decoder, void *user)
 			+ std::to_string(pulled.frame->format));
 		StreamTrace::instance().end();
 	}
-	impl->width.store(pulled.frame->width);
-	impl->height.store(pulled.frame->height);
 
 	StreamSession::FrameCallback callback;
 	{
@@ -276,6 +272,12 @@ void eventCallback(ChiakiEvent *event, void *user)
 		case CHIAKI_EVENT_QUIT:
 		{
 			impl->active.store(false);
+			{
+				// chiaki has already closed the stream: no more microphone
+				// frames for it.
+				std::lock_guard<std::mutex> micLock(impl->micMutex);
+				impl->micActive.store(false);
+			}
 			impl->failedInUse.store(event->quit.reason == CHIAKI_QUIT_REASON_SESSION_REQUEST_RP_IN_USE);
 			const bool cleaned = event->quit.reason == CHIAKI_QUIT_REASON_STOPPED;
 			std::string detail = quitReasonText(event->quit.reason);
@@ -339,9 +341,13 @@ void StreamSession::setDisplayCallback(DisplayCallback callback)
 
 int StreamSession::startTouch(uint16_t x, uint16_t y)
 {
-	if(!impl_->sessionStarted || !impl_->active.load())
+	if(!impl_->sessionStarted)
 		return -1;
+	// active is checked under the lock: stop() clears it under the same
+	// lock before chiaki_session_fini.
 	std::lock_guard<std::mutex> lock(impl_->mutex);
+	if(!impl_->active.load())
+		return -1;
 	if(!impl_->controllerInitialised)
 	{
 		chiaki_controller_state_set_idle(&impl_->controller);
@@ -355,9 +361,11 @@ int StreamSession::startTouch(uint16_t x, uint16_t y)
 
 void StreamSession::moveTouch(int id, uint16_t x, uint16_t y)
 {
-	if(!impl_->sessionStarted || !impl_->active.load() || id < 0)
+	if(!impl_->sessionStarted || id < 0)
 		return;
 	std::lock_guard<std::mutex> lock(impl_->mutex);
+	if(!impl_->active.load())
+		return;
 	chiaki_controller_state_set_touch_pos(&impl_->controller, static_cast<uint8_t>(id), x, y);
 	chiaki_session_set_controller_state(&impl_->session, &impl_->controller);
 }
@@ -372,16 +380,6 @@ void StreamSession::stopTouch(int id)
 		chiaki_session_set_controller_state(&impl_->session, &impl_->controller);
 }
 
-bool StreamSession::active() const { return impl_->active.load(); }
-
-SessionState StreamSession::state() const
-{
-	return static_cast<SessionState>(impl_->state.load());
-}
-
-int StreamSession::frameWidth() const { return impl_->width.load(); }
-int StreamSession::frameHeight() const { return impl_->height.load(); }
-uint64_t StreamSession::framesDecoded() const { return impl_->frames.load(); }
 bool StreamSession::usingHardwareDecoder() const { return impl_->usingHardware; }
 
 bool StreamSession::lastFailureWasInUse() const { return impl_->failedInUse.load(); }
@@ -423,8 +421,6 @@ bool StreamSession::start(const Config &config, std::string *error)
 	// Counters for this session: the "first frame" is this one's first, not
 	// the first since the application opened.
 	impl_->frames.store(0);
-	impl_->width.store(0);
-	impl_->height.store(0);
 
 	StreamTrace::instance().begin(config.address);
 	StreamStep prepareStep("prepare session",
@@ -591,11 +587,21 @@ void StreamSession::stop()
 	std::lock_guard<std::mutex> guard(impl_->stopMutex);
 	if(!impl_->sessionStarted)
 		return;
+	{
+		// No microphone frame may reach chiaki once it starts closing.
+		std::lock_guard<std::mutex> micLock(impl_->micMutex);
+		impl_->micActive.store(false);
+	}
 	chiaki_session_stop(&impl_->session);
 	chiaki_session_join(&impl_->session);
+	{
+		// After the join chiaki can no longer set it back. The senders check
+		// it under this lock, so none is inside chiaki during fini.
+		std::lock_guard<std::mutex> lock(impl_->mutex);
+		impl_->active.store(false);
+	}
 	chiaki_session_fini(&impl_->session);
 	impl_->sessionStarted = false;
-	impl_->active.store(false);
 
 	if(impl_->decoderReady)
 	{
@@ -711,7 +717,7 @@ void StreamSession::sendMicrophoneFrame(const int16_t *pcm, size_t samplesPerCha
 		return;
 	}
 	std::lock_guard<std::mutex> lock(impl_->micMutex);
-	if(!impl_->encoderReady || !impl_->sessionStarted)
+	if(!impl_->micActive.load() || !impl_->encoderReady || !impl_->sessionStarted)
 		return;
 	// chiaki does not modify the buffer, but the signature is not const.
 	chiaki_opus_encoder_frame(const_cast<int16_t *>(pcm), &impl_->audioEncoder);
@@ -719,10 +725,12 @@ void StreamSession::sendMicrophoneFrame(const int16_t *pcm, size_t samplesPerCha
 
 void StreamSession::sendController(const ControllerState &state)
 {
-	if(!impl_->sessionStarted || !impl_->active.load())
+	if(!impl_->sessionStarted)
 		return;
 
 	std::lock_guard<std::mutex> lock(impl_->mutex);
+	if(!impl_->active.load())
+		return;
 	// Start from the current state so the touchpad touches, which live in
 	// the same packet as the buttons, are not wiped.
 	ChiakiControllerState fresh = impl_->controller;

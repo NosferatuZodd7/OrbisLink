@@ -83,4 +83,47 @@ ORBISLINK_TEST(invalid_input_does_not_crash)
 	CHECK_EQ(json.at(3).toString("empty"), std::string("empty"));
 }
 
+ORBISLINK_TEST(deep_nesting_fails_instead_of_overflowing)
+{
+	std::string error;
+	// 256 levels are still a document.
+	const Json fine = Json::parse(std::string(256, '[') + std::string(256, ']'), &error);
+	CHECK(error.empty());
+	CHECK(fine.isArray());
+	// Far beyond: an error, not a stack overflow.
+	const Json deep = Json::parse(std::string(100000, '['), &error);
+	CHECK(deep.isNull());
+	CHECK(!error.empty());
+	const Json oneTooMany = Json::parse(std::string(257, '[') + std::string(257, ']'), &error);
+	CHECK(oneTooMany.isNull());
+	CHECK(!error.empty());
+}
+
+ORBISLINK_TEST(surrogate_pairs_make_one_character)
+{
+	// U+1F600 is written as a pair; it must come out as one 4-byte sequence.
+	const Json json = Json::parse(R"({"e":"😀","u":"😀"})");
+	CHECK_EQ(json["e"].toString(), std::string("\xF0\x9F\x98\x80"));
+	CHECK_EQ(json["u"].toString(), std::string("\xF0\x9F\x98\x80"));
+	// Half a pair is U+FFFD, and what follows it is kept.
+	const Json lone = Json::parse(R"({"h":"a\ud83db","l":"\ude00","x":"\ud83dA"})");
+	CHECK_EQ(lone["h"].toString(), std::string("a\xEF\xBF\xBD" "b"));
+	CHECK_EQ(lone["l"].toString(), std::string("\xEF\xBF\xBD"));
+	CHECK_EQ(lone["x"].toString(), std::string("\xEF\xBF\xBD" "A"));
+}
+
+ORBISLINK_TEST(text_after_the_value_is_an_error)
+{
+	std::string error;
+	CHECK(Json::parse("{\"a\":1} x", &error).isNull());
+	CHECK(!error.empty());
+	CHECK(Json::parse("{\"a\":1}{\"b\":2}", &error).isNull());
+	CHECK(!error.empty());
+	// Whitespace, and the NUL a C server may count in the body, are fine.
+	CHECK_EQ(Json::parse("{\"a\":1}\r\n", &error)["a"].toInt(), 1);
+	CHECK(error.empty());
+	CHECK_EQ(Json::parse(std::string("{\"a\":1}\0", 8), &error)["a"].toInt(), 1);
+	CHECK(error.empty());
+}
+
 TEST_MAIN()

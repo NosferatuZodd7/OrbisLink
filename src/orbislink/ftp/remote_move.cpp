@@ -169,6 +169,11 @@ FtpResult moveOnConsole(FtpClient &ftp, const std::string &fromPath, const std::
 	const std::string to = normalizeRemotePath(toPath);
 	if(from == to)
 		return FtpResult::success();
+	// Checked before anything is done: otherwise the refused rename falls
+	// back to the copy, and only the delete of the original is refused.
+	if(!ftp.isWriteAllowed(from) || !ftp.isWriteAllowed(to))
+		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "Protected system area: turn on Advanced "
+			"mode in the settings."));
 	// Into itself: no rename does it, and a copy would be deleted with the original.
 	if(startsWith(to, from + "/"))
 		return FtpResult::failure(QT_TRANSLATE_NOOP("Messages", "A folder cannot be moved into itself."));

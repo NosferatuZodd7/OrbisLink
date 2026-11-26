@@ -30,6 +30,22 @@ struct CatalogPayload
 // left out, and so is anything but a plain file name.
 std::vector<CatalogPayload> parseCatalog(const std::string &json, std::string *error);
 
+// Titan Core (devchmod/TITAN-CORE, GPL-3.0): starts installed PS5 fake
+// packages on firmware 12.00–13.60, where kstuff alone does not. Not in the
+// community list: its latest release on GitHub is read instead.
+constexpr const char *kTitanCoreRelease = "https://api.github.com/repos/devchmod/TITAN-CORE/releases/latest";
+// The newest release, pre-releases too (when "latest" has none).
+constexpr const char *kTitanCoreReleases = "https://api.github.com/repos/devchmod/TITAN-CORE/releases?per_page=1";
+constexpr const char *kTitanCoreName = "TITAN-CORE";
+
+// The release as GitHub describes it, and its SHA256SUMS: the entry for its
+// .elf, checksum included. False (with why) when either says too little —
+// a payload whose checksum is not known is never offered.
+bool titanCoreFromRelease(const std::string &releaseJson, const std::string &sha256sums, CatalogPayload *out,
+	std::string *error);
+// The address of the release's SHA256SUMS ("" when it has none).
+std::string titanCoreChecksumsUrl(const std::string &releaseJson);
+
 // What PLK's Payload Manager keeps beside each payload it installs
 // ("<file>.json"), so a payload put there by OrbisLink reads the same in it.
 std::string detailsJson(const CatalogPayload &payload, const std::string &downloadedAt);

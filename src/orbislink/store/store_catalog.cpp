@@ -53,17 +53,6 @@ bool writeFile(const std::string &path, const std::string &bytes)
 	return static_cast<bool>(out);
 }
 
-// A title ID as the catalog uses it: four capital letters and five digits.
-bool plainTitleId(const std::string &id)
-{
-	if(id.size() != 9)
-		return false;
-	for(size_t i = 0; i < 9; ++i)
-		if(i < 4 ? !std::isupper(static_cast<unsigned char>(id[i])) : !std::isdigit(static_cast<unsigned char>(id[i])))
-			return false;
-	return true;
-}
-
 std::string text(const Json &value)
 {
 	return value.isString() ? value.toString() : std::string();
@@ -220,6 +209,16 @@ int compareContentVersions(const std::string &a, const std::string &b)
 		if(x[i] != y[i])
 			return x[i] < y[i] ? -1 : 1;
 	return 0;
+}
+
+bool plainTitleId(const std::string &id)
+{
+	if(id.size() != 9)
+		return false;
+	for(size_t i = 0; i < 9; ++i)
+		if(i < 4 ? !std::isupper(static_cast<unsigned char>(id[i])) : !std::isdigit(static_cast<unsigned char>(id[i])))
+			return false;
+	return true;
 }
 
 StoreCatalog::StoreCatalog(std::string cacheDir, std::string userAgent)

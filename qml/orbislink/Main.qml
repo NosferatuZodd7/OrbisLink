@@ -59,7 +59,9 @@ ApplicationWindow {
     // The panel closed while jobs go on: a narrow column with them instead,
     // until they are done.
     readonly property bool railShown: !panelShown && !streamFullscreen && transferPanel.busy
-    readonly property bool sideShown: panelShown || railShown
+    // In full screen, the same column over the picture (F9, or the button on
+    // Remote Play's bar), to glance at the transfers without leaving the game.
+    property bool queueOverPicture: false
     // What the main area shows: the consoles ("home"), "games", "store",
     // "saves" or "payloads".
     property string view: typeof demoView !== "undefined" && demoView.length > 0
@@ -146,6 +148,10 @@ ApplicationWindow {
         view = "home"
     }
     function togglePanel() {
+        if (streamFullscreen) {
+            queueOverPicture = !queueOverPicture
+            return
+        }
         if (window.panelAllowed)
             window.panelVisible = !window.panelVisible
         else
@@ -459,6 +465,31 @@ ApplicationWindow {
                         onOpenRequested: window.panelVisible = true
                     }
                 }
+            }
+        }
+    }
+
+    // The transfers over the picture, in full screen: the column the panel
+    // folds to, on glass at the right edge. A click leaves full screen and
+    // opens the panel.
+    Plate {
+        level: "primary"
+        visible: window.streamFullscreen && window.queueOverPicture
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.rightMargin: 16
+        width: 72
+        height: Math.min(parent.height - 64, 120 + 70 * Math.max(1, transferPanel.cardCount))
+        opacity: 0.92
+        QueueRail {
+            anchors.fill: parent
+            anchors.margins: 4
+            panel: transferPanel
+            onOpenRequested: {
+                window.queueOverPicture = false
+                window.setStreamFullscreen(false)
+                if (window.panelAllowed)
+                    window.panelVisible = true
             }
         }
     }

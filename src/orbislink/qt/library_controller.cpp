@@ -5,6 +5,7 @@
 #include "orbislink/common/util.h"
 #include "orbislink/ftp/remote_move.h"
 #include "orbislink/library/console_library.h"
+#include "orbislink/library/text.h"
 #include "orbislink/net/payload_sender.h"
 #include "orbislink/payloads/payload_layout.h"
 #include "orbislink/pkg/pkg_inspector.h"
@@ -41,6 +42,7 @@
 namespace orbislink {
 
 using library::Kind;
+using library::upper;
 
 namespace {
 
@@ -98,13 +100,6 @@ std::string stem(const std::string &name)
 	return dot == std::string::npos || dot == 0 ? name : name.substr(0, dot);
 }
 
-std::string upper(std::string text)
-{
-	std::transform(text.begin(), text.end(), text.begin(),
-		[](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-	return text;
-}
-
 } // namespace
 
 LibraryController::LibraryController(AppController *app, GamesController *games, QObject *parent)
@@ -160,16 +155,6 @@ LibraryController::~LibraryController()
 		copier_.join();
 }
 
-bool LibraryController::ps5() const { return app_->installsFromConsole(); }
-
-QVariantMap LibraryController::itemAt(const QString &path) const
-{
-	for(const QVariant &entry : items_)
-		if(entry.toMap().value(QStringLiteral("path")).toString() == path)
-			return entry.toMap();
-	return QVariantMap();
-}
-
 void LibraryController::refresh()
 {
 	if(scanning_)
@@ -179,16 +164,14 @@ void LibraryController::refresh()
 	const std::string address = app_->settings().consoleAddress;
 	if(address.empty() || !app_->canUseFtp())
 	{
-		status_ = tr("The console's FTP is not answering: the library is read over it.");
 		emit itemsChanged();
 		return;
 	}
 	scanning_ = true;
-	status_ = tr("Reading the console's library…");
 	emit itemsChanged();
 
 	const FtpClient::Config config = app_->ftpClientConfigFor(address);
-	const bool onPs5 = ps5();
+	const bool onPs5 = app_->installsFromConsole();
 	const payloads::Kind consoleKind = onPs5 ? payloads::Kind::Ps5 : payloads::Kind::Ps4;
 	GamesController *games = games_;
 	scanner_ = std::thread([this, config, onPs5, consoleKind, games]() {
@@ -227,7 +210,6 @@ void LibraryController::refresh()
 		};
 
 		QVariantList items;
-		QVariantList folders;
 		for(const std::string &folder : presentLibraryFolders(ftp))
 		{
 			if(cancel_)
@@ -235,8 +217,6 @@ void LibraryController::refresh()
 			std::vector<FtpEntry> entries;
 			if(!ftp.list(folder, &entries).ok)
 				continue;
-			folders << QVariantMap { { QStringLiteral("path"), QString::fromStdString(folder) },
-				{ QStringLiteral("drive"), QString::fromStdString(library::driveOf(folder)) } };
 
 			std::map<std::string, FtpEntry> byName;
 			for(const FtpEntry &entry : entries)
@@ -304,7 +284,7 @@ void LibraryController::refresh()
 						}
 						title = QString::fromStdString(info.displayTitle());
 						titleId = info.titleId;
-						platform = QStringLiteral("ps4");
+						platform = info.ps5 ? QStringLiteral("ps5") : QStringLiteral("ps4");
 						item[QStringLiteral("version")] = QString::fromStdString(info.appVersion);
 						item[QStringLiteral("category")] = QString::fromLatin1(pkgCategoryCode(info.kind));
 						item[QStringLiteral("icon")] = dataUrl(info.iconPng);
@@ -452,13 +432,11 @@ void LibraryController::refresh()
 		});
 		if(cancel_)
 			return;
-		QMetaObject::invokeMethod(this, [this, items, folders]() {
+		QMetaObject::invokeMethod(this, [this, items]() {
 			items_ = items;
-			folders_ = folders;
 			scanning_ = false;
 			scanned_ = true;
 			finishedSeen_ = finishedTasks();
-			status_.clear();
 			emit itemsChanged();
 		}, Qt::QueuedConnection);
 	});
@@ -476,12 +454,15 @@ QString LibraryController::consoleName() const
 void LibraryController::runAction(const QString &what, std::function<QString(FtpClient &ftp, bool *error)> job,
 	bool rescan, const QVariantMap &item, const QString &kind)
 {
+	// One action at a time: this one is not lost without a word.
 	if(busy_)
+	{
+		emit finished(tr("Another action is still running on the console: try again once it is done."), true);
 		return;
+	}
 	if(worker_.joinable())
 		worker_.join();
 	busy_ = true;
-	status_ = what;
 	emit busyChanged();
 	emit itemsChanged();
 
@@ -515,7 +496,6 @@ void LibraryController::runAction(const QString &what, std::function<QString(Ftp
 			return;
 		QMetaObject::invokeMethod(this, [this, message, error, rescan, jobId]() {
 			busy_ = false;
-			status_.clear();
 			emit busyChanged();
 			emit itemsChanged();
 			if(!jobId.isEmpty())
@@ -571,13 +551,6 @@ void LibraryController::clearFinishedJobs()
 		return;
 	jobs_ = kept;
 	emit jobsChanged();
-}
-
-void LibraryController::act(const QString &path)
-{
-	const QVariantMap item = itemAt(path);
-	if(!item.isEmpty())
-		perform(item, item.value(QStringLiteral("action")).toString());
 }
 
 void LibraryController::perform(const QVariantMap &item, const QString &action)
@@ -743,14 +716,6 @@ void LibraryController::uninstall(const QVariantMap &item, bool updateOnly)
 		true, card, QStringLiteral("uninstall"));
 }
 
-void LibraryController::convert(const QString &path, bool install)
-{
-	const QVariantMap item = itemAt(path);
-	if(item.isEmpty() || item.value(QStringLiteral("action")).toString() != QLatin1String("convert"))
-		return;
-	perform(item, install ? QStringLiteral("convert") : QStringLiteral("convertOnly"));
-}
-
 void LibraryController::removeMany(const QStringList &paths)
 {
 	if(paths.isEmpty())
@@ -771,13 +736,6 @@ void LibraryController::removeMany(const QStringList &paths)
 		*error = true;
 		return tr("%1 of %2 deleted. Not deleted: %3").arg(deleted).arg(paths.size()).arg(failed);
 	}, true);
-}
-
-void LibraryController::remove(const QString &path)
-{
-	const QVariantMap item = itemAt(path);
-	if(!item.isEmpty())
-		perform(item, QStringLiteral("delete"));
 }
 
 // ── copies to this PC ───────────────────────────────────────────────────
@@ -805,8 +763,86 @@ QVariantMap LibraryController::copyCard(const CopyJob &job, const QString &itemK
 	return card;
 }
 
+void LibraryController::goOnTo(const QString &id, const QString &title, const QString &target, const QStringList &paths,
+	int waited)
+{
+	QString name;
+	bool listed = false;
+	for(const QVariant &entry : app_->consoles())
+		if(entry.toMap().value(QStringLiteral("address")).toString() == target)
+		{
+			listed = true;
+			name = entry.toMap().value(QStringLiteral("name")).toString();
+		}
+	if(name.isEmpty())
+		name = target;
+	const QString folder = paths.isEmpty() ? QString() : QDir::toNativeSeparators(QFileInfo(paths.first()).absolutePath());
+	if(!listed)
+	{
+		logWarning("Library: \"" + title.toStdString() + "\" was copied for " + target.toStdString()
+			+ ", which is no longer in the list of consoles.");
+		updateJob(id, { { QStringLiteral("message"), tr("Not installed: %1 is no longer in the list").arg(name) } });
+		emit app_->jobFinished(tr("Copy to another console"),
+			tr("%1 is on this PC, in %2; %3 is no longer in the list of consoles, so nothing was installed.")
+				.arg(title, folder, name), true);
+		return;
+	}
+	// A paused queue's packages would go to whichever console is in use when
+	// it carries on: switching now would send them to the other one, and
+	// waiting could last for ever.
+	if(app_->queueBusy() && app_->queuePaused())
+	{
+		logWarning("Library: \"" + title.toStdString() + "\" did not go on to " + name.toStdString()
+			+ ": the queue here is paused with jobs in it.");
+		updateJob(id, { { QStringLiteral("message"), tr("Not installed on %1: the queue here is paused").arg(name) } });
+		emit app_->jobFinished(tr("Copy to another console"),
+			tr("%1 is on this PC, in %2; the queue here is paused with jobs in it, so it was not installed on %3: "
+			   "choose %3 once they are done and install the copy from there.").arg(title, folder, name), true);
+		return;
+	}
+	// Not in the middle of transfers, a conversion that sends here or a
+	// Remote Play session: switching the console would cut them, or send
+	// what they make to the other one. It goes on once they are over.
+	const bool transfers = app_->queueBusy() || app_->sendsPending();
+	if(transfers || app_->streaming())
+	{
+		if(waited == 0)
+		{
+			const QString what = transfers && app_->streaming()
+				? tr("the transfers and the Remote Play session here are over")
+				: transfers ? tr("the transfers here are over") : tr("the Remote Play session here is over");
+			logInfo("Library: \"" + title.toStdString() + "\" waits for " + std::string(transfers ? "the transfers" : "")
+				+ (transfers && app_->streaming() ? " and " : "") + (app_->streaming() ? "the Remote Play session" : "")
+				+ " here to end before it goes on to " + name.toStdString() + ".");
+			updateJob(id, { { QStringLiteral("message"), tr("Goes on to %1 once %2").arg(name, what) } });
+			emit app_->notify(tr("Copy to another console"),
+				tr("%1 is on this PC; it goes on to %2 once %3 (closing OrbisLink before then leaves it in %4, "
+				   "to install from there).").arg(title, name, what, folder), false);
+		}
+		QTimer::singleShot(15000, this, [this, id, title, target, paths, waited]() {
+			goOnTo(id, title, target, paths, waited + 1);
+		});
+		return;
+	}
+	app_->selectConsole(target);
+	if(app_->settings().consoleAddress != target.toStdString())
+	{
+		updateJob(id, { { QStringLiteral("message"), tr("Not installed: %1 could not be chosen").arg(name) } });
+		emit app_->jobFinished(tr("Copy to another console"),
+			tr("%1 is on this PC, in %2, but %3 could not be made the console in use: choose it and install the "
+			   "copy from there.").arg(title, folder, name), true);
+		return;
+	}
+	logInfo("Library: \"" + title.toStdString() + "\" goes on to " + name.toStdString() + " (" + target.toStdString()
+		+ "): it is the console in use now, and " + std::to_string(paths.size()) + " package(s) are queued there.");
+	app_->addPaths(paths, 0);
+	updateJob(id, { { QStringLiteral("message"), tr("Queued on %1").arg(name) } });
+	emit app_->jobFinished(tr("Copy to another console"),
+		tr("%1 is on this PC; it installs on %2 now, the console in use from here on.").arg(title, name), false);
+}
+
 void LibraryController::copyToPc(const QString &title, const QString &icon, const QString &folder,
-	const QVector<CopyItem> &files)
+	const QVector<CopyItem> &files, const QString &thenInstallOn)
 {
 	if(files.isEmpty() || folder.isEmpty())
 		return;
@@ -816,6 +852,7 @@ void LibraryController::copyToPc(const QString &title, const QString &icon, cons
 	job.icon = icon;
 	job.folder = folder;
 	job.files = files;
+	job.thenInstallOn = thenInstallOn;
 
 	qint64 total = 0;
 	for(const CopyItem &file : files)
@@ -828,21 +865,38 @@ void LibraryController::copyToPc(const QString &title, const QString &icon, cons
 
 namespace {
 
-// `wanted`, or "name (2).ext" and on when something is there already.
-QString freeLocalName(const QString &wanted)
+// How a local name is compared with those already given out: some file
+// systems do not tell case apart.
+QString nameKey(const QString &path)
 {
-	if(!QFileInfo::exists(wanted))
-		return wanted;
-	const QFileInfo info(wanted);
-	const QString base = info.isDir() ? info.fileName() : info.completeBaseName();
-	const QString suffix = info.isDir() || info.suffix().isEmpty() ? QString() : QLatin1Char('.') + info.suffix();
-	for(int n = 2; n < 1000; ++n)
+	return QDir::cleanPath(path).toLower();
+}
+
+// `wanted`, or "name (2).ext" and on when something is there already or
+// a copy not finished goes there (`taken`, which gets the name given).
+QString freeLocalName(const QString &wanted, QSet<QString> *taken)
+{
+	auto unused = [taken](const QString &path) {
+		return !QFileInfo::exists(path) && !taken->contains(nameKey(path));
+	};
+	QString chosen = wanted;
+	if(!unused(wanted))
 	{
-		const QString candidate = QDir(info.path()).filePath(QStringLiteral("%1 (%2)%3").arg(base).arg(n).arg(suffix));
-		if(!QFileInfo::exists(candidate))
-			return candidate;
+		const QFileInfo info(wanted);
+		const QString base = info.isDir() ? info.fileName() : info.completeBaseName();
+		const QString suffix = info.isDir() || info.suffix().isEmpty() ? QString() : QLatin1Char('.') + info.suffix();
+		for(int n = 2; n < 1000; ++n)
+		{
+			const QString candidate = QDir(info.path()).filePath(QStringLiteral("%1 (%2)%3").arg(base).arg(n).arg(suffix));
+			if(unused(candidate))
+			{
+				chosen = candidate;
+				break;
+			}
+		}
 	}
-	return wanted;
+	taken->insert(nameKey(chosen));
+	return chosen;
 }
 
 } // namespace
@@ -854,6 +908,22 @@ void LibraryController::download(const QVariantList &items, const QString &folde
 		folder = QUrl(folder).toLocalFile();
 	if(folder.trimmed().isEmpty())
 		folder = app_->defaultDownloadDirectory();
+	// Where the copies not finished go: two items of one name (or one still
+	// copying) must not write to the same place.
+	QSet<QString> taken;
+	for(const QVariant &entry : jobs_)
+	{
+		const QVariantMap card = entry.toMap();
+		if(card.value(QStringLiteral("state")).toString() != QLatin1String("working"))
+			continue;
+		const auto recipe = copyRecipes_.constFind(card.value(QStringLiteral("id")).toString());
+		if(recipe == copyRecipes_.cend())
+			continue;
+		if(!recipe->remoteFolder.isEmpty())
+			taken.insert(nameKey(recipe->folder));
+		for(const CopyItem &file : recipe->files)
+			taken.insert(nameKey(file.local));
+	}
 	for(const QVariant &value : items)
 	{
 		const QVariantMap item = value.toMap();
@@ -871,7 +941,7 @@ void LibraryController::download(const QVariantList &items, const QString &folde
 		if(isFolder)
 		{
 			// Into a folder of its own name, never into one already there.
-			job.folder = freeLocalName(QDir(folder).filePath(name));
+			job.folder = freeLocalName(QDir(folder).filePath(name), &taken);
 			job.remoteFolder = path;
 		}
 		else
@@ -885,7 +955,9 @@ void LibraryController::download(const QVariantList &items, const QString &folde
 			// one with its name is left alone.
 			const QString local = QDir(folder).filePath(name);
 			const QFileInfo there(local);
-			file.local = !there.exists() || (there.isFile() && there.size() == file.size) ? local : freeLocalName(local);
+			const bool same = there.isFile() && there.size() == file.size && !taken.contains(nameKey(local));
+			file.local = same ? local : freeLocalName(local, &taken);
+			taken.insert(nameKey(file.local));
 			job.files << file;
 			total = file.size;
 		}
@@ -897,8 +969,12 @@ void LibraryController::download(const QVariantList &items, const QString &folde
 
 void LibraryController::enqueueCopy(CopyJob job)
 {
+	// The console in use when it is first queued; a retry, or a copy carried
+	// on after a restart, reads that one again.
+	if(job.source.isEmpty())
+		job.source = QString::fromStdString(app_->settings().consoleAddress);
 	copyRecipes_[job.id] = job;
-	job.config = app_->ftpClientConfigFor(app_->settings().consoleAddress);
+	job.config = app_->ftpClientConfigFor(job.source.toStdString());
 	job.cancel = std::make_shared<std::atomic<bool>>(false);
 	{
 		std::lock_guard<std::mutex> lock(copyMutex_);
@@ -968,6 +1044,7 @@ void LibraryController::saveUnfinishedCopies() const
 		kept.append(QJsonObject { { QStringLiteral("title"), job.title }, { QStringLiteral("icon"), job.icon },
 			{ QStringLiteral("folder"), job.folder }, { QStringLiteral("files"), files },
 			{ QStringLiteral("remoteFolder"), job.remoteFolder },
+			{ QStringLiteral("source"), job.source }, { QStringLiteral("thenInstallOn"), job.thenInstallOn },
 			{ QStringLiteral("itemKind"), card.value(QStringLiteral("itemKind")).toString() } });
 	}
 	if(kept.isEmpty())
@@ -996,6 +1073,8 @@ void LibraryController::loadUnfinishedCopies()
 		job.icon = saved.value(QStringLiteral("icon")).toString();
 		job.folder = saved.value(QStringLiteral("folder")).toString();
 		job.remoteFolder = saved.value(QStringLiteral("remoteFolder")).toString();
+		job.source = saved.value(QStringLiteral("source")).toString();
+		job.thenInstallOn = saved.value(QStringLiteral("thenInstallOn")).toString();
 		qint64 total = 0;
 		for(const QJsonValue &part : saved.value(QStringLiteral("files")).toArray())
 		{
@@ -1246,6 +1325,18 @@ void LibraryController::runCopy(const CopyJob &recipe)
 		{ QStringLiteral("amountText"), QString::fromStdString(humanBytes(total)) },
 		{ QStringLiteral("message"), tr("In the folder %1").arg(QDir(job.folder).dirName()) },
 		{ QStringLiteral("bytesPerSecond"), 0.0 } });
+	if(!job.thenInstallOn.isEmpty())
+	{
+		// On to the other console: it becomes the one in use, and the copy
+		// goes to its queue (the game first, then its update and add-ons).
+		QStringList paths;
+		for(const CopyItem &file : job.files)
+			paths << file.local;
+		QMetaObject::invokeMethod(this, [this, id = job.id, title = job.title, target = job.thenInstallOn, paths]() {
+			goOnTo(id, title, target, paths, 0);
+		}, Qt::QueuedConnection);
+		return;
+	}
 	QMetaObject::invokeMethod(this, [this, title = job.title]() {
 		emit app_->jobFinished(tr("Copy to this PC"), tr("%1 is on this PC.").arg(title), false);
 	}, Qt::QueuedConnection);

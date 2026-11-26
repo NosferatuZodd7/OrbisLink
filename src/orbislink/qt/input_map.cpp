@@ -63,7 +63,9 @@ KeyboardMap::Bindings KeyboardMap::defaults()
 
 bool KeyboardMap::reserved(int key)
 {
-	return key == Qt::Key_Escape || key == Qt::Key_F11 || key == 0 || key == Qt::Key_unknown;
+	// Esc leaves, F11 is full screen, F9 the transfers (over the picture in
+	// full screen): never a console button.
+	return key == Qt::Key_Escape || key == Qt::Key_F11 || key == Qt::Key_F9 || key == 0 || key == Qt::Key_unknown;
 }
 
 bool KeyboardMap::rebind(Bindings &bindings, const std::string &action, int key)

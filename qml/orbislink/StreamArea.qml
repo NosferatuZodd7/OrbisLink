@@ -371,7 +371,7 @@ Item {
                                     + "installing pkg files and FTP — still works.")
                     if (root.sessionState === "failed" && stream.sessionDetail.length > 0)
                         return stream.sessionDetail
-                    if (root.consoleState === "offline" && stream.directReachable)
+                    if (root.consoleState === "offline" && stream.directReachable && app.ftpState === "available")
                         return qsTr("This console does not answer the network search, but takes a direct "
                                     + "connection: Remote Play connects all the same.")
                     if (root.consoleState === "offline")
@@ -643,6 +643,13 @@ Item {
                 }
                 ToolTip.visible: aspectArea.containsMouse
                 ToolTip.text: qsTr("Picture shape: 16:9 as the console sends it, 4:3 for PS1/PS2 games, or Fill to stretch it to the window. Click to change.")
+            }
+            // The transfers: over the picture in full screen, the side
+            // panel otherwise (F9).
+            HudButton {
+                iconName: "panel"
+                tip: window.streamFullscreen ? qsTr("Transfers over the picture (F9)") : qsTr("Transfers (F9)")
+                onClicked: window.togglePanel()
             }
             HudButton {
                 iconName: window.streamFullscreen ? "minimize" : "maximize"

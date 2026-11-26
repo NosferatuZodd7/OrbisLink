@@ -33,7 +33,7 @@ private:
 };
 
 std::string sha256Hex(const std::string &data);
-// Empty if the file cannot be read.
+// `path` in UTF-8. Empty if the file cannot be read to its end.
 std::string sha256File(const std::string &path);
 
 } // namespace orbislink

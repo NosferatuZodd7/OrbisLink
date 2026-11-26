@@ -2,6 +2,7 @@
 #pragma once
 
 #include <atomic>
+#include <condition_variable>
 #include <cstdint>
 #include <functional>
 #include <mutex>
@@ -73,6 +74,10 @@ public:
 
 	// Checks whether the server answers (used by ConsoleManager).
 	bool probe(std::string *detail = nullptr);
+	// When the server last answered this client (monotonicMillis(); -1:
+	// never). A transfer under way counts: a server busy with it may not
+	// greet another connection.
+	int64_t lastAnsweredMs() const { return lastAnsweredMs_.load(); }
 
 	FtpResult list(const std::string &remoteDir, std::vector<FtpEntry> *entries);
 	// Whether the server can go into `remotePath` as a folder. A listing does
@@ -135,7 +140,8 @@ public:
 private:
 	struct Slot;
 	FtpResult withRetries(const std::string &what, const std::function<FtpResult()> &operation);
-	bool querySize(const std::string &path, int64_t *size);
+	// One SIZE, without retries: remoteSize() and the upload's own retries use it.
+	FtpResult querySize(const std::string &path, int64_t *size);
 	FtpResult uploadOnce(const std::string &localPath, const std::string &path,
 		const FtpProgressCallback &progress, int64_t localSize, int64_t from, int64_t *reached, uint64_t generation);
 	FtpResult downloadOnce(const std::string &path, const std::string &localPath,
@@ -166,8 +172,14 @@ private:
 	std::vector<std::string> features_;
 	// MLSD offered but answered with nothing usable: LIST from then on.
 	std::atomic<bool> mlsdBroken_ { false };
-	// Simple semaphore to limit simultaneous connections.
+	// When the server last answered an operation of this client (or moved
+	// bytes of a transfer), on monotonicMillis(); -1 before that.
+	std::atomic<int64_t> lastAnsweredMs_ { -1 };
+	// Simple semaphore to limit simultaneous connections. The limit is per
+	// client, so the condition variable is too: it must always be waited
+	// on with the same mutex.
 	mutable std::mutex slotMutex_;
+	std::condition_variable slotAvailable_;
 	int slotsInUse_ = 0;
 };
 

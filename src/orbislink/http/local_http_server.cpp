@@ -14,6 +14,37 @@ namespace orbislink {
 
 namespace {
 
+// Adds [from, to) to the parts already sent (kept merged) and returns how
+// many bytes they cover.
+int64_t cover(std::map<int64_t, int64_t> &parts, int64_t from, int64_t to)
+{
+	if(to > from)
+	{
+		auto it = parts.upper_bound(from);
+		if(it != parts.begin())
+		{
+			auto before = std::prev(it);
+			if(before->second >= from)
+			{
+				from = before->first;
+				to = std::max(to, before->second);
+				it = parts.erase(before);
+			}
+		}
+		while(it != parts.end() && it->first <= to)
+		{
+			to = std::max(to, it->second);
+			it = parts.erase(it);
+		}
+		parts[from] = to;
+	}
+	int64_t total = 0;
+	for(const auto &part : parts)
+		total += part.second - part.first;
+	return total;
+}
+
+
 constexpr size_t kMaxRequestBytes = 16 * 1024;
 
 struct HttpRequest
@@ -306,12 +337,6 @@ std::string LocalHttpServer::bindAddress() const
 	return config_.bindAddress;
 }
 
-void LocalHttpServer::setAllowedClient(const std::string &ip)
-{
-	std::lock_guard<std::mutex> lock(mutex_);
-	config_.allowedClient = ip;
-}
-
 std::string LocalHttpServer::allowedClient() const
 {
 	std::lock_guard<std::mutex> lock(mutex_);
@@ -332,7 +357,6 @@ std::string LocalHttpServer::registerFile(const std::string &path, const std::st
 	stats.name = sanitizeFileName(displayName.empty() ? path : displayName);
 	stats.path = path;
 	stats.size = size;
-	stats.registeredAtMs = monotonicMillis();
 
 	std::lock_guard<std::mutex> lock(mutex_);
 	files_[stats.token] = stats;
@@ -343,13 +367,8 @@ std::string LocalHttpServer::registerFile(const std::string &path, const std::st
 bool LocalHttpServer::unregisterFile(const std::string &token)
 {
 	std::lock_guard<std::mutex> lock(mutex_);
+	covered_.erase(token);
 	return files_.erase(token) > 0;
-}
-
-void LocalHttpServer::clearFiles()
-{
-	std::lock_guard<std::mutex> lock(mutex_);
-	files_.clear();
 }
 
 std::string LocalHttpServer::urlForToken(const std::string &token) const
@@ -414,8 +433,15 @@ void LocalHttpServer::acceptLoop()
 		// they are detached and stop() waits for the counter to reach zero.
 		std::thread([this, client, peerAddress]() {
 			handleConnection(client, peerAddress);
+			// Out of the list before it is closed: once closed, the system
+			// may give its number to another socket, which stop() would then
+			// shut down.
+			{
+				std::lock_guard<std::mutex> lock(mutex_);
+				clients_.erase(client);
+			}
+			closeSocketHandle(client);
 			std::lock_guard<std::mutex> lock(mutex_);
-			clients_.erase(client);
 			if(--activeWorkers_ == 0)
 				workersDone_.notify_all();
 		}).detach();
@@ -424,12 +450,6 @@ void LocalHttpServer::acceptLoop()
 
 void LocalHttpServer::handleConnection(socket_t client, const std::string &peerAddress)
 {
-	struct SocketGuard
-	{
-		socket_t sock;
-		~SocketGuard() { closeSocketHandle(sock); }
-	} guard { client };
-
 	HttpRequest request;
 	if(!readRequest(client, &request))
 		return;
@@ -538,17 +558,8 @@ void LocalHttpServer::handleConnection(socket_t client, const std::string &peerA
 		if(it != files_.end())
 		{
 			it->second.bytesSent += got;
-			it->second.lastActivityMs = monotonicMillis();
-			if(it->second.firstByteAtMs < 0)
-				it->second.firstByteAtMs = it->second.lastActivityMs;
+			it->second.bytesCovered = cover(covered_[token], start + sentTotal - got, start + sentTotal);
 		}
-	}
-
-	{
-		std::lock_guard<std::mutex> lock(mutex_);
-		auto it = files_.find(token);
-		if(it != files_.end())
-			it->second.requestCount += 1;
 	}
 
 	logDebug("Served " + humanBytes(sentTotal) + " of " + stats.name + " to " + peerAddress

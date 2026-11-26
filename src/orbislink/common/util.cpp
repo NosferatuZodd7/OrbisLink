@@ -7,9 +7,32 @@
 #include <cstdio>
 #include <random>
 #include <sstream>
+#include <filesystem>
+#include <fstream>
 #include <sys/stat.h>
 
 namespace orbislink {
+
+namespace {
+
+#ifdef _WIN32
+// Our paths are UTF-8. The narrow _stat64 reads them in the ANSI code page
+// and misses any name outside it, so the wide one is used.
+bool statPath(const std::string &path, struct _stat64 *st)
+{
+	try
+	{
+		return _wstat64(std::filesystem::u8path(path).c_str(), st) == 0;
+	}
+	catch(...)
+	{
+		// Not valid UTF-8.
+		return false;
+	}
+}
+#endif
+
+} // namespace
 
 std::string trim(const std::string &s)
 {
@@ -29,6 +52,13 @@ std::string toLower(const std::string &s)
 	for(char c : s)
 		out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
 	return out;
+}
+
+std::string toUpper(std::string s)
+{
+	for(char &c : s)
+		c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+	return s;
 }
 
 bool iequals(const std::string &a, const std::string &b)
@@ -213,7 +243,7 @@ int64_t fileSize(const std::string &path)
 {
 #ifdef _WIN32
 	struct _stat64 st {};
-	if(_stat64(path.c_str(), &st) != 0)
+	if(!statPath(path, &st))
 		return -1;
 #else
 	struct stat st {};
@@ -227,7 +257,7 @@ bool fileExists(const std::string &path)
 {
 #ifdef _WIN32
 	struct _stat64 st {};
-	return _stat64(path.c_str(), &st) == 0 && (st.st_mode & _S_IFREG) != 0;
+	return statPath(path, &st) && (st.st_mode & _S_IFREG) != 0;
 #else
 	struct stat st {};
 	return stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode);
@@ -238,11 +268,52 @@ bool directoryExists(const std::string &path)
 {
 #ifdef _WIN32
 	struct _stat64 st {};
-	return _stat64(path.c_str(), &st) == 0 && (st.st_mode & _S_IFDIR) != 0;
+	return statPath(path, &st) && (st.st_mode & _S_IFDIR) != 0;
 #else
 	struct stat st {};
 	return stat(path.c_str(), &st) == 0 && S_ISDIR(st.st_mode);
 #endif
+}
+
+bool writeFileReplacing(const std::string &path, const std::string &content)
+{
+	namespace fs = std::filesystem;
+	const fs::path target(path);
+	fs::path temporary = target;
+	temporary += ".tmp";
+	std::error_code ec;
+	{
+		std::ofstream file(temporary, std::ios::binary | std::ios::trunc);
+		if(!file)
+			return false;
+		file << content;
+		file.flush();
+		file.close();
+		if(!file)
+		{
+			fs::remove(temporary, ec);
+			return false;
+		}
+	}
+	// Replaces the old file in one step: POSIX rename does, and libstdc++
+	// and MSVC use MoveFileEx with MOVEFILE_REPLACE_EXISTING on Windows.
+	fs::rename(temporary, target, ec);
+#ifdef _WIN32
+	if(ec)
+	{
+		// Should a runtime refuse to replace, the old file goes first.
+		std::error_code ignored;
+		fs::remove(target, ignored);
+		ec.clear();
+		fs::rename(temporary, target, ec);
+	}
+#endif
+	if(ec)
+	{
+		fs::remove(temporary, ec);
+		return false;
+	}
+	return true;
 }
 
 std::string humanBytes(int64_t bytes)

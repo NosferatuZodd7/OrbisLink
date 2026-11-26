@@ -30,7 +30,8 @@ Item {
     property string status: "unknown"
     property bool registered: false
     // It does not answer the network search but has taken a direct
-    // connection (some PS4s never answer it): not "not responding".
+    // connection (some PS4s never answer it): not "not responding" — while
+    // its FTP answers, which says it is on; turned off, it is not.
     property bool direct: false
     property bool connecting: false
     property bool searching: false
@@ -132,7 +133,7 @@ Item {
         if (!available) return "off"
         if (confirmRemoval) return "remove"
         if (busy) return "busy"
-        if (status === "offline") return direct ? "direct" : "offline"
+        if (status === "offline") return direct && ftpAvailable ? "direct" : "offline"
         if (status === "unknown") return "busy"
         if (current && !registered) return "unregistered"
         if (status === "standby") return "standby"
@@ -165,7 +166,7 @@ Item {
         if (current && stage === "checking") return qsTr("Checking the console…")
         if (current && stage === "locating") return qsTr("Looking for it on the network…")
         if (current && searching) return qsTr("Searching for the console…")
-        if (status === "offline" && direct) return qsTr("Connects directly")
+        if (status === "offline" && direct && ftpAvailable) return qsTr("Connects directly")
         if (status === "offline") return qsTr("Not responding")
         if (status === "unknown") return qsTr("Checking…")
         if (current && !registered) return qsTr("Not registered for Remote Play")

@@ -102,7 +102,6 @@ public:
 		LocalHttpServer *httpServer = nullptr;
 		IInstallerBackend *installer = nullptr;
 		FtpClient *ftp = nullptr;
-		ConsoleManager *console = nullptr; // optional: pauses the queue if the services go down
 	};
 
 	struct Tuning
@@ -182,9 +181,6 @@ private:
 	// by what the console takes from the PC.
 	void followServedInstall(QueueTask task);
 	void runConsoleInstall(QueueTask task);
-	// The install task created by "install after upload" needs to know
-	// which file to delete on the console when it finishes.
-	void setCleanupPath(const std::string &id, const std::string &remotePath);
 	void runFtpUpload(QueueTask task);
 	void finishTask(QueueTask task);
 	void updateTask(const QueueTask &task);

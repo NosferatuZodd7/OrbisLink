@@ -136,7 +136,7 @@ Item {
                 failed: j.stage === "error" || j.stage === "cancelled",
                 thumb: { title: c.title || "", picture: shelf.coverRevision >= 0
                                 ? shelf.cover(c.platform || "", c.serial || "") : "",
-                         icon: c.kind === "pack" ? "package" : "disc",
+                         icon: c.kind === "pack" ? "package" : c.kind === "extract" ? "archive" : "disc",
                          stage: j.stage, percent: j.percent, waiting: j.waiting, text: j.text }
             }
             items.push(key)
@@ -775,6 +775,29 @@ Item {
                                             }
                                         }
 
+                                        // What happens next on the console: a PS5
+                                        // package being prepared by Titan Core, or
+                                        // what starts it on this firmware.
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            visible: !!r.note
+                                            spacing: 6
+                                            Icon {
+                                                Layout.alignment: Qt.AlignTop
+                                                Layout.topMargin: 1
+                                                name: "info"
+                                                size: 12
+                                                color: Theme.textSecondary
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: r.note ? r.note : ""
+                                                color: Theme.textSecondary
+                                                font.pixelSize: Theme.fontCaption
+                                                wrapMode: Text.WordWrap
+                                            }
+                                        }
+
                                         ThinBar {
                                             Layout.fillWidth: true
                                             fraction: (r.percent || 0) / 100
@@ -896,7 +919,7 @@ Item {
                                             // corner; one size whether the cover is there or not.
                                             Thumb {
                                                 picture: entry.d.thumb ? entry.d.thumb.picture : ""
-                                                icon: c.kind === "pack" ? "package" : "disc"
+                                                icon: c.kind === "pack" ? "package" : c.kind === "extract" ? "archive" : "disc"
                                                 stage: j.stage || ""
                                                 percent: j.percent || 0
                                                 waiting: j.waiting === true
@@ -916,7 +939,8 @@ Item {
                                                     Layout.fillWidth: true
                                                     spacing: 6
                                                     Text {
-                                                        text: c.platform === "ps2" ? "PS2" : c.platform === "ps1" ? "PS1" : "PS4"
+                                                        text: c.platform === "ps2" ? "PS2" : c.platform === "ps1" ? "PS1"
+                                                            : c.platform === "ps5" ? "PS5" : "PS4"
                                                         color: Theme.textSecondary
                                                         font.family: Theme.fontMono
                                                         font.pixelSize: Theme.fontCaption
@@ -931,6 +955,16 @@ Item {
                                                         elide: Text.ElideRight
                                                     }
                                                 }
+                                            }
+                                            RowButton {
+                                                Layout.alignment: Qt.AlignTop
+                                                // An archive stopped by its password: asked for here, then again.
+                                                visible: c.state === "error" && c.needsPassword === true
+                                                iconName: "lock"
+                                                hint: c.wrongPassword ? qsTr("Type the password again") : qsTr("Type the password")
+                                                onClicked: archivePassword.ask(c.title, c.wrongPassword, function (password) {
+                                                    games.retryWithPassword(c.id, password)
+                                                })
                                             }
                                             RowButton {
                                                 Layout.alignment: Qt.AlignTop
@@ -996,6 +1030,29 @@ Item {
                                                         elide: Text.ElideRight
                                                     }
                                                 }
+                                            }
+                                        }
+
+                                        // A PS5 package made here: what Titan Core does
+                                        // with it, or what starts it on this firmware.
+                                        RowLayout {
+                                            readonly property string note: (c.transfer || {}).note || ""
+                                            Layout.fillWidth: true
+                                            visible: note.length > 0
+                                            spacing: 6
+                                            Icon {
+                                                Layout.alignment: Qt.AlignTop
+                                                Layout.topMargin: 1
+                                                name: "info"
+                                                size: 12
+                                                color: Theme.textSecondary
+                                            }
+                                            Text {
+                                                Layout.fillWidth: true
+                                                text: parent.note
+                                                color: Theme.textSecondary
+                                                font.pixelSize: Theme.fontCaption
+                                                wrapMode: Text.WordWrap
                                             }
                                         }
 
@@ -1280,7 +1337,7 @@ Item {
         var pct = function (v) { return Math.floor(v || 0) }
         var text = ""
         switch (stage) {
-        case "waiting": text = qsTr("Waiting to convert"); break
+        case "waiting": text = c.kind === "extract" ? qsTr("Waiting to extract") : qsTr("Waiting to convert"); break
         case "converting":
             text = c.stage === "fetch" ? qsTr("Bringing it from the console… %1%").arg(pct(c.percent))
                  : c.stage === "download" ? qsTr("Downloading the emulator files… %1%").arg(pct(c.percent))
@@ -1288,9 +1345,15 @@ Item {
                  : c.stage === "cover" ? qsTr("Getting the cover…")
                  : c.stage === "digest" || c.stage === "finish"
                  ? qsTr("Signing… %1%").arg(pct(c.percent))
+                 : c.kind === "join" || c.stage === "join" ? qsTr("Joining the parts… %1%").arg(pct(c.percent))
+                 : c.kind === "extract" ? qsTr("Extracting… %1%").arg(pct(c.percent))
+                 : c.image ? qsTr("Making the image… %1%").arg(pct(c.percent))
                  : c.kind === "pack" ? qsTr("Packing… %1%").arg(pct(c.percent))
                  : qsTr("Converting… %1%").arg(pct(c.percent)); break
-        case "converted": text = !c.send ? qsTr("Package ready")
+        case "converted": text = !c.send ? (c.image ? qsTr("Image ready") : qsTr("Package ready"))
+                                : c.image ? qsTr("Image made — sending next")
+                                : c.kind === "join" ? qsTr("Parts joined — sending next")
+                                : c.kind === "extract" ? qsTr("Extracted — sending next")
                                 : c.kind === "pack" ? qsTr("Packed — sending next") : qsTr("Converted — sending next"); break
         case "sending":
             text = t.waiting ? qsTr("Waiting to send") : qsTr("Sending to the console… %1%").arg(pct(t.percent)); break
@@ -1309,7 +1372,8 @@ Item {
                     : stage === "installed" ? 3 : -1
         var failedAt = c.state === "error" ? 0 : c.state === "cancelled" ? 0
                      : (t.stage === "error" || t.stage === "cancelled") ? (t.mode === "install" ? 2 : 1) : -1
-        var labels = [c.kind === "pack" ? qsTr("Pack") : qsTr("Convert"), qsTr("Send"), qsTr("Install")]
+        var labels = [c.image ? qsTr("Image") : c.kind === "pack" ? qsTr("Pack") : c.kind === "join" ? qsTr("Join") : c.kind === "extract" ? qsTr("Extract") : qsTr("Convert"), qsTr("Send"),
+                      qsTr("Install")]
         // Over, and well: the package made (and no more asked), on the
         // console, or installed. The card goes green.
         var done = stage === "installed" || stage === "sent" || (stage === "converted" && !c.send)
@@ -1348,4 +1412,6 @@ Item {
                  taskId: t.taskId || "",
                  message: c.message && c.message.length > 0 ? c.message : (stage === "error" ? (t.message || "") : "") }
     }
+
+    ArchivePasswordDialog { id: archivePassword }
 }

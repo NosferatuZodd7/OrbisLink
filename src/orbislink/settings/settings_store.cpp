@@ -111,7 +111,6 @@ std::string Settings::toJson() const
 	root.set("http_port", Json::fromInt(httpPort));
 	root.set("http_bind_address", Json::fromString(httpBindAddress));
 	root.set("restrict_to_console_ip", Json::fromBool(restrictToConsoleIp));
-	root.set("firewall_notice_shown", Json::fromBool(firewallNoticeShown));
 	root.set("ftp_max_connections", Json::fromInt(ftpMaxConnections));
 	root.set("ftp_advanced_mode", Json::fromBool(ftpAdvancedMode));
 	root.set("stream_resolution", Json::fromInt(streamResolution));
@@ -179,7 +178,10 @@ std::string Settings::toJson() const
 	root.set("first_run_done", Json::fromBool(firstRunDone));
 	root.set("games_folder", Json::fromString(gamesFolder));
 	root.set("convert_output_folder", Json::fromString(convertOutputFolder));
+	if(!packwrightPath.empty())
+		root.set("packwright_path", Json::fromString(packwrightPath));
 	root.set("keep_converted_packages", Json::fromBool(keepConvertedPackages));
+	root.set("auto_save_backup", Json::fromBool(autoSaveBackup));
 	root.set("install_storage", Json::fromString(installStorage));
 	root.set("save_vault_folder", Json::fromString(saveVaultFolder));
 	Json places = Json::makeArray();
@@ -290,7 +292,6 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.httpPort = static_cast<uint16_t>(root["http_port"].toInt(settings.httpPort));
 	settings.httpBindAddress = root["http_bind_address"].toString(settings.httpBindAddress);
 	settings.restrictToConsoleIp = root["restrict_to_console_ip"].toLooseBool(settings.restrictToConsoleIp);
-	settings.firewallNoticeShown = root["firewall_notice_shown"].toLooseBool(settings.firewallNoticeShown);
 	settings.ftpMaxConnections = static_cast<int>(root["ftp_max_connections"].toInt(settings.ftpMaxConnections));
 	settings.ftpAdvancedMode = root["ftp_advanced_mode"].toLooseBool(settings.ftpAdvancedMode);
 	settings.streamResolution =
@@ -378,7 +379,9 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.firstRunDone = root["first_run_done"].toLooseBool(settings.firstRunDone);
 	settings.gamesFolder = root["games_folder"].toString(settings.gamesFolder);
 	settings.convertOutputFolder = root["convert_output_folder"].toString(settings.convertOutputFolder);
+	settings.packwrightPath = root["packwright_path"].toString(settings.packwrightPath);
 	settings.keepConvertedPackages = root["keep_converted_packages"].toLooseBool(settings.keepConvertedPackages);
+	settings.autoSaveBackup = root["auto_save_backup"].toLooseBool(settings.autoSaveBackup);
 	settings.installStorage = root["install_storage"].toString(settings.installStorage);
 	if(settings.installStorage != "usb" && settings.installStorage != "ext")
 		settings.installStorage = "internal";
@@ -590,14 +593,14 @@ bool SettingsStore::save(const Settings &settings) const
 	const size_t slash = path_.find_last_of("/\\");
 	if(slash != std::string::npos)
 		ensureDirectory(path_.substr(0, slash));
-	std::ofstream file(path_, std::ios::binary | std::ios::trunc);
-	if(!file)
+	// Through a temporary file: a crash halfway through must not leave
+	// the settings empty.
+	if(!writeFileReplacing(path_, settings.toJson()))
 	{
 		logError("Could not save the settings to " + path_);
 		return false;
 	}
-	file << settings.toJson();
-	return file.good();
+	return true;
 }
 
 std::string SettingsStore::defaultDirectory()

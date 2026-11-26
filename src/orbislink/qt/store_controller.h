@@ -229,7 +229,6 @@ private:
 	QVariantMap sourceFor(const StoreSource &source, const store::StoreApp *folder,
 		const store::HbStoreApp *package) const;
 	void publish();
-	void readInstalled(const std::string &address);
 	void startWork(const QString &titleId, const QString &what, const QString &kind, std::function<void()> work);
 	// The job under way takes these fields.
 	void updateJob(const QVariantMap &fields);
@@ -243,6 +242,10 @@ private:
 		const std::string &address, const QString &console, const FtpClient::Config &config, const std::string &cache,
 		const std::string &version);
 	void finishInstall(const std::string &id, const QString &message, bool error, const std::string &version);
+	// On the window's thread: the job under way is over, and says how it went.
+	void endWork(const QString &message, bool error);
+	// On the window's thread: the details of the app in `pending`, read.
+	void readDetails(const QVariantMap &pending);
 
 
 	AppController *app_;
@@ -258,17 +261,23 @@ private:
 	// What the console has under /user/app, with the version of those a
 	// store has (as the console says it, "01.08").
 	std::map<std::string, std::string> installedPackages_;
-	bool installedKnown_ = false;
 	bool addingStore_ = false;
 	std::thread adder_;
 	QVariantList apps_;
 	bool loading_ = false;
+	// Asked to read again while reading (another console chosen, a store
+	// turned on): it does once this reading ends.
+	bool refreshAgain_ = false;
 	QString error_;
 	int countsDone_ = 0;
 	int countsTotal_ = 0;
 	bool countsWaiting_ = false;
 	bool offline_ = false;
 	QVariantMap detail_;
+	// The details being read, and the latest asked for meanwhile (read once
+	// those end: the window never waits on the catalog).
+	bool detailing_ = false;
+	QVariantMap nextDetail_;
 	QString working_;
 	QString stage_;
 	double progress_ = 0.0;
@@ -279,8 +288,14 @@ private:
 	QString meterStage_;
 	std::deque<std::pair<int64_t, int64_t>> samples_;
 	int64_t lastPostMs_ = 0;
+	// The install or removal under way is cancelled.
 	std::atomic<bool> cancel_ { false };
+	// The reading under way stops: another one starts (it waits for the
+	// stores to be read, and stops the pictures and counts), or the window
+	// closes. Not the install's cancel: that one leaves the reading be.
 	std::atomic<bool> stopIcons_ { false };
+	// The window closes: every worker stops.
+	std::atomic<bool> closing_ { false };
 	std::thread loader_;
 	std::thread detailer_;
 	std::thread worker_;

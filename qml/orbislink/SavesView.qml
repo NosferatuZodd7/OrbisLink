@@ -145,7 +145,6 @@ Item {
         }
         return out
     }
-    readonly property bool manyOwners: groups.length > 1
 
     // The consoles saves can go to: the ones whose FTP answers.
     readonly property var targets: {
@@ -257,6 +256,16 @@ Item {
         return list.length > 0
     }
     readonly property bool allShownPicked: allPicked(shown)
+    // How many of the list are selected.
+    function pickedOf(list) {
+        var n = 0
+        for (var i = 0; i < list.length; ++i)
+            if (selected[list[i].key] === true)
+                ++n
+        return n
+    }
+    readonly property int shownPicked: pickedOf(shown)
+
     // Selects every save of the list, whatever else is selected already;
     // when they all are, unselects them.
     function pickAll(list) {
@@ -896,18 +905,47 @@ Item {
                 }
             }
             Item { Layout.fillWidth: true }
-            // Everything shown, even with some selected already; once it
-            // all is, nothing at all.
+            // The box says what is selected, as a checkbox does: empty
+            // (none: a click selects all), ticked (all: a click selects
+            // none), a dash (some: how many, and a choice of all or none).
             StyledButton {
+                id: pickButton
                 chip: true
-                iconName: root.allShownPicked ? "square" : "square-check"
-                text: root.allShownPicked ? qsTr("Select none") : qsTr("Select all")
+                readonly property bool none: root.shownPicked === 0
+                iconName: root.allShownPicked ? "square-check" : none ? "square" : "square-minus"
+                text: root.allShownPicked ? qsTr("Select none")
+                    : none ? qsTr("Select all")
+                    : qsTr("%n selected", "", root.shownPicked)
                 enabled: root.shown.length > 0
                 onClicked: {
                     if (root.allShownPicked)
                         root.selected = ({})
-                    else
+                    else if (none)
                         root.pickAll(root.shown)
+                    else
+                        pickMenu.popup(pickButton, pickButton.width - 200, pickButton.height + 4)
+                }
+                Menu {
+                    id: pickMenu
+                    topPadding: 6
+                    bottomPadding: 6
+                    background: Plate {
+                        implicitWidth: 200
+                        level: "secondary"
+                        radius: 16
+                        color: Theme.menuFill
+                        border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
+                    }
+                    StyledMenuItem {
+                        text: qsTr("Select all")
+                        iconName: "square-check"
+                        onTriggered: root.pickAll(root.shown)
+                    }
+                    StyledMenuItem {
+                        text: qsTr("Select none")
+                        iconName: "square"
+                        onTriggered: root.selected = ({})
+                    }
                 }
             }
         }
@@ -1039,10 +1077,14 @@ Item {
                                 StyledButton {
                                     readonly property var mine: root.shownByGame[entry.modelData.titleId] || []
                                     readonly property bool all: root.allPicked(mine)
+                                    readonly property int some: root.pickedOf(mine)
                                     chip: true
-                                    iconName: all ? "square" : "square-check"
+                                    // As a checkbox: empty, ticked, or a dash
+                                    // with how many of the game's are.
+                                    iconName: all ? "square-check" : some > 0 ? "square-minus" : "square"
                                     text: all ? qsTr("Unselect %n", "", mine.length)
-                                              : qsTr("Select %n", "", mine.length)
+                                        : some > 0 ? qsTr("%1 of %2").arg(some).arg(mine.length)
+                                        : qsTr("Select %n", "", mine.length)
                                     enabled: mine.length > 0
                                     ToolTip.visible: hovered
                                     ToolTip.text: all ? qsTr("Unselect every save of this game")

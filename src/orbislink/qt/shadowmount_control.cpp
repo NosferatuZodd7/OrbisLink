@@ -12,13 +12,18 @@
 #include <QDir>
 #include <QFile>
 
+#include <mutex>
+
 namespace orbislink {
 namespace shadowmount {
 
 bool ask(const std::string &address, const std::string &route, const std::string &body)
 {
-	// Its API listens only on the PS5 itself unless "allow LAN access" is on;
-	// then this goes straight to it. A short wait: most do not answer.
+	// Its API (port 10101, since 1.7) listens on any address by default, so
+	// this goes straight to it; with "allow LAN access" off, or
+	// api_bind_address=127.0.0.1, it listens only on the PS5 itself and does
+	// not answer here, nor does a version before 1.7. A short wait: the caller
+	// then starts it again instead.
 	HttpClient http(3000);
 	const HttpResponse response = http.post("http://" + address + ":10101" + route, body);
 	return response.transportOk && response.status == 200;
@@ -26,6 +31,10 @@ bool ask(const std::string &address, const std::string &route, const std::string
 
 bool restart(const FtpClient::Config &config, const std::string &address, const std::atomic<bool> *cancel)
 {
+	// One at a time: two images landing together (or a library mount meanwhile)
+	// would share the ELF's temporary file and start it twice.
+	static std::mutex running;
+	std::lock_guard<std::mutex> once(running);
 	// Its file on the console, where the payload managers keep it.
 	FtpClient ftp(config);
 	std::vector<std::string> folders = { "/data/etaHEN/payloads", "/data/etaHEN/plugins", "/data/ps5_autoloader",

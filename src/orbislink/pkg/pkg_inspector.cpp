@@ -2,6 +2,7 @@
 #include "orbislink/pkg/pkg_inspector.h"
 
 #include "orbislink/common/bytes.h"
+#include "orbislink/common/json.h"
 #include "orbislink/common/log.h"
 #include "orbislink/common/tr.h"
 #include "orbislink/common/util.h"
@@ -40,6 +41,36 @@ bool readAt(std::ifstream &file, int64_t offset, void *buffer, size_t size)
 		return false;
 	file.read(reinterpret_cast<char *>(buffer), static_cast<std::streamsize>(size));
 	return static_cast<size_t>(file.gcount()) == size;
+}
+
+// A PS5 param.json: its title (in the default language), IDs, version and
+// the system software it needs ("0x0960000000000000" is 9.60).
+void readParamJson(const std::string &text, PkgInfo *info)
+{
+	std::string error;
+	const Json root = Json::parse(text, &error);
+	if(!root.isObject())
+		return;
+	const std::string titleId = root["titleId"].toString();
+	if(!titleId.empty())
+		info->titleId = titleId;
+	const std::string contentId = root["contentId"].toString();
+	if(!contentId.empty())
+		info->contentId = contentId;
+	info->appVersion = root["contentVersion"].toString(info->appVersion);
+	const Json &localized = root["localizedParameters"];
+	const std::string language = localized["defaultLanguage"].toString("en-US");
+	std::string title = localized[language]["titleName"].toString();
+	if(title.empty())
+		title = localized["en-US"]["titleName"].toString();
+	if(!title.empty())
+		info->title = title;
+	const std::string required = root["requiredSystemSoftwareVersion"].toString();
+	if(required.size() > 2 && (required.rfind("0x", 0) == 0 || required.rfind("0X", 0) == 0))
+	{
+		const unsigned long long value = std::strtoull(required.c_str() + 2, nullptr, 16);
+		info->requiredFirmware = static_cast<uint16_t>(value >> 48);
+	}
 }
 
 } // namespace
@@ -189,6 +220,48 @@ PkgInfo PkgInspector::inspect(const std::string &path, int64_t size, const ByteR
 		return info;
 	}
 
+	// A PS5 package: "\x7FFIH" (or "\x7FLIH", a scene backport). Its
+	// details live in a PS4-style container ("\x7FCNT") further in, whose
+	// place the header gives (0x58, little-endian; 0x30 in a backport) —
+	// read like a PS4 package, from there on.
+	const bool fih = header[kOffMagic] == 0x7F && header[kOffMagic + 1] == 'F' && header[kOffMagic + 2] == 'I'
+		&& header[kOffMagic + 3] == 'H';
+	const bool lih = header[kOffMagic] == 0x7F && header[kOffMagic + 1] == 'L' && header[kOffMagic + 2] == 'I'
+		&& header[kOffMagic + 3] == 'H';
+	if(fih || lih)
+	{
+		const uint64_t inner = readLE64(header.data() + (fih ? 0x58 : 0x30));
+		const bool official = fih && header[5] == 0x80;
+		uint8_t magic[4] = { 0, 0, 0, 0 };
+		const bool hasInner = inner > 0 && size >= kMinPkgSize && inner <= static_cast<uint64_t>(size - kMinPkgSize)
+			&& read(static_cast<int64_t>(inner), magic, 4) && magic[0] == 0x7F && magic[1] == 'C' && magic[2] == 'N'
+			&& magic[3] == 'T';
+		if(!hasInner)
+		{
+			info.ps5 = true;
+			info.official = official;
+			info.error = official
+				? QT_TRANSLATE_NOOP("Messages", "An official PS5 store package (encrypted): a jailbroken PS5 installs "
+					"fake packages (fpkg), not this.")
+				: QT_TRANSLATE_NOOP("Messages", "A PS5 package whose details could not be read.");
+			return info;
+		}
+		const int64_t base = static_cast<int64_t>(inner);
+		PkgInfo ps5 = inspect(path, size - base, [&read, base](int64_t offset, void *buffer, size_t length) {
+			return read(base + offset, buffer, length);
+		});
+		ps5.path = path;
+		ps5.fileSize = size;
+		ps5.declaredSize = 0;
+		ps5.ps5 = true;
+		ps5.backport = lih;
+		ps5.official = official;
+		// What is inside has no PS4 type to go by: a game unless it says otherwise.
+		if(ps5.valid && ps5.kind == PkgCategory::Unknown)
+			ps5.kind = PkgCategory::Game;
+		return ps5;
+	}
+
 	if(!(header[kOffMagic] == 0x7F && header[kOffMagic + 1] == 'C' && header[kOffMagic + 2] == 'N'
 		   && header[kOffMagic + 3] == 'T'))
 	{
@@ -200,7 +273,7 @@ PkgInfo PkgInspector::inspect(const std::string &path, int64_t size, const ByteR
 		const unsigned platform = older ? (static_cast<unsigned>(header[4]) << 8) | header[5] : 0;
 		info.error = older && platform == 1 ? QT_TRANSLATE_NOOP("Messages", "A PS3 package, not a PS4 one.")
 			: older && platform == 2 ? QT_TRANSLATE_NOOP("Messages", "A PSP or PS Vita package, not a PS4 one.")
-			: QT_TRANSLATE_NOOP("Messages", "Not a valid PS4 pkg.");
+			: QT_TRANSLATE_NOOP("Messages", "Not a valid PS4 or PS5 package.");
 		return info;
 	}
 
@@ -249,7 +322,7 @@ PkgInfo PkgInspector::inspect(const std::string &path, int64_t size, const ByteR
 		return info;
 	}
 
-	int64_t sfoOffset = -1, sfoSize = 0, iconOffset = -1, iconSize = 0;
+	int64_t sfoOffset = -1, sfoSize = 0, iconOffset = -1, iconSize = 0, jsonOffset = -1, jsonSize = 0;
 	for(uint32_t i = 0; i < entryCount; ++i)
 	{
 		const uint8_t *entry = table.data() + static_cast<size_t>(i) * kTableEntrySize;
@@ -266,6 +339,20 @@ PkgInfo PkgInspector::inspect(const std::string &path, int64_t size, const ByteR
 			iconOffset = entryOffset;
 			iconSize = entrySize;
 		}
+		else if(id == kEntryIdParamJson)
+		{
+			jsonOffset = entryOffset;
+			jsonSize = entrySize;
+		}
+	}
+
+	// A PS5 package's details: param.json, where a PS4's PARAM.SFO is.
+	if(sfoOffset < 0 && jsonOffset >= 0 && jsonSize > 0 && jsonOffset + jsonSize <= size
+		&& static_cast<size_t>(jsonSize) <= options_.maxSfoBytes)
+	{
+		std::string text(static_cast<size_t>(jsonSize), '\0');
+		if(read(jsonOffset, text.data(), text.size()))
+			readParamJson(text, &info);
 	}
 
 	// Missing metadata does not invalidate the pkg (§5.2): it becomes "(untitled)".

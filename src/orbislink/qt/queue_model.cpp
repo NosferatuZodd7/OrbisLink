@@ -2,6 +2,7 @@
 #include "orbislink/qt/queue_model.h"
 
 #include "orbislink/common/util.h"
+#include "orbislink/library/console_library.h"
 #include "orbislink/qt/translate_message.h"
 
 #include <QDir>
@@ -39,6 +40,7 @@ QHash<int, QByteArray> QueueModel::roleNames() const
 		{ CanMoveDownRole, "canMoveDown" },
 		{ FirmwareRole, "firmware" },
 		{ WarningRole, "warning" },
+		{ NoteRole, "note" },
 	};
 }
 
@@ -69,6 +71,7 @@ QVariant QueueModel::data(const QModelIndex &index, int role) const
 		case IconRole: return icons_.value(row.id);
 		case FirmwareRole: return firmware_.value(row.id);
 		case WarningRole: return warnings_.value(row.id);
+		case NoteRole: return notes_.value(row.id);
 		default: return {};
 	}
 }
@@ -137,6 +140,7 @@ QVariantList QueueModel::rows() const
 		map[QStringLiteral("iconSource")] = icons_.value(row.id);
 		map[QStringLiteral("firmware")] = firmware_.value(row.id);
 		map[QStringLiteral("warning")] = warnings_.value(row.id);
+		map[QStringLiteral("note")] = notes_.value(row.id);
 		map[QStringLiteral("totalBytes")] = static_cast<double>(row.totalBytes);
 		map[QStringLiteral("doneBytes")] = static_cast<double>(row.totalBytes - row.remainingBytes);
 		map[QStringLiteral("bytesPerSecond")] = row.bytesPerSecond;
@@ -153,31 +157,6 @@ QString QueueModel::totalSpeedText() const
 	return QString::fromStdString(humanBytes(static_cast<int64_t>(total))) + QStringLiteral("/s");
 }
 
-QString QueueModel::remainingText() const
-{
-	const double remaining = bytesLeft();
-	if(remaining <= 0)
-		return QStringLiteral("—");
-	return QString::fromStdString(humanBytes(static_cast<int64_t>(remaining)));
-}
-
-QString QueueModel::totalText() const
-{
-	const double total = bytesTotal();
-	if(total <= 0)
-		return QStringLiteral("—");
-	return QString::fromStdString(humanBytes(static_cast<int64_t>(total)));
-}
-
-int QueueModel::shownCount(const QVariantMap &followed) const
-{
-	int shown = 0;
-	for(const Row &row : rows_)
-		if(!row.superseded && !followed.value(row.localKey).toBool())
-			++shown;
-	return shown;
-}
-
 void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
 {
 	QVector<Row> rows;
@@ -189,6 +168,21 @@ void QueueModel::applySnapshot(const std::vector<QueueTask> &tasks)
 		row.title = QString::fromStdString(task.title);
 		row.titleId = QString::fromStdString(task.titleId);
 		row.category = translateMessage(pkgCategoryLabel(task.category));
+		// A file that is no package says what it is instead of "Unknown".
+		if(task.category == PkgCategory::Unknown)
+		{
+			const std::string &path = task.localPath.empty() ? task.remotePath : task.localPath;
+			const std::string name = path.substr(path.find_last_of("/\\") + 1);
+			switch(library::kindOf(name, false, task.totalBytes))
+			{
+				case library::Kind::Image: row.category = tr("PS5 game image"); break;
+				case library::Kind::Disc: row.category = tr("Disc image"); break;
+				case library::Kind::Payload: row.category = tr("Payload"); break;
+				case library::Kind::Archive: row.category = tr("Archive"); break;
+				case library::Kind::Package: break;
+				default: row.category = tr("File");
+			}
+		}
 		row.state = QString::fromUtf8(taskStateName(task.state));
 		row.stateLabel = translateMessage(taskStateLabel(task.state));
 		row.percent = task.percent();
@@ -299,6 +293,25 @@ void QueueModel::setPackageFacts(const QString &taskId, const QString &firmware,
 		if(rows_[i].id == taskId)
 		{
 			emit dataChanged(index(i), index(i), { FirmwareRole, WarningRole });
+			emit rowsChanged();
+			break;
+		}
+	}
+}
+
+void QueueModel::setNote(const QString &taskId, const QString &note)
+{
+	if(notes_.value(taskId) == note)
+		return;
+	if(note.isEmpty())
+		notes_.remove(taskId);
+	else
+		notes_.insert(taskId, note);
+	for(int i = 0; i < rows_.size(); ++i)
+	{
+		if(rows_[i].id == taskId)
+		{
+			emit dataChanged(index(i), index(i), { NoteRole });
 			emit rowsChanged();
 			break;
 		}

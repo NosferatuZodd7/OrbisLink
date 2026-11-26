@@ -121,6 +121,12 @@ if [ -n "${ORBISLINK_GUI_DIR:-}" ] && [ -d "$ORBISLINK_GUI_DIR" ]; then
 	echo "    including the graphical interface from $ORBISLINK_GUI_DIR"
 	mkdir -p "$STAGE/gui"
 	cp -r "$ORBISLINK_GUI_DIR"/. "$STAGE/gui/"
+	# 7-Zip beside it (gui\7-Zip), which it runs to open the archives games
+	# come in: nothing else to install. ORBISLINK_NO_7ZIP=1 leaves it out.
+	if [ -z "${ORBISLINK_NO_7ZIP:-}" ]; then
+		ORBISLINK_7ZIP_CACHE="${ORBISLINK_7ZIP_CACHE:-$REPO/build-7zip}" \
+			"$REPO/scripts/fetch-7zip.sh" windows "$STAGE/gui/7-Zip"
+	fi
 	GUI_DEFINE=("-DINCLUDE_GUI=1")
 fi
 

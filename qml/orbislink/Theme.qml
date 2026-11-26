@@ -36,7 +36,6 @@ QtObject {
 
     // ── The floating panes: navigation, toolbar, transfers. Primary glass.
     property color sidebar: "#26262A"
-    readonly property color sidebarFill: Qt.rgba(sidebar.r, sidebar.g, sidebar.b, glassPrimary)
     // Champagne: what is chosen, the small capitals over a title. A chosen
     // jailbreak colour does not move it. (Named brass for the components
     // that already use it.)
@@ -49,7 +48,6 @@ QtObject {
     property real glassSubtle: 0.06
     // The luminous edge: brightest along the top, where the light falls.
     readonly property color glassStrokeTop: light ? Qt.rgba(1, 1, 1, 0.95) : Qt.rgba(1, 1, 1, glassBorder + 0.12)
-    readonly property color glassStrokeBottom: light ? Qt.rgba(1, 1, 1, 0.45) : Qt.rgba(1, 1, 1, glassBorder * 0.45)
 
     // ── Surfaces
     // "panel" is the base colour of the plates, menus and dialogs;
@@ -121,7 +119,6 @@ QtObject {
     property int radius: 18          // cards and plates
     readonly property int radiusWindow: 34 // the one pane the application sits in
     readonly property int radiusPane: 24  // the panes inside it
-    property int radiusControl: 18   // buttons: half their height
     property int radiusSmall: 12     // rows and the containers of chips
     readonly property int radiusField: 12
     readonly property int radiusDialog: 24
@@ -182,7 +179,6 @@ QtObject {
     readonly property int slow: 380
     readonly property int easeOut: Easing.OutCubic
     readonly property int easeSpring: Easing.OutBack
-    readonly property real hoverScale: 1.02
     readonly property real pressScale: 0.97
 
     // ── Over the video
@@ -195,8 +191,6 @@ QtObject {
 
     // ── The stage, with no picture
     property color stageIdle: "#0D2234"
-    readonly property color onIdleStage: text
-    readonly property color onIdleStageMuted: textSecondary
 
     // ── Console card
     property color cardTop: "#17344F"
@@ -206,20 +200,13 @@ QtObject {
     // A console with a jailbreak: the same card, warmed in brass.
     property color cardHenBottom: "#32301F"
     property color cardHenActiveBottom: "#463F25"
-    readonly property color cardText: text
-    readonly property color cardTextMuted: textSecondary
     readonly property color cardEdge: glassEdge
-    readonly property color cardBlue: accent
-    readonly property color cardGlow: accent
-    readonly property color cardAmber: warn
-    readonly property color cardRed: error
     readonly property int cardEase: 180
 
     // ── The colours the surfaces actually use
     readonly property color panelFill: Qt.rgba(panel.r, panel.g, panel.b, panelOpacity)
     readonly property color panelAltFill: Qt.rgba(panelAlt.r, panelAlt.g, panelAlt.b,
                                                   Math.min(1, panelOpacity + 0.12))
-    readonly property color glassSheen: Qt.rgba(1, 1, 1, glassHighlight)
     readonly property color accentFill: Qt.rgba(accent.r, accent.g, accent.b, accentSoftOpacity)
     readonly property color shadow: Qt.rgba(0, 0, 0, light ? 0.10 : 0.35)
     readonly property color dialogFill: Qt.rgba(panel.r, panel.g, panel.b, dialogOpacity)

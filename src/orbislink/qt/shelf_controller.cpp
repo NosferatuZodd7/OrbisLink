@@ -7,6 +7,7 @@
 #include "orbislink/payloads/payload_layout.h"
 #include "orbislink/pkg/pkg_inspector.h"
 #include "orbislink/qt/app_controller.h"
+#include "orbislink/qt/archive_tool.h"
 #include "orbislink/qt/games_controller.h"
 #include "orbislink/qt/library_controller.h"
 #include "orbislink/qt/payloads_controller.h"
@@ -28,6 +29,7 @@
 
 #include <algorithm>
 #include <deque>
+#include <filesystem>
 #include <map>
 #include <set>
 
@@ -45,7 +47,6 @@ using library::ShelfItem;
 
 namespace {
 
-const char *const kPs2Covers = "https://raw.githubusercontent.com/xlenore/ps2-covers/main/covers/default/%1.jpg";
 const char *const kPs1Covers = "https://raw.githubusercontent.com/xlenore/psx-covers/main/covers/default/%1.jpg";
 const QString kConsoleLibrary = QStringLiteral("console-library");
 const QString kConsoleInstalled = QStringLiteral("console-installed");
@@ -86,6 +87,43 @@ QString placeholderFor(const QString &kind, const QString &platform, bool appFol
 	if(kind == QLatin1String("archive"))
 		return QStringLiteral("archive");
 	return QStringLiteral("bd");
+}
+
+// The path with "/" between its names and none at the end ("/" stays).
+QString trimmedPath(const QString &path)
+{
+	QString clean = QDir::fromNativeSeparators(path);
+	while(clean.endsWith(QLatin1Char('/')) && clean.size() > 1)
+		clean.chop(1);
+	return clean;
+}
+
+// Its last name: "Games" for "D:\Games\".
+QString lastName(const QString &path)
+{
+	const QString clean = trimmedPath(path);
+	return clean.mid(clean.lastIndexOf(QLatin1Char('/')) + 1);
+}
+
+// A title card's files to copy into `folder`, its update and add-ons only
+// when asked.
+QVector<LibraryController::CopyItem> copyItemsOf(const QVariantMap &card, const QString &folder, bool updates,
+	bool addons)
+{
+	QVector<LibraryController::CopyItem> files;
+	for(const QVariant &entry : card.value(QStringLiteral("parts")).toList())
+	{
+		const QVariantMap part = entry.toMap();
+		LibraryController::CopyItem file;
+		file.what = part.value(QStringLiteral("what")).toString();
+		if((file.what == QLatin1String("update") && !updates) || (file.what == QLatin1String("addon") && !addons))
+			continue;
+		file.remote = part.value(QStringLiteral("path")).toString();
+		file.local = QDir(folder).filePath(part.value(QStringLiteral("fileName")).toString());
+		file.size = static_cast<qint64>(part.value(QStringLiteral("size")).toDouble());
+		files << file;
+	}
+	return files;
 }
 
 QString samePathKey(QString path)
@@ -347,7 +385,19 @@ ShelfController::ShelfController(AppController *app, GamesController *games, Lib
 				scanConsoleDrives();
 		}
 	});
-	connect(app_, &AppController::settingsChanged, this, [this]() { rebuildSources(); });
+	ps5_ = app_->installsFromConsole();
+	connect(app_, &AppController::settingsChanged, this, [this]() {
+		rebuildSources();
+		// What a card of this PC offers (install, mount, make a PS5 package)
+		// depends on the console in use: the folder open is read again.
+		const bool ps5 = app_->installsFromConsole();
+		if(ps5 == ps5_)
+			return;
+		ps5_ = ps5;
+		const Source *current = source(place_.sourceId);
+		if(current && current->where == QLatin1String("pc"))
+			loadPlace();
+	});
 	connect(consoleLibrary_, &LibraryController::itemsChanged, this, [this]() {
 		if(const Source *library = source(kConsoleLibrary))
 			refreshSourcePreview(*library);
@@ -448,6 +498,33 @@ library::DiscProbe ShelfController::probe() const
 		return games->classicTitle(QString::fromStdString(platform), QString::fromStdString(titleId)).toStdString();
 	};
 #endif
+	// What an archive holds, from 7-Zip, when there is one: the package in
+	// it and its first bytes. No password is tried (none is known yet).
+	const QString sevenZip = ArchiveTool::find();
+	if(!sevenZip.isEmpty())
+		probe.archive = [sevenZip](const std::string &path) {
+			library::DiscProbe::ArchiveLook look;
+			const QString archive = QString::fromStdString(path);
+			const library::ArchiveListing listing = ArchiveTool::list(sevenZip, archive, QString());
+			look.listed = !listing.entries.empty();
+			look.locked = listing.needsPassword || (listing.wrongPassword && listing.entries.empty())
+				|| library::contentsEncrypted(listing);
+			if(listing.entries.empty() && !look.locked)
+				look.problem = listing.error;
+			int64_t wholeSize = 0;
+			const library::ArchiveEntry *package = ArchiveTool::packageIn(listing, &wholeSize);
+			if(!package)
+				return look;
+			look.package = package->path;
+			look.packageSize = wholeSize;
+			if(!package->encrypted)
+			{
+				const QByteArray head = ArchiveTool::peek(sevenZip, archive, QString::fromStdString(package->path),
+					QString(), std::min<qint64>(package->size, 4 * 1024 * 1024));
+				look.head.assign(head.begin(), head.end());
+			}
+			return look;
+		};
 	return probe;
 }
 
@@ -567,12 +644,7 @@ void ShelfController::rebuildSources()
 			else if(isDriveRoot(item.path))
 				item.name = tr("This PC — %1").arg(QDir::toNativeSeparators(item.path));
 			else
-			{
-				QString clean = QDir::fromNativeSeparators(item.path);
-				while(clean.endsWith(QLatin1Char('/')) && clean.size() > 1)
-					clean.chop(1);
-				item.name = clean.mid(clean.lastIndexOf(QLatin1Char('/')) + 1);
-			}
+				item.name = lastName(item.path);
 		}
 		sources.push_back(item);
 	}
@@ -794,7 +866,8 @@ void ShelfController::refreshSourcePreview(const Source &item)
 		{
 			if(cancel->load())
 				return;
-			if(!library::shownOnShelf(entry) || (!entry.directory && tracks.count(toLower(entry.name))))
+			if(!library::shownOnShelf(entry) || (!entry.directory && tracks.count(toLower(entry.name)))
+				|| library::isLaterPkgPart(entry, folder) || library::isLaterArchiveVolume(entry, folder))
 				continue;
 			++count;
 			ShelfItem thing = library::quickItem(entry);
@@ -947,7 +1020,7 @@ void ShelfController::findCover(ShelfItem *item, const std::atomic<bool> *cancel
 	HttpClient::FetchOptions options;
 	options.headers = { "User-Agent: OrbisLink" };
 	options.cancel = cancel;
-	const QString url = QString::fromLatin1(item->platform == "ps2" ? kPs2Covers : kPs1Covers).arg(serial);
+	const QString url = QString::fromLatin1(item->platform == "ps2" ? GamesController::kPs2CoverUrl : kPs1Covers).arg(serial);
 	const HttpResponse reply = http.fetch(url.toStdString(), options);
 	const std::string &body = reply.body;
 	const bool picture = body.size() > 4
@@ -1016,6 +1089,16 @@ QVariantMap ShelfController::cardFor(const ShelfItem &item, const Source &from, 
 	card[QStringLiteral("where")] = from.where;
 	card[QStringLiteral("track")] = QString::fromStdString(item.trackPath);
 	card[QStringLiteral("count")] = -1;
+	// The first part of a split package: the parts and the whole size.
+	card[QStringLiteral("parts")] = item.parts;
+	card[QStringLiteral("partsProblem")] = item.partsProblem.empty() ? QString() : translateMessage(item.partsProblem);
+	if(item.parts > 0 && item.partsSize > 0)
+		card[QStringLiteral("sizeText")] = QString::fromStdString(humanBytes(item.partsSize));
+	// An archive: its volumes, the one missing, its password, its package.
+	card[QStringLiteral("volumes")] = item.volumes;
+	card[QStringLiteral("volumeMissing")] = QString::fromStdString(item.volumeMissing);
+	card[QStringLiteral("archiveLocked")] = item.archiveLocked;
+	card[QStringLiteral("archivePackage")] = QString::fromStdString(item.archivePackage);
 
 	QStringList actions;
 	QString note;
@@ -1072,10 +1155,35 @@ QVariantMap ShelfController::cardFor(const ShelfItem &item, const Source &from, 
 		switch(item.kind)
 		{
 			case Kind::Package:
-				if(item.readable)
-					actions << QStringLiteral("install") << QStringLiteral("send");
-				else
+				if(!item.readable)
 					note = tr("Not a package this can read.");
+				else if(item.parts > 0)
+				{
+					// Only the first part of a package: installing it alone
+					// fails on the console, so it is joined with the rest first.
+					if(item.partsProblem.empty() && canConvert)
+					{
+						if(platform != QLatin1String("ps5") || ps5)
+							actions << QStringLiteral("joinParts");
+						actions << QStringLiteral("joinPartsOnly");
+						note = platform == QLatin1String("ps5")
+							? tr("A PS5 package split into %n part(s): joined into one package on this PC by Packwright "
+								 "first (which checks its digests), then installed.", "", item.parts)
+							: tr("A package split into %n part(s): joined into one package on this PC first, then "
+								 "installed.", "", item.parts);
+					}
+					else
+						note = tr("A package split into parts that cannot be joined yet: %1")
+							.arg(translateMessage(item.partsProblem));
+				}
+				else if(platform == QLatin1String("ps5") && !ps5)
+				{
+					// A PS4 cannot install a PS5 package; it can hold a copy
+					// (the package's warning says why).
+					actions << QStringLiteral("send");
+				}
+				else
+					actions << QStringLiteral("install") << QStringLiteral("send");
 				break;
 			case Kind::Disc:
 				if(item.readable && canConvert && !platform.isEmpty())
@@ -1096,6 +1204,34 @@ QVariantMap ShelfController::cardFor(const ShelfItem &item, const Source &from, 
 				else if(platform == QLatin1String("ps4"))
 					note = tr("A PS4 app or game folder, not a package: it installs once it is made into a .pkg (a .gp4 "
 							  "beside it is the recipe for that, from the tool that made it).");
+				else if(platform == QLatin1String("ps5") && (item.kind == Kind::Image || item.appFolder)
+					&& (canConvert || (item.kind == Kind::Image && ps5)))
+				{
+					// An image goes as it is: one file that ShadowMountPlus
+					// mounts. A folder is made into one by Packwright first, or
+					// into a PS5 fake package the console installs. What goes to
+					// the console only with a PS5 in use; the rest is made here.
+					const bool image = item.kind == Kind::Image;
+					if(image && ps5)
+						actions << QStringLiteral("sendImage");
+					if(canConvert)
+					{
+						if(!image && ps5)
+							actions << QStringLiteral("imagePs5");
+						if(ps5)
+							actions << QStringLiteral("packPs5");
+						if(!image)
+							actions << QStringLiteral("imagePs5Only");
+						actions << QStringLiteral("packPs5Only");
+					}
+					note = image
+						? tr("A PS5 game image: copied to /data/homebrew on the PS5, where ShadowMountPlus mounts it and "
+							 "puts it on the home screen — or made into a PS5 fake package here (by Packwright) and "
+							 "installed.")
+						: tr("A PS5 game: made here (by Packwright) into one image that ShadowMountPlus mounts — much "
+							 "faster to send than the folder's files — or into a PS5 fake package the console "
+							 "installs.");
+				}
 				else
 					note = tr("A PS5 game: copy it to /data/homebrew on the PS5 (Files tab), where ShadowMountPlus finds it.");
 				break;
@@ -1103,8 +1239,37 @@ QVariantMap ShelfController::cardFor(const ShelfItem &item, const Source &from, 
 				actions << QStringLiteral("runPayload");
 				break;
 			case Kind::Archive:
-				note = tr("An archive: unpack it on the PC first; the console does not open them.");
+			{
+				// Extracted here by 7-Zip (and its parts joined), then installed.
+				const bool sevenZip = !games_->sevenZip().isEmpty();
+				const int volumes = std::max(1, item.volumes);
+				if(!item.volumeMissing.empty())
+					note = tr("An archive in %n volume(s), one of them missing (still downloading?): %1", "", volumes)
+						.arg(QString::fromStdString(item.volumeMissing));
+				else if(!sevenZip)
+					note = tr("An archive: 7-Zip, which comes with OrbisLink, extracts it, and it is missing here. "
+							  "Install OrbisLink again, or 7-Zip from 7-zip.org (free).");
+				else if(!canConvert)
+					note = tr("An archive: unpack it on the PC first; the console does not open them.");
+				else if(!item.archivePackage.empty() || item.archiveLocked || item.archiveProblem.empty())
+				{
+					if((!item.archivePackage.empty() || item.archiveLocked) && (platform != QLatin1String("ps5") || ps5))
+						actions << QStringLiteral("extract");
+					actions << QStringLiteral("extractOnly");
+					note = item.archiveLocked
+						? tr("An archive with a password (%n volume(s)): extracted here by 7-Zip once you give it, "
+							 "then installed.", "", volumes)
+						: item.archivePackage.empty()
+						? tr("An archive (%n volume(s)) with no package seen in it: extracted here by 7-Zip.", "",
+							volumes)
+						: tr("An archive (%n volume(s)) holding %1: extracted here by 7-Zip (its parts joined, when "
+							 "it is in parts), then installed.", "", volumes)
+							  .arg(QFileInfo(QString::fromStdString(item.archivePackage)).fileName());
+				}
+				else
+					note = tr("An archive 7-Zip cannot open yet: %1").arg(translateMessage(item.archiveProblem));
 				break;
+			}
 			case Kind::Other:
 				break;
 		}
@@ -1130,6 +1295,12 @@ void ShelfController::openPlace(const QString &sourceId, const QString &path)
 	place_.sourceId = sourceId;
 	place_.root = item->path;
 	place_.path = path.isEmpty() ? item->path : path;
+	// "New on this PC" is about the installed titles: elsewhere it would show nothing.
+	if(filter_ == QLatin1String("pending") && sourceId != kConsoleInstalled)
+	{
+		filter_ = QStringLiteral("all");
+		emit viewChanged();
+	}
 	all_.clear();
 	if(!query_.isEmpty())
 		query_.clear();
@@ -1252,7 +1423,8 @@ void ShelfController::loadPlace()
 		const library::FolderIndex folder(entries);
 		std::vector<const library::ShelfEntry *> shown;
 		for(const library::ShelfEntry &entry : entries)
-			if(library::shownOnShelf(entry) && !(!entry.directory && tracks.count(toLower(entry.name))))
+			if(library::shownOnShelf(entry) && !(!entry.directory && tracks.count(toLower(entry.name)))
+				&& !library::isLaterPkgPart(entry, folder) && !library::isLaterArchiveVolume(entry, folder))
 				shown.push_back(&entry);
 
 		// What it is from its name (or from what was found before), at once.
@@ -1325,6 +1497,12 @@ void ShelfController::loadPlace()
 				if(!thing.pictureFile.empty())
 					cache_->store(library::ShelfCache::keyOf(place, thing), &thing);
 			}
+			// A split package kept from before: its parts may have changed.
+			if(known[i] && thing.parts > 0)
+				library::checkPkgParts(&thing);
+			// So may an archive's volumes (one downloaded since).
+			if(known[i] && thing.volumes > 0)
+				library::checkArchiveVolumes(&thing);
 			batch << cardFor(thing, copy, installed, ps5);
 			if(flushed.elapsed() > 200)
 				flush();
@@ -1515,6 +1693,8 @@ bool ShelfController::matches(const QVariantMap &card) const
 		return false;
 	if(filter_ == QLatin1String("folders") && card.value(QStringLiteral("card")).toString() != QLatin1String("folder"))
 		return false;
+	if(filter_ == QLatin1String("pending") && !card.contains(QStringLiteral("pendingPaths")))
+		return false;
 	if(filter_ == QLatin1String("other")
 		&& (group == QLatin1String("games") || card.value(QStringLiteral("card")).toString() == QLatin1String("folder")))
 		return false;
@@ -1683,10 +1863,7 @@ QString ShelfController::title() const
 		return tr("Library");
 	if(samePathKey(place_.path) == samePathKey(place_.root))
 		return item->name;
-	QString clean = QDir::fromNativeSeparators(place_.path);
-	while(clean.endsWith(QLatin1Char('/')) && clean.size() > 1)
-		clean.chop(1);
-	return clean.mid(clean.lastIndexOf(QLatin1Char('/')) + 1);
+	return lastName(place_.path);
 }
 
 QVariantList ShelfController::crumbs() const
@@ -1710,12 +1887,6 @@ QVariantList ShelfController::crumbs() const
 			out << QVariantMap { { QStringLiteral("title"), part } };
 	}
 	return out;
-}
-
-QString ShelfController::placeKind() const
-{
-	const Source *item = source(place_.sourceId);
-	return item ? item->kind : QString();
 }
 
 void ShelfController::setQuery(const QString &query)
@@ -1978,9 +2149,7 @@ void ShelfController::back()
 		home();
 		return;
 	}
-	QString clean = QDir::fromNativeSeparators(place_.path);
-	while(clean.endsWith(QLatin1Char('/')) && clean.size() > 1)
-		clean.chop(1);
+	const QString clean = trimmedPath(place_.path);
 	QString parent = clean.left(clean.lastIndexOf(QLatin1Char('/')));
 	if(parent.isEmpty() || parent.endsWith(QLatin1Char(':')))
 		parent += QLatin1Char('/');
@@ -2054,6 +2223,26 @@ void ShelfController::act(int index, const QString &action)
 	actOn(card, action);
 }
 
+namespace {
+
+// The title an archive's job starts with: its package's, when it was read
+// (not the archive's own name).
+QString archiveTitle(const QVariantMap &card)
+{
+	return card.value(QStringLiteral("archivePackage")).toString().isEmpty()
+		? QString() : card.value(QStringLiteral("title")).toString();
+}
+
+} // namespace
+
+void ShelfController::extractWithPassword(int index, bool install, const QString &password)
+{
+	const QVariantMap card = rows_.card(index);
+	if(card.value(QStringLiteral("kind")).toString() != QLatin1String("archive"))
+		return;
+	games_->extractArchive(card.value(QStringLiteral("path")).toString(), archiveTitle(card), install, password);
+}
+
 void ShelfController::actOn(const QVariantMap &card, const QString &action)
 {
 	const QString path = card.value(QStringLiteral("path")).toString();
@@ -2066,6 +2255,26 @@ void ShelfController::actOn(const QVariantMap &card, const QString &action)
 	if(action == QLatin1String("uninstall") || action == QLatin1String("uninstallUpdate"))
 	{
 		consoleLibrary_->uninstall(card, action == QLatin1String("uninstallUpdate"));
+		return;
+	}
+	if(action.startsWith(QLatin1String("copyTo:")))
+	{
+		// Copied to this PC, then installed on that console.
+		const QString target = action.mid(7);
+		const QString folder = QDir(copyFolder()).filePath(card.value(QStringLiteral("copyFolderName")).toString());
+		const QVector<LibraryController::CopyItem> files = copyItemsOf(card, folder, true, true);
+		if(!files.isEmpty())
+			consoleLibrary_->copyToPc(card.value(QStringLiteral("title")).toString(),
+				card.value(QStringLiteral("picture")).toString(), folder, files, target);
+		return;
+	}
+	if(action == QLatin1String("installPending"))
+	{
+		// The update and add-ons of this PC the console does not have, to the
+		// queue together (it puts the update before the add-ons).
+		const QStringList paths = card.value(QStringLiteral("pendingPaths")).toStringList();
+		if(!paths.isEmpty())
+			app_->addPaths(paths, 0);
 		return;
 	}
 	if(card.value(QStringLiteral("where")).toString() == QLatin1String("console"))
@@ -2096,8 +2305,18 @@ void ShelfController::actOn(const QVariantMap &card, const QString &action)
 	}
 	else if(action == QLatin1String("convert") || action == QLatin1String("convertOnly"))
 		games_->convertFile(path, action == QLatin1String("convert"));
+	else if(action == QLatin1String("joinParts") || action == QLatin1String("joinPartsOnly"))
+		games_->joinParts(path, action == QLatin1String("joinParts"));
+	else if(action == QLatin1String("extract") || action == QLatin1String("extractOnly"))
+		games_->extractArchive(path, archiveTitle(card), action == QLatin1String("extract"));
 	else if(action == QLatin1String("pack") || action == QLatin1String("packOnly"))
 		games_->packFolder(path, action == QLatin1String("pack"));
+	else if(action == QLatin1String("packPs5") || action == QLatin1String("packPs5Only"))
+		games_->packPs5(path, action == QLatin1String("packPs5"));
+	else if(action == QLatin1String("imagePs5") || action == QLatin1String("imagePs5Only"))
+		games_->imagePs5(path, action == QLatin1String("imagePs5"));
+	else if(action == QLatin1String("sendImage"))
+		app_->sendTo(path, QStringLiteral("/data/homebrew/"), false);
 	else if(action == QLatin1String("runPayload"))
 		payloads_->sendFromPc(path, payloads_->portFor(name));
 	else if(action == QLatin1String("reveal"))
@@ -2132,14 +2351,15 @@ QString batchStep(const QVariantMap &card, const QString &action)
 	const QStringList actions = card.value(QStringLiteral("actions")).toStringList();
 	if(action == QLatin1String("install"))
 	{
-		for(const char *step : { "convert", "pack", "install" })
+		for(const char *step : { "convert", "pack", "joinParts", "extract", "sendImage", "packPs5", "install",
+				 "installPending" })
 			if(actions.contains(QLatin1String(step)))
 				return QLatin1String(step);
 		return QString();
 	}
 	if(action == QLatin1String("convertOnly"))
 	{
-		for(const char *step : { "convertOnly", "packOnly" })
+		for(const char *step : { "convertOnly", "packOnly", "joinPartsOnly", "extractOnly", "packPs5Only" })
 			if(actions.contains(QLatin1String(step)))
 				return QLatin1String(step);
 		return QString();
@@ -2161,7 +2381,9 @@ QVariantMap ShelfController::batchActions(const QStringList &keys) const
 			continue;
 		const QString step = batchStep(card, QStringLiteral("install"));
 		install += step.isEmpty() ? 0 : 1;
-		converts += step == QLatin1String("convert") || step == QLatin1String("pack") ? 1 : 0;
+		converts += step == QLatin1String("convert") || step == QLatin1String("pack") || step == QLatin1String("packPs5")
+				|| step == QLatin1String("joinParts") || step == QLatin1String("extract")
+			? 1 : 0;
 		convertOnly += batchStep(card, QStringLiteral("convertOnly")).isEmpty() ? 0 : 1;
 		copy += batchStep(card, QStringLiteral("copyToPc")).isEmpty() ? 0 : 1;
 		remove += batchStep(card, QStringLiteral("delete")).isEmpty() ? 0 : 1;
@@ -2218,7 +2440,8 @@ void ShelfController::actMany(const QStringList &keys, const QString &action)
 
 // ── what the console has installed ───────────────────────────────────────
 
-QVariantMap ShelfController::installedCard(const library::InstalledTitle &title, const Source &from, bool ps5) const
+QVariantMap ShelfController::installedCard(const library::InstalledTitle &title, const Source &from, bool ps5,
+	const QList<QPair<QString, QString>> &others) const
 {
 	ShelfItem item;
 	item.path = from.path.toStdString() + "/" + title.titleId;
@@ -2271,6 +2494,12 @@ QVariantMap ShelfController::installedCard(const library::InstalledTitle &title,
 	QStringList actions;
 	if(title.copyable())
 		actions << QStringLiteral("copyToPc");
+	// To another console, through this PC: a PS4 game to any other console
+	// (a PS5 runs PS4 games), a PS5 game to another PS5.
+	if(title.copyable())
+		for(const auto &other : others)
+			if(title.platform != "ps5" || other.second == QLatin1String("ps5"))
+				actions << QStringLiteral("copyTo:") + other.first;
 	// Cheats and game patches for it, from GoldHEN's and etaHEN's lists.
 	actions << QStringLiteral("cheats");
 	// Taken off the console through Remote Package Installer, a PS4's; the
@@ -2294,6 +2523,125 @@ QVariantMap ShelfController::installedCard(const library::InstalledTitle &title,
 	return card;
 }
 
+namespace {
+
+// The updates and add-ons in the folders of this PC (each place and three
+// levels of folders under it, so much of it), as their headers say: what an
+// installed title may lack.
+std::vector<library::PcPackage> pcExtras(const QStringList &roots, const std::atomic<bool> *cancel)
+{
+	namespace fs = std::filesystem;
+	// Each package read once while it stays the same (its size and date); a
+	// package no longer found in a whole walk is forgotten.
+	struct Known
+	{
+		int64_t size = 0;
+		int64_t time = 0;
+		bool extra = false;
+		library::PcPackage package;
+	};
+	static std::mutex knownMutex;
+	static std::map<std::string, Known> known;
+	std::vector<library::PcPackage> found;
+	std::set<std::string> seen;
+	for(const QString &root : roots)
+	{
+		// Each place its own share, so one big drive does not use it all.
+		int budget = 8000;
+		std::deque<std::pair<fs::path, int>> dirs { { fs::u8path(root.toStdString()), 0 } };
+		while(!dirs.empty() && budget > 0 && !cancel->load())
+		{
+			const auto [dir, depth] = dirs.front();
+			dirs.pop_front();
+			std::error_code ec;
+			for(fs::directory_iterator it(dir, fs::directory_options::skip_permission_denied, ec), end;
+				!ec && it != end && budget > 0 && !cancel->load(); it.increment(ec))
+			{
+				--budget;
+				const std::string name = it->path().filename().u8string();
+				if(name.empty() || name[0] == '.' || name[0] == '$')
+					continue;
+				std::error_code kind;
+				if(it->is_directory(kind))
+				{
+					if(depth < 3)
+						dirs.emplace_back(it->path(), depth + 1);
+					continue;
+				}
+				if(fileExtensionLower(name) != ".pkg")
+					continue;
+				const std::string path = it->path().u8string();
+				if(!seen.insert(path).second)
+					continue;
+				std::error_code stat;
+				const int64_t size = static_cast<int64_t>(it->file_size(stat));
+				const int64_t time = static_cast<int64_t>(it->last_write_time(stat).time_since_epoch().count());
+				{
+					std::lock_guard<std::mutex> lock(knownMutex);
+					const auto hit = known.find(path);
+					if(hit != known.end() && hit->second.size == size && hit->second.time == time)
+					{
+						if(hit->second.extra)
+							found.push_back(hit->second.package);
+						continue;
+					}
+				}
+				PkgInspector::Options options;
+				options.extractIcon = false;
+				const PkgInfo info = PkgInspector(options).inspect(path);
+				const std::string category = pkgCategoryCode(info.kind);
+				Known entry;
+				entry.size = size;
+				entry.time = time;
+				entry.extra = info.valid && (category == "gp" || category == "ac");
+				entry.package = { path, info.titleId, info.contentId, info.appVersion, category, info.fileSize };
+				{
+					std::lock_guard<std::mutex> lock(knownMutex);
+					known[path] = entry;
+				}
+				if(entry.extra)
+					found.push_back(entry.package);
+			}
+		}
+	}
+	// A walk cut short has not seen all of them.
+	if(!cancel->load())
+	{
+		std::lock_guard<std::mutex> lock(knownMutex);
+		for(auto it = known.begin(); it != known.end();)
+			it = seen.count(it->first) ? std::next(it) : known.erase(it);
+	}
+	return found;
+}
+
+} // namespace
+
+QVariantMap ShelfController::withPending(QVariantMap card, const library::InstalledTitle &title,
+	const std::vector<library::PcPackage> &packages) const
+{
+	const library::PendingExtras pending = library::pendingExtras(title, packages);
+	if(pending.empty())
+		return card;
+	QStringList paths;
+	QStringList said;
+	if(!pending.update.path.empty())
+	{
+		paths << QString::fromStdString(pending.update.path);
+		said << tr("update %1").arg(QString::fromStdString(pending.update.version));
+	}
+	for(const library::PcPackage &addon : pending.addons)
+		paths << QString::fromStdString(addon.path);
+	if(!pending.addons.empty())
+		said << tr("%n add-on(s)", "", static_cast<int>(pending.addons.size()));
+	card[QStringLiteral("pendingPaths")] = paths;
+	card[QStringLiteral("pendingUpdate")] = !pending.update.path.empty();
+	card[QStringLiteral("pendingText")] = said.join(QStringLiteral(" · "));
+	QStringList actions = card.value(QStringLiteral("actions")).toStringList();
+	actions.prepend(QStringLiteral("installPending"));
+	card[QStringLiteral("actions")] = actions;
+	return card;
+}
+
 void ShelfController::loadInstalled(bool forPlace)
 {
 	const Source *found = source(kConsoleInstalled);
@@ -2308,29 +2656,57 @@ void ShelfController::loadInstalled(bool forPlace)
 		}
 		all_ = installedCards_;
 		showCards();
-		setLoading(true);
+		// Once the titles are read they are all there; only "New on this PC"
+		// waits for this PC's places.
+		setLoading(!installedScanning_ || filter_ == QLatin1String("pending"));
 	}
-	if(installedReading_ || !found->available)
+	if(!found->available)
 		return;
+	if(installedReading_)
+	{
+		// A cancelled read ends without showing what it read: this one is
+		// made after it.
+		if(installedCancel_ && installedCancel_->load())
+			installedAgain_ = true;
+		return;
+	}
 	installedReading_ = true;
+	installedAgain_ = false;
 	const Source copy = *found;
 	const FtpClient::Config config = ftpConfig();
 	const std::string place = "installed:" + app_->settings().consoleAddress;
 	const bool ps5 = app_->installsFromConsole();
 	std::shared_ptr<std::atomic<bool>> cancel = sourcesCancel_;
-	post(forPlace, [this, copy, config, place, ps5, cancel]() {
+	installedCancel_ = cancel;
+	// The folders of this PC, for the updates and add-ons the console lacks:
+	// those in the search, the places of one's own first, whole drives last.
+	QStringList roots, later;
+	for(const Source &item : sources_)
+		if(item.where == QLatin1String("pc") && item.available && item.inSearch && !item.path.isEmpty())
+			(item.kind == QLatin1String("usb") || item.kind == QLatin1String("drive") ? later : roots) << item.path;
+	roots << later;
+	// The other consoles, for "Copy to…" (the list changes on this thread).
+	QList<QPair<QString, QString>> others;
+	const Settings &settings = app_->settings();
+	for(const ConsoleEntry &other : settings.consoles)
+		if(other.address != settings.consoleAddress && !other.address.empty())
+			others << qMakePair(QString::fromStdString(other.address), QString::fromStdString(other.type));
+	post(forPlace, [this, copy, config, place, ps5, cancel, roots, others]() {
 		FtpClient ftp(config);
 		library::FtpSource files(ftp);
 		QVariantList cards;
+		std::vector<library::InstalledTitle> titles;
 		QElapsedTimer flushed;
 		flushed.start();
-		auto show = [this](const QVariantList &list, bool last) {
-			onUi([this, list, last]() {
+		// The titles so far; the last time, all of them, and whether this PC's
+		// places are looked through after.
+		auto show = [this](const QVariantList &list, bool last, bool scanning) {
+			onUi([this, list, last, scanning]() {
 				installedCards_ = list;
 				searchIndex_[kConsoleInstalled] = list;
 				if(last)
 				{
-					installedReading_ = false;
+					installedScanning_ = scanning;
 					QVariantList previews;
 					for(const QVariant &entry : list)
 					{
@@ -2347,11 +2723,13 @@ void ShelfController::loadInstalled(bool forPlace)
 				{
 					all_ = list;
 					showCards();
-					if(last)
+					if(last && !(scanning && filter_ == QLatin1String("pending")))
 						setLoading(false);
 				}
 				else if(place_.sourceId.isEmpty() && last)
 					showCards();
+				if(last && !scanning)
+					installedReadEnded();
 			});
 		};
 		library::readInstalled(files, std::string(), cancel.get(), [&](const library::InstalledTitle &title) {
@@ -2371,21 +2749,92 @@ void ShelfController::loadInstalled(bool forPlace)
 					cache_->store(library::ShelfCache::keyOf(place, icon), &icon);
 				}
 			}
-			cards << installedCard(title, copy, ps5);
+			cards << installedCard(title, copy, ps5, others);
+			titles.push_back(title);
 			if(flushed.elapsed() > 300)
 			{
 				flushed.restart();
-				show(cards, false);
+				show(cards, false, false);
 			}
 		});
 		if(cancel->load())
 		{
-			onUi([this]() { installedReading_ = false; });
+			onUi([this]() { installedReadEnded(); });
 			return;
 		}
 		cache_->save();
-		show(cards, true);
+		// The titles are shown as soon as they are read: this PC's places,
+		// whole drives among them, can take much longer.
+		const bool scan = !titles.empty() && !roots.isEmpty();
+		show(cards, true, scan);
+		if(!scan)
+		{
+			logInfo("Library: " + std::to_string(titles.size()) + " title(s) installed.");
+			return;
+		}
+		// What this PC has for them that the console does not.
+		const std::vector<library::PcPackage> extras = pcExtras(roots, cancel.get());
+		if(cancel->load())
+		{
+			onUi([this]() {
+				if(place_.sourceId == kConsoleInstalled)
+					setLoading(false);
+				installedReadEnded();
+			});
+			return;
+		}
+		QVariantList changed;
+		for(int i = 0; i < cards.size() && i < static_cast<int>(titles.size()); ++i)
+		{
+			const QVariantMap card = withPending(cards[i].toMap(), titles[static_cast<size_t>(i)], extras);
+			if(!card.contains(QStringLiteral("pendingPaths")))
+				continue;
+			cards[i] = card;
+			changed << card;
+		}
+		logInfo("Library: " + std::to_string(titles.size()) + " title(s) installed; " + std::to_string(extras.size())
+			+ " update(s) and add-on(s) in this PC's places, new for " + std::to_string(changed.size())
+			+ " of them.");
+		// The same cards with what is new for them, changed in place: the list
+		// keeps where it is and what is picked.
+		onUi([this, cards, changed, cancel]() {
+			installedScanning_ = false;
+			if(cancel->load())
+			{
+				if(place_.sourceId == kConsoleInstalled)
+					setLoading(false);
+				installedReadEnded();
+				return;
+			}
+			installedReading_ = false;
+			installedCards_ = cards;
+			searchIndex_[kConsoleInstalled] = cards;
+			if(place_.sourceId == kConsoleInstalled)
+			{
+				// "New on this PC" gains cards, so it is laid out again.
+				if(filter_ == QLatin1String("pending"))
+				{
+					all_ = cards;
+					showCards();
+				}
+				else if(!changed.isEmpty())
+					updateCards(changed);
+				setLoading(false);
+			}
+			else if(level() == QLatin1String("search") && !changed.isEmpty())
+				updateCards(changed);
+		});
 	});
+}
+
+void ShelfController::installedReadEnded()
+{
+	installedReading_ = false;
+	installedScanning_ = false;
+	if(!installedAgain_)
+		return;
+	installedAgain_ = false;
+	loadInstalled(false);
 }
 
 QString ShelfController::copyFolder() const
@@ -2460,19 +2909,7 @@ void ShelfController::copyToPc(const QStringList &keys, bool updates, bool addon
 		if(!card.value(QStringLiteral("actions")).toStringList().contains(QStringLiteral("copyToPc")))
 			continue;
 		const QString folder = QDir(base).filePath(card.value(QStringLiteral("copyFolderName")).toString());
-		QVector<LibraryController::CopyItem> files;
-		for(const QVariant &entry : card.value(QStringLiteral("parts")).toList())
-		{
-			const QVariantMap part = entry.toMap();
-			LibraryController::CopyItem file;
-			file.what = part.value(QStringLiteral("what")).toString();
-			if((file.what == QLatin1String("update") && !updates) || (file.what == QLatin1String("addon") && !addons))
-				continue;
-			file.remote = part.value(QStringLiteral("path")).toString();
-			file.local = QDir(folder).filePath(part.value(QStringLiteral("fileName")).toString());
-			file.size = static_cast<qint64>(part.value(QStringLiteral("size")).toDouble());
-			files << file;
-		}
+		const QVector<LibraryController::CopyItem> files = copyItemsOf(card, folder, updates, addons);
 		if(!files.isEmpty())
 			consoleLibrary_->copyToPc(card.value(QStringLiteral("title")).toString(),
 				card.value(QStringLiteral("picture")).toString(), folder, files);

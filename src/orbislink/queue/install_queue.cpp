@@ -45,6 +45,40 @@ const char *taskStateLabel(TaskState state)
 
 namespace {
 
+// How fast it goes, measured at most twice a second from the bytes done.
+void samplePace(QueueTask &task, int64_t nowMs, int64_t *lastBytes, int64_t *lastSampleMs)
+{
+	const double elapsedSeconds = static_cast<double>(nowMs - *lastSampleMs) / 1000.0;
+	if(elapsedSeconds < 0.5)
+		return;
+	const double delta = static_cast<double>(task.doneBytes - *lastBytes);
+	task.bytesPerSecond = delta > 0 ? delta / elapsedSeconds : 0.0;
+	*lastBytes = task.doneBytes;
+	*lastSampleMs = nowMs;
+}
+
+// The seconds left at that pace (-1: not known).
+int64_t etaFromPace(const QueueTask &task)
+{
+	return task.bytesPerSecond > 1.0 && task.totalBytes > task.doneBytes
+		? static_cast<int64_t>(static_cast<double>(task.totalBytes - task.doneBytes) / task.bytesPerSecond)
+		: -1;
+}
+
+// Installed from the PC: the copy left on the console is no longer useful
+// and takes up space.
+void removeCopyAfterInstall(QueueTask &task, FtpClient *ftp)
+{
+	if(task.cleanupRemotePath.empty() || !ftp)
+		return;
+	const FtpResult removed = ftp->removeFile(task.cleanupRemotePath);
+	if(removed.ok)
+		task.message += " Copy deleted from the console.";
+	else
+		task.message += " (could not delete " + task.cleanupRemotePath + ": " + removed.message + ")";
+}
+
+
 TaskState taskStateFromName(const std::string &name)
 {
 	if(name == "validating") return TaskState::Validating;
@@ -204,19 +238,6 @@ void InstallQueue::sortBatch(std::vector<QueueTask> &batch)
 	});
 }
 
-void InstallQueue::setCleanupPath(const std::string &id, const std::string &remotePath)
-{
-	std::lock_guard<std::mutex> lock(mutex_);
-	for(QueueTask &task : tasks_)
-	{
-		if(task.id == id)
-		{
-			task.cleanupRemotePath = remotePath;
-			return;
-		}
-	}
-}
-
 std::string InstallQueue::enqueueConsoleInstall(const std::string &remotePath, const PkgInfo &info)
 {
 	QueueTask task;
@@ -309,6 +330,18 @@ std::vector<std::string> InstallQueue::enqueue(const std::vector<std::string> &p
 				rejected->push_back(baseName(path) + ": " + reason);
 			continue;
 		}
+		// A PS5 package installs only on a PS5; to a PS4 it can only be
+		// copied (over FTP), never installed.
+		if(info.valid && info.ps5 && mode == TransferMode::DirectInstall && deps_.installer
+			&& !deps_.installer->installsFromConsole())
+		{
+			const std::string reason = QT_TRANSLATE_NOOP("Messages", "A PS5 package: only a PS5 installs it, and the "
+				"console in use is a PS4.");
+			logWarning("File rejected: " + path + " — " + reason);
+			if(rejected)
+				rejected->push_back(baseName(path) + ": " + reason);
+			continue;
+		}
 
 		QueueTask task;
 		task.id = randomToken(8);
@@ -347,8 +380,8 @@ std::vector<std::string> InstallQueue::enqueue(const std::vector<std::string> &p
 	}
 	for(const QueueTask &task : batch)
 	{
-		logInfo("Queued: " + task.title + " (" + pkgCategoryLabel(task.category) + ", "
-			+ humanBytes(task.totalBytes) + ")");
+		logInfo("Queued: " + task.title + (task.titleId.empty() ? std::string() : " [" + task.titleId + "]") + " ("
+			+ pkgCategoryLabel(task.category) + ", " + humanBytes(task.totalBytes) + ")");
 		notify(task);
 	}
 	wakeup_.notify_all();
@@ -715,6 +748,14 @@ void InstallQueue::runDirectInstall(QueueTask task)
 		finishTask(task);
 		return;
 	}
+	if(info.ps5 && !deps_.installer->installsFromConsole())
+	{
+		task.state = TaskState::Error;
+		task.message = QT_TRANSLATE_NOOP("Messages", "A PS5 package: only a PS5 installs it, and the console in use "
+			"is a PS4.");
+		finishTask(task);
+		return;
+	}
 	task.totalBytes = info.fileSize;
 
 	// Already on the console? (§5.6, optional step)
@@ -831,13 +872,14 @@ void InstallQueue::runDirectInstall(QueueTask task)
 		if(!result.ok)
 		{
 			// The task may have disappeared because it already finished.
-			if(haveStats && stats.bytesSent >= task.totalBytes && task.totalBytes > 0)
+			if(haveStats && stats.bytesCovered >= task.totalBytes && task.totalBytes > 0)
 			{
 				task.doneBytes = task.totalBytes;
 				task.state = TaskState::Completed;
 				task.message = QT_TRANSLATE_NOOP("Messages", "Installation complete.");
 				deps_.httpServer->unregisterFile(task.httpToken);
 				task.httpToken.clear();
+				removeCopyAfterInstall(task, deps_.ftp);
 				finishTask(task);
 				return;
 			}
@@ -874,22 +916,12 @@ void InstallQueue::runDirectInstall(QueueTask task)
 
 		const int64_t nowMs = monotonicMillis();
 		task.doneBytes = progress.transferredTotal > 0 ? progress.transferredTotal
-													   : (haveStats ? stats.bytesSent : 0);
+													   : (haveStats ? stats.bytesCovered : 0);
 		if(progress.lengthTotal > 0)
 			task.totalBytes = progress.lengthTotal;
 
-		const double elapsedSeconds = static_cast<double>(nowMs - lastSampleMs) / 1000.0;
-		if(elapsedSeconds >= 0.5)
-		{
-			const double delta = static_cast<double>(task.doneBytes - lastBytes);
-			task.bytesPerSecond = delta > 0 ? delta / elapsedSeconds : 0.0;
-			lastBytes = task.doneBytes;
-			lastSampleMs = nowMs;
-		}
-		task.etaSeconds = progress.restSecTotal > 0 ? static_cast<int64_t>(progress.restSecTotal)
-			: (task.bytesPerSecond > 1.0 && task.totalBytes > task.doneBytes
-					  ? static_cast<int64_t>((task.totalBytes - task.doneBytes) / task.bytesPerSecond)
-					  : -1);
+		samplePace(task, nowMs, &lastBytes, &lastSampleMs);
+		task.etaSeconds = progress.restSecTotal > 0 ? static_cast<int64_t>(progress.restSecTotal) : etaFromPace(task);
 		updateTask(task);
 
 		// §7: task created but 0 bytes after 20 s = the console cannot reach the PC.
@@ -915,17 +947,7 @@ void InstallQueue::runDirectInstall(QueueTask task)
 			task.message = QT_TRANSLATE_NOOP("Messages", "Installation complete.");
 			deps_.httpServer->unregisterFile(task.httpToken);
 			task.httpToken.clear();
-			// Installed from the PC: the copy left on the console is no
-			// longer useful and takes up space.
-			if(!task.cleanupRemotePath.empty() && deps_.ftp)
-			{
-				const FtpResult removed = deps_.ftp->removeFile(task.cleanupRemotePath);
-				if(removed.ok)
-					task.message += " Copy deleted from the console.";
-				else
-					task.message += " (could not delete " + task.cleanupRemotePath + ": "
-						+ removed.message + ")";
-			}
+			removeCopyAfterInstall(task, deps_.ftp);
 			finishTask(task);
 			return;
 		}
@@ -1071,17 +1093,8 @@ void InstallQueue::runConsoleInstall(QueueTask task)
 		if(done > task.doneBytes)
 			lastMoveMs = nowMs;
 		task.doneBytes = task.totalBytes > 0 ? std::min(done, task.totalBytes) : done;
-		const double elapsedSeconds = static_cast<double>(nowMs - lastSampleMs) / 1000.0;
-		if(elapsedSeconds >= 0.5)
-		{
-			const double delta = static_cast<double>(task.doneBytes - lastBytes);
-			task.bytesPerSecond = delta > 0 ? delta / elapsedSeconds : 0.0;
-			lastBytes = task.doneBytes;
-			lastSampleMs = nowMs;
-		}
-		task.etaSeconds = task.bytesPerSecond > 1.0 && task.totalBytes > task.doneBytes
-			? static_cast<int64_t>((task.totalBytes - task.doneBytes) / task.bytesPerSecond)
-			: -1;
+		samplePace(task, nowMs, &lastBytes, &lastSampleMs);
+		task.etaSeconds = etaFromPace(task);
 		updateTask(task);
 
 		if(finished || (task.totalBytes > 0 && task.doneBytes >= task.totalBytes))
@@ -1128,23 +1141,14 @@ void InstallQueue::followServedInstall(QueueTask task)
 		std::this_thread::sleep_for(std::chrono::milliseconds(tuning_.progressPollMs));
 
 		ServedFileStats stats;
-		const int64_t sent = deps_.httpServer->statsForToken(task.httpToken, &stats) ? stats.bytesSent : 0;
+		const int64_t sent = deps_.httpServer->statsForToken(task.httpToken, &stats) ? stats.bytesCovered : 0;
 		const int64_t nowMs = monotonicMillis();
 		if(sent > task.doneBytes)
 			lastMoveMs = nowMs;
 		task.doneBytes = task.totalBytes > 0 ? std::min(sent, task.totalBytes) : sent;
 
-		const double elapsedSeconds = static_cast<double>(nowMs - lastSampleMs) / 1000.0;
-		if(elapsedSeconds >= 0.5)
-		{
-			const double delta = static_cast<double>(task.doneBytes - lastBytes);
-			task.bytesPerSecond = delta > 0 ? delta / elapsedSeconds : 0.0;
-			lastBytes = task.doneBytes;
-			lastSampleMs = nowMs;
-		}
-		task.etaSeconds = task.bytesPerSecond > 1.0 && task.totalBytes > task.doneBytes
-			? static_cast<int64_t>((task.totalBytes - task.doneBytes) / task.bytesPerSecond)
-			: -1;
+		samplePace(task, nowMs, &lastBytes, &lastSampleMs);
+		task.etaSeconds = etaFromPace(task);
 		updateTask(task);
 
 		if(task.totalBytes > 0 && sent >= task.totalBytes)
@@ -1246,8 +1250,13 @@ void InstallQueue::runFtpUpload(QueueTask task)
 
 	task.doneBytes = task.totalBytes;
 	task.state = TaskState::Completed;
+	// A PS5 package sent to a PS4 is only a copy: a PS4 cannot install it.
+	const bool ps5OnPs4 = info.valid && info.ps5 && deps_.installer && !deps_.installer->installsFromConsole();
 	task.message = foreignPackage
 		? std::string(QT_TRANSLATE_NOOP("Messages", "Copied to the console (not a PS4 package, so not installed)"))
+			+ ": " + task.remotePath
+		: ps5OnPs4 && !task.copyOnly && (cfg.installAfterUpload || task.installAfter)
+		? std::string(QT_TRANSLATE_NOOP("Messages", "Copied to the console (a PS5 package: a PS4 does not install it)"))
 			+ ": " + task.remotePath
 		: std::string(QT_TRANSLATE_NOOP("Messages", "Sent to the console")) + ": " + task.remotePath;
 
@@ -1259,7 +1268,8 @@ void InstallQueue::runFtpUpload(QueueTask task)
 	// The install is queued before the upload is marked done, so nothing
 	// sees the package as only "sent" in between.
 	// Only a package installs; any other file was just a copy.
-	bool installAfter = info.valid && !task.copyOnly && (cfg.installAfterUpload || task.installAfter);
+	const bool installable = info.valid && !ps5OnPs4;
+	bool installAfter = installable && !task.copyOnly && (cfg.installAfterUpload || task.installAfter);
 	const bool deleteAfter = task.installAfter ? task.deleteAfterInstall : cfg.deleteFromConsoleAfterInstall;
 	if(installAfter && deps_.installer && deps_.installer->installsFromConsole())
 	{

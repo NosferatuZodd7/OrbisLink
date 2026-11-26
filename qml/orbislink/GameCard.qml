@@ -117,10 +117,10 @@ ShelfTile {
             Rectangle {
                 height: parent.height
                 radius: parent.radius
-                width: parent.width * (stageLoader.indeterminate ? 1
+                width: parent.width * (stageLoader.standing ? 1
                                        : Math.max(0, Math.min(1, (card.progress ? card.progress.percent || 0 : 0) / 100)))
                 color: stageLoader.tone
-                opacity: stageLoader.indeterminate ? 0.4 : 1
+                opacity: stageLoader.standing ? 0.4 : 1
                 Behavior on width { NumberAnimation { duration: 250 } }
             }
         }

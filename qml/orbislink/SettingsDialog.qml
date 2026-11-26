@@ -192,6 +192,7 @@ Dialog {
         updateChannelBox.currentIndex = values.updateChannel === "testing" ? 1 : 0
         deleteAfterBox.checked = values.deleteFromConsoleAfterInstall
         keepConvertedBox.checked = values.keepConvertedPackages === true
+        autoSaveBackupBox.checked = values.autoSaveBackup === true
         advancedBox.checked = values.ftpAdvancedMode
         debugBox.checked = values.debugLogging
     }
@@ -234,6 +235,7 @@ Dialog {
             "updateChannel": updateChannelBox.currentIndex === 1 ? "testing" : "stable",
             "deleteFromConsoleAfterInstall": deleteAfterBox.checked,
             "keepConvertedPackages": keepConvertedBox.checked,
+            "autoSaveBackup": autoSaveBackupBox.checked,
             "ftpAdvancedMode": advancedBox.checked,
             "debugLogging": debugBox.checked,
             "streamResolution": [1080, 720, 540, 360][resolutionBox.currentIndex],
@@ -823,6 +825,14 @@ Dialog {
                                 description: qsTr("Off, a package made from a PS1/PS2 disc or an app folder is deleted from "
                                                   + "the output folder once the console has it — installed, or sent when it "
                                                   + "is not installed. Packages of your own are never touched.")
+                            }
+                            SwitchRow {
+                                id: autoSaveBackupBox
+                                label: qsTr("Back up the saves by themselves when the console appears")
+                                description: qsTr("The Save vault copies to this PC what is new or changed on the console in "
+                                                  + "use once its FTP answers, at most every six hours, and not during Remote "
+                                                  + "Play or the install queue. Each save keeps its last backups; nothing is "
+                                                  + "ever sent to a console by itself.")
                             }
                         }
 

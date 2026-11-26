@@ -37,6 +37,14 @@ Last review: v1.1.0.
 | ✅ | Installing automatically after the FTP upload (on a PS4 the file stays on the console and is installed from the PC, because the installer only downloads over HTTP; on a PS5 it is installed by its path there) |
 | ✅ | Deleting the uploaded copy from the console after installing |
 | 🟡 | Installing on a PS5 through etaHEN's DPI v2: its own protocol (a form with `url`, a path on the console or an http:// address; a text reply), told apart from Remote Package Installer's JSON API by asking; checked against etaHEN's source and the fake console, not yet on a real PS5 |
+| 🟡 | A package split into parts (`<name>_0.pkg`, `_1.pkg`…, as large downloads come) shown as one card and joined into one package on this PC — checked against its header's size first (none missing, cut short or named twice), written as `.part` and renamed only once complete and read back, nothing written over, cancellable — then installed like a converted one; also `orbislink-cli join`. A PS5 package in parts (with its `_sc` container part last) is recognised the same way and joined by Packwright (`packwright merge`, which checks its digests). Byte-for-byte checked (SHA-256) on synthetic PS4 packages up to 5 GiB and a PS5 package made by Packwright 1.4.0, not yet with a real split download on a console |
+| 🟡 | A game downloaded as an archive (`.zip`, `.7z`, `.rar` and their volumes: `.partN.rar`, `.7z.001`, `.r00`) shown as one card with the package's title, icon and title ID read from the first volume by 7-Zip (the official command-line program, carried by the Windows installer and the AppImage and run as a program of its own); extracted into the output folder (a package in parts inside it joined), then the game, its update and add-ons installed in order; a password asked for in OrbisLink's own dialog and given to 7-Zip through its standard input, kept in memory for the job only; a missing volume, a wrong password, a damaged archive and a 7-Zip without RAR told apart; cancellable. Checked (SHA-256 on the console) with RAR5, 7z and ZIP volumes made by RAR 7 and 7-Zip 23.01, with and without passwords (names protected too, a folder inside with the game and its update), on a fake console, also from the AppImage with the 7-Zip it carries; not yet on Windows nor on a real console |
+| ✅ | PS5 fake packages (`\x7FFIH`, and backports `\x7FLIH`): their name, title ID, version and the firmware they need read from the `param.json` inside, official (encrypted) ones told apart and turned away; installed on a PS5 the ways a PS4 package is, never on a PS4 (refused for *Install directly*, only copied over FTP) |
+| 🟡 | After a PS5 package is installed, Titan Core (port 8097, firmware 12.00–13.60) asked to look for it and followed until it is ready (or why it is not); without it, what starts a PS5 fake package on that firmware. Checked against Titan Core's source and the fake console, not yet on a real PS5 |
+| 🟡 | A PS5 game folder or image of this PC made into a PS5 fake package by Packwright (installed separately), then sent and installed; checked with a stand-in for Packwright's command line, not yet with Packwright itself nor on a real PS5 |
+| 🟡 | A PS5 game folder made by Packwright into one `.ffpkg` image (or an image of this PC as it is) copied to `/data/homebrew` and ShadowMountPlus asked to look (its API, else started again), what it did said on the card; checked with the stand-in and a fake ShadowMountPlus API |
+| ✅ | Updates and add-ons in this PC's places that an installed title lacks (a newer version than installed, add-ons it does not have; the same package by size is not offered): on the card, in the details, a filter, and installed in one click |
+| ✅ | A game installed on a console copied to another (a PS4 game to any, a PS5 game to a PS5): copied to this PC with its update and add-ons, that console made the one in use and the packages queued there |
 | 🟡 | Installing on a PS5 through Prospero Manager (port 7070) when there is no DPI v2: its package API (`/api/pkg/install` with a path or an address, `/api/pkg/status` until *queued*), checked against its source and the fake console, not yet on a real PS5 |
 | ✅ | Error 0x80990015 (a task left by an earlier try): the task is removed and the install asked again |
 | ✅ | Official (store) packages told apart from fake ones (the header's type field at 0x04, as PS4 PKG Tool does), and a warning before one goes: it installs only with its licence |
@@ -55,7 +63,7 @@ Last review: v1.1.0.
 | ✅ | FTP on another port: 1337, 2121 and 21 (and 9090 on a PS5) are asked, and the one that greets as FTP is kept |
 | ✅ | List, browse, create folder (one already there is fine), delete, rename |
 | ✅ | Move between disks (`/data` ↔ USB), where the console cannot rename: copied through the PC, checked, then the original deleted |
-| ✅ | Dropping on *Send over FTP* copies to the folder the Files tab has open; any file goes as it is — a disc image, a payload, a package for another console (a PS3 one for RPCS3, told apart by its header) — and only a PS4 package is ever installed |
+| ✅ | Dropping on *Send over FTP* copies to the folder the Files tab has open; any file goes as it is — a disc image, a payload, a package for another console (a PS3 one for RPCS3, told apart by its header) — and only a PS4 package (or a PS5 one on a PS5) is ever installed |
 | ✅ | Upload files with progress and cancellation |
 | ✅ | Download files to the PC (menu, double click, or a chosen folder) |
 | ✅ | Drag from the window to the desktop (downloads to a local cache first) |
@@ -89,7 +97,8 @@ Last review: v1.1.0.
 | ✅ | `chiaki-lib` building without changing a line of the submodule |
 | ✅ | Console discovery (987/UDP on the PS4, 9302/UDP on the PS5): state, name, version, running game |
 | ✅ | A console that changed address is followed: found by its host-id or MAC (Remote Play's search, this PC's neighbour table — Windows and Linux), its address updated with a notice; one-click connect looks for it first. Confirmed on a real network |
-| 🟡 | A registered console that never answers the search but took a direct connection is remembered as such: its card, the 🎮 indicator and the hint say *Connects directly* instead of "not responding"; its last firmware is kept and shown. Checked with the fake console; the learning itself needs the real PS4 |
+| 🟡 | A registered console that never answers the search but took a direct connection is remembered as such: its card, the 🎮 indicator and the hint say *Connects directly* instead of "not responding" while its FTP answers (the sign it is on); its last firmware is kept and shown. Checked with the fake console; the learning itself needs the real PS4 |
+| ✅ | A console turned off into rest mode, whose FTP port stays open without a server, is no longer taken for FTP: a silent port counts only 30 s after FTP last answered (or while this app's own transfer keeps it busy); checked with a silent port standing in for the console |
 | 🟡 | A console that does not answer discovery: registration opens all the same (as the kind of console saved) and a registered one is connected to directly; the host-id from registration finds it again. Checked in the code paths, not yet on the PS4 that never answers |
 | 🟡 | The network search: every interface's broadcast address, three rounds, every address of a small private network one by one, and the ports of a jailbroken console (2121, 1337, 12800) for one with Remote Play off; checked against the fake console and in the tests, not yet on the network that missed a real PS4 |
 | ✅ | Several consoles: each in its own box on the stage, with its state; "Add console" scans the network or takes an IP |
@@ -113,7 +122,7 @@ Last review: v1.1.0.
 | ✅ | Full screen (F11, Esc to leave) |
 | 🟡 | Games, store, save vault and payloads as a page over the picture while a session is on screen, with an opacity slider (70–100 %, kept) and the keyboard the page's while it is open; checked with the demo stage, not yet over a real session |
 | ✅ | Choosing resolution, fps and bitrate in the settings |
-| ⬜ | Remote Play over PSN (needs a libcurl with WebSockets) |
+| ➖ | Remote Play over PSN: decided not to. It needs the official Remote Play app's OAuth client ID and secret (Sony's, which OrbisLink does not ship), a PSN login kept by the app, a libcurl with WebSockets and chiaki-ng's hole punching (some 6,300 lines), and could not be tried here |
 
 ## 4. Interface
 
@@ -141,15 +150,18 @@ Last review: v1.1.0.
 | ✅ | First-run wizard (3 steps, with a live console check); can be reopened from the settings |
 | ✅ | System notifications when a long job ends with the window in the background: Windows (`Shell_NotifyIconW`), Linux (org.freedesktop.Notifications over D-Bus), macOS (osascript); elsewhere the window flashes |
 | ✅ | Live log window (Ctrl+L), with a filter and Remote Play detail |
-| ✅ | Exporting diagnostics to a file, with versions, network, settings (without secrets), the last Remote Play attempt and the end of the log |
+| ✅ | Exporting diagnostics to a file, with versions, network, the console's kind and firmware, settings (without secrets), the last Remote Play attempt, Titan Core's last answer about an install and where Packwright is, and the end of the log (which has each Titan Core step, Packwright's command and, when it fails, its last lines) |
 | ✅ | English (source language and default) and Portuguese, chosen in the settings; the log and the diagnostics are always in English |
-| ⬜ | Shortcut to the queue in full screen |
+| ✅ | The transfers in full screen: F9 (or the button on Remote Play's bar) shows their column over the picture, a click leaves full screen and opens the panel; F9 is never a console button |
 | ✅ | One queue for every job, in three groups (under way, lit and on top; waiting, with a breathing badge; finished, at the end, with one **Clear finished** for all), totals for the round (percentage, jobs to go, time left from its pace) and a compact rail with the jobs when the panel is closed while they run; the tabs only while there is a card |
 | ✅ | A converted package deleted from the output folder once the console has it (a setting keeps them) |
 | 🟡 | The console chip's firmware (Remote Play discovery) and the jailbreak's version when its FTP greeting gives it; checked with the fake console — GoldHEN's own greeting still to be seen, and etaHEN's does not give it |
 | ✅ | Save vault: **Select all** selects everything shown (then **Select none**), and each game a button for its saves |
+| ✅ | Saves backed up by themselves when the console's FTP answers (a setting, off by default): what is new or changed, at most every six hours a console, never sent anywhere |
+| 🟡 | Captures: the console's screenshots and clips from `/user/av_contents`, small pictures made on this PC, copied to this PC by game or deleted from the console after asking; the PS4's place is from community documentation. On a PS5 the originals are encrypted (`.dat` + `.meta` under `photo/NPXS40087/NPXS40087/<bucket>`), so what is listed are the console's own previews under `thumbnails/` (`.jpg.jpeg`), (then the users' `screenshot` folders if there are none), dated by their name, with no game, and nothing is deleted (a preview deleted would leave its original). That layout is from a third-party tool's source (PS5-Upload-Suite), not yet seen on a real PS5 |
 | ✅ | Library: packages in the console's places deleted together, after one question |
 | ✅ | Payloads and plugins say what they do: the payload library's words, else what is known of the common ones (GoldHEN's plugins, PS4 and PS5 payloads), else the kind of file and its loader |
+| 🟡 | Titan Core in the PS5 payload library, from its own latest release and checked against the SHA-256 the release publishes (it is not in the community list); the release's asset names checked against its README only |
 | 🟡 | Homebrew store with several stores at once: homebrew.page, PKG-Zone (its `store.db`, read through its MD5) and any Homebrew Store added; an app in more than one shows each store's tag and asks which to take it from; a store's packages downloaded (resumed, checked against their MD5) and installed through the queue on a PS4 or a PS5. Always in order of downloads (PKG-Zone's counts, asked one app at a time, one every three seconds, kept a week; homebrew.page counts none, so its apps come after), with **PS4** / **PS5** tags on each card and filters for each console. Checked against PKG-Zone's real database and counts and a fake store with the fake console, not yet on a real console |
 
 ## 5. Packaging and CI
@@ -163,7 +175,7 @@ Last review: v1.1.0.
 | ✅ | Check that the package carries every DLL (Qt, curl, MSVC runtime, FFmpeg, SDL2) |
 | ✅ | Detection of missing graphics acceleration, with automatic compatibility mode |
 | ✅ | Diagnostics script (`diagnostics.bat`) that collects the logs and the Windows event log |
-| ⬜ | AppImage for Linux |
+| 🟡 | AppImage for Linux: the graphical interface with its Qt, its QML modules (and the one Qt's file dialogs need) and Remote Play's libraries (`scripts/build-appimage.sh`, a job of its own in release.yml that does not hold a release back); built and run here, Remote Play in it not yet tried with a console, nor the job on GitHub |
 | ➖ | Code signing: decided not to. A certificate costs €200–400/year and this is not sold — the SmartScreen warning can be clicked through |
 | ✅ | Update check: reads the GitHub releases, compares by semver, downloads, verifies the SHA-256 and runs the installer |
 | ✅ | Stable or testing channel (pre-releases), and the repository is a setting — the project can move without recompiling |

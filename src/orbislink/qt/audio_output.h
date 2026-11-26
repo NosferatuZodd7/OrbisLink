@@ -21,10 +21,11 @@ namespace orbislink {
 
 // Sample queue between chiaki's thread and the sound card.
 //
-// QAudioSink pulls from here when it needs to ("pull" mode), on its own thread.
-// That is why this class exists instead of writing directly to the
-// device: producer and consumer are on different threads, and
-// QAudioSink's QIODevice is not safe to use from outside.
+// chiaki's thread pushes; AudioOutput's timer, on the UI thread, takes from
+// here and writes into QAudioSink's device. That is why this class exists
+// instead of writing directly to the device: producer and consumer are on
+// different threads, and QAudioSink's QIODevice is not safe to use from
+// outside. As a QIODevice it can still be read with silence padding.
 class PcmQueue : public QIODevice
 {
 	Q_OBJECT
@@ -89,9 +90,6 @@ public:
 	// "no-device" or "error".
 	QString state() const;
 	QString deviceName() const;
-	// How many samples have been handed to the card. Zero with the session
-	// running means the sound is not arriving.
-	qint64 samplesPlayed() const;
 	// One line with the state of each stretch of the audio path, so the
 	// diagnostics answer the question instead of leaving it open.
 	QString pipelineSummary() const;
@@ -131,7 +129,6 @@ private:
 	qint64 samplesPlayed_ = 0;
 	qint64 framesReceived_ = 0;
 	qint64 underruns_ = 0;
-	bool pushMode_ = false;
 	bool configured_ = false;
 	bool ended_ = false;   // there was a session and it has ended
 	bool muted_ = false;

@@ -386,7 +386,8 @@ private:
 	AudioInput microphone_;
 	Gamepad gamepad_;
 	std::unique_ptr<StreamRegistration> registration_;
-	std::unique_ptr<StreamSession> session_;
+	// Shared so the thread that stops it keeps it alive on its own.
+	std::shared_ptr<StreamSession> session_;
 	KeyboardMap keyboard_;
 	QVariantMap consoleStates_;
 	bool probing_ = false;

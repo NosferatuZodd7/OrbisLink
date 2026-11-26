@@ -2,6 +2,7 @@
 #include "orbislink/qt/payloads_controller.h"
 
 #include "orbislink/common/log.h"
+#include "orbislink/common/util.h"
 #include "orbislink/net/http_client.h"
 #include "orbislink/net/payload_sender.h"
 #include "orbislink/qt/app_controller.h"
@@ -60,9 +61,19 @@ std::string nameOf(const std::string &path)
 	return slash == std::string::npos ? path : path.substr(slash + 1);
 }
 
-bool endsWith(const std::string &text, const std::string &suffix)
+// The name a console file takes on this PC. The console names it: a "\\"
+// or a ".." in it must not lead out of the folder it goes to.
+QString localNameOf(const std::string &remote)
 {
-	return text.size() >= suffix.size() && text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
+	QString name = QString::fromStdString(nameOf(remote));
+	name = name.mid(name.lastIndexOf(QLatin1Char('\\')) + 1);
+	// Not a name Windows takes either.
+	for(QChar &c : name)
+		if(c.unicode() < 0x20 || QStringLiteral(":*?\"<>|").contains(c))
+			c = QLatin1Char('_');
+	if(name.isEmpty() || name == QLatin1String(".") || name == QLatin1String(".."))
+		name = QStringLiteral("download");
+	return name;
 }
 
 // Local files through Qt: a Windows user folder with accents in its name
@@ -591,7 +602,7 @@ void PayloadsController::download(const QString &path)
 	const std::string remote = path.toStdString();
 	run(tr("Downloading…"), [this, dir, remote](FtpClient &ftp, bool *error) {
 		QDir().mkpath(dir);
-		const QString local = uniqueLocal(dir, QString::fromStdString(nameOf(remote)));
+		const QString local = uniqueLocal(dir, localNameOf(remote));
 		const FtpResult got = ftp.download(remote, local.toStdString());
 		if(!got.ok)
 		{
@@ -765,6 +776,44 @@ void PayloadsController::refreshCatalog()
 			error = tr("The payload list could not be read: %1").arg(reason);
 			logWarning("Payloads: the payload list could not be read: " + reason.toStdString());
 		}
+		// Titan Core is not in the community list: its own latest release,
+		// offered only with the checksum its release publishes.
+		if(!cancel->load())
+		{
+			HttpClient github(15000);
+			HttpResponse release = github.fetch(kTitanCoreRelease, options);
+			if(release.transportOk && release.status == 404)
+				release = github.fetch(kTitanCoreReleases, options);
+			const std::string sums = release.transportOk && release.status == 200
+				? titanCoreChecksumsUrl(release.body) : std::string();
+			const HttpResponse checksums = sums.empty() ? HttpResponse() : github.fetch(sums, options);
+			CatalogPayload titan;
+			std::string titanWhy;
+			if(checksums.transportOk && checksums.status == 200
+				&& titanCoreFromRelease(release.body, checksums.body, &titan, &titanWhy))
+			{
+				const bool listed = std::any_of(list.begin(), list.end(), [](const CatalogPayload &payload) {
+					return QString::fromStdString(payload.name).compare(QString::fromLatin1(kTitanCoreName),
+							   Qt::CaseInsensitive) == 0;
+				});
+				if(!listed)
+					list.push_back(titan);
+				logInfo("Payloads: Titan Core " + titan.version + " (" + titan.filename + ") from its release"
+					+ (listed ? ", already in the list" : "") + ".");
+			}
+			else
+			{
+				// Which step failed: the release, its checksums file, or what they say.
+				auto status = [](const HttpResponse &reply) {
+					return reply.transportOk ? "HTTP " + std::to_string(reply.status) : "no answer (" + reply.error + ")";
+				};
+				const std::string what = !titanWhy.empty() ? titanWhy
+					: !release.transportOk || release.status != 200 ? "its release: " + status(release)
+					: sums.empty() ? std::string("its release has no SHA256SUMS file")
+					: "its SHA256SUMS: " + status(checksums);
+				logInfo("Payloads: Titan Core's release could not be used (" + what + ").");
+			}
+		}
 		if(cancel->load())
 			return;
 		QMetaObject::invokeMethod(this, [this, list, offline, error]() {
@@ -867,6 +916,8 @@ QString PayloadsController::knownDescription(const QString &fileName) const
 		{ "ps5debug", QT_TR_NOOP("A debugger for PS5 cheat tools.") },
 		{ "klogsrv|klog", QT_TR_NOOP("Sends the kernel's log over the network.") },
 		{ "byepervisor", QT_TR_NOOP("Lifts the hypervisor's protections, on the early firmwares it works on.") },
+		{ "titan-core|titan core|titan_core", QT_TR_NOOP("Starts installed PS5 fake packages on firmware up to 13.60, with "
+			"kstuff-lite and ShadowMountPlus inside: load it alone, not with them or Kraken Mount. Experimental.") },
 		{ "gdbsrv", QT_TR_NOOP("A GDB debugging server on the console.") },
 		{ "offact", QT_TR_NOOP("Activates a PSN account on the console offline.") },
 	};
@@ -980,8 +1031,14 @@ bool PayloadsController::fetchPayload(const CatalogPayload &payload, const std::
 		return payload.checksum.empty()
 			|| sha256Hex(std::string(data.constData(), static_cast<size_t>(data.size()))) == payload.checksum;
 	};
+	// Without a checksum to tell versions apart, the copy kept is named after
+	// the address and version it came from: an update under the same file
+	// name is downloaded again.
+	const QString prefix = payload.checksum.empty()
+		? QString::fromStdString(sha256Hex(payload.url + "\n" + payload.version).substr(0, 12)) + QLatin1Char('-')
+		: QString();
 	const QString kept = QDir(cacheRoot()).filePath(
-		QStringLiteral("files/%1").arg(QString::fromStdString(payload.filename)));
+		QStringLiteral("files/%1%2").arg(prefix, QString::fromStdString(payload.filename)));
 	QByteArray data = readLocal(kept);
 	if(data.isEmpty() || !vouched(data))
 	{

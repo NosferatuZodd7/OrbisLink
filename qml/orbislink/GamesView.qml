@@ -81,6 +81,7 @@ Item {
                       ? (shelf.level === "home" ? qsTr("%n place(s)", "", shelf.count)
                          : shelf.loading ? qsTr("Reading…") : qsTr("%n item(s)", "", shelf.count))
                         + "  ·  " + qsTr("Your games on the console and on this PC, place by place")
+                      : root.tab === 2 ? qsTr("The console's screenshots and video clips, to look at and copy to this PC")
                       : games.gamesFolder.length === 0 ? qsTr("Choose the folder where your disc images are.")
                       : games.scanStatus + "  ·  " + qsTr("Optional: PS1/PS2 discs on this PC made into PS4 packages")
 
@@ -161,6 +162,7 @@ Item {
             StyledTab {
                 leftPadding: 20
                 rightPadding: 20
+                width: implicitWidth
                 text: qsTr("All games")
             }
             StyledTab {
@@ -169,6 +171,12 @@ Item {
                 rightPadding: 20
                 width: games.available ? implicitWidth : 0
                 text: qsTr("PS1/PS2 converter")
+            }
+            StyledTab {
+                leftPadding: 20
+                rightPadding: 20
+                width: implicitWidth
+                text: qsTr("Captures")
             }
         }
 
@@ -368,6 +376,14 @@ Item {
         }
         Binding { target: shelf; property: "active"; value: root.visible && root.tab === 0 }
 
+        // ── the console's screenshots and video clips
+        CapturesView {
+            visible: root.tab === 2
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.topMargin: 14
+        }
+
         // ── the games: as many to a row as fit, as the library lays them out
         Item {
             visible: root.tab === 1 && games.gamesFolder.length > 0
@@ -390,8 +406,10 @@ Item {
                 // The same cards as the library's, in the same grid.
                 Grid {
                     id: gamesFlow
-                    readonly property int cell: Theme.gameTile + Theme.gameTileGap
-                    readonly property int fits: Math.max(1, Math.floor((gamesScroll.width - 28) / cell))
+                    // As many as fit, sharing out what is left over (no gap on the right).
+                    readonly property int fits: Math.max(1, Math.floor((gamesScroll.width - 28)
+                                                                       / (Theme.gameTile + Theme.gameTileGap)))
+                    readonly property int cell: Math.floor((gamesScroll.width - 28) / fits)
                     x: 14
                     y: 16
                     columns: fits
@@ -420,8 +438,8 @@ Item {
             Grid {
                 id: discSkeletons
                 visible: games.scanning && games.games.length === 0
-                readonly property int cell: Theme.gameTile + Theme.gameTileGap
-                readonly property int fits: Math.max(1, Math.floor(parent.width / cell))
+                readonly property int fits: Math.max(1, Math.floor(parent.width / (Theme.gameTile + Theme.gameTileGap)))
+                readonly property int cell: Math.floor(parent.width / fits)
                 y: 16
                 columns: fits
                 Repeater {
