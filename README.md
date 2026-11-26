@@ -92,8 +92,7 @@ Everything still missing, and why, is in
 
 ## The interface
 
-Taken on a real PS4 (GoldHEN) with v1.4.3; a few, marked *generated*, come
-from the app's own screenshot script.
+Taken on a real PS4 (GoldHEN) with v1.4.3.
 
 ![Remote Play with the transfers](docs/images/real/01-remote-play.webp)
 
@@ -117,6 +116,8 @@ searching the network or by IP.*
 | Games library | PS1/PS2 converter |
 |---|---|
 | ![Games over Remote Play](docs/images/real/02-library-over-remote-play.webp) | ![Converter over Remote Play](docs/images/real/08-converter-over-remote-play.webp) |
+
+![PS1/PS2 converter](docs/images/real/12-converter.webp)
 
 *Games, the store, the save vault and payloads open over the picture, with a
 slider for how see-through they are, so the game stays in sight. Games: every
@@ -144,9 +145,9 @@ a backup of it; a PS4 game's saves also go to a PS5 of the same PSN account.
 Payloads: GoldHEN's payloads and plugins, each saying what it does, sent to
 its loader with one click.*
 
-| Console files (FTP) | File menu *(generated)* |
+| Console files (FTP) | File menu |
 |---|---|
-| ![FTP](docs/images/real/10-ftp-browser.webp) | ![File menu](docs/images/05-file-menu.png) |
+| ![FTP](docs/images/real/10-ftp-browser.webp) | ![File menu](docs/images/real/11-file-menu.webp) |
 
 *In the FTP browser, every file and folder has its own menu: download to the
 PC, prepare for dragging out of the window, copy the path, rename, move or
@@ -154,24 +155,17 @@ copy on the console, edit a text file in place, change permissions, delete
 on the console. The list filters by name, sorts by name, size or date, and
 works from the keyboard.*
 
-### More *(generated)*
+### Settings
 
-| Drag and drop | Settings | Keyboard map |
+| Consoles | Account IDs (PSID) | General |
 |---|---|---|
-| ![Drag and drop](docs/images/02-drop-overlay.png) | ![Settings](docs/images/04-settings.png) | ![Keyboard map](docs/images/12-keyboard-map.png) |
+| ![Settings: consoles](docs/images/real/13-settings-consoles.webp) | ![Settings: Account IDs](docs/images/real/14-settings-accounts.webp) | ![Settings: general](docs/images/real/15-settings-general.webp) |
 
-| Light theme | Payloads library on a PS5 |
-|---|---|
-| ![Light theme](docs/images/11-remote-play-light.png) | ![Payloads library on a PS5](docs/images/18-payloads-ps5.png) |
+*Every console saved on this PC, the PSN Account IDs registered on them
+(each with its own Remote Play PIN), and where updates come from: the stable
+versions, or the test builds of the `beta` branch.*
 
-*With no controller connected, the keyboard acts as one; every key can be
-changed on the map. On a PS5, the Payloads page also lists the community's
-payloads, each checked against its SHA-256 before use.*
-
-The real screenshots have the console's name, the accounts and the PC's
-folders blurred. The *generated* ones come from `./scripts/screenshots.sh`
-(on the `beta` branch), against two mock consoles, a PS4 (GoldHEN) and a PS5
-(etaHEN) — the real behaviour, with stand-in consoles, accounts and saves.
+The console's name, the PSN accounts and the PC's folders are blurred.
 
 ## Intended use
 
