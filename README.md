@@ -6,7 +6,7 @@ A desktop app that brings together, in one window, **Remote Play** for a PS4
 or PS5, **installing .pkg files by drag and drop**, and an **FTP client** for
 the console.
 
-> **Status:** stable **v1.4.2**. Remote Play works on real PS4 and PS5
+> **Status:** stable **v1.4.3**. Remote Play works on real PS4 and PS5
 > consoles (discovery, registration, 1080p/60 video, sound, microphone,
 > controller and keyboard). Installing pkg files and FTP need a PS4 with
 > GoldHEN, or a PS5 with a jailbreak that provides them (etaHEN). Besides
@@ -18,7 +18,7 @@ the console.
 
 ## What works, and what is in development
 
-There are two versions: the **stable** one (v1.4.2, this branch) and the
+There are two versions: the **stable** one (v1.4.3, on `main`) and the
 **beta** (test builds from the `beta` branch, `vX.Y.Z-dev.N`), where new work
 lands first. The app is made for the PS4 and the PS5 alike. To try the beta:
 **Settings → Updates → Testing (branch builds)**, or a pre-release from the
@@ -31,7 +31,7 @@ Releases page.
 | 🚧 | Not working yet, or still being built |
 | — | Does not apply to that console |
 
-### Stable (v1.4.2)
+### Stable (v1.4.3)
 
 | Feature | PS4 | PS5 |
 |---|---|---|
@@ -77,10 +77,14 @@ Releases page.
 | A picture of your own behind the glass, blurred as you like, with its colours taken for the theme or the theme's own; slow water light moving behind the glass | ✅ | ✅ |
 | Installing a package the console already has: says to delete it on the console first, instead of pointing at a Downloads entry that is not there | ✅ | 🧪 |
 | Minimal top bar; hovering FTP or the installer shows a card with its state and what to do | ✅ | ✅ |
+| **Games downloaded as archives** (`.zip`, `.7z`, `.rar` and their volumes: `.part1.rar`, `.7z.001`, `.r00`…) shown as one game, its title, icon and title ID read from inside; **Extract and install** extracts it, joins a package in parts and installs the game, then its update and add-ons; a password asked for in the app (never saved); 7-Zip comes with the app | ✅ | 🧪 |
+| A package split into parts (`<name>_0.pkg`, `_1.pkg`…) shown as one and joined on this PC before it installs (a PS5 one through Packwright, with its `_sc` part); also `orbislink-cli join` | 🧪 | 🧪 |
+| **Captures**: the console's screenshots and clips, each opened full size with a click (← → for the next), copied to this PC, deleted from the console | ✅ | 🧪 previews only |
+| The games library's grids fill the width, also over Remote Play | ✅ | ✅ |
 
 ### New in the beta
 
-Nothing yet: what was in the beta is the stable v1.4.2 above. New work
+Nothing yet: what was in the beta is the stable v1.4.3 above. New work
 lands in the beta first, and shows here.
 
 Everything still missing, and why, is in
@@ -88,80 +92,86 @@ Everything still missing, and why, is in
 
 ## The interface
 
-The screenshots show v1.4.2 with a PS4 (GoldHEN) and a PS5 (etaHEN) side
-by side.
+Taken on a real PS4 (GoldHEN) with v1.4.3; a few, marked *generated*, come
+from the app's own screenshot script.
 
-![Remote Play](docs/images/06-remote-play.png)
+![Remote Play with the transfers](docs/images/real/01-remote-play.webp)
 
-*The middle of the window is Remote Play. Each console (PS4 or PS5) has its
-own box with its state. One click connects: the app checks the console,
-wakes it if it is in rest mode, waits until it is ready and connects — or
-opens the registration if this PC is not registered on it yet. The dashed box
-adds another console, by scanning the network or by IP.*
+*Remote Play of a PS4 in the middle of the window, the transfers on the right:
+a game extracted from its archive is being sent and installed (Extract → Send
+→ Install), its update waiting to go after it.*
 
-![Install queue](docs/images/01-queue.png)
-
-*Direct install in progress: the PC serves the pkg, the console downloads it
-with `Range` requests and installs it. Game → patch → DLC go in the right
-order automatically.*
-
-| Drag and drop | FTP browser | Settings |
-|---|---|---|
-| ![Drag and drop](docs/images/02-drop-overlay.png) | ![FTP](docs/images/03-ftp-browser.png) | ![Settings](docs/images/04-settings.png) |
-
-| Keyboard map | Light theme |
+| Your consoles | Adding a console |
 |---|---|
-| ![Keyboard map](docs/images/12-keyboard-map.png) | ![Light theme](docs/images/11-remote-play-light.png) |
+| ![Consoles](docs/images/real/03-consoles.webp) | ![Add console](docs/images/real/09-add-console.webp) |
 
-*With no controller connected, the keyboard acts as one. Every key can be
-changed on the map, and the change is saved.*
+*Each console (PS4 or PS5) has its own card with its state. One click
+connects: the app checks the console, wakes it if it is in rest mode, waits
+until it is ready and connects — or opens the registration if this PC is not
+registered on it yet. A console that never answers the network search but
+takes a direct connection says so. The dashed card adds another console, by
+searching the network or by IP.*
 
-![PS1/PS2 converter](docs/images/13-games.png)
+### Pages over Remote Play
 
-*The PS1/PS2 converter (a tab of **Games**): the discs in a folder of the PC
-(.iso, .bin/.cue, .img), each recognised from the disc itself (serial and
-region). One click opens a game; the box in the corner selects several.*
-
-### Games, store, save vault and payloads
-
-| Games library — PS5 | Homebrew store — PS5 |
+| Games library | PS1/PS2 converter |
 |---|---|
-| ![Games library](docs/images/14-library.png) | ![Homebrew store](docs/images/17-store.png) |
+| ![Games over Remote Play](docs/images/real/02-library-over-remote-play.webp) | ![Converter over Remote Play](docs/images/real/08-converter-over-remote-play.webp) |
 
-*Games: every place games can be, on the console and on this PC — here a
-PS5's library folder, with homebrew apps beside a PS4 package. Homebrew
-store: the apps of homebrew.page and PKG-Zone together, the most downloaded
-first, each with the consoles it is for (PS4, PS5) and its store's tag.*
+*Games, the store, the save vault and payloads open over the picture, with a
+slider for how see-through they are, so the game stays in sight. Games: every
+place games can be, on the console and on this PC — a game downloaded as an
+archive shows as one game, and **Extract and install** does the rest. The
+PS1/PS2 converter: the discs in a folder of the PC, each recognised from the
+disc itself.*
 
-| Save vault — PS4 | Payloads — PS4 (GoldHEN) |
+### Store, save vault, payloads and files
+
+| Homebrew store | An app of the store |
 |---|---|
-| ![Save vault](docs/images/15-saves.png) | ![Payloads on a PS4](docs/images/16-payloads.png) |
+| ![Homebrew store](docs/images/real/04-store.webp) | ![Store app](docs/images/real/05-store-details.webp) |
+
+*The apps of homebrew.page and PKG-Zone together, the most downloaded first,
+each with the consoles it is for (PS4, PS5), its store's tag, and whether it
+is installed or has an update.*
+
+| Save vault | Payloads — PS4 (GoldHEN) |
+|---|---|
+| ![Save vault](docs/images/real/07-save-vault.webp) | ![Payloads](docs/images/real/06-payloads.webp) |
 
 *Save vault: every save on the console, whose it is, and whether this PC has
 a backup of it; a PS4 game's saves also go to a PS5 of the same PSN account.
-Payloads: GoldHEN's payloads and plugins on a PS4, each saying what it does —
-and etaHEN's, the autoloader's and PLDMGR's on a PS5.*
+Payloads: GoldHEN's payloads and plugins, each saying what it does, sent to
+its loader with one click.*
 
-![Payloads library on a PS5](docs/images/18-payloads-ps5.png)
-
-*On a PS5, the Payloads page also lists the community's payloads (the list
-PLK's Payload Manager reads), each checked against its SHA-256 before use.*
-
-![File menu](docs/images/05-file-menu.png)
+| Console files (FTP) | File menu *(generated)* |
+|---|---|
+| ![FTP](docs/images/real/10-ftp-browser.webp) | ![File menu](docs/images/05-file-menu.png) |
 
 *In the FTP browser, every file and folder has its own menu: download to the
 PC, prepare for dragging out of the window, copy the path, rename, move or
 copy on the console, edit a text file in place, change permissions, delete
 on the console. The list filters by name, sorts by name, size or date, and
-works from the keyboard. In the settings, the IP address is checked as you
-type.*
+works from the keyboard.*
 
-All these screenshots are generated automatically by
-`./scripts/screenshots.sh` (on the `beta` branch), against two mock
-consoles, a PS4 (GoldHEN) and a PS5 (etaHEN) — what they show is the real
-behaviour, not mock-ups. The games, homebrew apps and payloads named in them
-are real; the consoles, PSN accounts and saves are stand-ins, and no game
-artwork is shown.
+### More *(generated)*
+
+| Drag and drop | Settings | Keyboard map |
+|---|---|---|
+| ![Drag and drop](docs/images/02-drop-overlay.png) | ![Settings](docs/images/04-settings.png) | ![Keyboard map](docs/images/12-keyboard-map.png) |
+
+| Light theme | Payloads library on a PS5 |
+|---|---|
+| ![Light theme](docs/images/11-remote-play-light.png) | ![Payloads library on a PS5](docs/images/18-payloads-ps5.png) |
+
+*With no controller connected, the keyboard acts as one; every key can be
+changed on the map. On a PS5, the Payloads page also lists the community's
+payloads, each checked against its SHA-256 before use.*
+
+The real screenshots have the console's name, the accounts and the PC's
+folders blurred. The *generated* ones come from `./scripts/screenshots.sh`
+(on the `beta` branch), against two mock consoles, a PS4 (GoldHEN) and a PS5
+(etaHEN) — the real behaviour, with stand-in consoles, accounts and saves.
 
 ## Intended use
 
@@ -183,6 +193,7 @@ asks.
 | PS4 — Remote Package Installer (flatz) | 12800 | install it and **keep the app open and in the foreground** while commands are sent |
 | PS5 — etaHEN FTP server | 1337 | `FTP=1` in etaHEN's `config.ini` |
 | PS5 — ftpsrv payload FTP server | 2121 | load the payload (the app finds the port by itself) |
+| PS5 — Titan Core (optional: starts PS5 fake packages on 12.00–13.60) | 8097 | load the Titan Core payload (Payloads → Library) |
 | PS5 — etaHEN DPI v2 installer | 12800 | `DPI_v2=1` in etaHEN's `config.ini` |
 | PS5 — Prospero Manager (when there is no DPI v2) | 7070 | load the Prospero Manager payload |
 
@@ -191,6 +202,19 @@ with a PS5 in use, the settings show and edit the PS5 port. When the set
 port does not greet as FTP, the app also asks the usual ones and moves to the
 one that answers. Installing on a PS5 (DPI v2 or Prospero Manager) still has
 to be confirmed on a real PS5.
+
+PS5 fake packages (`PPSA…`) install on a PS5 like PS4 ones, and the app
+follows Titan Core preparing them when it runs. A PS5 game folder or image
+on the PC is made into one with [Packwright](https://github.com/itsmemac/Packwright),
+installed separately (it is not part of OrbisLink).
+
+A game downloaded as an archive (`.zip`, `.7z`, `.rar`, or its volumes such
+as `.part1.rar` and `.7z.001`) shows in the Games section as one game, read
+from inside it, and **Extract and install** extracts it (joining a package
+in parts), then installs it; a password is asked for in the app. Archives
+are opened by [7-Zip](https://www.7-zip.org), which comes with the Windows
+installer and the AppImage (nothing else to install); a build of your own
+uses an installed one (`7z.exe`, or `7zz`/`7z` on the `PATH`).
 
 ### Registering Remote Play
 
@@ -349,6 +373,7 @@ python3 tools/mock-console/make_test_pkg.py /tmp/game.pkg --padding 4000000
 ./build/orbislink-cli services --host 127.0.0.1
 ./build/orbislink-cli install --host 127.0.0.1 --bind 127.0.0.1 /tmp/game.pkg
 ./build/orbislink-cli ftp-ls --host 127.0.0.1 /data/pkg
+./build/orbislink-cli join /path/to/Name_0.pkg       # a package split into parts
 ```
 
 The same run happens automatically in `ctest -R integration_mock_console`.
@@ -507,6 +532,14 @@ Open Font License 1.1 (see [`third-party/figtree`](third-party/figtree) and
 its icons come from [Lucide](https://lucide.dev/), under the ISC licence (see
 [`third-party/lucide`](third-party/lucide); `scripts/generate-icons.py` turns them into
 `qml/orbislink/Icons.js`).
+
+The Windows installer and the AppImage carry the official
+[7-Zip](https://www.7-zip.org) command-line program, by Igor Pavlov, run as a
+program of its own to open archives: GNU LGPL, with the unRAR restriction
+(its code may not be used to make a RAR compressor) and BSD parts; its
+`License.txt` goes with it (`gui\7-Zip\License.txt`,
+`usr/share/doc/orbislink/LICENSE-7-Zip.txt`). `scripts/fetch-7zip.sh` fetches
+a fixed release and checks its SHA-256.
 
 The PS1/PS2 converter builds its packages with a C++ port of the fake PKG
 builder of [LibOrbisPkg](https://github.com/maxton/LibOrbisPkg), by maxton,
