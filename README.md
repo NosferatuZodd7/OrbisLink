@@ -100,6 +100,15 @@ Taken on a real PS4 (GoldHEN) with v1.4.3.
 a game extracted from its archive is being sent and installed (Extract → Send
 → Install), its update waiting to go after it.*
 
+| Playing over Remote Play | Keyboard map |
+|---|---|
+| ![Remote Play in a game](docs/images/real/17-remote-play-game.webp) | ![Keyboard map](docs/images/real/16-keyboard-map.webp) |
+
+*720p or 1080p at 60 fps, with sound and the microphone; the bar over the
+picture has the controller, the keyboard map, the sound, the aspect and full
+screen. With no controller connected, the keyboard acts as one: every key can
+be changed on the map, and the change is saved.*
+
 | Your consoles | Adding a console |
 |---|---|
 | ![Consoles](docs/images/real/03-consoles.webp) | ![Add console](docs/images/real/09-add-console.webp) |
@@ -117,7 +126,9 @@ searching the network or by IP.*
 |---|---|
 | ![Games over Remote Play](docs/images/real/02-library-over-remote-play.webp) | ![Converter over Remote Play](docs/images/real/08-converter-over-remote-play.webp) |
 
-![PS1/PS2 converter](docs/images/real/12-converter.webp)
+| Payloads over Remote Play | PS1/PS2 converter |
+|---|---|
+| ![Payloads over Remote Play](docs/images/real/18-payloads-over-remote-play.webp) | ![PS1/PS2 converter](docs/images/real/12-converter.webp) |
 
 *Games, the store, the save vault and payloads open over the picture, with a
 slider for how see-through they are, so the game stays in sight. Games: every
