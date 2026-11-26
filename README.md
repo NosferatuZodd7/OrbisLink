@@ -41,27 +41,27 @@ Releases page.
 | The console's Remote Play PINs asked for where they are needed: the 8-digit one when registering, the 4-digit passcode while connecting (then kept for that console) | ✅ | 🧪 |
 | A console the router gave another address is found again by its host-id or hardware address (never by a guess) and its address updated by itself, with a notice; connecting to one that does not answer looks for it first | 🧪 | 🧪 |
 | Microphone | 🧪 | ✅ (in a voice party) |
-| Waking the console from rest mode with one click | 🧪 | 🧪 |
+| Waking the console from rest mode with one click | ✅ | ✅ |
 | Remote Play: several PSN accounts, each with its own PIN, picked on the console's card; no crash when the console is showing a video app | 🧪 | 🧪 |
-| Remote Play: Games, the store, the save vault and payloads open over the picture, with a slider for how see-through they are, so the game stays in sight | 🧪 | 🧪 |
-| Adding a console: the search asks every network adapter and every address of a home network, and finds a console with Remote Play off by its FTP | 🧪 | 🧪 |
-| The console's firmware and its jailbreak's version (when its FTP says it) beside its name in the top bar | 🧪 | 🧪 |
+| Remote Play: Games, the store, the save vault and payloads open over the picture, with a slider for how see-through they are, so the game stays in sight | ✅ | ✅ |
+| Adding a console: the search asks every network adapter and every address of a home network, and finds a console with Remote Play off by its FTP | ✅ | ✅ |
+| The console's firmware and its jailbreak's version (when its FTP says it) beside its name in the top bar | ✅ | ✅ |
 | FTP browser: browse, upload, download, rename, delete | ✅ (GoldHEN) | ✅ (etaHEN, ftpsrv) |
-| FTP browser: filter and sort (name, size, date), the keyboard (arrows, Enter, Delete, F2, Ctrl+A, Ctrl+F…), copy on the console (files and whole folders), permissions (`SITE CHMOD`), text files edited and saved in place; one connection kept between operations, `MLSD` listings when the server has them; a cancel stops only its own transfer; folders uploaded whole, each file's size checked | 🧪 | 🧪 |
+| FTP browser: filter and sort (name, size, date), the keyboard (arrows, Enter, Delete, F2, Ctrl+A, Ctrl+F…), copy on the console (files and whole folders), permissions (`SITE CHMOD`), text files edited and saved in place; one connection kept between operations, `MLSD` listings when the server has them; a cancel stops only its own transfer; folders uploaded whole, each file's size checked | ✅ | ✅ |
 | ftpsrv's own commands in advanced mode: make `/system` writable (`MTRW`), stop the server (`KILL`) | — | 🧪 |
-| Nothing asks the console's FTP before it has answered: after switching consoles the pages wait for the new one; Save vault and Payloads say *no FTP* in the navigation when it does not answer, and what is on the PC (converting a PS2 disc, the store's downloads, saves kept here) stays usable | 🧪 | 🧪 |
+| Nothing asks the console's FTP before it has answered: after switching consoles the pages wait for the new one; Save vault and Payloads say *no FTP* in the navigation when it does not answer, and what is on the PC (converting a PS2 disc, the store's downloads, saves kept here) stays usable | ✅ | 🧪 |
 | FTP found by itself when the set port is silent (2121, 1337, 21, and 9090 on a PS5) | 🧪 | ✅ |
-| Files tab: several files and folders picked at once, downloaded, moved or deleted together; folders deleted with everything inside; downloads in the queue that go on after the console breaks them; moving between drives (internal ↔ USB), copied through the PC; a drop goes into the folder that is open | 🧪 | 🧪 |
-| Sending any file (an ISO, a PS3 package for RPCS3) to the console's memory or a USB drive, as it is — only a PS4 package is ever installed | 🧪 | 🧪 |
+| Files tab: several files and folders picked at once, downloaded, moved or deleted together; folders deleted with everything inside; downloads in the queue that go on after the console breaks them; moving between drives (internal ↔ USB), copied through the PC; a drop goes into the folder that is open | ✅ | 🧪 |
+| Sending any file (an ISO, a PS3 package for RPCS3) to the console's memory or a USB drive, as it is — only a PS4 package is ever installed | ✅ | 🧪 |
 | Installing .pkg files by drag and drop | ✅ (Remote Package Installer) | 🧪 (etaHEN's DPI v2, or Prospero Manager's API when there is no DPI v2) |
 | When the installer or FTP is not running, a window says what to do on that console (PS4: open Remote Package Installer, GoldHEN's FTP; PS5: Prospero Manager or DPI v2, ftpsrv or etaHEN's FTP) | ✅ | ✅ |
-| One queue for every job (installs, copies, conversions, the store), in three groups — under way, waiting, finished — with the round's percentage, jobs to go and time left, and a narrow rail with the jobs when the panel is closed; kept across restarts; a system notification when a long job ends; a failed job can be tried again | 🧪 | 🧪 |
+| One queue for every job (installs, copies, conversions, the store), in three groups — under way, waiting, finished — with the round's percentage, jobs to go and time left, and a narrow rail with the jobs when the panel is closed; kept across restarts; a system notification when a long job ends; a failed job can be tried again | ✅ | 🧪 |
 | Each package says whether it is fake (fpkg) or official, and the firmware it needs | ✅ | ✅ |
 | A warning before an official package goes (it installs only with its licence), or a game needing a newer firmware than the PS4's | 🧪 | 🧪 official only (a PS5 runs PS4 games whatever their firmware) |
 | PS1/PS2 discs made into PS4 packages (no console needed) | ✅ | ✅ |
 | PS1/PS2 packages sent and installed; the package left on the PC deleted once the console has it (a setting keeps them) | ✅ | ✅ sent · 🧪 installed |
-| **Games**: one library of every place games can be (the console's `OrbisLinkFPKG` folders, its USB drives and `data/pkg`, this PC's drives and folders), with covers, search and an *Only games* filter; the PS1/PS2 converter in its own tab | 🧪 | 🧪 |
-| Games: pick several and convert, install or delete them together; choose the console's memory, a USB drive or the extended storage | 🧪 | 🧪 |
+| **Games**: one library of every place games can be (the console's `OrbisLinkFPKG` folders, its USB drives and `data/pkg`, this PC's drives and folders), with covers, search and an *Only games* filter; the PS1/PS2 converter in its own tab | ✅ | ✅ |
+| Games: pick several and convert, install or delete them together; choose the console's memory, a USB drive or the extended storage | ✅ | ✅ |
 | Games: what the console has installed (with each game's name and version), copying a game to this PC, the console's free space | 🧪 | 🧪 |
 | Games: uninstalling a game or its update | 🧪 | — |
 | Packing a PS4 app folder from this PC into a .pkg and installing it | 🧪 | 🧪 |
