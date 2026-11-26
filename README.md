@@ -100,6 +100,14 @@ Taken on a real PS4 (GoldHEN) with v1.4.3.
 a game extracted from its archive is being sent and installed (Extract → Send
 → Install), its update waiting to go after it.*
 
+| Drag a package onto the window | The console downloads it and installs |
+|---|---|
+| ![Drag and drop](docs/images/real/22-drag-and-drop.webp) | ![Install started](docs/images/real/23-install-started.webp) |
+
+*A package dropped on the window installs directly (the console downloads it
+from this PC) or goes over FTP; a folder is searched for its packages. The
+queue shows each install's speed and time left.*
+
 | Playing over Remote Play | Keyboard map |
 |---|---|
 | ![Remote Play in a game](docs/images/real/17-remote-play-game.webp) | ![Keyboard map](docs/images/real/16-keyboard-map.webp) |
