@@ -100,6 +100,14 @@ Taken on a real PS4 (GoldHEN) with v1.4.3.
 a game extracted from its archive is being sent and installed (Extract → Send
 → Install), its update waiting to go after it.*
 
+| PS5 without a jailbreak | Its microphone in a voice party |
+|---|---|
+| ![PS5 Remote Play](docs/images/real/28-ps5-no-jailbreak.webp) | ![PS5 party voice chat](docs/images/real/29-ps5-party-mic.webp) |
+
+*Remote Play needs no jailbreak: here a PS5 on firmware 14.23 at 720p/60
+with sound, and the PC's microphone heard in a voice party. What needs the
+console's FTP (the save vault, payloads, transfers) says so instead.*
+
 | Drag a package onto the window | The console downloads it and installs |
 |---|---|
 | ![Drag and drop](docs/images/real/22-drag-and-drop.webp) | ![Install started](docs/images/real/23-install-started.webp) |
