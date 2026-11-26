@@ -47,7 +47,6 @@ class GamesController : public QObject
 	// Packwright's program, as found (the settings' choice, else where its
 	// installers put it, else on the PATH); "" when it is not there.
 	Q_PROPERTY(QString packwright READ packwright NOTIFY foldersChanged)
-	Q_PROPERTY(QString sevenZip READ sevenZip NOTIFY foldersChanged)
 	// Where on the console a game goes to be installed ("internal", "usb",
 	// "ext"), its folder there, and which drives the console has:
 	// { checked, usb, ext } (checked: false until it was asked).
@@ -124,10 +123,8 @@ public:
 		const QString &password = QString());
 	// A job stopped by its archive's password tried again with this one.
 	Q_INVOKABLE void retryWithPassword(const QString &id, const QString &password);
-	// 7-Zip as found (empty: none), and where it is when it is not found.
+	// The 7-Zip that comes with OrbisLink (else an installed one); empty: none.
 	QString sevenZip() const;
-	// False (and nothing kept) when it is not 7-Zip's command-line program.
-	Q_INVOKABLE bool setSevenZipPath(const QString &program);
 	// The same game made by Packwright into an image ShadowMountPlus mounts
 	// (.ffpkg, UFS2, the kind it recommends), in the output folder; then,
 	// with `send`, copied to /data/homebrew on the PS5 (one file, not the

@@ -661,12 +661,12 @@ console that takes that package.
 In a place of this PC (Downloads, say) they show as one card, the first
 volume's, with an **N volumes** tag (the other volumes are not shown apart)
 and the size of them all. OrbisLink does not open archives itself: it runs
-**7-Zip** (free, from 7-zip.org: `7z.exe` on Windows, `7zz` on Linux and
-macOS), found beside OrbisLink, where its installer puts it, on the `PATH`,
-or where you show it with **Choose…** in the card's details (the diagnostics
-say which one). Only 7-Zip's command-line program is taken (`7z.exe`, `7zz`
-or `7za`, checked by what it says when run alone): WinRAR or 7-Zip's own
-windows are refused, since they would open a window for each archive.
+**7-Zip**, which comes with OrbisLink (in the Windows installer and the
+AppImage): nothing else to install. A build of your own uses an installed
+7-Zip (`C:\Program Files\7-Zip\7z.exe`, or `7zz`/`7z` on the `PATH`); the
+diagnostics say which one is used. Only 7-Zip's command-line program is
+ever run (`7z.exe`, `7zz` or `7za`, checked by what it says when run alone),
+never another archiver.
 
 - **The card.** 7-Zip lists the archive and reads only the first megabytes
   of the package in it: its title, icon, title ID and version show on the
@@ -695,8 +695,11 @@ windows are refused, since they would open a window for each archive.
   and is not saved or written to the log.
 - **What 7-Zip says** is shown in words: a volume missing (named), a wrong
   password, a damaged or incomplete archive, no room on the disk, or a 7-Zip
-  that cannot extract RAR (some Linux packages of it: install 7-Zip from
-  7-zip.org).
+  that cannot extract RAR (some Linux packages of it, when it is not the
+  one that comes with OrbisLink).
+- **A protected archive's name** often carries the game's title ID
+  (`…_CUSA12345_…`): it is taken as the game's, for its picture (when the app
+  has one) and whether it is installed.
 
 **New on this PC.** Once the installed titles are read, the packages in this
 PC's places (each place and three levels of folders under it) are read too:

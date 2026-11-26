@@ -126,13 +126,8 @@ QString Diagnostics::report(AppController *app)
 				: QStringLiteral("not found") + (chosen.isEmpty() ? QString() : QStringLiteral(" (chosen: ") + chosen
 					+ QStringLiteral(", not a program)")))
 			<< "\n";
-		const QString sevenZipChosen = QString::fromStdString(app->settings().sevenZipPath);
-		const QString sevenZip = ArchiveTool::find(sevenZipChosen);
-		out << "7-Zip            "
-			<< (!sevenZip.isEmpty() ? sevenZip
-				: QStringLiteral("not found") + (sevenZipChosen.isEmpty() ? QString() : QStringLiteral(" (chosen: ")
-					+ sevenZipChosen + QStringLiteral(", not a program)")))
-			<< "\n";
+		const QString sevenZip = ArchiveTool::find();
+		out << "7-Zip            " << (!sevenZip.isEmpty() ? sevenZip : QStringLiteral("not found")) << "\n";
 
 		heading(out, "Settings");
 		// Only what helps diagnose. The Account ID and the keys are left

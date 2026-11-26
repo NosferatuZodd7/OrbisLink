@@ -120,8 +120,9 @@ A game downloaded as an archive (`.zip`, `.7z`, `.rar`, or its volumes such
 as `.part1.rar` and `.7z.001`) shows in the Games section as one game, read
 from inside it, and **Extract and install** extracts it (joining a package
 in parts), then installs it; a password is asked for in the app. Archives
-are opened by [7-Zip](https://www.7-zip.org) (`7z.exe` on Windows, `7zz` on
-Linux and macOS), installed separately (it is not part of OrbisLink).
+are opened by [7-Zip](https://www.7-zip.org), which comes with the Windows
+installer and the AppImage (nothing else to install); a build of your own
+uses an installed one (`7z.exe`, or `7zz`/`7z` on the `PATH`).
 
 ### Registering Remote Play
 
@@ -458,6 +459,14 @@ Open Font License 1.1 (see [`third-party/figtree`](third-party/figtree) and
 its icons come from [Lucide](https://lucide.dev/), under the ISC licence (see
 [`third-party/lucide`](third-party/lucide); `scripts/generate-icons.py` turns them into
 `qml/orbislink/Icons.js`).
+
+The Windows installer and the AppImage carry the official
+[7-Zip](https://www.7-zip.org) command-line program, by Igor Pavlov, run as a
+program of its own to open archives: GNU LGPL, with the unRAR restriction
+(its code may not be used to make a RAR compressor) and BSD parts; its
+`License.txt` goes with it (`gui\7-Zip\License.txt`,
+`usr/share/doc/orbislink/LICENSE-7-Zip.txt`). `scripts/fetch-7zip.sh` fetches
+a fixed release and checks its SHA-256.
 
 The PS1/PS2 converter builds its packages with a C++ port of the fake PKG
 builder of [LibOrbisPkg](https://github.com/maxton/LibOrbisPkg), by maxton,

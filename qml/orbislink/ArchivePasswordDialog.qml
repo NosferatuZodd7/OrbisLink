@@ -42,8 +42,14 @@ Dialog {
     padding: 0
     Overlay.modal: Rectangle { color: Theme.scrim }
     background: ShelfTile.DialogGlass {}
-    // Typed into at once (once it is on screen: before, the focus is lost).
-    onOpened: field.forceActiveFocus()
+    // Typed into at once: a moment after it opens, since the game's details
+    // closing behind it hand the focus back to the page first.
+    onOpened: focusLater.restart()
+    Timer {
+        id: focusLater
+        interval: 150
+        onTriggered: if (dialog.opened) field.forceActiveFocus()
+    }
     onClosed: {
         field.text = ""
         onGiven = null

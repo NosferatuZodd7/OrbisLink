@@ -21,10 +21,10 @@ namespace orbislink {
 class ArchiveTool
 {
 public:
-	// The 7-Zip found: `configured` (a program or its folder) when it is
-	// one, the one beside OrbisLink, the installed one, then the one on the
-	// PATH. Empty when there is none.
-	static QString find(const QString &configured = QString());
+	// The 7-Zip found: the one that comes with OrbisLink (beside it, or in
+	// its 7-Zip folder), else an installed one, then the one on the PATH
+	// (ORBISLINK_7ZIP first, for tests). Empty when there is none.
+	static QString find();
 	// The file is 7-Zip's command-line program (by its name, then by what
 	// it says when run alone), not another program.
 	static bool isSevenZip(const QString &program);

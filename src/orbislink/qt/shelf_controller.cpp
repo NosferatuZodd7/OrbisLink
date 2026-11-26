@@ -500,7 +500,7 @@ library::DiscProbe ShelfController::probe() const
 #endif
 	// What an archive holds, from 7-Zip, when there is one: the package in
 	// it and its first bytes. No password is tried (none is known yet).
-	const QString sevenZip = ArchiveTool::find(QString::fromStdString(app_->settings().sevenZipPath));
+	const QString sevenZip = ArchiveTool::find();
 	if(!sevenZip.isEmpty())
 		probe.archive = [sevenZip](const std::string &path) {
 			library::DiscProbe::ArchiveLook look;
@@ -1247,8 +1247,8 @@ QVariantMap ShelfController::cardFor(const ShelfItem &item, const Source &from, 
 					note = tr("An archive in %n volume(s), one of them missing (still downloading?): %1", "", volumes)
 						.arg(QString::fromStdString(item.volumeMissing));
 				else if(!sevenZip)
-					note = tr("An archive: 7-Zip extracts it here, and it is not installed. Get it from 7-zip.org "
-							  "(free), or show where it is with Choose… below.");
+					note = tr("An archive: 7-Zip, which comes with OrbisLink, extracts it, and it is missing here. "
+							  "Install OrbisLink again, or 7-Zip from 7-zip.org (free).");
 				else if(!canConvert)
 					note = tr("An archive: unpack it on the PC first; the console does not open them.");
 				else if(!item.archivePackage.empty() || item.archiveLocked || item.archiveProblem.empty())

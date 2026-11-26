@@ -118,7 +118,7 @@ QStringList quiet()
 
 } // namespace
 
-QString ArchiveTool::find(const QString &configured)
+QString ArchiveTool::find()
 {
 	const QStringList names = {
 #ifdef Q_OS_WIN
@@ -132,13 +132,6 @@ QString ArchiveTool::find(const QString &configured)
 		for(const QString &name : names)
 			places << QDir(folder).filePath(name);
 	};
-	if(!configured.isEmpty())
-	{
-		if(QFileInfo(configured).isDir())
-			inFolder(configured);
-		else
-			places << configured;
-	}
 	const QString fromEnvironment = qEnvironmentVariable("ORBISLINK_7ZIP");
 	if(!fromEnvironment.isEmpty())
 		places << fromEnvironment;

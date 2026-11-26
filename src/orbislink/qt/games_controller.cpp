@@ -1802,23 +1802,7 @@ bool GamesController::runJoin(const std::shared_ptr<Job> &job, const QString &fi
 
 QString GamesController::sevenZip() const
 {
-	return ArchiveTool::find(QString::fromStdString(app_->settings().sevenZipPath));
-}
-
-bool GamesController::setSevenZipPath(const QString &program)
-{
-	const QString local = toLocalPath(program);
-	// A folder holds it; a file must be it (WinRAR, say, is not: run with
-	// 7-Zip's commands it opens a window of errors for each archive).
-	if(!local.isEmpty() && !QFileInfo(local).isDir() && !ArchiveTool::isSevenZip(local))
-	{
-		logWarning("Games: " + QDir::toNativeSeparators(local).toStdString() + " is not 7-Zip's command-line program");
-		return false;
-	}
-	const std::string path = local.toStdString();
-	app_->updateSettings([&](Settings &s) { s.sevenZipPath = path; });
-	emit foldersChanged();
-	return true;
+	return ArchiveTool::find();
 }
 
 void GamesController::extractArchive(const QString &firstVolume, const QString &title, bool install,
@@ -1899,7 +1883,7 @@ bool GamesController::runExtract(const std::shared_ptr<Job> &job, const std::fun
 	if(job->sevenZip.isEmpty())
 	{
 		*error = QT_TRANSLATE_NOOP("Messages", "7-Zip is not installed: it opens archives (.zip, .7z, .rar). Get it "
-			"from 7-zip.org (free), or show where it is with Choose… in the game's details.");
+			"from 7-zip.org (free), or install OrbisLink again: it comes with it.");
 		return false;
 	}
 	{

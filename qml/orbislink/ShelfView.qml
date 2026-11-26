@@ -1193,31 +1193,6 @@ FocusScope {
                         onClicked: packwrightDialog.open()
                     }
                 }
-                // An archive of this PC: 7-Zip, found or not, and where it is.
-                RowLayout {
-                    visible: details.card.kind === "archive" && details.card.where !== "console"
-                    Layout.fillWidth: true
-                    spacing: 8
-                    Icon {
-                        name: games.sevenZip.length > 0 ? "check" : "info"
-                        size: 14
-                        color: games.sevenZip.length > 0 ? Theme.ok : Theme.textSecondary
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        text: games.sevenZip.length > 0 ? qsTr("7-Zip: %1").arg(games.sevenZip)
-                                                        : qsTr("7-Zip is not installed: it extracts the archives (free, "
-                                                               + "from 7-zip.org).")
-                        color: Theme.textSecondary
-                        font.pixelSize: 12
-                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
-                    }
-                    StyledButton {
-                        text: qsTr("Choose…")
-                        chip: true
-                        onClicked: sevenZipDialog.open()
-                    }
-                }
                 RowLayout {
                     visible: details.packageWarning.length > 0
                     Layout.fillWidth: true
@@ -2031,61 +2006,5 @@ FocusScope {
         id: packwrightDialog
         title: qsTr("Packwright's program")
         onAccepted: games.setPackwrightPath(selectedFile)
-    }
-
-    // Where 7-Zip's program (7z.exe, 7zz) is, when it was not found by itself;
-    // the archives are looked into again with it.
-    FileDialog {
-        id: sevenZipDialog
-        title: qsTr("7-Zip's program")
-        onAccepted: {
-            if (games.setSevenZipPath(selectedFile))
-                shelf.refresh()
-            else
-                notWhatIsAsked.open()
-        }
-    }
-    // Another program chosen (WinRAR, say): said, and nothing kept.
-    Dialog {
-        id: notWhatIsAsked
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        width: Math.min(440, parent.width - 32)
-        modal: true
-        padding: 0
-        Overlay.modal: Rectangle { color: Theme.scrim }
-        background: ShelfTile.DialogGlass {}
-        header: ShelfTile.DialogHead {
-            eyebrow: qsTr("Archive")
-            title: qsTr("That is not 7-Zip")
-            dialog: notWhatIsAsked
-        }
-        contentItem: Text {
-            leftPadding: Theme.dialogMargin
-            rightPadding: Theme.dialogMargin
-            topPadding: 6
-            bottomPadding: Theme.dialogInner
-            wrapMode: Text.WordWrap
-            color: Theme.textSecondary
-            font.pixelSize: 13
-            text: qsTr("Choose 7-Zip's command-line program: 7z.exe, in 7-Zip's folder under Program Files, "
-                       + "or 7zz. WinRAR and 7-Zip's own windows (7zFM, 7zG) cannot be used. 7-Zip is free, "
-                       + "from 7-zip.org.")
-        }
-        footer: Item {
-            implicitHeight: Theme.dialogFooter
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: Theme.dialogInner
-                anchors.leftMargin: Theme.dialogMargin
-                anchors.rightMargin: Theme.dialogMargin
-                Item { Layout.fillWidth: true }
-                StyledButton {
-                    text: qsTr("OK")
-                    solid: true
-                    onClicked: notWhatIsAsked.close()
-                }
-            }
-        }
     }
 }

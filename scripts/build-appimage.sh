@@ -114,6 +114,15 @@ for plugin in "$APPDIR"/usr/qml/Qt/labs/*/*.so; do
 	[ -f "$plugin" ] && "$LINUXDEPLOY" --appdir "$APPDIR" --deploy-deps-only "$plugin" >/dev/null
 done
 
+# 7-Zip beside the interface, which runs it to open the archives games come
+# in (its static build: it needs no library). ORBISLINK_NO_7ZIP=1 leaves it out.
+if [ -z "${ORBISLINK_NO_7ZIP:-}" ]; then
+	SEVEN="$BUILD/7-zip"
+	ORBISLINK_7ZIP_CACHE="${ORBISLINK_7ZIP_CACHE:-$BUILD/7-zip-cache}" "$REPO/scripts/fetch-7zip.sh" linux "$SEVEN"
+	install -m 755 "$SEVEN/7zz" "$APPDIR/usr/bin/7zz"
+	cp "$SEVEN/License.txt" "$APPDIR/usr/share/doc/orbislink/LICENSE-7-Zip.txt"
+fi
+
 # Then the AppImage itself.
 mkdir -p "$DIST"
 OUTPUT_NAME="OrbisLink-$VERSION-x86_64.AppImage"

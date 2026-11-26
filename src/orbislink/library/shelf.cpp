@@ -587,7 +587,26 @@ ShelfItem identify(FileSource &source, const ShelfEntry &entry, const FolderInde
 			// One with a password says nothing of itself until it is given:
 			// among the games, where it can be.
 			if(look.locked)
+			{
 				item.group = "games";
+				// Its name often carries the game's title ID ("…_CUSA12345_…"):
+				// the picture the app has for it, and whether it is installed.
+				const std::string upper = toUpper(baseName(entry.path));
+				for(const char *prefix : { "CUSA", "PPSA" })
+				{
+					const size_t at = upper.find(prefix);
+					if(at == std::string::npos || at + 9 > upper.size())
+						continue;
+					const std::string digits = upper.substr(at + 4, 5);
+					if(std::all_of(digits.begin(), digits.end(), [](char c) { return c >= '0' && c <= '9'; })
+						&& (at + 9 == upper.size() || !std::isdigit(static_cast<unsigned char>(upper[at + 9]))))
+					{
+						item.titleId = upper.substr(at, 9);
+						item.platform = prefix[0] == 'P' ? "ps5" : "ps4";
+						break;
+					}
+				}
+			}
 			if(look.package.empty())
 				break;
 			item.group = "games";

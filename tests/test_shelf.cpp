@@ -189,6 +189,7 @@ ORBISLINK_TEST(shows_an_archive_in_volumes_as_one_game)
 	folder.file("Late.7z.001", std::vector<uint8_t>(100, 4));
 	folder.file("Late.7z.003", std::vector<uint8_t>(100, 5));
 	folder.file("Locked.zip", std::vector<uint8_t>(100, 6));
+	folder.file("[SITE]-Game_CUSA56789_x (1).rar", std::vector<uint8_t>(100, 9));
 	folder.file("photos.zip", std::vector<uint8_t>(100, 7));
 	const std::vector<uint8_t> pkg = package("CUSA00004", "Archived Game", "gd");
 
@@ -205,7 +206,7 @@ ORBISLINK_TEST(shows_an_archive_in_volumes_as_one_game)
 			look.packageSize = static_cast<int64_t>(pkg.size());
 			look.head = pkg;
 		}
-		else if(name == "Locked.zip")
+		else if(name == "Locked.zip" || name.find("CUSA") != std::string::npos)
 			look.locked = true;
 		return look;
 	};
@@ -219,7 +220,7 @@ ORBISLINK_TEST(shows_an_archive_in_volumes_as_one_game)
 	CHECK(!items.count("Demo.part2.rar"));
 	CHECK(!items.count("Demo.part3.rar"));
 	CHECK(!items.count("Late.7z.003"));
-	CHECK_EQ(looks, 4);
+	CHECK_EQ(looks, 5);
 	const ShelfItem &demo = items.at("Demo.part1.rar");
 	CHECK(demo.kind == Kind::Archive);
 	CHECK_EQ(demo.group, std::string("games"));
@@ -237,6 +238,12 @@ ORBISLINK_TEST(shows_an_archive_in_volumes_as_one_game)
 	CHECK(locked.archiveLocked);
 	CHECK_EQ(locked.group, std::string("games"));
 	CHECK_EQ(locked.title, std::string("Locked"));
+	CHECK(locked.titleId.empty());
+	// A title ID in a protected archive's name is taken as the game's.
+	const ShelfItem &named = items.at("[SITE]-Game_CUSA56789_x (1).rar");
+	CHECK_EQ(named.titleId, std::string("CUSA56789"));
+	CHECK_EQ(named.platform, std::string("ps4"));
+	CHECK_EQ(named.group, std::string("games"));
 	CHECK_EQ(items.at("photos.zip").group, std::string("other"));
 
 	// Kept, read back, then the missing volume arrives.
