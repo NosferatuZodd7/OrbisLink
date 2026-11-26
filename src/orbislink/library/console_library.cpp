@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "orbislink/library/console_library.h"
+#include "orbislink/library/archive_set.h"
 
 #include "orbislink/common/json.h"
 #include "orbislink/library/text.h"
@@ -55,7 +56,7 @@ Kind kindOf(const std::string &name, bool directory, int64_t size)
 		return Kind::Image;
 	if(ext == ".elf" || ext == ".self" || ext == ".lua" || ext == ".js" || ext == ".jar")
 		return Kind::Payload;
-	if(ext == ".zip" || ext == ".7z" || ext == ".rar")
+	if(ext == ".zip" || ext == ".7z" || ext == ".rar" || parseArchiveVolume(name, nullptr))
 		return Kind::Archive;
 	return Kind::Other;
 }

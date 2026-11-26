@@ -4,6 +4,7 @@
 #include "orbislink/common/log.h"
 #include "orbislink/net/net_utils.h"
 #include "orbislink/qt/app_controller.h"
+#include "orbislink/qt/archive_tool.h"
 #include "orbislink/qt/games_controller.h"
 #include "orbislink/qt/window_chrome.h"
 #include "orbislink/settings/settings_store.h"
@@ -124,6 +125,13 @@ QString Diagnostics::report(AppController *app)
 			<< (!packwright.isEmpty() ? packwright
 				: QStringLiteral("not found") + (chosen.isEmpty() ? QString() : QStringLiteral(" (chosen: ") + chosen
 					+ QStringLiteral(", not a program)")))
+			<< "\n";
+		const QString sevenZipChosen = QString::fromStdString(app->settings().sevenZipPath);
+		const QString sevenZip = ArchiveTool::find(sevenZipChosen);
+		out << "7-Zip            "
+			<< (!sevenZip.isEmpty() ? sevenZip
+				: QStringLiteral("not found") + (sevenZipChosen.isEmpty() ? QString() : QStringLiteral(" (chosen: ")
+					+ sevenZipChosen + QStringLiteral(", not a program)")))
 			<< "\n";
 
 		heading(out, "Settings");

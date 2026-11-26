@@ -180,6 +180,8 @@ std::string Settings::toJson() const
 	root.set("convert_output_folder", Json::fromString(convertOutputFolder));
 	if(!packwrightPath.empty())
 		root.set("packwright_path", Json::fromString(packwrightPath));
+	if(!sevenZipPath.empty())
+		root.set("seven_zip_path", Json::fromString(sevenZipPath));
 	root.set("keep_converted_packages", Json::fromBool(keepConvertedPackages));
 	root.set("auto_save_backup", Json::fromBool(autoSaveBackup));
 	root.set("install_storage", Json::fromString(installStorage));
@@ -380,6 +382,7 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 	settings.gamesFolder = root["games_folder"].toString(settings.gamesFolder);
 	settings.convertOutputFolder = root["convert_output_folder"].toString(settings.convertOutputFolder);
 	settings.packwrightPath = root["packwright_path"].toString(settings.packwrightPath);
+	settings.sevenZipPath = root["seven_zip_path"].toString(settings.sevenZipPath);
 	settings.keepConvertedPackages = root["keep_converted_packages"].toLooseBool(settings.keepConvertedPackages);
 	settings.autoSaveBackup = root["auto_save_backup"].toLooseBool(settings.autoSaveBackup);
 	settings.installStorage = root["install_storage"].toString(settings.installStorage);

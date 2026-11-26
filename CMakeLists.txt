@@ -65,6 +65,7 @@ add_library(orbislink_core STATIC
 	src/orbislink/http/local_http_server.cpp
 	src/orbislink/installer/error_codes.cpp
 	src/orbislink/installer/rpi_client.cpp
+	src/orbislink/library/archive_set.cpp
 	src/orbislink/library/console_library.cpp
 	src/orbislink/library/folder_package.cpp
 	src/orbislink/library/installed_titles.cpp
@@ -79,6 +80,7 @@ add_library(orbislink_core STATIC
 	src/orbislink/payloads/payload_layout.cpp
 	src/orbislink/net/socket_compat.cpp
 	src/orbislink/pkg/pkg_inspector.cpp
+	src/orbislink/pkg/pkg_parts.cpp
 	src/orbislink/pkg/sfo_parser.cpp
 	src/orbislink/queue/install_queue.cpp
 	src/orbislink/saves/save_vault.cpp
@@ -215,6 +217,7 @@ if(ORBISLINK_BUILD_GUI)
 			src/orbislink/qt/captures_controller.cpp
 			src/orbislink/qt/cheats_controller.cpp
 			src/orbislink/qt/cover_provider.cpp
+			src/orbislink/qt/archive_tool.cpp
 			src/orbislink/qt/games_controller.cpp
 			src/orbislink/qt/saves_controller.cpp
 			src/orbislink/qt/payloads_controller.cpp

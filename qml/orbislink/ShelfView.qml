@@ -33,8 +33,9 @@ FocusScope {
     readonly property var batch: pickedKeys.length > 0 ? shelf.batchActions(pickedKeys) : ({})
     function pickable(card) {
         var actions = card.actions || []
-        return card.card === "title" && ["convert", "pack", "packPs5", "sendImage", "install", "installPending",
-                                         "convertOnly", "packOnly", "packPs5Only", "copyToPc", "delete"]
+        return card.card === "title" && ["convert", "pack", "joinParts", "extract", "packPs5", "sendImage", "install",
+                                         "installPending", "convertOnly", "packOnly", "joinPartsOnly", "extractOnly",
+                                         "packPs5Only", "copyToPc", "delete"]
             .some(function (a) { return actions.indexOf(a) >= 0 })
     }
     // The last one picked or left, where a Shift+click run starts from.
@@ -99,6 +100,14 @@ FocusScope {
             cheatsDialog.begin(shelf.card(index), function () { details.show(index) })
             return
         }
+        // An archive with a password: asked for here first.
+        if ((action === "extract" || action === "extractOnly") && shelf.card(index).archiveLocked) {
+            var card = shelf.card(index)
+            archivePassword.ask(card.name, false, function (password) {
+                shelf.extractWithPassword(index, action === "extract", password)
+            })
+            return
+        }
         shelf.act(index, action)
     }
 
@@ -141,6 +150,10 @@ FocusScope {
                                                             : qsTr("Only convert")
         case "pack": return qsTr("Pack and install")
         case "packOnly": return qsTr("Only pack")
+        case "joinParts": return qsTr("Join the parts and install")
+        case "joinPartsOnly": return qsTr("Only join the parts")
+        case "extract": return qsTr("Extract and install")
+        case "extractOnly": return qsTr("Only extract")
         case "packPs5": return qsTr("Make a PS5 package and install")
         case "packPs5Only": return qsTr("Only make the PS5 package")
         case "installPending": return qsTr("Install from this PC")
@@ -175,6 +188,16 @@ FocusScope {
                                    : qsTr("Made into a PS4 package, kept in the output folder")
         case "pack": return qsTr("Made into a .pkg on this PC (as its .gp4 says, when it has one), sent and installed")
         case "packOnly": return qsTr("Made into a .pkg, kept in the output folder")
+        case "joinParts": return qsTr("Its %n part(s) checked against its header and joined into one package on "
+                                      + "this PC, then sent and installed; the parts stay as they are", "", card.parts || 0)
+        case "joinPartsOnly": return qsTr("Its parts joined into one package, kept in the output folder; the parts "
+                                          + "stay as they are")
+        case "extract": return card.archiveLocked
+                               ? qsTr("Its password asked for, then extracted on this PC by 7-Zip (its parts joined "
+                                      + "when it is in parts), sent and installed; the archive stays as it is")
+                               : qsTr("Extracted on this PC by 7-Zip (its parts joined when it is in parts), sent and "
+                                      + "installed; the archive stays as it is")
+        case "extractOnly": return qsTr("Extracted by 7-Zip into the output folder; the archive stays as it is")
         case "packPs5": return qsTr("Made into a PS5 fake package on this PC by Packwright, sent and installed")
         case "packPs5Only": return qsTr("Made into a PS5 fake package by Packwright, kept in the output folder")
         case "installPending": return qsTr("The update and add-ons in this PC's places that the console does not have: %1")
@@ -205,6 +228,10 @@ FocusScope {
         case "convertOnly": return "package"
         case "pack": return "package-plus"
         case "packOnly": return "package"
+        case "joinParts": return "package-plus"
+        case "joinPartsOnly": return "package"
+        case "extract": return "package-plus"
+        case "extractOnly": return "package"
         case "packPs5": return "package-plus"
         case "packPs5Only": return "package"
         case "imagePs5": case "sendImage": return "home"
@@ -915,6 +942,8 @@ FocusScope {
 
     CheatsDialog { id: cheatsDialog }
 
+    ArchivePasswordDialog { id: archivePassword }
+
     FolderDialog {
         id: folderDialog
         title: qsTr("A folder for the library")
@@ -1158,6 +1187,31 @@ FocusScope {
                         text: qsTr("Choose…")
                         chip: true
                         onClicked: packwrightDialog.open()
+                    }
+                }
+                // An archive of this PC: 7-Zip, found or not, and where it is.
+                RowLayout {
+                    visible: details.card.kind === "archive" && details.card.where !== "console"
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Icon {
+                        name: games.sevenZip.length > 0 ? "check" : "info"
+                        size: 14
+                        color: games.sevenZip.length > 0 ? Theme.ok : Theme.textSecondary
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: games.sevenZip.length > 0 ? qsTr("7-Zip: %1").arg(games.sevenZip)
+                                                        : qsTr("7-Zip is not installed: it extracts the archives (free, "
+                                                               + "from 7-zip.org).")
+                        color: Theme.textSecondary
+                        font.pixelSize: 12
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                    }
+                    StyledButton {
+                        text: qsTr("Choose…")
+                        chip: true
+                        onClicked: sevenZipDialog.open()
                     }
                 }
                 RowLayout {
@@ -1973,5 +2027,16 @@ FocusScope {
         id: packwrightDialog
         title: qsTr("Packwright's program")
         onAccepted: games.setPackwrightPath(selectedFile)
+    }
+
+    // Where 7-Zip's program (7z.exe, 7zz) is, when it was not found by itself;
+    // the archives are looked into again with it.
+    FileDialog {
+        id: sevenZipDialog
+        title: qsTr("7-Zip's program")
+        onAccepted: {
+            games.setSevenZipPath(selectedFile)
+            shelf.refresh()
+        }
     }
 }

@@ -13,6 +13,7 @@
 #include "orbislink/installer/rpi_client.h"
 #include "orbislink/net/net_utils.h"
 #include "orbislink/pkg/pkg_inspector.h"
+#include "orbislink/pkg/pkg_parts.h"
 #include "orbislink/queue/install_queue.h"
 #include "orbislink/settings/settings_store.h"
 
@@ -85,6 +86,10 @@ Usage: orbislink-cli <command> [options]
 
 Commands:
   inspect <file.pkg...>                Shows the pkg metadata.
+  join <name_0.pkg> [--output <file>]  Joins a package split into parts (name_0.pkg,
+                                       name_1.pkg…) into one: checked against its
+                                       header first, written as <file>.part and named
+                                       only once complete (default: name.pkg beside them).
   services --host <ip>                 Checks FTP (2121) and the installer (12800).
   serve --host <ip> <file.pkg>         Serves a pkg and prints the URL (does not install).
   install --host <ip> <file...>        Direct install: serves and installs through the queue.
@@ -148,6 +153,44 @@ FtpClient::Config ftpConfigFrom(const Settings &settings)
 	config.port = settings.ftpPort;
 	config.advancedMode = settings.ftpAdvancedMode;
 	return config;
+}
+
+int commandJoin(const Options &options)
+{
+	if(options.positional.size() != 1)
+	{
+		std::cerr << "Give the first part of the package (name_0.pkg).\n";
+		return 2;
+	}
+	const PkgPartSet set = planPkgParts(options.positional[0]);
+	if(!set.ok)
+	{
+		std::cerr << "ERROR: " << set.error << "\n";
+		return 1;
+	}
+	std::cout << set.parts.size() << " parts, " << humanBytes(set.totalSize) << " (the header says "
+			  << humanBytes(static_cast<int64_t>(set.declaredSize)) << ")\n";
+	const std::string output = options.get("output").empty() ? joinPath(set.folder, joinedPkgName(set))
+															   : options.get("output");
+	int lastShown = -1;
+	std::string error;
+	const bool ok = joinPkgParts(set, output, [&lastShown](uint64_t done, uint64_t total) {
+		const int percent = total ? static_cast<int>(done * 100 / total) : 100;
+		if(percent != lastShown)
+		{
+			lastShown = percent;
+			std::cout << "\r  " << percent << "%" << std::flush;
+		}
+		return true;
+	}, &error);
+	std::cout << "\n";
+	if(!ok)
+	{
+		std::cerr << "ERROR: " << error << "\n";
+		return 1;
+	}
+	std::cout << "Joined into " << output << "\n";
+	return 0;
 }
 
 int commandInspect(const Options &options)
@@ -490,6 +533,8 @@ int main(int argc, char **argv)
 
 	if(command == "inspect")
 		return commandInspect(options);
+	if(command == "join")
+		return commandJoin(options);
 	if(command == "services")
 		return commandServices(options);
 	if(command == "serve")

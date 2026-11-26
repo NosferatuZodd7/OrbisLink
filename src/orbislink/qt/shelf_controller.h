@@ -182,6 +182,9 @@ public:
 	Q_INVOKABLE int neighbour(int index, int step) const { return rows_.neighbour(index, step); }
 	// What a card's buttons do (the ids are in its "actions").
 	Q_INVOKABLE void act(int index, const QString &action);
+	// An archive's card extracted (and installed, `install`) with the
+	// password asked for in the interface; kept in memory for that job only.
+	Q_INVOKABLE void extractWithPassword(int index, bool install, const QString &password);
 
 	// Several cards picked at once, by their keys: what can be done to all
 	// of them — { install, converts (of those, made into a package first),

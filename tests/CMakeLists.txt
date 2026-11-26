@@ -3,6 +3,8 @@ set(ORBISLINK_TESTS
 	test_json
 	test_sfo
 	test_pkg_inspector
+	test_pkg_parts
+	test_archive_set
 	test_local_http_server
 	test_install_queue
 	test_ftp_listing

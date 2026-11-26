@@ -7,6 +7,7 @@
 #include "orbislink/payloads/payload_layout.h"
 #include "orbislink/pkg/pkg_inspector.h"
 #include "orbislink/qt/app_controller.h"
+#include "orbislink/qt/archive_tool.h"
 #include "orbislink/qt/games_controller.h"
 #include "orbislink/qt/library_controller.h"
 #include "orbislink/qt/payloads_controller.h"
@@ -497,6 +498,33 @@ library::DiscProbe ShelfController::probe() const
 		return games->classicTitle(QString::fromStdString(platform), QString::fromStdString(titleId)).toStdString();
 	};
 #endif
+	// What an archive holds, from 7-Zip, when there is one: the package in
+	// it and its first bytes. No password is tried (none is known yet).
+	const QString sevenZip = ArchiveTool::find(QString::fromStdString(app_->settings().sevenZipPath));
+	if(!sevenZip.isEmpty())
+		probe.archive = [sevenZip](const std::string &path) {
+			library::DiscProbe::ArchiveLook look;
+			const QString archive = QString::fromStdString(path);
+			const library::ArchiveListing listing = ArchiveTool::list(sevenZip, archive, QString());
+			look.listed = !listing.entries.empty();
+			look.locked = listing.needsPassword || (listing.wrongPassword && listing.entries.empty())
+				|| library::contentsEncrypted(listing);
+			if(listing.entries.empty() && !look.locked)
+				look.problem = listing.error;
+			int64_t wholeSize = 0;
+			const library::ArchiveEntry *package = ArchiveTool::packageIn(listing, &wholeSize);
+			if(!package)
+				return look;
+			look.package = package->path;
+			look.packageSize = wholeSize;
+			if(!package->encrypted)
+			{
+				const QByteArray head = ArchiveTool::peek(sevenZip, archive, QString::fromStdString(package->path),
+					QString(), std::min<qint64>(package->size, 4 * 1024 * 1024));
+				look.head.assign(head.begin(), head.end());
+			}
+			return look;
+		};
 	return probe;
 }
 
@@ -838,7 +866,8 @@ void ShelfController::refreshSourcePreview(const Source &item)
 		{
 			if(cancel->load())
 				return;
-			if(!library::shownOnShelf(entry) || (!entry.directory && tracks.count(toLower(entry.name))))
+			if(!library::shownOnShelf(entry) || (!entry.directory && tracks.count(toLower(entry.name)))
+				|| library::isLaterPkgPart(entry, folder) || library::isLaterArchiveVolume(entry, folder))
 				continue;
 			++count;
 			ShelfItem thing = library::quickItem(entry);
@@ -1060,6 +1089,16 @@ QVariantMap ShelfController::cardFor(const ShelfItem &item, const Source &from, 
 	card[QStringLiteral("where")] = from.where;
 	card[QStringLiteral("track")] = QString::fromStdString(item.trackPath);
 	card[QStringLiteral("count")] = -1;
+	// The first part of a split package: the parts and the whole size.
+	card[QStringLiteral("parts")] = item.parts;
+	card[QStringLiteral("partsProblem")] = item.partsProblem.empty() ? QString() : translateMessage(item.partsProblem);
+	if(item.parts > 0 && item.partsSize > 0)
+		card[QStringLiteral("sizeText")] = QString::fromStdString(humanBytes(item.partsSize));
+	// An archive: its volumes, the one missing, its password, its package.
+	card[QStringLiteral("volumes")] = item.volumes;
+	card[QStringLiteral("volumeMissing")] = QString::fromStdString(item.volumeMissing);
+	card[QStringLiteral("archiveLocked")] = item.archiveLocked;
+	card[QStringLiteral("archivePackage")] = QString::fromStdString(item.archivePackage);
 
 	QStringList actions;
 	QString note;
@@ -1118,6 +1157,25 @@ QVariantMap ShelfController::cardFor(const ShelfItem &item, const Source &from, 
 			case Kind::Package:
 				if(!item.readable)
 					note = tr("Not a package this can read.");
+				else if(item.parts > 0)
+				{
+					// Only the first part of a package: installing it alone
+					// fails on the console, so it is joined with the rest first.
+					if(item.partsProblem.empty() && canConvert)
+					{
+						if(platform != QLatin1String("ps5") || ps5)
+							actions << QStringLiteral("joinParts");
+						actions << QStringLiteral("joinPartsOnly");
+						note = platform == QLatin1String("ps5")
+							? tr("A PS5 package split into %n part(s): joined into one package on this PC by Packwright "
+								 "first (which checks its digests), then installed.", "", item.parts)
+							: tr("A package split into %n part(s): joined into one package on this PC first, then "
+								 "installed.", "", item.parts);
+					}
+					else
+						note = tr("A package split into parts that cannot be joined yet: %1")
+							.arg(translateMessage(item.partsProblem));
+				}
 				else if(platform == QLatin1String("ps5") && !ps5)
 				{
 					// A PS4 cannot install a PS5 package; it can hold a copy
@@ -1181,8 +1239,37 @@ QVariantMap ShelfController::cardFor(const ShelfItem &item, const Source &from, 
 				actions << QStringLiteral("runPayload");
 				break;
 			case Kind::Archive:
-				note = tr("An archive: unpack it on the PC first; the console does not open them.");
+			{
+				// Extracted here by 7-Zip (and its parts joined), then installed.
+				const bool sevenZip = !games_->sevenZip().isEmpty();
+				const int volumes = std::max(1, item.volumes);
+				if(!item.volumeMissing.empty())
+					note = tr("An archive in %n volume(s), one of them missing (still downloading?): %1", "", volumes)
+						.arg(QString::fromStdString(item.volumeMissing));
+				else if(!sevenZip)
+					note = tr("An archive: 7-Zip extracts it here, and it is not installed. Get it from 7-zip.org "
+							  "(free), or show where it is with Choose… below.");
+				else if(!canConvert)
+					note = tr("An archive: unpack it on the PC first; the console does not open them.");
+				else if(!item.archivePackage.empty() || item.archiveLocked || item.archiveProblem.empty())
+				{
+					if((!item.archivePackage.empty() || item.archiveLocked) && (platform != QLatin1String("ps5") || ps5))
+						actions << QStringLiteral("extract");
+					actions << QStringLiteral("extractOnly");
+					note = item.archiveLocked
+						? tr("An archive with a password (%n volume(s)): extracted here by 7-Zip once you give it, "
+							 "then installed.", "", volumes)
+						: item.archivePackage.empty()
+						? tr("An archive (%n volume(s)) with no package seen in it: extracted here by 7-Zip.", "",
+							volumes)
+						: tr("An archive (%n volume(s)) holding %1: extracted here by 7-Zip (its parts joined, when "
+							 "it is in parts), then installed.", "", volumes)
+							  .arg(QFileInfo(QString::fromStdString(item.archivePackage)).fileName());
+				}
+				else
+					note = tr("An archive 7-Zip cannot open yet: %1").arg(translateMessage(item.archiveProblem));
 				break;
+			}
 			case Kind::Other:
 				break;
 		}
@@ -1336,7 +1423,8 @@ void ShelfController::loadPlace()
 		const library::FolderIndex folder(entries);
 		std::vector<const library::ShelfEntry *> shown;
 		for(const library::ShelfEntry &entry : entries)
-			if(library::shownOnShelf(entry) && !(!entry.directory && tracks.count(toLower(entry.name))))
+			if(library::shownOnShelf(entry) && !(!entry.directory && tracks.count(toLower(entry.name)))
+				&& !library::isLaterPkgPart(entry, folder) && !library::isLaterArchiveVolume(entry, folder))
 				shown.push_back(&entry);
 
 		// What it is from its name (or from what was found before), at once.
@@ -1409,6 +1497,12 @@ void ShelfController::loadPlace()
 				if(!thing.pictureFile.empty())
 					cache_->store(library::ShelfCache::keyOf(place, thing), &thing);
 			}
+			// A split package kept from before: its parts may have changed.
+			if(known[i] && thing.parts > 0)
+				library::checkPkgParts(&thing);
+			// So may an archive's volumes (one downloaded since).
+			if(known[i] && thing.volumes > 0)
+				library::checkArchiveVolumes(&thing);
 			batch << cardFor(thing, copy, installed, ps5);
 			if(flushed.elapsed() > 200)
 				flush();
@@ -2129,6 +2223,26 @@ void ShelfController::act(int index, const QString &action)
 	actOn(card, action);
 }
 
+namespace {
+
+// The title an archive's job starts with: its package's, when it was read
+// (not the archive's own name).
+QString archiveTitle(const QVariantMap &card)
+{
+	return card.value(QStringLiteral("archivePackage")).toString().isEmpty()
+		? QString() : card.value(QStringLiteral("title")).toString();
+}
+
+} // namespace
+
+void ShelfController::extractWithPassword(int index, bool install, const QString &password)
+{
+	const QVariantMap card = rows_.card(index);
+	if(card.value(QStringLiteral("kind")).toString() != QLatin1String("archive"))
+		return;
+	games_->extractArchive(card.value(QStringLiteral("path")).toString(), archiveTitle(card), install, password);
+}
+
 void ShelfController::actOn(const QVariantMap &card, const QString &action)
 {
 	const QString path = card.value(QStringLiteral("path")).toString();
@@ -2191,6 +2305,10 @@ void ShelfController::actOn(const QVariantMap &card, const QString &action)
 	}
 	else if(action == QLatin1String("convert") || action == QLatin1String("convertOnly"))
 		games_->convertFile(path, action == QLatin1String("convert"));
+	else if(action == QLatin1String("joinParts") || action == QLatin1String("joinPartsOnly"))
+		games_->joinParts(path, action == QLatin1String("joinParts"));
+	else if(action == QLatin1String("extract") || action == QLatin1String("extractOnly"))
+		games_->extractArchive(path, archiveTitle(card), action == QLatin1String("extract"));
 	else if(action == QLatin1String("pack") || action == QLatin1String("packOnly"))
 		games_->packFolder(path, action == QLatin1String("pack"));
 	else if(action == QLatin1String("packPs5") || action == QLatin1String("packPs5Only"))
@@ -2233,14 +2351,15 @@ QString batchStep(const QVariantMap &card, const QString &action)
 	const QStringList actions = card.value(QStringLiteral("actions")).toStringList();
 	if(action == QLatin1String("install"))
 	{
-		for(const char *step : { "convert", "pack", "sendImage", "packPs5", "install", "installPending" })
+		for(const char *step : { "convert", "pack", "joinParts", "extract", "sendImage", "packPs5", "install",
+				 "installPending" })
 			if(actions.contains(QLatin1String(step)))
 				return QLatin1String(step);
 		return QString();
 	}
 	if(action == QLatin1String("convertOnly"))
 	{
-		for(const char *step : { "convertOnly", "packOnly", "packPs5Only" })
+		for(const char *step : { "convertOnly", "packOnly", "joinPartsOnly", "extractOnly", "packPs5Only" })
 			if(actions.contains(QLatin1String(step)))
 				return QLatin1String(step);
 		return QString();
@@ -2262,7 +2381,9 @@ QVariantMap ShelfController::batchActions(const QStringList &keys) const
 			continue;
 		const QString step = batchStep(card, QStringLiteral("install"));
 		install += step.isEmpty() ? 0 : 1;
-		converts += step == QLatin1String("convert") || step == QLatin1String("pack") || step == QLatin1String("packPs5") ? 1 : 0;
+		converts += step == QLatin1String("convert") || step == QLatin1String("pack") || step == QLatin1String("packPs5")
+				|| step == QLatin1String("joinParts") || step == QLatin1String("extract")
+			? 1 : 0;
 		convertOnly += batchStep(card, QStringLiteral("convertOnly")).isEmpty() ? 0 : 1;
 		copy += batchStep(card, QStringLiteral("copyToPc")).isEmpty() ? 0 : 1;
 		remove += batchStep(card, QStringLiteral("delete")).isEmpty() ? 0 : 1;

@@ -178,6 +178,140 @@ ORBISLINK_TEST(reads_a_folder_of_this_pc_and_tells_everything_apart)
 	CHECK(!error.empty());
 }
 
+ORBISLINK_TEST(shows_an_archive_in_volumes_as_one_game)
+{
+	TempFolder folder("shelf-archive");
+	// A game in three RAR volumes, one in 7-Zip volumes still downloading,
+	// one with a password and a zip of other things.
+	folder.file("Demo.part1.rar", std::vector<uint8_t>(1000, 1));
+	folder.file("Demo.part2.rar", std::vector<uint8_t>(1000, 2));
+	folder.file("Demo.part3.rar", std::vector<uint8_t>(500, 3));
+	folder.file("Late.7z.001", std::vector<uint8_t>(100, 4));
+	folder.file("Late.7z.003", std::vector<uint8_t>(100, 5));
+	folder.file("Locked.zip", std::vector<uint8_t>(100, 6));
+	folder.file("photos.zip", std::vector<uint8_t>(100, 7));
+	const std::vector<uint8_t> pkg = package("CUSA00004", "Archived Game", "gd");
+
+	DiscProbe probe = fakeProbe();
+	int looks = 0;
+	probe.archive = [&](const std::string &path) {
+		++looks;
+		DiscProbe::ArchiveLook look;
+		const std::string name = fs::u8path(path).filename().u8string();
+		look.listed = name != "Locked.zip";
+		if(name == "Demo.part1.rar" || name == "Late.7z.001")
+		{
+			look.package = "Archived Game.pkg";
+			look.packageSize = static_cast<int64_t>(pkg.size());
+			look.head = pkg;
+		}
+		else if(name == "Locked.zip")
+			look.locked = true;
+		return look;
+	};
+	LocalSource source;
+	std::vector<ShelfEntry> entries;
+	std::string error;
+	CHECK(source.list(folder.path.u8string(), &entries, &error));
+	const auto items = byName(readShelf(source, entries, probe));
+
+	CHECK(items.count("Demo.part1.rar"));
+	CHECK(!items.count("Demo.part2.rar"));
+	CHECK(!items.count("Demo.part3.rar"));
+	CHECK(!items.count("Late.7z.003"));
+	CHECK_EQ(looks, 4);
+	const ShelfItem &demo = items.at("Demo.part1.rar");
+	CHECK(demo.kind == Kind::Archive);
+	CHECK_EQ(demo.group, std::string("games"));
+	CHECK_EQ(demo.volumes, 3);
+	CHECK_EQ(demo.size, static_cast<int64_t>(2500));
+	CHECK(demo.volumeMissing.empty());
+	CHECK_EQ(demo.title, std::string("Archived Game"));
+	CHECK_EQ(demo.titleId, std::string("CUSA00004"));
+	CHECK_EQ(demo.platform, std::string("ps4"));
+	CHECK_EQ(demo.archivePackage, std::string("Archived Game.pkg"));
+	const ShelfItem &late = items.at("Late.7z.001");
+	CHECK_EQ(late.volumes, 2);
+	CHECK_EQ(late.volumeMissing, std::string("Late.7z.002"));
+	const ShelfItem &locked = items.at("Locked.zip");
+	CHECK(locked.archiveLocked);
+	CHECK_EQ(locked.group, std::string("games"));
+	CHECK_EQ(locked.title, std::string("Locked"));
+	CHECK_EQ(items.at("photos.zip").group, std::string("other"));
+
+	// Kept, read back, then the missing volume arrives.
+	ShelfItem kept = late;
+	ShelfCache cache((folder.path / "cache").u8string());
+	cache.store("late", &kept);
+	ShelfItem back;
+	back.path = late.path;
+	back.size = late.size;
+	back.modified = late.modified;
+	CHECK(cache.find("late", &back));
+	CHECK_EQ(back.volumes, 2);
+	CHECK_EQ(back.archivePackage, std::string("Archived Game.pkg"));
+	folder.file("Late.7z.002", std::vector<uint8_t>(100, 8));
+	checkArchiveVolumes(&back);
+	CHECK_EQ(back.volumes, 3);
+	CHECK(back.volumeMissing.empty());
+	CHECK_EQ(back.size, static_cast<int64_t>(300));
+}
+
+ORBISLINK_TEST(shows_a_package_split_into_parts_as_one)
+{
+	TempFolder folder("shelf-split");
+	// A package cut into three parts, and another whose part 1 is missing.
+	std::vector<uint8_t> whole = package("CUSA00003", "Split Game", "gd");
+	const size_t start = whole.size();
+	whole.resize(start + 300000);
+	for(size_t i = start; i < whole.size(); ++i)
+		whole[i] = static_cast<uint8_t>(i * 7);
+	putBE64(whole, 0x430, static_cast<uint64_t>(whole.size()));
+	const size_t cut = 0x3000;
+	folder.file("Split Game_0.pkg", std::vector<uint8_t>(whole.begin(), whole.begin() + cut));
+	folder.file("Split Game_1.pkg", std::vector<uint8_t>(whole.begin() + cut, whole.begin() + cut + 100000));
+	folder.file("Split Game_2.PKG", std::vector<uint8_t>(whole.begin() + cut + 100000, whole.end()));
+	folder.file("Broken_0.pkg", std::vector<uint8_t>(whole.begin(), whole.begin() + cut));
+	folder.file("Broken_2.pkg", std::vector<uint8_t>(whole.begin() + cut + 100000, whole.end()));
+	// A part with no first part beside it is shown as what it is.
+	folder.file("Orphan_1.pkg", std::vector<uint8_t>(4096, 0x22));
+
+	LocalSource source;
+	std::vector<ShelfEntry> entries;
+	std::string error;
+	CHECK(source.list(folder.path.u8string(), &entries, &error));
+	const auto items = byName(readShelf(source, entries, fakeProbe()));
+
+	CHECK(items.count("Split Game_0.pkg"));
+	CHECK(!items.count("Split Game_1.pkg"));
+	CHECK(!items.count("Split Game_2.PKG"));
+	CHECK(!items.count("Broken_2.pkg"));
+	CHECK(items.count("Orphan_1.pkg"));
+	const ShelfItem &split = items.at("Split Game_0.pkg");
+	CHECK_EQ(split.parts, 3);
+	CHECK_EQ(split.partsSize, static_cast<int64_t>(whole.size()));
+	CHECK(split.partsProblem.empty());
+	CHECK_EQ(split.title, std::string("Split Game"));
+	const ShelfItem &broken = items.at("Broken_0.pkg");
+	CHECK_EQ(broken.parts, 2);
+	CHECK(!broken.partsProblem.empty());
+
+	// Kept and read back from the cache, then the missing part arrives.
+	ShelfItem kept = broken;
+	folder.file("Broken_1.pkg", std::vector<uint8_t>(whole.begin() + cut, whole.begin() + cut + 100000));
+	checkPkgParts(&kept);
+	CHECK_EQ(kept.parts, 3);
+	CHECK(kept.partsProblem.empty());
+
+	// A whole package named like a first part is not a split one.
+	TempFolder lone("shelf-lone-part");
+	lone.file("Whole_0.pkg", package("CUSA00004", "Whole Game", "gd"));
+	std::vector<ShelfEntry> loneEntries;
+	CHECK(source.list(lone.path.u8string(), &loneEntries, &error));
+	const auto loneItems = byName(readShelf(source, loneEntries, fakeProbe()));
+	CHECK_EQ(loneItems.at("Whole_0.pkg").parts, 0);
+}
+
 ORBISLINK_TEST(previews_a_folder_with_the_first_pictures_in_it)
 {
 	TempFolder folder("shelf-preview");

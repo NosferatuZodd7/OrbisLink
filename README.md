@@ -116,6 +116,13 @@ follows Titan Core preparing them when it runs. A PS5 game folder or image
 on the PC is made into one with [Packwright](https://github.com/itsmemac/Packwright),
 installed separately (it is not part of OrbisLink).
 
+A game downloaded as an archive (`.zip`, `.7z`, `.rar`, or its volumes such
+as `.part1.rar` and `.7z.001`) shows in the Games section as one game, read
+from inside it, and **Extract and install** extracts it (joining a package
+in parts), then installs it; a password is asked for in the app. Archives
+are opened by [7-Zip](https://www.7-zip.org) (`7z.exe` on Windows, `7zz` on
+Linux and macOS), installed separately (it is not part of OrbisLink).
+
 ### Registering Remote Play
 
 On a **PS4**: Settings → Remote Play Connection Settings → Add Device.
@@ -301,6 +308,7 @@ python3 tools/mock-console/mock_console.py --ftp-port 2121 --api-port 12800
 # terminal 2
 python3 tools/mock-console/make_test_pkg.py /tmp/game.pkg --padding 4000000
 ./build/orbislink-cli inspect /tmp/game.pkg
+./build/orbislink-cli join /path/to/Name_0.pkg       # a package split into parts
 ./build/orbislink-cli services --host 127.0.0.1
 ./build/orbislink-cli install --host 127.0.0.1 --bind 127.0.0.1 /tmp/game.pkg
 ./build/orbislink-cli ftp-ls --host 127.0.0.1 /data/pkg

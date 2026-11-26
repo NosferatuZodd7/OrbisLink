@@ -34,6 +34,8 @@ class QTimer;
 
 namespace orbislink {
 
+struct PkgPartSet;
+
 class AppController;
 
 class GamesController : public QObject
@@ -45,6 +47,7 @@ class GamesController : public QObject
 	// Packwright's program, as found (the settings' choice, else where its
 	// installers put it, else on the PATH); "" when it is not there.
 	Q_PROPERTY(QString packwright READ packwright NOTIFY foldersChanged)
+	Q_PROPERTY(QString sevenZip READ sevenZip NOTIFY foldersChanged)
 	// Where on the console a game goes to be installed ("internal", "usb",
 	// "ext"), its folder there, and which drives the console has:
 	// { checked, usb, ext } (checked: false until it was asked).
@@ -109,6 +112,21 @@ public:
 	// image) made into a PS5 fake package by Packwright, in the output
 	// folder; then, with `install`, sent and installed like any package.
 	Q_INVOKABLE void packPs5(const QString &source, bool install);
+	// A package split into parts (<name>_0.pkg, _1.pkg…): checked against its
+	// header, joined into one package in the output folder, and with
+	// `install` sent and installed like a converted one.
+	Q_INVOKABLE void joinParts(const QString &firstPart, bool install);
+	// A game downloaded as an archive (or its volumes): extracted by 7-Zip
+	// into the output folder, its parts joined when it holds a package in
+	// parts, then installed (`install`) or left there. `password` (empty:
+	// none) stays in memory only, for this job.
+	Q_INVOKABLE void extractArchive(const QString &firstVolume, const QString &title, bool install,
+		const QString &password = QString());
+	// A job stopped by its archive's password tried again with this one.
+	Q_INVOKABLE void retryWithPassword(const QString &id, const QString &password);
+	// 7-Zip as found (empty: none), and where it is when it is not found.
+	QString sevenZip() const;
+	Q_INVOKABLE void setSevenZipPath(const QString &program);
 	// The same game made by Packwright into an image ShadowMountPlus mounts
 	// (.ffpkg, UFS2, the kind it recommends), in the output folder; then,
 	// with `send`, copied to /data/homebrew on the PS5 (one file, not the
@@ -192,6 +210,24 @@ private:
 	bool runPack(const std::shared_ptr<Job> &job, const std::function<void()> &tick, std::string *pkgPath,
 		std::string *error);
 	// The same for a PS5 game, through Packwright's command line.
+	bool runJoin(const std::shared_ptr<Job> &job, const QString &firstPart, const std::function<void()> &tick,
+		std::string *pkgPath, std::string *error);
+	// An archive extracted (then joined); `extras` gets the other packages
+	// it held, moved beside the first.
+	bool runExtract(const std::shared_ptr<Job> &job, const std::function<void()> &tick, std::string *pkgPath,
+		QStringList *extras, std::string *error);
+	// Runs Packwright with `arguments`, following its "NN%" lines into the
+	// job, and stops it (with whatever it started) on a cancel. Its exit
+	// code, or one of these; `said` gets its last lines, `crashed` whether it
+	// crashed.
+	// A PS5 package's parts joined by Packwright (`packwright merge`), what it
+	// wrote read back.
+	bool runPs5Join(const std::shared_ptr<Job> &job, const PkgPartSet &set, const QString &target,
+		const std::function<void()> &tick, std::string *error);
+	static constexpr int kPackwrightNotStarted = -1000;
+	static constexpr int kPackwrightCancelled = -1001;
+	int runPackwright(const std::shared_ptr<Job> &job, const QString &program, const QStringList &arguments,
+		const std::function<void()> &tick, QStringList *said, bool *crashed, std::string *error);
 	bool runPs5Pack(const std::shared_ptr<Job> &job, const std::function<void()> &tick, std::string *pkgPath,
 		std::string *error);
 	// On the worker: a job's disc from the console to this PC.

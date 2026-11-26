@@ -216,6 +216,8 @@ struct Settings
 	// packages from game folders and images: where its program is, when it
 	// is not where its installers put it. Empty: looked for.
 	std::string packwrightPath;
+	// 7-Zip (7zz, 7z.exe) or its folder, when it is not found by itself.
+	std::string sevenZipPath;
 	// A package the converter made (from a disc, or a folder) stays in the
 	// output folder once it is on the console; off, it is deleted then
 	// (installed, or sent when not installing).

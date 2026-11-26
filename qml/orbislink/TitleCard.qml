@@ -99,6 +99,21 @@ ShelfTile {
         Repeater {
             model: [
                 card.kindTag.length > 0 ? { text: card.kindTag, tone: "neutral", icon: "", mono: card.kindTag === card.typeText } : null,
+                // The first part of a package split into parts: said, and
+                // whether they can be joined.
+                (card.info.parts || 0) > 0
+                    ? { text: qsTr("%n part(s)", "", card.info.parts), tone: card.info.partsProblem ? "warn" : "accent",
+                        icon: card.info.partsProblem ? "warning" : "copy", mono: false }
+                    : null,
+                // An archive: its password, a volume missing, or how many it has.
+                card.info.kind === "archive"
+                    ? (card.info.archiveLocked ? { text: qsTr("Password"), tone: "warn", icon: "lock", mono: false }
+                       : (card.info.volumeMissing || "").length > 0
+                       ? { text: qsTr("Volume missing"), tone: "warn", icon: "warning", mono: false }
+                       : (card.info.volumes || 0) > 1
+                       ? { text: qsTr("%n volume(s)", "", card.info.volumes), tone: "accent", icon: "archive", mono: false }
+                       : { text: qsTr("Archive"), tone: "neutral", icon: "archive", mono: false })
+                    : null,
                 // This PC has an update or add-ons the console does not: said
                 // instead of "Installed" (the glow says that), for room.
                 (card.info.pendingPaths || []).length > 0

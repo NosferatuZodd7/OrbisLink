@@ -614,6 +614,88 @@ cut short and carried on later, or tried again, still reads the console it
 started from and still goes on to the other one. The same licence rule
 applies.
 
+**A package split into parts.** Large downloads can come as one package cut
+into pieces: `<name>_0.pkg`, `<name>_1.pkg`, `<name>_2.pkg`… The first one
+holds the header; the rest are the same file, continued. In a place of this
+PC they show as one card, the first part's, with a **N parts** tag (the
+others are not shown apart); its size is the whole package's, as its header
+says. Installing the first part alone would fail on the console, so its
+actions are **Join the parts and install** and **Only join the parts**:
+
+1. Checked first, before anything is written: the parts with its exact name
+   and a number (the extension in any case), numbered from 0 with none
+   missing and none named twice (`_1` and `_01`), adding up to exactly the
+   size the header says (`package_size`, 0x430), the header read across the
+   parts as the one file they make.
+2. Joined into the output folder as `<name>.pkg` (`<name> (2).pkg` when that
+   name is taken: nothing is written over), with its progress on the
+   Transfers card (*Join*, then *Send* and *Install*). It is written as
+   `<name>.pkg.part` and renamed only once complete, its size checked
+   against the header and its header read again; a failure, a full disk or
+   **Cancel** removes the partial file. Free space is checked first.
+3. The parts stay as they are; the joined package then goes the way a
+   converted one does (sent and installed, deleted from the output folder
+   once the console has it unless the setting keeps them).
+
+A PS5 package in parts (its first part starts with a PS5 header, and a
+download often ends with a `<name>_sc.pkg` part, its metadata container,
+joined last) is found the same way, its details read across the parts, and
+checked here that no part is missing and that the numbered parts end where
+its header says the container starts. It is joined by Packwright
+(`packwright merge`, when it is installed: the same one that makes PS5
+packages), which also checks the container's and the image's digests; what
+it wrote is read back here (its size and content ID). Without Packwright the
+card says where to get it. A `_sc` part beside a PS4 package is not guessed
+at: the card says so.
+
+When the parts cannot be joined (one missing, cut short, too many or named
+twice), the tag shows a warning and the card says why, with no install.
+The command line does the same: `orbislink-cli join <name>_0.pkg [--output
+<file>]`. A joined package is the same bytes as the parts in order: it is
+as good as the package that was cut, and installing it still needs a
+console that takes that package.
+
+**A game in an archive.** Downloads also come packed: one `.zip`, `.7z` or
+`.rar`, or its volumes (`<name>.part1.rar`, `<name>.part2.rar`…;
+`<name>.7z.001`, `<name>.7z.002`…; `<name>.rar`, `<name>.r00`, `<name>.r01`…).
+In a place of this PC (Downloads, say) they show as one card, the first
+volume's, with an **N volumes** tag (the other volumes are not shown apart)
+and the size of them all. OrbisLink does not open archives itself: it runs
+**7-Zip** (free, from 7-zip.org: `7z.exe` on Windows, `7zz` on Linux and
+macOS), found beside OrbisLink, where its installer puts it, on the `PATH`,
+or where you show it with **Choose…** in the card's details (the diagnostics
+say which one).
+
+- **The card.** 7-Zip lists the archive and reads only the first megabytes
+  of the package in it: its title, icon, title ID and version show on the
+  card as a package's do, even when only the first volume has downloaded.
+  In a package in parts inside the archive, its first part is read. An
+  archive whose names are protected too shows its own name and a
+  **Password** tag; one whose contents only are protected is read by name.
+  A volume missing between the first and the last one found (still
+  downloading) shows **Volume missing**, says which, and offers nothing yet.
+- **Extract and install** / **Only extract.** 7-Zip extracts it into a folder
+  of its own inside the output folder (free space checked first); what it
+  held is then handled as it would be on its own: a package in parts is
+  joined (by Packwright for a PS5 one), and every package is moved into the
+  output folder. With **Extract and install**, the game is sent and
+  installed first, then its update and add-ons (the order they install
+  in), each deleted from the output folder once the console has it. The
+  Transfers card shows *Extract*, then *Send* and *Install*; **Cancel**
+  stops 7-Zip and removes what it had written. The archive itself stays as
+  it is. An archive with no package in it is extracted into a folder named
+  after it in the output folder, and the card says where.
+- **A password.** It is asked for in OrbisLink's own dialog — before
+  extracting, for an archive known to need one, or from the Transfers card
+  (the lock button) when 7-Zip says the password is missing or wrong. It is
+  given to 7-Zip through its standard input (never on its command line,
+  where other programs could read it), is kept in memory for that job only,
+  and is not saved or written to the log.
+- **What 7-Zip says** is shown in words: a volume missing (named), a wrong
+  password, a damaged or incomplete archive, no room on the disk, or a 7-Zip
+  that cannot extract RAR (some Linux packages of it: install 7-Zip from
+  7-zip.org).
+
 **New on this PC.** Once the installed titles are read, the packages in this
 PC's places (each place and three levels of folders under it) are read too:
 an update newer than the version installed, and add-ons the console does not
