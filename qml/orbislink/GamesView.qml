@@ -406,8 +406,10 @@ Item {
                 // The same cards as the library's, in the same grid.
                 Grid {
                     id: gamesFlow
-                    readonly property int cell: Theme.gameTile + Theme.gameTileGap
-                    readonly property int fits: Math.max(1, Math.floor((gamesScroll.width - 28) / cell))
+                    // As many as fit, sharing out what is left over (no gap on the right).
+                    readonly property int fits: Math.max(1, Math.floor((gamesScroll.width - 28)
+                                                                       / (Theme.gameTile + Theme.gameTileGap)))
+                    readonly property int cell: Math.floor((gamesScroll.width - 28) / fits)
                     x: 14
                     y: 16
                     columns: fits
@@ -436,8 +438,8 @@ Item {
             Grid {
                 id: discSkeletons
                 visible: games.scanning && games.games.length === 0
-                readonly property int cell: Theme.gameTile + Theme.gameTileGap
-                readonly property int fits: Math.max(1, Math.floor(parent.width / cell))
+                readonly property int fits: Math.max(1, Math.floor(parent.width / (Theme.gameTile + Theme.gameTileGap)))
+                readonly property int cell: Math.floor(parent.width / fits)
                 y: 16
                 columns: fits
                 Repeater {

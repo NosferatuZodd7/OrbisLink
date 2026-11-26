@@ -126,7 +126,8 @@ public:
 	Q_INVOKABLE void retryWithPassword(const QString &id, const QString &password);
 	// 7-Zip as found (empty: none), and where it is when it is not found.
 	QString sevenZip() const;
-	Q_INVOKABLE void setSevenZipPath(const QString &program);
+	// False (and nothing kept) when it is not 7-Zip's command-line program.
+	Q_INVOKABLE bool setSevenZipPath(const QString &program);
 	// The same game made by Packwright into an image ShadowMountPlus mounts
 	// (.ffpkg, UFS2, the kind it recommends), in the output folder; then,
 	// with `send`, copied to /data/homebrew on the PS5 (one file, not the

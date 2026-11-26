@@ -1805,11 +1805,20 @@ QString GamesController::sevenZip() const
 	return ArchiveTool::find(QString::fromStdString(app_->settings().sevenZipPath));
 }
 
-void GamesController::setSevenZipPath(const QString &program)
+bool GamesController::setSevenZipPath(const QString &program)
 {
-	const std::string path = toLocalPath(program).toStdString();
+	const QString local = toLocalPath(program);
+	// A folder holds it; a file must be it (WinRAR, say, is not: run with
+	// 7-Zip's commands it opens a window of errors for each archive).
+	if(!local.isEmpty() && !QFileInfo(local).isDir() && !ArchiveTool::isSevenZip(local))
+	{
+		logWarning("Games: " + QDir::toNativeSeparators(local).toStdString() + " is not 7-Zip's command-line program");
+		return false;
+	}
+	const std::string path = local.toStdString();
 	app_->updateSettings([&](Settings &s) { s.sevenZipPath = path; });
 	emit foldersChanged();
+	return true;
 }
 
 void GamesController::extractArchive(const QString &firstVolume, const QString &title, bool install,

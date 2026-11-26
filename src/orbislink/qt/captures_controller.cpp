@@ -376,6 +376,65 @@ void CapturesController::download(const QStringList &paths)
 	}, false);
 }
 
+void CapturesController::preview(const QString &path)
+{
+	Capture capture;
+	for(const QVariant &entry : captures_)
+	{
+		const QVariantMap m = entry.toMap();
+		if(m.value(QStringLiteral("path")).toString() != path)
+			continue;
+		capture.path = path.toStdString();
+		capture.name = m.value(QStringLiteral("name")).toString().toStdString();
+		capture.game = m.value(QStringLiteral("game")).toString().toStdString();
+		capture.size = static_cast<int64_t>(m.value(QStringLiteral("size")).toDouble());
+	}
+	// Busy with something else (a copy, a delete): the small picture only.
+	if(capture.path.empty() || capture.size <= 0 || capture.size > 64 * 1024 * 1024 || (busy_ && !thumbnailing_))
+	{
+		emit previewReady(path, QString());
+		return;
+	}
+	// Copied to this PC already: that one.
+	const QString into = folder();
+	QString name = safeName(capture.name);
+	if(name.endsWith(QLatin1String(".jpg.jpeg"), Qt::CaseInsensitive))
+		name.chop(5);
+	const QString copied = QDir(capture.game.empty() ? into : QDir(into).filePath(safeName(capture.game)))
+		.filePath(name);
+	if(QFileInfo(copied).size() == capture.size)
+	{
+		emit previewReady(path, QUrl::fromLocalFile(copied).toString());
+		return;
+	}
+	// Else fetched, in place of the one looked at before. The small pictures
+	// being made stop for it, and go on after.
+	const QString cache = QDir(cacheRoot()).filePath(QStringLiteral("preview"));
+	const QString target = QDir(cache).filePath(QString::fromLatin1(
+		QCryptographicHash::hash(path.toUtf8(), QCryptographicHash::Sha1).toHex()) + QStringLiteral(".jpg"));
+	const bool resume = thumbnailing_;
+	run(tr("Opening %1…").arg(QString::fromStdString(capture.name)),
+		[this, path, capture, cache, target](FtpClient &ftp, bool *error) -> QString {
+			QDir(cache).removeRecursively();
+			QDir().mkpath(cache);
+			const QString part = target + QStringLiteral(".part");
+			const FtpResult got = ftp.download(capture.path, part.toStdString(),
+				[this](int64_t, int64_t) { return !stopping_.load(); });
+			const bool ok = got.ok && QFile::rename(part, target);
+			if(!ok)
+			{
+				QFile::remove(part);
+				*error = true;
+			}
+			QMetaObject::invokeMethod(this, [this, path, ok, target]() {
+				emit previewReady(path, ok ? QUrl::fromLocalFile(target).toString() : QString());
+			}, Qt::QueuedConnection);
+			return ok ? QString() : tr("%1 could not be opened: %2").arg(QString::fromStdString(capture.name),
+				translateMessage(got.message));
+		},
+		resume);
+}
+
 void CapturesController::remove(const QStringList &paths)
 {
 	// A PS5's preview deleted would leave its original (see walkCaptures):

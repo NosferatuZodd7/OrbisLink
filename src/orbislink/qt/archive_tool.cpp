@@ -5,13 +5,16 @@
 #include "orbislink/pkg/pkg_parts.h"
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
+#include <QHash>
 #include <QFileInfo>
 #include <QProcess>
 #include <QRegularExpression>
 #include <QStandardPaths>
 
 #include <algorithm>
+#include <mutex>
 
 #ifdef Q_OS_UNIX
 #include <signal.h>
@@ -26,6 +29,50 @@ bool runnable(const QString &path)
 {
 	const QFileInfo file(path);
 	return file.isFile() && (file.isExecutable() || path.endsWith(QStringLiteral(".exe"), Qt::CaseInsensitive));
+}
+
+// 7-Zip's command-line program by its name: 7z, 7zz or 7za (never its
+// windows, 7zG and 7zFM, nor another archiver such as WinRAR, which would
+// open a window for every command it does not know).
+bool sevenZipName(const QString &path)
+{
+	QString name = QFileInfo(path).fileName().toLower();
+	if(name.endsWith(QStringLiteral(".exe")))
+		name.chop(4);
+	return name == QLatin1String("7z") || name == QLatin1String("7zz") || name == QLatin1String("7za");
+}
+
+// And by what it says when run alone (its name and version, then its
+// commands): asked once per file, as long as it does not change.
+bool sevenZipSays(const QString &path)
+{
+	static std::mutex mutex;
+	static QHash<QString, std::pair<qint64, bool>> known;
+	const QFileInfo file(path);
+	const qint64 stamp = file.lastModified().toMSecsSinceEpoch() ^ file.size();
+	{
+		std::lock_guard<std::mutex> lock(mutex);
+		const auto found = known.constFind(path);
+		if(found != known.constEnd() && found->first == stamp)
+			return found->second;
+	}
+	QProcess process;
+	process.setProcessChannelMode(QProcess::MergedChannels);
+	process.start(path, QStringList());
+	bool is = false;
+	if(process.waitForStarted(10000))
+	{
+		process.closeWriteChannel();
+		if(!process.waitForFinished(10000))
+		{
+			process.kill();
+			process.waitForFinished(3000);
+		}
+		is = process.readAll().contains("7-Zip");
+	}
+	std::lock_guard<std::mutex> lock(mutex);
+	known.insert(path, { stamp, is });
+	return is;
 }
 
 // The password goes in through standard input: with none, "-p" alone says
@@ -110,16 +157,21 @@ QString ArchiveTool::find(const QString &configured)
 #elif defined(Q_OS_MACOS)
 	places << QStringLiteral("/opt/homebrew/bin/7zz") << QStringLiteral("/usr/local/bin/7zz");
 #endif
-	for(const QString &place : places)
-		if(runnable(place))
-			return QDir::toNativeSeparators(place);
 	for(const QString &name : { QStringLiteral("7zz"), QStringLiteral("7z") })
 	{
 		const QString onPath = QStandardPaths::findExecutable(name);
 		if(!onPath.isEmpty())
-			return QDir::toNativeSeparators(onPath);
+			places << onPath;
 	}
+	for(const QString &place : places)
+		if(isSevenZip(place))
+			return QDir::toNativeSeparators(place);
 	return QString();
+}
+
+bool ArchiveTool::isSevenZip(const QString &program)
+{
+	return runnable(program) && sevenZipName(program) && sevenZipSays(program);
 }
 
 library::ArchiveListing ArchiveTool::list(const QString &program, const QString &archive, const QString &password,

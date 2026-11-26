@@ -121,8 +121,9 @@ struct DiscProbe
 // One thing on the shelf.
 // What a package's item holds since official/fake and its firmware are read
 // (2), since PS5 packages are read too (3), and since a package split into
-// parts is told apart (4), and since archives are looked into (5).
-constexpr int kPackageRead = 5;
+// parts is told apart (4), since archives are looked into (5), and since
+// only 7-Zip itself is asked about them (6).
+constexpr int kPackageRead = 6;
 
 struct ShelfItem
 {

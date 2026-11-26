@@ -664,7 +664,9 @@ and the size of them all. OrbisLink does not open archives itself: it runs
 **7-Zip** (free, from 7-zip.org: `7z.exe` on Windows, `7zz` on Linux and
 macOS), found beside OrbisLink, where its installer puts it, on the `PATH`,
 or where you show it with **Choose…** in the card's details (the diagnostics
-say which one).
+say which one). Only 7-Zip's command-line program is taken (`7z.exe`, `7zz`
+or `7za`, checked by what it says when run alone): WinRAR or 7-Zip's own
+windows are refused, since they would open a window for each archive.
 
 - **The card.** 7-Zip lists the archive and reads only the first megabytes
   of the package in it: its title, icon, title ID and version show on the
@@ -807,7 +809,11 @@ after an install or a package put back.
 The console's screenshots and video clips, read over FTP from
 `/user/av_contents` (a PS4 keeps them there, in `photo` and `video`, a folder
 per game), newest first. A photo shows a small picture made on this PC from it
-(kept, so it is made once, per console); a clip shows ▶. A click picks one.
+(kept, so it is made once, per console); a clip shows ▶. A click shows it
+whole (fetched from the console, or the copy on this PC when it was copied),
+with **Copy to this PC** and **Pick**; ← and → go to the one before and
+after. The circle in a capture's corner picks it, and with some picked a
+click picks too (Ctrl+click as well).
 
 A PS5 keeps its originals encrypted, so what can be read over FTP are its own
 previews (smaller pictures, under `thumbnails`): those are what is listed,

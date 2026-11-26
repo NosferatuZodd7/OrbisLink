@@ -71,6 +71,10 @@ public:
 	// preview listed is not the original.
 	Q_INVOKABLE void remove(const QStringList &paths);
 	Q_INVOKABLE void openFolder() const;
+	// The whole picture of one photo, to look at: the copy on this PC when
+	// it was copied, else fetched into a cache of one (the last one looked
+	// at). Answered by previewReady.
+	Q_INVOKABLE void preview(const QString &path);
 
 signals:
 	void capturesChanged();
@@ -79,6 +83,9 @@ signals:
 	void consoleChanged();
 	// The outcome of an action, for a notice.
 	void finished(const QString &message, bool error);
+	// The whole picture of `path` (a file URL), or empty when it could not be
+	// fetched.
+	void previewReady(const QString &path, const QString &url);
 
 private:
 	using Job = std::function<QString(FtpClient &ftp, bool *error)>;

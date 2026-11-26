@@ -25,6 +25,9 @@ public:
 	// one, the one beside OrbisLink, the installed one, then the one on the
 	// PATH. Empty when there is none.
 	static QString find(const QString &configured = QString());
+	// The file is 7-Zip's command-line program (by its name, then by what
+	// it says when run alone), not another program.
+	static bool isSevenZip(const QString &program);
 
 	// Its listing. `password` empty: none is given (7-Zip is told so and
 	// never waits for one).

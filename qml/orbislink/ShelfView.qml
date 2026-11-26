@@ -24,7 +24,11 @@ FocusScope {
 
     readonly property bool home: shelf.level === "home"
     readonly property int tile: home ? Theme.placeTile : Theme.gameTile
-    readonly property int cellWidth: tile + Theme.gameTileGap
+    // A card and its gap; the columns' width shares out what is left over,
+    // so the rows fill the width instead of leaving a gap on the right (wide
+    // over Remote Play's panel).
+    readonly property int baseCell: tile + Theme.gameTileGap
+    readonly property int cellWidth: Math.max(baseCell - 16, Math.floor((list.width - 16) / Math.max(1, shelf.columns)))
     readonly property int cellHeight: tile + Theme.gameTileNames
     // Several picked at once, by their cards' keys, to do one thing to all.
     property bool picking: false
@@ -324,7 +328,7 @@ FocusScope {
         return true
     }
 
-    Binding { target: shelf; property: "columns"; value: Math.max(1, Math.floor(list.width / view.cellWidth)) }
+    Binding { target: shelf; property: "columns"; value: Math.max(1, Math.floor(list.width / view.baseCell)) }
 
     Connections {
         target: shelf
@@ -2035,8 +2039,53 @@ FocusScope {
         id: sevenZipDialog
         title: qsTr("7-Zip's program")
         onAccepted: {
-            games.setSevenZipPath(selectedFile)
-            shelf.refresh()
+            if (games.setSevenZipPath(selectedFile))
+                shelf.refresh()
+            else
+                notWhatIsAsked.open()
+        }
+    }
+    // Another program chosen (WinRAR, say): said, and nothing kept.
+    Dialog {
+        id: notWhatIsAsked
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(440, parent.width - 32)
+        modal: true
+        padding: 0
+        Overlay.modal: Rectangle { color: Theme.scrim }
+        background: ShelfTile.DialogGlass {}
+        header: ShelfTile.DialogHead {
+            eyebrow: qsTr("Archive")
+            title: qsTr("That is not 7-Zip")
+            dialog: notWhatIsAsked
+        }
+        contentItem: Text {
+            leftPadding: Theme.dialogMargin
+            rightPadding: Theme.dialogMargin
+            topPadding: 6
+            bottomPadding: Theme.dialogInner
+            wrapMode: Text.WordWrap
+            color: Theme.textSecondary
+            font.pixelSize: 13
+            text: qsTr("Choose 7-Zip's command-line program: 7z.exe, in 7-Zip's folder under Program Files, "
+                       + "or 7zz. WinRAR and 7-Zip's own windows (7zFM, 7zG) cannot be used. 7-Zip is free, "
+                       + "from 7-zip.org.")
+        }
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("OK")
+                    solid: true
+                    onClicked: notWhatIsAsked.close()
+                }
+            }
         }
     }
 }

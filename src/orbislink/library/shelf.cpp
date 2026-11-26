@@ -577,8 +577,10 @@ ShelfItem identify(FileSource &source, const ShelfEntry &entry, const FolderInde
 			if(!probe.archive)
 				break;
 			const DiscProbe::ArchiveLook look = probe.archive(entry.path);
-			// Kept as looked into (not again at every listing).
-			item.packageRead = kPackageRead;
+			// Kept as looked into (not again at every listing), unless 7-Zip
+			// could not say anything: looked into again next time.
+			if(look.listed || look.locked)
+				item.packageRead = kPackageRead;
 			item.archiveLocked = look.locked;
 			item.archivePackage = look.package;
 			item.archiveProblem = look.problem;
