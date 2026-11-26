@@ -45,6 +45,10 @@ struct UpdateCheckResult
 	bool updateAvailable = false;
 	std::string message;          // what to tell whoever is looking
 	ReleaseInfo release;
+	// On the testing channel: a stable version newer than the one installed,
+	// offered apart (switching to it is the user's choice, never automatic).
+	bool stableAvailable = false;
+	ReleaseInfo stable;
 };
 
 // Checks whether a newer version is published on GitHub.
@@ -82,7 +86,9 @@ public:
 	// releases, with no network involved.
 	static std::vector<ReleaseInfo> parseReleases(const std::string &json,
 		const std::string &assetSuffix);
-	// Picks the release to offer from those that came back.
+	// Picks the release to offer from those that came back: the stable
+	// channel takes only stable versions, the testing channel only test
+	// builds (a newer stable is offered apart, see stableAvailable).
 	static const ReleaseInfo *pick(const std::vector<ReleaseInfo> &releases,
 		UpdateChannel channel, const std::string &currentVersion);
 	// What to say when the chosen channel has nothing newer. If the other

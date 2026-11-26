@@ -218,6 +218,25 @@ ORBISLINK_TEST(stable_channel_ignores_prereleases)
 	CHECK_EQ(testing->tag, std::string("v0.1.9-dev.3"));
 }
 
+ORBISLINK_TEST(testing_channel_ignores_stable_versions)
+{
+	// A stable 0.2.0 newer than the dev builds: the testing channel offers
+	// only the dev newer than what is installed; the stable is offered apart.
+	const char *reply = R"([
+	  { "tag_name": "v0.2.0", "draft": false, "prerelease": false, "body": "", "assets": [] },
+	  { "tag_name": "v0.1.9-dev.3", "draft": false, "prerelease": true, "body": "", "assets": [] },
+	  { "tag_name": "v0.1.9-dev.2", "draft": false, "prerelease": true, "body": "", "assets": [] }
+	])";
+	const auto releases = UpdateChecker::parseReleases(reply, "-setup.exe");
+	const ReleaseInfo *testing = UpdateChecker::pick(releases, UpdateChannel::Testing, "0.1.9-dev.2");
+	CHECK(testing != nullptr);
+	CHECK_EQ(testing->tag, std::string("v0.1.9-dev.3"));
+	CHECK(UpdateChecker::pick(releases, UpdateChannel::Testing, "0.1.9-dev.3") == nullptr);
+	const ReleaseInfo *stable = UpdateChecker::pick(releases, UpdateChannel::Stable, "0.1.9-dev.3");
+	CHECK(stable != nullptr);
+	CHECK_EQ(stable->tag, std::string("v0.2.0"));
+}
+
 ORBISLINK_TEST(does_not_offer_what_is_installed)
 {
 	const auto releases = UpdateChecker::parseReleases(kGitHubReply, "-setup.exe");

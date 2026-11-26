@@ -148,8 +148,9 @@ const ReleaseInfo *UpdateChecker::pick(const std::vector<ReleaseInfo> &releases,
 	Version bestVersion;
 	for(const ReleaseInfo &info : releases)
 	{
-		// On the stable channel, a prerelease does not count.
-		if(channel == UpdateChannel::Stable && info.prerelease)
+		// Each channel follows its own releases: the stable one takes no
+		// test build, the testing one no stable version.
+		if((channel == UpdateChannel::Stable) == info.prerelease)
 			continue;
 		const Version version = info.version();
 		if(!version.valid)
@@ -184,7 +185,7 @@ std::string UpdateChecker::describeNothingNew(const std::vector<ReleaseInfo> &re
 				+ ": " + testing->version().toString();
 		return QT_TRANSLATE_NOOP("Messages", "You are on the latest stable version.");
 	}
-	return QT_TRANSLATE_NOOP("Messages", "You are on the latest version, including test builds.");
+	return QT_TRANSLATE_NOOP("Messages", "You are on the latest test build.");
 }
 
 UpdateCheckResult UpdateChecker::check() const
@@ -242,6 +243,14 @@ UpdateCheckResult UpdateChecker::check() const
 	}
 
 	result.ok = true;
+	if(config_.channel == UpdateChannel::Testing)
+	{
+		if(const ReleaseInfo *stable = pick(releases, UpdateChannel::Stable, config_.currentVersion))
+		{
+			result.stableAvailable = true;
+			result.stable = *stable;
+		}
+	}
 	const ReleaseInfo *fresh = pick(releases, config_.channel, config_.currentVersion);
 	if(!fresh)
 	{

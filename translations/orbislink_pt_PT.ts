@@ -3766,52 +3766,53 @@
         <translation>O codificador de áudio não ficou pronto.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/update/update_checker.cpp" line="181"/>
+        <location filename="../src/orbislink/update/update_checker.cpp" line="182"/>
         <source>There is no newer stable version, but there is a test build (to get it, choose the &quot;Testing&quot; channel in the settings)</source>
         <translation>Não há versão estável mais recente, mas há uma compilação de testes (para a receber, escolhe o canal &quot;Testes&quot; nas definições)</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/update/update_checker.cpp" line="185"/>
+        <location filename="../src/orbislink/update/update_checker.cpp" line="186"/>
         <source>You are on the latest stable version.</source>
         <translation>Estás na versão estável mais recente.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/update/update_checker.cpp" line="187"/>
-        <source>You are on the latest version, including test builds.</source>
-        <translation>Estás na versão mais recente, contando com as compilações de testes.</translation>
+        <location filename="../src/orbislink/update/update_checker.cpp" line="188"/>
+        <source>You are on the latest test build.</source>
+        <translation>Estás na build de teste mais recente.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/update/update_checker.cpp" line="195"/>
+        <location filename="../src/orbislink/update/update_checker.cpp" line="196"/>
         <source>The update repository is not set (expected &quot;owner/name&quot;).</source>
         <translation>O repositório de actualizações não está definido (espera-se &quot;dono/nome&quot;).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/update/update_checker.cpp" line="210"/>
+        <location filename="../src/orbislink/update/update_checker.cpp" line="211"/>
         <source>Could not reach GitHub</source>
         <translation>Não foi possível falar com o GitHub</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/update/update_checker.cpp" line="218"/>
+        <location filename="../src/orbislink/update/update_checker.cpp" line="219"/>
         <source>The update repository did not respond (it is private, or the name is wrong)</source>
         <translation>O repositório de actualizações não respondeu (é privado, ou o nome está errado)</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/update/update_checker.cpp" line="225"/>
+        <location filename="../src/orbislink/update/update_checker.cpp" line="226"/>
         <source>GitHub asked to wait (rate limit). Try again later.</source>
         <translation>O GitHub pediu para esperar (limite de pedidos). Tenta mais tarde.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/update/update_checker.cpp" line="231"/>
+        <location filename="../src/orbislink/update/update_checker.cpp" line="232"/>
         <source>GitHub responded with an error</source>
         <translation>O GitHub respondeu com um erro</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/update/update_checker.cpp" line="240"/>
+        <location filename="../src/orbislink/update/update_checker.cpp" line="241"/>
         <source>No releases have been published yet.</source>
         <translation>Ainda não há lançamentos publicados.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/update/update_checker.cpp" line="253"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3806"/>
+        <location filename="../src/orbislink/update/update_checker.cpp" line="262"/>
         <source>A new version is available</source>
         <translation>Há uma versão nova</translation>
     </message>
@@ -5457,35 +5458,71 @@
         <translation>Muda da próxima vez que a aplicação abrir. O tema escolhe-se no fundo da navegação.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1509"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1548"/>
+        <source>STABLE %1</source>
+        <translation>ESTÁVEL %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1558"/>
+        <source>STABLE</source>
+        <translation>ESTÁVEL</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1571"/>
+        <source>A new stable version is out. Click to leave the test builds and update to it.</source>
+        <translation>Saiu uma nova versão estável. Clica para deixar as builds de teste e atualizar para ela.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1573"/>
+        <source>No stable version newer than this test build. &quot;Check now&quot; looks again.</source>
+        <translation>Não há versão estável mais recente do que esta build de teste. &quot;Verificar agora&quot; procura de novo.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1588"/>
         <source>Look for a new version now</source>
         <translation>Procurar uma nova versão agora</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1555"/>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1557"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1634"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1636"/>
         <source>Close</source>
         <translation>Fechar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1571"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1650"/>
         <source>Setup wizard…</source>
         <translation>Assistente…</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1575"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1654"/>
         <source>See the three first-run steps again</source>
         <translation>Voltar a ver os três passos da primeira utilização</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1580"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1659"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1709"/>
         <source>Cancel</source>
         <translation>Cancelar</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1585"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1664"/>
         <source>Save</source>
         <translation>Guardar</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1685"/>
+        <source>Switch to the stable version %1?</source>
+        <translation>Mudar para a versão estável %1?</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1696"/>
+        <source>The channel becomes Stable and version %1 is offered now. Test builds are not offered any more until you choose Testing again.</source>
+        <translation>O canal passa a Estável e a versão %1 é oferecida agora. As builds de teste deixam de ser oferecidas até escolheres Testes outra vez.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1713"/>
+        <source>Switch and update</source>
+        <translation>Mudar e atualizar</translation>
     </message>
     <message>
         <location filename="../qml/orbislink/SettingsDialog.qml" line="566"/>
@@ -5902,6 +5939,7 @@
     </message>
     <message>
         <location filename="../qml/orbislink/SettingsDialog.qml" line="1479"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1684"/>
         <source>Updates</source>
         <translation>Actualizações</translation>
     </message>
@@ -5941,7 +5979,7 @@
         <translation>Testes (builds da branch)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1517"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1596"/>
         <source>Check now</source>
         <translation>Verificar agora</translation>
     </message>
@@ -5951,17 +5989,17 @@
         <translation>Os lançamentos são lidos da API do GitHub e o repositório tem de ser público. &quot;Verificar agora&quot; guarda as definições primeiro.</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1526"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1605"/>
         <source>Advanced</source>
         <translation>Avançado</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1531"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1610"/>
         <source>Advanced mode: allows writing to the FTP system areas</source>
         <translation>Modo avançado: permite escrever nas zonas de sistema do FTP</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SettingsDialog.qml" line="1535"/>
+        <location filename="../qml/orbislink/SettingsDialog.qml" line="1614"/>
         <source>Verbose log (debug)</source>
         <translation>Registo detalhado (debug)</translation>
     </message>
@@ -9547,7 +9585,7 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
     </message>
     <message>
         <location filename="../src/orbislink/qt/app_controller.cpp" line="3411"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3835"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3861"/>
         <source>Downloading %1…</source>
         <translation>A descarregar %1…</translation>
     </message>
@@ -9731,43 +9769,43 @@ A instalação fica à espera na fila e continua sozinha quando um deles respond
         <translation>A procurar versões novas…</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3752"/>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3761"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3756"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3765"/>
         <source>Updates</source>
         <translation>Actualizações</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3813"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3839"/>
         <source>There is a new version: %1.</source>
         <translation>Há uma versão nova: %1.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3876"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3902"/>
         <source>The download failed: %1</source>
         <translation>A descarga falhou: %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3882"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3908"/>
         <source>The downloaded file does not match the published SHA-256. I will not install it.</source>
         <translation>O ficheiro descarregado não corresponde ao SHA-256 publicado. Não vou instalá-lo.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3894"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3920"/>
         <source>Update</source>
         <translation>Actualização</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3905"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3931"/>
         <source>Downloaded. The installer will open and the app will close.</source>
         <translation>Descarregado. O instalador vai abrir e a aplicação fecha-se.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="3915"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="3941"/>
         <source>I could not open the installer at %1.</source>
         <translation>Não consegui abrir o instalador em %1.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/app_controller.cpp" line="4050"/>
+        <location filename="../src/orbislink/qt/app_controller.cpp" line="4076"/>
         <source>Settings saved.</source>
         <translation>Definições guardadas.</translation>
     </message>

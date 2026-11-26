@@ -3745,6 +3745,10 @@ void AppController::checkForUpdatesNow(bool silentWhenUpToDate)
 			[this, result, silentWhenUpToDate]() {
 				updateBusy_.store(false);
 				const QString text = translateMessage(result.message);
+				// A newer stable version, seen from the test builds: kept apart.
+				stableRelease_ = result.stable;
+				stableUpdateVersion_ = result.ok && result.stableAvailable
+					? QString::fromStdString(result.stable.version().toString()) : QString();
 				if(!result.ok)
 				{
 					setUpdateState(QStringLiteral("error"), text);
@@ -3780,6 +3784,28 @@ void AppController::openUpdatePage() const
 {
 	if(!updatePageUrl_.isEmpty())
 		QDesktopServices::openUrl(QUrl(updatePageUrl_));
+}
+
+void AppController::switchToStableUpdate()
+{
+	if(stableUpdateVersion_.isEmpty() || updateBusy_.load())
+		return;
+	updateSettings([](Settings &s) { s.updateChannel = updateChannelName(UpdateChannel::Stable); });
+	const ReleaseInfo &release = stableRelease_;
+	updateVersion_ = stableUpdateVersion_;
+	updateNotes_ = QString::fromStdString(release.notes);
+	updatePageUrl_ = QString::fromStdString(release.pageUrl);
+	updateAssetUrl_ = QString::fromStdString(release.assetUrl);
+	updateAssetName_ = QString::fromStdString(release.assetName);
+	updateAssetSha256_ = QString::fromStdString(release.assetSha256);
+	updateAssetSha256Url_ = QString::fromStdString(release.assetSha256Url);
+	updateAssetSize_ = release.assetSize;
+	updateProgress_ = 0.0;
+	stableUpdateVersion_.clear();
+	logInfo("Updates: from the test builds to the stable channel, for " + updateVersion_.toStdString());
+	setUpdateState(QStringLiteral("available"), translateMessage(std::string(QT_TRANSLATE_NOOP("Messages",
+		"A new version is available")) + ": " + updateVersion_.toStdString()));
+	emit updateAvailable(updateVersion_);
 }
 
 void AppController::dismissUpdate()

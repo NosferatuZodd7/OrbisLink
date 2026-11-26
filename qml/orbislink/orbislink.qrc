@@ -57,6 +57,8 @@
         <file alias="Icon.qml">Icon.qml</file>
         <file alias="UploadConflictDialog.qml">UploadConflictDialog.qml</file>
         <file alias="ArchivePasswordDialog.qml">ArchivePasswordDialog.qml</file>
+        <file alias="NeonText.qml">NeonText.qml</file>
+        <file alias="TiltShiftText.qml">TiltShiftText.qml</file>
         <file alias="ServiceHelpDialog.qml">ServiceHelpDialog.qml</file>
         <file alias="CheatsDialog.qml">CheatsDialog.qml</file>
         <file alias="SectionOverlay.qml">SectionOverlay.qml</file>

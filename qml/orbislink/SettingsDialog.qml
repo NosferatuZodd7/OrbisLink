@@ -1505,6 +1505,85 @@ Dialog {
                                     model: [qsTr("Stable"), qsTr("Testing (branch builds)")]
                                 }
                             }
+                            // On the test builds: the stable channel, apart. A newer stable
+                            // version lights up like a neon sign; a click offers to switch.
+                            Item {
+                                id: stableBox
+                                readonly property bool fresh: app.stableUpdateVersion.length > 0
+                                visible: updateChannelBox.currentIndex === 1
+                                Layout.fillWidth: true
+                                implicitHeight: stableCard.height + 28
+                                Rectangle {
+                                    width: parent.width
+                                    height: 1
+                                    color: Theme.glassEdge
+                                }
+                                Rectangle {
+                                    id: stableCard
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    height: stableColumn.implicitHeight + 16
+                                    radius: Theme.radiusField
+                                    // Always night, so the neon reads in every theme.
+                                    color: "#141019"
+                                    border.width: 1
+                                    border.color: stableBox.fresh
+                                                  ? (stableArea.containsMouse ? "#FF4FD8" : Qt.rgba(1, 0.31, 0.85, 0.55))
+                                                  : Qt.rgba(1, 1, 1, 0.10)
+                                    Behavior on border.color { ColorAnimation { duration: Theme.fast } }
+                                    ColumnLayout {
+                                        id: stableColumn
+                                        anchors.left: parent.left
+                                        anchors.right: parent.right
+                                        anchors.top: parent.top
+                                        anchors.topMargin: 4
+                                        spacing: 0
+                                        NeonText {
+                                            visible: stableBox.fresh
+                                            running: visible && dialog.visible
+                                            Layout.alignment: Qt.AlignHCenter
+                                            Layout.topMargin: -30
+                                            Layout.bottomMargin: -36
+                                            text: qsTr("STABLE %1").arg(app.stableUpdateVersion)
+                                            ink: "#F6F3EE"
+                                            pixelSize: 26
+                                        }
+                                        TiltShiftText {
+                                            visible: !stableBox.fresh
+                                            running: visible && dialog.visible
+                                            Layout.alignment: Qt.AlignHCenter
+                                            Layout.topMargin: -6
+                                            Layout.bottomMargin: -10
+                                            text: qsTr("STABLE")
+                                            ink: "#F6F3EE"
+                                            pixelSize: 26
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            Layout.leftMargin: 16
+                                            Layout.rightMargin: 16
+                                            horizontalAlignment: Text.AlignHCenter
+                                            wrapMode: Text.WordWrap
+                                            color: stableBox.fresh ? "#F6C6EC" : Qt.rgba(246 / 255, 243 / 255, 238 / 255, 0.6)
+                                            font.pixelSize: Theme.fontSmall
+                                            text: stableBox.fresh
+                                                  ? qsTr("A new stable version is out. Click to leave the test builds "
+                                                         + "and update to it.")
+                                                  : qsTr("No stable version newer than this test build. \"Check now\" "
+                                                         + "looks again.")
+                                        }
+                                    }
+                                    MouseArea {
+                                        id: stableArea
+                                        anchors.fill: parent
+                                        enabled: stableBox.fresh
+                                        hoverEnabled: true
+                                        cursorShape: stableBox.fresh ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                        onClicked: stableConfirm.open()
+                                    }
+                                }
+                            }
                             SettingRow {
                                 label: app.updateMessage.length > 0 ? app.updateMessage : qsTr("Look for a new version now")
                                 labelColor: app.updateState === "error"
@@ -1586,6 +1665,60 @@ Dialog {
                     minimumWidth: 110
                     primary: true
                     onClicked: dialog.save()
+                }
+            }
+        }
+    }
+
+    // Leaving the test builds for a newer stable version: asked first.
+    Dialog {
+        id: stableConfirm
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(460, parent.width - 32)
+        modal: true
+        padding: 0
+        Overlay.modal: Rectangle { color: Theme.scrim }
+        background: ShelfTile.DialogGlass {}
+        header: DialogHeader {
+            eyebrow: qsTr("Updates")
+            title: qsTr("Switch to the stable version %1?").arg(app.stableUpdateVersion)
+            dialog: stableConfirm
+        }
+        contentItem: Text {
+            leftPadding: Theme.dialogMargin
+            rightPadding: Theme.dialogMargin
+            topPadding: 6
+            bottomPadding: 6
+            wrapMode: Text.WordWrap
+            color: Theme.textSecondary
+            font.pixelSize: 13
+            text: qsTr("The channel becomes Stable and version %1 is offered now. Test builds are not "
+                       + "offered any more until you choose Testing again.").arg(app.stableUpdateVersion)
+        }
+        footer: Item {
+            implicitHeight: Theme.dialogFooter
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: Theme.dialogInner
+                anchors.leftMargin: Theme.dialogMargin
+                anchors.rightMargin: Theme.dialogMargin
+                spacing: 8
+                Item { Layout.fillWidth: true }
+                StyledButton {
+                    text: qsTr("Cancel")
+                    onClicked: stableConfirm.close()
+                }
+                StyledButton {
+                    text: qsTr("Switch and update")
+                    iconName: "download"
+                    solid: true
+                    onClicked: {
+                        stableConfirm.close()
+                        // What the dialog shows follows, so Save keeps the stable channel.
+                        updateChannelBox.currentIndex = 0
+                        app.switchToStableUpdate()
+                    }
                 }
             }
         }

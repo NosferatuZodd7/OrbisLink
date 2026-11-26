@@ -11,6 +11,7 @@
 #include "orbislink/qt/queue_model.h"
 #include "orbislink/queue/install_queue.h"
 #include "orbislink/settings/settings_store.h"
+#include "orbislink/update/update_checker.h"
 
 #include <QHash>
 #include <QObject>
@@ -131,6 +132,9 @@ class AppController : public QObject
 	Q_PROPERTY(QString updatePageUrl READ updatePageUrl NOTIFY updateChanged)
 	Q_PROPERTY(bool updateCanInstall READ updateCanInstall NOTIFY updateChanged)
 	Q_PROPERTY(double updateProgress READ updateProgress NOTIFY updateChanged)
+	// On the testing channel: a stable version newer than the one in use
+	// (empty when there is none), offered apart from the test builds.
+	Q_PROPERTY(QString stableUpdateVersion READ stableUpdateVersion NOTIFY updateChanged)
 
 public:
 	explicit AppController(QObject *parent = nullptr);
@@ -401,6 +405,10 @@ public:
 	Q_INVOKABLE void installUpdate();
 	Q_INVOKABLE void openUpdatePage() const;
 	Q_INVOKABLE void dismissUpdate();
+	// Leaves the test builds for the stable channel (saved) and offers the
+	// newer stable version found by the last check, as any update is.
+	Q_INVOKABLE void switchToStableUpdate();
+	QString stableUpdateVersion() const { return stableUpdateVersion_; }
 	// Only for screenshots (--demo-update): fills in the fields from a
 	// sample reply, through the same code path the real reply
 	// follows.
@@ -716,6 +724,8 @@ private:
 	int64_t updateAssetSize_ = 0;
 	double updateProgress_ = 0.0;
 	std::atomic<bool> updateBusy_ { false };
+	QString stableUpdateVersion_;
+	ReleaseInfo stableRelease_;
 	// For the threads of its own that answer after it may be gone.
 	LifelinePtr lifeline_ = std::make_shared<Lifeline>(this);
 };
