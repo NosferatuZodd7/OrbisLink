@@ -138,6 +138,13 @@ searching the network or by IP.*
 |---|---|
 | ![PS1/PS2 converter](docs/images/real/12-converter.webp) | ![Converter details](docs/images/real/19-converter-details.webp) |
 
+| 1. Converted on this PC | 2. Sent to the console | 3. Installed |
+|---|---|---|
+| ![Converting](docs/images/real/24-convert.webp) | ![Sending](docs/images/real/25-send.webp) | ![Installing](docs/images/real/26-install.webp) |
+
+*A PS2 disc on its way: made into a PS4 package on this PC, sent to the
+console and installed, each step with its own bar, speed and time left.*
+
 *Games, the store, the save vault and payloads open over the picture, with a
 slider for how see-through they are, so the game stays in sight. Games: every
 place games can be, on the console and on this PC — a game downloaded as an
