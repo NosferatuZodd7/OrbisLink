@@ -122,11 +122,13 @@ searching the network or by IP.*
 
 ### Pages over Remote Play
 
-| Games library | Payloads |
+| Games library | Payloads — one being run |
 |---|---|
 | ![Games over Remote Play](docs/images/real/02-library-over-remote-play.webp) | ![Payloads over Remote Play](docs/images/real/18-payloads-over-remote-play.webp) |
 
-![PS1/PS2 converter](docs/images/real/12-converter.webp)
+| PS1/PS2 converter | A disc, ready to convert |
+|---|---|
+| ![PS1/PS2 converter](docs/images/real/12-converter.webp) | ![Converter details](docs/images/real/19-converter-details.webp) |
 
 *Games, the store, the save vault and payloads open over the picture, with a
 slider for how see-through they are, so the game stays in sight. Games: every
@@ -134,6 +136,16 @@ place games can be, on the console and on this PC — a game downloaded as an
 archive shows as one game, and **Extract and install** does the rest. The
 PS1/PS2 converter: the discs in a folder of the PC, each recognised from the
 disc itself.*
+
+### Captures
+
+| The console's captures | One shown whole |
+|---|---|
+| ![Captures](docs/images/real/20-captures.webp) | ![Capture](docs/images/real/21-capture-view.webp) |
+
+*The console's screenshots and clips, newest first. A click shows one whole
+(← → for the next), with **Copy to this PC** and **Pick**; the picked ones are
+copied together, or deleted from the console.*
 
 ### Store, save vault, payloads and files
 
@@ -174,7 +186,7 @@ works from the keyboard.*
 (each with its own Remote Play PIN), and where updates come from: the stable
 versions, or the test builds of the `beta` branch.*
 
-The console's name, the PSN accounts and the PC's folders are blurred.
+Only the PSN account names (and the Account ID number) are blurred.
 
 ## Intended use
 
