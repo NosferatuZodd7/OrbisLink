@@ -5,6 +5,7 @@
 #include "orbislink/common/log.h"
 #include "orbislink/qt/app_controller.h"
 #include "orbislink/qt/captures_controller.h"
+#include "orbislink/qt/trophies_controller.h"
 #include "orbislink/qt/cheats_controller.h"
 #include "orbislink/qt/cover_provider.h"
 #include "orbislink/qt/games_controller.h"
@@ -335,6 +336,8 @@ int main(int argc, char **argv)
 	auto cheats = std::make_unique<CheatsController>(controller.get());
 	// The console's screenshots and video clips, the same way.
 	auto captures = std::make_unique<CapturesController>(controller.get());
+	// The console's trophies, the same way.
+	auto trophies = std::make_unique<TrophiesController>(controller.get());
 #ifdef ORBISLINK_HAS_STORE
 	// The PS5 homebrew store, the same way.
 	auto store = std::make_unique<StoreController>(controller.get());
@@ -357,6 +360,7 @@ int main(int argc, char **argv)
 	engine.rootContext()->setContextProperty(QStringLiteral("shelf"), shelf.get());
 	engine.rootContext()->setContextProperty(QStringLiteral("cheats"), cheats.get());
 	engine.rootContext()->setContextProperty(QStringLiteral("captures"), captures.get());
+	engine.rootContext()->setContextProperty(QStringLiteral("trophies"), trophies.get());
 #ifdef ORBISLINK_HAS_STORE
 	engine.rootContext()->setContextProperty(QStringLiteral("store"), store.get());
 #else

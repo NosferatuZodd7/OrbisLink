@@ -917,6 +917,145 @@ a PS5 fake package by [Packwright](https://github.com/itsmemac/Packwright)
 cancelling stops it and deletes the half-made package. The package is read
 back to name the card from its `param.json`.
 
+## Trophy vault
+
+**Trophy vault** (navigation) shows a PS4 user's trophies as the console lists
+them, read over FTP (GoldHEN) from `/user/home/<user>/trophy/db/trophy_local.db`
+— the console's own list, an SQLite database, the one Apollo Save Tool reads.
+The page is laid out like a console's trophy screen, in the app's theme: the
+games in a list; a game opened shows its summary on top, its trophies below and
+the one picked large on the right. Each game shows its icon (from
+`/user/trophy/conf/<NPWR…>/ICON0.PNG`, when the console has it), its progress and
+its platinum, gold, silver and bronze. Each trophy shows its own picture when the
+console has it, the date it was earned (a hidden one says so until it is) and its
+rarity when the console's list carries one (never guessed). Beside the title:
+**All games** (back to the list, from a game), the user's name (another user of
+the console), **Compare Trophies** (the same game side by side for every user of
+the console who has it) and the options menu — every game or only the ones on
+this PC; every trophy, only the ones earned or not; the order; copying, opening
+the folder and reading the console again.
+
+Keys: ↑ ↓ move, **Enter** opens a game, **R** shows the trophy large, **Shift**
+changes the order (default, rarity when known, type, date earned), **Esc** goes
+back.
+
+**Copy all to this PC** / **Copy N to this PC** | Copies them into *Pictures/OrbisLink captures*, a folder per game, named as on the console (characters Windows refuses replaced); one already there with the same size is skipped. Stops at once when the app closes. |
+| **Delete from the console…** | Deletes the picked ones from the console, after asking (they are gone for good). PS4 only. |
+| 📂 · ⟳ | Opens the folder on this PC · reads the console again. |
+
+### PS1/PS2 converter
+
+1. **Choose games folder…** — the folder with the disc images (`.iso`,
+   `.bin/.cue`, `.img`, also in sub-folders). The app finds which are PS1 and
+   PS2 games and names them from the emulator's title list.
+2. The first conversion downloads the Classics files once (about 109 MB);
+   **Download now** does it earlier. Nothing else has to be provided.
+
+Each game's card is the library's (**All games**): the same size, its cover
+on top — from the cover collection by its serial, cached once found; a disc
+stands in until then — the platform in its corner, the name and the serial
+and size under it. The game's dialog shows the cover too, and so does its
+card in the Queue tab while it is converted, sent and installed. While it is
+on its way, the step's ring sits over the cover with a bar along its bottom,
+and the line under the name says the step and how far it is; when it is over
+(the package made, sent or installed) the ring turns green with a ✓. Every
+game picture in the app has one of a few sizes (a card in a grid, a place on
+the library's home, a picture in a row, the large one of a details dialog).
+
+| Item | Does |
+|---|---|
+| Game card | Opens the game's dialog. |
+| ○ on a card (or Ctrl/Shift+click) | Selects it; with several selected, **Continue…** opens one dialog for all. |
+
+### Game dialog
+
+Platform, serial, region, file; **Name on the console** (editable); where
+packages are saved (**Change…**).
+
+| Button | Does | Needs |
+|---|---|---|
+| **Convert only** | Makes the package in the output folder. | Nothing (no console). |
+| **Convert and install** | Makes it, sends it over FTP to the folder chosen under *On the console* (made if missing) and installs it. A PS4 installs it from this PC and the copy there is then deleted; a PS5 installs it from where it was put, and the copy stays until you delete it. The package stays in the output folder. | FTP of the console in use; the installer for the last step (the queue waits for it). |
+| **Send and install** | Shown instead when the package was made before and *Use the existing package* is chosen: skips the conversion. | Same as above. |
+| **Send disc file** | Sends the disc image itself over FTP. | FTP. |
+
+**On the console:** where the package goes — **Its memory**
+(`/data/OrbisLinkFPKG/`), a **USB drive** (`/mnt/usb0/OrbisLinkFPKG/`) or the
+**Extended storage** (`/mnt/ext0/OrbisLinkFPKG/`). The dialog asks the
+console which drives it has, and marks *not found* the one that shows
+nothing (still selectable: an empty drive shows nothing too). The choice is
+kept in the settings.
+
+Without a console connected, the dialog says so, the buttons that send are
+off, and **Convert only** still works.
+
+### What the console takes, and from where
+
+| You have | What happens | From |
+|---|---|---|
+| A PS4 package (`.pkg`, fake-signed) | Installed by the installer: Remote Package Installer on a PS4, etaHEN's DPI v2 on a PS5 (PS4 packages on a PS5 need etaHEN with kstuff). | This PC (*Install directly*), or a copy on the console: its memory, a USB drive, the extended storage (PS5: **Install on the console** in the Files tab, or *Send and install*). |
+| A PS1/PS2 disc (`.iso`, `.bin/.cue`, `.img`) | Converted here into a PS4 package, then as above. The image itself is not installable; *Send disc file* only copies it. | Same. |
+| A PS5 fake package (`.pkg`, `PPSA…`) | Installed by the PS5's installer (etaHEN's DPI v2, or Prospero Manager), like a PS4 one. It starts with kstuff (up to 11.60) or Titan Core (12.00–13.60). | This PC, or a copy on the console, as above. |
+| A PS5 game as a folder, or as an image (`.ffpkg`, `.exfat`, `.ffpfs`) | Made into a PS5 fake package here by Packwright (Games page), then as above; or not installed: ShadowMountPlus mounts it and puts it on the home screen. Copy it over FTP into a folder it looks in. | `/data/homebrew`, `/mnt/usb0`–`/mnt/usb7` and their `homebrew` folders, `/mnt/ext0`, `/mnt/ext1` and theirs (ShadowMountPlus's own list, first level of sub-folders). |
+| A homebrew app from the store | Its folder goes to `/data/homebrew`; ShadowMountPlus registers it. | The Homebrew store page. |
+
+### Conversion card (Queue tab)
+
+Stages: waiting → (emulator files the first time) → cover → converting →
+signing → sending → installing → installed. Each step asked for has its own
+bar — Convert alone for *Convert only*; Convert and Send for a disc of the
+console put back without installing; Convert, Send and Install otherwise —
+and under them, while one moves bytes, its speed and the time left. Done
+(package ready, on the console, installed), the card is green. ✕ cancels
+while it runs and removes the card when it is over; ⟲ retries a failed send
+or install; 📂 opens the output folder.
+
+### How a package is made
+
+PS2 discs exactly as easy-ps2-fpkg makes them: the "Jak v2" emulator as it
+comes, its config with the game's serial, its own `param.sfo` with the game's
+IDs and name, the official cover by serial (else the emulator's art), the disc
+as `image/disc01.iso`. A PS2 game on CD kept as a raw `.bin` (with its
+`.cue`: 2352 bytes a sector) goes in as the ISO inside it — 2048 bytes of
+each sector, taken while the package is built, the `.bin` left as it is: the
+emulator reads only an ISO, and crashes (CE-34878-0) on the raw image. PS1
+discs as PS Classics fPKG Builder does.
+
+A PS5 game folder (`sce_sys/param.json`, `eboot.bin`) or image is made into
+a PS5 fake package by [Packwright](https://github.com/itsmemac/Packwright)
+(GPL-3.0, its own program, installed separately): `packwright convert <it>
+--to pkg -o <output folder>/<name>.pkg`. Its progress shows on the card;
+cancelling stops it and deletes the half-made package. The package is read
+back to name the card from its `param.json`.
+
+## Trophy vault
+
+**Trophy vault** (navigation) shows a PS4 user's trophies as the console lists
+them, read over FTP (GoldHEN) from `/user/home/<user>/trophy/db/trophy_local.db`
+— the console's own list, an SQLite database, the one Apollo Save Tool reads.
+The page is laid out like a console's trophy screen, in the app's theme. The
+button with the user's name beside the title picks another user of the console;
+**All games** and **On this PC** (the games copied here) filter the list; the
+**i** says where the trophies come from. Each game shows its icon (from `/user/trophy/conf/<NPWR…>/ICON0.PNG`, when
+the console has it), its progress and its platinum, gold, silver and bronze. A
+game opened lists its trophies, each with its own picture when the console has
+it, the date it was earned (a hidden one says so until it is) and its rarity when
+the console's list carries one (never guessed); the one picked is lit and shown
+large on the right; **All games** goes back to the list. **Compare Trophies** sets the same game side by side for
+every user of the console who has it.
+
+Keys along the bottom: ↑ ↓ move, **Enter** opens a game, **R** shows the trophy
+large, **Shift** changes the order (default, rarity when known, type, date
+earned), **Esc** goes back. **Options** shows every trophy, only the ones earned
+or only the ones not earned, and copies, opens the folder or reads the console
+again.
+
+**Copy all to this PC** (or **Copy this game to this PC** in a game) copies each game's
+trophy files (`/user/home/<user>/trophy/data/<NPWR…>/`) and the user's list into
+*Documents/OrbisLink trophies/<user>/*; a game copied shows **On the PC**. Only read
+and copied: nothing is unlocked or written on the console. A PS5 keeps its
+trophies another way, which is not read yet.
+
 ## Save vault
 
 A place on this PC with a copy of every save, to put back whatever a console

@@ -277,6 +277,14 @@ Plate {
                     onClicked: window.goTo("saves")
                 }
                 NavItem {
+                    iconName: "trophy"
+                    text: qsTr("Trophy vault")
+                    hint: qsTr("The console's trophies, read from it and kept on this PC")
+                    note: nav.noFtp ? qsTr("no FTP") : ""
+                    selected: nav.current === "trophies"
+                    onClicked: window.goTo("trophies")
+                }
+                NavItem {
                     iconName: "zap"
                     text: qsTr("Payloads")
                     hint: qsTr("See and manage the console's payloads and plugins, and run one now")

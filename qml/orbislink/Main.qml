@@ -112,6 +112,7 @@ ApplicationWindow {
         case "games": return qsTr("Games")
         case "store": return qsTr("Homebrew store")
         case "saves": return qsTr("Save vault")
+        case "trophies": return qsTr("Trophy vault")
         case "payloads": return qsTr("Payloads")
         }
         return ""
@@ -121,6 +122,7 @@ ApplicationWindow {
         case "games": return "disc"
         case "store": return "store"
         case "saves": return "archive"
+        case "trophies": return "trophy"
         case "payloads": return "zap"
         }
         return ""
@@ -283,6 +285,11 @@ ApplicationWindow {
                                 visible: window.view === "saves"
                             }
                             Item {
+                                id: trophiesSlot
+                                anchors.fill: parent
+                                visible: window.view === "trophies"
+                            }
+                            Item {
                                 id: payloadsSlot
                                 anchors.fill: parent
                                 visible: window.view === "payloads"
@@ -296,7 +303,7 @@ ApplicationWindow {
                             Item {
                                 anchors.fill: parent
                                 visible: window.view !== "games" && window.view !== "saves" && window.view !== "store"
-                                         && window.view !== "payloads"
+                                         && window.view !== "payloads" && window.view !== "trophies"
 
                                 StreamArea {
                                     id: streamArea
@@ -508,6 +515,13 @@ ApplicationWindow {
         anchors.fill: parent
         visible: window.view === "saves" || window.overSection === "saves"
         framed: window.overSection !== "saves"
+        onBack: window.closeSection()
+    }
+    TrophiesView {
+        parent: window.overSection === "trophies" ? sectionOverlay.slot : trophiesSlot
+        anchors.fill: parent
+        visible: window.view === "trophies" || window.overSection === "trophies"
+        framed: window.overSection !== "trophies"
         onBack: window.closeSection()
     }
     PayloadsView {

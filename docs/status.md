@@ -89,6 +89,7 @@ Last review: v1.1.0.
 | 🟡 | ftpsrv's `MTRW` and `KILL` (advanced mode), after asking; checked against the fake console, still to be seen on a PS5 with ftpsrv |
 | ✅ | Nothing asks the console's FTP before it has answered the check: after a console switch the services count as being checked (no page tries the new console with the old one's state), a late answer about the console before is ignored, and the file list is read the moment FTP answers; Save vault and Payloads say *no FTP* in the navigation |
 | 🟡 | Save vault: saves a PS4 copied to a USB drive (`PS4/SAVEDATA`), on the console's drives (`/mnt/usbN`) or on a drive plugged into this PC, shown and backed up into the vault folder (the drive is only read); checked with the fake console and in the tests |
+| 🟡 | Trophy vault (PS4): a user's trophies read over FTP from the console's own list (`trophy_local.db`, SQLite), each game with its icon, progress and trophies by grade, hidden ones kept hidden; each game's trophy files copied to this PC; another user picked; nothing written on the console. Checked with a fake console holding a list in the layout Apollo Save Tool reads; not yet on a real PS4 |
 
 ## 3. Remote Play
 

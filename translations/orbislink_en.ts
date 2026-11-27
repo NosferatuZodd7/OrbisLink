@@ -2996,36 +2996,41 @@
     </message>
     <message>
         <location filename="../qml/orbislink/Main.qml" line="115"/>
+        <source>Trophy vault</source>
+        <translation>Trophy vault</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/Main.qml" line="116"/>
         <source>Payloads</source>
         <translation>Payloads</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="398"/>
+        <location filename="../qml/orbislink/Main.qml" line="405"/>
         <source>Transfers</source>
         <translation>Transfers</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="412"/>
+        <location filename="../qml/orbislink/Main.qml" line="419"/>
         <source>Hide the transfers (F9)</source>
         <translation>Hide the transfers (F9)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="436"/>
+        <location filename="../qml/orbislink/Main.qml" line="443"/>
         <source>Queue (%1)</source>
         <translation>Queue (%1)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="437"/>
+        <location filename="../qml/orbislink/Main.qml" line="444"/>
         <source>Queue</source>
         <translation>Queue</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="439"/>
+        <location filename="../qml/orbislink/Main.qml" line="446"/>
         <source>Files (FTP)</source>
         <translation>Files (FTP)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/Main.qml" line="360"/>
+        <location filename="../qml/orbislink/Main.qml" line="367"/>
         <source>Local HTTP: %1</source>
         <translation>Local HTTP: %1</translation>
     </message>
@@ -7117,58 +7122,69 @@
     <message>
         <location filename="../qml/orbislink/SideNav.qml" line="275"/>
         <location filename="../qml/orbislink/SideNav.qml" line="283"/>
+        <location filename="../qml/orbislink/SideNav.qml" line="291"/>
         <source>no FTP</source>
         <translation>no FTP</translation>
     </message>
     <message>
         <location filename="../qml/orbislink/SideNav.qml" line="281"/>
+        <source>Trophy vault</source>
+        <translation>Trophy vault</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SideNav.qml" line="282"/>
+        <source>The console&apos;s trophies, read from it and kept on this PC</source>
+        <translation>The console&apos;s trophies, read from it and kept on this PC</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/SideNav.qml" line="289"/>
         <source>Payloads</source>
         <translation>Payloads</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SideNav.qml" line="282"/>
+        <location filename="../qml/orbislink/SideNav.qml" line="290"/>
         <source>See and manage the console&apos;s payloads and plugins, and run one now</source>
         <translation>See and manage the console&apos;s payloads and plugins, and run one now</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SideNav.qml" line="296"/>
+        <location filename="../qml/orbislink/SideNav.qml" line="304"/>
         <source>Transfers</source>
         <translation>Transfers</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SideNav.qml" line="297"/>
+        <location filename="../qml/orbislink/SideNav.qml" line="305"/>
         <source>The queue and the console&apos;s files (F9)</source>
         <translation>The queue and the console&apos;s files (F9)</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SideNav.qml" line="305"/>
+        <location filename="../qml/orbislink/SideNav.qml" line="313"/>
         <source>Log and diagnostics</source>
         <translation>Log and diagnostics</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SideNav.qml" line="306"/>
+        <location filename="../qml/orbislink/SideNav.qml" line="314"/>
         <source>Ctrl+L</source>
         <translation>Ctrl+L</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SideNav.qml" line="327"/>
-        <location filename="../qml/orbislink/SideNav.qml" line="336"/>
+        <location filename="../qml/orbislink/SideNav.qml" line="335"/>
+        <location filename="../qml/orbislink/SideNav.qml" line="344"/>
         <source>Settings</source>
         <translation>Settings</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SideNav.qml" line="328"/>
         <location filename="../qml/orbislink/SideNav.qml" line="336"/>
+        <location filename="../qml/orbislink/SideNav.qml" line="344"/>
         <source>Ctrl+,</source>
         <translation>Ctrl+,</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SideNav.qml" line="344"/>
+        <location filename="../qml/orbislink/SideNav.qml" line="352"/>
         <source>Fold the navigation</source>
         <translation>Fold the navigation</translation>
     </message>
     <message>
-        <location filename="../qml/orbislink/SideNav.qml" line="354"/>
+        <location filename="../qml/orbislink/SideNav.qml" line="362"/>
         <source>Open the navigation</source>
         <translation>Open the navigation</translation>
     </message>
@@ -8796,6 +8812,253 @@
     </message>
 </context>
 <context>
+    <name>TrophiesView</name>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="414"/>
+        <source>User</source>
+        <translation>User</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="418"/>
+        <source>The user whose trophies are shown: click for another</source>
+        <translation>The user whose trophies are shown: click for another</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="419"/>
+        <source>The user whose trophies are shown</source>
+        <translation>The user whose trophies are shown</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="647"/>
+        <source>No trophy earned in this game yet.</source>
+        <translation>No trophy earned in this game yet.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="648"/>
+        <source>Every trophy of this game is earned.</source>
+        <translation>Every trophy of this game is earned.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="704"/>
+        <source>Not known</source>
+        <translation>Not known</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="705"/>
+        <source>Earned</source>
+        <translation>Earned</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="705"/>
+        <source>Not yet</source>
+        <translation>Not yet</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="707"/>
+        <source>Details</source>
+        <translation>Details</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="708"/>
+        <source>Trophy %1 of %2 (%3)</source>
+        <translation>Trophy %1 of %2 (%3)</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="440"/>
+        <source>Options</source>
+        <translation>Options</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="797"/>
+        <source>Only the ones on this PC</source>
+        <translation>Only the ones on this PC</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="804"/>
+        <source>Show every trophy</source>
+        <translation>Show every trophy</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="810"/>
+        <source>Only the ones earned</source>
+        <translation>Only the ones earned</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="816"/>
+        <source>Only the ones not earned</source>
+        <translation>Only the ones not earned</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="822"/>
+        <source>Order: %1</source>
+        <translation>Order: %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="827"/>
+        <source>Copy all to this PC</source>
+        <translation>Copy all to this PC</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="827"/>
+        <source>Copy this game to this PC</source>
+        <translation>Copy this game to this PC</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="832"/>
+        <source>Open the folder on this PC</source>
+        <translation>Open the folder on this PC</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="836"/>
+        <source>Read the console again</source>
+        <translation>Read the console again</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="775"/>
+        <source>no trophies</source>
+        <translation>no trophies</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="31"/>
+        <source>Platinum</source>
+        <translation>Platinum</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="32"/>
+        <source>Gold</source>
+        <translation>Gold</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="33"/>
+        <source>Silver</source>
+        <translation>Silver</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="35"/>
+        <source>Bronze</source>
+        <translation>Bronze</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="368"/>
+        <source>Trophy vault</source>
+        <translation>Trophy vault</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="404"/>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="791"/>
+        <source>All games</source>
+        <translation>All games</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="497"/>
+        <source>A PS5 keeps its trophies another way, which this does not read yet.</source>
+        <translation>A PS5 keeps its trophies another way, which this does not read yet.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="498"/>
+        <source>The trophies are read over the console&apos;s FTP (GoldHEN).</source>
+        <translation>The trophies are read over the console&apos;s FTP (GoldHEN).</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="500"/>
+        <source>Read the console to see its users&apos; trophies.</source>
+        <translation>Read the console to see its users&apos; trophies.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="59"/>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="702"/>
+        <source>Rarity</source>
+        <translation>Rarity</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="60"/>
+        <source>Type</source>
+        <translation>Type</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="61"/>
+        <source>Date earned</source>
+        <translation>Date earned</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="63"/>
+        <source>Default</source>
+        <translation>Default</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="67"/>
+        <source>Ultra Rare</source>
+        <translation>Ultra Rare</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="67"/>
+        <source>Very Rare</source>
+        <translation>Very Rare</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="67"/>
+        <source>Rare</source>
+        <translation>Rare</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="67"/>
+        <source>Common</source>
+        <translation>Common</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="255"/>
+        <source>On the PC</source>
+        <translation>On the PC</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="425"/>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="894"/>
+        <source>Compare Trophies</source>
+        <translation>Compare Trophies</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="499"/>
+        <source>No game&apos;s trophies are copied to this PC yet.</source>
+        <translation>No game&apos;s trophies are copied to this PC yet.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="576"/>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="683"/>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="853"/>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="1035"/>
+        <source>Hidden trophy</source>
+        <translation>Hidden trophy</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="585"/>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="693"/>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="873"/>
+        <source>Shown once it is earned.</source>
+        <translation>Shown once it is earned.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="610"/>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="875"/>
+        <source>Not earned</source>
+        <translation>Not earned</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="875"/>
+        <source>Earned %1</source>
+        <translation>Earned %1</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="908"/>
+        <source>No other user of this console has played it: the comparison is between the console&apos;s users.</source>
+        <translation>No other user of this console has played it: the comparison is between the console&apos;s users.</translation>
+    </message>
+    <message>
+        <location filename="../qml/orbislink/TrophiesView.qml" line="995"/>
+        <source>Trophy</source>
+        <translation>Trophy</translation>
+    </message>
+</context>
+<context>
     <name>UpdateDialog</name>
     <message>
         <location filename="../qml/orbislink/UpdateDialog.qml" line="47"/>
@@ -8912,71 +9175,71 @@
 <context>
     <name>main</name>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="286"/>
-        <location filename="../src/orbislink/qt/main.cpp" line="293"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="287"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="294"/>
         <source>OrbisLink could not start</source>
         <translation>OrbisLink could not start</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="287"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="288"/>
         <source>Setting up the services failed:
 %1</source>
         <translation>Setting up the services failed:
 %1</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="294"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="295"/>
         <source>Setting up the services failed (unknown error).</source>
         <translation>Setting up the services failed (unknown error).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="347"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="350"/>
         <source>Could not load the interface (%1).</source>
         <translation>Could not load the interface (%1).</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="466"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="470"/>
         <source>The interface was never created.</source>
         <translation>The interface was never created.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="498"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="502"/>
         <source>Drag and drop</source>
         <translation>Drag and drop</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="507"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="511"/>
         <source>It was already in software mode.</source>
         <translation>It was already in software mode.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="508"/>
-        <location filename="../src/orbislink/qt/main.cpp" line="527"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="512"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="531"/>
         <source>Try the &quot;OrbisLink (compatibility mode)&quot; shortcut, or run it with the --software option.</source>
         <translation>Try the &quot;OrbisLink (compatibility mode)&quot; shortcut, or run it with the --software option.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="511"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="515"/>
         <source>OrbisLink — graphics error</source>
         <translation>OrbisLink — graphics error</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="524"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="528"/>
         <source>Windows refused to create the window.</source>
         <translation>Windows refused to create the window.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="525"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="529"/>
         <source>The window was created but nothing was ever drawn.</source>
         <translation>The window was created but nothing was ever drawn.</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="530"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="534"/>
         <source>OrbisLink could not open</source>
         <translation>OrbisLink could not open</translation>
     </message>
     <message>
-        <location filename="../src/orbislink/qt/main.cpp" line="600"/>
+        <location filename="../src/orbislink/qt/main.cpp" line="604"/>
         <source>OrbisLink ended with an error</source>
         <translation>OrbisLink ended with an error</translation>
     </message>
@@ -11806,6 +12069,63 @@ The install waits in the queue and goes on by itself once one of them answers. T
         <location filename="../src/orbislink/qt/stream_controller.cpp" line="1265"/>
         <source>Talking to the console (%1).</source>
         <translation>Talking to the console (%1).</translation>
+    </message>
+</context>
+<context>
+    <name>orbislink::TrophiesController</name>
+    <message>
+        <location filename="../src/orbislink/qt/trophies_controller.cpp" line="344"/>
+        <source>Getting the trophy pictures…</source>
+        <translation>Getting the trophy pictures…</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/trophies_controller.cpp" line="380"/>
+        <location filename="../src/orbislink/qt/trophies_controller.cpp" line="388"/>
+        <source>Reading the console&apos;s trophies…</source>
+        <translation>Reading the console&apos;s trophies…</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/trophies_controller.cpp" line="404"/>
+        <source>Copying the trophies to this PC…</source>
+        <translation>Copying the trophies to this PC…</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/trophies_controller.cpp" line="420"/>
+        <source>Copying %1 (%2 of %3)…</source>
+        <translation>Copying %1 (%2 of %3)…</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/trophies_controller.cpp" line="444"/>
+        <source>%1 of %2 copied. Not done: %3</source>
+        <translation>%1 of %2 copied. Not done: %3</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/orbislink/qt/trophies_controller.cpp" line="445"/>
+        <source>The trophies of %n game(s) copied to %1.</source>
+        <translation>
+            <numerusform>The trophies of %n game copied to %1.</numerusform>
+            <numerusform>The trophies of %n games copied to %1.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/trophies_controller.cpp" line="456"/>
+        <source>A PS5 keeps its trophies another way, which this does not read yet.</source>
+        <translation>A PS5 keeps its trophies another way, which this does not read yet.</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/trophies_controller.cpp" line="461"/>
+        <source>The console&apos;s FTP is not answering: its trophies are read over it.</source>
+        <translation>The console&apos;s FTP is not answering: its trophies are read over it.</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/trophies_controller.cpp" line="535"/>
+        <source>Getting the icons… %1</source>
+        <translation>Getting the icons… %1</translation>
+    </message>
+    <message>
+        <location filename="../src/orbislink/qt/trophies_controller.cpp" line="549"/>
+        <source>No user of this console has a list of trophies.</source>
+        <translation>No user of this console has a list of trophies.</translation>
     </message>
 </context>
 </TS>
