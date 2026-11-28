@@ -28,8 +28,7 @@ Plate {
     signal logRequested()
     signal customThemeRequested()
 
-    readonly property bool live: typeof stream !== "undefined" && stream !== null
-                                 && (stream.streaming || stream.restarting)
+    readonly property bool live: window.anyStreaming
     // The console in use has no FTP answering (checked, not still being
     // checked): the pages that read it over FTP say so in the list.
     readonly property bool noFtp: app.ftpState === "unavailable" || app.ftpState === "not-applicable"

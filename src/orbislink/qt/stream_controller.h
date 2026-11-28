@@ -84,6 +84,11 @@ class StreamController : public QObject
 	// Starting again with another picture: the picture stays on screen
 	// (black) and the window keeps its full screen meanwhile.
 	Q_PROPERTY(bool restarting READ restarting NOTIFY sessionChanged)
+	// Two sessions at once: only one takes the controller, the keyboard and
+	// the microphone — the one picked on screen. True when alone.
+	Q_PROPERTY(bool inputActive READ inputActive WRITE setInputActive NOTIFY inputActiveChanged)
+	// A demonstration (--demo-stream): sessions without a console.
+	Q_PROPERTY(bool demo READ demo CONSTANT)
 	// The connection during a session, once a second: what this PC's network
 	// interface towards the console receives and sends (bytes per second, -1
 	// where the system does not say), the picture's own share as chiaki
@@ -169,8 +174,11 @@ public:
 	bool holdsConsole() const;
 	// A demonstration (--demo-stream): the session's steps without a console.
 	void setDemo(bool on) { demo_ = on; }
+	bool demo() const { return demo_; }
 	int requestedFps() const { return fps_; }
 	bool restarting() const;
+	bool inputActive() const { return inputActive_; }
+	void setInputActive(bool active);
 	double netDownload() const { return netDownload_; }
 	double netUpload() const { return netUpload_; }
 	double netVideo() const { return netVideo_; }
@@ -245,6 +253,11 @@ public:
 	// starts again with these (the console only takes them when connecting).
 	// The caller keeps them in the settings.
 	Q_INVOKABLE void changeQuality(int resolution, int fps);
+	// Connects to the console at `address` (registered on this PC), as the
+	// cards do: the second session's way in, which has no card of its own.
+	Q_INVOKABLE void connectTo(const QString &address);
+	// Whether connectTo() would find a registration of this PC on that console.
+	Q_INVOKABLE bool canConnectTo(const QString &address) const;
 	// The console asked for the account PIN (not the registration one).
 	Q_INVOKABLE void sendLoginPin(const QString &pin);
 	// The saved PIN of an account ("" when it has none).
@@ -294,6 +307,7 @@ signals:
 	void connectStageChanged();
 	void qualityChanged();
 	void sessionAddressChanged();
+	void inputActiveChanged();
 	void netChanged();
 	// The console answered but this PC is not registered on it yet.
 	void registrationNeeded();
@@ -414,6 +428,15 @@ private:
 	LinkRate netRate_;
 	int netTicks_ = 0;
 	bool netSampling_ = false;
+	bool inputActive_ = true;
+	// The quality in the settings, taken when no session holds the console.
+	int savedResolution_ = 0;
+	int savedFps_ = 0;
+	void takeSavedQuality();
+	// connectTo(): the console asked for is not looked for elsewhere.
+	bool noLocate_ = false;
+	bool noLocateNext_ = false;
+	std::string accountFor(const std::string &address) const;
 	// changeQuality(): start again once the session in course has stopped.
 	bool restartPending_ = false;
 	int resolution_ = 720;
@@ -450,6 +473,9 @@ private:
 	std::map<std::string, std::string> accountPins_;
 	// Each console's own passcode, by address (empty: none of its own).
 	std::map<std::string, std::string> consolePins_;
+	// Each console's own account, and the last one any console accepted.
+	std::map<std::string, std::string> consoleAccounts_;
+	QString lastAccountId_;
 	// The host-id each saved console last reported, by address: which
 	// accounts are registered on a console is known before it answers.
 	std::map<std::string, std::string> consoleHostIds_;

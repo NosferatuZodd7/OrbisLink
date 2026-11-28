@@ -52,8 +52,7 @@ Dialog {
     // as it is: changing it would point FTP and the installer somewhere else
     // while the picture still comes from this console. (A session on another
     // console does not hold this one.)
-    readonly property bool sessionActive: typeof stream !== "undefined" && stream !== null
-        && stream.sessionAddress.length > 0 && stream.sessionAddress === app.consoleAddress
+    readonly property bool sessionActive: window.inSession(app.consoleAddress)
 
     property var values: ({})
 

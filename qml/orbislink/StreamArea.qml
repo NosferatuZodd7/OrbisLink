@@ -93,102 +93,348 @@ Item {
             return qsTr("%1 KB/s").arg((bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0))
         return qsTr("%1 MB/s").arg((bytes / (1024 * 1024)).toFixed(1))
     }
-    // Starting again with another picture counts: the stage, its bar and the
-    // full screen stay through the console's pause.
-    readonly property bool streaming: built && (stream.streaming || stream.restarting)
+    // The two sessions: Remote Play's first one (stream) and a second one at
+    // once on another console (stream2). Starting again with another picture
+    // counts as live: the stage, its bar and the full screen stay through the
+    // console's pause.
+    readonly property bool has2: typeof stream2 !== "undefined" && stream2 !== null
+    readonly property bool live1: built && window.live1
+    readonly property bool live2: has2 && window.live2
+    readonly property bool streaming: live1 || live2
+    readonly property bool both: live1 && live2
+    // The session the bar acts on and the keyboard goes to: the one picked
+    // on screen with two, else the one there is.
+    readonly property var cur: !built ? null
+        : both ? (window.focusedSession === 2 ? stream2 : stream)
+        : live2 ? stream2 : stream
     readonly property string consoleState: built ? stream.consoleState : "unknown"
     readonly property bool registered: built && stream.registered
     readonly property string sessionState: built ? stream.sessionState : "idle"
 
     // ───────────────────────────── video
     //
-    // Loaded separately because it is the only place with "import QtMultimedia":
-    // where that module does not exist, this part fails on its own and the rest
-    // of the window opens anyway.
-    Loader {
-        id: videoLoader
-        // The picture's box: the whole stage, or a centred 4:3 box in it
-        // (PS1/PS2 games come stretched to 16:9).
-        readonly property real stageW: videoStage.width - 2
-        readonly property real stageH: videoStage.height - 2
-        readonly property bool boxed: app.streamAspect === "4:3"
-        width: boxed ? Math.min(stageW, stageH * 4 / 3) : stageW
-        height: boxed ? Math.min(stageH, stageW * 3 / 4) : stageH
-        x: videoStage.x + 1 + (stageW - width) / 2
-        y: videoStage.y + 1 + (stageH - height) / 2
-        visible: root.streaming
-        active: root.built
-        source: root.built ? "qrc:/qml/StreamVideo.qml" : ""
+    // Each picture's place on the stage: the whole of it with one session;
+    // with two, side by side, one over the other, or the second small in a
+    // corner over the first (app.streamLayout).
+    readonly property real stageX: videoStage.x + 1
+    readonly property real stageY: videoStage.y + 1
+    readonly property real stageW: videoStage.width - 2
+    readonly property real stageH: videoStage.height - 2
+    readonly property string layout: app.streamLayout
+    readonly property real gap: 4
+    readonly property rect rect1: {
+        if (!both)
+            return Qt.rect(stageX, stageY, stageW, stageH)
+        if (layout === "stacked")
+            return Qt.rect(stageX, stageY, stageW, (stageH - gap) / 2)
+        if (layout === "pip")
+            return Qt.rect(stageX, stageY, stageW, stageH)
+        return Qt.rect(stageX, stageY, (stageW - gap) / 2, stageH)
+    }
+    readonly property rect rect2: {
+        if (!both)
+            return Qt.rect(stageX, stageY, stageW, stageH)
+        if (layout === "stacked")
+            return Qt.rect(stageX, stageY + (stageH + gap) / 2, stageW, (stageH - gap) / 2)
+        if (layout === "pip") {
+            var w = Math.max(220, stageW * 0.3)
+            var h = w * 9 / 16
+            return Qt.rect(stageX + stageW - w - 16, stageY + stageH - h - 16, w, h)
+        }
+        return Qt.rect(stageX + (stageW + gap) / 2, stageY, (stageW - gap) / 2, stageH)
+    }
 
-        onStatusChanged: {
-            if (status === Loader.Error)
-                console.warn("No QtMultimedia: Remote Play has nowhere to draw.")
+    // One picture: its box in its place (a centred 4:3 box for PS1/PS2 games),
+    // the session's notes over it, and — with two — the ring of the one
+    // played; a press anywhere on it picks it.
+    //
+    // The video is loaded apart because it is the only place with "import
+    // QtMultimedia": where that module does not exist, this part fails on its
+    // own and the rest of the window opens anyway.
+    component Stage: Item {
+        id: stage
+        property var ctrl: null
+        property int number: 1
+        property bool live: false
+        property rect place: Qt.rect(0, 0, 0, 0)
+        readonly property bool picked: root.both && window.focusedSession === number
+        readonly property alias loader: picture
+        x: place.x
+        y: place.y
+        width: place.width
+        height: place.height
+        visible: live
+        // Over the first in a corner: a frame, a shadow of black around it.
+        Rectangle {
+            anchors.fill: parent
+            color: "#000000"
+            visible: root.both
+            radius: root.layout === "pip" && stage.number === 2 ? 10 : 0
+            // The small one stands out from the big one behind it.
+            border.width: root.layout === "pip" && stage.number === 2 ? 1 : 0
+            border.color: Qt.rgba(1, 1, 1, 0.35)
+        }
+        Loader {
+            id: picture
+            readonly property bool boxed: app.streamAspect === "4:3"
+            width: boxed ? Math.min(stage.width, stage.height * 4 / 3) : stage.width
+            height: boxed ? Math.min(stage.height, stage.width * 3 / 4) : stage.height
+            x: (stage.width - width) / 2
+            y: (stage.height - height) / 2
+            active: root.built && stage.ctrl !== null
+            Component.onCompleted: if (stage.ctrl) setSource("qrc:/qml/StreamVideo.qml", { ctrl: stage.ctrl })
+            onStatusChanged: {
+                if (status === Loader.Error)
+                    console.warn("No QtMultimedia: Remote Play has nowhere to draw.")
+            }
+        }
+        // Connecting (a second session has no card for it): what it is doing,
+        // and the way out.
+        Column {
+            anchors.centerIn: parent
+            visible: stage.live && stage.ctrl !== null && !stage.ctrl.streaming && !stage.ctrl.restarting
+            spacing: 12
+            Spinner {
+                anchors.horizontalCenter: parent.horizontalCenter
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: !stage.ctrl ? ""
+                    : stage.ctrl.connectStage === "waking" ? qsTr("Waking %1…").arg(root.consoleNameOf(stage.ctrl.address))
+                    : qsTr("Connecting to %1…").arg(root.consoleNameOf(stage.ctrl.address))
+                color: Theme.onStage
+                font.pixelSize: 14
+                font.weight: Font.DemiBold
+            }
+            StyledButton {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: qsTr("Cancel")
+                onClicked: {
+                    if (stage.ctrl.connectStage.length > 0)
+                        stage.ctrl.cancelOneClick()
+                    else
+                        stage.ctrl.stopStream()
+                }
+            }
+        }
+        // Starting again with another picture: what is happening, on the black.
+        Column {
+            anchors.centerIn: parent
+            visible: stage.ctrl !== null && stage.ctrl.restarting
+            spacing: 12
+            Spinner {
+                anchors.horizontalCenter: parent.horizontalCenter
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: stage.ctrl ? stage.ctrl.sessionDetail : ""
+                color: Theme.onStage
+                font.pixelSize: 14
+                font.weight: Font.DemiBold
+            }
+        }
+        // The console is showing something it does not stream (YouTube, a
+        // film): the picture goes dark, and this says why instead of looking
+        // frozen.
+        Column {
+            anchors.centerIn: parent
+            width: Math.min(420, parent.width - 48)
+            spacing: 10
+            visible: stage.live && stage.ctrl !== null && stage.ctrl.cantDisplay
+            Icon {
+                anchors.horizontalCenter: parent.horizontalCenter
+                name: "monitor"
+                size: 34
+                color: Theme.onStageMuted
+            }
+            Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                color: Theme.onStage
+                font.pixelSize: 15
+                font.weight: Font.DemiBold
+                text: qsTr("The console is not streaming this screen")
+            }
+            Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                color: Theme.onStageMuted
+                font.pixelSize: 12
+                lineHeight: 1.2
+                text: qsTr("Video apps such as YouTube or Netflix are not sent over Remote Play. "
+                           + "Close the app or press the PS button for the home screen; the "
+                           + "picture comes back by itself.")
+            }
+        }
+        // With two: its console's name in a corner, and a ring on the one
+        // played.
+        Rectangle {
+            visible: root.both
+            // At the foot: the bar takes the top.
+            anchors.left: parent.left
+            anchors.bottom: parent.bottom
+            anchors.margins: 10
+            width: nameTag.implicitWidth + 20
+            height: 26
+            radius: 13
+            color: Qt.rgba(0, 0, 0, 0.55)
+            border.width: 1
+            border.color: stage.picked ? Theme.alpha(Theme.accent, 0.8) : Qt.rgba(1, 1, 1, 0.15)
+            Text {
+                id: nameTag
+                anchors.centerIn: parent
+                text: root.consoleNameOf(stage.ctrl ? stage.ctrl.address : "")
+                      + (stage.picked ? "  ·  " + qsTr("played") : "")
+                color: Theme.onStage
+                font.pixelSize: 11
+                font.weight: Font.DemiBold
+            }
+        }
+        Rectangle {
+            anchors.fill: parent
+            color: "transparent"
+            visible: stage.picked
+            border.width: 2
+            border.color: Theme.alpha(Theme.accent, 0.85)
+            radius: root.layout === "pip" && stage.number === 2 ? 10 : 0
+        }
+        // A press picks it, without taking the press from the picture (the
+        // mouse can be the touchpad): on a layer over it, which only watches
+        // (a passive grab) and lets the press go on to the picture.
+        Item {
+            anchors.fill: parent
+            PointHandler {
+                id: picker
+                acceptedButtons: Qt.AllButtons
+                onActiveChanged: {
+                    if (!active || !root.both)
+                        return
+                    // Under the small one in a corner, the big one does not
+                    // take the press: the small one is what was pressed.
+                    if (stage.number === 1 && root.layout === "pip") {
+                        var p = stage2.mapFromItem(stage, picker.point.position.x, picker.point.position.y)
+                        if (stage2.contains(p))
+                            return
+                    }
+                    window.focusedSession = stage.number
+                }
+            }
         }
     }
 
-    readonly property bool videoReady: videoLoader.status === Loader.Ready
-    // The keyboard back to the picture (a page over it was closed).
+    // The consoles a second session can go to: registered on this PC (a
+    // registration of theirs is known), saved in the list, and not the one
+    // already streaming.
+    readonly property var secondCandidates: {
+        if (!built || !has2)
+            return []
+        // Re-read when the registrations change (canConnectTo reads them).
+        var regs = stream.registrations
+        var held = [stream.sessionAddress, stream2.sessionAddress]
+        var out = []
+        for (var i = 0; i < app.consoles.length; ++i) {
+            var c = app.consoles[i]
+            if (held.indexOf(c.address) >= 0)
+                continue
+            // The same rule connecting will use: a registration of this PC
+            // there, for its account or another.
+            if (regs !== undefined && stream2.canConnectTo(c.address))
+                out.push(c)
+        }
+        return out
+    }
+    function startSecond(address) {
+        // Whichever controller is free: the second while the first streams,
+        // the first once it has ended and the second goes on.
+        if (!live1)
+            stream.connectTo(address)
+        else
+            stream2.connectTo(address)
+    }
+    Menu {
+        id: secondMenu
+        topPadding: 8
+        bottomPadding: 8
+        background: ShelfTile.MenuGlass { implicitWidth: 300 }
+        Instantiator {
+            model: root.secondCandidates
+            delegate: StyledMenuItem {
+                required property var modelData
+                text: modelData.name + (modelData.type === "ps5" ? "  ·  PS5" : modelData.type === "ps4" ? "  ·  PS4" : "")
+                iconName: modelData.type === "ps5" ? "monitor" : "gamepad"
+                onTriggered: root.startSecond(modelData.address)
+            }
+            onObjectAdded: (index, object) => secondMenu.insertItem(index, object)
+            onObjectRemoved: (index, object) => secondMenu.removeItem(object)
+        }
+    }
+    Menu {
+        id: layoutMenu
+        topPadding: 8
+        bottomPadding: 8
+        background: ShelfTile.MenuGlass { implicitWidth: 260 }
+        Repeater {
+            model: [["side", "columns", qsTr("Side by side")], ["stacked", "rows", qsTr("One over the other")],
+                    ["pip", "picture-in-picture", qsTr("One small over the other")]]
+            delegate: StyledMenuItem {
+                required property var modelData
+                text: modelData[2] + (app.streamLayout === modelData[0] ? "  ✓" : "")
+                iconName: modelData[1]
+                onTriggered: app.streamLayout = modelData[0]
+            }
+        }
+        MenuSeparator {}
+        // The controller, the keyboard and the sound to the other picture
+        // (a click on it does the same).
+        StyledMenuItem {
+            text: qsTr("Play the other one")
+            iconName: "gamepad"
+            onTriggered: window.focusedSession = window.focusedSession === 1 ? 2 : 1
+        }
+    }
+
+    function consoleNameOf(address) {
+        for (var i = 0; i < app.consoles.length; ++i)
+            if (app.consoles[i].address === address)
+                return app.consoles[i].name
+        return address
+    }
+
+    Stage {
+        id: stage1
+        ctrl: root.built ? stream : null
+        number: 1
+        live: root.live1
+        place: root.rect1
+    }
+    Stage {
+        id: stage2
+        // Over the first, in a corner, in picture in picture.
+        z: 1
+        ctrl: root.has2 ? stream2 : null
+        number: 2
+        live: root.live2
+        place: root.rect2
+    }
+    // The first picture's box (the bar and the help sit relative to it).
+    readonly property Item videoLoader: stage1.loader
+
+    readonly property bool videoReady: stage1.loader.status === Loader.Ready
+    // The keyboard to the picture played (a page over it was closed, or
+    // another picture was picked).
     function focusPicture() {
-        if (videoReady && streaming)
-            videoLoader.item.forceActiveFocus()
+        var stage = cur === stream2 ? stage2 : stage1
+        if (streaming && stage.loader.status === Loader.Ready)
+            stage.loader.item.forceActiveFocus()
     }
-
-    // The console is showing something it does not stream (YouTube, a film):
-    // the picture goes dark, and this says why instead of looking frozen.
-    // Starting again with another picture: what is happening, on the black.
-    Column {
-        anchors.centerIn: videoLoader
-        visible: root.built && stream.restarting
-        spacing: 12
-        Spinner {
-            anchors.horizontalCenter: parent.horizontalCenter
-        }
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: root.built ? stream.sessionDetail : ""
-            color: Theme.onStage
-            font.pixelSize: 14
-            font.weight: Font.DemiBold
-        }
-    }
-    Column {
-        anchors.centerIn: videoLoader
-        width: Math.min(420, videoLoader.width - 48)
-        spacing: 10
-        visible: root.streaming && stream.cantDisplay
-
-        Icon {
-            anchors.horizontalCenter: parent.horizontalCenter
-            name: "monitor"
-            size: 34
-            color: Theme.onStageMuted
-        }
-        Text {
-            width: parent.width
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.WordWrap
-            color: Theme.onStage
-            font.pixelSize: 15
-            font.weight: Font.DemiBold
-            text: qsTr("The console is not streaming this screen")
-        }
-        Text {
-            width: parent.width
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.WordWrap
-            color: Theme.onStageMuted
-            font.pixelSize: 12
-            lineHeight: 1.2
-            text: qsTr("Video apps such as YouTube or Netflix are not sent over Remote Play. "
-                       + "Close the app or press the PS button for the home screen; the "
-                       + "picture comes back by itself.")
-        }
-    }
+    readonly property var curStream: cur
+    onCurStreamChanged: Qt.callLater(focusPicture)
 
     onStreamingChanged: {
         if (streaming) {
-            if (videoReady)
-                videoLoader.item.forceActiveFocus()
+            Qt.callLater(focusPicture)
             if (built && stream.fullscreenOnConnect)
                 window.setStreamFullscreen(true)
         } else {
@@ -431,6 +677,8 @@ Item {
     // same dark glass whatever the theme.
     Rectangle {
         id: streamToolbar
+        // Over both pictures.
+        z: 3
         anchors.top: videoStage.top
         anchors.topMargin: 16 + (shown ? 0 : -8)
         Behavior on anchors.topMargin { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
@@ -532,21 +780,22 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             // With another console in use for the pages, the one the picture
             // comes from is named first.
+            // With two sessions, always: the bar acts on that one.
             readonly property string elsewhere: {
-                if (!root.built || stream.address === app.consoleAddress)
+                if (!root.built || (!root.both && root.cur.address === app.consoleAddress))
                     return ""
                 for (var i = 0; i < app.consoles.length; ++i)
-                    if (app.consoles[i].address === stream.address)
+                    if (app.consoles[i].address === root.cur.address)
                         return app.consoles[i].name
-                return stream.address
+                return root.cur.address
             }
             text: {
-                if (!root.built || stream.frameWidth <= 0)
+                if (!root.built || root.cur.frameWidth <= 0)
                     return elsewhere
                 var message = (elsewhere.length > 0 ? elsewhere + "  ·  " : "")
-                    + qsTr("%1×%2").arg(stream.frameWidth).arg(stream.frameHeight)
-                if (stream.measuredFps > 0)
-                    message += qsTr(" · %1 fps").arg(stream.measuredFps)
+                    + qsTr("%1×%2").arg(root.cur.frameWidth).arg(root.cur.frameHeight)
+                if (root.cur.measuredFps > 0)
+                    message += qsTr(" · %1 fps").arg(root.cur.measuredFps)
                 return message
             }
             color: Theme.onStageMuted
@@ -555,7 +804,7 @@ Item {
             font.weight: Font.Medium
             HoverHandler { id: frameHover }
             ToolTip.visible: frameHover.hovered && text.length > 0
-            ToolTip.text: root.built && stream.hardwareDecoder
+            ToolTip.text: root.built && root.cur.hardwareDecoder
                           ? qsTr("graphics card") : qsTr("processor")
         }
 
@@ -565,6 +814,23 @@ Item {
             anchors.rightMargin: 10
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
+
+            // A second session at once, on another registered console.
+            HudButton {
+                id: addButton
+                visible: !root.both && root.secondCandidates.length > 0
+                iconName: "plus"
+                tip: qsTr("Remote Play on a second console at the same time")
+                onClicked: secondMenu.popup(addButton, 0, addButton.height + 8)
+            }
+            // With two: how they share the stage.
+            HudButton {
+                id: layoutButton
+                visible: root.both
+                iconName: root.layout === "stacked" ? "rows" : root.layout === "pip" ? "picture-in-picture" : "columns"
+                tip: qsTr("The two pictures: side by side, one over the other, or one small over the other")
+                onClicked: layoutMenu.popup(layoutButton, 0, layoutButton.height + 8)
+            }
 
             // The picture asked of the console: its height and fps. A click
             // picks others; the session starts again with them (the console
@@ -590,7 +856,7 @@ Item {
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        text: root.built ? qsTr("%1p · %2").arg(stream.requestedResolution).arg(stream.requestedFps) : ""
+                        text: root.built ? qsTr("%1p · %2").arg(root.cur.requestedResolution).arg(root.cur.requestedFps) : ""
                         color: Theme.onStage
                         font.family: Theme.fontMono
                         font.pixelSize: 12
@@ -623,7 +889,7 @@ Item {
                     function pick(resolution, fps) {
                         qualityPill.tipAllowed = false
                         app.setStreamQuality(resolution, fps)
-                        stream.changeQuality(resolution, fps)
+                        root.cur.changeQuality(resolution, fps)
                     }
                     StyledMenuItem {
                         enabled: false
@@ -636,9 +902,9 @@ Item {
                             // 1080p: a PS5 or a PS4 Pro (a PS4 sends 720p; the
                             // search does not tell a Pro apart).
                             text: modelData + "p"
-                                  + (modelData === 1080 && root.built && !stream.consolePs5 ? "  " + qsTr("(PS4 Pro)") : "")
-                                  + (root.built && stream.requestedResolution === modelData ? "  ✓" : "")
-                            onTriggered: qualityMenu.pick(modelData, stream.requestedFps)
+                                  + (modelData === 1080 && root.built && !root.cur.consolePs5 ? "  " + qsTr("(PS4 Pro)") : "")
+                                  + (root.built && root.cur.requestedResolution === modelData ? "  ✓" : "")
+                            onTriggered: qualityMenu.pick(modelData, root.cur.requestedFps)
                         }
                     }
                     MenuSeparator {}
@@ -651,8 +917,8 @@ Item {
                         delegate: StyledMenuItem {
                             required property int modelData
                             text: qsTr("%1 fps").arg(modelData)
-                                  + (root.built && stream.requestedFps === modelData ? "  ✓" : "")
-                            onTriggered: qualityMenu.pick(stream.requestedResolution, modelData)
+                                  + (root.built && root.cur.requestedFps === modelData ? "  ✓" : "")
+                            onTriggered: qualityMenu.pick(root.cur.requestedResolution, modelData)
                         }
                     }
                 }
@@ -661,17 +927,17 @@ Item {
             // The connection: hovering shows what comes in and goes out and
             // how quickly the console answers; the colour says how it is.
             HudButton {
-                readonly property double ping: root.built ? stream.netPing : -1
+                readonly property double ping: root.built ? root.cur.netPing : -1
                 iconName: "activity"
-                readonly property string grade: root.built ? stream.netGrade : "unknown"
+                readonly property string grade: root.built ? root.cur.netGrade : "unknown"
                 tone: grade === "good" ? Theme.ok : grade === "fair" ? Theme.warn
                     : grade === "poor" ? Theme.error : Theme.onStage
-                tip: !root.built ? "" : qsTr("Download: %1").arg(root.rate(stream.netDownload))
-                     + (stream.netVideo > 0 ? "  " + qsTr("(picture: %1)").arg(root.rate(stream.netVideo)) : "")
-                     + "\n" + qsTr("Upload: %1").arg(root.rate(stream.netUpload))
+                tip: !root.built ? "" : qsTr("Download: %1").arg(root.rate(root.cur.netDownload))
+                     + (root.cur.netVideo > 0 ? "  " + qsTr("(picture: %1)").arg(root.rate(root.cur.netVideo)) : "")
+                     + "\n" + qsTr("Upload: %1").arg(root.rate(root.cur.netUpload))
                      + "\n" + qsTr("Ping: %1").arg(ping < 0 ? "—" : qsTr("%1 ms").arg(ping < 10 ? ping.toFixed(1) : Math.round(ping)))
-                     + "\n" + (stream.netInterface.length > 0
-                                ? qsTr("This PC's connection (%1), everything it carries.").arg(stream.netInterface)
+                     + "\n" + (root.cur.netInterface.length > 0
+                                ? qsTr("This PC's connection (%1), everything it carries.").arg(root.cur.netInterface)
                                 : qsTr("This PC's connection."))
             }
 
@@ -680,9 +946,9 @@ Item {
             HudButton {
                 iconName: "gamepad"
                 secondIconName: "keyboard"
-                tone: root.built && stream.gamepadName.length > 0 ? Theme.ok : Theme.onStage
-                tip: root.built && stream.gamepadName.length > 0
-                     ? qsTr("Controller: %1. Click for the keyboard map.").arg(stream.gamepadName)
+                tone: root.built && root.cur.gamepadName.length > 0 ? Theme.ok : Theme.onStage
+                tip: root.built && root.cur.gamepadName.length > 0
+                     ? qsTr("Controller: %1. Click for the keyboard map.").arg(root.cur.gamepadName)
                      : qsTr("No controller connected. Click for the keyboard map.")
                 onClicked: keysDialog.open()
             }
@@ -690,7 +956,7 @@ Item {
             // Sound: a pill with its state, and a click mutes it.
             Rectangle {
                 id: soundPill
-                readonly property string audioStatus: root.built ? stream.audioState : "stopped"
+                readonly property string audioStatus: root.built ? root.cur.audioState : "stopped"
                 readonly property bool broken: audioStatus === "error" || audioStatus === "no-device"
                 implicitHeight: 36
                 implicitWidth: soundRow.implicitWidth + 24
@@ -706,13 +972,13 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         width: 8; height: 8; radius: 4
                         color: soundPill.broken ? Theme.error
-                             : root.built && stream.muted ? Theme.onStageMuted : Theme.ok
+                             : root.built && root.cur.muted ? Theme.onStageMuted : Theme.ok
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: !root.built ? qsTr("Sound")
                              : soundPill.broken ? qsTr("No sound")
-                             : stream.muted ? qsTr("Sound: off")
+                             : root.cur.muted ? qsTr("Sound: off")
                              : qsTr("Sound: on")
                         color: Theme.onStage
                         font.pixelSize: 12
@@ -724,7 +990,7 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: stream.muted = !stream.muted
+                    onClicked: root.cur.muted = !root.cur.muted
                 }
                 ToolTip.visible: soundArea.containsMouse
                 ToolTip.text: audioStatus === "no-device"
@@ -732,27 +998,27 @@ Item {
                     : audioStatus === "error"
                         ? qsTr("The sound card refused the stream — see Ctrl+L.")
                     : audioStatus === "playing"
-                        ? qsTr("Coming out of %1").arg(stream.audioDevice)
+                        ? qsTr("Coming out of %1").arg(root.cur.audioDevice)
                         : qsTr("No sound has arrived from the console yet.")
             }
 
             // The microphone must be visible. While it is capturing, the button
             // stays lit — nobody can be heard without noticing.
             HudButton {
-                readonly property string micStatus: root.built ? stream.microphoneState : "off"
+                readonly property string micStatus: root.built ? root.cur.microphoneState : "off"
                 iconName: micStatus === "muted" ? "mic-off" : "mic"
                 lit: micStatus === "talking"
                 tip: micStatus === "off"
                     ? qsTr("Send your microphone to the console")
-                    : qsTr("Capturing from %1. Click to mute, or right-click to turn it off.").arg(stream.microphoneDevice)
+                    : qsTr("Capturing from %1. Click to mute, or right-click to turn it off.").arg(root.cur.microphoneDevice)
                 onClicked: {
                     if (micStatus === "off")
-                        stream.setMicrophoneEnabled(true)
+                        root.cur.setMicrophoneEnabled(true)
                     else
-                        stream.setMicrophoneMuted(micStatus === "talking")
+                        root.cur.setMicrophoneMuted(micStatus === "talking")
                 }
                 // Right click turns it off entirely, instead of just muting.
-                onRightClicked: stream.setMicrophoneEnabled(false)
+                onRightClicked: root.cur.setMicrophoneEnabled(false)
             }
             // The picture's shape: as sent (16:9), 4:3 for PS1/PS2 games, or
             // stretched to the window. Each click moves to the next.
@@ -817,7 +1083,7 @@ Item {
                 danger: true
                 solid: true
                 implicitHeight: 36
-                onClicked: stream.stopStream()
+                onClicked: root.cur.stopStream()
             }
         }
     }
@@ -1144,12 +1410,15 @@ Item {
     Dialog {
         id: loginPinDialog
         property bool incorrect: false
-        // A 4-digit passcode is this console's from now on: the next
+        // The session that asked (the first or the second at once).
+        property var asker: null
+        // A 4-digit passcode is that console's from now on: the next
         // connection sends it by itself, without this dialog.
         function send(pin) {
-            stream.sendLoginPin(pin)
+            var ctrl = asker ? asker : stream
+            ctrl.sendLoginPin(pin)
             if (/^[0-9]{4}$/.test(pin))
-                app.setConsolePin(app.consoleAddress, pin)
+                app.setConsolePin(ctrl.address, pin)
             close()
         }
         parent: Overlay.overlay
@@ -1218,8 +1487,8 @@ Item {
                 text: loginPinDialog.incorrect
                       ? qsTr("The console refused that PIN. Type the right one: it replaces the one saved "
                              + "for this console.")
-                      : root.built && stream.accountName.length > 0
-                        ? qsTr("The console is asking for the login PIN of %1.").arg(stream.accountName)
+                      : loginPinDialog.asker && loginPinDialog.asker.accountName.length > 0
+                        ? qsTr("The console is asking for the login PIN of %1.").arg(loginPinDialog.asker.accountName)
                         : qsTr("The console is asking for the account's login PIN.")
                 color: loginPinDialog.incorrect ? Theme.error : Theme.textSecondary
                 font.pixelSize: 12
@@ -1240,9 +1509,24 @@ Item {
     Connections {
         target: root.built ? stream : null
         function onLoginPinRequested(incorrect) {
+            loginPinDialog.asker = stream
             loginPinDialog.incorrect = incorrect
             loginPinField.text = ""
             loginPinDialog.open()
+        }
+    }
+    // The second session: its own console's PIN, through the same dialog; and
+    // since it has no card, an unregistered console is said in a notice.
+    Connections {
+        target: root.has2 ? stream2 : null
+        function onLoginPinRequested(incorrect) {
+            loginPinDialog.asker = stream2
+            loginPinDialog.incorrect = incorrect
+            loginPinField.text = ""
+            loginPinDialog.open()
+        }
+        function onRegistrationNeeded() {
+            toast.show(qsTr("Register this PC on that console first, from its card, then connect a second session."), true)
         }
     }
 }

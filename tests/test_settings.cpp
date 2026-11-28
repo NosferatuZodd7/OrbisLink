@@ -95,6 +95,20 @@ ORBISLINK_TEST(out_of_range_stream_settings_are_corrected)
 	CHECK_EQ(settings.theme, std::string("dark"));
 }
 
+ORBISLINK_TEST(two_sessions_layout_is_kept_and_checked)
+{
+	Settings settings;
+	CHECK_EQ(settings.streamLayout, std::string("side"));
+	settings.streamLayout = "pip";
+	bool ok = false;
+	CHECK_EQ(Settings::fromJson(settings.toJson(), &ok).streamLayout, std::string("pip"));
+	CHECK(ok);
+	settings.streamLayout = "stacked";
+	CHECK_EQ(Settings::fromJson(settings.toJson(), &ok).streamLayout, std::string("stacked"));
+	// An unknown layout from a hand-edited file falls back to side by side.
+	CHECK_EQ(Settings::fromJson(R"({"stream_layout":"grid"})", &ok).streamLayout, std::string("side"));
+}
+
 ORBISLINK_TEST(allowed_stream_settings_pass)
 {
 	bool ok = false;

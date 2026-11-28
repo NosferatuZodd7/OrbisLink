@@ -119,6 +119,7 @@ std::string Settings::toJson() const
 	root.set("stream_hardware_decode", Json::fromBool(streamHardwareDecode));
 	root.set("stream_fullscreen_on_connect", Json::fromBool(streamFullscreenOnConnect));
 	root.set("stream_aspect", Json::fromString(streamAspect));
+	root.set("stream_layout", Json::fromString(streamLayout));
 	root.set("stream_rumble", Json::fromBool(streamRumble));
 	root.set("stream_touchpad_from_mouse", Json::fromBool(streamTouchpadFromMouse));
 	root.set("stream_account_id", Json::fromString(streamAccountId));
@@ -307,6 +308,11 @@ Settings Settings::fromJson(const std::string &text, bool *ok)
 		const std::string aspect = root["stream_aspect"].toString(settings.streamAspect);
 		if(aspect == "fit" || aspect == "4:3" || aspect == "fill")
 			settings.streamAspect = aspect;
+	}
+	{
+		const std::string layout = root["stream_layout"].toString(settings.streamLayout);
+		if(layout == "side" || layout == "stacked" || layout == "pip")
+			settings.streamLayout = layout;
 	}
 	settings.streamRumble = root["stream_rumble"].toLooseBool(settings.streamRumble);
 	settings.streamTouchpadFromMouse =

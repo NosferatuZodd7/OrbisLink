@@ -22,15 +22,12 @@ Item {
 
     readonly property bool hasConsole: app.consoleAddress.length > 0 && app.consoles.length > 0
     readonly property bool streaming: typeof stream !== "undefined" && stream !== null && stream.streaming
-    // The console a Remote Play session is on ("" when none).
-    readonly property string sessionAddress: typeof stream !== "undefined" && stream !== null
-                                             ? stream.sessionAddress : ""
     // Why another console cannot be chosen now ("" when it can).
     property string block: ""
     readonly property bool ftpUp: app.ftpState === "available"
     // A session streaming from the console in use (it can be on another).
     readonly property bool connected: ftpUp || app.remotePlayState === "available"
-                                      || (streaming && sessionAddress === app.consoleAddress)
+                                      || window.streamsOn(app.consoleAddress)
     readonly property bool checking: !connected && (app.ftpState === "checking"
                                                     || app.remotePlayState === "checking")
     readonly property string jailbreak: ftpUp ? (app.jailbreaks[app.consoleAddress] || "") : ""
@@ -188,7 +185,7 @@ Item {
         topPadding: 6
         bottomPadding: 6
         background: Rectangle {
-            implicitWidth: chip.block.length > 0 ? 400 : chip.sessionAddress.length > 0 ? 340 : 280
+            implicitWidth: chip.block.length > 0 ? 400 : window.sessionAddresses.length > 0 ? 340 : 280
             color: Theme.menuFill
             radius: 16
             border.width: 1
@@ -203,7 +200,7 @@ Item {
             delegate: StyledMenuItem {
                 required property var modelData
                 text: modelData.name + "  ·  " + modelData.address
-                      + (modelData.address === chip.sessionAddress ? "  ·  " + qsTr("Remote Play") : "")
+                      + (window.inSession(modelData.address) ? "  ·  " + qsTr("Remote Play") : "")
                 iconName: modelData.active ? "check" : (modelData.type === "ps5" ? "monitor" : "gamepad")
                 enabled: modelData.active || chip.block.length === 0
                 // Closed first: choosing rebuilds this list under the menu.

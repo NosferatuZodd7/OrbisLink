@@ -140,7 +140,9 @@ FocusScope {
     // A read that fails is not tried again by itself (the button is there).
     property string autoReadFor: ""
     readonly property bool canRead: visible && !trophies.scanned && !trophies.busy && app.canUseFtp && !trophies.ps5
-    onCanReadChanged: readWhenReady()
+    // Later, not inside the change: reading changes `busy`, which canRead
+    // depends on (a binding loop otherwise).
+    onCanReadChanged: Qt.callLater(readWhenReady)
     readonly property string consoleNow: app.consoleAddress
     onConsoleNowChanged: {
         level = "games"

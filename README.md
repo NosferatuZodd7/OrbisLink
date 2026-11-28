@@ -45,6 +45,7 @@ Releases page.
 | Remote Play: several PSN accounts, each with its own PIN, picked on the console's card; no crash when the console is showing a video app | 🧪 | 🧪 |
 | Remote Play: Games, the store, the save vault and payloads open over the picture, with a slider for how see-through they are, so the game stays in sight | ✅ | ✅ |
 | Remote Play: resolution and fps changed from the stream bar, the connection shown on it (download, upload, ping); one console streaming while another is the one FTP, installing and the pages use | 🧪 | 🧪 |
+| Remote Play on two consoles at once: side by side, one over the other, or one small over the other; the controller, keyboard and sound go to the picture played | 🧪 | 🧪 |
 | Adding a console: the search asks every network adapter and every address of a home network, and finds a console with Remote Play off by its FTP | ✅ | ✅ |
 | The console's firmware and its jailbreak's version (when its FTP says it) beside its name in the top bar | ✅ | ✅ |
 | FTP browser: browse, upload, download, rename, delete | ✅ (GoldHEN) | ✅ (etaHEN, ftpsrv) |

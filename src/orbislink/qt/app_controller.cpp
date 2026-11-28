@@ -1070,6 +1070,17 @@ void AppController::setStreamQuality(int resolution, int fps)
 	store_.save(settings_);
 }
 
+void AppController::setStreamLayout(const QString &layout)
+{
+	if(layout != QLatin1String("side") && layout != QLatin1String("stacked") && layout != QLatin1String("pip"))
+		return;
+	if(settings_.streamLayout == layout.toStdString())
+		return;
+	settings_.streamLayout = layout.toStdString();
+	store_.save(settings_);
+	emit streamLayoutChanged();
+}
+
 namespace {
 
 const QStringList &themeColorKeys()

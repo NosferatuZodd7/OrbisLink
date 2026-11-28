@@ -12,6 +12,11 @@ import QtMultimedia
 
 VideoOutput {
     id: video
+    // The session this picture is of: Remote Play's first (stream) or the
+    // second one at once (stream2), given when loaded.
+    property var ctrl: stream
+    // Clicked or keyed: this picture is the one played (two sessions at once).
+    signal picked()
     // "fill" stretches to the whole stage; "4:3" gets a 4:3 box from the
     // stage (see StreamArea) and fills it; "fit" keeps the picture as sent.
     fillMode: app.streamAspect === "fit" ? VideoOutput.PreserveAspectFit : VideoOutput.Stretch
@@ -20,7 +25,7 @@ VideoOutput {
     // while a page is open over the picture (SectionOverlay): it is that
     // page's then.
     readonly property bool keysToPage: typeof window !== "undefined" && window.overSection.length > 0
-    onKeysToPageChanged: if (keysToPage) stream.releaseAllKeys()
+    onKeysToPageChanged: if (keysToPage) video.ctrl.releaseAllKeys()
     Keys.onPressed: function(event) {
         if (video.keysToPage) {
             // The picture clicked while the page is open: Esc still closes it.
@@ -38,7 +43,7 @@ VideoOutput {
             if (window.streamFullscreen)
                 window.setStreamFullscreen(false)
             else
-                stream.stopStream()
+                video.ctrl.stopStream()
             event.accepted = true
             return
         }
@@ -52,20 +57,20 @@ VideoOutput {
             event.accepted = true
             return
         }
-        event.accepted = stream.keyPressed(event.key)
+        event.accepted = video.ctrl.keyPressed(event.key)
     }
     Keys.onReleased: function(event) {
         if (event.isAutoRepeat || video.keysToPage)
             return
-        event.accepted = stream.keyReleased(event.key)
+        event.accepted = video.ctrl.keyReleased(event.key)
     }
-    onActiveFocusChanged: if (!activeFocus) stream.releaseAllKeys()
+    onActiveFocusChanged: if (!activeFocus && video.ctrl) video.ctrl.releaseAllKeys()
 
     // The mouse acts as the touchpad: dragging over the picture is the same
     // as dragging a finger on the controller. Clicking is a tap.
     MouseArea {
         anchors.fill: parent
-        enabled: stream.touchpadFromMouse()
+        enabled: video.ctrl.touchpadFromMouse()
         acceptedButtons: Qt.LeftButton
         cursorShape: enabled ? Qt.BlankCursor : Qt.ArrowCursor
         hoverEnabled: false
@@ -87,17 +92,17 @@ VideoOutput {
         onPressed: function(mouse) {
             var p = normalised(mouse)
             if (p)
-                stream.touchBegin(p.x, p.y)
+                video.ctrl.touchBegin(p.x, p.y)
             video.forceActiveFocus()
         }
         onPositionChanged: function(mouse) {
             var p = normalised(mouse)
             if (p)
-                stream.touchMove(p.x, p.y)
+                video.ctrl.touchMove(p.x, p.y)
         }
-        onReleased: stream.touchEnd()
-        onCanceled: stream.touchEnd()
+        onReleased: video.ctrl.touchEnd()
+        onCanceled: video.ctrl.touchEnd()
     }
 
-    Component.onCompleted: stream.video.setVideoSink(video.videoSink)
+    Component.onCompleted: if (video.ctrl) video.ctrl.video.setVideoSink(video.videoSink)
 }

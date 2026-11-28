@@ -30,6 +30,7 @@
 #include "orbislink/qt/startup.h"
 #include "orbislink/qt/window_chrome.h"
 
+#include <QPointer>
 #include <QFont>
 #include <QFontDatabase>
 #include <QGuiApplication>
@@ -377,6 +378,27 @@ int main(int argc, char **argv)
 	// stays where it is. Once the session lets go, it follows again.
 	auto stream = std::make_unique<StreamController>();
 	stream->setDemo(demoStream);
+	// A second session at once, on another registered console (picked on the
+	// stream bar). It never follows the console in use: it is pointed at its
+	// console when it connects (connectTo), and stays there.
+	auto stream2 = std::make_unique<StreamController>();
+	stream2->setDemo(demoStream);
+	stream2->applySettings(controller->settings());
+	stream2->setDirectConsoles(controller->directConsoles());
+	// The consoles the sessions are on, whether any streams (the network
+	// work that waits), for the rest of the app.
+	// Guarded: on the way out the second controller goes first, and the first
+	// can still report.
+	auto reportSessions = [&controller, &stream, second = QPointer<StreamController>(stream2.get())]() {
+		QStringList held;
+		for(StreamController *one : { stream.get(), second.data() })
+			if(one && !one->sessionAddress().isEmpty())
+				held << one->sessionAddress();
+		controller->setStreamingAddresses(held);
+		const bool any = stream->streaming() || (second && second->streaming());
+		controller->setStreaming(any);
+		controller->setStreamBusy(any);
+	};
 	auto followConsoleInUse = [&controller, &stream]() {
 		if(!stream->holdsConsole())
 			stream->setAddress(controller->consoleAddress());
@@ -393,17 +415,38 @@ int main(int argc, char **argv)
 	};
 	followConsoleInUse();
 	QObject::connect(controller.get(), &AppController::settingsChanged, stream.get(), followConsoleInUse);
+	QObject::connect(controller.get(), &AppController::settingsChanged, stream2.get(), [&controller, &stream2]() {
+		stream2->applySettings(controller->settings());
+		stream2->setDirectConsoles(controller->directConsoles());
+	});
 	// Queued: the hold can lapse for a moment in the middle of a step (the
 	// one-click connect clears its stage just before it starts the session);
 	// by the time this runs that step is over, and only a real end of the
 	// hold moves Remote Play back to the console in use.
 	QObject::connect(stream.get(), &StreamController::sessionAddressChanged, stream.get(),
-		[&controller, &stream, followConsoleInUse]() {
-			controller->setStreamingAddress(stream->sessionAddress());
+		[&controller, &stream, followConsoleInUse, reportSessions]() {
+			reportSessions();
 			if(!stream->holdsConsole() && stream->address() != controller->consoleAddress())
 				followConsoleInUse();
 		},
 		Qt::QueuedConnection);
+	QObject::connect(stream2.get(), &StreamController::sessionAddressChanged, stream2.get(), reportSessions,
+		Qt::QueuedConnection);
+	QObject::connect(stream2.get(), &StreamController::sessionChanged, stream2.get(), reportSessions);
+	QObject::connect(stream2.get(), &StreamController::directConnectionWorked, controller.get(),
+		&AppController::rememberDirectConsole);
+	QObject::connect(stream2.get(), &StreamController::notify, controller.get(), &AppController::notify);
+	QObject::connect(stream2.get(), &StreamController::consoleIdentified, controller.get(),
+		&AppController::rememberConsoleType);
+	QObject::connect(stream2.get(), &StreamController::accountIdAccepted, controller.get(),
+		&AppController::rememberAccountId);
+	// What its console answers is kept with that console, as for the first.
+	QObject::connect(stream2.get(), &StreamController::consoleChanged, controller.get(), [&controller, &stream2]() {
+		controller->reportConsoleFirmware(stream2->hostAddress(), stream2->systemVersion());
+		const QString state = stream2->consoleState();
+		if(state == QLatin1String("ready") || state == QLatin1String("standby"))
+			controller->rememberConsoleType(stream2->address(), stream2->consolePs5(), stream2->hostId());
+	});
 	// A console that never answers the search but took a direct connection
 	// is remembered as such: its card and the top bar stop calling it
 	// "not responding".
@@ -431,8 +474,7 @@ int main(int argc, char **argv)
 			controller->reportConsoleFirmware(stream->hostAddress(), stream->systemVersion());
 		});
 	// Whether a session is on, for the work that waits for it to end.
-	QObject::connect(stream.get(), &StreamController::sessionChanged, controller.get(),
-		[&controller, &stream]() { controller->setStreaming(stream->streaming()); });
+	QObject::connect(stream.get(), &StreamController::sessionChanged, controller.get(), reportSessions);
 	// Stream notifications appear in the same bar as the others.
 	QObject::connect(stream.get(), &StreamController::notify, controller.get(),
 		&AppController::notify);
@@ -451,8 +493,6 @@ int main(int argc, char **argv)
 		ptr->findMovedConsoles({ address }, true,
 			[done](const QString &, const QString &newAddress) { done(newAddress); });
 	});
-	QObject::connect(stream.get(), &StreamController::sessionChanged, controller.get(),
-		[&controller, &stream]() { controller->setStreamBusy(stream->streaming()); });
 	// A console registered without ever answering discovery: its kind and
 	// host-id are kept, so its registration is found again.
 	QObject::connect(stream.get(), &StreamController::consoleIdentified, controller.get(),
@@ -465,9 +505,11 @@ int main(int argc, char **argv)
 	controller->setAudioProbe([ptr = stream.get()]() { return ptr->audioPipeline(); });
 	controller->setVideoProbe([ptr = stream.get()]() { return ptr->videoSummary(); });
 	engine.rootContext()->setContextProperty(QStringLiteral("stream"), stream.get());
+	engine.rootContext()->setContextProperty(QStringLiteral("stream2"), stream2.get());
 	engine.rootContext()->setContextProperty(QStringLiteral("streamBuiltIn"), true);
 #else
 	engine.rootContext()->setContextProperty(QStringLiteral("stream"), QVariant());
+	engine.rootContext()->setContextProperty(QStringLiteral("stream2"), QVariant());
 	engine.rootContext()->setContextProperty(QStringLiteral("streamBuiltIn"), false);
 #endif
 	engine.rootContext()->setContextProperty(QStringLiteral("demoOverlay"), demoOverlay);

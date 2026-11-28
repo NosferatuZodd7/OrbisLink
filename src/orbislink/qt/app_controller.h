@@ -101,6 +101,8 @@ class AppController : public QObject
 	Q_PROPERTY(QStringList ftpShortcuts READ ftpShortcuts NOTIFY ftpShortcutsChanged)
 	// Remote Play picture: "fit" (as the console sends it), "4:3" or "fill".
 	Q_PROPERTY(QString streamAspect READ streamAspect WRITE setStreamAspect NOTIFY streamAspectChanged)
+	// Two Remote Play sessions at once: "side", "stacked" or "pip". Kept.
+	Q_PROPERTY(QString streamLayout READ streamLayout WRITE setStreamLayout NOTIFY streamLayoutChanged)
 	// Personalisation: the colours changed on top of the theme, and the
 	// saved looks ({ name, theme, colors }).
 	Q_PROPERTY(QVariantMap themeColors READ themeColors NOTIFY themeColorsChanged)
@@ -201,6 +203,8 @@ public:
 	bool downloadCopying() const { return downloadCopying_; }
 	QStringList ftpShortcuts() const;
 	QString streamAspect() const { return QString::fromStdString(settings_.streamAspect); }
+	QString streamLayout() const { return QString::fromStdString(settings_.streamLayout); }
+	void setStreamLayout(const QString &layout);
 	void setStreamAspect(const QString &aspect);
 	// Remote Play's picture as chosen during a session (the stream bar): kept
 	// in the settings for the next one. The stream controller asks the
@@ -303,14 +307,14 @@ public:
 	// switch) waits for it to end.
 	bool streaming() const { return streaming_; }
 	void setStreaming(bool on) { streaming_ = on; }
-	// The console a Remote Play session is on ("" when none): it can be
-	// another than the one in use. Its network is the busy one.
-	QString streamingAddress() const { return streamingAddress_; }
-	void setStreamingAddress(const QString &address) { streamingAddress_ = address; }
+	// The consoles Remote Play sessions are on (none, one or two): they can
+	// be others than the one in use. Their networks are the busy ones.
+	QStringList streamingAddresses() const { return streamingAddresses_; }
+	void setStreamingAddresses(const QStringList &addresses) { streamingAddresses_ = addresses; }
 	// A session streams from this console (not just any).
 	bool streamingOn(const QString &address) const
 	{
-		return streaming_ && !address.isEmpty() && streamingAddress_ == address;
+		return streaming_ && !address.isEmpty() && streamingAddresses_.contains(address);
 	}
 	// Something in the install queue under way or waiting.
 	bool queueBusy() const;
@@ -518,6 +522,7 @@ public:
 signals:
 	void ftpShortcutsChanged();
 	void streamAspectChanged();
+	void streamLayoutChanged();
 	void themeColorsChanged();
 	void themePresetsChanged();
 	void backgroundChanged();
@@ -663,7 +668,7 @@ private:
 	std::map<std::string, LocateWait> locateWaits_;
 	bool locating_ = false;
 	bool streamBusy_ = false;
-	QString streamingAddress_;
+	QStringList streamingAddresses_;
 	std::vector<std::pair<QStringList, LocateDone>> locateWaiters_;
 	std::function<std::vector<Sighting>()> networkSearch_;
 	// The FTP drop waiting for an answer about the names already taken.

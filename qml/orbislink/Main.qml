@@ -86,8 +86,77 @@ ApplicationWindow {
     // (SectionOverlay), so the game stays in sight; otherwise it takes the
     // main area, as always.
     readonly property bool demoSectionOn: typeof demoSection !== "undefined" && demoSection.length > 0
-    readonly property bool streamOnScreen: (demoSectionOn || typeof stream !== "undefined" && stream !== null
-                                            && (stream.streaming || stream.restarting))
+    // The two Remote Play sessions (the second one at once on another
+    // console): each live while it streams or starts again.
+    // The second is live from the moment it starts connecting (it has no
+    // card to show that on); the first too while the second is on.
+    readonly property bool live2: typeof stream2 !== "undefined" && stream2 !== null
+                                  && (stream2.streaming || stream2.restarting || stream2.sessionAddress.length > 0)
+    readonly property bool live1: typeof stream !== "undefined" && stream !== null
+                                  && (stream.streaming || stream.restarting
+                                      || (live2 && stream.sessionAddress.length > 0))
+    readonly property bool anyStreaming: live1 || live2
+    // The consoles the sessions hold (streaming, connecting, starting again).
+    readonly property var sessionAddresses: {
+        var out = []
+        if (typeof stream !== "undefined" && stream !== null && stream.sessionAddress.length > 0)
+            out.push(stream.sessionAddress)
+        if (typeof stream2 !== "undefined" && stream2 !== null && stream2.sessionAddress.length > 0)
+            out.push(stream2.sessionAddress)
+        return out
+    }
+    function inSession(address) { return address.length > 0 && sessionAddresses.indexOf(address) >= 0 }
+    readonly property bool twoSessions: live1 && live2
+    // The picture played (1 or 2) while there are two: it takes the
+    // controller, the keyboard, the microphone and the sound.
+    property int focusedSession: 1
+    // The one that has just come in is the one played (not while it is still
+    // connecting: the other keeps the controller and the sound until then);
+    // when one ends, the other.
+    readonly property bool streams1: typeof stream !== "undefined" && stream !== null && stream.streaming
+    readonly property bool streams2: typeof stream2 !== "undefined" && stream2 !== null && stream2.streaming
+    onStreams1Changed: if (streams1 && live2) focusedSession = 1
+    onStreams2Changed: if (streams2) focusedSession = 2
+    onLive1Changed: if (!live1 && live2) focusedSession = 2
+    onLive2Changed: if (!live2) focusedSession = 1
+    // Each session's own sound choice, from before two were on: put back
+    // when back to one (the quiet one was only made quiet for the other).
+    property bool mutedBefore1: false
+    property bool mutedBefore2: false
+    // Whether a session streams from this console (not only connecting).
+    function streamsOn(address) {
+        return address.length > 0
+            && ((streams1 && stream.sessionAddress === address) || (streams2 && stream2.sessionAddress === address))
+    }
+    function applySessionFocus() {
+        if (typeof stream === "undefined" || stream === null || typeof stream2 === "undefined" || stream2 === null)
+            return
+        stream.inputActive = !twoSessions || focusedSession === 1
+        stream2.inputActive = !twoSessions || focusedSession === 2
+        // The sound follows the picture played; either can be turned back on
+        // from the bar afterwards.
+        if (twoSessions) {
+            stream.muted = focusedSession !== 1
+            stream2.muted = focusedSession !== 2
+        }
+    }
+    onFocusedSessionChanged: applySessionFocus()
+    onTwoSessionsChanged: {
+        if (typeof stream === "undefined" || stream === null || typeof stream2 === "undefined" || stream2 === null)
+            return
+        if (twoSessions) {
+            mutedBefore1 = stream.muted
+            mutedBefore2 = stream2.muted
+        }
+        applySessionFocus()
+        // Back to one: the sound made quiet for the other comes back, each as
+        // it was before the two were on.
+        if (!twoSessions) {
+            stream.muted = mutedBefore1
+            stream2.muted = mutedBefore2
+        }
+    }
+    readonly property bool streamOnScreen: (demoSectionOn || anyStreaming)
                                            && view === "home" && !streamFullscreen
     // The page over the picture ("games", "store", "saves", "payloads"), or "".
     property string overSection: ""

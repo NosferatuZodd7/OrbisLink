@@ -259,6 +259,22 @@ navigation make way for the pages in a short window (they are also in
 Settings → Personalisation); empty pages drop their picture first; and the
 stream bar leaves out its readout before its buttons.
 
+**Two sessions at once.** With a session on, **+** on the stream bar starts
+Remote Play on a second console registered on this PC (a PS4 and a PS5, or two
+of the same kind); while it connects or wakes the console, its picture says so,
+with **Cancel**. The two pictures share the stage **side by side**, **one over
+the other**, or **one small over the other** in a corner — the layout button on
+the bar, kept for next time. One picture is *played*: it has a blue ring and
+*played* on its name, and it alone gets the controller, the keyboard, the
+microphone and the sound (the other's sound goes quiet; turn it back on from
+the bar once it is the one played). A click on a picture, or **Play the other
+one** in the layout menu, plays the other. The bar acts on the picture played:
+its resolution and fps, its connection, its sound and microphone, **End the
+session** (Esc on a picture ends that one). When one ends, the other takes the
+whole stage. Each console needs this PC registered on it first, from its card;
+whether a PSN account may stream from two consoles at once is up to the
+consoles.
+
 **Another console while one streams.** A session keeps its own console: during
 it, another saved console can be made the console in use — from the selector in
 the top bar (the session's console is marked *Remote Play*), from the console

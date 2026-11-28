@@ -27,7 +27,7 @@ Item {
     clip: true
 
     readonly property bool custom: app.backgroundUrl.length > 0
-    readonly property bool streaming: typeof stream !== "undefined" && stream !== null && stream.streaming
+    readonly property bool streaming: typeof window !== "undefined" && window !== null && window.anyStreaming === true
     readonly property bool moving: app.backgroundMotion && !streaming
                                    && Qt.application.state === Qt.ApplicationActive
 

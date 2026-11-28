@@ -22,8 +22,6 @@ Item {
     property string block: ""
 
     readonly property bool several: app.consoles.length > 1
-    readonly property string sessionAddress: typeof stream !== "undefined" && stream !== null
-                                             ? stream.sessionAddress : ""
 
     implicitWidth: heading ? headingRow.implicitWidth : chip.implicitWidth
     implicitHeight: heading ? headingRow.implicitHeight : chip.implicitHeight
@@ -112,7 +110,7 @@ Item {
                 text: modelData.name
                       + (root.typeLabel(modelData).length > 0 ? "  ·  " + root.typeLabel(modelData) : "")
                       + (ftp === true ? "  ·  FTP" : ftp === false ? "  ·  " + qsTr("no FTP") : "")
-                      + (modelData.address === root.sessionAddress ? "  ·  " + qsTr("Remote Play") : "")
+                      + (window.inSession(modelData.address) ? "  ·  " + qsTr("Remote Play") : "")
                 iconName: modelData.active ? "check" : modelData.type === "ps5" ? "monitor" : "gamepad"
                 enabled: modelData.active || root.block.length === 0
                 // Closed first: choosing rebuilds this list under the menu.

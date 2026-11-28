@@ -136,7 +136,10 @@ StreamController::StreamController(QObject *parent)
 		[this](const StreamSession::ControllerState &state) {
 			padState_ = state;
 			updatePadPressed();
-			sendInput();
+			// With two sessions, only the one played gets the controller (the
+			// key map's drawing still lights up).
+			if(inputActive_)
+				sendInput();
 		});
 	connect(&gamepad_, &Gamepad::buttonDown, this, &StreamController::padButtonDown);
 	connect(&gamepad_, &Gamepad::touchChanged, this, &StreamController::padTouch);
@@ -230,7 +233,8 @@ void StreamController::handleSessionState(SessionState state, const QString &mes
 			emit directConnectionWorked(address_);
 			emit consoleChanged();
 		}
-		gamepad_.start();
+		if(inputActive_)
+			gamepad_.start();
 		hardwareDecoder_ = lastHardwareDecoder_ = session_->usingHardwareDecoder();
 		lastFrameCount_ = video_.framesDelivered();
 		measuredFps_ = 0;
@@ -348,7 +352,19 @@ void StreamController::updateHeld()
 	if(held == heldAddress_)
 		return;
 	heldAddress_ = held;
+	// Let go: the next connection uses the quality saved meanwhile.
+	if(held.isEmpty())
+		takeSavedQuality();
 	emit sessionAddressChanged();
+}
+
+void StreamController::takeSavedQuality()
+{
+	if(savedResolution_ <= 0 || (resolution_ == savedResolution_ && fps_ == savedFps_))
+		return;
+	resolution_ = savedResolution_;
+	fps_ = savedFps_;
+	emit qualityChanged();
 }
 
 void StreamController::setAddress(const QString &address)
@@ -377,11 +393,13 @@ void StreamController::setAddress(const QString &address)
 
 void StreamController::applySettings(const Settings &settings)
 {
-	const bool qualityMoved = resolution_ != settings.streamResolution || fps_ != settings.streamFps;
-	resolution_ = settings.streamResolution;
-	fps_ = settings.streamFps;
-	if(qualityMoved)
-		emit qualityChanged();
+	// A session in course keeps the picture it asked for (the other session's
+	// choice is saved for the next connection, not forced on this one).
+	// It is kept aside and taken once the session lets go (updateHeld).
+	savedResolution_ = settings.streamResolution;
+	savedFps_ = settings.streamFps;
+	if(!holdsConsole())
+		takeSavedQuality();
 	bitrateKbps_ = settings.streamBitrateKbps;
 	wantHardware_ = settings.streamHardwareDecode;
 	fullscreenOnConnect_ = settings.streamFullscreenOnConnect;
@@ -415,8 +433,11 @@ void StreamController::applySettings(const Settings &settings)
 	consoleHostIds_.clear();
 	consolePins_.clear();
 	consoleTypes_.clear();
+	consoleAccounts_.clear();
+	lastAccountId_ = QString::fromStdString(settings.streamAccountId);
 	for(const ConsoleEntry &console : settings.consoles)
 	{
+		consoleAccounts_[console.address] = console.accountId;
 		consoleHostIds_[console.address] = console.hostId;
 		consoleTypes_[console.address] = console.type;
 		consolePins_[console.address] = console.remotePlayPin;
@@ -475,7 +496,7 @@ void StreamController::setInputPreview(bool on)
 	inputPreview_ = on;
 	if(on)
 		gamepad_.start();
-	else if(!streaming_)
+	else if(!streaming_ || !inputActive_)
 		gamepad_.stop();
 }
 
@@ -1170,6 +1191,8 @@ void StreamController::connectOneClick()
 	// Each click is its own run: a reply from a cancelled run, or from
 	// another console, no longer decides anything.
 	const quint64 run = ++oneClickRun_;
+	noLocate_ = noLocateNext_;
+	noLocateNext_ = false;
 	setConnectStage(QStringLiteral("checking"));
 	const std::string address = address_.toStdString();
 	std::thread([this, life = lifeline_, address, run]() {
@@ -1192,7 +1215,7 @@ void StreamController::oneClickDecide(const HostInfo &info)
 		// on the network first (by its host-id and hardware address, never a
 		// guess). Found elsewhere, the settings follow it, this controller is
 		// moved to the new address, and the connection starts again there.
-		if(locator_ && locatingFor_.isEmpty())
+		if(locator_ && locatingFor_.isEmpty() && !noLocate_)
 		{
 			const QString from = address_;
 			locatingFor_ = from;
@@ -1384,6 +1407,105 @@ void StreamController::stopSession()
 	}).detach();
 }
 
+void StreamController::setInputActive(bool active)
+{
+	if(inputActive_ == active)
+		return;
+	inputActive_ = active;
+	if(active)
+	{
+		if(streaming_)
+			gamepad_.start();
+	}
+	else
+	{
+		// Nothing held down on this console while the other is played: every
+		// key, button, stick, trigger and finger let go of there (the console
+		// keeps the last state it was sent), and the microphone talks to one
+		// console only.
+		keyboard_.clear();
+		touchEnd();
+		if(streaming_)
+		{
+			for(int &touch : padTouchIds_)
+				if(touch >= 0)
+					session_->stopTouch(touch);
+			if(clickTouch_ >= 0)
+				session_->stopTouch(clickTouch_);
+		}
+		resetInput();
+		if(streaming_)
+			session_->sendController({});
+		if(!inputPreview_)
+			gamepad_.stop();
+		if(microphone_.active())
+			setMicrophoneEnabled(false);
+	}
+	emit inputActiveChanged();
+}
+
+void StreamController::connectTo(const QString &address)
+{
+	const QString target = address.trimmed();
+	if(target.isEmpty() || holdsConsole() || restarting())
+		return;
+	setAddress(target);
+	// Its own console's account and registration (setAddress only clears
+	// what was known of the one before): the account saved with it, else one
+	// that has a registration there.
+	accountId_ = QString::fromStdString(accountFor(target.toStdString()));
+	loadCredentials();
+	emit registrationChanged();
+	// A second session has no registration dialog of its own: registering is
+	// done from the console's card.
+	if(!credentials_.valid && !demo_)
+	{
+		emit notify(tr("Remote Play"),
+			tr("Register this PC on that console first, from its card, then connect a second session."), true);
+		return;
+	}
+	// Pointed at its console on purpose: if it does not answer, it is not
+	// looked for elsewhere (that would move the console in use).
+	noLocateNext_ = true;
+	connectOneClick();
+}
+
+std::string StreamController::accountFor(const std::string &address) const
+{
+	std::string hostId;
+	const auto known = consoleHostIds_.find(address);
+	if(known != consoleHostIds_.end())
+		hostId = known->second;
+	if(hostId.empty() && address == address_.toStdString())
+		hostId = host_.id;
+	const auto saved = consoleAccounts_.find(address);
+	const std::string preferred = saved != consoleAccounts_.end() && !saved->second.empty()
+		? saved->second : lastAccountId_.toStdString();
+	if(hostId.empty() || store_.load(hostId, preferred).valid)
+		return preferred;
+	for(const StreamCredentials &one : store_.forHost(hostId))
+		if(one.valid && !one.accountId.empty())
+			return one.accountId;
+	return preferred;
+}
+
+bool StreamController::canConnectTo(const QString &address) const
+{
+	if(demo_)
+		return true;
+	const std::string target = address.trimmed().toStdString();
+	std::string hostId;
+	const auto known = consoleHostIds_.find(target);
+	if(known != consoleHostIds_.end())
+		hostId = known->second;
+	if(hostId.empty() && target == address_.toStdString())
+		hostId = host_.id;
+	if(hostId.empty())
+		return false;
+	const std::string account = accountFor(target);
+	return account.empty() ? store_.load(hostId).valid : store_.load(hostId, account).valid;
+}
+
 void StreamController::changeQuality(int resolution, int fps)
 {
 	if(!validStreamQuality(resolution, fps))
@@ -1501,6 +1623,9 @@ void StreamController::setMicrophoneEnabled(bool enabled)
 		emit notify(tr("Microphone"), tr("Start Remote Play first."), true);
 		return;
 	}
+	// With two sessions, the microphone goes to the one picked on screen.
+	if(!inputActive_)
+		return;
 
 	// The console first: if it refuses, there is no point opening the
 	// machine's microphone and leaving the light on without sending anything.
@@ -1538,7 +1663,7 @@ void StreamController::setMicrophoneMuted(bool muted)
 
 bool StreamController::keyPressed(int key)
 {
-	if(!streaming_ || !keyboard_.press(key))
+	if(!streaming_ || !inputActive_ || !keyboard_.press(key))
 		return false;
 	keyState_ = keyboard_.state();
 	sendInput();
@@ -1644,8 +1769,11 @@ void StreamController::padTouch(int finger, bool down, double x, double y)
 	if(finger < 0 || finger > 1)
 		return;
 	int &id = padTouchIds_[finger];
-	if(!streaming_)
+	// With two sessions, the controller's touchpad is the played one's too.
+	if(!streaming_ || !inputActive_)
 	{
+		if(streaming_ && id >= 0)
+			session_->stopTouch(id);
 		id = -1;
 		return;
 	}

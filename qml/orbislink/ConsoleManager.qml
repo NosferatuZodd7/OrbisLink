@@ -22,16 +22,21 @@ ColumnLayout {
     // The console a Remote Play session is on ("" when none). Another can be
     // made the one in use meanwhile (the session stays on its own), but that
     // one is not edited, forgotten or removed until the session ends.
-    readonly property string sessionAddress: hasStream ? stream.sessionAddress : ""
-    readonly property bool sessionActive: sessionAddress.length > 0
-    function inSession(entry) { return sessionActive && entry.address === sessionAddress }
+    readonly property var sessionAddresses: window.sessionAddresses
+    readonly property bool sessionActive: sessionAddresses.length > 0
+    function inSession(entry) { return window.inSession(entry.address) }
     readonly property string sessionLock: qsTr("End the Remote Play session first: it is running on "
                                                + "this console.")
     readonly property string sessionConsoleName: {
-        for (var i = 0; i < app.consoles.length; ++i)
-            if (app.consoles[i].address === sessionAddress)
-                return app.consoles[i].name
-        return sessionAddress
+        var names = []
+        for (var j = 0; j < sessionAddresses.length; ++j) {
+            var name = sessionAddresses[j]
+            for (var i = 0; i < app.consoles.length; ++i)
+                if (app.consoles[i].address === sessionAddresses[j])
+                    name = app.consoles[i].name
+            names.push(name)
+        }
+        return names.join(qsTr(" and "))
     }
 
     // The address of the row being edited ("" when none), and the one

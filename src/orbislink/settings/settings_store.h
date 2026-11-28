@@ -153,6 +153,9 @@ struct Settings
 	bool streamFullscreenOnConnect = false;
 	// How the picture fills the window: "fit" (as sent), "4:3" or "fill".
 	std::string streamAspect = "fit";
+	// Two Remote Play sessions at once: "side" (side by side), "stacked" (one
+	// over the other) or "pip" (the second small over the first).
+	std::string streamLayout = "side";
 	bool streamRumble = true;
 	bool streamTouchpadFromMouse = true;
 	std::string streamAccountId;     // the last accepted Account ID, in base64 (for new consoles)
