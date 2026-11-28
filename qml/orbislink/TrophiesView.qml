@@ -131,8 +131,28 @@ FocusScope {
         if (!visible)
             return
         forceActiveFocus()
-        if (!trophies.scanned && !trophies.busy && app.canUseFtp && !trophies.ps5)
-            trophies.refresh()
+        // Opened again: one more read by itself, if nothing is read yet.
+        autoReadFor = ""
+        readWhenReady()
+    }
+    // Read by itself once per console: when the page opens, and when another
+    // console is chosen while it is open (as soon as that one's FTP answers).
+    // A read that fails is not tried again by itself (the button is there).
+    property string autoReadFor: ""
+    readonly property bool canRead: visible && !trophies.scanned && !trophies.busy && app.canUseFtp && !trophies.ps5
+    onCanReadChanged: readWhenReady()
+    readonly property string consoleNow: app.consoleAddress
+    onConsoleNowChanged: {
+        level = "games"
+        gameIndex = 0
+        autoReadFor = ""
+        Qt.callLater(readWhenReady)
+    }
+    function readWhenReady() {
+        if (!canRead || autoReadFor === app.consoleAddress)
+            return
+        autoReadFor = app.consoleAddress
+        trophies.refresh()
     }
     Connections {
         target: trophies
@@ -195,6 +215,8 @@ FocusScope {
         property bool lit: false
         property bool row: false
         readonly property bool wide: width > 900
+        // Over Remote Play the page is narrow: smaller pieces, room for the title.
+        readonly property bool narrow: width < 720
         implicitHeight: row ? 92 : 104
         radius: Theme.radiusSmall + 2
         hoverable: row
@@ -209,10 +231,10 @@ FocusScope {
             anchors.fill: parent
             anchors.margins: 8
             anchors.rightMargin: 20
-            spacing: summary.wide ? 22 : 14
+            spacing: summary.wide ? 22 : summary.narrow ? 10 : 14
             // Its icon.
             Rectangle {
-                Layout.preferredWidth: summary.row ? 136 : 146
+                Layout.preferredWidth: summary.narrow ? 92 : summary.row ? 136 : 146
                 Layout.fillHeight: true
                 radius: Theme.radiusSmall - 2
                 color: Theme.light ? Theme.lightWell : Qt.rgba(0, 0, 0, 0.25)
@@ -260,7 +282,7 @@ FocusScope {
             }
             // The progress.
             ColumnLayout {
-                readonly property real span: summary.wide ? 190 : 120
+                readonly property real span: summary.wide ? 190 : summary.narrow ? 84 : 120
                 Layout.preferredWidth: span
                 Layout.minimumWidth: span
                 Layout.maximumWidth: span
@@ -291,19 +313,19 @@ FocusScope {
                 model: ["platinum", "gold", "silver", "bronze"]
                 delegate: Row {
                     required property string modelData
-                    Layout.preferredWidth: summary.wide ? 58 : 50
-                    spacing: 5
+                    Layout.preferredWidth: summary.wide ? 58 : summary.narrow ? 38 : 50
+                    spacing: summary.narrow ? 3 : 5
                     opacity: (summary.g[modelData + "Total"] || 0) > 0 ? 1 : 0.4
                     TrophyGlyph {
                         anchors.verticalCenter: parent.verticalCenter
                         grade: parent.modelData
-                        size: 26
+                        size: summary.narrow ? 20 : 26
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         text: summary.g[parent.modelData] || 0
                         color: Theme.textSecondary
-                        font.pixelSize: 16
+                        font.pixelSize: summary.narrow ? 13 : 16
                     }
                 }
             }
@@ -395,6 +417,10 @@ FocusScope {
         Row {
             parent: root.framed ? headerSlot : overlaySlot
             spacing: 8
+            // The console whose trophies are read: another one is a click away.
+            ConsoleSwitch {
+                anchors.verticalCenter: parent.verticalCenter
+            }
             // Back to the list of games, from one game.
             StyledButton {
                 anchors.verticalCenter: parent.verticalCenter

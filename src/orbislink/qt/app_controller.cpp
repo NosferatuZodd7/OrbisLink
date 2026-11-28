@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 #include "orbislink/qt/app_controller.h"
+#include "orbislink/net/link_rate.h"
 
 #include "orbislink/library/console_library.h"
 #include "orbislink/qt/shadowmount_control.h"
@@ -525,6 +526,16 @@ void AppController::selectConsole(const QString &address)
 	}
 }
 
+QString AppController::consoleSwitchBlock() const
+{
+	if(queueBusy())
+		return queuePaused() ? tr("Jobs paused in the queue: finish or remove them first.")
+							 : tr("Transfers under way: choose another once they are done.");
+	if(sendsPending())
+		return tr("A conversion is sending here: choose another once it is done.");
+	return QString();
+}
+
 void AppController::rememberConsoleType(const QString &address, bool ps5, const QString &hostId)
 {
 	const std::string trimmedAddress = address.trimmed().toStdString();
@@ -1046,6 +1057,17 @@ void AppController::setStreamAspect(const QString &aspect)
 	settings_.streamAspect = aspect.toStdString();
 	store_.save(settings_);
 	emit streamAspectChanged();
+}
+
+void AppController::setStreamQuality(int resolution, int fps)
+{
+	if(!validStreamQuality(resolution, fps))
+		return;
+	if(settings_.streamResolution == resolution && settings_.streamFps == fps)
+		return;
+	settings_.streamResolution = resolution;
+	settings_.streamFps = fps;
+	store_.save(settings_);
 }
 
 namespace {
@@ -3633,16 +3655,18 @@ void AppController::probeConsole(const QString &address, int ftpPort, int instal
 	}).detach();
 }
 
-void AppController::rememberAccountId(const QString &accountId)
+void AppController::rememberAccountId(const QString &address, const QString &accountId)
 {
-	// Stored on the console in use (the one that just accepted it) and as
-	// the last used, which is what shows up when registering a new console.
+	// Stored on the console that accepted it (a Remote Play session can be on
+	// another than the one in use) and as the last used, which is what shows
+	// up when registering a new console.
 	const std::string trimmedId = trim(accountId.toStdString());
+	const std::string target = address.trimmed().isEmpty() ? settings_.consoleAddress : trim(address.toStdString());
 	bool changed = settings_.streamAccountId != trimmedId;
 	settings_.streamAccountId = trimmedId;
 	for(ConsoleEntry &console : settings_.consoles)
 	{
-		if(console.address != settings_.consoleAddress || console.accountId == trimmedId)
+		if(console.address != target || console.accountId == trimmedId)
 			continue;
 		console.accountId = trimmedId;
 		changed = true;

@@ -6,6 +6,7 @@
 
 #include "orbislink/console/console_manager.h"
 #include "orbislink/net/lan_scan.h"
+#include "orbislink/net/net_utils.h"
 #include "orbislink/net/socket_compat.h"
 #include "test_support.h"
 
@@ -317,6 +318,34 @@ ORBISLINK_TEST(empty_address_does_not_go_to_the_network)
 	CHECK(!result.anyOk());
 	CHECK(result.ftpDetail == "no console address");
 	CHECK(result.installerDetail == "no console address");
+}
+
+ORBISLINK_TEST(reads_the_counters_of_the_interface_towards_an_address)
+{
+	// Any address of this PC's own networks stands for the console.
+	std::string address;
+	for(const LocalInterface &iface : localInterfaces())
+		if(!iface.loopback)
+		{
+			address = iface.address;
+			break;
+		}
+	if(address.empty())
+		return;
+	const LinkCounters first = linkCountersForConsole(address);
+#if defined(__linux__) || defined(_WIN32)
+	CHECK(first.ok);
+	CHECK(!first.name.empty());
+#endif
+	if(!first.ok)
+		return;
+	// Counters only go up.
+	const LinkCounters second = linkCountersForConsole(address);
+	CHECK(second.ok);
+	CHECK(second.received >= first.received);
+	CHECK(second.sent >= first.sent);
+	// An address on no network of this PC has no interface.
+	CHECK(!linkCountersForConsole("203.0.113.7").ok);
 }
 
 TEST_MAIN()

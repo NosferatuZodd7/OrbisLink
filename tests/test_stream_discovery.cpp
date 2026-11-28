@@ -145,6 +145,19 @@ ORBISLINK_TEST(reads_a_ready_console)
 	CHECK(info.target != 0);
 }
 
+ORBISLINK_TEST(times_the_console_s_answer)
+{
+	FakeConsole console(kReady);
+	CHECK(console.start());
+
+	const HostInfo info = StreamDiscovery::peek("127.0.0.1", 2000, console.port());
+
+	CHECK(info.found);
+	// The ping shown during a session: from the question to the answer.
+	CHECK(info.replyMs >= 0);
+	CHECK(info.replyMs < 2000);
+}
+
 ORBISLINK_TEST(tells_apart_a_console_in_rest_mode)
 {
 	FakeConsole console(kStandby);

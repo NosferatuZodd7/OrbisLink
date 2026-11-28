@@ -48,11 +48,12 @@ Dialog {
     // use, 3 Remote Play, 4 Personalisation, 5 General, 6 About.
     property int section: 0
 
-    // While a Remote Play session runs, the IP of the console in use stays as
-    // it is: changing it would point FTP and the installer somewhere else
-    // while the picture still comes from this console.
+    // While a Remote Play session runs on the console in use, its IP stays
+    // as it is: changing it would point FTP and the installer somewhere else
+    // while the picture still comes from this console. (A session on another
+    // console does not hold this one.)
     readonly property bool sessionActive: typeof stream !== "undefined" && stream !== null
-        && (stream.streaming || stream.sessionState === "connecting")
+        && stream.sessionAddress.length > 0 && stream.sessionAddress === app.consoleAddress
 
     property var values: ({})
 
@@ -306,7 +307,12 @@ Dialog {
             id: pageColumn
             x: 36
             y: 28
-            width: page.availableWidth - 72
+            // Never narrower than a row needs: a page not shown yet can be
+            // laid out at almost no width, where its wrapped words grow taller
+            // with every pass and the layouts never settle (a polish loop).
+            // While something keeps redrawing the window — the live dot of a
+            // Remote Play session — the dialog then never finished opening.
+            width: Math.max(page.availableWidth - 72, 320)
             spacing: 12
 
             PageHeader {

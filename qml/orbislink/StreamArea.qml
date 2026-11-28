@@ -85,7 +85,17 @@ Item {
     // the controller dies before the bindings, and without this the log fills
     // up with "Cannot read property of null".
     readonly property bool built: typeof stream !== "undefined" && stream !== null
-    readonly property bool streaming: built && stream.streaming
+    // A rate in bytes per second, in KB/s or MB/s; "—" when not known.
+    function rate(bytes) {
+        if (bytes < 0)
+            return "—"
+        if (bytes < 1024 * 1024)
+            return qsTr("%1 KB/s").arg((bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0))
+        return qsTr("%1 MB/s").arg((bytes / (1024 * 1024)).toFixed(1))
+    }
+    // Starting again with another picture counts: the stage, its bar and the
+    // full screen stay through the console's pause.
+    readonly property bool streaming: built && (stream.streaming || stream.restarting)
     readonly property string consoleState: built ? stream.consoleState : "unknown"
     readonly property bool registered: built && stream.registered
     readonly property string sessionState: built ? stream.sessionState : "idle"
@@ -125,6 +135,22 @@ Item {
 
     // The console is showing something it does not stream (YouTube, a film):
     // the picture goes dark, and this says why instead of looking frozen.
+    // Starting again with another picture: what is happening, on the black.
+    Column {
+        anchors.centerIn: videoLoader
+        visible: root.built && stream.restarting
+        spacing: 12
+        Spinner {
+            anchors.horizontalCenter: parent.horizontalCenter
+        }
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            text: root.built ? stream.sessionDetail : ""
+            color: Theme.onStage
+            font.pixelSize: 14
+            font.weight: Font.DemiBold
+        }
+    }
     Column {
         anchors.centerIn: videoLoader
         width: Math.min(420, videoLoader.width - 48)
@@ -261,7 +287,11 @@ Item {
                     model: app.consoles
 
                     ConsoleCard {
-                        readonly property var other: root.built && !modelData.active
+                        // Remote Play's own console: the one in use, except
+                        // while a session holds another — what Remote Play says
+                        // (state, name, stage) is that one's.
+                        readonly property bool remote: root.built && modelData.address === stream.address
+                        readonly property var other: root.built && !remote
                                                      ? stream.consoleStates[modelData.address] : undefined
                         width: consoleGrid.cell
                         height: consoleGrid.cellHeight
@@ -271,29 +301,29 @@ Item {
                         startMode: modelData.startMode
                         available: root.built
                         address: modelData.address
-                        name: modelData.active && root.built && stream.consoleName.length > 0
+                        name: remote && stream.consoleName.length > 0
                               ? stream.consoleName : modelData.name
-                        status: modelData.active ? root.consoleState
+                        status: remote ? root.consoleState
                               : (other ? other.state : "unknown")
-                        registered: modelData.active ? root.registered : (other ? other.registered : false)
+                        registered: remote ? root.registered : (other ? other.registered : false)
                         // It took a direct connection without answering the search.
-                        direct: modelData.active ? (root.built && stream.directReachable)
+                        direct: remote ? stream.directReachable
                                                  : modelData.connectsDirectly === true
                         // What the console said just now, if it answered; otherwise,
                         // what was stored the last time it answered.
                         kind: {
-                            var answered = modelData.active
+                            var answered = remote
                                 ? (root.consoleState === "ready" || root.consoleState === "standby")
                                 : (other !== undefined && other.state !== "offline"
                                    && other.state !== "unknown")
                             if (!answered)
                                 return modelData.type
-                            var ps5 = modelData.active ? stream.consolePs5 : other.ps5
+                            var ps5 = remote ? stream.consolePs5 : other.ps5
                             return ps5 ? "ps5" : "ps4"
                         }
-                        connecting: modelData.active && root.sessionState === "connecting"
-                        searching: modelData.active && root.built && stream.searching
-                        stage: modelData.active && root.built ? stream.connectStage : ""
+                        connecting: remote && root.sessionState === "connecting"
+                        searching: remote && stream.searching
+                        stage: remote ? stream.connectStage : ""
                         onConnect: root.connectConsole()
                         onCancel: {
                             if (stream.connectStage.length > 0)
@@ -309,7 +339,7 @@ Item {
                         // connection goes in with it, without asking.
                         onChooseAccount: function (accountId) {
                             stream.useAccount(accountId)
-                            app.rememberAccountId(accountId)
+                            app.rememberAccountId(modelData.address, accountId)
                         }
                         onManageAccounts: {
                             settingsDialog.loadValues()
@@ -405,8 +435,12 @@ Item {
         anchors.topMargin: 16 + (shown ? 0 : -8)
         Behavior on anchors.topMargin { NumberAnimation { duration: Theme.normal; easing.type: Theme.easeOut } }
         anchors.horizontalCenter: videoStage.horizontalCenter
+        // The readout on the left only when it fits beside the buttons: in a
+        // narrow window the buttons come first.
+        readonly property bool infoFits: frameInfo.text.length > 0
+            && 22 + frameInfo.implicitWidth + 16 + 1 + 6 + streamRow.implicitWidth + 10 <= videoStage.width - 28
         width: Math.min(videoStage.width - 28,
-                        (frameInfo.text.length > 0 ? 22 + frameInfo.implicitWidth + 16 + 1 + 6 : 10)
+                        (infoFits ? 22 + frameInfo.implicitWidth + 16 + 1 + 6 : 10)
                         + streamRow.implicitWidth + 10)
         readonly property bool wanted: root.streaming
             && (toolbarHover.hovered
@@ -479,7 +513,7 @@ Item {
         }
         // Between the readout and the controls.
         Rectangle {
-            visible: frameInfo.text.length > 0
+            visible: streamToolbar.infoFits
             x: frameInfo.x + frameInfo.implicitWidth + 16
             anchors.verticalCenter: parent.verticalCenter
             width: 1
@@ -492,13 +526,25 @@ Item {
         // without saying.
         Text {
             id: frameInfo
+            visible: streamToolbar.infoFits
             anchors.left: parent.left
             anchors.leftMargin: 22
             anchors.verticalCenter: parent.verticalCenter
+            // With another console in use for the pages, the one the picture
+            // comes from is named first.
+            readonly property string elsewhere: {
+                if (!root.built || stream.address === app.consoleAddress)
+                    return ""
+                for (var i = 0; i < app.consoles.length; ++i)
+                    if (app.consoles[i].address === stream.address)
+                        return app.consoles[i].name
+                return stream.address
+            }
             text: {
                 if (!root.built || stream.frameWidth <= 0)
-                    return ""
-                var message = qsTr("%1×%2").arg(stream.frameWidth).arg(stream.frameHeight)
+                    return elsewhere
+                var message = (elsewhere.length > 0 ? elsewhere + "  ·  " : "")
+                    + qsTr("%1×%2").arg(stream.frameWidth).arg(stream.frameHeight)
                 if (stream.measuredFps > 0)
                     message += qsTr(" · %1 fps").arg(stream.measuredFps)
                 return message
@@ -519,6 +565,115 @@ Item {
             anchors.rightMargin: 10
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
+
+            // The picture asked of the console: its height and fps. A click
+            // picks others; the session starts again with them (the console
+            // only takes them when connecting).
+            Rectangle {
+                id: qualityPill
+                implicitHeight: 36
+                implicitWidth: qualityRow.implicitWidth + 24
+                radius: height / 2
+                color: qualityArea.pressed ? Qt.rgba(1, 1, 1, 0.18)
+                     : qualityArea.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.06)
+                border.width: 1
+                border.color: Theme.hudEdge
+                Row {
+                    id: qualityRow
+                    anchors.centerIn: parent
+                    spacing: 7
+                    Icon {
+                        anchors.verticalCenter: parent.verticalCenter
+                        name: "monitor"
+                        size: 16
+                        color: Theme.onStage
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.built ? qsTr("%1p · %2").arg(stream.requestedResolution).arg(stream.requestedFps) : ""
+                        color: Theme.onStage
+                        font.family: Theme.fontMono
+                        font.pixelSize: 12
+                        font.weight: Font.Medium
+                    }
+                }
+                // After the menu, the tip waits for the mouse to come back:
+                // the menu takes the hover, and the leaving is not seen.
+                property bool tipAllowed: true
+                MouseArea {
+                    id: qualityArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onEntered: qualityPill.tipAllowed = true
+                    onClicked: {
+                        qualityPill.tipAllowed = false
+                        qualityMenu.popup(qualityPill, 0, -qualityMenu.implicitHeight - 8)
+                    }
+                }
+                ToolTip.visible: qualityArea.containsMouse && qualityPill.tipAllowed && !qualityMenu.visible
+                ToolTip.text: qsTr("The picture asked of the console. Click for another: the session starts again with it.")
+
+                Menu {
+                    id: qualityMenu
+                    topPadding: 8
+                    bottomPadding: 8
+                    background: ShelfTile.MenuGlass { implicitWidth: 230 }
+                    // Changing both at once would end the session twice.
+                    function pick(resolution, fps) {
+                        qualityPill.tipAllowed = false
+                        app.setStreamQuality(resolution, fps)
+                        stream.changeQuality(resolution, fps)
+                    }
+                    StyledMenuItem {
+                        enabled: false
+                        text: qsTr("Resolution")
+                    }
+                    Repeater {
+                        model: [1080, 720, 540, 360]
+                        delegate: StyledMenuItem {
+                            required property int modelData
+                            // 1080p: a PS5 or a PS4 Pro (a PS4 sends 720p; the
+                            // search does not tell a Pro apart).
+                            text: modelData + "p"
+                                  + (modelData === 1080 && root.built && !stream.consolePs5 ? "  " + qsTr("(PS4 Pro)") : "")
+                                  + (root.built && stream.requestedResolution === modelData ? "  ✓" : "")
+                            onTriggered: qualityMenu.pick(modelData, stream.requestedFps)
+                        }
+                    }
+                    MenuSeparator {}
+                    StyledMenuItem {
+                        enabled: false
+                        text: qsTr("Frames per second")
+                    }
+                    Repeater {
+                        model: [60, 30]
+                        delegate: StyledMenuItem {
+                            required property int modelData
+                            text: qsTr("%1 fps").arg(modelData)
+                                  + (root.built && stream.requestedFps === modelData ? "  ✓" : "")
+                            onTriggered: qualityMenu.pick(stream.requestedResolution, modelData)
+                        }
+                    }
+                }
+            }
+
+            // The connection: hovering shows what comes in and goes out and
+            // how quickly the console answers; the colour says how it is.
+            HudButton {
+                readonly property double ping: root.built ? stream.netPing : -1
+                iconName: "activity"
+                readonly property string grade: root.built ? stream.netGrade : "unknown"
+                tone: grade === "good" ? Theme.ok : grade === "fair" ? Theme.warn
+                    : grade === "poor" ? Theme.error : Theme.onStage
+                tip: !root.built ? "" : qsTr("Download: %1").arg(root.rate(stream.netDownload))
+                     + (stream.netVideo > 0 ? "  " + qsTr("(picture: %1)").arg(root.rate(stream.netVideo)) : "")
+                     + "\n" + qsTr("Upload: %1").arg(root.rate(stream.netUpload))
+                     + "\n" + qsTr("Ping: %1").arg(ping < 0 ? "—" : qsTr("%1 ms").arg(ping < 10 ? ping.toFixed(1) : Math.round(ping)))
+                     + "\n" + (stream.netInterface.length > 0
+                                ? qsTr("This PC's connection (%1), everything it carries.").arg(stream.netInterface)
+                                : qsTr("This PC's connection."))
+            }
 
             // The controls: the controller (green when one is connected) and the
             // keyboard, in one button that opens the key map.
@@ -932,7 +1087,9 @@ Item {
         target: root.built ? stream : null
         function onConsoleChanged() {
             if (root.consoleState === "ready" || root.consoleState === "standby")
-                app.rememberConsoleType(app.consoleAddress, stream.consolePs5, stream.hostId)
+                // Remote Play's console: while a session holds one, another
+                // can be in use, and must not take this one's type and host-id.
+                app.rememberConsoleType(stream.address, stream.consolePs5, stream.hostId)
         }
         // One-click connect found the console unregistered: registration is
         // opened instead of a message telling you to open it.

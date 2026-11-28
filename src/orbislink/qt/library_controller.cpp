@@ -800,20 +800,18 @@ void LibraryController::goOnTo(const QString &id, const QString &title, const QS
 			   "choose %3 once they are done and install the copy from there.").arg(title, folder, name), true);
 		return;
 	}
-	// Not in the middle of transfers, a conversion that sends here or a
-	// Remote Play session: switching the console would cut them, or send
-	// what they make to the other one. It goes on once they are over.
+	// Not in the middle of transfers or a conversion that sends here:
+	// switching the console would cut them, or send what they make to the
+	// other one. It goes on once they are over. A Remote Play session is no
+	// reason to wait: it keeps its console while another is in use.
 	const bool transfers = app_->queueBusy() || app_->sendsPending();
-	if(transfers || app_->streaming())
+	if(transfers)
 	{
 		if(waited == 0)
 		{
-			const QString what = transfers && app_->streaming()
-				? tr("the transfers and the Remote Play session here are over")
-				: transfers ? tr("the transfers here are over") : tr("the Remote Play session here is over");
-			logInfo("Library: \"" + title.toStdString() + "\" waits for " + std::string(transfers ? "the transfers" : "")
-				+ (transfers && app_->streaming() ? " and " : "") + (app_->streaming() ? "the Remote Play session" : "")
-				+ " here to end before it goes on to " + name.toStdString() + ".");
+			const QString what = tr("the transfers here are over");
+			logInfo("Library: \"" + title.toStdString() + "\" waits for the transfers here to end before it goes on to "
+				+ name.toStdString() + ".");
 			updateJob(id, { { QStringLiteral("message"), tr("Goes on to %1 once %2").arg(name, what) } });
 			emit app_->notify(tr("Copy to another console"),
 				tr("%1 is on this PC; it goes on to %2 once %3 (closing OrbisLink before then leaves it in %4, "

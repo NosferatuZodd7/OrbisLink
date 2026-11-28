@@ -5,6 +5,10 @@
 #include "orbislink/net/console_locator.h"
 #include "orbislink/net/socket_compat.h"
 
+#ifdef __APPLE__
+#	include <net/if_dl.h>
+#endif
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -77,6 +81,18 @@ std::vector<LocalInterface> localInterfaces()
 			const uint32_t mask = prefix == 0 ? 0 : htonl(0xFFFFFFFFu << (32 - prefix));
 			iface.netmask = ipv4ToString(mask);
 			iface.loopback = adapter->IfType == IF_TYPE_SOFTWARE_LOOPBACK;
+			iface.index = adapter->IfIndex;
+			if(adapter->FriendlyName)
+			{
+				const int size = WideCharToMultiByte(CP_UTF8, 0, adapter->FriendlyName, -1, nullptr, 0, nullptr, nullptr);
+				if(size > 1)
+				{
+					std::string label(static_cast<size_t>(size), '\0');
+					WideCharToMultiByte(CP_UTF8, 0, adapter->FriendlyName, -1, label.data(), size, nullptr, nullptr);
+					label.resize(static_cast<size_t>(size - 1));
+					iface.label = label;
+				}
+			}
 			result.push_back(iface);
 		}
 	}
@@ -97,11 +113,71 @@ std::vector<LocalInterface> localInterfaces()
 			? ipv4ToString(reinterpret_cast<sockaddr_in *>(it->ifa_netmask)->sin_addr.s_addr)
 			: "255.255.255.0";
 		iface.loopback = (it->ifa_flags & IFF_LOOPBACK) != 0;
+		iface.label = iface.name;
 		result.push_back(iface);
 	}
 	freeifaddrs(addresses);
 #endif
 	return result;
+}
+
+LinkCounters linkCountersForConsole(const std::string &consoleIp)
+{
+	LinkCounters counters;
+	LocalInterface chosen;
+	bool found = false;
+	for(const LocalInterface &iface : localInterfaces())
+	{
+		if(iface.loopback)
+			continue;
+		if(sameSubnet(iface.address, consoleIp, iface.netmask))
+		{
+			chosen = iface;
+			found = true;
+			break;
+		}
+	}
+	if(!found)
+		return counters;
+	counters.name = chosen.label.empty() ? chosen.name : chosen.label;
+#ifdef _WIN32
+	MIB_IF_ROW2 row {};
+	row.InterfaceIndex = chosen.index;
+	if(chosen.index == 0 || GetIfEntry2(&row) != NO_ERROR)
+		return counters;
+	counters.received = row.InOctets;
+	counters.sent = row.OutOctets;
+	counters.ok = true;
+#elif defined(__APPLE__)
+	struct ifaddrs *addresses = nullptr;
+	if(getifaddrs(&addresses) != 0)
+		return counters;
+	for(struct ifaddrs *it = addresses; it; it = it->ifa_next)
+	{
+		if(!it->ifa_addr || it->ifa_addr->sa_family != AF_LINK || !it->ifa_data || !it->ifa_name
+			|| chosen.name != it->ifa_name)
+			continue;
+		const auto *data = static_cast<const struct if_data *>(it->ifa_data);
+		counters.received = data->ifi_ibytes;
+		counters.sent = data->ifi_obytes;
+		counters.ok = true;
+		break;
+	}
+	freeifaddrs(addresses);
+#else
+	// Linux: the kernel's own counters for the interface.
+	auto readNumber = [](const std::string &path, uint64_t *out) {
+		std::ifstream file(path);
+		unsigned long long value = 0;
+		if(!(file >> value))
+			return false;
+		*out = value;
+		return true;
+	};
+	const std::string base = "/sys/class/net/" + chosen.name + "/statistics/";
+	counters.ok = readNumber(base + "rx_bytes", &counters.received) && readNumber(base + "tx_bytes", &counters.sent);
+#endif
+	return counters;
 }
 
 bool parseIPv4(const std::string &text, uint32_t *outHostOrder)

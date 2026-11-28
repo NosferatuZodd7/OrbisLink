@@ -121,6 +121,7 @@ Last review: v1.1.0.
 | 🟡 | Controller rumble (through SDL; the DualSense adaptive triggers are for later) |
 | ✅ | Touchpad through the mouse |
 | ✅ | Full screen (F11, Esc to leave) |
+| 🟡 | Remote Play on one console while another is the console in use (FTP, installer, pages): the session keeps its console, the others can be chosen from the top bar, a page's console button or Settings → Consoles over the picture; the session's console is locked until it ends. The stream bar changes resolution and fps (the session starts again) and shows the connection (this PC's interface towards the console, the picture's share, the ping). Checked with the demo session (`--demo-stream`) and the fake console; not yet with two real consoles |
 | 🟡 | Games, store, save vault and payloads as a page over the picture while a session is on screen, with an opacity slider (70–100 %, kept) and the keyboard the page's while it is open; checked with the demo stage, not yet over a real session |
 | ✅ | Choosing resolution, fps and bitrate in the settings |
 | ➖ | Remote Play over PSN: decided not to. It needs the official Remote Play app's OAuth client ID and secret (Sony's, which OrbisLink does not ship), a PSN login kept by the app, a libcurl with WebSockets and chiaki-ng's hole punching (some 6,300 lines), and could not be tried here |

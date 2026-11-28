@@ -61,6 +61,7 @@
         <file alias="TiltShiftText.qml">TiltShiftText.qml</file>
         <file alias="TrophiesView.qml">TrophiesView.qml</file>
         <file alias="TrophyGlyph.qml">TrophyGlyph.qml</file>
+        <file alias="ConsoleSwitch.qml">ConsoleSwitch.qml</file>
         <file alias="ServiceHelpDialog.qml">ServiceHelpDialog.qml</file>
         <file alias="CheatsDialog.qml">CheatsDialog.qml</file>
         <file alias="SectionOverlay.qml">SectionOverlay.qml</file>

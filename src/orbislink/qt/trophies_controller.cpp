@@ -243,12 +243,22 @@ TrophiesController::TrophiesController(AppController *app, QObject *parent) : QO
 {
 	// Another console in use: what was read was of the one before.
 	// Any other setting (the theme, the language…) keeps what was read.
+	consoleShown_ = QString::fromStdString(app_->settings().consoleAddress);
 	connect(app_, &AppController::settingsChanged, this, [this]() {
-		if(!scanned_ || QString::fromStdString(app_->settings().consoleAddress) == address_)
+		const QString now = QString::fromStdString(app_->settings().consoleAddress);
+		if(now == consoleShown_)
 			return;
+		consoleShown_ = now;
+		// Another console: what it is (ps5) changes even when nothing was read.
+		if(!scanned_)
+		{
+			emit titlesChanged();
+			return;
+		}
 		titles_.clear();
 		users_.clear();
 		trophies_.clear();
+		everyone_.clear();
 		user_.clear();
 		scanned_ = false;
 		emit titlesChanged();

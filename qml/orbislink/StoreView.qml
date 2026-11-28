@@ -915,11 +915,14 @@ Item {
 
             // Empty: the faint orb, what is (not) here, and the way on.
             ColumnLayout {
+                id: emptyStore
                 anchors.centerIn: parent
                 width: Math.min(parent.width - 32, 460)
                 visible: !store.loading && (root.filter === "local" ? store.localApps.length === 0 : root.shown.length === 0)
                 spacing: 10
+                // In a short window the orb goes first.
                 Image {
+                    visible: emptyStore.parent.height > 320
                     Layout.alignment: Qt.AlignHCenter
                     source: "qrc:/icons/planet.png"
                     sourceSize.width: 104

@@ -95,7 +95,7 @@ Across the top of the page:
 
 | Item | What it shows | Click |
 |---|---|---|
-| **Console** selector | The console every action goes to: its kind (PS4, PS5) in a ring, its name, its address and firmware (as Remote Play's discovery reports it, "9.00"; the last one reported is kept with the console, so it shows while the console does not answer the search) and its jailbreak in champagne with its version when its FTP greeting gives one ("GoldHEN 2.4b18"). | A list of the saved consoles — one click makes another the console in use — with **Check the services now** and **Show the consoles**. |
+| **Console** selector | The console every action goes to: its kind (PS4, PS5) in a ring, its name, its address and firmware (as Remote Play's discovery reports it, "9.00"; the last one reported is kept with the console, so it shows while the console does not answer the search) and its jailbreak in champagne with its version when its FTP greeting gives one ("GoldHEN 2.4b18"). | A list of the saved consoles — one click makes another the console in use, also during a Remote Play session (the session's console is marked *Remote Play* and keeps streaming) — with **Check the services now** and **Show the consoles** (the cards; during a session, Settings → Consoles over the picture). |
 | 🎮 · **FTP** · 📦 | Remote Play, FTP and the installer, each with a dot at the corner: green available, amber checking (it breathes), red not answering, grey not applicable. Hover: a small card with the name, the state in its colour and, when something is off, what to do. | — |
 | ⟳ | | Checks the three services now. |
 | 🗎 | | Log and diagnostics (Ctrl+L). |
@@ -226,6 +226,9 @@ The picture fills the stage. Moving the mouse shows the toolbar:
 
 | Button | Does |
 |---|---|
+| *Console name* | Only while another console is the one in use: the console the picture comes from. |
+| ▭ 720p · 60 | The picture asked of the console: a click picks another resolution (1080p on a PS5 or a PS4 Pro — a PS4 sends 720p at most —, 720p, 540p, 360p) or 30/60 fps, and the session starts again with it a moment later — the console only takes them when connecting. Meanwhile the picture stays black with *Starting again at…*, full screen and a page open over it stay; **End the session** then stops it from starting again. Chosen while connecting, it applies once the session is in. Kept for next time, as in the settings. |
+| Pulse | Hovering shows the connection: what this PC's network interface towards the console receives and sends (KB/s or MB/s; the whole interface, so other traffic counts too), the picture's own share as measured, and the ping — how long the console takes to answer, asked every three seconds. Green up to 20 ms, amber up to 60, red above. |
 | 🎮 | Keyboard map: which key presses which button. The touchpad key (T) puts a finger on the left half of the touchpad and then clicks — Select in PS2 games. A controller's own touchpad is passed on as it is (left half Select, right half Start). Keyboard and controller can be used together. Live: a key held on the keyboard, or a button held on the controller, lights up its key and its part of the controller drawing. **Change keys** to rebind: click a key and press the new one; with a controller connected, click a button on the controller drawing and press the controller button that should do it (L2/R2 are triggers and stay). Two keys, or two buttons, swap. **Reset** goes back to the defaults of both. |
 | Speaker | Mutes / unmutes the console's sound. |
 | ▭ 16:9 / 4:3 / Fill | The picture's shape, one click to the next: as the console sends it (16:9), 4:3 with bars at the sides (PS1/PS2 games come stretched), or stretched to the window. Kept for next time. |
@@ -246,6 +249,29 @@ page took it — the library's Esc first goes up a folder) closes it. While a
 page is open the keyboard is the page's, not the console's; it goes back to
 the console when the page closes. Full screen (F11) closes the page. Without
 a session the pages open in the main area, as always.
+
+**Small windows.** Down to the smallest window (900 × 560): when the page
+and the transfers do not fit side by side (the page would have under about
+600 px), the transfers close by themselves and open floating over the page's
+right side instead of narrowing it; a page's buttons move to a line under its
+title instead of cutting it short; the theme buttons at the foot of the
+navigation make way for the pages in a short window (they are also in
+Settings → Personalisation); empty pages drop their picture first; and the
+stream bar leaves out its readout before its buttons.
+
+**Another console while one streams.** A session keeps its own console: during
+it, another saved console can be made the console in use — from the selector in
+the top bar (the session's console is marked *Remote Play*), from the console
+button on a page (Games, Save vault, Trophy vault, Payloads, Homebrew store, the
+transfers panel) or from **Show the consoles**, which during a session opens
+Settings → Consoles over the picture. FTP, the installer and every page move to
+that console; the picture stays where it is, and the stream bar then names the
+console it comes from. So one console can stream (a PS5, say) while files go to
+another (a PS4). The session's console cannot be edited, forgotten or removed
+until the session ends; once it ends, Remote Play follows the console in use
+again. A switch waits while transfers to the console in use are under way, a
+paused queue still holds jobs, or a conversion is sending there — the menu says
+which.
 
 Video apps (YouTube, Netflix…) and other protected screens are not sent over
 Remote Play. While the console shows one, the picture stays dark with a
@@ -1288,7 +1314,7 @@ release publishes, when the list does not have it.
 
 | Section | Holds |
 |---|---|
-| Consoles | Saved consoles: name, IP, type; add / remove. |
+| Consoles | Saved consoles: name, IP, type; add / remove; **Use** makes one the console in use — also during a Remote Play session, which stays on its own console (that one is locked until the session ends). |
 | Account IDs (PSID) | PSN accounts for Remote Play: name, Account ID and its own **Remote Play PIN** (optional: 4 digits, the account's passcode, sent when the console asks for it; 8 digits, the pairing PIN, filled in when the account registers — the console shows a new one each time). Each row says which consoles the account is registered on. Editing one account's PIN never changes another's. |
 | Console in use | Which console; FTP port, user, upload folder, connections, advanced mode (protected system folders); installer port and install options (and the automatic backup of the saves, see Save vault); local HTTP server. While the address is typed the console is checked; when FTP answers on another port than the typed one, a line says which, with **Use port N**. |
 | Remote Play | Resolution, frame rate, bitrate, hardware decoding, rumble, touchpad from the mouse, full screen on connect. |

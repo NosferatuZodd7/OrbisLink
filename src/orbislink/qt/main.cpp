@@ -169,6 +169,7 @@ int main(int argc, char **argv)
 	QString screenshotPath;
 	int screenshotDelayMs = 1200;
 	bool demoOverlay = false;
+	bool demoStream = false;
 	int demoTab = 0;
 	bool demoSettings = false;
 	// With --demo-settings: the section opened (6 is About), for the screenshots.
@@ -203,6 +204,8 @@ int main(int argc, char **argv)
 			screenshotDelayMs = arguments[++i].toInt();
 		else if(argument == QStringLiteral("--demo-overlay"))
 			demoOverlay = true;
+		else if(argument == QStringLiteral("--demo-stream"))
+			demoStream = true;
 		else if(argument == QStringLiteral("--demo-tab") && i + 1 < arguments.size())
 			demoTab = arguments[++i].toInt();
 		else if(argument == QStringLiteral("--demo-settings"))
@@ -368,18 +371,39 @@ int main(int argc, char **argv)
 #endif
 
 #ifdef ORBISLINK_HAS_STREAM
-	// Remote Play is a separate controller, but it follows the console
-	// address set in the OrbisLink settings.
+	// Remote Play is a separate controller. It follows the console in use,
+	// except while a session holds its console: then another console can be
+	// in use (FTP, the installer and every page move to it) and the picture
+	// stays where it is. Once the session lets go, it follows again.
 	auto stream = std::make_unique<StreamController>();
-	stream->setAddress(controller->consoleAddress());
-	stream->applySettings(controller->settings());
-	stream->setDirectConsoles(controller->directConsoles());
-	QObject::connect(controller.get(), &AppController::settingsChanged, stream.get(),
-		[&controller, &stream]() {
+	stream->setDemo(demoStream);
+	auto followConsoleInUse = [&controller, &stream]() {
+		if(!stream->holdsConsole())
 			stream->setAddress(controller->consoleAddress());
-			stream->applySettings(controller->settings());
-			stream->setDirectConsoles(controller->directConsoles());
-		});
+		// Held: the indicator in the top bar says what Remote Play knows of
+		// the console in use — nothing of another, its own when it is the
+		// session's.
+		else if(stream->address() != controller->consoleAddress())
+			controller->reportRemotePlayState(QStringLiteral("unknown"), QString());
+		else
+			controller->reportRemotePlayState(
+				stream->directReachable() ? QStringLiteral("direct") : stream->consoleState(), stream->runningApp());
+		stream->applySettings(controller->settings());
+		stream->setDirectConsoles(controller->directConsoles());
+	};
+	followConsoleInUse();
+	QObject::connect(controller.get(), &AppController::settingsChanged, stream.get(), followConsoleInUse);
+	// Queued: the hold can lapse for a moment in the middle of a step (the
+	// one-click connect clears its stage just before it starts the session);
+	// by the time this runs that step is over, and only a real end of the
+	// hold moves Remote Play back to the console in use.
+	QObject::connect(stream.get(), &StreamController::sessionAddressChanged, stream.get(),
+		[&controller, &stream, followConsoleInUse]() {
+			controller->setStreamingAddress(stream->sessionAddress());
+			if(!stream->holdsConsole() && stream->address() != controller->consoleAddress())
+				followConsoleInUse();
+		},
+		Qt::QueuedConnection);
 	// A console that never answers the search but took a direct connection
 	// is remembered as such: its card and the top bar stop calling it
 	// "not responding".
@@ -397,10 +421,13 @@ int main(int argc, char **argv)
 		});
 	// The "Remote Play" indicator in the top bar shows what the console
 	// answered to discovery, instead of staying grey forever.
+	// Only for the console in use: while a session holds another, what
+	// Remote Play hears is that one's.
 	QObject::connect(stream.get(), &StreamController::consoleChanged, controller.get(),
 		[&controller, &stream]() {
-			controller->reportRemotePlayState(
-				stream->directReachable() ? QStringLiteral("direct") : stream->consoleState(), stream->runningApp());
+			if(stream->address() == controller->consoleAddress())
+				controller->reportRemotePlayState(
+					stream->directReachable() ? QStringLiteral("direct") : stream->consoleState(), stream->runningApp());
 			controller->reportConsoleFirmware(stream->hostAddress(), stream->systemVersion());
 		});
 	// Whether a session is on, for the work that waits for it to end.

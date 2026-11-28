@@ -396,6 +396,8 @@ Item {
             spacing: 10
             Item { Layout.fillHeight: true }
             Image {
+                // In a short window the orb goes first.
+                visible: root.height > 520
                 Layout.alignment: Qt.AlignHCenter
                 source: "qrc:/icons/planet.png"
                 sourceSize.width: 112
@@ -419,9 +421,13 @@ Item {
                 wrapMode: Text.WordWrap
                 color: Theme.textSecondary
                 font.pixelSize: 13
-                text: qsTr("%1's FTP is not answering. Load the jailbreak (GoldHEN or etaHEN) with its "
-                           + "FTP server on, then read again. Payloads from this PC can still be sent.")
-                      .arg(payloads.targetName)
+                // Without a name (no console saved yet), not "'s FTP".
+                text: payloads.targetName.length > 0
+                      ? qsTr("%1's FTP is not answering. Load the jailbreak (GoldHEN or etaHEN) with its "
+                             + "FTP server on, then read again. Payloads from this PC can still be sent.")
+                        .arg(payloads.targetName)
+                      : qsTr("The console's FTP is not answering. Load the jailbreak (GoldHEN or etaHEN) with "
+                             + "its FTP server on, then read again. Payloads from this PC can still be sent.")
             }
             StyledButton {
                 Layout.alignment: Qt.AlignHCenter

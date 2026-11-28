@@ -209,10 +209,10 @@ void SavesController::maybeAutoBackup()
 	if(!app_->settings().autoSaveBackup || busy_ || !online())
 		return;
 	// The console in use only (the setting says so), and not while its
-	// network is busy: a Remote Play session or the install queue at work (a
-	// paused one sends nothing).
+	// network is busy: a Remote Play session on it or the install queue at
+	// work (a paused one sends nothing).
 	const QString address = source();
-	if(address != QString::fromStdString(app_->settings().consoleAddress) || app_->streaming()
+	if(address != QString::fromStdString(app_->settings().consoleAddress) || app_->streamingOn(address)
 		|| (app_->queueBusy() && !app_->queuePaused()))
 		return;
 	if(!lastAutoBackupRead_)

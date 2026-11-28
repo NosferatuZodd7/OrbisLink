@@ -28,7 +28,7 @@ Plate {
 
         ConsoleChip {
             compact: bar.narrow
-            onShowConsoles: window.showHome()
+            onShowConsoles: window.showConsoles()
         }
 
         // The three services, an icon each with its state at the corner.

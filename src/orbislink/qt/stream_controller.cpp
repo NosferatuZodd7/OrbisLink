@@ -2,6 +2,9 @@
 #include "orbislink/qt/stream_controller.h"
 
 #include "orbislink/net/lan_scan.h"
+#include "orbislink/net/link_rate.h"
+#include "orbislink/net/net_utils.h"
+#include "orbislink/stream/discovery.h"
 
 #include "orbislink/qt/translate_message.h"
 #include "orbislink/stream/account_id.h"
@@ -16,6 +19,7 @@
 
 #include <QMetaObject>
 #include <algorithm>
+#include <chrono>
 #include <thread>
 #include <QSet>
 #include <set>
@@ -75,68 +79,7 @@ StreamController::StreamController(QObject *parent)
 		const QString slug = QString::fromLatin1(sessionStateName(state));
 		const QString message = translateMessage(detail);
 		QMetaObject::invokeMethod(
-			this,
-			[this, slug, message, state]() {
-				if(state == SessionState::Failed && retryAfterInUse())
-					return;
-				if(sessionState_ == QLatin1String("connected")
-					&& (state == SessionState::Stopped || state == SessionState::Failed))
-					lastSessionEndMs_ = QDateTime::currentMSecsSinceEpoch();
-				sessionState_ = slug;
-				sessionDetail_ = message;
-				const bool wasStreaming = streaming_;
-				streaming_ = state == SessionState::Connected;
-				if(streaming_)
-				{
-					// The account the console just let in becomes this
-					// console's usual one: the picker offers it first.
-					if(!wasStreaming && !credentials_.accountId.empty())
-						emit accountIdAccepted(QString::fromStdString(credentials_.accountId));
-					// In without the console answering the search: it is
-					// one of those that only take a direct connection.
-					if(!wasStreaming && consoleState_ != QLatin1String("ready")
-						&& consoleState_ != QLatin1String("standby") && !directConsoles_.contains(address_))
-					{
-						directConsoles_.append(address_);
-						emit directConnectionWorked(address_);
-						emit consoleChanged();
-					}
-					gamepad_.start();
-					hardwareDecoder_ = lastHardwareDecoder_ = session_->usingHardwareDecoder();
-					lastFrameCount_ = video_.framesDelivered();
-					measuredFps_ = 0;
-					if(fpsTimer_)
-						fpsTimer_->start();
-				}
-				else
-				{
-					if(!inputPreview_)
-						gamepad_.stop();
-					hardwareDecoder_ = false;
-					touchEnd();
-					resetInput();
-					if(fpsTimer_)
-						fpsTimer_->stop();
-					measuredFps_ = 0;
-				}
-				if(state == SessionState::Stopped || state == SessionState::Failed)
-				{
-					// The microphone goes with the session: chiaki's stream is
-					// closed and must not get any more frames.
-					microphone_.stop();
-					session_->stopMicrophone();
-					emit microphoneChanged();
-					cantDisplay_ = false;
-					audio_.stop();
-					video_.clear();
-					frameWidth_ = frameHeight_ = 0;
-					emit videoChanged();
-				}
-				emit sessionChanged();
-				if(state == SessionState::Failed)
-					emit notify(tr("Remote Play"), message, true);
-			},
-			Qt::QueuedConnection);
+			this, [this, state, message]() { handleSessionState(state, message); }, Qt::QueuedConnection);
 	});
 
 	session_->setFrameCallback([this](AVFrame *frame) { video_.presentFrame(frame); });
@@ -238,6 +181,7 @@ StreamController::StreamController(QObject *parent)
 		measuredFps_ = static_cast<int>(now - lastFrameCount_);
 		lastFrameCount_ = now;
 		emit videoChanged();
+		sampleNet();
 	});
 }
 
@@ -246,6 +190,165 @@ StreamController::~StreamController()
 	lifeline_->cut();
 	if(session_)
 		session_->stop();
+}
+
+// What the session says, on the interface thread (from chiaki's callback, or
+// a demonstration's).
+void StreamController::handleSessionState(SessionState state, const QString &message)
+{
+	if(state == SessionState::Failed && retryAfterInUse())
+	{
+		updateHeld();
+		return;
+	}
+	if(sessionState_ == QLatin1String("connected")
+		&& (state == SessionState::Stopped || state == SessionState::Failed))
+		lastSessionEndMs_ = QDateTime::currentMSecsSinceEpoch();
+	sessionState_ = QString::fromLatin1(sessionStateName(state));
+	const bool ended = state == SessionState::Stopped || state == SessionState::Failed;
+	// The session started again is in, or did not make it: the restart is
+	// over (a failure is then told as any other).
+	if(restartConnecting_ && (state == SessionState::Connected || ended))
+		restartConnecting_ = false;
+	// Ending because it starts again with another picture: said so, not
+	// "session ended".
+	sessionDetail_ = ended && restarting() ? restartDetail_ : message;
+	const bool wasStreaming = streaming_;
+	streaming_ = state == SessionState::Connected;
+	if(streaming_)
+	{
+		// The account the console just let in becomes this
+		// console's usual one: the picker offers it first.
+		if(!wasStreaming && !credentials_.accountId.empty())
+			emit accountIdAccepted(address_, QString::fromStdString(credentials_.accountId));
+		// In without the console answering the search: it is
+		// one of those that only take a direct connection.
+		if(!wasStreaming && consoleState_ != QLatin1String("ready")
+			&& consoleState_ != QLatin1String("standby") && !directConsoles_.contains(address_))
+		{
+			directConsoles_.append(address_);
+			emit directConnectionWorked(address_);
+			emit consoleChanged();
+		}
+		gamepad_.start();
+		hardwareDecoder_ = lastHardwareDecoder_ = session_->usingHardwareDecoder();
+		lastFrameCount_ = video_.framesDelivered();
+		measuredFps_ = 0;
+		resetNet();
+		sampleNet();
+		if(fpsTimer_)
+			fpsTimer_->start();
+	}
+	else
+	{
+		if(!inputPreview_)
+			gamepad_.stop();
+		hardwareDecoder_ = false;
+		touchEnd();
+		resetInput();
+		if(fpsTimer_)
+			fpsTimer_->stop();
+		measuredFps_ = 0;
+		resetNet();
+	}
+	if(state == SessionState::Stopped || state == SessionState::Failed)
+	{
+		// The microphone goes with the session: chiaki's stream is
+		// closed and must not get any more frames.
+		microphone_.stop();
+		session_->stopMicrophone();
+		emit microphoneChanged();
+		cantDisplay_ = false;
+		audio_.stop();
+		video_.clear();
+		frameWidth_ = frameHeight_ = 0;
+		emit videoChanged();
+	}
+	emit sessionChanged();
+	updateHeld();
+	// Starting again with another picture: the end is part of it, not a
+	// failure to tell (stopFinished() starts it again).
+	if(ended && restarting())
+		return;
+	// Another picture was asked while this one was connecting: now that it is
+	// in, it starts again with that one.
+	if(streaming_ && qualityAfterConnect_)
+	{
+		qualityAfterConnect_ = false;
+		if(resolution_ != connectedResolution_ || fps_ != connectedFps_)
+			restartForQuality();
+		return;
+	}
+	if(state == SessionState::Failed)
+		emit notify(tr("Remote Play"), message, true);
+}
+
+bool StreamController::restarting() const
+{
+	return restartPending_ || restartWaiting_ || restartConnecting_;
+}
+
+// The session in course has let go of the console (stop() returned, so its
+// last state is in): one asked to start again with another picture does so
+// a moment later, the console's own pause between two sessions.
+void StreamController::stopFinished()
+{
+	if(!restartPending_)
+		return;
+	restartPending_ = false;
+	restartWaiting_ = true;
+	const quint64 generation = ++restartGeneration_;
+	updateHeld();
+	emit sessionChanged();
+	QTimer::singleShot(demo_ ? 300 : 800, this, [this, generation]() {
+		if(!restartWaiting_ || generation != restartGeneration_)
+			return;
+		restartWaiting_ = false;
+		// Until the new session is in, it is still the restart: the stage and
+		// the full screen stay.
+		restartConnecting_ = true;
+		if(!streaming_ && sessionState_ != QLatin1String("connecting"))
+			startStream();
+		if(sessionState_ != QLatin1String("connecting"))
+			restartConnecting_ = false;
+		updateHeld();
+		emit sessionChanged();
+	});
+}
+
+void StreamController::restartForQuality()
+{
+	restartDetail_ = tr("Starting again at %1p, %2 fps…").arg(resolution_).arg(fps_);
+	sessionDetail_ = restartDetail_;
+	logInfo("Remote Play: asking for " + std::to_string(resolution_) + "p at " + std::to_string(fps_)
+		+ " fps; the session starts again.");
+	restartPending_ = true;
+	updateHeld();
+	emit sessionChanged();
+	stopSession();
+}
+
+bool StreamController::holdsConsole() const
+{
+	// Looking for a console that moved does not hold it: finding it moves the
+	// console in use, and Remote Play has to follow it there.
+	const bool connectingStage = !connectStage_.isEmpty() && connectStage_ != QLatin1String("locating");
+	return streaming_ || sessionState_ == QLatin1String("connecting") || restarting() || connectingStage
+		|| (inUseRetryTimer_ && inUseRetryTimer_->isActive());
+}
+
+QString StreamController::sessionAddress() const
+{
+	return holdsConsole() ? address_ : QString();
+}
+
+void StreamController::updateHeld()
+{
+	const QString held = sessionAddress();
+	if(held == heldAddress_)
+		return;
+	heldAddress_ = held;
+	emit sessionAddressChanged();
 }
 
 void StreamController::setAddress(const QString &address)
@@ -274,20 +377,32 @@ void StreamController::setAddress(const QString &address)
 
 void StreamController::applySettings(const Settings &settings)
 {
+	const bool qualityMoved = resolution_ != settings.streamResolution || fps_ != settings.streamFps;
 	resolution_ = settings.streamResolution;
 	fps_ = settings.streamFps;
+	if(qualityMoved)
+		emit qualityChanged();
 	bitrateKbps_ = settings.streamBitrateKbps;
 	wantHardware_ = settings.streamHardwareDecode;
 	fullscreenOnConnect_ = settings.streamFullscreenOnConnect;
 	rumbleEnabled_ = settings.streamRumble;
 	touchpadFromMouse_ = settings.streamTouchpadFromMouse;
 	gamepad_.setRumbleEnabled(rumbleEnabled_);
-	// The Account ID the console in use already accepted; if it has not
-	// accepted any yet, the last one any console accepted.
-	accountId_ = QString::fromStdString(settings.streamAccountId);
-	for(const ConsoleEntry &console : settings.consoles)
-		if(console.address == settings.consoleAddress && !console.accountId.empty())
-			accountId_ = QString::fromStdString(console.accountId);
+	// The Account ID Remote Play's console already accepted; if it has not
+	// accepted any yet, the last one any console accepted. Its own console
+	// (address_), not the one in use: while a session holds one, another can
+	// be in use, and starting again must not take that one's account.
+	// While a session holds its console, the account it went in with stays:
+	// another console chosen meanwhile, or any other setting, does not swap
+	// it (nor the registration loaded below).
+	const bool keepSession = holdsConsole();
+	if(!keepSession)
+	{
+		accountId_ = QString::fromStdString(settings.streamAccountId);
+		for(const ConsoleEntry &console : settings.consoles)
+			if(console.address == address_.toStdString() && !console.accountId.empty())
+				accountId_ = QString::fromStdString(console.accountId);
+	}
 	accountNames_.clear();
 	accountPins_.clear();
 	for(const SavedAccount &account : settings.accounts)
@@ -308,7 +423,8 @@ void StreamController::applySettings(const Settings &settings)
 		if(!console.hostId.empty() && !console.accountId.empty())
 			store_.adopt(console.hostId, console.accountId);
 	}
-	loadCredentials();
+	if(!keepSession)
+		loadCredentials();
 	emit registrationChanged();
 	keyboard_.setBindings(settings.keyboardBindings);
 	gamepad_.setButtonMap(settings.padBindings);
@@ -868,7 +984,7 @@ void StreamController::registerWith(const QString &pin, const QString &accountId
 						if(!accountToSave.isEmpty())
 						{
 							accountId_ = accountToSave;
-							emit accountIdAccepted(accountToSave);
+							emit accountIdAccepted(address_, accountToSave);
 							emit settingsApplied();
 						}
 						emit notify(tr("Registration"),
@@ -983,7 +1099,7 @@ void StreamController::startStream()
 			tr("The console IP address is missing. Set it in the settings."), true);
 		return;
 	}
-	if(!credentials_.valid)
+	if(!credentials_.valid && !demo_)
 	{
 		emit notify(tr("Remote Play"),
 			tr("Register the console first: click its box and follow the steps."), true);
@@ -994,12 +1110,25 @@ void StreamController::startStream()
 	sessionState_ = QStringLiteral("connecting");
 	sessionDetail_ = tr("Connecting to %1…").arg(address_);
 	emit sessionChanged();
+	updateHeld();
+	// A demonstration (--demo-stream): the session's steps without a
+	// console, to see and test the interface around it.
+	if(demo_)
+	{
+		QTimer::singleShot(400, this, [this]() {
+			if(sessionState_ == QLatin1String("connecting"))
+				handleSessionState(SessionState::Connected, QString());
+		});
+		return;
+	}
 
 	StreamSession::Config config;
 	config.address = address_.toStdString();
 	config.credentials = credentials_;
 	config.settings.resolution = resolution_;
 	config.settings.fps = fps_;
+	connectedResolution_ = resolution_;
+	connectedFps_ = fps_;
 	config.settings.bitrateKbps = static_cast<unsigned int>(bitrateKbps_);
 	config.settings.hardwareDecoder = wantHardware_;
 
@@ -1009,6 +1138,7 @@ void StreamController::startStream()
 		sessionState_ = QStringLiteral("failed");
 		sessionDetail_ = translateMessage(err);
 		emit sessionChanged();
+		updateHeld();
 		emit notify(tr("Remote Play"), sessionDetail_, true);
 	}
 }
@@ -1019,12 +1149,18 @@ void StreamController::setConnectStage(const QString &stage)
 		return;
 	connectStage_ = stage;
 	emit connectStageChanged();
+	updateHeld();
 }
 
 void StreamController::connectOneClick()
 {
-	if(streaming_ || sessionState_ == QLatin1String("connecting") || !connectStage_.isEmpty())
+	if(streaming_ || sessionState_ == QLatin1String("connecting") || !connectStage_.isEmpty() || restarting())
 		return;
+	if(demo_)
+	{
+		startStream();
+		return;
+	}
 	if(address_.isEmpty())
 	{
 		emit notify(tr("Remote Play"),
@@ -1202,13 +1338,136 @@ void StreamController::stopStream()
 		sessionState_ = QStringLiteral("stopped");
 		sessionDetail_ = QString();
 		emit sessionChanged();
+		updateHeld();
 		return;
 	}
+	// Ending while starting again with another picture: it does not start
+	// again. While waiting, there is no session left to stop.
+	qualityAfterConnect_ = false;
+	if(restarting())
+	{
+		const bool waiting = restartWaiting_;
+		restartPending_ = restartWaiting_ = restartConnecting_ = false;
+		++restartGeneration_;
+		if(waiting)
+		{
+			sessionState_ = QStringLiteral("stopped");
+			sessionDetail_ = QString();
+			emit sessionChanged();
+			updateHeld();
+			return;
+		}
+		updateHeld();
+		emit sessionChanged();
+	}
+	stopSession();
+}
 
+void StreamController::stopSession()
+{
+	if(demo_)
+	{
+		QTimer::singleShot(200, this, [this]() {
+			handleSessionState(SessionState::Stopped, QString());
+			stopFinished();
+		});
+		return;
+	}
 	// chiaki's stop waits for its threads; off the UI thread so the
-	// window does not freeze.
-	// The thread holds its own reference: the controller may be gone first.
-	std::thread([session = session_]() { session->stop(); }).detach();
+	// window does not freeze. The thread holds its own reference: the
+	// controller may be gone first. Once it returns, every state the session
+	// published is in (queued before this), and stopFinished() can start
+	// again without a late "stopped" ending the new session.
+	std::thread([session = session_, life = lifeline_, this]() {
+		session->stop();
+		life->post([this]() { stopFinished(); });
+	}).detach();
+}
+
+void StreamController::changeQuality(int resolution, int fps)
+{
+	if(!validStreamQuality(resolution, fps))
+		return;
+	if(resolution == resolution_ && fps == fps_)
+		return;
+	resolution_ = resolution;
+	fps_ = fps;
+	emit qualityChanged();
+	// Starting again already: it starts with these (startStream reads them).
+	if(restarting())
+	{
+		restartDetail_ = tr("Starting again at %1p, %2 fps…").arg(resolution_).arg(fps_);
+		sessionDetail_ = restartDetail_;
+		emit sessionChanged();
+		return;
+	}
+	// Connecting: once in, it starts again with these.
+	if(!streaming_ && (sessionState_ == QLatin1String("connecting") || !connectStage_.isEmpty()))
+	{
+		qualityAfterConnect_ = true;
+		return;
+	}
+	// No session: the next one uses them.
+	if(!streaming_)
+		return;
+	restartForQuality();
+}
+
+void StreamController::resetNet()
+{
+	netDownload_ = netUpload_ = -1;
+	netVideo_ = 0;
+	netPing_ = -1;
+	netInterface_.clear();
+	netRate_.reset();
+	netTicks_ = 0;
+	emit netChanged();
+}
+
+void StreamController::sampleNet()
+{
+	if(!streaming_)
+		return;
+	const std::string address = address_.toStdString();
+	netVideo_ = session_->videoMbps() * 1000000.0 / 8.0;
+	if(netPing_ < 0)
+		netPing_ = session_->connectRttMs();
+	emit netChanged();
+
+	// Off the interface thread (listing the network adapters can take tens of
+	// milliseconds on Windows): this PC's interface towards the console, its
+	// counters as rates; and every three seconds the console's answer time,
+	// the same small question the console check asks.
+	if(netSampling_)
+		return;
+	netSampling_ = true;
+	const bool ping = (netTicks_++ % 3) == 0;
+	std::thread([this, life = lifeline_, address, ping]() {
+		const LinkCounters counters = linkCountersForConsole(address);
+		const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::steady_clock::now().time_since_epoch()).count();
+		const HostInfo info = ping ? StreamDiscovery::peek(address, 1000) : HostInfo();
+		life->post([this, counters, now, info, ping, address]() {
+			netSampling_ = false;
+			if(!streaming_ || address != address_.toStdString())
+				return;
+			if(counters.ok)
+			{
+				const QString name = QString::fromStdString(counters.name);
+				// Another interface answering now: its totals are not the
+				// last one's.
+				if(name != netInterface_)
+					netRate_.reset();
+				netInterface_ = name;
+				netRate_.sample(counters.received, counters.sent, static_cast<int64_t>(now));
+				netDownload_ = netRate_.download();
+				netUpload_ = netRate_.upload();
+			}
+			if(ping && info.found && info.replyMs >= 0)
+				netPing_ = info.replyMs;
+			emit netChanged();
+		});
+	}).detach();
 }
 
 void StreamController::setMuted(bool muted)

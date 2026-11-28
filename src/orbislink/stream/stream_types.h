@@ -28,6 +28,9 @@ struct HostInfo
 	// ChiakiTarget value matching the system version: it tells chiaki
 	// which protocol to speak.
 	int target = 0;
+	// How long the console took to answer, in milliseconds (asked
+	// directly); -1 when not timed.
+	double replyMs = -1;
 };
 
 // What is stored after registering the console. Without it there is no

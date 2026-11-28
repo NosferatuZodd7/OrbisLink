@@ -67,13 +67,19 @@ struct Harvest
 	std::mutex mutex;
 	std::vector<HostInfo> hosts;
 	bool single = false;
+	// When the question went out, to time the answer (one console asked).
+	std::chrono::steady_clock::time_point sentAt {};
+	bool timed = false;
 };
 
 void collect(ChiakiDiscoveryHost *host, void *user)
 {
 	auto *harvest = static_cast<Harvest *>(user);
+	const auto now = std::chrono::steady_clock::now();
 	std::lock_guard<std::mutex> lock(harvest->mutex);
 	HostInfo info = fromChiaki(host);
+	if(harvest->timed)
+		info.replyMs = std::chrono::duration<double, std::milli>(now - harvest->sentAt).count();
 	for(HostInfo &existing : harvest->hosts)
 	{
 		// The same console answers more than one request.
@@ -163,6 +169,11 @@ HostInfo ask(const std::string &address, int timeoutMs, uint16_t ps4Port, bool t
 	}
 
 	// Ask in both protocols: the same function serves PS4 and PS5.
+	{
+		std::lock_guard<std::mutex> lock(harvest.mutex);
+		harvest.sentAt = std::chrono::steady_clock::now();
+		harvest.timed = true;
+	}
 	ChiakiDiscoveryPacket packet {};
 	packet.cmd = CHIAKI_DISCOVERY_CMD_SRCH;
 	packet.protocol_version = const_cast<char *>(CHIAKI_DISCOVERY_PROTOCOL_VERSION_PS4);

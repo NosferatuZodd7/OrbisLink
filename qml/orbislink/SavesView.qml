@@ -172,9 +172,12 @@ Item {
         return c.type === "ps5" ? "PS5" : c.type === "ps4" ? "PS4" : ""
     }
 
-    // The game open on the console in use (its title ID, from Remote Play's
+    // The game open on Remote Play's console (its title ID, from its
     // discovery): its saves are not copied either way while it runs, or the
-    // save comes out corrupted.
+    // save comes out corrupted. That console is the one in use, unless a
+    // session holds another (streamAddress says which).
+    readonly property string streamAddress: typeof stream !== "undefined" && stream !== null
+                                            ? stream.address : ""
     readonly property string openGame: typeof stream !== "undefined" && stream !== null
                                        ? stream.runningAppTitleId : ""
     readonly property string openGameName: typeof stream !== "undefined" && stream !== null
@@ -182,7 +185,7 @@ Item {
     // The keys, without the open game's saves when the console is the one in
     // use; says so when it left some out.
     function withoutOpenGame(keys, address) {
-        if (openGame.length === 0 || address !== app.consoleAddress)
+        if (openGame.length === 0 || address !== streamAddress)
             return keys
         var kept = []
         for (var i = 0; i < saves.saves.length; ++i) {
@@ -552,6 +555,9 @@ Item {
             RowLayout {
                 id: heroRow
                 Layout.fillWidth: true
+                // Never taller than its words and buttons: in a short window
+                // the page's leftover height went here, leaving the list none.
+                Layout.maximumHeight: implicitHeight
                 spacing: 18
 
                 // With some selected: how many, in bold.
@@ -669,7 +675,7 @@ Item {
                         }
                     }
                     Text {
-                        visible: !saves.busy && root.openGame.length > 0 && saves.source === app.consoleAddress
+                        visible: !saves.busy && root.openGame.length > 0 && saves.source === root.streamAddress
                         Layout.fillWidth: true
                         elide: Text.ElideRight
                         text: qsTr("%1 is open: its saves wait until it closes.")
@@ -956,6 +962,8 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.topMargin: -8
+            // Nothing spills over the filters above or the note below.
+            clip: true
 
             ListView {
                 id: list
@@ -1291,13 +1299,17 @@ Item {
                 }
             }
 
-            // Empty: the faint orb, what is (not) here, and the way on.
+            // Empty: the faint orb, what is (not) here, and the way on. In a
+            // short window the orb goes first, then the second line.
             ColumnLayout {
+                id: emptySaves
                 anchors.centerIn: parent
                 width: Math.min(parent.width - 32, 440)
-                visible: root.shown.length === 0 && !saves.busy
+                visible: root.shown.length === 0 && !saves.busy && room > 64
                 spacing: 10
+                readonly property real room: parent.height
                 Image {
+                    visible: emptySaves.room > 320
                     Layout.alignment: Qt.AlignHCenter
                     source: "qrc:/icons/planet.png"
                     sourceSize.width: 112
@@ -1321,7 +1333,7 @@ Item {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
-                    visible: text.length > 0
+                    visible: text.length > 0 && emptySaves.room > 170
                     text: root.filter !== "all" ? qsTr("No save of this kind for the owner shown.")
                         : root.online ? qsTr("Saves the console's users make show up here once it is read again.")
                         : qsTr("Connect to a console with FTP (GoldHEN, etaHEN) to see its saves.")
@@ -1331,7 +1343,7 @@ Item {
                 StyledButton {
                     Layout.alignment: Qt.AlignHCenter
                     Layout.topMargin: 6
-                    visible: root.filter === "all"
+                    visible: root.filter === "all" && emptySaves.room > 120
                     iconName: "refresh"
                     text: qsTr("Read the console again")
                     onClicked: { root.probeConsoles(); saves.refresh() }

@@ -56,6 +56,12 @@ ApplicationWindow {
     readonly property bool panelAllowed: ftpConfirmed || installerConfirmed || app.queue.count > 0
     // Whether the transfers' spine is on screen.
     readonly property bool panelShown: panelVisible && panelAllowed && !streamFullscreen
+    // Too narrow for the page and the transfers side by side (the page would
+    // have under ~600 px): the transfers float over the page instead, and
+    // close by themselves when the window becomes that narrow.
+    readonly property bool panelFloats: workRow.width > 0
+                                        && workRow.width - Theme.inspectorWidth - Theme.paneGap < 600
+    onPanelFloatsChanged: if (panelFloats) panelVisible = false
     // The panel closed while jobs go on: a narrow column with them instead,
     // until they are done.
     readonly property bool railShown: !panelShown && !streamFullscreen && transferPanel.busy
@@ -81,7 +87,8 @@ ApplicationWindow {
     // main area, as always.
     readonly property bool demoSectionOn: typeof demoSection !== "undefined" && demoSection.length > 0
     readonly property bool streamOnScreen: (demoSectionOn || typeof stream !== "undefined" && stream !== null
-                                            && stream.streaming) && view === "home" && !streamFullscreen
+                                            && (stream.streaming || stream.restarting))
+                                           && view === "home" && !streamFullscreen
     // The page over the picture ("games", "store", "saves", "payloads"), or "".
     property string overSection: ""
     onStreamOnScreenChanged: if (!streamOnScreen) overSection = ""
@@ -143,6 +150,18 @@ ApplicationWindow {
         }
         overSection = ""
         view = name
+    }
+    // The saved consoles: their cards, or — while Remote Play's picture is on
+    // screen, where the cards make way for it — their list over the picture,
+    // to choose another for the pages while the session goes on.
+    function showConsoles() {
+        if (streamOnScreen) {
+            settingsDialog.loadValues()
+            settingsDialog.section = 0
+            settingsDialog.open()
+            return
+        }
+        showHome()
     }
     // The consoles — or, while Remote Play plays, the picture alone.
     function showHome() {
@@ -249,6 +268,7 @@ ApplicationWindow {
             }
 
             RowLayout {
+                id: workRow
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 spacing: Theme.paneGap
@@ -263,6 +283,27 @@ ApplicationWindow {
                     color: window.streamFullscreen ? "transparent" : Qt.rgba(1, 1, 1, fillAlpha)
                     border.width: window.streamFullscreen ? 0 : 1
                     radius: window.streamFullscreen ? 0 : Theme.radiusPane
+
+                    // The transfers floating over the page's right side in a
+                    // narrow window (see panelFloats), above the page.
+                    Item {
+                        id: panelFloat
+                        visible: window.panelFloats && window.panelShown
+                        z: 50
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        anchors.margins: 8
+                        width: Math.min(Theme.inspectorWidth, parent.width - 16)
+                        // Its gaps take the clicks and the wheel: nothing
+                        // reaches the page underneath.
+                        MouseArea {
+                            anchors.fill: parent
+                            acceptedButtons: Qt.AllButtons
+                            hoverEnabled: true
+                            onWheel: (wheel) => wheel.accepted = true
+                        }
+                    }
 
                     ColumnLayout {
                         anchors.fill: parent
@@ -381,11 +422,23 @@ ApplicationWindow {
                 }
 
                 // ───────────────────────────── the transfers
-                // The queue and the console's files, in their own pane.
-                Plate {
-                    level: "primary"
+                // The queue and the console's files, in their own pane — or,
+                // in a narrow window, floating over the page's right side, so
+                // the page keeps its width.
+                Item {
+                    id: panelDock
                     Layout.fillHeight: true
                     Layout.preferredWidth: Theme.inspectorWidth
+                    visible: window.panelShown && !window.panelFloats
+                }
+                Plate {
+                    id: transfersPlate
+                    parent: window.panelFloats ? panelFloat : panelDock
+                    anchors.fill: parent
+                    level: window.panelFloats ? "secondary" : "primary"
+                    // Floating over the page: as solid as a dialog, so the page
+                    // under it does not show through the files.
+                    color: window.panelFloats ? Theme.dialogFill : Qt.rgba(1, 1, 1, fillAlpha)
                     visible: window.panelShown
 
                     ColumnLayout {
@@ -403,13 +456,11 @@ ApplicationWindow {
                                 Layout.fillWidth: true
                                 spacing: 1
                                 Eyebrow { text: qsTr("Transfers") }
-                                Text {
+                                // The console the files and the queue are
+                                // of: a click chooses another.
+                                ConsoleSwitch {
                                     Layout.fillWidth: true
-                                    text: app.consoleName
-                                    color: Theme.ink
-                                    font.pixelSize: 17
-                                    font.weight: Font.Bold
-                                    elide: Text.ElideRight
+                                    heading: true
                                 }
                             }
                             StyledToolButton {

@@ -202,6 +202,10 @@ public:
 	QStringList ftpShortcuts() const;
 	QString streamAspect() const { return QString::fromStdString(settings_.streamAspect); }
 	void setStreamAspect(const QString &aspect);
+	// Remote Play's picture as chosen during a session (the stream bar): kept
+	// in the settings for the next one. The stream controller asks the
+	// console itself (StreamController::changeQuality).
+	Q_INVOKABLE void setStreamQuality(int resolution, int fps);
 	QVariantMap themeColors() const;
 	QVariantList themePresets() const;
 	// An empty colour puts the theme's own back.
@@ -249,7 +253,10 @@ public:
 	// other parts of the app) and saves them.
 	void updateSettings(const std::function<void(Settings &)> &change);
 	// Stores the PSN Account ID, so it does not have to be typed every time.
-	Q_INVOKABLE void rememberAccountId(const QString &accountId);
+	// The account a console accepted (or was given on its card): kept with
+	// that console (the one at `address`; the one in use when empty) and as
+	// the last used.
+	Q_INVOKABLE void rememberAccountId(const QString &address, const QString &accountId);
 
 	// Dropping files: mode 0 = direct install, 1 = FTP upload — into the
 	// folder open in the Files tab, which is what the drop zone says.
@@ -296,6 +303,15 @@ public:
 	// switch) waits for it to end.
 	bool streaming() const { return streaming_; }
 	void setStreaming(bool on) { streaming_ = on; }
+	// The console a Remote Play session is on ("" when none): it can be
+	// another than the one in use. Its network is the busy one.
+	QString streamingAddress() const { return streamingAddress_; }
+	void setStreamingAddress(const QString &address) { streamingAddress_ = address; }
+	// A session streams from this console (not just any).
+	bool streamingOn(const QString &address) const
+	{
+		return streaming_ && !address.isEmpty() && streamingAddress_ == address;
+	}
 	// Something in the install queue under way or waiting.
 	bool queueBusy() const;
 	// Work elsewhere (a conversion or a packing) whose result is sent to the
@@ -425,6 +441,11 @@ public:
 	Q_INVOKABLE void applySettings(const QVariantMap &values);
 	// Switches to the console with this address (it must be in the list).
 	Q_INVOKABLE void selectConsole(const QString &address);
+	// What stops another console being made the one in use now ("" when
+	// nothing): transfers or a conversion under way would be cut, or what
+	// they make sent to the other one. A Remote Play session is not a
+	// reason: it keeps its own console.
+	Q_INVOKABLE QString consoleSwitchBlock() const;
 	// Adds a console to the list and, with `select`, switches to it. If the
 	// address is already there, it is just selected.
 	// `type` is "ps4", "ps5" or empty (unknown).
@@ -642,6 +663,7 @@ private:
 	std::map<std::string, LocateWait> locateWaits_;
 	bool locating_ = false;
 	bool streamBusy_ = false;
+	QString streamingAddress_;
 	std::vector<std::pair<QStringList, LocateDone>> locateWaiters_;
 	std::function<std::vector<Sighting>()> networkSearch_;
 	// The FTP drop waiting for an answer about the names already taken.

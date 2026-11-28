@@ -384,6 +384,26 @@ bool StreamSession::usingHardwareDecoder() const { return impl_->usingHardware; 
 
 bool StreamSession::lastFailureWasInUse() const { return impl_->failedInUse.load(); }
 
+// Read without a lock: the fields live inside the session for as long as
+// this object does, and a stale or half-written number only shows for a
+// second.
+double StreamSession::videoMbps() const
+{
+	if(!impl_->active.load())
+		return 0;
+	const double mbps = impl_->session.stream_connection.measured_bitrate;
+	return mbps > 0 && mbps < 10000 ? mbps : 0;
+}
+
+double StreamSession::connectRttMs() const
+{
+	if(!impl_->active.load())
+		return -1;
+	// chiaki puts exactly 1 ms when its measurement failed: that is not one.
+	const uint64_t rtt = impl_->session.rtt_us;
+	return rtt > 0 && rtt != 1000 && rtt < 10000000 ? rtt / 1000.0 : -1;
+}
+
 bool StreamSession::start(const Config &config, std::string *error)
 {
 	impl_->failedInUse.store(false);

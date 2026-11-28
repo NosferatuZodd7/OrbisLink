@@ -27,7 +27,23 @@ ColumnLayout {
     Layout.fillWidth: true
     spacing: 0
 
+    // In a narrow page the actions go to a line of their own under the
+    // title, instead of squeezing it to a few letters: when the title (up to
+    // about 240 px of it) and the actions do not fit side by side.
+    TextMetrics {
+        id: titleMetrics
+        text: header.title
+        font.family: Theme.fontDisplay
+        font.pixelSize: Theme.fontTitle
+        font.weight: Font.Bold
+    }
+    readonly property real titleNeed: Math.min(titleMetrics.advanceWidth, 240)
+                                      + (header.iconName.length > 0 ? 64 : 0) + 16
+    readonly property bool stacked: header.width > 0 && actionRow.implicitWidth > 0
+                                    && titleNeed + actionRow.implicitWidth > header.width
+
     RowLayout {
+        id: topRow
         Layout.fillWidth: true
         spacing: 16
 
@@ -89,11 +105,27 @@ ColumnLayout {
             }
         }
 
-        RowLayout {
-            id: actionRow
+        Item {
+            id: actionsBeside
+            visible: !header.stacked
             Layout.alignment: Qt.AlignVCenter
-            spacing: 8
+            implicitWidth: header.stacked ? 0 : actionRow.implicitWidth
+            implicitHeight: header.stacked ? 0 : actionRow.implicitHeight
         }
+    }
+    // The actions' own line, when stacked.
+    Item {
+        id: actionsBelow
+        visible: header.stacked
+        Layout.fillWidth: true
+        Layout.topMargin: 10
+        implicitHeight: header.stacked ? actionRow.implicitHeight : 0
+    }
+    RowLayout {
+        id: actionRow
+        parent: header.stacked ? actionsBelow : actionsBeside
+        anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+        spacing: 8
     }
 
     EngravedRule {

@@ -22,8 +22,15 @@ Item {
 
     readonly property bool hasConsole: app.consoleAddress.length > 0 && app.consoles.length > 0
     readonly property bool streaming: typeof stream !== "undefined" && stream !== null && stream.streaming
+    // The console a Remote Play session is on ("" when none).
+    readonly property string sessionAddress: typeof stream !== "undefined" && stream !== null
+                                             ? stream.sessionAddress : ""
+    // Why another console cannot be chosen now ("" when it can).
+    property string block: ""
     readonly property bool ftpUp: app.ftpState === "available"
-    readonly property bool connected: ftpUp || app.remotePlayState === "available" || streaming
+    // A session streaming from the console in use (it can be on another).
+    readonly property bool connected: ftpUp || app.remotePlayState === "available"
+                                      || (streaming && sessionAddress === app.consoleAddress)
     readonly property bool checking: !connected && (app.ftpState === "checking"
                                                     || app.remotePlayState === "checking")
     readonly property string jailbreak: ftpUp ? (app.jailbreaks[app.consoleAddress] || "") : ""
@@ -165,8 +172,10 @@ Item {
         onClicked: {
             if (!chip.hasConsole)
                 chip.showConsoles()
-            else
+            else {
+                chip.block = app.consoleSwitchBlock()
                 picker.popup(0, chip.height + 6)
+            }
         }
     }
     ToolTip.visible: mouse.containsMouse && !picker.visible
@@ -179,22 +188,37 @@ Item {
         topPadding: 6
         bottomPadding: 6
         background: Rectangle {
-            implicitWidth: 280
+            implicitWidth: chip.block.length > 0 ? 400 : chip.sessionAddress.length > 0 ? 340 : 280
             color: Theme.menuFill
             radius: 16
             border.width: 1
             border.color: Theme.light ? Qt.rgba(1, 1, 1, 1) : Theme.glassEdge
         }
 
+        // Any of them, also during a Remote Play session: the session stays
+        // on its console, and the one chosen here is the one FTP, the
+        // installer and the pages use.
         Repeater {
             model: app.consoles
             delegate: StyledMenuItem {
                 required property var modelData
                 text: modelData.name + "  ·  " + modelData.address
+                      + (modelData.address === chip.sessionAddress ? "  ·  " + qsTr("Remote Play") : "")
                 iconName: modelData.active ? "check" : (modelData.type === "ps5" ? "monitor" : "gamepad")
-                enabled: !(chip.streaming && !modelData.active)
-                onTriggered: if (!modelData.active) app.selectConsole(modelData.address)
+                enabled: modelData.active || chip.block.length === 0
+                // Closed first: choosing rebuilds this list under the menu.
+                onTriggered: {
+                    picker.close()
+                    if (!modelData.active)
+                        app.selectConsole(modelData.address)
+                }
             }
+        }
+        StyledMenuItem {
+            visible: chip.block.length > 0
+            height: visible ? implicitHeight : 0
+            enabled: false
+            text: chip.block
         }
         MenuSeparator {
             contentItem: Rectangle { implicitHeight: 1; color: Theme.glassEdge }

@@ -7,6 +7,7 @@
 #include "orbislink/qt/input_map.h"
 #include "orbislink/qt/lifeline.h"
 #include "orbislink/qt/video_bridge.h"
+#include "orbislink/net/link_rate.h"
 #include "orbislink/stream/credentials.h"
 #include "orbislink/stream/discovery.h"
 #include "orbislink/stream/registration.h"
@@ -38,6 +39,13 @@ class StreamController : public QObject
 	// The step the one-click connection is at: "", "checking", "waking".
 	Q_PROPERTY(QString connectStage READ connectStage NOTIFY connectStageChanged)
 	Q_PROPERTY(QString consoleName READ consoleName NOTIFY consoleChanged)
+	// The console Remote Play is pointed at (it follows the console in use,
+	// except while a session holds it).
+	Q_PROPERTY(QString address READ address NOTIFY consoleChanged)
+	// The console a session is on (streaming, connecting, waking it, starting
+	// again): "" when none. While it holds one, choosing another console moves
+	// FTP, the installer and every page to it, and the picture stays.
+	Q_PROPERTY(QString sessionAddress READ sessionAddress NOTIFY sessionAddressChanged)
 	// PS5 or PS4, from what the console said in discovery.
 	Q_PROPERTY(bool consolePs5 READ consolePs5 NOTIFY consoleChanged)
 	Q_PROPERTY(QString runningApp READ runningApp NOTIFY consoleChanged)
@@ -69,6 +77,25 @@ class StreamController : public QObject
 	// The measured fps, not the requested ones. What is asked of the console
 	// and what it sends can differ, and the second is what you see.
 	Q_PROPERTY(int measuredFps READ measuredFps NOTIFY videoChanged)
+	// What is asked of the console (the settings): 360, 540, 720 or 1080, and
+	// 30 or 60. changeQuality() asks again with other values.
+	Q_PROPERTY(int requestedResolution READ requestedResolution NOTIFY qualityChanged)
+	Q_PROPERTY(int requestedFps READ requestedFps NOTIFY qualityChanged)
+	// Starting again with another picture: the picture stays on screen
+	// (black) and the window keeps its full screen meanwhile.
+	Q_PROPERTY(bool restarting READ restarting NOTIFY sessionChanged)
+	// The connection during a session, once a second: what this PC's network
+	// interface towards the console receives and sends (bytes per second, -1
+	// where the system does not say), the picture's own share as chiaki
+	// measures it (bytes per second, 0 until known), the console's answer
+	// time (ms, -1 until known) and the interface's name.
+	Q_PROPERTY(double netDownload READ netDownload NOTIFY netChanged)
+	Q_PROPERTY(double netUpload READ netUpload NOTIFY netChanged)
+	Q_PROPERTY(double netVideo READ netVideo NOTIFY netChanged)
+	Q_PROPERTY(double netPing READ netPing NOTIFY netChanged)
+	// The ping, in a word: "good", "fair", "poor" or "unknown".
+	Q_PROPERTY(QString netGrade READ netGrade NOTIFY netChanged)
+	Q_PROPERTY(QString netInterface READ netInterface NOTIFY netChanged)
 	Q_PROPERTY(orbislink::VideoBridge *video READ video CONSTANT)
 	Q_PROPERTY(bool muted READ muted WRITE setMuted NOTIFY mutedChanged)
 	// "stopped", "playing", "no-device" or "error" — so the stream does not
@@ -134,6 +161,22 @@ public:
 	int frameWidth() const { return frameWidth_; }
 	int frameHeight() const { return frameHeight_; }
 	int measuredFps() const { return measuredFps_; }
+	int requestedResolution() const { return resolution_; }
+	QString address() const { return address_; }
+	QString sessionAddress() const;
+	// A session is on the console (see sessionAddress): it keeps its
+	// address until it ends.
+	bool holdsConsole() const;
+	// A demonstration (--demo-stream): the session's steps without a console.
+	void setDemo(bool on) { demo_ = on; }
+	int requestedFps() const { return fps_; }
+	bool restarting() const;
+	double netDownload() const { return netDownload_; }
+	double netUpload() const { return netUpload_; }
+	double netVideo() const { return netVideo_; }
+	double netPing() const { return netPing_; }
+	QString netGrade() const { return QString::fromLatin1(latencyGrade(netPing_)); }
+	QString netInterface() const { return netInterface_; }
 	VideoBridge *video() { return &video_; }
 	bool muted() const { return audio_.muted(); }
 	QString audioState() const { return audio_.state(); }
@@ -198,6 +241,10 @@ public:
 	Q_INVOKABLE void cancelOneClick();
 	QString connectStage() const { return connectStage_; }
 	Q_INVOKABLE void stopStream();
+	// Asks the console for another picture: the session in course ends and
+	// starts again with these (the console only takes them when connecting).
+	// The caller keeps them in the settings.
+	Q_INVOKABLE void changeQuality(int resolution, int fps);
 	// The console asked for the account PIN (not the registration one).
 	Q_INVOKABLE void sendLoginPin(const QString &pin);
 	// The saved PIN of an account ("" when it has none).
@@ -245,6 +292,9 @@ public:
 
 signals:
 	void connectStageChanged();
+	void qualityChanged();
+	void sessionAddressChanged();
+	void netChanged();
 	// The console answered but this PC is not registered on it yet.
 	void registrationNeeded();
 	// The console accepted this PC: the registration dialog closes and the
@@ -265,7 +315,9 @@ signals:
 	void microphoneChanged();
 	// Registration succeeded and this Account ID is good. Whoever stores the
 	// settings connects to this, so it does not have to be typed again.
-	void accountIdAccepted(const QString &accountIdBase64);
+	// The console at `address` (Remote Play's, which can be another than the
+	// one in use) accepted this account.
+	void accountIdAccepted(const QString &address, const QString &accountIdBase64);
 	void gamepadChanged();
 	void settingsApplied();
 	void keyBindingsChanged();
@@ -334,6 +386,36 @@ private:
 	QString locatingFor_;
 	qint64 lastFrameCount_ = 0;
 	int measuredFps_ = 0;
+	void handleSessionState(SessionState state, const QString &message);
+	void updateHeld();
+	QString heldAddress_;
+	bool demo_ = false;
+	bool restartWaiting_ = false;
+	// Starting again with another picture (changeQuality): asked, or waiting
+	// for the console's pause; the generation tells a stale wait apart.
+	void restartForQuality();
+	void stopSession();
+	void stopFinished();
+	quint64 restartGeneration_ = 0;
+	bool restartConnecting_ = false;
+	QString restartDetail_;
+	// Another picture asked while connecting: applied once in.
+	bool qualityAfterConnect_ = false;
+	int connectedResolution_ = 0;
+	int connectedFps_ = 0;
+	// The connection readout (see netDownload); sampled with the fps.
+	void sampleNet();
+	void resetNet();
+	double netDownload_ = -1;
+	double netUpload_ = -1;
+	double netVideo_ = 0;
+	double netPing_ = -1;
+	QString netInterface_;
+	LinkRate netRate_;
+	int netTicks_ = 0;
+	bool netSampling_ = false;
+	// changeQuality(): start again once the session in course has stopped.
+	bool restartPending_ = false;
 	int resolution_ = 720;
 	int fps_ = 60;
 	int bitrateKbps_ = 0;

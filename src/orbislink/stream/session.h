@@ -130,6 +130,12 @@ public:
 
 	// True when the video is being decoded on the GPU.
 	bool usingHardwareDecoder() const;
+	// What chiaki measured of the picture coming in, in megabits per second
+	// (the console's reports, every few seconds); 0 until known.
+	double videoMbps() const;
+	// The round trip chiaki measured while connecting, in milliseconds; -1
+	// until known.
+	double connectRttMs() const;
 	// True when the last session failed because the console said its
 	// Remote Play was still in use. Right after a session ends it says so
 	// for a few seconds, while it closes the old one.

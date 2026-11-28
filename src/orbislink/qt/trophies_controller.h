@@ -106,6 +106,8 @@ private:
 	// (with its "trophies").
 	std::map<QString, QVariantMap> everyone_;
 	QString address_;
+	// The console in use the page last showed (a switch clears what was read).
+	QString consoleShown_;
 	bool scanned_ = false;
 	bool busy_ = false;
 	QString status_;

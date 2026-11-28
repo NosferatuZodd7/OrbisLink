@@ -85,6 +85,10 @@ Item {
                       : games.gamesFolder.length === 0 ? qsTr("Choose the folder where your disc images are.")
                       : games.scanStatus + "  ·  " + qsTr("Optional: PS1/PS2 discs on this PC made into PS4 packages")
 
+            // The console the library and the captures read.
+            ConsoleSwitch {
+                Layout.alignment: Qt.AlignVCenter
+            }
             // The library's own: read again, organise, add a place, manage.
             StyledToolButton {
                 visible: root.tab === 0
